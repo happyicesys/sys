@@ -16,12 +16,13 @@ class Campaign extends Model
 
     const TYPE_PERCENTAGE = 'Percentage';
     const TYPE_AMOUNT = 'Amount';
-    const TYPE_ITEM = 'Free';
-    const LEGACY_TYPE_ITEM = 'Item';
+    const TYPE_ABSOLUTE = 'Absolute';
+    const TYPE_ITEM = 'Item';
 
     const TYPES_MAPPING = [
         self::TYPE_PERCENTAGE => 'Percentage',
-        self::TYPE_AMOUNT => 'Absolute Amount',
+        self::TYPE_AMOUNT => 'Amount',
+        self::TYPE_ABSOLUTE => 'Absolute',
         self::TYPE_ITEM => 'Free Item',
     ];
 
@@ -107,6 +108,32 @@ class Campaign extends Model
         return $this->belongsToMany(ApkSetting::class, 'apk_setting_campaign')->withTimestamps();
     }
 
+    public static function promoTypeValidationValues(): array
+    {
+        return array_keys(self::TYPES_MAPPING);
+    }
+
+    public static function normalizePromoType(?string $promoType): ?string
+    {
+        if ($promoType === null) {
+            return null;
+        }
+
+        $trimmed = trim($promoType);
+
+        if ($trimmed === '') {
+            return null;
+        }
+
+        foreach (self::TYPES_MAPPING as $type => $label) {
+            if (strcasecmp($trimmed, $type) === 0 || strcasecmp($trimmed, $label) === 0) {
+                return $type;
+            }
+        }
+
+        return $trimmed;
+    }
+
     protected function value(): Attribute
     {
         return Attribute::make(
@@ -129,28 +156,6 @@ class Campaign extends Model
             get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
             set: fn ($value) => $this->convertDecimalToStoredInteger($value)
         );
-    }
-
-    protected function promoType(): Attribute
-    {
-        return Attribute::make(
-            get: fn ($value) => self::normalizePromoType($value),
-            set: fn ($value) => self::normalizePromoType($value)
-        );
-    }
-
-    public static function normalizePromoType(?string $type): ?string
-    {
-        if ($type === null) {
-            return null;
-        }
-
-        return $type === self::LEGACY_TYPE_ITEM ? self::TYPE_ITEM : $type;
-    }
-
-    public static function promoTypeValidationValues(): array
-    {
-        return array_unique(array_merge(array_keys(self::TYPES_MAPPING), [self::LEGACY_TYPE_ITEM]));
     }
 
     private function convertDecimalToStoredInteger($value): ?int

@@ -495,6 +495,10 @@ function getValueFieldLabel(promoType) {
     return 'Discount Percent Value (%)'
   }
 
+  if (normalized.includes('absolute')) {
+    return 'Absolute Price Value ($)'
+  }
+
   if (normalized.includes('amount')) {
     return 'Discount Amount Value ($)'
   }
