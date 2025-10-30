@@ -865,14 +865,15 @@ class OpsJobController extends Controller
         $driverID = $request->driver_id;
         $date = $request->date;
 
-        $opsJob = OpsJob::updateOrCreate([
+        $code = $this->generateUniqueOpsJobCode('driver_id');
+
+        $opsJob = OpsJob::create([
+            'code' => $code,
+            'created_by' => auth()->id(),
             'date' => $date,
             'delivered_by' => $driverID,
-        ], [
-            'code' => $this->runningNumberService->getRunningCode(new OpsJob()),
-            'created_by' => auth()->id(),
             'operator_id' => auth()->user()->operator_id,
-            'updated_by' => auth()->id(),
+            'updated_by' => null,
             'updated_at' => null,
         ]);
 
@@ -1039,23 +1040,7 @@ class OpsJobController extends Controller
             'delivered_by' => 'required',
         ]);
 
-        $code = null;
-        $maxAttempts = 3;
-
-        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
-            $candidateCode = $this->runningNumberService->getRunningCode(new OpsJob());
-
-            if (!OpsJob::where('code', $candidateCode)->exists()) {
-                $code = $candidateCode;
-                break;
-            }
-        }
-
-        if (!$code) {
-            throw ValidationException::withMessages([
-                'delivered_by' => 'This job has been created for this date, please try other user or other date.',
-            ]);
-        }
+        $code = $this->generateUniqueOpsJobCode('delivered_by');
 
         try {
             $opsJob = OpsJob::create([
@@ -1334,9 +1319,7 @@ class OpsJobController extends Controller
 
         $hasAnyUndoneOpsJobItem = OpsJobItem::query()
             ->where('vend_id', $vendID)
-            ->whereHas('opsJob', function($query) use ($opsJob) {
-                $query->where('date', '>=', Carbon::today());
-            })
+            ->where('ops_job_id', $opsJobID)
             ->where('status', '<', OpsJob::STATUS_DELIVERED)
             ->exists();
 
@@ -1371,5 +1354,25 @@ class OpsJobController extends Controller
         //     'next_invoice_date' => $opsJobItem->opsJob->date,
         //     'next_invoice_driver_id' => $opsJobItem->opsJob->delivered_by,
         // ]);
+    }
+
+    private function generateUniqueOpsJobCode(string $errorField): string
+    {
+        $operatorId = auth()->user()->operator_id;
+        $candidateCode = (int) $this->runningNumberService->getRunningCode(new OpsJob(), $operatorId);
+        $attempts = 0;
+
+        while (OpsJob::where('code', (string) $candidateCode)->exists()) {
+            $candidateCode++;
+            $attempts++;
+
+            if ($attempts >= 50) {
+                throw ValidationException::withMessages([
+                    $errorField => 'Unable to generate a unique job code. Please try again.',
+                ]);
+            }
+        }
+
+        return (string) $candidateCode;
     }
 }
