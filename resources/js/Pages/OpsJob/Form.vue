@@ -121,10 +121,33 @@ const operatorOptions = ref([])
 
 onMounted(() => {
   form.value = props.opsJob ? useForm(props.opsJob) : useForm(getDefaultForm())
-  operatorOptions.value = [
-    ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
-  ]
-  form.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+
+  const incomingOperatorOptions = Array.isArray(props.operatorOptions)
+    ? props.operatorOptions
+    : props.operatorOptions?.data ?? []
+
+  operatorOptions.value = incomingOperatorOptions
+    .filter((option) => option)
+    .map((option) => ({
+      id: option.id,
+      full_name: option.full_name,
+      code: option.code,
+    }))
+
+  if (!form.value.operator_id) {
+    const defaultOperator = authOperator
+      ? operatorOptions.value.find((operator) => operator.id === authOperator.id)
+      : operatorOptions.value.find((operator) => operator.id !== 'all')
+
+    if (defaultOperator) {
+      form.value.operator_id = defaultOperator
+    }
+  } else if (typeof form.value.operator_id === 'number' || typeof form.value.operator_id === 'string') {
+    const matchedOperator = operatorOptions.value.find((operator) => operator.id === form.value.operator_id)
+    if (matchedOperator) {
+      form.value.operator_id = matchedOperator
+    }
+  }
 })
 
 function getDefaultForm() {
@@ -143,8 +166,8 @@ function submit() {
   .transform((data) => {
     return {
       ...data,
-      delivered_by: data.delivered_by.id,
-      operator_id: data.operator_id.id,
+      delivered_by: data.delivered_by?.id ?? data.delivered_by ?? null,
+      operator_id: data.operator_id?.id ?? data.operator_id ?? null,
     }
   })
   .post('/ops-jobs/store', {

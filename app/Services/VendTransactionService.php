@@ -323,6 +323,7 @@ class VendTransactionService
             $isPaymentReceived = true;
             $isSuccessful = true;
         }
+        // 0, 7, 6, 9
 
         // handle those QR payment and grab mart, treat as payment received by default
         if($paymentMethod) {

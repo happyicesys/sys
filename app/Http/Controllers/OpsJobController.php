@@ -26,10 +26,12 @@ use App\Services\MapService;
 use App\Services\OpsJobService;
 use App\Services\RunningNumberService;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Illuminate\Validation\ValidationException;
 
 class OpsJobController extends Controller
 {
@@ -1037,15 +1039,43 @@ class OpsJobController extends Controller
             'delivered_by' => 'required',
         ]);
 
-        $opsJob = OpsJob::create([
-            'code' => $this->runningNumberService->getRunningCode(new OpsJob()),
-            'created_by' => auth()->id(),
-            'date' => $request->date,
-            'delivered_by' => $request->delivered_by,
-            'operator_id' => auth()->user()->operator_id,
-            'updated_by' => null,
-            'updated_at' => null,
-        ]);
+        $code = null;
+        $maxAttempts = 3;
+
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            $candidateCode = $this->runningNumberService->getRunningCode(new OpsJob());
+
+            if (!OpsJob::where('code', $candidateCode)->exists()) {
+                $code = $candidateCode;
+                break;
+            }
+        }
+
+        if (!$code) {
+            throw ValidationException::withMessages([
+                'delivered_by' => 'This job has been created for this date, please try other user or other date.',
+            ]);
+        }
+
+        try {
+            $opsJob = OpsJob::create([
+                'code' => $code,
+                'created_by' => auth()->id(),
+                'date' => $request->date,
+                'delivered_by' => $request->delivered_by,
+                'operator_id' => auth()->user()->operator_id,
+                'updated_by' => null,
+                'updated_at' => null,
+            ]);
+        } catch (QueryException $exception) {
+            if ($exception->getCode() === '23000') {
+                throw ValidationException::withMessages([
+                    'delivered_by' => 'Unable to create the job because a duplicate code was generated. Please try again.',
+                ]);
+            }
+
+            throw $exception;
+        }
 
         return redirect()->route('ops-jobs');
     }
