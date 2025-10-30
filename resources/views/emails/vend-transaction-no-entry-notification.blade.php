@@ -94,13 +94,23 @@
                                     <span style="color: #94a3b8;">N/A</span>
                                 @else
                                     @foreach ($triggeredTypes as $type)
+                                        @php
+                                            $label = is_array($type) ? ($type['label'] ?? '—') : (string) $type;
+                                            $timestamp = is_array($type) ? ($type['timestamp'] ?? null) : null;
+                                            $hours = is_array($type) ? ($type['hours_since'] ?? null) : null;
+                                            if (strcasecmp($label, 'Cashless') === 0) {
+                                                $label = 'QR';
+                                            } elseif (strcasecmp($label, 'Card') === 0) {
+                                                $label = 'Credit Card';
+                                            }
+                                        @endphp
                                         <div style="font-size: 12px; color: #334155; {{ !$loop->last ? 'margin-bottom: 4px;' : '' }}">
-                                            <span style="font-weight: 600; color: #0f172a;">{{ $type['label'] ?? '-' }}:</span>
-                                            @if (!empty($type['timestamp']))
-                                                {{ \Carbon\Carbon::parse($type['timestamp'])->format('Y-m-d H:i') }}
+                                            <span style="font-weight: 600; color: #0f172a;">{{ $label }}:</span>
+                                            @if ($timestamp)
+                                                {{ \Carbon\Carbon::parse($timestamp)->format('Y-m-d H:i') }}
                                             @endif
-                                            @if (!empty($type['hours_since']))
-                                                <span style="color: #64748b;">({{ number_format($type['hours_since'], 2) }} hrs)</span>
+                                            @if ($hours !== null)
+                                                <span style="color: #64748b;">({{ number_format($hours, 2) }} hrs)</span>
                                             @endif
                                         </div>
                                     @endforeach
@@ -111,12 +121,25 @@
                                     <span style="color: #94a3b8;">N/A</span>
                                 @else
                                     @foreach ($transactionTypes as $type)
+                                        @php
+                                            $typeLabel = is_array($type) ? ($type['label'] ?? '—') : (string) $type;
+                                            $typeTimestamp = is_array($type) ? ($type['timestamp'] ?? null) : null;
+                                            $typeHours = is_array($type) ? ($type['hours_since'] ?? null) : null;
+                                            if (strcasecmp($typeLabel, 'Cashless') === 0) {
+                                                $typeLabel = 'QR';
+                                            } elseif (strcasecmp($typeLabel, 'Card') === 0) {
+                                                $typeLabel = 'Credit Card';
+                                            }
+                                        @endphp
                                         <div style="font-size: 12px; color: #334155; {{ !$loop->last ? 'margin-bottom: 4px;' : '' }}">
-                                            <span style="font-weight: 600; color: #0f172a;">{{ $type['label'] ?? '-' }}:</span>
-                                            @if (!empty($type['timestamp']))
-                                                {{ \Carbon\Carbon::parse($type['timestamp'])->format('Y-m-d H:i') }}
+                                            <span style="font-weight: 600; color: #0f172a;">{{ $typeLabel }}:</span>
+                                            @if ($typeTimestamp)
+                                                {{ \Carbon\Carbon::parse($typeTimestamp)->format('Y-m-d H:i') }}
                                             @else
                                                 <span style="color: #94a3b8;">N/A</span>
+                                            @endif
+                                            @if ($typeHours !== null)
+                                                <span style="color: #64748b;">({{ number_format($typeHours, 2) }} hrs)</span>
                                             @endif
                                         </div>
                                     @endforeach

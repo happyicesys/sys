@@ -46,7 +46,8 @@ class Vend extends Model
         99 => 'N/A',
         1 => 'WaveShare 7 inch 1024x600',
         2 => 'WaveShare 10.1 inch 1920x1200',
-        3 => 'WaveShare 10.1HP-CAPLCD (Type-C) 1280x800'
+        3 => 'WaveShare 10.1HP-CAPLCD (Type-C) 1280x800',
+        4 => 'Inhand InPad3101 10.1 inch 1280x800',
     ];
 
     const LED_MATRIX_PANEL_MAPPINGS = [

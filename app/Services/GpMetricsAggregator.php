@@ -178,24 +178,21 @@ class GpMetricsAggregator
         $dayStart = $day->copy()->startOfDay();
         $dayEnd = $day->copy()->endOfDay();
 
-        DB::transaction(function () use ($dayStart, $dayEnd, $chunkSize) {
-            GpMetric::query()->whereDate('txn_date', $dayStart->toDateString())->delete();
+        GpMetric::query()->where('txn_date', $dayStart->toDateString())->delete();
 
-            $dataset = self::buildRawQuery($dayStart, $dayEnd)->get();
-            $chunks = $dataset->chunk($chunkSize);
-            $now = now();
+        $query = self::buildRawQuery($dayStart, $dayEnd);
+        $now = now();
 
-            foreach ($chunks as $chunk) {
-                $rows = $chunk->map(function ($row) use ($now) {
-                    $data = get_object_vars($row);
-                    $data['created_at'] = $now;
-                    $data['updated_at'] = $now;
-                    return $data;
-                })->all();
+        $query->chunk($chunkSize, function ($rows) use ($now) {
+            $payload = $rows->map(function ($row) use ($now) {
+                $data = get_object_vars($row);
+                $data['created_at'] = $now;
+                $data['updated_at'] = $now;
+                return $data;
+            })->all();
 
-                if (!empty($rows)) {
-                    GpMetric::query()->insert($rows);
-                }
+            if (!empty($payload)) {
+                GpMetric::query()->insert($payload);
             }
         });
     }

@@ -46,8 +46,22 @@
                                 {{ $loop->iteration }}
                             </td>
                             <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                                @php
+                                    $vendCode = $vend->code ?? null;
+                                    $customerIndexUrl = null;
+
+                                    if (!empty($vendCode) && !empty($baseUrl ?? null)) {
+                                        $customerIndexUrl = rtrim($baseUrl, '/') . '/vends/customers?operators[]=all&codes=' . urlencode($vendCode);
+                                    }
+                                @endphp
                                 <div style="font-weight: 600;">
-                                    {{ $vend->code ?? '—' }}
+                                    @if ($customerIndexUrl)
+                                        <a href="{{ $customerIndexUrl }}" style="color: #1d4ed8; text-decoration: none; font-weight: 600;">
+                                            {{ $vendCode }}
+                                        </a>
+                                    @else
+                                        {{ $vendCode ?? '—' }}
+                                    @endif
                                 </div>
                                 @if (!empty($vend?->name))
                                     <div style="margin-top: 4px; font-size: 12px; color: #334155;">

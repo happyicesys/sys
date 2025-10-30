@@ -19,6 +19,7 @@ class VendChannelErrorLogsMail extends Mailable implements ShouldQueue
     public Collection $vendErrorsByVend;
     public Carbon $now;
     public int $intervalHours;
+    public ?string $baseUrl;
 
     public function __construct(?Operator $operator, Collection $vendErrorsByVend, int $intervalHours = 24)
     {
@@ -26,6 +27,7 @@ class VendChannelErrorLogsMail extends Mailable implements ShouldQueue
         $this->vendErrorsByVend = $vendErrorsByVend;
         $this->now = Carbon::now();
         $this->intervalHours = $intervalHours;
+        $this->baseUrl = rtrim(config('app.url') ?? env('APP_URL', ''), '/');
     }
 
     public function build()
@@ -40,6 +42,7 @@ class VendChannelErrorLogsMail extends Mailable implements ShouldQueue
                 'vendChannelErrorLogs' => $vendChannelErrorLogs,
                 'intervalHours' => $this->intervalHours,
                 'now' => $this->now,
+                'baseUrl' => $this->baseUrl,
             ]);
     }
 }

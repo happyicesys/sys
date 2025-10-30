@@ -46,6 +46,11 @@ class VendNoTransactionSummary
 
         $triggeredDetails = $typeDetails->filter(fn ($detail) => $detail['triggered']);
 
+        $transactionDetail = $typeDetails->firstWhere('label', 'Transaction');
+        if ($transactionDetail && !$transactionDetail['triggered']) {
+            return null;
+        }
+
         if ($triggeredDetails->isEmpty()) {
             return null;
         }
