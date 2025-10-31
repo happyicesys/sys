@@ -151,8 +151,8 @@
                         >
                         </Graph>
 
-                        <div class="flex flex-col md:flex-row pt-5">
-                            <div class="md:basis-1/3 m-1">
+                        <div class="pt-5 flex justify-center">
+                            <div class="w-full md:w-2/3 lg:w-1/2">
                                 <Graph
                                     :key="componentKey2"
                                     type="pie"
@@ -161,17 +161,19 @@
                                     :options="productGraphOptions"
                                 ></Graph>
                             </div>
-                            <div class="md:basis-2/3 my-1 mx-4 px-4">
+                        </div>
+                        <div class="flex flex-col lg:flex-row pt-5 gap-4">
+                            <div class="w-full lg:w-1/2 my-1 px-3 lg:px-2">
                                 <p class="text-sm flex justify-between">
                                     <div>
-                                        Past 30 Days - Top 10 Best Performance
+                                        Past 30 Days - Top {{ performerLimit }} Best Performance
                                     </div>
                                     <div>
                                         Based on {{ vendCount }} active machine(s)
                                     </div>
                                 </p>
                                 <div class="mt-2 flow-root">
-                                    <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                                    <div class="-mx-2 -my-2 overflow-x-auto sm:-mx-4 lg:-mx-6">
                                         <div class="inline-block min-w-full py-2 align-middle sm:px-3 lg:px-4">
                                         <div class="overflow-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
                                             <table class="min-w-full divide-y divide-gray-300">
@@ -192,22 +194,24 @@
                                                 </tr>
                                             </thead>
                                             <tbody class="divide-y divide-gray-200 bg-white">
-                                                <tr v-for="(vend, vendIndex) in performerGraphData.data" :key="vend.id">
+                                                <tr v-for="(vend, vendIndex) in bestPerformerGraphData.data" :key="vend.id">
                                                     <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                                                         {{ vendIndex + 1 }}
                                                     </td>
-                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 flex space-x-2">
-                                                        <span>
-                                                            {{ vend.vend?.code }} -
-                                                        </span>
-                                                        <span v-if="vend.customer && vend.customer.person_id">
-                                                            <!-- {{ vend.customer.virtual_customer_prefix }}- -->
-                                                            {{ vend.customer.virtual_customer_code }} <br>
-                                                            {{ vend.customer.name }}
-                                                        </span>
-                                                        <span v-else>
-                                                            {{ vend.customer ? vend.customer.name : '' }}
-                                                        </span>
+                                                    <td class="px-3 py-1 text-sm text-gray-600 align-top">
+                                                        <div class="max-w-[220px] break-words">
+                                                            <span class="block font-medium text-gray-700">
+                                                                {{ [vend.vend?.code, vend.vend?.name].filter(Boolean).join(' - ') }}
+                                                            </span>
+                                                            <span v-if="vend.customer && vend.customer.person_id" class="block text-gray-500">
+                                                                {{ vend.customer.virtual_customer_code }}
+                                                                <br>
+                                                                {{ vend.customer.name }}
+                                                            </span>
+                                                            <span v-else class="block text-gray-500">
+                                                                {{ vend.customer ? vend.customer.name : '' }}
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-500 text-right mx-3">
                                                         {{ vend.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -216,7 +220,7 @@
                                                         {{ vend.count }}
                                                     </td>
                                                 </tr>
-                                                <tr v-if="!performerGraphData.data.length">
+                                                <tr v-if="!bestPerformerGraphData.data.length">
                                                     <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                                                         No Results Found
                                                     </td>
@@ -226,6 +230,103 @@
                                         </div>
                                         </div>
                                     </div>
+                                </div>
+                                <div class="mt-3 flex justify-center" v-if="performerLimit < 50 && bestPerformerGraphData.data && bestPerformerGraphData.data.length">
+                                    <Button
+                                        class="inline-flex items-center rounded-md border border-green bg-gray-200 px-4 py-2 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        @click="loadMoreBestPerformers"
+                                        :disabled="performerLoading"
+                                    >
+                                        <span v-if="performerLoading">
+                                            Loading...
+                                        </span>
+                                        <span v-else>
+                                            Load Top 50
+                                        </span>
+                                    </Button>
+                                </div>
+                            </div>
+                            <div class="w-full lg:w-1/2 my-1 px-3 lg:px-2">
+                                <p class="text-sm flex justify-between">
+                                    <div>
+                                        Past 30 Days - Top {{ worstPerformerLimit }} Worst Performance
+                                    </div>
+                                    <div>
+                                        Based on {{ vendCount }} active machine(s)
+                                    </div>
+                                </p>
+                                <div class="mt-2 flow-root">
+                                    <div class="-mx-2 -my-2 overflow-x-auto sm:-mx-4 lg:-mx-6">
+                                        <div class="inline-block min-w-full py-2 align-middle sm:px-3 lg:px-4">
+                                        <div class="overflow-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                                            <table class="min-w-full divide-y divide-gray-300">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th scope="col" class="py-2 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                                                        #
+                                                    </th>
+                                                    <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
+                                                        Vending Machine
+                                                    </th>
+                                                    <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
+                                                        Amount({{ operatorCountry.currency_symbol }})
+                                                    </th>
+                                                    <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
+                                                        Sales(#)
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-200 bg-white">
+                                                <tr v-for="(vend, vendIndex) in worstPerformerGraphData.data" :key="vend.id">
+                                                    <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                                                        {{ vendIndex + 1 }}
+                                                    </td>
+                                                    <td class="px-3 py-1 text-sm text-gray-600 align-top">
+                                                        <div class="max-w-[220px] break-words">
+                                                            <span class="block font-medium text-gray-700">
+                                                                {{ [vend.vend?.code, vend.vend?.name].filter(Boolean).join(' - ') }}
+                                                            </span>
+                                                            <span v-if="vend.customer && vend.customer.person_id" class="block text-gray-500">
+                                                                {{ vend.customer.virtual_customer_code }}
+                                                                <br>
+                                                                {{ vend.customer.name }}
+                                                            </span>
+                                                            <span v-else class="block text-gray-500">
+                                                                {{ vend.customer ? vend.customer.name : '' }}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-500 text-right mx-3">
+                                                        {{ vend.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-500 text-right mx-3">
+                                                        {{ vend.count }}
+                                                    </td>
+                                                </tr>
+                                                <tr v-if="!worstPerformerGraphData.data.length">
+                                                    <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                                                        No Results Found
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                            </table>
+                                        </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex justify-center" v-if="worstPerformerLimit < 50 && worstPerformerGraphData.data && worstPerformerGraphData.data.length">
+                                    <Button
+                                        class="inline-flex items-center rounded-md border border-green bg-gray-200 px-4 py-2 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        @click="loadMoreWorstPerformers"
+                                        :disabled="worstPerformerLoading"
+                                    >
+                                        <span v-if="worstPerformerLoading">
+                                            Loading...
+                                        </span>
+                                        <span v-else>
+                                            Load Bottom 50
+                                        </span>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
@@ -355,7 +456,7 @@
                                                     </span>
                                                 </td>
                                             </tr>
-                                            <tr v-if="!performerGraphData.data.length">
+                                            <tr v-if="!bestPerformerGraphData.data.length">
                                                 <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                                                     No Results Found
                                                 </td>
@@ -395,6 +496,9 @@
         operatorOptions: Object,
         productGraphData: Object,
         performerGraphData: Object,
+        performerLimit: Number,
+        worstPerformerGraphData: Object,
+        worstPerformerLimit: Number,
         vendCount: Number,
         vendModelOptions: Object,
         vendPrefixOptions: Object,
@@ -410,6 +514,10 @@
         vendModels: [],
         vendPrefixes: [],
     })
+    const performerLimit = ref(props.performerLimit ?? 20);
+    const performerLoading = ref(false);
+    const worstPerformerLimit = ref(props.worstPerformerLimit ?? 20);
+    const worstPerformerLoading = ref(false);
     const authOperator = usePage().props.auth.operator
     const componentKey1 = ref(0);
     const componentKey2 = ref(0);
@@ -547,7 +655,8 @@
         },
     })
 
-    const performerGraphData = ref([])
+    const bestPerformerGraphData = ref([])
+    const worstPerformerGraphData = ref([])
 
     const activeMachineGraphData = ref([]);
     const activeMachineGraphDatasets = ref([])
@@ -624,17 +733,26 @@
         return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
     }
 
+    function buildDashboardQueryParams(overrides = {}) {
+        const locationType = filters.value.locationType;
+        return {
+            ...filters.value,
+            ...overrides,
+            locationType: locationType && locationType.id ? locationType.id : '',
+            location_type_id: locationType && locationType.id ? locationType.id : '',
+            operators: filters.value.operators.map((operator) => { return operator.id }),
+            vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
+            vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
+            performer_limit: performerLimit.value,
+            best_performer_limit: performerLimit.value,
+            worst_performer_limit: worstPerformerLimit.value,
+        };
+    }
+
     function onSearchFilterUpdated() {
         router.visit(
-            route('dashboard', {
-                ...filters.value,
-                locationType: filters.value.locationType.id,
-                location_type_id: filters.value.locationType.id,
-                operators: filters.value.operators.map((operator) => { return operator.id }),
-                vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
-                vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
-            }),{
-                only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'vendCount'],
+            route('dashboard', buildDashboardQueryParams()),{
+                only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'performerLimit', 'worstPerformerGraphData', 'worstPerformerLimit', 'vendCount'],
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
@@ -666,6 +784,64 @@
         })
     }
 
+    function loadMoreBestPerformers() {
+        if (performerLimit.value >= 50 || performerLoading.value) {
+            return;
+        }
+
+        const previousLimit = performerLimit.value;
+        performerLoading.value = true;
+        performerLimit.value = 50;
+
+        router.visit(
+            route('dashboard', buildDashboardQueryParams()),
+            {
+                only: ['performerGraphData', 'performerLimit'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onSuccess: () => {
+                    syncDashboardData();
+                },
+                onError: () => {
+                    performerLimit.value = previousLimit;
+                },
+                onFinish: () => {
+                    performerLoading.value = false;
+                },
+            }
+        );
+    }
+
+    function loadMoreWorstPerformers() {
+        if (worstPerformerLimit.value >= 50 || worstPerformerLoading.value) {
+            return;
+        }
+
+        const previousLimit = worstPerformerLimit.value;
+        worstPerformerLoading.value = true;
+        worstPerformerLimit.value = 50;
+
+        router.visit(
+            route('dashboard', buildDashboardQueryParams()),
+            {
+                only: ['worstPerformerGraphData', 'worstPerformerLimit'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onSuccess: () => {
+                    syncDashboardData();
+                },
+                onError: () => {
+                    worstPerformerLimit.value = previousLimit;
+                },
+                onFinish: () => {
+                    worstPerformerLoading.value = false;
+                },
+            }
+        );
+    }
+
     function syncDashboardData () {
         activeMachineGraphData.value = []
         activeMachineGraphDatasets.value = []
@@ -679,6 +855,8 @@
         productGraphData.value = []
         productGraphDatasets.value = []
         productGraphLabels.value = []
+        performerLimit.value = props.performerLimit ?? performerLimit.value
+        worstPerformerLimit.value = props.worstPerformerLimit ?? worstPerformerLimit.value
 
         let colors = ['#3e95cd', '#ff7f7f', '#007500', '#808080', '#c45850']
         let generalColors = [
@@ -754,7 +932,8 @@
         })
         productGraphLabels.value = productGraphData.value.data.map((data) => {return data.product ? data.product.code + ' - ' + data.product.name : null})
 
-        performerGraphData.value = JSON.parse(JSON.stringify(props.performerGraphData))
+        bestPerformerGraphData.value = JSON.parse(JSON.stringify(props.performerGraphData))
+        worstPerformerGraphData.value = JSON.parse(JSON.stringify(props.worstPerformerGraphData))
 
 
         activeMachineGraphData.value = JSON.parse(JSON.stringify(props.activeMachineGraphData))

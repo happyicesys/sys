@@ -38,9 +38,14 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $this->setDefaultOperators($request);
+        $bestPerformerLimit = (int) $request->input('best_performer_limit', $request->input('performer_limit', 20));
+        $bestPerformerLimit = max(1, min(50, $bestPerformerLimit));
+        $worstPerformerLimit = (int) $request->input('worst_performer_limit', 20);
+        $worstPerformerLimit = max(1, min(50, $worstPerformerLimit));
         $dayGraph = $this->getDayGraph($request);
         $productGraph = $this->getProductGraph($request);
-        $bestPerformer = $this->getBestPerformer($request);
+        $bestPerformer = $this->getBestPerformer($request, $bestPerformerLimit);
+        $worstPerformer = $this->getWorstPerformer($request, $worstPerformerLimit);
         $vendCount = $this->getVendCount($request);
         $monthGraphData = $this->getMonthGraphData($request);
         // $monthGraphData = Cache::remember(
@@ -66,6 +71,9 @@ class DashboardController extends Controller
             ),
             'productGraphData' => VendTransactionGraphResource::collection($productGraph),
             'performerGraphData' => VendTransactionGraphResource::collection($bestPerformer),
+            'performerLimit' => $bestPerformerLimit,
+            'worstPerformerGraphData' => VendTransactionGraphResource::collection($worstPerformer),
+            'worstPerformerLimit' => $worstPerformerLimit,
             'vendCount' => $vendCount,
             'vendModelOptions' => VendModelResource::collection(
                 VendModel::orderBy('name')->get()
@@ -199,7 +207,7 @@ class DashboardController extends Controller
             ->get();
     }
 
-    private function getBestPerformer(Request $request)
+    private function getBestPerformer(Request $request, int $limit)
     {
         return VendRecord::query()
             ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name'])
@@ -217,7 +225,29 @@ class DashboardController extends Controller
                 DB::raw('SUM(total_count) as count')
             )
             ->orderBy('amount', 'desc')
-            ->limit(10)
+            ->limit($limit)
+            ->get();
+    }
+
+    private function getWorstPerformer(Request $request, int $limit)
+    {
+        return VendRecord::query()
+            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name'])
+            ->filterIndex($request)
+            ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
+            ->whereNotIn('vend_id', function ($query) {
+                $query->select('id')->from('vends')->where('is_testing', true);
+            })
+            ->groupBy('vend_id')
+            ->select(
+                'id',
+                'customer_id',
+                'vend_id',
+                DB::raw('SUM(total_amount) as amount'),
+                DB::raw('SUM(total_count) as count')
+            )
+            ->orderBy('amount', 'asc')
+            ->limit($limit)
             ->get();
     }
 
