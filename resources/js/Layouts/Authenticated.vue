@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import BreezeDropdown from '@/Components/Dropdown.vue';
 import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
@@ -297,11 +297,14 @@ const navigation = [
     // },
 ]
 
+const page = usePage()
 const showingNavigationDropdown = ref(false);
-const logoUrl = usePage().props.logoUrl
-const permissions = usePage().props.auth.permissions
-const roles = usePage().props.auth.roles
-const smallLogoUrl = usePage().props.smallLogoUrl
+const logoUrl = computed(() => page.props.logoUrl)
+const permissions = page.props.auth.permissions
+const roles = page.props.auth.roles
+const smallLogoUrl = page.props.smallLogoUrl
+const defaultLogoUrl = computed(() => page.props.defaultLogoUrl)
+const useContainLogo = computed(() => logoUrl.value !== defaultLogoUrl.value)
 
 
 </script>
@@ -315,7 +318,7 @@ const smallLogoUrl = usePage().props.smallLogoUrl
                 <div class="flex items-center justify-center flex-shrink-0 px-1 object-scale-down">
                     <Link href="/">
                         <div class="h-fit w-fit">
-                            <img class="object-cover h-24 w-36" :src="logoUrl" alt="Company Logo">
+                            <img :class="[useContainLogo ? 'object-contain h-24 w-36 p-2' : 'object-cover h-24 w-36']" :src="logoUrl" alt="Company Logo">
                         </div>
                     </Link>
                 </div>

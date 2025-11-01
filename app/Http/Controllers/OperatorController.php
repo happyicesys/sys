@@ -17,6 +17,7 @@ use App\Models\Operator;
 use App\Models\OperatorPaymentGateway;
 use App\Models\OperatorVend;
 use App\Models\PaymentGateway;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vend;
 use App\Traits\HasFilter;
@@ -25,6 +26,10 @@ use DateTimeZone;
 use DB;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Intervention\Image\Encoders\AutoEncoder;
+use Intervention\Image\Laravel\Facades\Image;
 use Inertia\Inertia;
 
 class OperatorController extends Controller
@@ -176,9 +181,18 @@ class OperatorController extends Controller
                 },
                 'deliveryPlatformOperators.deliveryPlatform',
                 'operatorPaymentGateways.paymentGateway',
+                'logo',
             ])
             ->find($id);
         $timezones = DateTimeZone::listIdentifiers();
+        $setting = Setting::query()->first();
+        $logoOverrideOperatorIds = collect($setting?->allow_overwrite_logo_operator_ids_array ?? [])
+            ->map(fn ($value) => (int) $value)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $operatorCanOverrideLogo = $operator ? in_array($operator->id, $logoOverrideOperatorIds, true) : false;
 
         return Inertia::render('Operator/Edit', [
             'countries' => CountryResource::collection(
@@ -240,6 +254,7 @@ class OperatorController extends Controller
             'operator' => OperatorResource::make(
                 $operator
             ),
+            'operatorCanOverrideLogo' => $operatorCanOverrideLogo,
             'timezones' => $timezones,
             'type' => 'update',
         ]);
@@ -346,10 +361,48 @@ class OperatorController extends Controller
             'email_customs.*.label' => ['nullable','string','max:255'],
         ]);
 
+        if ($request->hasFile('logo')) {
+            $request->validate([
+                'logo' => ['image', 'max:400'],
+            ]);
+        }
+
         $operator = Operator::findOrFail($operatorId);
+        $operator->load('logo');
+
+        if ($request->boolean('logo_remove')) {
+            $this->deleteOperatorLogo($operator);
+        }
+
+        if ($request->hasFile('logo')) {
+            $this->deleteOperatorLogo($operator);
+
+            $uploadedLogo = $request->file('logo');
+            $image = Image::read($uploadedLogo)
+                ->scaleDown(400, 400, fn ($constraint) => $constraint->upsize());
+
+            $extension = $uploadedLogo->getClientOriginalExtension() ?: 'png';
+            $filename = Str::uuid() . '.' . strtolower($extension);
+            $relativePath = 'sys/operators/logos/' . $filename;
+
+            Storage::disk('public')->put($relativePath, (string) $image->encode(new AutoEncoder()));
+
+            $publicUrl = Storage::disk('public')->url($relativePath);
+
+            $operator->logo()->updateOrCreate(
+                ['type' => Operator::LOGO_ATTACHMENT_TYPE],
+                [
+                    'local_url' => $relativePath,
+                    'full_url' => $publicUrl,
+                    'is_active' => true,
+                ]
+            );
+        }
 
         // Update the rest of the fields
-        $payload = collect($request->all())->except(['email_user_ids','email_customs'])->toArray();
+        $payload = collect($request->all())
+            ->except(['email_user_ids','email_customs','logo','logo_remove'])
+            ->toArray();
         $operator->update($payload);
 
         // Normalize the JSON we keep for the UI
@@ -465,6 +518,25 @@ class OperatorController extends Controller
             $paymentGatewayOperator->externalOauthToken()->delete();
         }
         $paymentGatewayOperator->delete();
+    }
+
+    protected function deleteOperatorLogo(Operator $operator): void
+    {
+        if (! $operator->relationLoaded('logo')) {
+            $operator->load('logo');
+        }
+
+        $logo = $operator->logo;
+        if (! $logo) {
+            return;
+        }
+
+        if ($logo->local_url && Storage::disk('public')->exists($logo->local_url)) {
+            Storage::disk('public')->delete($logo->local_url);
+        }
+
+        $logo->delete();
+        $operator->unsetRelation('logo');
     }
 
     protected function syncAlertEmailItemsGeneric(?Operator $operator, Collection $emails, array $flags = []): void

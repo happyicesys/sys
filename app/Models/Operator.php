@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Attachment;
 use App\Models\Scopes\OperatorActiveScope;
 use App\Models\Scopes\OperatorFilterScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -37,6 +38,8 @@ class Operator extends Model
     protected $casts = [
         'email_recipients_json' => 'json',
     ];
+
+    public const LOGO_ATTACHMENT_TYPE = 21;
 
     // relationships
     public function address()
@@ -82,6 +85,12 @@ class Operator extends Model
     public function operatorPaymentGateways()
     {
         return $this->hasMany(OperatorPaymentGateway::class);
+    }
+
+    public function logo()
+    {
+        return $this->morphOne(Attachment::class, 'modelable')
+            ->where('type', self::LOGO_ATTACHMENT_TYPE);
     }
 
     public function profile()

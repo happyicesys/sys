@@ -430,18 +430,29 @@ class VendTransactionService
         if(isset($input['transf_info']) and sizeof($input['transf_info']) > 1) {
             $data['isMultiple'] = true;
             $data['qty'] = sizeof($input['transf_info']);
+            $data['success_qty'] = 0;
+            $data['dispensed_qty'] = 0;
             foreach($input['transf_info'] as $trans) {
                 $transErrorCode = is_numeric($trans['SErr']) ? (int) $trans['SErr'] : null;
+                $childSuccessQty = in_array($transErrorCode, $successErrorCodes, true) ? 1 : 0;
+                $childDispensedQty = in_array($transErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
                 $data['children'][] = $this->processMapping($vend, [
                     'errorCode' => $trans['SErr'],
                     'vendChannelCode' => $trans['SId'],
-                    'success_qty' => in_array($transErrorCode, $successErrorCodes, true) ? 1 : 0,
-                    'dispensed_qty' => in_array($transErrorCode, $dispensedErrorCodes, true) ? 1 : 0,
+                    'success_qty' => $childSuccessQty,
+                    'dispensed_qty' => $childDispensedQty,
                 ]);
-                $data['success_qty'] += in_array($transErrorCode, $successErrorCodes, true) ? 1 : 0;
-                $data['dispensed_qty'] += in_array($transErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
+                $data['success_qty'] += $childSuccessQty;
+                $data['dispensed_qty'] += $childDispensedQty;
             }
         }
+
+        $transactionItemsCount = count($data['children']);
+        if ($transactionItemsCount === 0) {
+            $transactionItemsCount = max((int) ($data['qty'] ?? 0), 0);
+        }
+        $data['success_qty'] = min($data['success_qty'], $transactionItemsCount);
+        $data['dispensed_qty'] = min($data['dispensed_qty'], $transactionItemsCount);
 
         return $data;
     }

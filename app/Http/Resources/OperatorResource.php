@@ -47,6 +47,9 @@ class OperatorResource extends JsonResource
             // Current UI field (single multiselect backing)
             'email_recipients' => $emailRecipientsJson,
 
+            'logo' => AttachmentResource::make($this->whenLoaded('logo')),
+            'logo_url' => $this->logo?->full_url,
+
             // Back-compat fields; will be [] when json is a flat string array
             'email_user_ids' => data_get($emailRecipientsJson, 'user_ids', []),
             'email_customs'  => data_get($emailRecipientsJson, 'customs', []),

@@ -163,7 +163,12 @@ class GpMetricsAggregator
                 'metrics.revenue_cents',
                 'metrics.gross_profit_cents',
                 'metrics.unit_cost_cents',
-            ]);
+            ])
+            ->orderBy('metrics.txn_date')
+            ->orderBy('metrics.operator_id')
+            ->orderBy('metrics.vend_id')
+            ->orderBy('metrics.customer_id')
+            ->orderBy('metrics.product_id');
     }
 
     /**

@@ -18,6 +18,59 @@
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
           <form @submit.prevent="submit" id="submit">
             <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
+              <div class="sm:col-span-6">
+                <label class="flex justify-start text-sm font-medium text-gray-700">
+                  Operator Logo
+                </label>
+                <div class="mt-2 flex flex-col md:flex-row md:items-center md:space-x-4 space-y-3 md:space-y-0">
+                  <div class="flex h-24 w-36 items-center justify-center overflow-hidden rounded-md border border-dashed border-gray-300 bg-white">
+                    <img v-if="displayedLogoUrl" :src="displayedLogoUrl" alt="Operator logo preview" class="max-h-24 max-w-full object-contain">
+                    <span v-else class="text-xs text-gray-400">
+                      No logo
+                    </span>
+                  </div>
+                  <div class="flex flex-col space-y-2">
+                    <input
+                      ref="logoInput"
+                      type="file"
+                      accept="image/*"
+                      @change="onLogoSelected"
+                      :disabled="!permissions.includes('update operators')"
+                      class="rounded-md border border-gray-300 bg-white py-2 px-3 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    />
+                    <progress v-if="form.progress" :value="form.progress.percentage" max="100">
+                      {{ form.progress.percentage }}%
+                    </progress>
+                    <Button
+                      v-if="canShowRemovalButton"
+                      type="button"
+                      class="w-max bg-red-500 text-white hover:bg-red-600"
+                      @click="toggleLogoRemoval"
+                    >
+                      {{ removalButtonLabel }}
+                    </Button>
+                    <span class="text-sm text-gray-500">
+                      * Image file, max 400kb
+                    </span>
+                    <div class="text-sm text-red-600" v-if="form.errors.logo">
+                      {{ form.errors.logo }}
+                    </div>
+                  </div>
+                </div>
+                <p class="mt-2 text-xs text-gray-500">
+                  Custom logo override is
+                  <span :class="props.operatorCanOverrideLogo ? 'text-green-600 font-medium' : 'text-yellow-600 font-medium'">
+                    {{ props.operatorCanOverrideLogo ? 'enabled' : 'disabled' }}
+                  </span>
+                  for this operator. Update the system settings to change this behaviour.
+                </p>
+                <p
+                  v-if="initialLogoUrl && !props.operatorCanOverrideLogo"
+                  class="mt-1 text-xs text-yellow-600"
+                >
+                  Note: A custom logo is stored but suppressed because override is disabled.
+                </p>
+              </div>
               <div class="sm:col-span-2">
                 <FormInput v-model="form.code" :error="form.errors.code">
                   Code
@@ -632,7 +685,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchVendCodeWithOperatorInput from '@/Components/SearchVendCodeWithOperatorInput.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlusCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -646,6 +699,7 @@ const props = defineProps({
     deliveryPlatformOperatorTypes: [Array, Object],
     operatorPaymentGatewayTypes: [Array, Object],
     permissions: [Array, Object],
+    operatorCanOverrideLogo: Boolean,
   })
 
   const booleanOptions = ref([
@@ -671,12 +725,33 @@ const props = defineProps({
   const emailUserOptions = ref([])
   const loading = ref(false)
 
+  const page = usePage()
   const operatorPaymentGateways = ref([])
   const operatorPaymentGatewayTypes = ref([])
-  const permissions = usePage().props.auth.permissions
+  const permissions = page.props.auth.permissions
+  const defaultLogoUrl = page.props.defaultLogoUrl || ''
   const timezoneOptions = ref([])
   const typeName = ref('')
   const vends = ref([])
+  const logoInput = ref(null)
+  const initialLogoUrl = ref(null)
+  const tempLogoPreview = ref(null)
+
+  const displayedLogoUrl = computed(() => {
+    if (tempLogoPreview.value) {
+      return tempLogoPreview.value
+    }
+    if (form.value.logo_remove) {
+      return defaultLogoUrl
+    }
+    return initialLogoUrl.value || defaultLogoUrl
+  })
+
+  const canShowRemovalButton = computed(() => {
+    return permissions.includes('update operators') && (Boolean(initialLogoUrl.value) || Boolean(tempLogoPreview.value))
+  })
+
+  const removalButtonLabel = computed(() => form.value.logo_remove ? 'Keep Existing Logo' : 'Use Default Logo')
 
   const isEmail = (v) => /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/.test(String(v||''));
   const toEmailObj = (v) => {
@@ -715,8 +790,11 @@ onMounted(() => {
 
     form.value = props.operator
       ? useForm({
+          ...getDefaultForm(),
           ...props.operator.data,
           email_recipients: Array.isArray(mixedRecipients) ? mixedRecipients : [],
+          logo: null,
+          logo_remove: false,
         })
       : useForm(getDefaultForm());
 
@@ -726,6 +804,8 @@ onMounted(() => {
     operatorPaymentGateways.value = props.operator ? props.operator.data.operatorPaymentGateways : null
     vends.value = props.operator ? props.operator.data.vends : null
     // customers.value = props.operator ? props.operator.data.customers : null
+
+    hydrateLogoState()
 
 })
 
@@ -755,8 +835,80 @@ function getDefaultForm() {
     remarks: '',
     vend_id: '',
     vend_id_value: '',
+    logo: null,
+    logo_remove: false,
   }
 }
+
+function hydrateLogoState() {
+  const operatorData = props.operator?.data ?? null
+  const latestUrl = operatorData?.logo_url || operatorData?.logo?.full_url || null
+  const previousUrl = initialLogoUrl.value
+
+  initialLogoUrl.value = latestUrl
+
+  if (previousUrl === latestUrl && !tempLogoPreview.value) {
+    return
+  }
+
+  if (tempLogoPreview.value) {
+    URL.revokeObjectURL(tempLogoPreview.value)
+    tempLogoPreview.value = null
+  }
+
+  if (form.value) {
+    form.value.logo = null
+    form.value.logo_remove = false
+  }
+
+  if (logoInput.value) {
+    logoInput.value.value = ''
+  }
+}
+
+function onLogoSelected(event) {
+  const [file] = event.target?.files ?? []
+  if (!file) {
+    return
+  }
+
+  if (tempLogoPreview.value) {
+    URL.revokeObjectURL(tempLogoPreview.value)
+  }
+
+  tempLogoPreview.value = URL.createObjectURL(file)
+  form.value.logo = file
+  form.value.logo_remove = false
+}
+
+function toggleLogoRemoval() {
+  const isRemoving = !form.value.logo_remove
+
+  if (tempLogoPreview.value) {
+    URL.revokeObjectURL(tempLogoPreview.value)
+    tempLogoPreview.value = null
+  }
+
+  if (logoInput.value) {
+    logoInput.value.value = ''
+  }
+
+  form.value.logo = null
+  form.value.logo_remove = isRemoving ? true : false
+}
+
+watch(
+  () => props.operator,
+  () => {
+    hydrateLogoState()
+  }
+)
+
+onBeforeUnmount(() => {
+  if (tempLogoPreview.value) {
+    URL.revokeObjectURL(tempLogoPreview.value)
+  }
+})
 
 function deleteDeliveryPlatformOperator(model) {
   const approval = confirm('Are you sure to delete this entry?');
@@ -930,6 +1082,8 @@ function submit() {
           // send both to backend:
           email_user_ids: Array.from(email_user_ids),
           email_customs: customsDeduped,
+          logo: data.logo ?? null,
+          logo_remove: Boolean(data.logo_remove),
         };
       })
       .post('/operators/' + form.value.id + '/update', {
