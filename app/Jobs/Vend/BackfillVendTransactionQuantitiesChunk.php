@@ -13,13 +13,6 @@ class BackfillVendTransactionQuantitiesChunk implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /**
-     * Lowest-priority queue to avoid competing with user-facing workloads.
-     *
-     * @var string
-     */
-    public string $queue = 'low';
-
     public int $tries = 5;
 
     public int $timeout = 180;
@@ -28,7 +21,7 @@ class BackfillVendTransactionQuantitiesChunk implements ShouldQueue
         private readonly int $startId,
         private readonly int $endId
     ) {
-        //
+        $this->queue = 'low';
     }
 
     public function handle(): void
