@@ -195,6 +195,7 @@ class VendTransactionService
             'payment_method_id' => $input['paymentMethodID'],
             'qty' => $input['qty'],
             'success_qty' => $input['success_qty'],
+            'dispensed_qty' => $input['dispensed_qty'],
             'vend_id' => $vend->id,
             'vend_channel_code' => $input['vendChannelCode'],
             'vend_contract_id' => $vend->vendContract?->id ?? null,
@@ -374,6 +375,7 @@ class VendTransactionService
             'productID' => $product ? $product->id : null,
             'qty' => isset($input['qty']) ? $input['qty'] : 1,
             'success_qty' => isset($input['success_qty']) ? $input['success_qty'] : 0,
+            'dispensed_qty' => isset($input['dispensed_qty']) ? $input['dispensed_qty'] : 0,
             'time' => isset($input['time']) ? $input['time'] : null,
             'unitCostID' => $unitCost ? $unitCost->id : null,
             'vendChannelCode' => $input['vendChannelCode'],
@@ -407,11 +409,12 @@ class VendTransactionService
         $data['vouchers'] = isset($input['vouchers']) ? $input['vouchers'] : null;
         $data['hid_card_id'] = isset($input['hid_card_id']) ? $input['hid_card_id'] : null;
 
-        if(isset($input['SErr']) and ($input['SErr'] == 0 or $input['SErr'] == 6)) {
-            $data['success_qty'] = 1;
-        } else {
-            $data['success_qty'] = 0;
-        }
+        $successErrorCodes = [0, 6];
+        $dispensedErrorCodes = [0, 6, 7, 9];
+        $normalizedErrorCode = is_numeric($data['errorCode']) ? (int) $data['errorCode'] : null;
+
+        $data['success_qty'] = in_array($normalizedErrorCode, $successErrorCodes, true) ? 1 : 0;
+        $data['dispensed_qty'] = in_array($normalizedErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
 
         if(isset($input['transf_info']) and sizeof($input['transf_info']) == 1) {
             $data['qty'] = 1;
@@ -419,20 +422,24 @@ class VendTransactionService
             $data['errorCode'] = $input['transf_info'][0]['SErr'];
             $data['vendChannelCode'] = $input['transf_info'][0]['SId'];
 
-            if($input['transf_info'][0]['SErr'] == 0 or $input['transf_info'][0]['SErr'] == 6) {
-                $data['success_qty'] = 1;
-            }
+            $singleErrorCode = is_numeric($input['transf_info'][0]['SErr']) ? (int) $input['transf_info'][0]['SErr'] : null;
+            $data['success_qty'] = in_array($singleErrorCode, $successErrorCodes, true) ? 1 : 0;
+            $data['dispensed_qty'] = in_array($singleErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
         }
 
         if(isset($input['transf_info']) and sizeof($input['transf_info']) > 1) {
             $data['isMultiple'] = true;
             $data['qty'] = sizeof($input['transf_info']);
             foreach($input['transf_info'] as $trans) {
+                $transErrorCode = is_numeric($trans['SErr']) ? (int) $trans['SErr'] : null;
                 $data['children'][] = $this->processMapping($vend, [
                     'errorCode' => $trans['SErr'],
                     'vendChannelCode' => $trans['SId'],
+                    'success_qty' => in_array($transErrorCode, $successErrorCodes, true) ? 1 : 0,
+                    'dispensed_qty' => in_array($transErrorCode, $dispensedErrorCodes, true) ? 1 : 0,
                 ]);
-                $data['success_qty'] += ($trans['SErr'] == 0 or $trans['SErr'] == 6) ? 1 : 0;
+                $data['success_qty'] += in_array($transErrorCode, $successErrorCodes, true) ? 1 : 0;
+                $data['dispensed_qty'] += in_array($transErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
             }
         }
 
