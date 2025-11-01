@@ -385,9 +385,14 @@ class OperatorController extends Controller
             $filename = Str::uuid() . '.' . strtolower($extension);
             $relativePath = 'sys/operators/logos/' . $filename;
 
-            Storage::disk('public')->put($relativePath, (string) $image->encode(new AutoEncoder()));
+            $disk = $this->logoStorageDisk();
+            Storage::disk($disk)->put(
+                $relativePath,
+                (string) $image->encode(new AutoEncoder()),
+                ['visibility' => 'public']
+            );
 
-            $publicUrl = Storage::disk('public')->url($relativePath);
+            $publicUrl = Storage::disk($disk)->url($relativePath);
 
             $operator->logo()->updateOrCreate(
                 ['type' => Operator::LOGO_ATTACHMENT_TYPE],
@@ -531,12 +536,21 @@ class OperatorController extends Controller
             return;
         }
 
-        if ($logo->local_url && Storage::disk('public')->exists($logo->local_url)) {
-            Storage::disk('public')->delete($logo->local_url);
+        $disk = $this->logoStorageDisk();
+
+        if ($logo->local_url && Storage::disk($disk)->exists($logo->local_url)) {
+            Storage::disk($disk)->delete($logo->local_url);
         }
 
         $logo->delete();
         $operator->unsetRelation('logo');
+    }
+
+    protected function logoStorageDisk(): string
+    {
+        $default = config('filesystems.default', 'public');
+
+        return $default === 'local' ? 'public' : $default;
     }
 
     protected function syncAlertEmailItemsGeneric(?Operator $operator, Collection $emails, array $flags = []): void
