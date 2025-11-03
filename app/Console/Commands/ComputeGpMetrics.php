@@ -17,7 +17,9 @@ class ComputeGpMetrics extends Command
         {--date= : Process a specific YYYY-MM-DD}
         {--from= : Start date for range (YYYY-MM-DD)}
         {--to= : End date for range (YYYY-MM-DD)}
-        {--chunk=1000 : Chunk size for inserts}';
+        {--chunk=1000 : Chunk size for inserts}
+        {--sync : Process each day immediately instead of queueing the job}
+        {--sleep=0 : Seconds to pause between days when using --sync}';
 
     /**
      * The console command description.
@@ -101,6 +103,17 @@ class ComputeGpMetrics extends Command
      */
     protected function processDay(Carbon $day, int $chunkSize): void
     {
+        if ($this->option('sync')) {
+            $this->info(sprintf(' - Processing %s (sync)', $day->toDateString()));
+            \App\Services\GpMetricsAggregator::persistDay($day, $chunkSize);
+
+            $sleepSeconds = (int) $this->option('sleep');
+            if ($sleepSeconds > 0) {
+                sleep($sleepSeconds);
+            }
+            return;
+        }
+
         $this->info(sprintf(' - Queuing %s', $day->toDateString()));
         ProcessGpMetricsDay::dispatch($day->toDateString(), $chunkSize);
     }

@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\GpMetric;
 use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GpMetricsAggregator
 {
@@ -191,7 +193,7 @@ class GpMetricsAggregator
         $query = self::buildRawQuery($dayStart, $dayEnd);
         $now = now();
 
-        $query->chunk($chunkSize, function ($rows) use ($now) {
+        $query->chunk($chunkSize, function ($rows) use ($now, $dayStart) {
             $payload = $rows->map(function ($row) use ($now) {
                 $data = get_object_vars($row);
                 $data['created_at'] = $now;
@@ -200,8 +202,51 @@ class GpMetricsAggregator
             })->all();
 
             if (!empty($payload)) {
-                GpMetric::query()->insert($payload);
+                self::insertWithRetry($payload, $dayStart->toDateString());
             }
         });
+    }
+
+    /**
+     * Attempt to insert the payload, retrying on transient deadlocks.
+     */
+    private static function insertWithRetry(array $payload, string $date, int $maxAttempts = 5): void
+    {
+        $attempt = 1;
+        $delayMs = 100;
+
+        while (true) {
+            try {
+                GpMetric::query()->insert($payload);
+                return;
+            } catch (QueryException $exception) {
+                if (!self::isDeadlock($exception) || $attempt >= $maxAttempts) {
+                    throw $exception;
+                }
+
+                Log::warning('Retrying gp_metrics insert after deadlock', [
+                    'date' => $date,
+                    'attempt' => $attempt,
+                    'max_attempts' => $maxAttempts,
+                    'error_code' => $exception->errorInfo[1] ?? null,
+                ]);
+
+                usleep($delayMs * 1000);
+                $attempt++;
+                $delayMs = min($delayMs * 2, 5000);
+            }
+        }
+    }
+
+    /**
+     * Determine if the exception is a transient deadlock or lock timeout.
+     */
+    private static function isDeadlock(QueryException $exception): bool
+    {
+        $sqlState = $exception->errorInfo[0] ?? null;
+        $driverCode = (int)($exception->errorInfo[1] ?? 0);
+
+        return in_array($sqlState, ['40001', 'HY000'], true)
+            && in_array($driverCode, [1205, 1213], true);
     }
 }
