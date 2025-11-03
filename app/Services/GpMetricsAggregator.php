@@ -21,6 +21,9 @@ class GpMetricsAggregator
         $start = $start->copy()->startOfDay();
         $end = $end->copy()->endOfDay();
 
+        $transactionDatetimeColumn = 'COALESCE(vend_transactions.transaction_datetime, vend_transactions.created_at)';
+        $transactionDateExpression = "DATE($transactionDatetimeColumn)";
+
         $singleRevenueExpression = 'COALESCE(vend_transactions.revenue, vend_transactions.amount, 0)';
         $singleUnitCostExpression = 'COALESCE(vend_transactions.unit_cost, 0)';
         $singleGrossProfitExpression = '(' . $singleRevenueExpression . ' - ' . $singleUnitCostExpression . ')';
@@ -32,7 +35,7 @@ class GpMetricsAggregator
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->whereBetween('vend_transactions.created_at', [$start, $end])
+            ->whereBetween(DB::raw($transactionDatetimeColumn), [$start, $end])
             ->where(function ($query) {
                 $query->where('vend_transactions.is_multiple', false)
                     ->orWhereNotExists(function ($subQuery) {
@@ -45,7 +48,7 @@ class GpMetricsAggregator
                 $query->whereIn('vend_transactions.error_code_normalized', [0, 6])
                     ->orWhereNull('vend_transactions.error_code_normalized');
             })
-            ->selectRaw('DATE(vend_transactions.created_at) as txn_date')
+            ->selectRaw("$transactionDateExpression as txn_date")
             ->selectRaw('vend_transactions.operator_id as operator_id')
             ->selectRaw('vend_transactions.vend_id as vend_id')
             ->selectRaw('vend_transactions.customer_id as customer_id')
@@ -65,7 +68,7 @@ class GpMetricsAggregator
             ->selectRaw('SUM(' . $singleGrossProfitExpression . ') as gross_profit_cents')
             ->selectRaw('SUM(' . $singleUnitCostExpression . ') as unit_cost_cents')
             ->groupBy([
-                DB::raw('DATE(vend_transactions.created_at)'),
+                DB::raw($transactionDateExpression),
                 'vend_transactions.operator_id',
                 'vend_transactions.vend_id',
                 'vend_transactions.customer_id',
@@ -102,10 +105,10 @@ class GpMetricsAggregator
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->whereBetween('vend_transactions.created_at', [$start, $end])
+            ->whereBetween(DB::raw($transactionDatetimeColumn), [$start, $end])
             ->where('vend_transactions.is_multiple', true)
             ->whereIn('vend_transaction_items.vend_channel_error_code', [0, 6])
-            ->selectRaw('DATE(vend_transactions.created_at) as txn_date')
+            ->selectRaw("$transactionDateExpression as txn_date")
             ->selectRaw('vend_transactions.operator_id as operator_id')
             ->selectRaw('vend_transactions.vend_id as vend_id')
             ->selectRaw('vend_transactions.customer_id as customer_id')
@@ -125,7 +128,7 @@ class GpMetricsAggregator
             ->selectRaw('SUM(' . $multiGrossProfitExpression . ') as gross_profit_cents')
             ->selectRaw('SUM(' . $multiUnitCostExpression . ') as unit_cost_cents')
             ->groupBy([
-                DB::raw('DATE(vend_transactions.created_at)'),
+                DB::raw($transactionDateExpression),
                 'vend_transactions.operator_id',
                 'vend_transactions.vend_id',
                 'vend_transactions.customer_id',
