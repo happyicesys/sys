@@ -33,6 +33,19 @@ class StoreVendsRecord implements ShouldQueue
 
     public function handle(): void
     {
+        $successfulItemsExpression = <<<SQL
+CASE
+    WHEN vend_transactions.success_qty IS NOT NULL AND vend_transactions.success_qty > 0 THEN vend_transactions.success_qty
+    WHEN (vend_transactions.success_qty IS NULL OR vend_transactions.success_qty = 0)
+         AND (
+             vend_transactions.vend_channel_error_id IS NULL
+             OR vend_channel_errors.code IN (0, 6)
+             OR vend_transactions.is_multiple = 1
+         )
+    THEN COALESCE(vend_transactions.qty, 0)
+    ELSE 0
+END
+SQL;
 
         $vends = VendTransaction::query()
             ->join('vends', 'vend_transactions.vend_id', '=', 'vends.id')
@@ -73,7 +86,7 @@ class StoreVendsRecord implements ShouldQueue
                     'SUM(vend_transactions.qty) as all_total_count'
                 ),
                 DB::raw(
-                    'SUM(vend_transactions.success_qty) as total_count'
+                    "SUM({$successfulItemsExpression}) as total_count"
                 ),
                 DB::raw(
                     'COUNT(
@@ -116,7 +129,7 @@ class StoreVendsRecord implements ShouldQueue
                     ),0) as failure_amount'
                 ),
                 DB::raw(
-                    'SUM(vend_transactions.qty - vend_transactions.success_qty) as failure_count'
+                    "SUM(COALESCE(vend_transactions.qty, 0)) - SUM({$successfulItemsExpression}) as failure_count"
                 ),
                 DB::raw(
                     'COALESCE(SUM(
@@ -132,7 +145,7 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'SUM(
                         CASE
-                            WHEN delivery_platform_orders.id IS NOT NULL THEN vend_transactions.success_qty
+                            WHEN delivery_platform_orders.id IS NOT NULL THEN ' . $successfulItemsExpression . '
                             ELSE 0
                         END
                     ) as online_success_count'
@@ -151,7 +164,7 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'SUM(
                         CASE
-                        WHEN delivery_platform_orders.id IS NOT NULL THEN (vend_transactions.qty - vend_transactions.success_qty)
+                        WHEN delivery_platform_orders.id IS NOT NULL THEN (COALESCE(vend_transactions.qty, 0) - (' . $successfulItemsExpression . '))
                         ELSE 0
                         END
                     ) as online_failure_count'

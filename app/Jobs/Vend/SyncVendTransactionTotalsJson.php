@@ -50,7 +50,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
         if ($vend) {
             $todayTxns = $vend->daysVendTransactions(0, 0);
             $todayAmount = (int)$todayTxns->clone()->isSuccessful()->sum('amount');
-            $todayCount = $todayTxns->clone()->isSuccessful()->count();
+            $todayCount = $this->calculateSuccessfulItemCount($todayTxns);
             $todayAllCount = $todayTxns->count();
             $todayErrorCount = $todayTxns->clone()->isError()->count();
             $todayRevenue = (int)$todayTxns->clone()->isSuccessful()->sum('revenue');
@@ -104,7 +104,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
         if ($customer) {
             $todayTxns = $customer->daysVendTransactions(0, 0);
             $todayAmount = (int)$todayTxns->clone()->isSuccessful()->sum('amount');
-            $todayCount = $todayTxns->clone()->isSuccessful()->count();
+            $todayCount = $this->calculateSuccessfulItemCount($todayTxns);
             $todayAllCount = $todayTxns->count();
             $todayErrorCount = $todayTxns->clone()->isError()->count();
             $todayRevenue = (int)$todayTxns->clone()->isSuccessful()->sum('revenue');
@@ -156,4 +156,34 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
         }
     }
 
+    private function calculateSuccessfulItemCount($transactionQuery): int
+    {
+        return (int) $transactionQuery
+            ->clone()
+            ->with('vendChannelError:id,code')
+            ->get([
+                'id',
+                'qty',
+                'success_qty',
+                'is_multiple',
+                'vend_channel_error_id',
+            ])
+            ->sum(function ($transaction) {
+                if ($transaction->success_qty !== null && (int) $transaction->success_qty > 0) {
+                    return (int) $transaction->success_qty;
+                }
+
+                $errorCode = optional($transaction->vendChannelError)->code;
+
+                if (
+                    is_null($transaction->vend_channel_error_id) ||
+                    in_array((int) $errorCode, [0, 6], true) ||
+                    (bool) $transaction->is_multiple
+                ) {
+                    return (int) ($transaction->qty ?? 0);
+                }
+
+                return 0;
+            });
+    }
 }
