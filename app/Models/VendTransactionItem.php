@@ -14,6 +14,7 @@ class VendTransactionItem extends Model
         'product_id',
         'unit_cost',
         'unit_cost_id',
+        'unit_price_amount',
         'vend_channel_id',
         'vend_channel_code',
         'vend_channel_error_code',

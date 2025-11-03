@@ -276,6 +276,7 @@ class VendTransactionService
             'product_id' => $input['productID'],
             'unit_cost_id' => $input['unitCostID'],
             'unit_cost' => isset($input['unitCostID']) && $input['unitCostID'] ? UnitCost::find($input['unitCostID'])->cost : 0,
+            'unit_price_amount' => $input['unit_price_amount'] ?? $input['amount'] ?? null,
             'vend_channel_id' => $input['vendChannelID'],
             'vend_channel_code' => $input['vendChannelCode'],
             'vend_channel_error_code' => $input['errorCode'],
@@ -292,6 +293,79 @@ class VendTransactionService
         ]);
 
         return $vendChannel;
+    }
+
+    private function determineUnitPriceAmount(?VendChannel $vendChannel, array $input): ?int
+    {
+        if (array_key_exists('unit_price_amount', $input) && !is_null($input['unit_price_amount'])) {
+            return (int) $input['unit_price_amount'];
+        }
+
+        if (isset($input['amount']) && is_numeric($input['amount'])) {
+            $amount = (int) round($input['amount']);
+            if ($amount > 0) {
+                if ($vendChannel && in_array($amount, [(int) $vendChannel->amount, (int) $vendChannel->amount2], true)) {
+                    return $amount;
+                }
+
+                return $amount;
+            }
+        }
+
+        if ($vendChannel) {
+            if (!is_null($vendChannel->amount) && $vendChannel->amount > 0) {
+                return (int) $vendChannel->amount;
+            }
+
+            if (!is_null($vendChannel->amount2) && $vendChannel->amount2 > 0) {
+                return (int) $vendChannel->amount2;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractChildAmountCents(array $trans): ?int
+    {
+        foreach (['Price', 'price', 'Amount', 'amount'] as $key) {
+            if (!array_key_exists($key, $trans)) {
+                continue;
+            }
+
+            $normalized = $this->normalizeAmountToCents($trans[$key]);
+            if (!is_null($normalized)) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeAmountToCents($value): ?int
+    {
+        if (is_null($value)) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = trim($value);
+            if ($value === '') {
+                return null;
+            }
+        }
+
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $stringValue = (string) $value;
+        $numericValue = (float) $value;
+
+        if (str_contains($stringValue, '.') || abs($numericValue - (int) $numericValue) > 0) {
+            return (int) round($numericValue * 100);
+        }
+
+        return (int) $numericValue;
     }
 
     private function processMapping($vend, $input)
@@ -353,6 +427,8 @@ class VendTransactionService
             $vendChannel = $this->createVendChannel($vend->id, $input['vendChannelCode']);
         }
 
+        $unitPriceAmount = $this->determineUnitPriceAmount($vendChannel, $input);
+
         return [
             'amount' => isset($input['amount']) ? $input['amount'] : 0,
             'children' => isset($input['children']) ? $input['children'] : [],
@@ -378,6 +454,7 @@ class VendTransactionService
             'dispensed_qty' => isset($input['dispensed_qty']) ? $input['dispensed_qty'] : 0,
             'time' => isset($input['time']) ? $input['time'] : null,
             'unitCostID' => $unitCost ? $unitCost->id : null,
+            'unit_price_amount' => $unitPriceAmount,
             'vendChannelCode' => $input['vendChannelCode'],
             'vendChannelError' => $vendChannelError,
             'vendChannelErrorID' => $vendChannelError ? $vendChannelError->id : null,
@@ -433,10 +510,12 @@ class VendTransactionService
             $data['success_qty'] = 0;
             $data['dispensed_qty'] = 0;
             foreach($input['transf_info'] as $trans) {
+                $childAmount = $this->extractChildAmountCents($trans);
                 $transErrorCode = is_numeric($trans['SErr']) ? (int) $trans['SErr'] : null;
                 $childSuccessQty = in_array($transErrorCode, $successErrorCodes, true) ? 1 : 0;
                 $childDispensedQty = in_array($transErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
                 $data['children'][] = $this->processMapping($vend, [
+                    'amount' => $childAmount,
                     'errorCode' => $trans['SErr'],
                     'vendChannelCode' => $trans['SId'],
                     'success_qty' => $childSuccessQty,

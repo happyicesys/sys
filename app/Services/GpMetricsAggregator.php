@@ -85,15 +85,14 @@ class GpMetricsAggregator
                 DB::raw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END'),
             ]);
 
+        $multiQuantityExpression = 'NULLIF(COALESCE(vend_transactions.success_qty, vend_transactions.qty), 0)';
         $multiRevenueExpression = 'COALESCE(
+                vend_transaction_items.unit_price_amount,
+                CASE
+                    WHEN ' . $multiQuantityExpression . ' IS NOT NULL THEN ' . $singleRevenueExpression . ' / ' . $multiQuantityExpression . '
+                    ELSE NULL
+                END,
                 vend_channels.amount,
-                ROUND(
-                    CASE
-                        WHEN vend_transactions.success_qty IS NOT NULL AND vend_transactions.success_qty > 0 THEN ' . $singleRevenueExpression . ' / NULLIF(vend_transactions.success_qty, 0)
-                        WHEN vend_transactions.qty IS NOT NULL AND vend_transactions.qty > 0 THEN ' . $singleRevenueExpression . ' / NULLIF(vend_transactions.qty, 0)
-                        ELSE 0
-                    END
-                ),
                 0
             )';
 
