@@ -85,17 +85,7 @@ class GpMetricsAggregator
                 DB::raw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END'),
             ]);
 
-        $multiQuantityExpression = 'NULLIF(COALESCE(vend_transactions.success_qty, vend_transactions.qty), 0)';
-        $multiRevenueExpression = 'COALESCE(
-                vend_transaction_items.unit_price_amount,
-                CASE
-                    WHEN ' . $multiQuantityExpression . ' IS NOT NULL THEN ' . $singleRevenueExpression . ' / ' . $multiQuantityExpression . '
-                    ELSE NULL
-                END,
-                vend_channels.amount,
-                0
-            )';
-
+        $multiRevenueExpression = 'COALESCE(vend_transaction_items.unit_price_amount, 0)';
         $multiUnitCostExpression = 'ROUND(COALESCE(vend_transaction_items.unit_cost, 0) * 100)';
         $multiGrossProfitExpression = '(' . $multiRevenueExpression . ' - ' . $multiUnitCostExpression . ')';
 
@@ -108,7 +98,6 @@ class GpMetricsAggregator
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->whereBetween(DB::raw($transactionDatetimeColumn), [$start, $end])
             ->where('vend_transactions.is_multiple', true)
-            ->whereIn('vend_transaction_items.vend_channel_error_code', [0, 6])
             ->selectRaw("$transactionDateExpression as txn_date")
             ->selectRaw('vend_transactions.operator_id as operator_id')
             ->selectRaw('vend_transactions.vend_id as vend_id')
@@ -123,7 +112,7 @@ class GpMetricsAggregator
             ->selectRaw('COALESCE(vend_transaction_items.product_id, vend_channels.product_id) as product_id')
             ->selectRaw('1 as is_multiple')
             ->selectRaw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END as is_binded_customer')
-            ->selectRaw('COUNT(*) as sale_count')
+            ->selectRaw('SUM(CASE WHEN ' . $multiRevenueExpression . ' > 0 THEN 1 ELSE 0 END) as sale_count')
             ->selectRaw('COUNT(DISTINCT vend_transaction_items.vend_transaction_id) as transaction_count')
             ->selectRaw('SUM(' . $multiRevenueExpression . ') as revenue_cents')
             ->selectRaw('SUM(' . $multiGrossProfitExpression . ') as gross_profit_cents')

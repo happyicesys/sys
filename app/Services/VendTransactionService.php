@@ -276,7 +276,7 @@ class VendTransactionService
             'product_id' => $input['productID'],
             'unit_cost_id' => $input['unitCostID'],
             'unit_cost' => isset($input['unitCostID']) && $input['unitCostID'] ? UnitCost::find($input['unitCostID'])->cost : 0,
-            'unit_price_amount' => $input['unit_price_amount'] ?? $input['amount'] ?? null,
+            'unit_price_amount' => $input['unit_price_amount'] ?? 0,
             'vend_channel_id' => $input['vendChannelID'],
             'vend_channel_code' => $input['vendChannelCode'],
             'vend_channel_error_code' => $input['errorCode'],
@@ -295,8 +295,12 @@ class VendTransactionService
         return $vendChannel;
     }
 
-    private function determineUnitPriceAmount(?VendChannel $vendChannel, array $input): ?int
+    private function determineUnitPriceAmount(?VendChannel $vendChannel, array $input, bool $isSuccessfulItem): ?int
     {
+        if (!$isSuccessfulItem) {
+            return 0;
+        }
+
         if (array_key_exists('unit_price_amount', $input) && !is_null($input['unit_price_amount'])) {
             return (int) $input['unit_price_amount'];
         }
@@ -427,7 +431,7 @@ class VendTransactionService
             $vendChannel = $this->createVendChannel($vend->id, $input['vendChannelCode']);
         }
 
-        $unitPriceAmount = $this->determineUnitPriceAmount($vendChannel, $input);
+        $unitPriceAmount = $this->determineUnitPriceAmount($vendChannel, $input, $isSuccessful);
 
         return [
             'amount' => isset($input['amount']) ? $input['amount'] : 0,
