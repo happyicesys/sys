@@ -270,6 +270,105 @@ trait HasFilter {
         return $query;
     }
 
+    public function filterVendRecordsReport($query, $request)
+    {
+        return $query
+            ->when($request->has('visited'), function ($query) use ($request) {
+                if ($request->visited === 'true') {
+                    $query->whereRaw('1 = 1');
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            })
+            ->when($request->categories, function ($query, $search) {
+                $ids = is_array($search) ? $search : [$search];
+                $ids = array_filter($ids);
+                if (!empty($ids)) {
+                    $query->whereIn('customers.category_id', $ids);
+                }
+            })
+            ->when($request->categoryGroups, function ($query, $search) {
+                $ids = is_array($search) ? $search : [$search];
+                $ids = array_filter($ids);
+                if (!empty($ids)) {
+                    $query->whereIn('categories.category_group_id', $ids);
+                }
+            })
+            ->when($request->codes, function ($query, $search) {
+                if (strpos($search, ',') !== false) {
+                    $codes = array_filter(array_map('trim', explode(',', $search)));
+                    if (!empty($codes)) {
+                        $query->whereIn('vends.code', $codes);
+                    }
+                } else {
+                    $query->where('vends.code', 'LIKE', "{$search}%");
+                }
+            })
+            ->when($request->customer_code, function ($query, $search) {
+                $query->where('customers.code', 'LIKE', "%{$search}%");
+            })
+            ->when($request->customer_name, function ($query, $search) {
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery->where('customers.name', 'LIKE', "%{$search}%")
+                        ->orWhere('vends.name', 'LIKE', "%{$search}%");
+                });
+            })
+            ->when($request->customer, function ($query, $search) {
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                        ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
+                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
+                });
+            })
+            ->when($request->is_binded_customer, function ($query, $search) {
+                if ($search === 'all') {
+                    return;
+                }
+                if ($search === 'true') {
+                    $query->whereNotNull('vr.customer_id');
+                } else {
+                    $query->whereNull('vr.customer_id');
+                }
+            })
+            ->when($request->location_type_id, function ($query, $search) {
+                if ($search !== 'all') {
+                    $query->where('vr.location_type_id', $search);
+                }
+            })
+            ->when($request->operators, function ($query, $search) {
+                $ids = is_array($search) ? $search : [$search];
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (!in_array('all', $ids, true) && !empty($ids)) {
+                    $query->whereIn('vr.operator_id', $ids);
+                }
+            })
+            ->when($request->vendContracts, function ($query, $search) {
+                $ids = is_array($search) ? $search : [$search];
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (!in_array('all', $ids, true) && !empty($ids)) {
+                    $query->whereIn('vends.vend_contract_id', $ids);
+                }
+            })
+            ->when($request->vendModels, function ($query, $search) {
+                $ids = is_array($search) ? $search : [$search];
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (!in_array('all', $ids, true) && !empty($ids)) {
+                    $query->whereIn('vr.vend_model_id', $ids);
+                }
+            })
+            ->when($request->vendPrefixes, function ($query, $search) {
+                $ids = is_array($search) ? $search : [$search];
+                if (in_array('single-ud', $ids, true)) {
+                    $ids = array_unique(array_merge($ids, [56, 57, 58, 60, 63, 64, 76, 83]));
+                    $ids = array_values(array_filter($ids, fn ($value) => $value !== 'single-ud'));
+                }
+                $ids = array_filter($ids, fn ($value) => $value !== null && $value !== '');
+                if (!in_array('all', $ids, true) && !empty($ids)) {
+                    $query->whereIn('vr.vend_prefix_id', $ids);
+                }
+            });
+    }
+
     public function filterVendsDB($query, $request)
     {
         $request->merge([

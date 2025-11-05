@@ -968,63 +968,108 @@ class ReportController extends Controller
         $start = Carbon::parse($request->date_from)->startOfDay();
         $end = Carbon::parse($request->date_to)->endOfDay();
 
-        $transactionsQuery = $this->baseGpMetricsQuery($request, $start, $end)
-            ->leftJoin('vend_models', 'vend_models.id', '=', 'gm.vend_model_id')
-            ->leftJoin('location_types', 'location_types.id', '=', 'gm.transaction_location_type_id');
+        if ($className === 'products') {
+            $transactionsQuery = $this->baseVendTransactionMetricsQuery($request, $start, $end)
+                ->leftJoin('vend_models', 'vend_models.id', '=', 'gm.vend_model_id')
+                ->leftJoin('location_types', 'location_types.id', '=', 'gm.transaction_location_type_id')
+                ->whereNotNull('gm.product_id')
+                ->selectRaw('gm.product_id as id')
+                ->selectRaw('MAX(products.code) as code')
+                ->selectRaw('MAX(products.name) as name');
 
-        switch ($className) {
-            case 'categories':
-                $transactionsQuery
-                    ->whereNotNull('gm.category_id')
-                    ->selectRaw('gm.category_id as id')
-                    ->selectRaw('MAX(categories.name) as name');
-                break;
-            case 'location_types':
-                $transactionsQuery
-                    ->whereNotNull('gm.transaction_location_type_id')
-                    ->selectRaw('gm.transaction_location_type_id as id')
-                    ->selectRaw('MAX(location_types.name) as name');
-                break;
-            case 'products':
-                $transactionsQuery
-                    ->whereNotNull('gm.product_id')
-                    ->selectRaw('gm.product_id as id')
-                    ->selectRaw('MAX(products.code) as code')
-                    ->selectRaw('MAX(products.name) as name');
-                break;
-            case 'operators':
-                $transactionsQuery
-                    ->whereNotNull('gm.operator_id')
-                    ->selectRaw('gm.operator_id as id')
-                    ->selectRaw('MAX(operators.code) as code')
-                    ->selectRaw('MAX(operators.name) as name');
-                break;
-            case 'vends':
-                $transactionsQuery
-                    ->whereNotNull('gm.vend_id')
-                    ->selectRaw('gm.vend_id as id')
-                    ->selectRaw('MAX(vends.code) as code')
-                    ->selectRaw('MAX(CASE WHEN customers.id THEN CONCAT(customers.virtual_customer_code," (", customers.virtual_customer_prefix,") - ", customers.name) ELSE vends.name END) as name')
-                    ->selectRaw('MAX(vend_models.name) as vend_model_name')
-                    ->selectRaw('MAX(location_types.name) as location_type_name');
-                break;
-            case 'customers':
-                $transactionsQuery
-                    ->whereNotNull('gm.customer_id')
-                    ->selectRaw('gm.customer_id as id')
-                    ->selectRaw('MAX(gm.customer_id + 20000) as code')
-                    ->selectRaw('MAX(CASE WHEN customers.person_id THEN CONCAT(customers.virtual_customer_code, " - ", customers.name) ELSE customers.name END) as name')
-                    ->selectRaw('MAX(vend_models.name) as vend_model_name')
-                    ->selectRaw('MAX(location_types.name) as location_type_name');
-                break;
+            $countColumn = 'gm.sale_count';
+            $amountColumn = 'gm.revenue_cents';
+        } else {
+            $transactionsQuery = $this->baseVendRecordsQuery($request, $start, $end);
+
+            $countColumn = 'vr.total_count';
+            $amountColumn = 'vr.total_amount';
+
+            switch ($className) {
+                case 'categories':
+                    $transactionsQuery
+                        ->whereNotNull('customers.category_id')
+                        ->selectRaw('customers.category_id as id')
+                        ->selectRaw('MAX(categories.name) as name');
+                    break;
+                case 'location_types':
+                    $transactionsQuery
+                        ->whereNotNull('vr.location_type_id')
+                        ->selectRaw('vr.location_type_id as id')
+                        ->selectRaw('MAX(location_types.name) as name');
+                    break;
+                case 'operators':
+                    $transactionsQuery
+                        ->whereNotNull('vr.operator_id')
+                        ->selectRaw('vr.operator_id as id')
+                        ->selectRaw('MAX(operators.code) as code')
+                        ->selectRaw('MAX(operators.name) as name');
+                    break;
+                case 'vends':
+                    $transactionsQuery
+                        ->whereNotNull('vr.vend_id')
+                        ->selectRaw('vr.vend_id as id')
+                        ->selectRaw('MAX(vends.code) as code')
+                        ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (", customers.virtual_customer_prefix,") - ", customers.name) ELSE vends.name END) as name')
+                        ->selectRaw('MAX(vend_models.name) as vend_model_name')
+                        ->selectRaw('MAX(location_types.name) as location_type_name');
+                    break;
+                case 'customers':
+                    $transactionsQuery
+                        ->whereNotNull('vr.customer_id')
+                        ->selectRaw('vr.customer_id as id')
+                        ->selectRaw('MAX(vr.customer_id + 20000) as code')
+                        ->selectRaw('MAX(CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code, " - ", customers.name) ELSE customers.name END) as name')
+                        ->selectRaw('MAX(vend_models.name) as vend_model_name')
+                        ->selectRaw('MAX(location_types.name) as location_type_name');
+                    break;
+            }
         }
 
-        $transactionsQuery = $transactionsQuery
-            ->selectRaw('SUM(gm.sale_count) AS count')
-            ->selectRaw('SUM(gm.revenue_cents) AS amount')
+        $transactionsQuery
+            ->selectRaw('SUM(' . $countColumn . ') AS count')
+            ->selectRaw('SUM(' . $amountColumn . ') AS amount')
             ->groupBy('id');
 
         return $transactionsQuery;
+    }
+
+    private function baseVendRecordsQuery($request, Carbon $start, Carbon $end): Builder
+    {
+        $query = DB::table('vend_records as vr')
+            ->leftJoin('vends', 'vr.vend_id', '=', 'vends.id')
+            ->leftJoin('customers', 'vr.customer_id', '=', 'customers.id')
+            ->leftJoin('operators', 'vr.operator_id', '=', 'operators.id')
+            ->leftJoin('location_types', 'vr.location_type_id', '=', 'location_types.id')
+            ->leftJoin('vend_prefixes', 'vr.vend_prefix_id', '=', 'vend_prefixes.id')
+            ->leftJoin('vend_models', 'vr.vend_model_id', '=', 'vend_models.id')
+            ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
+            ->whereBetween('vr.date', [$start, $end]);
+
+        $query = $this->filterVendRecordsReport($query, $request);
+
+        return $this->filterOperatorVendTransactionDB($query);
+    }
+
+    private function baseVendTransactionMetricsQuery($request, Carbon $start, Carbon $end, ?string $locationTypeColumn = null): Builder
+    {
+        $dataset = DB::query()->fromSub(GpMetricsAggregator::buildRawQuery($start, $end), 'gm');
+
+        $query = $dataset
+            ->leftJoin('vends', 'gm.vend_id', '=', 'vends.id')
+            ->leftJoin('customers', 'gm.customer_id', '=', 'customers.id')
+            ->leftJoin('products', 'gm.product_id', '=', 'products.id')
+            ->leftJoin('categories', 'gm.category_id', '=', 'categories.id')
+            ->leftJoin('vend_prefixes', 'gm.vend_prefix_id', '=', 'vend_prefixes.id')
+            ->leftJoin('operators', 'operators.id', '=', 'gm.operator_id');
+
+        $query = $this->filterGpMetricsReport(
+            $query,
+            $request,
+            $locationTypeColumn ?? 'gm.transaction_location_type_id'
+        );
+
+        return $this->filterOperatorVendTransactionDB($query);
     }
 
     private function getStockCountDayGraph(Request $request)
@@ -1279,23 +1324,23 @@ class ReportController extends Controller
 
         $rangeStart = $currentDate->copy()->subMonths(2)->startOfMonth();
         $rangeEnd = $currentDate->copy()->endOfMonth();
-        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(gm.txn_date, "%Y%m"))';
+        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(vr.date, "%Y%m"))';
 
-        $baseQuery = $this->baseGpMetricsQuery($request, $rangeStart, $rangeEnd)
-            ->whereNotNull('gm.vend_id');
+        $baseQuery = $this->baseVendRecordsQuery($request, $rangeStart, $rangeEnd)
+            ->whereNotNull('vr.vend_id');
 
         $query = $baseQuery
-            ->selectRaw('gm.vend_id as id')
+            ->selectRaw('vr.vend_id as id')
             ->selectRaw('MAX(vends.name) as name')
             ->selectRaw('MAX(vends.code) as code')
             ->selectRaw('MAX(CASE WHEN customers.person_id THEN CONCAT(customers.virtual_customer_code," (", customers.virtual_customer_prefix,")") ELSE vends.code END) as customer_code')
             ->selectRaw('MAX(customers.name) as customer_name')
             ->selectRaw($monthDiffExpression . ' as month_diff')
-            ->selectRaw('SUM(gm.sale_count) as count')
-            ->selectRaw('SUM(gm.revenue_cents) as revenue')
-            ->selectRaw('SUM(gm.gross_profit_cents) as gross_profit')
-            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.revenue_cents), 0), 1) as gross_profit_margin')
-            ->groupBy('gm.vend_id', DB::raw($monthDiffExpression));
+            ->selectRaw('SUM(vr.total_count) as count')
+            ->selectRaw('SUM(vr.total_amount) as revenue')
+            ->selectRaw('SUM(vr.gross_profit) as gross_profit')
+            ->selectRaw('ROUND(SUM(vr.gross_profit) * 100.0 / NULLIF(SUM(vr.total_amount), 0), 1) as gross_profit_margin')
+            ->groupBy('vr.vend_id', DB::raw($monthDiffExpression));
 
         $vends = DB::query()
             ->fromSub($query, 'transac')
@@ -1342,7 +1387,7 @@ class ReportController extends Controller
 
         $rangeStart = $currentDate->copy()->subMonths(2)->startOfMonth();
         $rangeEnd = $currentDate->copy()->endOfMonth();
-        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(gm.txn_date, "%Y%m"))';
+        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(vr.date, "%Y%m"))';
 
         $baseQuery = $this->baseGpMetricsQuery($request, $rangeStart, $rangeEnd)
             ->whereNotNull('gm.product_id');
@@ -1402,21 +1447,21 @@ class ReportController extends Controller
         $className = get_class(new Customer());
         $rangeStart = $currentDate->copy()->subMonths(2)->startOfMonth();
         $rangeEnd = $currentDate->copy()->endOfMonth();
-        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(gm.txn_date, "%Y%m"))';
+        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(vr.date, "%Y%m"))';
 
-        $baseQuery = $this->baseGpMetricsQuery($request, $rangeStart, $rangeEnd)
-            ->whereNotNull('gm.category_id');
+        $baseQuery = $this->baseVendRecordsQuery($request, $rangeStart, $rangeEnd)
+            ->whereNotNull('customers.category_id');
 
         $query = $baseQuery
-            ->selectRaw('gm.category_id as id')
+            ->selectRaw('customers.category_id as id')
             ->selectRaw('MAX(categories.name) as name')
             ->selectRaw('MAX(categories.classname) as classname')
             ->selectRaw($monthDiffExpression . ' as month_diff')
-            ->selectRaw('SUM(gm.sale_count) as count')
-            ->selectRaw('SUM(gm.revenue_cents) as revenue')
-            ->selectRaw('SUM(gm.gross_profit_cents) as gross_profit')
-            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.revenue_cents), 0), 1) as gross_profit_margin')
-            ->groupBy('gm.category_id', DB::raw($monthDiffExpression));
+            ->selectRaw('SUM(vr.total_count) as count')
+            ->selectRaw('SUM(vr.total_amount) as revenue')
+            ->selectRaw('SUM(vr.gross_profit) as gross_profit')
+            ->selectRaw('ROUND(SUM(vr.gross_profit) * 100.0 / NULLIF(SUM(vr.total_amount), 0), 1) as gross_profit_margin')
+            ->groupBy('customers.category_id', DB::raw($monthDiffExpression));
 
         $categories = DB::query()
             ->fromSub($query, 'transac')
@@ -1464,19 +1509,18 @@ class ReportController extends Controller
         $rangeEnd = $currentDate->copy()->endOfMonth();
         $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(gm.txn_date, "%Y%m"))';
 
-        $baseQuery = $this->baseGpMetricsQuery($request, $rangeStart, $rangeEnd)
-            ->leftJoin('location_types', 'location_types.id', '=', 'gm.customer_location_type_id')
-            ->whereNotNull('gm.customer_location_type_id');
+        $baseQuery = $this->baseVendRecordsQuery($request, $rangeStart, $rangeEnd)
+            ->whereNotNull('vr.location_type_id');
 
         $query = $baseQuery
-            ->selectRaw('gm.customer_location_type_id as id')
+            ->selectRaw('vr.location_type_id as id')
             ->selectRaw('MAX(location_types.name) as name')
             ->selectRaw($monthDiffExpression . ' as month_diff')
-            ->selectRaw('SUM(gm.sale_count) as count')
-            ->selectRaw('SUM(gm.revenue_cents) as revenue')
-            ->selectRaw('SUM(gm.gross_profit_cents) as gross_profit')
-            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.revenue_cents), 0), 1) as gross_profit_margin')
-            ->groupBy('gm.customer_location_type_id', DB::raw($monthDiffExpression));
+            ->selectRaw('SUM(vr.total_count) as count')
+            ->selectRaw('SUM(vr.total_amount) as revenue')
+            ->selectRaw('SUM(vr.gross_profit) as gross_profit')
+            ->selectRaw('ROUND(SUM(vr.gross_profit) * 100.0 / NULLIF(SUM(vr.total_amount), 0), 1) as gross_profit_margin')
+            ->groupBy('vr.location_type_id', DB::raw($monthDiffExpression));
 
         $locationTypes = DB::query()
             ->fromSub($query, 'transac')

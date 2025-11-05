@@ -48,7 +48,12 @@ class OperatorResource extends JsonResource
             'email_recipients' => $emailRecipientsJson,
 
             'logo' => AttachmentResource::make($this->whenLoaded('logo')),
-            'logo_url' => $this->logo?->full_url,
+            'logo_url' => $this->when(
+                $this->relationLoaded('logo'),
+                function () {
+                    return $this->logo?->full_url;
+                }
+            ),
 
             // Back-compat fields; will be [] when json is a flat string array
             'email_user_ids' => data_get($emailRecipientsJson, 'user_ids', []),

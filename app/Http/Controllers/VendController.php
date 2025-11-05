@@ -336,7 +336,7 @@ class VendController extends Controller
                 ->distinct()
                 ->get(),
             'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
+                Operator::with('logo')->orderBy('name')->get()
             ),
             'productOptions' => ProductResource::collection(
                 Product::query()
@@ -416,7 +416,11 @@ class VendController extends Controller
                 'nextOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
                 'nextOpsJobItem.opsJob:id,code,date,delivered_by',
                 'nextOpsJobItem.opsJob.deliveredBy:id,name,username',
-                'nextOpsJobItem.opsJobItemChannels.vendChannel',
+                'nextOpsJobItem.opsJobItemChannels.vendChannel' => function ($query) {
+                    $query->with([
+                        'vend:id,server_price_type',
+                    ]);
+                },
                 // 'vend.vendChannels' => function($query) {
                 //     $query->select('*')
                 //         ->selectRaw("(SELECT amount FROM selling_prices WHERE
