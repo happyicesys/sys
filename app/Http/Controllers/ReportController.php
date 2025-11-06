@@ -7,6 +7,7 @@ use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\LocationTypeDBResource;
 use App\Http\Resources\LocationTypeResource;
+use App\Http\Resources\OptionResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductDBResource;
 use App\Http\Resources\ProductResource;
@@ -39,6 +40,7 @@ use App\Models\VendChannelStockEvent;
 use App\Models\VendPrefix;
 use App\Models\VendTransaction;
 use App\Services\GpMetricsAggregator;
+use App\Services\MachineHealthDashboardService;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use App\Traits\HasMonthOption;
@@ -83,7 +85,9 @@ class ReportController extends Controller
         'unit_cost_cents',
     ];
 
-    public function __construct()
+    public function __construct(
+        private MachineHealthDashboardService $machineHealthDashboardService
+    )
     {
         $this->middleware(['permission:read reports']);
     }
@@ -182,6 +186,27 @@ class ReportController extends Controller
             ),
             'items' => SalesReportResource::collection($items),
             'totals' => $totals,
+        ]);
+    }
+
+    public function indexMachineHealth(Request $request)
+    {
+        $dashboardData = $this->machineHealthDashboardService->getDashboardData($request);
+
+        return Inertia::render('Report/MachineHealth/Index', [
+            'machineHealth' => $dashboardData,
+            'operatorOptions' => OptionResource::collection(
+                Operator::select('id', 'code', 'name')->orderBy('name')->get()
+            ),
+            'vendPrefixOptions' => OptionResource::collection(
+                VendPrefix::select('id', 'name')->orderBy('name')->get()
+            ),
+            'customerOptions' => OptionResource::collection(
+                Customer::select('id', 'code', 'name')->orderBy('name')->limit(200)->get()
+            ),
+            'locationTypeOptions' => OptionResource::collection(
+                LocationType::select('id', 'name')->orderBy('sequence')->get()
+            ),
         ]);
     }
 

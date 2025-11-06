@@ -374,6 +374,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/stock-count', [ReportController::class, 'indexStockCount']);
         Route::get('/stock-count/excel', [ReportController::class, 'exportStockCountExcel']);
         Route::get('/stock-count-dashboard', [ReportController::class, 'indexStockCountDashboard']);
+        Route::get('/machine-health', [ReportController::class, 'indexMachineHealth']);
     });
 
     Route::prefix('resource-centers')->group(function() {
