@@ -219,6 +219,34 @@ class VendController extends Controller
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->leftJoin(DB::raw('
+                (
+                    SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
+                    FROM vend_channels
+                    WHERE is_active = true
+                    AND capacity > 0
+                    GROUP BY vend_id
+                ) AS vc
+            '), 'vc.vend_id', '=', 'vends.id')
+            ->leftJoin(DB::raw('
+                (
+                    SELECT
+                        vend_channels.vend_id,
+                        SUM(vend_channels.qty * unit_costs.cost) AS total_stock_cost
+                    FROM
+                        vend_channels
+                    INNER JOIN
+                        products ON vend_channels.product_id = products.id
+                    INNER JOIN
+                        unit_costs ON products.id = unit_costs.product_id
+                    WHERE
+                        unit_costs.is_current = true
+                    AND vend_channels.is_active = true
+                    AND vend_channels.capacity > 0
+                    GROUP BY
+                        vend_channels.vend_id
+                ) AS vc_cost
+            '), 'vc_cost.vend_id', '=', 'vends.id')
             ->select(
                 'vends.id AS id',
                 'vends.id AS vend_id',
@@ -282,6 +310,9 @@ class VendController extends Controller
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
                 'vend_prefixes.name AS vend_prefix_name',
+                'vc.total_full_load_amount',
+                'vc.total_stock_amount',
+                'vc_cost.total_stock_cost',
                 // 'delivery_platforms.slug AS delivery_platform_slug'
             );
         $vends = $this->filterVendsDB($vends, $request);

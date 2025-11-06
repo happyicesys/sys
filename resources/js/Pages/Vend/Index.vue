@@ -909,6 +909,33 @@
                 </span>
                 </li>
               </ul>
+              <div class="flex flex-col space-y-1 pl-2 text-center">
+                <span>
+                  <div class="text-gray-800">
+                    Cost: {{ operatorCountry.currency_symbol }}{{ vend.total_stock_cost ? vend.total_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+                  </div>
+                </span>
+                <span>
+                  <div class="text-gray-800">
+                    Value: {{ operatorCountry.currency_symbol }}{{ vend.total_stock_amount ? vend.total_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+                  </div>
+                </span>
+                <span>
+                  <div class="text-gray-800">
+                    Full Load Value: {{ operatorCountry.currency_symbol }}{{ vend.total_full_load_amount ? vend.total_full_load_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+                  </div>
+                </span>
+                <span>
+                  <div class="text-gray-800">
+                    Stock Qty: {{ ((vend.vendChannelTotalsJson && vend.vendChannelTotalsJson['qty'] !== undefined) ? vend.vendChannelTotalsJson['qty'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0}) }} pcs
+                  </div>
+                </span>
+                <span>
+                  <div class="text-gray-800">
+                    Capacity: {{ ((vend.vendChannelTotalsJson && vend.vendChannelTotalsJson['capacity'] !== undefined) ? vend.vendChannelTotalsJson['capacity'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0}) }} pcs
+                  </div>
+                </span>
+              </div>
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
