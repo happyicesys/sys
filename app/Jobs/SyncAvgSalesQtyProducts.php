@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use Carbon\Carbon;
 use App\Models\Product;
-use App\Models\VendTransaction;
+use App\Services\VendTransactionSalesAggregator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -35,11 +35,8 @@ class SyncAvgSalesQtyProducts implements ShouldQueue
             $startDate = Carbon::parse($this->date)->subDays(28)->startOfDay();
             $endDate = Carbon::parse($this->date)->endOfDay();
 
-            // Step 1: Aggregate all transaction counts per product
-            $counts = VendTransaction::selectRaw('product_id, COUNT(*) as total')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->groupBy('product_id')
-                ->pluck('total', 'product_id'); // [product_id => total]
+            $counts = VendTransactionSalesAggregator::productTotals($startDate, $endDate)
+                ->pluck('total_count', 'product_id');
 
             // Step 2: Loop through products in chunks
             Product::chunk(50, function ($products) use ($counts) {

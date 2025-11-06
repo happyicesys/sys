@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 
 class SyncVendTransactionTotalsJson implements ShouldQueue
 {
@@ -51,7 +52,12 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
             $todayTxns = $vend->daysVendTransactions(0, 0);
             $todayAmount = (int)$todayTxns->clone()->isSuccessful()->sum('amount');
             $todayCount = $this->calculateSuccessfulItemCount($todayTxns);
-            $todayAllCount = $todayTxns->count();
+            $todayAllCount = (int) $todayTxns->clone()->sum(DB::raw("
+                CASE
+                    WHEN vend_transactions.is_multiple = 1 THEN COALESCE(vend_transactions.qty, 0)
+                    ELSE COALESCE(NULLIF(vend_transactions.qty, 0), 1)
+                END
+            "));
             $todayErrorCount = $todayTxns->clone()->isError()->count();
             $todayRevenue = (int)$todayTxns->clone()->isSuccessful()->sum('revenue');
             $todayGrossProfit = (int)$todayTxns->clone()->isSuccessful()->sum('gross_profit');
@@ -105,7 +111,12 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
             $todayTxns = $customer->daysVendTransactions(0, 0);
             $todayAmount = (int)$todayTxns->clone()->isSuccessful()->sum('amount');
             $todayCount = $this->calculateSuccessfulItemCount($todayTxns);
-            $todayAllCount = $todayTxns->count();
+            $todayAllCount = (int) $todayTxns->clone()->sum(DB::raw("
+                CASE
+                    WHEN vend_transactions.is_multiple = 1 THEN COALESCE(vend_transactions.qty, 0)
+                    ELSE COALESCE(NULLIF(vend_transactions.qty, 0), 1)
+                END
+            "));
             $todayErrorCount = $todayTxns->clone()->isError()->count();
             $todayRevenue = (int)$todayTxns->clone()->isSuccessful()->sum('revenue');
             $todayGrossProfit = (int)$todayTxns->clone()->isSuccessful()->sum('gross_profit');

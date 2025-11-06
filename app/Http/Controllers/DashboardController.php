@@ -14,11 +14,13 @@ use App\Models\Customer;
 use App\Models\LocationType;
 use App\Models\Month;
 use App\Models\Operator;
+use App\Models\Product;
 use App\Models\Vend;
 use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\VendRecord;
 use App\Models\VendTransaction;
+use App\Services\VendTransactionSalesAggregator;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use DB;
@@ -187,24 +189,49 @@ class DashboardController extends Controller
         $seven_days_date_from = Carbon::today()->subDays(6)->setTimezone($this->getUserTimezone());
         $seven_days_date_to = Carbon::today()->setTimezone($this->getUserTimezone());
 
-        return VendTransaction::query()
-            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'product:id,code,name'])
-            ->filterTransactionIndex($request)
-            ->whereBetween('transaction_datetime', [$seven_days_date_from->startOfDay(), $seven_days_date_to->endOfDay()])
-            ->whereIn('error_code_normalized', [0, 6])
-            ->whereNotIn('vend_id', function ($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
-            })
-            ->groupBy('product_id')
-            ->select(
-                'id',
-                DB::raw('product_id'),
-                DB::raw('SUM(amount) as amount'),
-                DB::raw('COUNT(id) as count')
-            )
-            ->orderBy('count', 'desc')
+        $salesQuery = VendTransactionSalesAggregator::productTotals(
+            $seven_days_date_from,
+            $seven_days_date_to,
+            function ($query) use ($request) {
+                $query->filterTransactionIndex($request)
+                    ->whereNotIn('vend_transactions.vend_id', function ($subQuery) {
+                        $subQuery->select('id')->from('vends')->where('is_testing', true);
+                    });
+            }
+        );
+
+        $topProducts = $salesQuery
+            ->orderByDesc('total_count')
             ->limit(10)
             ->get();
+
+        if ($topProducts->isEmpty()) {
+            return collect();
+        }
+
+        $products = Product::query()
+            ->select('id', 'code', 'name')
+            ->whereIn('id', $topProducts->pluck('product_id'))
+            ->get()
+            ->keyBy('id');
+
+        return $topProducts->map(function ($row) use ($products) {
+            $model = new VendTransaction();
+            $model->setAttribute('amount', (int) $row->total_amount);
+            $model->setAttribute('count', (int) $row->total_count);
+            $model->setAttribute('date', null);
+            $model->setAttribute('day', null);
+            $model->setAttribute('month', null);
+            $model->setAttribute('month_name', null);
+            $model->setAttribute('year', null);
+            $model->setAttribute('product_id', $row->product_id);
+
+            if ($product = $products->get($row->product_id)) {
+                $model->setRelation('product', $product);
+            }
+
+            return $model;
+        });
     }
 
     private function getBestPerformer(Request $request, int $limit)
