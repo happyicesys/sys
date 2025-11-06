@@ -2,9 +2,9 @@
 
 namespace App\Jobs\Vend;
 
+use App\Models\ProductLimit;
 use App\Models\Vend;
 use Carbon\Carbon;
-use DB;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -51,6 +51,7 @@ class SaveVendChannelsJson implements ShouldQueue
 
         $vendChannelsWithoutClaw = $vend->vendChannelsWithoutClaw;
         $vendChannels = $vend->vendChannels;
+        $productLimitLookup = $this->resolveProductLimits($vendChannels);
 
 
         $vendTotals = [
@@ -83,8 +84,7 @@ class SaveVendChannelsJson implements ShouldQueue
 
         $vend->update([
             'original_vend_channels_json' => $this->originalVendChannelData,
-            'vend_channels_json' => $vendChannels->map(function ($channel) use ($vend) {
-
+            'vend_channels_json' => $vendChannels->map(function ($channel) use ($vend, $productLimitLookup) {
                 $sellingPriceType = $vend->customer?->selling_price_type;
                 $sellingPrice = $channel->product?->sellingPrices
                     ?->firstWhere('type', $sellingPriceType);
@@ -106,11 +106,7 @@ class SaveVendChannelsJson implements ShouldQueue
                         'name' => $channel->product->name,
                         'thumbnail' => $channel->product->thumbnail ? $channel->product->thumbnail->only(['id', 'full_url', 'modelable_id', 'modelable_type', 'type']) : null,
                         'is_available' => $channel->product->is_available,
-                        'limit_qty' => DB::table('product_limits')
-                            ->where('product_id', $channel->product->id)
-                            ->whereDate('date', Carbon::today())
-                            ->orderByDesc('created_at')
-                            ->value('qty'),
+                        'limit_qty' => $productLimitLookup->get($channel->product->id),
                     ] : null,
                     'last_stock_in_qty' => $channel->latestOpsJobItemChannel?->actual_qty ?? null,
                     'server_amount' => $channel->server_amount ? $channel->server_amount/ 100 : null,
@@ -145,6 +141,29 @@ class SaveVendChannelsJson implements ShouldQueue
             }, 0);
             return $carry + $activeErrorCount;
         }, 0);
+    }
+
+    private function resolveProductLimits($vendChannels)
+    {
+        $productIds = $vendChannels->pluck('product_id')->filter()->unique();
+
+        if ($productIds->isEmpty()) {
+            return collect();
+        }
+
+        $today = Carbon::today();
+
+        return ProductLimit::query()
+            ->select('product_id', 'qty', 'created_at')
+            ->whereIn('product_id', $productIds)
+            ->whereDate('date', $today)
+            ->orderBy('product_id')
+            ->orderByDesc('created_at')
+            ->get()
+            ->unique('product_id')
+            ->mapWithKeys(function ($productLimit) {
+                return [$productLimit->product_id => $productLimit->qty];
+            });
     }
 
 }
