@@ -12,6 +12,7 @@ use App\Http\Resources\ProductDBResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductStockCountResource;
 use App\Http\Resources\SalesReportResource;
+use App\Http\Resources\SalesPerformanceProductResource;
 use App\Http\Resources\StockCountResource;
 use App\Http\Resources\StockCountItemResource;
 use App\Http\Resources\StockCountDayGraphResource;
@@ -34,6 +35,7 @@ use App\Models\UnitCost;
 use App\Models\Vend;
 use App\Models\VendContract;
 use App\Models\VendModel;
+use App\Models\VendChannelStockEvent;
 use App\Models\VendPrefix;
 use App\Models\VendTransaction;
 use App\Services\GpMetricsAggregator;
@@ -276,6 +278,103 @@ class ReportController extends Controller
             ),
             'totals' => $totals,
             'products' => ProductDBResource::collection($products),
+        ]);
+    }
+
+    public function indexSalesPerformanceProduct(Request $request)
+    {
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
+        $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
+
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
+        $request->sortBy = $request->sortBy ? $request->sortBy : false;
+
+        $currentDate = $request->currentMonth
+            ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone())
+            : Carbon::today()->setTimezone($this->getUserTimezone());
+
+        $productsQuery = $this->getUnitCostByProductQuery($request);
+        $allProductIds = (clone $productsQuery)->pluck('id')->filter()->values()->all();
+
+        $metrics = $this->buildSalesPerformanceMetrics($allProductIds, $request, $currentDate);
+
+        $products = $productsQuery->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+            ->withQueryString();
+
+        $currentMonthDate = $currentDate->copy();
+        $lastMonthDate = $currentDate->copy()->subMonth();
+        $twoMonthsAgoDate = $currentDate->copy()->subMonths(2);
+
+        $periodDays = [
+            'this_month' => $currentMonthDate->daysInMonth,
+            'last_month' => $lastMonthDate->daysInMonth,
+            'two_months_ago' => $twoMonthsAgoDate->daysInMonth,
+        ];
+
+        $products->getCollection()->transform(function ($item) use ($metrics, $periodDays) {
+            $perProduct = $metrics['per_product'][$item->id] ?? [
+                'this_month' => ['channel_count' => 0, 'availability' => null],
+                'last_month' => ['channel_count' => 0, 'availability' => null],
+                'two_months_ago' => ['channel_count' => 0, 'availability' => null],
+            ];
+
+            $item->this_month_channel_count = $perProduct['this_month']['channel_count'] ?? 0;
+            $item->this_month_availability = $perProduct['this_month']['availability'];
+            $item->this_month_qty_per_day = $periodDays['this_month'] > 0
+                ? round(($item->this_month_count ?? 0) / $periodDays['this_month'], 2)
+                : 0;
+
+            $item->last_month_channel_count = $perProduct['last_month']['channel_count'] ?? 0;
+            $item->last_month_availability = $perProduct['last_month']['availability'];
+            $item->last_month_qty_per_day = $periodDays['last_month'] > 0
+                ? round(($item->last_month_count ?? 0) / $periodDays['last_month'], 2)
+                : 0;
+
+            $item->last_two_month_channel_count = $perProduct['two_months_ago']['channel_count'] ?? 0;
+            $item->last_two_month_availability = $perProduct['two_months_ago']['availability'];
+            $item->last_two_month_qty_per_day = $periodDays['two_months_ago'] > 0
+                ? round(($item->last_two_month_count ?? 0) / $periodDays['two_months_ago'], 2)
+                : 0;
+
+            return $item;
+        });
+
+        $totalsBase = $this->getSalesSubTotal($productsQuery);
+
+        $totals = array_merge($totalsBase, [
+            'this_month_channel_total' => $metrics['aggregates']['this_month']['channel_count_sum'] ?? 0,
+            'this_month_availability_avg' => $metrics['aggregates']['this_month']['availability'],
+            'this_month_qty_per_day_total' => $periodDays['this_month'] > 0 ? round(($totalsBase['this_month_count_total'] ?? 0) / $periodDays['this_month'], 2) : 0,
+            'last_month_channel_total' => $metrics['aggregates']['last_month']['channel_count_sum'] ?? 0,
+            'last_month_availability_avg' => $metrics['aggregates']['last_month']['availability'],
+            'last_month_qty_per_day_total' => $periodDays['last_month'] > 0 ? round(($totalsBase['last_month_count_total'] ?? 0) / $periodDays['last_month'], 2) : 0,
+            'last_two_month_channel_total' => $metrics['aggregates']['two_months_ago']['channel_count_sum'] ?? 0,
+            'last_two_month_availability_avg' => $metrics['aggregates']['two_months_ago']['availability'],
+            'last_two_month_qty_per_day_total' => $periodDays['two_months_ago'] > 0 ? round(($totalsBase['last_two_month_count_total'] ?? 0) / $periodDays['two_months_ago'], 2) : 0,
+        ]);
+
+        $customerClass = get_class(new Customer());
+
+        return Inertia::render('Report/SalesPerformance/IndexProduct', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $customerClass)->orderBy('name')->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $customerClass)->orderBy('name')->get()
+            ),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
+            'monthOptions' => $this->getMonthOption(),
+            'operators' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
+            'totals' => $totals,
+            'products' => SalesPerformanceProductResource::collection($products),
         ]);
     }
 
@@ -1379,6 +1478,275 @@ class ReportController extends Controller
         return $vends;
     }
 
+    /**
+     * Build per-product availability and channel metrics for the sales performance report.
+     *
+     * @param  array<int>  $productIds
+     * @return array{
+     *     per_product: array<int, array<string, array<string, mixed>>>,
+     *     aggregates: array<string, array<string, mixed>>
+     * }
+     */
+    private function buildSalesPerformanceMetrics(array $productIds, Request $request, Carbon $currentDate): array
+    {
+        $result = [
+            'per_product' => [],
+            'aggregates' => [
+                'this_month' => ['available_seconds' => 0, 'total_seconds' => 0, 'channel_count_sum' => 0, 'availability' => null],
+                'last_month' => ['available_seconds' => 0, 'total_seconds' => 0, 'channel_count_sum' => 0, 'availability' => null],
+                'two_months_ago' => ['available_seconds' => 0, 'total_seconds' => 0, 'channel_count_sum' => 0, 'availability' => null],
+            ],
+        ];
+
+        if (empty($productIds)) {
+            return $result;
+        }
+
+        $rangeStart = $currentDate->copy()->subMonths(2)->startOfMonth();
+        $rangeEnd = $currentDate->copy()->endOfMonth();
+        $historyStart = $rangeStart->copy()->subMonth()->startOfMonth();
+
+        $currentStart = $currentDate->copy()->startOfMonth();
+        $currentEnd = $currentDate->copy()->endOfMonth();
+
+        $lastStart = $currentStart->copy()->subMonth();
+        $lastEnd = $lastStart->copy()->endOfMonth();
+
+        $twoStart = $currentStart->copy()->subMonthsNoOverflow(2);
+        $twoEnd = $twoStart->copy()->endOfMonth();
+
+        $periods = [
+            'this_month' => [
+                'key' => $currentStart->format('Y-m'),
+                'start' => $currentStart,
+                'end' => $currentEnd,
+            ],
+            'last_month' => [
+                'key' => $lastStart->format('Y-m'),
+                'start' => $lastStart,
+                'end' => $lastEnd,
+            ],
+            'two_months_ago' => [
+                'key' => $twoStart->format('Y-m'),
+                'start' => $twoStart,
+                'end' => $twoEnd,
+            ],
+        ];
+
+        $channelUsageRows = $this->getChannelUsageRows($productIds, $request, $rangeStart, $rangeEnd);
+
+        $channelsByProduct = [];
+        $channelIds = [];
+
+        foreach ($channelUsageRows as $row) {
+            $channelsByProduct[$row->product_id][$row->month_key][$row->channel_id] = $row->vend_id;
+            $channelIds[] = $row->channel_id;
+        }
+
+        $channelIds = array_values(array_unique($channelIds));
+
+        $events = collect();
+        if (!empty($channelIds)) {
+            $events = VendChannelStockEvent::query()
+                ->whereIn('product_id', $productIds)
+                ->whereIn('vend_channel_id', $channelIds)
+                ->whereBetween('occurred_at', [$historyStart, $rangeEnd])
+                ->orderBy('product_id')
+                ->orderBy('vend_channel_id')
+                ->orderBy('occurred_at')
+                ->get()
+                ->groupBy(['product_id', 'vend_channel_id']);
+        }
+
+        foreach ($productIds as $productId) {
+            $result['per_product'][$productId] = [
+                'this_month' => ['channel_count' => 0, 'availability' => null, 'available_seconds' => 0, 'total_seconds' => 0],
+                'last_month' => ['channel_count' => 0, 'availability' => null, 'available_seconds' => 0, 'total_seconds' => 0],
+                'two_months_ago' => ['channel_count' => 0, 'availability' => null, 'available_seconds' => 0, 'total_seconds' => 0],
+            ];
+
+            foreach ($periods as $periodKey => $period) {
+                $channelSet = array_keys($channelsByProduct[$productId][$period['key']] ?? []);
+                $channelCount = count($channelSet);
+                $availableSeconds = 0;
+                $totalSeconds = 0;
+
+                foreach ($channelSet as $channelId) {
+                    /** @var \Illuminate\Support\Collection<int, VendChannelStockEvent> $channelEvents */
+                    $channelEvents = $events->get($productId)?->get($channelId) ?? collect();
+                    [$available, $total] = $this->calculateChannelAvailability($channelEvents, $period['start'], $period['end']);
+                    $availableSeconds += $available;
+                    $totalSeconds += $total;
+                }
+
+                if ($channelCount === 0 || $totalSeconds === 0) {
+                    $availability = null;
+                } else {
+                    $availability = round(($availableSeconds / $totalSeconds) * 100, 1);
+                }
+
+                $result['per_product'][$productId][$periodKey] = [
+                    'channel_count' => $channelCount,
+                    'availability' => $availability,
+                    'available_seconds' => $availableSeconds,
+                    'total_seconds' => $totalSeconds,
+                ];
+
+                $result['aggregates'][$periodKey]['channel_count_sum'] += $channelCount;
+                $result['aggregates'][$periodKey]['available_seconds'] += $availableSeconds;
+                $result['aggregates'][$periodKey]['total_seconds'] += $totalSeconds;
+            }
+        }
+
+        foreach ($result['aggregates'] as $key => $data) {
+            if (($data['total_seconds'] ?? 0) > 0) {
+                $result['aggregates'][$key]['availability'] = round(($data['available_seconds'] / $data['total_seconds']) * 100, 1);
+            } else {
+                $result['aggregates'][$key]['availability'] = null;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Retrieve distinct channel usage by product and month within a date range.
+     *
+     * @param  array<int>  $productIds
+     */
+    private function getChannelUsageRows(array $productIds, Request $request, Carbon $rangeStart, Carbon $rangeEnd)
+    {
+        if (empty($productIds)) {
+            return collect();
+        }
+
+        $transactionDatetimeSql = 'COALESCE(vend_transactions.transaction_datetime, vend_transactions.created_at)';
+        $transactionDatetime = DB::raw($transactionDatetimeSql);
+        $monthExpressionSql = "DATE_FORMAT({$transactionDatetimeSql}, '%Y-%m')";
+        $monthExpression = DB::raw($monthExpressionSql);
+
+        $single = DB::table('vend_transactions')
+            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
+            ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
+            ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
+            ->leftJoin('category_groups', 'categories.category_group_id', '=', 'category_groups.id')
+            ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
+            ->leftJoin('operators', 'vend_transactions.operator_id', '=', 'operators.id')
+            ->leftJoin('vend_channels', 'vend_transactions.vend_channel_id', '=', 'vend_channels.id')
+            ->whereBetween($transactionDatetime, [$rangeStart, $rangeEnd])
+            ->where(function ($query) {
+                $query->where('vend_transactions.is_multiple', false)
+                    ->orWhereNull('vend_transactions.is_multiple');
+            })
+            ->where(function ($query) {
+                $query->whereIn('vend_transactions.error_code_normalized', [0, 6])
+                    ->orWhereNull('vend_transactions.error_code_normalized');
+            })
+            ->whereNotNull('vend_transactions.vend_channel_id')
+            ->whereIn(DB::raw('COALESCE(vend_transactions.product_id, vend_channels.product_id)'), $productIds)
+            ->selectRaw('COALESCE(vend_transactions.product_id, vend_channels.product_id) as product_id')
+            ->selectRaw('vend_transactions.vend_channel_id as channel_id')
+            ->selectRaw($monthExpressionSql . ' as month_key')
+            ->selectRaw('MAX(vend_transactions.vend_id) as vend_id')
+            ->groupBy('product_id', 'channel_id', DB::raw($monthExpressionSql));
+
+        $single = $this->filterVendTransactionReport($single, $request);
+        $single = $this->filterOperatorVendTransactionDB($single);
+
+        $multi = DB::table('vend_transaction_items')
+            ->join('vend_transactions', 'vend_transaction_items.vend_transaction_id', '=', 'vend_transactions.id')
+            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
+            ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
+            ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
+            ->leftJoin('category_groups', 'categories.category_group_id', '=', 'category_groups.id')
+            ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
+            ->leftJoin('operators', 'vend_transactions.operator_id', '=', 'operators.id')
+            ->leftJoin('vend_channels', 'vend_transaction_items.vend_channel_id', '=', 'vend_channels.id')
+            ->whereBetween($transactionDatetime, [$rangeStart, $rangeEnd])
+            ->where('vend_transactions.is_multiple', true)
+            ->where(function ($query) {
+                $query->whereIn('vend_transactions.error_code_normalized', [0, 6])
+                    ->orWhereNull('vend_transactions.error_code_normalized');
+            })
+            ->whereNotNull('vend_transaction_items.vend_channel_id')
+            ->whereIn(DB::raw('COALESCE(vend_transaction_items.product_id, vend_channels.product_id)'), $productIds)
+            ->selectRaw('COALESCE(vend_transaction_items.product_id, vend_channels.product_id) as product_id')
+            ->selectRaw('vend_transaction_items.vend_channel_id as channel_id')
+            ->selectRaw($monthExpressionSql . ' as month_key')
+            ->selectRaw('MAX(vend_transactions.vend_id) as vend_id')
+            ->groupBy('product_id', 'channel_id', DB::raw($monthExpressionSql));
+
+        $multi = $this->filterVendTransactionReport($multi, $request);
+        $multi = $this->filterOperatorVendTransactionDB($multi);
+
+        return $single->get()->concat($multi->get());
+    }
+
+    /**
+     * Calculate available time for a channel within a period based on stock events.
+     *
+     * @param  \Illuminate\Support\Collection<int, VendChannelStockEvent>  $events
+     * @return array{0:int,1:int}
+     */
+    private function calculateChannelAvailability($events, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $periodStart = $periodStart->copy();
+        $periodEndExclusive = $periodEnd->copy()->addSecond();
+        $totalSeconds = $periodEndExclusive->diffInSeconds($periodStart);
+
+        if ($totalSeconds <= 0) {
+            return [0, 0];
+        }
+
+        if ($events->isEmpty()) {
+            return [$totalSeconds, $totalSeconds];
+        }
+
+        $state = VendChannelStockEvent::TYPE_RESTOCKED;
+
+        foreach ($events as $event) {
+            if ($event->occurred_at->lt($periodStart)) {
+                $state = $event->event_type;
+            } else {
+                break;
+            }
+        }
+
+        $cursor = $periodStart->copy();
+        $availableSeconds = 0;
+
+        foreach ($events as $event) {
+            $eventTime = $event->occurred_at->copy();
+            if ($eventTime->lte($periodStart)) {
+                $state = $event->event_type;
+                continue;
+            }
+
+            if ($eventTime->gte($periodEndExclusive)) {
+                break;
+            }
+
+            if ($eventTime->gt($cursor)) {
+                $duration = $eventTime->diffInSeconds($cursor);
+                if ($state !== VendChannelStockEvent::TYPE_SOLD_OUT) {
+                    $availableSeconds += $duration;
+                }
+                $cursor = $eventTime->copy();
+            }
+
+            $state = $event->event_type;
+        }
+
+        if ($cursor->lt($periodEndExclusive)) {
+            $duration = $periodEndExclusive->diffInSeconds($cursor);
+            if ($state !== VendChannelStockEvent::TYPE_SOLD_OUT) {
+                $availableSeconds += $duration;
+            }
+        }
+
+        return [$availableSeconds, $totalSeconds];
+    }
+
     private function getUnitCostByProductQuery($request)
     {
         $currentDate = $request->currentMonth
@@ -1387,7 +1755,7 @@ class ReportController extends Controller
 
         $rangeStart = $currentDate->copy()->subMonths(2)->startOfMonth();
         $rangeEnd = $currentDate->copy()->endOfMonth();
-        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(vr.date, "%Y%m"))';
+        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(gm.txn_date, "%Y%m"))';
 
         $baseQuery = $this->baseGpMetricsQuery($request, $rangeStart, $rangeEnd)
             ->whereNotNull('gm.product_id');
@@ -1507,7 +1875,7 @@ class ReportController extends Controller
 
         $rangeStart = $currentDate->copy()->subMonths(2)->startOfMonth();
         $rangeEnd = $currentDate->copy()->endOfMonth();
-        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(gm.txn_date, "%Y%m"))';
+        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(vr.date, "%Y%m"))';
 
         $baseQuery = $this->baseVendRecordsQuery($request, $rangeStart, $rangeEnd)
             ->whereNotNull('vr.location_type_id');

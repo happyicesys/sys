@@ -360,6 +360,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
         Route::get('/gp/vend', [ReportController::class, 'indexGpVm']);
         Route::get('/gp/product', [ReportController::class, 'indexGpProduct']);
+        Route::get('/sales-performance/product', [ReportController::class, 'indexSalesPerformanceProduct']);
         Route::get('/gp/category', [ReportController::class, 'indexGpCategory']);
         Route::get('/gp/location-type', [ReportController::class, 'indexGpLocationType']);
         Route::get('/gp/vend/excel', [ReportController::class, 'exportUnitCostVendExcel']);

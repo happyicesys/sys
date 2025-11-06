@@ -7,6 +7,7 @@ use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelRecord;
+use App\Models\VendChannelStockEvent;
 use App\Models\VendTransaction;
 use App\Models\ProductMappingItem;
 use App\Services\DeliveryProductMappingService;
@@ -70,21 +71,46 @@ class SyncVendChannels implements ShouldQueue
                     'sku_code' => isset($channel['sku_code']) ? $channel['sku_code'] : null,
                 ];
 
+                $soldOutEvent = null;
+                $restockedEvent = null;
+
                 // Check condition and add qty_sold_at only if the condition meets
                 if ($prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0) {
-                    $data['qty_sold_at'] = Carbon::now();
+                    $occurredAt = Carbon::now();
+                    $data['qty_sold_at'] = $occurredAt;
                     $data['qty_restocked_at'] = null;
+                    $soldOutEvent = [
+                        'event_type' => VendChannelStockEvent::TYPE_SOLD_OUT,
+                        'qty_before' => $prevVendChannel->qty,
+                        'qty_after' => $channel['qty'],
+                        'occurred_at' => $occurredAt,
+                    ];
                 }
 
                 if ($prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0) {
-                    $data['qty_restocked_at'] = Carbon::now();
+                    $occurredAt = Carbon::now();
+                    $data['qty_restocked_at'] = $occurredAt;
                     $data['qty_sold_at'] = null;
+                    $restockedEvent = [
+                        'event_type' => VendChannelStockEvent::TYPE_RESTOCKED,
+                        'qty_before' => $prevVendChannel->qty,
+                        'qty_after' => $channel['qty'],
+                        'occurred_at' => $occurredAt,
+                    ];
                 }
 
                 $vendChannel = VendChannel::updateOrCreate([
                     'vend_id' => $vend->id,
                     'code' => $channel['channel_code'],
                 ], $data);
+
+                if ($soldOutEvent) {
+                    $this->recordStockEvent($vendChannel, $soldOutEvent, $prevVendChannel);
+                }
+
+                if ($restockedEvent) {
+                    $this->recordStockEvent($vendChannel, $restockedEvent, $prevVendChannel);
+                }
 
                 // update error rate json based on vend channel
                 if($vendChannel->is_active) {
@@ -310,5 +336,18 @@ class SyncVendChannels implements ShouldQueue
             'three_days_error_count' => isset($vendTransaction->three_days_error_count) ? $vendTransaction->three_days_error_count : 0,
             'three_days_error_rate' => isset($vendTransaction->three_days_total_count) && $vendTransaction->three_days_total_count > 0 ? round(((isset($vendTransaction->three_days_error_count) && $vendTransaction->three_days_error_count) / $vendTransaction->three_days_total_count) * 100, 2) : 0,
         ];
+    }
+
+    private function recordStockEvent(VendChannel $vendChannel, array $event, ?VendChannel $prevVendChannel = null): void
+    {
+        VendChannelStockEvent::create([
+            'vend_channel_id' => $vendChannel->id,
+            'vend_id' => $vendChannel->vend_id,
+            'product_id' => $vendChannel->product_id ?? $prevVendChannel?->product_id,
+            'event_type' => $event['event_type'],
+            'qty_before' => $event['qty_before'],
+            'qty_after' => $event['qty_after'],
+            'occurred_at' => $event['occurred_at'],
+        ]);
     }
 }
