@@ -1568,20 +1568,42 @@ class ReportController extends Controller
             $channelIds[] = $row->channel_id;
         }
 
-        $channelIds = array_values(array_unique($channelIds));
+        $eventsQuery = VendChannelStockEvent::query()
+            ->join('vends', 'vend_channel_stock_events.vend_id', '=', 'vends.id')
+            ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
+            ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
+            ->leftJoin('category_groups', 'categories.category_group_id', '=', 'category_groups.id')
+            ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
+            ->leftJoin('operators', 'vends.operator_id', '=', 'operators.id')
+            ->whereIn('vend_channel_stock_events.product_id', $productIds)
+            ->whereBetween('vend_channel_stock_events.occurred_at', [$historyStart, $rangeEnd])
+            ->select('vend_channel_stock_events.*');
 
-        $events = collect();
+        $eventsQuery = $this->filterStockEventAvailabilityQuery($eventsQuery, $request);
+        $eventsQuery = $this->filterOperatorVendTransactionDB($eventsQuery);
+
         if (!empty($channelIds)) {
-            $events = VendChannelStockEvent::query()
-                ->whereIn('product_id', $productIds)
-                ->whereIn('vend_channel_id', $channelIds)
-                ->whereBetween('occurred_at', [$historyStart, $rangeEnd])
-                ->orderBy('product_id')
-                ->orderBy('vend_channel_id')
-                ->orderBy('occurred_at')
-                ->get()
-                ->groupBy(['product_id', 'vend_channel_id']);
+            $eventsQuery->whereIn('vend_channel_stock_events.vend_channel_id', $channelIds);
         }
+
+        $eventRows = $eventsQuery
+            ->orderBy('vend_channel_stock_events.product_id')
+            ->orderBy('vend_channel_stock_events.vend_channel_id')
+            ->orderBy('vend_channel_stock_events.occurred_at')
+            ->get();
+
+        foreach ($eventRows as $eventRow) {
+            if ($eventRow->occurred_at->lt($rangeStart) || $eventRow->occurred_at->gt($rangeEnd)) {
+                continue;
+            }
+
+            $monthKey = $eventRow->occurred_at->format('Y-m');
+            $channelsByProduct[$eventRow->product_id][$monthKey][$eventRow->vend_channel_id] = $eventRow->vend_id;
+            $channelIds[] = $eventRow->vend_channel_id;
+        }
+
+        $channelIds = array_values(array_unique($channelIds));
+        $events = $eventRows->groupBy(['product_id', 'vend_channel_id']);
 
         foreach ($productIds as $productId) {
             $result['per_product'][$productId] = [
@@ -1705,6 +1727,88 @@ class ReportController extends Controller
         $multi = $this->filterOperatorVendTransactionDB($multi);
 
         return $single->get()->concat($multi->get());
+    }
+
+    private function filterStockEventAvailabilityQuery($query, Request $request)
+    {
+        return $query
+            ->when($request->has('visited'), function ($query) use ($request) {
+                if ($request->visited == 'true') {
+                    $query->whereRaw('1 = 1');
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            })
+            ->when($request->categories, function ($query, $search) {
+                $query->whereIn('categories.id', $search);
+            })
+            ->when($request->categoryGroups, function ($query, $search) {
+                $query->whereIn('category_groups.id', $search);
+            })
+            ->when($request->codes, function ($query, $search) {
+                if (strpos($search, ',') !== false) {
+                    $codes = array_filter(array_map('trim', explode(',', $search)));
+                    if (!empty($codes)) {
+                        $query->whereIn('vends.code', $codes);
+                    }
+                } else {
+                    $query->where('vends.code', 'LIKE', "{$search}%");
+                }
+            })
+            ->when($request->customer_code, function ($query, $search) {
+                $query->where('customers.code', 'LIKE', "%{$search}%");
+            })
+            ->when($request->customer_name, function ($query, $search) {
+                $query->where(function ($sub) use ($search) {
+                    $sub->where('customers.name', 'LIKE', "%{$search}%")
+                        ->orWhere('vends.name', 'LIKE', "%{$search}%");
+                });
+            })
+            ->when($request->customer, function ($query, $search) {
+                $query->where(function ($sub) use ($search) {
+                    $sub->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                        ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
+                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
+                });
+            })
+            ->when($request->is_binded_customer, function ($query, $search) {
+                if ($search != 'all') {
+                    if ($search == 'true') {
+                        $query->whereNotNull('customers.id');
+                    } else {
+                        $query->whereNull('customers.id');
+                    }
+                }
+            })
+            ->when($request->location_type_id, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->where('vends.location_type_id', $search);
+                }
+            })
+            ->when($request->operators, function ($query, $search) {
+                if (is_array($search) && !in_array('all', $search, true)) {
+                    $query->whereIn('vends.operator_id', $search);
+                }
+            })
+            ->when($request->vendPrefixes, function ($query, $search) {
+                if (is_array($search) && !in_array('all', $search, true)) {
+                    if (in_array('single-ud', $search, true)) {
+                        $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
+                        $search = array_values(array_diff($search, ['single-ud']));
+                    }
+                    $query->whereIn('vends.vend_prefix_id', $search);
+                }
+            })
+            ->when($request->vendContracts, function ($query, $search) {
+                if (is_array($search) && !in_array('all', $search, true)) {
+                    $query->whereIn('vends.vend_contract_id', $search);
+                }
+            })
+            ->when($request->vendModels, function ($query, $search) {
+                if (is_array($search) && !in_array('all', $search, true)) {
+                    $query->whereIn('vends.vend_model_id', $search);
+                }
+            });
     }
 
     /**
