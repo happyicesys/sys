@@ -1732,13 +1732,6 @@ class ReportController extends Controller
     private function filterStockEventAvailabilityQuery($query, Request $request)
     {
         return $query
-            ->when($request->has('visited'), function ($query) use ($request) {
-                if ($request->visited == 'true') {
-                    $query->whereRaw('1 = 1');
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
-            })
             ->when($request->categories, function ($query, $search) {
                 $query->whereIn('categories.id', $search);
             })
