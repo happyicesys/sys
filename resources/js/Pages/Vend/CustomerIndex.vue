@@ -18,25 +18,25 @@
 							("," for multiple)
 					</span>
 				</SearchInput>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
+				<SearchInput v-if="showAllFilters" placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
 					Channel ID
 					<span class="text-[9px]">
 							("," for multiple)
 					</span>
 				</SearchInput>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()" v-if="permissions.includes('admin-access vend-customers')">
+				<SearchInput v-if="showAllFilters && permissions.includes('admin-access vend-customers')"  placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
 					Serial Num
 				</SearchInput>
-				<SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()" :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					T1 &gt;&gt;
 				</SearchInput>
-				<SearchInput placeholderStr="Number" v-model="filters.t2HigherThan" @keyup.enter="onSearchFilterUpdated()" :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<SearchInput placeholderStr="Number" v-model="filters.t2HigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					T2 &gt;&gt;
 				</SearchInput>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()" v-if="permissions.includes('admin-access vend-customers')">
+				<SearchInput v-if="showAllFilters && permissions.includes('admin-access vend-customers')"  placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
 					T1-T2 Delta &gt;&gt;
 				</SearchInput>
-				<div :class="[showAllFilters ? 'block' : 'hidden']">
+				<div v-if="showAllFilters">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						Channel Errors
 					</label>
@@ -58,7 +58,7 @@
 				<SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 					Customer
 				</SearchInput>
-				<div :class="[showAllFilters ? 'block' : 'hidden']">
+				<div v-if="showAllFilters">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						Is Online?
 					</label>
@@ -91,7 +91,7 @@
 					>
 					</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers') && indexType === 'customers'">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Customer Active?
 						</label>
@@ -107,7 +107,7 @@
 						>
 						</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						Machine Status
 					</label>
@@ -123,7 +123,7 @@
 					>
 					</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Sensor Status
 						</label>
@@ -139,7 +139,7 @@
 						>
 						</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Is Door Open
 						</label>
@@ -155,7 +155,7 @@
 						>
 						</MultiSelect>
 				</div>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()" v-if="permissions.includes('admin-access vend-customers')">
+				<SearchInput placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						Fan Speed &lt;&lt;
 				</SearchInput>
 				<div v-if="permissions.includes('admin-access vend-customers')">
@@ -191,22 +191,22 @@
 						>
 						</MultiSelect>
 				</div>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()" v-if="indexType === 'customers' && permissions.includes('admin-access vend-customers')">
+				<SearchInput placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && indexType === 'customers' && permissions.includes('admin-access vend-customers')">
 					Last Visited Day &gt;&gt;
 				</SearchInput>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="permissions.includes('admin-access vend-customers')">
+				<SearchInput placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					Balance Stock(%) &lt;&lt;
 				</SearchInput>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="permissions.includes('admin-access vend-customers')">
+				<SearchInput placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					Remaining SKU(%) &lt;&lt;
 				</SearchInput>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Firmware Ver" v-model="filters.firmware_ver" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+				<SearchInput placeholderStr="Firmware Ver" v-model="filters.firmware_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 					Firmware Ver
 				</SearchInput>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="APK Ver" v-model="filters.apk_ver" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+				<SearchInput placeholderStr="APK Ver" v-model="filters.apk_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 					APK Ver
 				</SearchInput>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						Android Device Type
 					</label>
@@ -222,10 +222,10 @@
 					>
 					</MultiSelect>
 				</div>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+				<SearchInput placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 					Avg/Day Sales (30d) &lt;&lt;
 				</SearchInput>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						Is MQTT?
 					</label>
@@ -241,7 +241,7 @@
 					>
 					</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						Is MQTT Active?
 					</label>
@@ -257,13 +257,13 @@
 					>
 					</MultiSelect>
 				</div>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="permissions.includes('admin-access vend-customers') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
+				<SearchInput placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
 					Account Manager
 				</SearchInput>
-				<SearchInput :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="permissions.includes('admin-access vend-customers')">
+				<SearchInput placeholderStr="Number" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					Coin Amount &lt;&lt;
 				</SearchInput>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="indexType === 'customers' && permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && indexType === 'customers' && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						Upcoming Job Driver
 					</label>
@@ -279,14 +279,14 @@
 					>
 					</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="indexType === 'customers' && permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && indexType === 'customers' && permissions.includes('admin-access vend-customers')">
 					<DatePicker
 						v-model="filters.next_planned_date"
 					>
 					Upcoming Job Date
 					</DatePicker>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						Ref Price Type
 					</label>
@@ -302,7 +302,7 @@
 					>
 					</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 							Machine Model
 					</label>
@@ -319,7 +319,7 @@
 					>
 					</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						Zone
 					</label>
@@ -336,7 +336,7 @@
 					>
 					</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						Preferred Day(s)
 					</label>
@@ -353,7 +353,7 @@
 					>
 					</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 						#Refill per Week
 					</label>
@@ -369,7 +369,7 @@
 						mode="tags"
 					></MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 							Delivery Platform
 					</label>
@@ -385,7 +385,7 @@
 					>
 					</MultiSelect>
 				</div>
-				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
 								Machine Contract
 						</label>
@@ -564,26 +564,26 @@
 					</Button>
 				</div>
 			</div>
-			<dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-4">
-				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+			<dl v-if="showAllFilters && hasSearched" class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-4">
+				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
 					<dt class="truncate text-sm font-medium text-gray-500">Total Stock In (Last 30 days)</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{totals['thirthyDaysStockIn'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
-				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
 					<dt class="truncate text-sm font-medium text-gray-500">Total Sales (Last 30 days)</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{totals['thirtyDays'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
-				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
 					<dt class="truncate text-sm font-medium text-gray-500">Avg per VM (Last 30 days)</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{(totals['thirtyDays']/vends.meta.to ? totals['thirtyDays']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
-				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
 					<dt class="truncate text-sm font-medium text-gray-500">Avg per Day per VM (Last 30 days)</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{(totals['thirthyDaysAvg']/vends.meta.to ? totals['thirthyDaysAvg']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -592,7 +592,7 @@
 			</dl>
 	</div>
 
-	<div class="mt-6 flex flex-col">
+	<div class="mt-6 flex flex-col" v-if="hasSearched">
 	<div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
 	<div class="overflow-scroll max-h-[900px] md:max-h-[1500px] shadow-sm ring-1 ring-black ring-opacity-5">
 		<table class="min-w-full border-separate" style="border-spacing: 0">
@@ -1746,12 +1746,15 @@
 	<!-- <div class="py-5"> -->
 		<Paginator class="py-14" v-if="vends.data.length" :links="vends.links" :meta="vends.meta"></Paginator>
 	<!-- </div> -->
-</div>
-</div>
-</div>
-<ChannelOverview
-	v-if="showChannelOverviewModal"
-	:productOptions="productOptions"
+	</div>
+	</div>
+	</div>
+	<div v-if="!hasSearched" class="mt-6 rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
+		Use the available filters and click <span class="font-semibold">Search</span> to load customer vending data.
+	</div>
+	<ChannelOverview
+		v-if="showChannelOverviewModal"
+		:productOptions="productOptions"
 	:vend="vend"
 	:showModal="showChannelOverviewModal"
 	@modalClose="onChannelOverviewClosed"
@@ -1807,6 +1810,7 @@ v-if="showMapMarkerModal"
 >
 </MapMarker>
 <VendLogModal
+	v-if="showLogModal"
 	:open="showLogModal"
 	:vend="logVend"
 	@close="closeLogModal"
@@ -1850,33 +1854,34 @@ font-size:13px;
 </style>
 
 <script setup>
-	import AssignJob from '@/Pages/Vend/AssignJob.vue';
 	import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 	import Button from '@/Components/Button.vue';
-	import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
-	import Create from '@/Pages/Vend/Create.vue';
 	import DatePicker from '@/Components/DatePicker.vue';
-	import Form from '@/Pages/Vend/Form.vue';
-	import VendLogModal from '@/Components/VendLogModal.vue';
-	import MapMarker from '@/Components/MapMarker.vue';
 	import Paginator from '@/Components/Paginator.vue';
-	import PickList from '@/Pages/Vend/PickList.vue';
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
-	import Toast from '@/Components/Toast.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
 	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon} from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
 	import SingleSortItem from '@/Components/SingleSortItem.vue';
-	import { ref, onMounted } from 'vue';
+	import { ref, onMounted, defineAsyncComponent } from 'vue';
 	import { router, Link, Head, usePage } from '@inertiajs/vue3';
 	import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 	import moment from 'moment';
 	import axios from 'axios';
 
+	const AssignJob = defineAsyncComponent(() => import('@/Pages/Vend/AssignJob.vue'));
+	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));
+	const Create = defineAsyncComponent(() => import('@/Pages/Vend/Create.vue'));
+	const Form = defineAsyncComponent(() => import('@/Pages/Vend/Form.vue'));
+	const VendLogModal = defineAsyncComponent(() => import('@/Components/VendLogModal.vue'));
+	const MapMarker = defineAsyncComponent(() => import('@/Components/MapMarker.vue'));
+	const PickList = defineAsyncComponent(() => import('@/Pages/Vend/PickList.vue'));
+
 	const props = defineProps({
+			autoLoad: Boolean,
 			cmsEndpoint: String,
 			constTempError: Number,
 			dayOptions: [Array, Object],
@@ -1996,7 +2001,8 @@ font-size:13px;
 	const permissions = usePage().props.auth.permissions
 	const roles = usePage().props.auth.roles
 	const initBinded = usePage().props.initBinded
-	const now = ref(moment().format('HH:mm:ss'))
+	const hasSearched = ref(props.autoLoad ?? false)
+	const now = ref((props.autoLoad ? moment().format('HH:mm:ss') : '--:--'))
 
 onMounted(() => {
 	// console.log(props.vends)
@@ -2271,6 +2277,7 @@ function onShowAllFiltersClicked() {
 
 function onSearchFilterUpdated() {
 	router.get(baseUrl.value, {
+			autoload: true,
 			...filters.value,
 			delivery_platform_id: filters.value.delivery_platform_id.id,
 			deviceType: filters.value.deviceType.id,
@@ -2303,6 +2310,7 @@ function onSearchFilterUpdated() {
 			onFinish: visit => {
 					vends.value = getVendsField()
 					now.value = moment().format('HH:mm:ss')
+					hasSearched.value = true
 			},
 	})
 }

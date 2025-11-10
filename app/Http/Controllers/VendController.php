@@ -88,6 +88,8 @@ use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DB;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -434,7 +436,13 @@ class VendController extends Controller
         ]);
         $className = get_class(new Customer());
 
-        $vends = Customer::query()
+        $shouldAutoload = $request->boolean('autoload', false);
+        $perPage = $request->numberPerPage === 'All' ? 10000 : $request->numberPerPage;
+        $perPage = $perPage ?: 50;
+        $mapApiKey = $this->mapService->getMapApiKeyByUser(auth()->user());
+
+        if ($shouldAutoload) {
+            $vends = Customer::query()
             ->with([
                 'deliveryAddress',
                 'nextInvoiceDriver:id,name,username',
@@ -743,11 +751,11 @@ class VendController extends Controller
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'customers');
 
-        $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
+        $vends = $vends->paginate($perPage)
             ->withQueryString();
 
         $totals = [
-            'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
+            'mapApiKey' => $mapApiKey,
             'thirtyDays' => collect((clone $vends)
                             ->items())
                             ->sum(function($vend) {
@@ -764,6 +772,19 @@ class VendController extends Controller
                                 return $vend->last_thirty_days_stock_in_amount ? $vend->last_thirty_days_stock_in_amount : 0;
                             })/100,
         ];
+        } else {
+            $vends = new LengthAwarePaginator([], 0, $perPage, 1, [
+                'path' => Paginator::resolveCurrentPath(),
+                'pageName' => 'page',
+            ]);
+
+            $totals = [
+                'mapApiKey' => $mapApiKey,
+                'thirtyDays' => 0,
+                'thirthyDaysAvg' => 0,
+                'thirthyDaysStockIn' => 0,
+            ];
+        }
 
         $driverOptions = UserResource::collection(
             User::whereHas('roles', function($query) {
@@ -793,10 +814,11 @@ class VendController extends Controller
             'driverOptions' => UserResource::collection($driverOptions),
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
             'indexType' => $request->indexType,
+            'autoLoad' => $shouldAutoload,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
-            'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
+            'mapApiKey' => $mapApiKey,
             'nextDeliveryDriverOptions' => UserResource::collection($driverOptions),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
