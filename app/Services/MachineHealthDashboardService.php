@@ -13,13 +13,29 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class MachineHealthDashboardService
 {
+    private const CACHE_TTL_SECONDS = 300; // 5 minutes
+
     public function getDashboardData(Request $request): array
     {
         $filters = $this->hydrateFilters($request);
 
+        if (!$this->shouldCache($filters)) {
+            return $this->buildDashboardPayload($filters);
+        }
+
+        $cacheKey = $this->buildCacheKey($filters);
+
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($filters) {
+            return $this->buildDashboardPayload($filters);
+        });
+    }
+
+    private function buildDashboardPayload(array $filters): array
+    {
         $stockoutMetrics = $this->getStockoutMetrics($filters);
 
         return [
@@ -60,6 +76,46 @@ class MachineHealthDashboardService
             'machine_codes' => $this->normalizeStringArray($request->input('machine_codes')),
             'channel_sku' => $request->input('channel_sku'),
         ];
+    }
+
+    private function shouldCache(array $filters): bool
+    {
+        return empty($filters['machine_codes'])
+            && empty($filters['channel_sku'])
+            && empty($filters['customer_ids'])
+            && empty($filters['operator_ids'])
+            && empty($filters['vend_prefix_ids']);
+    }
+
+    private function buildCacheKey(array $filters): string
+    {
+        $normalized = $this->normalizeForCache($filters);
+
+        return 'machine-health:' . md5(json_encode($normalized));
+    }
+
+    private function normalizeForCache(array $value): array
+    {
+        foreach ($value as $key => $item) {
+            if (is_array($item)) {
+                if ($this->isSequentialArray($item)) {
+                    $sorted = array_values($item);
+                    sort($sorted);
+                    $value[$key] = $sorted;
+                } else {
+                    $value[$key] = $this->normalizeForCache($item);
+                }
+            }
+        }
+
+        ksort($value);
+
+        return $value;
+    }
+
+    private function isSequentialArray(array $value): bool
+    {
+        return array_keys($value) === range(0, count($value) - 1);
     }
 
     private function getStockoutMetrics(array $filters): array

@@ -624,9 +624,6 @@ const renderPerCodeSummary = (perCode) => {
                       <tr v-for="row in visibleBucketRows(bucket)" :key="row.vend_id">
                         <td class="px-4 py-2">
                           <div class="font-medium text-gray-900">{{ row.vend_code }}</div>
-                          <div class="text-xs text-gray-500">
-                            {{ row.vend_name ?? '—' }}
-                          </div>
                         </td>
                         <td class="px-4 py-2 text-gray-700">
                           {{ row.customer_name ?? '—' }}
