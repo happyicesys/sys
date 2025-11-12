@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import Button from '@/Components/Button.vue'
@@ -27,12 +27,12 @@ const props = defineProps({
   },
 })
 
-const DEFAULT_VISIBLE = 15
+const DEFAULT_VISIBLE = 10
 
 const rawFilters = props.machineHealth?.filters ?? {}
 const filters = reactive({
-  machine_limit: rawFilters.machine_limit ?? 20,
-  channel_limit: rawFilters.channel_limit ?? 30,
+  machine_limit: rawFilters.machine_limit ?? 10,
+  channel_limit: rawFilters.channel_limit ?? 10,
   error_window_days: rawFilters.error_window_days ?? 7,
   temperature_window_days: rawFilters.temperature_window_days ?? 7,
   temperature_long_window_days: rawFilters.temperature_long_window_days ?? 30,
@@ -71,75 +71,134 @@ const noTransactions = computed(() => props.machineHealth?.no_transactions ?? {}
 const operatorOptions = computed(() => props.operatorOptions ?? [])
 const vendPrefixOptions = computed(() => props.vendPrefixOptions ?? [])
 
-const showAllStockouts = ref(false)
-const stockoutRows = computed(() => {
-  const rows = stockouts.value.top_channels ?? []
-  return showAllStockouts.value ? rows : rows.slice(0, DEFAULT_VISIBLE)
-})
+const createRowLimiter = (rowsSource) => {
+  const expanded = ref(false)
+
+  const rows = computed(() => {
+    const list = rowsSource.value ?? []
+    return expanded.value ? list : list.slice(0, DEFAULT_VISIBLE)
+  })
+
+  const hasMore = computed(() => {
+    const list = rowsSource.value ?? []
+    return !expanded.value && list.length > DEFAULT_VISIBLE
+  })
+
+  const showAll = () => {
+    expanded.value = true
+  }
+
+  watch(
+    rowsSource,
+    () => {
+      expanded.value = false
+    },
+    { deep: false },
+  )
+
+  return { rows, hasMore, showAll }
+}
+
+const {
+  rows: stockoutRows,
+  hasMore: canLoadMoreStockouts,
+  showAll: loadRemainingStockouts,
+} = createRowLimiter(computed(() => stockouts.value.top_channels ?? []))
 
 const bucketExpansion = reactive({})
-const toggleBucketRows = (key) => {
-  bucketExpansion[key] = !bucketExpansion[key]
+const expandBucketRows = (key) => {
+  bucketExpansion[key] = true
 }
 const isBucketExpanded = (key) => !!bucketExpansion[key]
+const canExpandBucket = (bucket) => {
+  const rows = bucket.rows ?? []
+  return !isBucketExpanded(bucket.key) && rows.length > DEFAULT_VISIBLE
+}
 const visibleBucketRows = (bucket) => {
   const rows = bucket.rows ?? []
   return isBucketExpanded(bucket.key) ? rows : rows.slice(0, DEFAULT_VISIBLE)
 }
+watch(
+  errorBuckets,
+  (buckets = []) => {
+    const keys = new Set(buckets.map((bucket) => bucket.key))
+    Object.keys(bucketExpansion).forEach((key) => {
+      if (!keys.has(key)) {
+        delete bucketExpansion[key]
+        return
+      }
 
-const showAllRising = ref(false)
-const risingRows = computed(() => {
-  const rows = temperature.value.rising_lowest?.rows ?? []
-  return showAllRising.value ? rows : rows.slice(0, DEFAULT_VISIBLE)
-})
+      bucketExpansion[key] = false
+    })
+  },
+  { deep: false },
+)
 
-const showAllWorst = ref(false)
-const worstMinimaRows = computed(() => {
-  const rows = temperature.value.worst_minima?.rows ?? []
-  return showAllWorst.value ? rows : rows.slice(0, DEFAULT_VISIBLE)
-})
+const {
+  rows: risingRows,
+  hasMore: canLoadMoreRising,
+  showAll: loadRemainingRising,
+} = createRowLimiter(
+  computed(() => temperature.value.rising_lowest?.rows ?? []),
+)
 
-const showAllNotReaching = ref(false)
-const notReachingRows = computed(() => {
-  const rows = temperature.value.not_reaching_threshold?.rows ?? []
-  return showAllNotReaching.value ? rows : rows.slice(0, DEFAULT_VISIBLE)
-})
+const {
+  rows: worstMinimaRows,
+  hasMore: canLoadMoreWorstMinima,
+  showAll: loadRemainingWorstMinima,
+} = createRowLimiter(
+  computed(() => temperature.value.worst_minima?.rows ?? []),
+)
 
-const showAllOfflinePrimary = ref(false)
-const offlinePrimaryRows = computed(() => {
-  const rows = connectivity.value.primary ?? []
-  return showAllOfflinePrimary.value ? rows : rows.slice(0, DEFAULT_VISIBLE)
-})
+const {
+  rows: notReachingRows,
+  hasMore: canLoadMoreNotReaching,
+  showAll: loadRemainingNotReaching,
+} = createRowLimiter(
+  computed(() => temperature.value.not_reaching_threshold?.rows ?? []),
+)
 
-const showAllOfflineSecondary = ref(false)
-const offlineSecondaryRows = computed(() => {
-  const rows = connectivity.value.secondary ?? []
-  return showAllOfflineSecondary.value ? rows : rows.slice(0, DEFAULT_VISIBLE)
-})
+const {
+  rows: offlinePrimaryRows,
+  hasMore: canLoadMoreOfflinePrimary,
+  showAll: loadRemainingOfflinePrimary,
+} = createRowLimiter(computed(() => connectivity.value.primary ?? []))
 
-const showAllNoTxnAny = ref(false)
-const noTxnAnyRows = computed(() => {
-  const rows = noTransactions.value.any_sales ?? []
-  return showAllNoTxnAny.value ? rows : rows.slice(0, DEFAULT_VISIBLE)
-})
+const {
+  rows: offlineSecondaryRows,
+  hasMore: canLoadMoreOfflineSecondary,
+  showAll: loadRemainingOfflineSecondary,
+} = createRowLimiter(computed(() => connectivity.value.secondary ?? []))
 
-const showAllNoTxnCash = ref(false)
-const noTxnCashRows = computed(() => {
-  const rows = noTransactions.value.cash_sales ?? []
-  return showAllNoTxnCash.value ? rows : rows.slice(0, DEFAULT_VISIBLE)
-})
+const {
+  rows: noTxnAnyRows,
+  hasMore: canLoadMoreNoTxnAny,
+  showAll: loadRemainingNoTxnAny,
+} = createRowLimiter(
+  computed(() => noTransactions.value.any_sales ?? []),
+)
 
-const showAllNoTxnCard = ref(false)
-const noTxnCardRows = computed(() => {
-  const rows = noTransactions.value.card_sales ?? []
-  return showAllNoTxnCard.value ? rows : rows.slice(0, DEFAULT_VISIBLE)
-})
+const {
+  rows: noTxnCashRows,
+  hasMore: canLoadMoreNoTxnCash,
+  showAll: loadRemainingNoTxnCash,
+} = createRowLimiter(
+  computed(() => noTransactions.value.cash_sales ?? []),
+)
 
-const showAllNoTxnQr = ref(false)
-const noTxnQrRows = computed(() => {
-  const rows = noTransactions.value.qr_sales ?? []
-  return showAllNoTxnQr.value ? rows : rows.slice(0, DEFAULT_VISIBLE)
-})
+const {
+  rows: noTxnCardRows,
+  hasMore: canLoadMoreNoTxnCard,
+  showAll: loadRemainingNoTxnCard,
+} = createRowLimiter(
+  computed(() => noTransactions.value.card_sales ?? []),
+)
+
+const {
+  rows: noTxnQrRows,
+  hasMore: canLoadMoreNoTxnQr,
+  showAll: loadRemainingNoTxnQr,
+} = createRowLimiter(computed(() => noTransactions.value.qr_sales ?? []))
 
 const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined || Number.isNaN(value)) {
@@ -552,16 +611,13 @@ const renderPerCodeSummary = (perCode) => {
                   </tbody>
                 </table>
               </div>
-              <div
-                v-if="(stockouts.top_channels?.length ?? 0) > DEFAULT_VISIBLE"
-                class="mt-4 flex justify-center"
-              >
+              <div v-if="canLoadMoreStockouts" class="mt-4 flex justify-center">
                 <Button
                   class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                   type="button"
-                  @click="showAllStockouts = !showAllStockouts"
+                  @click="loadRemainingStockouts"
                 >
-                  {{ showAllStockouts ? 'Show less' : 'Load more' }}
+                  Load remaining
                 </Button>
               </div>
             </div>
@@ -655,15 +711,15 @@ const renderPerCodeSummary = (perCode) => {
                   </table>
                 </div>
                 <div
-                  v-if="(bucket.rows?.length ?? 0) > DEFAULT_VISIBLE"
+                  v-if="canExpandBucket(bucket)"
                   class="border-t border-gray-200 px-4 py-3 flex justify-center"
                 >
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="toggleBucketRows(bucket.key)"
+                    @click="expandBucketRows(bucket.key)"
                   >
-                    {{ isBucketExpanded(bucket.key) ? 'Show less' : 'Load more' }}
+                    Load remaining
                   </Button>
                 </div>
               </div>
@@ -705,16 +761,13 @@ const renderPerCodeSummary = (perCode) => {
                     No machines breached the delta threshold.
                   </li>
                 </ul>
-                <div
-                  v-if="(temperature.rising_lowest?.rows?.length ?? 0) > DEFAULT_VISIBLE"
-                  class="mt-3 flex justify-center"
-                >
+                <div v-if="canLoadMoreRising" class="mt-3 flex justify-center">
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="showAllRising = !showAllRising"
+                    @click="loadRemainingRising"
                   >
-                    {{ showAllRising ? 'Show less' : 'Load more' }}
+                    Load remaining
                   </Button>
                 </div>
               </div>
@@ -740,16 +793,13 @@ const renderPerCodeSummary = (perCode) => {
                     All machines remained below target in the selected window.
                   </li>
                 </ul>
-                <div
-                  v-if="(temperature.worst_minima?.rows?.length ?? 0) > DEFAULT_VISIBLE"
-                  class="mt-3 flex justify-center"
-                >
+                <div v-if="canLoadMoreWorstMinima" class="mt-3 flex justify-center">
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="showAllWorst = !showAllWorst"
+                    @click="loadRemainingWorstMinima"
                   >
-                    {{ showAllWorst ? 'Show less' : 'Load more' }}
+                    Load remaining
                   </Button>
                 </div>
               </div>
@@ -778,15 +828,15 @@ const renderPerCodeSummary = (perCode) => {
                   </li>
                 </ul>
                 <div
-                  v-if="(temperature.not_reaching_threshold?.rows?.length ?? 0) > DEFAULT_VISIBLE"
+                  v-if="canLoadMoreNotReaching"
                   class="mt-3 flex justify-center"
                 >
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="showAllNotReaching = !showAllNotReaching"
+                    @click="loadRemainingNotReaching"
                   >
-                    {{ showAllNotReaching ? 'Show less' : 'Load more' }}
+                    Load remaining
                   </Button>
                 </div>
               </div>
@@ -821,15 +871,15 @@ const renderPerCodeSummary = (perCode) => {
                   </li>
                 </ul>
                 <div
-                  v-if="(connectivity.primary?.length ?? 0) > DEFAULT_VISIBLE"
+                  v-if="canLoadMoreOfflinePrimary"
                   class="mt-3 flex justify-center"
                 >
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="showAllOfflinePrimary = !showAllOfflinePrimary"
+                    @click="loadRemainingOfflinePrimary"
                   >
-                    {{ showAllOfflinePrimary ? 'Show less' : 'Load more' }}
+                    Load remaining
                   </Button>
                 </div>
               </div>
@@ -857,15 +907,15 @@ const renderPerCodeSummary = (perCode) => {
                   </li>
                 </ul>
                 <div
-                  v-if="(connectivity.secondary?.length ?? 0) > DEFAULT_VISIBLE"
+                  v-if="canLoadMoreOfflineSecondary"
                   class="mt-3 flex justify-center"
                 >
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="showAllOfflineSecondary = !showAllOfflineSecondary"
+                    @click="loadRemainingOfflineSecondary"
                   >
-                    {{ showAllOfflineSecondary ? 'Show less' : 'Load more' }}
+                    Load remaining
                   </Button>
                 </div>
               </div>
@@ -902,15 +952,15 @@ const renderPerCodeSummary = (perCode) => {
                   </li>
                 </ul>
                 <div
-                  v-if="(noTransactions.any_sales?.length ?? 0) > DEFAULT_VISIBLE"
+                  v-if="canLoadMoreNoTxnAny"
                   class="mt-3 flex justify-center"
                 >
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="showAllNoTxnAny = !showAllNoTxnAny"
+                    @click="loadRemainingNoTxnAny"
                   >
-                    {{ showAllNoTxnAny ? 'Show less' : 'Load more' }}
+                    Load remaining
                   </Button>
                 </div>
               </div>
@@ -937,15 +987,15 @@ const renderPerCodeSummary = (perCode) => {
                   </li>
                 </ul>
                 <div
-                  v-if="(noTransactions.cash_sales?.length ?? 0) > DEFAULT_VISIBLE"
+                  v-if="canLoadMoreNoTxnCash"
                   class="mt-3 flex justify-center"
                 >
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="showAllNoTxnCash = !showAllNoTxnCash"
+                    @click="loadRemainingNoTxnCash"
                   >
-                    {{ showAllNoTxnCash ? 'Show less' : 'Load more' }}
+                    Load remaining
                   </Button>
                 </div>
               </div>
@@ -972,15 +1022,15 @@ const renderPerCodeSummary = (perCode) => {
                   </li>
                 </ul>
                 <div
-                  v-if="(noTransactions.card_sales?.length ?? 0) > DEFAULT_VISIBLE"
+                  v-if="canLoadMoreNoTxnCard"
                   class="mt-3 flex justify-center"
                 >
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="showAllNoTxnCard = !showAllNoTxnCard"
+                    @click="loadRemainingNoTxnCard"
                   >
-                    {{ showAllNoTxnCard ? 'Show less' : 'Load more' }}
+                    Load remaining
                   </Button>
                 </div>
               </div>
@@ -1007,15 +1057,15 @@ const renderPerCodeSummary = (perCode) => {
                   </li>
                 </ul>
                 <div
-                  v-if="(noTransactions.qr_sales?.length ?? 0) > DEFAULT_VISIBLE"
+                  v-if="canLoadMoreNoTxnQr"
                   class="mt-3 flex justify-center"
                 >
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="showAllNoTxnQr = !showAllNoTxnQr"
+                    @click="loadRemainingNoTxnQr"
                   >
-                    {{ showAllNoTxnQr ? 'Show less' : 'Load more' }}
+                    Load remaining
                   </Button>
                 </div>
               </div>
