@@ -584,75 +584,59 @@ class MachineHealthDashboardService
         $primaryThreshold = max(1, $filters['offline_threshold_hours']);
         $secondaryThreshold = max($primaryThreshold, $filters['offline_secondary_threshold_hours']);
         $now = Carbon::now();
+        $nowSql = $now->toDateTimeString();
+        $limit = max($filters['machine_limit'] * 2, $filters['machine_limit']);
+        $fallbackDate = '1970-01-01 00:00:00';
+        $greatestParts = implode(', ', [
+            "COALESCE(mqtt_last_updated_at, '{$fallbackDate}')",
+            "COALESCE(last_updated_at, '{$fallbackDate}')",
+            "COALESCE(last_vend_transaction_at, '{$fallbackDate}')",
+            "COALESCE(offline_restart_count_datetime, '{$fallbackDate}')",
+        ]);
+        $lastContactExpr = "CASE WHEN mqtt_last_updated_at IS NULL AND last_updated_at IS NULL AND last_vend_transaction_at IS NULL AND offline_restart_count_datetime IS NULL THEN NULL ELSE GREATEST({$greatestParts}) END";
+        $hoursOfflineExpr = "ROUND(TIMESTAMPDIFF(MINUTE, {$lastContactExpr}, '{$nowSql}') / 60, 2)";
 
-        $vendsQuery = Vend::query()
-            ->with([
-                'customer:id,name,code',
-                'operator:id,name,code',
-                'vendPrefix:id,name',
-            ])
-            ->where('is_testing', false)
-            ->where('is_online', false);
-
-        $this->applyVendFilters($vendsQuery, $filters);
-
-        if (!empty($filters['machine_codes'])) {
-            $vendsQuery->whereIn('code', $filters['machine_codes']);
-        }
-
-        $vends = $vendsQuery
+        $vends = $this->baseVendQuery($filters)
+            ->where('is_online', false)
             ->select([
                 'id',
                 'code',
                 'name',
-                'is_online',
                 'operator_id',
                 'vend_prefix_id',
                 'customer_id',
-                'last_updated_at',
-                'mqtt_last_updated_at',
-                'last_vend_transaction_at',
-                'offline_restart_count_datetime',
+                DB::raw("{$lastContactExpr} as last_contact_at"),
+                DB::raw("{$hoursOfflineExpr} as hours_offline"),
             ])
+            ->havingRaw('last_contact_at IS NOT NULL')
+            ->having('hours_offline', '>=', $primaryThreshold)
+            ->orderBy('hours_offline')
+            ->limit($limit)
             ->get();
 
-        $primaryList = collect();
-        $secondaryList = collect();
+        $primaryList = $vends
+            ->map(function (Vend $vend) {
+                $lastContact = $vend->last_contact_at ? Carbon::parse($vend->last_contact_at) : null;
 
-        foreach ($vends as $vend) {
-            if ($vend->is_online) {
-                continue;
-            }
-
-            $lastContact = $this->resolveLastContactTimestamp($vend);
-            if (!$lastContact) {
-                continue;
-            }
-
-            $hoursOffline = round($lastContact->diffInMinutes($now) / 60, 2);
-
-            if ($hoursOffline >= $primaryThreshold) {
-                $entry = array_merge(
+                return array_merge(
                     $this->baseVendInfo($vend),
                     [
-                        'hours_offline' => $hoursOffline,
-                        'last_contact_at' => $lastContact->toIso8601String(),
+                        'hours_offline' => (float) $vend->hours_offline,
+                        'last_contact_at' => $lastContact?->toIso8601String(),
                     ]
                 );
+            })
+            ->values();
 
-                $primaryList->push($entry);
-
-                if ($hoursOffline >= $secondaryThreshold) {
-                    $secondaryList->push($entry);
-                }
-            }
-        }
+        $secondaryList = $primaryList
+            ->filter(fn ($entry) => $entry['hours_offline'] >= $secondaryThreshold)
+            ->values();
 
         return [
             'primary_threshold_hours' => $primaryThreshold,
             'secondary_threshold_hours' => $secondaryThreshold,
-            'primary' => $primaryList->sortBy('hours_offline')->values()->all(),
-            'secondary' => $secondaryList->sortBy('hours_offline')->values()->all(),
+            'primary' => $primaryList->take($filters['machine_limit'])->all(),
+            'secondary' => $secondaryList->take($filters['machine_limit'])->all(),
         ];
     }
 
@@ -660,22 +644,23 @@ class MachineHealthDashboardService
     {
         $thresholds = $filters['no_txn_threshold_hours'];
         $now = Carbon::now();
+        $limit = $filters['machine_limit'];
 
-        $vendsQuery = Vend::query()
-            ->with([
-                'customer:id,name,code',
-                'operator:id,name,code',
-                'vendPrefix:id,name',
-            ])
-            ->where('is_testing', false);
+        return [
+            'thresholds' => $thresholds,
+            'any_sales' => $this->buildNoTxnList('last_vend_transaction_at', $thresholds['any'], $filters, $now, $limit)->all(),
+            'cash_sales' => $this->buildNoTxnList('last_cash_vend_transaction_at', $thresholds['cash'], $filters, $now, $limit)->all(),
+            'card_sales' => $this->buildNoTxnList('last_card_vend_transaction_at', $thresholds['card'], $filters, $now, $limit)->all(),
+            'qr_sales' => $this->buildNoTxnList('last_cashless_vend_transaction_at', $thresholds['cashless'], $filters, $now, $limit)->all(),
+        ];
+    }
 
-        $this->applyVendFilters($vendsQuery, $filters);
+    private function buildNoTxnList(string $column, int $threshold, array $filters, Carbon $now, int $limit): Collection
+    {
+        $nowSql = $now->toDateTimeString();
+        $hoursExpr = "ROUND(TIMESTAMPDIFF(MINUTE, {$column}, '{$nowSql}') / 60, 2)";
 
-        if (!empty($filters['machine_codes'])) {
-            $vendsQuery->whereIn('code', $filters['machine_codes']);
-        }
-
-        $vends = $vendsQuery
+        return $this->baseVendQuery($filters)
             ->select([
                 'id',
                 'code',
@@ -683,65 +668,41 @@ class MachineHealthDashboardService
                 'operator_id',
                 'vend_prefix_id',
                 'customer_id',
-                'last_vend_transaction_at',
-                'last_cash_vend_transaction_at',
-                'last_card_vend_transaction_at',
-                'last_cashless_vend_transaction_at',
+                DB::raw("{$column} as last_transaction_at"),
+                DB::raw("{$hoursExpr} as hours_since"),
             ])
-            ->get();
+            ->whereNotNull($column)
+            ->having('hours_since', '>=', $threshold)
+            ->orderByDesc('hours_since')
+            ->limit($limit)
+            ->get()
+            ->map(function (Vend $vend) use ($threshold) {
+                $lastTransaction = $vend->last_transaction_at ? Carbon::parse($vend->last_transaction_at) : null;
 
-        $anyList = collect();
-        $cashList = collect();
-        $cardList = collect();
-        $cashlessList = collect();
+                return array_merge(
+                    $this->baseVendInfo($vend),
+                    [
+                        'hours_since' => (float) $vend->hours_since,
+                        'last_transaction_at' => $lastTransaction?->toIso8601String(),
+                        'threshold_hours' => $threshold,
+                    ]
+                );
+            });
+    }
 
-        foreach ($vends as $vend) {
-            $entryBase = $this->baseVendInfo($vend);
+    private function baseVendQuery(array $filters): EloquentBuilder
+    {
+        $query = Vend::query()
+            ->with([
+                'customer:id,name,code',
+                'operator:id,name,code',
+                'vendPrefix:id,name',
+            ])
+            ->where('is_testing', false);
 
-            $lastAny = $vend->last_vend_transaction_at;
-            if ($lastAny && $this->hoursSince($lastAny, $now) >= $thresholds['any']) {
-                $anyList->push(array_merge($entryBase, [
-                    'hours_since' => $this->hoursSince($lastAny, $now),
-                    'last_transaction_at' => $lastAny->toIso8601String(),
-                    'threshold_hours' => $thresholds['any'],
-                ]));
-            }
+        $this->applyVendFilters($query, $filters);
 
-            $lastCash = $vend->last_cash_vend_transaction_at;
-            if ($lastCash && $this->hoursSince($lastCash, $now) >= $thresholds['cash']) {
-                $cashList->push(array_merge($entryBase, [
-                    'hours_since' => $this->hoursSince($lastCash, $now),
-                    'last_transaction_at' => $lastCash->toIso8601String(),
-                    'threshold_hours' => $thresholds['cash'],
-                ]));
-            }
-
-            $lastCard = $vend->last_card_vend_transaction_at;
-            if ($lastCard && $this->hoursSince($lastCard, $now) >= $thresholds['card']) {
-                $cardList->push(array_merge($entryBase, [
-                    'hours_since' => $this->hoursSince($lastCard, $now),
-                    'last_transaction_at' => $lastCard->toIso8601String(),
-                    'threshold_hours' => $thresholds['card'],
-                ]));
-            }
-
-            $lastCashless = $vend->last_cashless_vend_transaction_at;
-            if ($lastCashless && $this->hoursSince($lastCashless, $now) >= $thresholds['cashless']) {
-                $cashlessList->push(array_merge($entryBase, [
-                    'hours_since' => $this->hoursSince($lastCashless, $now),
-                    'last_transaction_at' => $lastCashless->toIso8601String(),
-                    'threshold_hours' => $thresholds['cashless'],
-                ]));
-            }
-        }
-
-        return [
-            'thresholds' => $thresholds,
-            'any_sales' => $anyList->sortByDesc('hours_since')->values()->all(),
-            'cash_sales' => $cashList->sortByDesc('hours_since')->values()->all(),
-            'card_sales' => $cardList->sortByDesc('hours_since')->values()->all(),
-            'qr_sales' => $cashlessList->sortByDesc('hours_since')->values()->all(),
-        ];
+        return $query;
     }
 
     private function applyVendFilters($query, array $filters, string $table = 'vends'): void
@@ -761,25 +722,6 @@ class MachineHealthDashboardService
         if (!empty($filters['machine_codes'])) {
             $query->whereIn("{$table}.code", $filters['machine_codes']);
         }
-    }
-
-    private function resolveLastContactTimestamp(Vend $vend): ?Carbon
-    {
-        return collect([
-            $vend->mqtt_last_updated_at,
-            $vend->last_updated_at,
-            $vend->last_vend_transaction_at,
-            $vend->offline_restart_count_datetime,
-        ])->filter()->sort()->last();
-    }
-
-    private function hoursSince(?Carbon $timestamp, Carbon $now): ?float
-    {
-        if (!$timestamp) {
-            return null;
-        }
-
-        return round($timestamp->diffInMinutes($now) / 60, 2);
     }
 
     private function baseVendInfo(?Vend $vend): array
