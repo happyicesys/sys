@@ -48,6 +48,7 @@ use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -191,13 +192,19 @@ class ReportController extends Controller
 
     public function indexMachineHealth(Request $request)
     {
+        $operatorOptions = Operator::select('id', 'code', 'name')->orderBy('name')->get();
+
+        if (empty($request->input('operator_ids'))) {
+            $request->merge([
+                'operator_ids' => $this->resolveDefaultOperatorIds($operatorOptions),
+            ]);
+        }
+
         $dashboardData = $this->machineHealthDashboardService->getDashboardData($request);
 
         return Inertia::render('Report/MachineHealth/Index', [
             'machineHealth' => $dashboardData,
-            'operatorOptions' => OptionResource::collection(
-                Operator::select('id', 'code', 'name')->orderBy('name')->get()
-            ),
+            'operatorOptions' => OptionResource::collection($operatorOptions),
             'vendPrefixOptions' => OptionResource::collection(
                 VendPrefix::select('id', 'name')->orderBy('name')->get()
             ),
@@ -208,6 +215,32 @@ class ReportController extends Controller
                 LocationType::select('id', 'name')->orderBy('sequence')->get()
             ),
         ]);
+    }
+
+    private function resolveDefaultOperatorIds(?Collection $operatorOptions = null): array
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return [];
+        }
+
+        $operatorId = $user->operator_id;
+        $operatorCode = $user->operator?->code;
+
+        if (!$operatorCode && $operatorId && $operatorOptions) {
+            $operatorCode = optional($operatorOptions->firstWhere('id', $operatorId))->code;
+        }
+
+        if ($operatorCode === 'HIPL') {
+            $codes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP'];
+            $ids = $operatorOptions
+                ? $operatorOptions->whereIn('code', $codes)->pluck('id')->all()
+                : Operator::whereIn('code', $codes)->pluck('id')->all();
+
+            return array_values(array_unique(array_filter($ids)));
+        }
+
+        return $operatorId ? [$operatorId] : [];
     }
 
 
@@ -1448,23 +1481,23 @@ class ReportController extends Controller
 
         $rangeStart = $currentDate->copy()->subMonths(2)->startOfMonth();
         $rangeEnd = $currentDate->copy()->endOfMonth();
-        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(vr.date, "%Y%m"))';
+        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(gm.txn_date, "%Y%m"))';
 
-        $baseQuery = $this->baseVendRecordsQuery($request, $rangeStart, $rangeEnd)
-            ->whereNotNull('vr.vend_id');
+        $baseQuery = $this->baseGpMetricsQuery($request, $rangeStart, $rangeEnd)
+            ->whereNotNull('gm.vend_id');
 
         $query = $baseQuery
-            ->selectRaw('vr.vend_id as id')
+            ->selectRaw('gm.vend_id as id')
             ->selectRaw('MAX(vends.name) as name')
             ->selectRaw('MAX(vends.code) as code')
             ->selectRaw('MAX(CASE WHEN customers.person_id THEN CONCAT(customers.virtual_customer_code," (", customers.virtual_customer_prefix,")") ELSE vends.code END) as customer_code')
             ->selectRaw('MAX(customers.name) as customer_name')
             ->selectRaw($monthDiffExpression . ' as month_diff')
-            ->selectRaw('SUM(vr.total_count) as count')
-            ->selectRaw('SUM(vr.total_amount) as revenue')
-            ->selectRaw('SUM(vr.gross_profit) as gross_profit')
-            ->selectRaw('ROUND(SUM(vr.gross_profit) * 100.0 / NULLIF(SUM(vr.total_amount), 0), 1) as gross_profit_margin')
-            ->groupBy('vr.vend_id', DB::raw($monthDiffExpression));
+            ->selectRaw('SUM(gm.sale_count) as count')
+            ->selectRaw('SUM(gm.revenue_cents) as revenue')
+            ->selectRaw('SUM(gm.gross_profit_cents) as gross_profit')
+            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.revenue_cents), 0), 1) as gross_profit_margin')
+            ->groupBy('gm.vend_id', DB::raw($monthDiffExpression));
 
         $vends = DB::query()
             ->fromSub($query, 'transac')
@@ -1937,21 +1970,21 @@ class ReportController extends Controller
         $className = get_class(new Customer());
         $rangeStart = $currentDate->copy()->subMonths(2)->startOfMonth();
         $rangeEnd = $currentDate->copy()->endOfMonth();
-        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(vr.date, "%Y%m"))';
+        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(gm.txn_date, "%Y%m"))';
 
-        $baseQuery = $this->baseVendRecordsQuery($request, $rangeStart, $rangeEnd)
-            ->whereNotNull('customers.category_id');
+        $baseQuery = $this->baseGpMetricsQuery($request, $rangeStart, $rangeEnd)
+            ->whereNotNull('gm.category_id');
 
         $query = $baseQuery
-            ->selectRaw('customers.category_id as id')
+            ->selectRaw('gm.category_id as id')
             ->selectRaw('MAX(categories.name) as name')
             ->selectRaw('MAX(categories.classname) as classname')
             ->selectRaw($monthDiffExpression . ' as month_diff')
-            ->selectRaw('SUM(vr.total_count) as count')
-            ->selectRaw('SUM(vr.total_amount) as revenue')
-            ->selectRaw('SUM(vr.gross_profit) as gross_profit')
-            ->selectRaw('ROUND(SUM(vr.gross_profit) * 100.0 / NULLIF(SUM(vr.total_amount), 0), 1) as gross_profit_margin')
-            ->groupBy('customers.category_id', DB::raw($monthDiffExpression));
+            ->selectRaw('SUM(gm.sale_count) as count')
+            ->selectRaw('SUM(gm.revenue_cents) as revenue')
+            ->selectRaw('SUM(gm.gross_profit_cents) as gross_profit')
+            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.revenue_cents), 0), 1) as gross_profit_margin')
+            ->groupBy('gm.category_id', DB::raw($monthDiffExpression));
 
         $categories = DB::query()
             ->fromSub($query, 'transac')
@@ -1997,20 +2030,21 @@ class ReportController extends Controller
 
         $rangeStart = $currentDate->copy()->subMonths(2)->startOfMonth();
         $rangeEnd = $currentDate->copy()->endOfMonth();
-        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(vr.date, "%Y%m"))';
+        $monthDiffExpression = 'PERIOD_DIFF(DATE_FORMAT("' . $currentDate->format('Y-m') . '-01", "%Y%m"), DATE_FORMAT(gm.txn_date, "%Y%m"))';
 
-        $baseQuery = $this->baseVendRecordsQuery($request, $rangeStart, $rangeEnd)
-            ->whereNotNull('vr.location_type_id');
+        $baseQuery = $this->baseGpMetricsQuery($request, $rangeStart, $rangeEnd)
+            ->leftJoin('location_types', 'location_types.id', '=', 'gm.transaction_location_type_id')
+            ->whereNotNull('gm.transaction_location_type_id');
 
         $query = $baseQuery
-            ->selectRaw('vr.location_type_id as id')
+            ->selectRaw('gm.transaction_location_type_id as id')
             ->selectRaw('MAX(location_types.name) as name')
             ->selectRaw($monthDiffExpression . ' as month_diff')
-            ->selectRaw('SUM(vr.total_count) as count')
-            ->selectRaw('SUM(vr.total_amount) as revenue')
-            ->selectRaw('SUM(vr.gross_profit) as gross_profit')
-            ->selectRaw('ROUND(SUM(vr.gross_profit) * 100.0 / NULLIF(SUM(vr.total_amount), 0), 1) as gross_profit_margin')
-            ->groupBy('vr.location_type_id', DB::raw($monthDiffExpression));
+            ->selectRaw('SUM(gm.sale_count) as count')
+            ->selectRaw('SUM(gm.revenue_cents) as revenue')
+            ->selectRaw('SUM(gm.gross_profit_cents) as gross_profit')
+            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.revenue_cents), 0), 1) as gross_profit_margin')
+            ->groupBy('gm.transaction_location_type_id', DB::raw($monthDiffExpression));
 
         $locationTypes = DB::query()
             ->fromSub($query, 'transac')

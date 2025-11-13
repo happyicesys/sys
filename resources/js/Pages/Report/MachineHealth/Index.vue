@@ -1,8 +1,9 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, usePage } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import Button from '@/Components/Button.vue'
+import MultiSelect from '@/Components/MultiSelect.vue'
 
 const props = defineProps({
   machineHealth: {
@@ -28,6 +29,36 @@ const props = defineProps({
 })
 
 const DEFAULT_VISIBLE = 10
+const HIPL_OPERATOR_CODES = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP']
+
+const normalizeCollection = (collection) => {
+  if (!collection) {
+    return []
+  }
+
+  if (Array.isArray(collection)) {
+    return collection
+  }
+
+  if (Array.isArray(collection.data)) {
+    return collection.data
+  }
+
+  return []
+}
+
+const normalizeIds = (values) => {
+  if (!Array.isArray(values)) {
+    return []
+  }
+
+  return values
+    .map((value) => {
+      const numeric = Number(value)
+      return Number.isFinite(numeric) ? numeric : value
+    })
+    .filter((value) => value !== undefined && value !== null && value !== '')
+}
 
 const rawFilters = props.machineHealth?.filters ?? {}
 const filters = reactive({
@@ -43,8 +74,8 @@ const filters = reactive({
   stockout_lookback_days: rawFilters.stockout_lookback_days ?? 30,
   offline_threshold_hours: rawFilters.offline_threshold_hours ?? 12,
   offline_secondary_threshold_hours: rawFilters.offline_secondary_threshold_hours ?? 24,
-  operator_ids: (rawFilters.operator_ids ?? []).map(String),
-  vend_prefix_ids: (rawFilters.vend_prefix_ids ?? []).map(String),
+  operator_ids: normalizeIds(rawFilters.operator_ids ?? []),
+  vend_prefix_ids: normalizeIds(rawFilters.vend_prefix_ids ?? []),
   customer_ids: (rawFilters.customer_ids ?? []).map(String),
   machine_codes: rawFilters.machine_codes ?? [],
   channel_sku: rawFilters.channel_sku ?? '',
@@ -56,6 +87,7 @@ const filters = reactive({
   },
 })
 
+const page = usePage()
 const summary = computed(() => props.machineHealth?.summary ?? {})
 const stockouts = computed(() => props.machineHealth?.stockouts ?? {})
 const errorBuckets = computed(() => {
@@ -68,8 +100,112 @@ const errorBuckets = computed(() => {
 const temperature = computed(() => props.machineHealth?.temperature ?? {})
 const connectivity = computed(() => props.machineHealth?.connectivity ?? {})
 const noTransactions = computed(() => props.machineHealth?.no_transactions ?? {})
-const operatorOptions = computed(() => props.operatorOptions ?? [])
-const vendPrefixOptions = computed(() => props.vendPrefixOptions ?? [])
+const operatorOptions = computed(() => normalizeCollection(props.operatorOptions))
+const vendPrefixOptions = computed(() => normalizeCollection(props.vendPrefixOptions))
+const authOperator = computed(() => page.props.auth?.operator ?? null)
+
+const operatorSelectOptions = computed(() =>
+  operatorOptions.value.map((option) => {
+    const id = Number(option.id)
+    return {
+      id: Number.isFinite(id) ? id : option.id,
+      code: option.code ?? null,
+      value: option.code ? `${option.code} — ${option.name}` : option.name ?? '',
+    }
+  }),
+)
+
+const vendPrefixSelectOptions = computed(() =>
+  vendPrefixOptions.value.map((option) => {
+    const id = Number(option.id)
+    return {
+      id: Number.isFinite(id) ? id : option.id,
+      value: option.name ?? '',
+    }
+  }),
+)
+
+const operatorSelections = computed({
+  get() {
+    const optionMap = new Map(
+      operatorSelectOptions.value.map((option) => [option.id, option]),
+    )
+
+    return (filters.operator_ids ?? [])
+      .map((id) => optionMap.get(id))
+      .filter(Boolean)
+  },
+  set(newValue) {
+    filters.operator_ids = (Array.isArray(newValue) ? newValue : [])
+      .map((option) => option?.id)
+      .filter((id) => id !== undefined && id !== null && id !== '')
+  },
+})
+
+const vendPrefixSelections = computed({
+  get() {
+    const optionMap = new Map(
+      vendPrefixSelectOptions.value.map((option) => [option.id, option]),
+    )
+
+    return (filters.vend_prefix_ids ?? [])
+      .map((id) => optionMap.get(id))
+      .filter(Boolean)
+  },
+  set(newValue) {
+    filters.vend_prefix_ids = (Array.isArray(newValue) ? newValue : [])
+      .map((option) => option?.id)
+      .filter((id) => id !== undefined && id !== null && id !== '')
+  },
+})
+
+const ensureDefaultOperatorFilters = () => {
+  if ((filters.operator_ids?.length ?? 0) > 0) {
+    return
+  }
+
+  const operator = authOperator.value
+  if (!operator) {
+    return
+  }
+
+  const options = operatorSelectOptions.value
+  if (!options.length) {
+    return
+  }
+
+  const byCode = new Map(options.map((option) => [option.code, option]))
+  const byId = new Map(options.map((option) => [option.id, option]))
+  const selectedIds = []
+  const [normalizedId] = normalizeIds([operator.id])
+
+  const activeOption =
+    byId.get(normalizedId) ??
+    (operator.code ? byCode.get(operator.code) : undefined)
+
+  if (!activeOption) {
+    return
+  }
+
+  if (activeOption.code === 'HIPL') {
+    HIPL_OPERATOR_CODES.forEach((code) => {
+      const match = byCode.get(code)
+      if (match) {
+        selectedIds.push(match.id)
+      }
+    })
+  } else {
+    selectedIds.push(activeOption.id)
+  }
+
+  if (selectedIds.length) {
+    filters.operator_ids = selectedIds
+  }
+}
+
+watch([operatorSelectOptions, authOperator], ensureDefaultOperatorFilters, {
+  immediate: true,
+})
 
 const createRowLimiter = (rowsSource) => {
   const expanded = ref(false)
@@ -434,39 +570,34 @@ const renderPerCodeSummary = (perCode) => {
 
                 <label class="flex flex-col space-y-1 text-sm">
                   <span class="font-medium text-gray-700">Vend Prefix</span>
-                  <select
-                    v-model="filters.vend_prefix_ids"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    multiple
+                  <MultiSelect
+                    v-model="vendPrefixSelections"
+                    :options="vendPrefixSelectOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    mode="tags"
+                    class="mt-1"
                   >
-                    <option
-                      v-for="option in vendPrefixOptions"
-                      :key="option.id"
-                      :value="String(option.id)"
-                    >
-                      {{ option.name }}
-                    </option>
-                  </select>
-                  <span class="text-xs text-gray-500">
-                    Hold Ctrl / Cmd to multi-select
-                  </span>
+                  </MultiSelect>
                 </label>
 
                 <label class="flex flex-col space-y-1 text-sm">
                   <span class="font-medium text-gray-700">Operator</span>
-                  <select
-                    v-model="filters.operator_ids"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    multiple
+                  <MultiSelect
+                    v-model="operatorSelections"
+                    :options="operatorSelectOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    mode="tags"
+                    class="mt-1"
                   >
-                    <option
-                      v-for="option in operatorOptions"
-                      :key="option.id"
-                      :value="String(option.id)"
-                    >
-                      {{ option.code ? `${option.code} — ${option.name}` : option.name }}
-                    </option>
-                  </select>
+                  </MultiSelect>
                 </label>
               </div>
 
