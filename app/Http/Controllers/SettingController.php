@@ -525,7 +525,9 @@ class SettingController extends Controller
         $vend = Vend::where('code', $request->code)->first();
 
         if($vend) {
-            return redirect()->route('settings.edit', [$vend->id])->with('errors', 'Vend Code already exists.');
+            return redirect()->route('settings.edit', [$vend->id])->withErrors([
+                'code' => 'Vend Code already exists.',
+            ]);
         }
 
         // dd($request->all());

@@ -1706,7 +1706,7 @@ watch(
 );
 
 watch(
-  () => page.props.value.selectedProductMapping,
+  () => page.props.selectedProductMapping,
   (mapping) => {
     if (!hasMounted || mapping === undefined) {
       return;
@@ -1722,7 +1722,7 @@ watch(
 );
 
 watch(
-  () => page.props.value.vend?.vend_channels,
+  () => page.props.vend?.vend_channels,
   (channels) => {
     if (channels === undefined) {
       return;
