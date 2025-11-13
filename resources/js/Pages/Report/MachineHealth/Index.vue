@@ -373,7 +373,25 @@ const formatDateTime = (value) => {
     return '—'
   }
 
-  return new Date(value).toLocaleString()
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return '—'
+  }
+
+  const pad = (num) => String(num).padStart(2, '0')
+  const twoDigitYear = String(date.getFullYear()).slice(-2)
+  const month = pad(date.getMonth() + 1)
+  const day = pad(date.getDate())
+  const minutes = pad(date.getMinutes())
+
+  let hours = date.getHours()
+  const suffix = hours >= 12 ? 'pm' : 'am'
+  hours %= 12
+  if (hours === 0) {
+    hours = 12
+  }
+
+  return `${twoDigitYear}-${month}-${day} ${pad(hours)}:${minutes} ${suffix}`
 }
 
 const applyFilters = () => {
