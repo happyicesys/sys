@@ -533,7 +533,7 @@ onMounted(() => {
 
   function onSearchFilterUpdated() {
 
-      router.get('/reports/stock-count', {
+      router.get('/reports/snapshot', {
           ...filters.value,
           currentMonth: filters.value.currentMonth.id,
           locationType: filters.value.locationType.id,
@@ -549,7 +549,7 @@ onMounted(() => {
   }
 
   function resetFilters() {
-      router.get('/reports/stock-count')
+      router.get('/reports/snapshot')
   }
 
 function sortTable(sortKey) {
@@ -562,7 +562,7 @@ function onExportChannelExcelClicked() {
   loading.value = true
   axios({
       method: 'get',
-      url: '/reports/stock-count/excel',
+      url: '/reports/snapshot/excel',
       params: {
           ...filters.value,
           currentMonth: filters.value.currentMonth.id,

@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Product;
 use App\Models\Vend;
+use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendChannelStockEvent;
@@ -121,21 +123,24 @@ class MachineHealthDashboardService
     private function getStockoutMetrics(array $filters): array
     {
         $lookbackStart = Carbon::now()->subDays($filters['stockout_lookback_days'])->startOfDay();
+        $channelLimit = max(1, $filters['channel_limit']);
+        $targetHours = max(1, $filters['stockout_target_hours']);
+        $now = Carbon::now();
 
         $eventsQuery = VendChannelStockEvent::query()
+            ->select([
+                'id',
+                'vend_channel_id',
+                'vend_id',
+                'product_id',
+                'event_type',
+                'occurred_at',
+            ])
             ->where('occurred_at', '>=', $lookbackStart)
             ->whereHas('vend', function (EloquentBuilder $query) use ($filters) {
                 $this->applyVendFilters($query, $filters);
                 $query->where('is_testing', false);
             })
-            ->with([
-                'vend:id,code,name,operator_id,vend_prefix_id,customer_id,is_testing',
-                'vend.customer:id,name,code',
-                'vend.operator:id,name,code',
-                'vend.vendPrefix:id,name',
-                'vendChannel:id,vend_id,code',
-                'product:id,name,code',
-            ])
             ->orderBy('vend_channel_id')
             ->orderBy('occurred_at');
 
@@ -145,11 +150,66 @@ class MachineHealthDashboardService
             });
         }
 
-        $events = $eventsQuery->get();
+        $pendingSoldOut = [];
+        $topDurations = [];
+        $topOpenDurations = [];
+        $trendBuckets = [];
+        $summaryStats = [
+            'closed_count' => 0,
+            'within_target' => 0,
+            'sum_hours' => 0.0,
+            'max_hours' => 0.0,
+        ];
 
-        if ($events->isEmpty()) {
+        foreach ($eventsQuery->cursor() as $event) {
+            $channelId = (int) $event->vend_channel_id;
+
+            if ($event->event_type === VendChannelStockEvent::TYPE_SOLD_OUT) {
+                $pendingSoldOut[$channelId] = $event;
+                continue;
+            }
+
+            if ($event->event_type !== VendChannelStockEvent::TYPE_RESTOCKED || !isset($pendingSoldOut[$channelId])) {
+                continue;
+            }
+
+            $soldOutEvent = $pendingSoldOut[$channelId];
+            $durationMinutes = $soldOutEvent->occurred_at->diffInMinutes($event->occurred_at);
+            unset($pendingSoldOut[$channelId]);
+
+            $durationRecord = $this->makeStockoutDurationRecord($soldOutEvent, $event, $durationMinutes, false);
+            $this->pushTopDuration($topDurations, $durationRecord, $channelLimit);
+
+            $durationHours = $durationMinutes / 60;
+            $summaryStats['closed_count']++;
+            $summaryStats['sum_hours'] += $durationHours;
+            $summaryStats['max_hours'] = max($summaryStats['max_hours'], $durationHours);
+            if ($durationHours <= $targetHours) {
+                $summaryStats['within_target']++;
+            }
+
+            $stockoutAt = $durationRecord['stockout_at'];
+            if ($stockoutAt instanceof Carbon) {
+                $weekStart = $stockoutAt->copy()->startOfWeek()->toDateString();
+                if (!isset($trendBuckets[$weekStart])) {
+                    $trendBuckets[$weekStart] = ['hours' => 0.0, 'count' => 0];
+                }
+
+                $trendBuckets[$weekStart]['hours'] += $durationHours;
+                $trendBuckets[$weekStart]['count']++;
+            }
+        }
+
+        foreach ($pendingSoldOut as $soldOutEvent) {
+            $durationMinutes = $soldOutEvent->occurred_at->diffInMinutes($now);
+            $durationRecord = $this->makeStockoutDurationRecord($soldOutEvent, null, $durationMinutes, true);
+            $this->pushTopDuration($topDurations, $durationRecord, $channelLimit);
+            $this->pushTopDuration($topOpenDurations, $durationRecord, $channelLimit);
+        }
+
+        if ($summaryStats['closed_count'] === 0 && empty($topDurations)) {
             return [
-                'summary' => $this->defaultStockoutSummary($filters['stockout_target_hours']),
+                'summary' => $this->defaultStockoutSummary($targetHours),
                 'top_channels' => [],
                 'open_channels' => [],
                 'trend' => [],
@@ -159,47 +219,15 @@ class MachineHealthDashboardService
             ];
         }
 
-        $now = Carbon::now();
-        $closedDurations = collect();
-        $openDurations = collect();
-
-        $events->groupBy('vend_channel_id')->each(function (Collection $channelEvents) use (&$closedDurations, &$openDurations, $now) {
-            $sorted = $channelEvents->sortBy('occurred_at')->values();
-            $pendingSoldOut = null;
-
-            foreach ($sorted as $event) {
-                if ($event->event_type === VendChannelStockEvent::TYPE_SOLD_OUT) {
-                    $pendingSoldOut = $event;
-                    continue;
-                }
-
-                if ($event->event_type === VendChannelStockEvent::TYPE_RESTOCKED && $pendingSoldOut) {
-                    $durationMinutes = $pendingSoldOut->occurred_at->diffInMinutes($event->occurred_at);
-                    $closedDurations->push($this->formatStockoutDuration($pendingSoldOut, $event, $durationMinutes));
-                    $pendingSoldOut = null;
-                }
-            }
-
-            if ($pendingSoldOut) {
-                $durationMinutes = $pendingSoldOut->occurred_at->diffInMinutes($now);
-                $openDurations->push($this->formatStockoutDuration($pendingSoldOut, null, $durationMinutes));
-            }
-        });
-
-        $summary = $this->buildStockoutSummary($closedDurations, $filters['stockout_target_hours']);
-
-        $topChannels = $openDurations
-            ->merge($closedDurations)
-            ->sortByDesc('duration_hours')
-            ->take($filters['channel_limit'])
-            ->values()
-            ->all();
+        $metadata = $this->loadStockoutMetadata($topDurations, $topOpenDurations);
 
         return [
-            'summary' => $summary,
-            'top_channels' => $topChannels,
-            'open_channels' => $openDurations->sortByDesc('duration_hours')->values()->all(),
-            'trend' => $this->buildStockoutTrend($closedDurations),
+            'summary' => $summaryStats['closed_count'] > 0
+                ? $this->buildStockoutSummaryFromStats($summaryStats, $targetHours)
+                : $this->defaultStockoutSummary($targetHours),
+            'top_channels' => $this->decorateStockoutDurations($topDurations, $metadata),
+            'open_channels' => $this->decorateStockoutDurations($topOpenDurations, $metadata),
+            'trend' => $this->buildStockoutTrendFromBuckets($trendBuckets),
             'metadata' => [
                 'lookback_days' => $filters['stockout_lookback_days'],
             ],
@@ -220,76 +248,180 @@ class MachineHealthDashboardService
         ];
     }
 
-    private function buildStockoutSummary(Collection $durations, int $targetHours): array
+    private function buildStockoutSummaryFromStats(array $stats, int $targetHours): array
     {
-        if ($durations->isEmpty()) {
+        $closedCount = $stats['closed_count'] ?? 0;
+        if ($closedCount === 0) {
             return $this->defaultStockoutSummary($targetHours);
         }
 
-        $avgHours = $durations->avg('duration_hours');
-        $maxHours = $durations->max('duration_hours');
-        $withinTarget = $durations->filter(fn ($item) => $item['duration_hours'] <= $targetHours)->count();
+        $avgHours = $stats['sum_hours'] / $closedCount;
+        $maxHours = $stats['max_hours'];
+        $withinTarget = $stats['within_target'] ?? 0;
 
         return [
             'average_duration_hours' => round($avgHours, 2),
             'average_duration_days' => round($avgHours / 24, 2),
             'longest_duration_hours' => round($maxHours, 2),
             'longest_duration_days' => round($maxHours / 24, 2),
-            'recovery_rate' => $durations->count() > 0 ? round(($withinTarget / $durations->count()) * 100, 2) : null,
-            'closed_events_count' => $durations->count(),
+            'recovery_rate' => round(($withinTarget / $closedCount) * 100, 2),
+            'closed_events_count' => $closedCount,
             'target_hours' => $targetHours,
             'target_days' => round($targetHours / 24, 2),
         ];
     }
 
-    private function buildStockoutTrend(Collection $durations): array
+    private function buildStockoutTrendFromBuckets(array $buckets): array
     {
-        if ($durations->isEmpty()) {
+        if (empty($buckets)) {
             return [];
         }
 
-        return $durations
-            ->groupBy(function ($item) {
-                return Carbon::parse($item['stockout_at'])->startOfWeek()->toDateString();
-            })
-            ->map(function (Collection $weekBuckets, string $weekStart) {
-                $average = $weekBuckets->avg('duration_hours');
+        ksort($buckets);
+
+        return collect($buckets)
+            ->map(function (array $bucket, string $weekStart) {
+                $average = $bucket['count'] > 0 ? $bucket['hours'] / $bucket['count'] : 0;
 
                 return [
                     'week_start' => $weekStart,
                     'average_hours' => round($average, 2),
                     'average_days' => round($average / 24, 2),
-                    'sample_size' => $weekBuckets->count(),
+                    'sample_size' => $bucket['count'],
                 ];
             })
-            ->sortBy('week_start')
             ->values()
             ->all();
     }
 
-    private function formatStockoutDuration(VendChannelStockEvent $soldOut, ?VendChannelStockEvent $restocked, int $durationMinutes): array
-    {
-        $vend = $soldOut->vend;
-        $channel = $soldOut->vendChannel;
-        $product = $soldOut->product ?? $channel?->product;
+    private function makeStockoutDurationRecord(
+        VendChannelStockEvent $soldOut,
+        ?VendChannelStockEvent $restocked,
+        int $durationMinutes,
+        bool $isOpen
+    ): array {
+        return [
+            'vend_id' => $soldOut->vend_id ? (int) $soldOut->vend_id : null,
+            'vend_channel_id' => $soldOut->vend_channel_id ? (int) $soldOut->vend_channel_id : null,
+            'product_id' => $soldOut->product_id ? (int) $soldOut->product_id : null,
+            'stockout_at' => $soldOut->occurred_at ? $soldOut->occurred_at->copy() : null,
+            'restocked_at' => $restocked?->occurred_at ? $restocked->occurred_at->copy() : null,
+            'duration_minutes' => $durationMinutes,
+            'is_open' => $isOpen,
+        ];
+    }
 
-        $durationHours = round($durationMinutes / 60, 2);
+    private function pushTopDuration(array &$list, array $duration, int $limit): void
+    {
+        if ($limit <= 0) {
+            return;
+        }
+
+        $list[] = $duration;
+        usort($list, fn ($a, $b) => $b['duration_minutes'] <=> $a['duration_minutes']);
+        if (count($list) > $limit) {
+            $list = array_slice($list, 0, $limit);
+        }
+    }
+
+    private function loadStockoutMetadata(array ...$durationLists): array
+    {
+        $vendIds = [];
+        $channelIds = [];
+        $productIds = [];
+
+        foreach ($durationLists as $durations) {
+            foreach ($durations as $duration) {
+                if (!empty($duration['vend_id'])) {
+                    $vendIds[$duration['vend_id']] = true;
+                }
+
+                if (!empty($duration['vend_channel_id'])) {
+                    $channelIds[$duration['vend_channel_id']] = true;
+                }
+
+                if (!empty($duration['product_id'])) {
+                    $productIds[$duration['product_id']] = true;
+                }
+            }
+        }
+
+        $vendCollection = empty($vendIds)
+            ? collect()
+            : Vend::query()
+                ->select('id', 'code', 'name', 'customer_id', 'operator_id', 'vend_prefix_id')
+                ->with([
+                    'customer:id,name',
+                    'operator:id,name',
+                    'vendPrefix:id,name',
+                ])
+                ->whereIn('id', array_keys($vendIds))
+                ->get()
+                ->keyBy('id');
+
+        $channelCollection = empty($channelIds)
+            ? collect()
+            : VendChannel::query()
+                ->select('id', 'vend_id', 'code', 'product_id')
+                ->with(['product:id,name'])
+                ->whereIn('id', array_keys($channelIds))
+                ->get()
+                ->keyBy('id');
+
+        $productCollection = empty($productIds)
+            ? collect()
+            : Product::query()
+                ->select('id', 'name')
+                ->whereIn('id', array_keys($productIds))
+                ->get()
+                ->keyBy('id');
 
         return [
-            'vend_id' => $vend?->id,
-            'vend_code' => $vend?->code,
-            'vend_name' => $vend?->name,
-            'customer_name' => $vend?->customer?->name,
-            'operator_name' => $vend?->operator?->name,
-            'vend_prefix_name' => $vend?->vendPrefix?->name,
-            'channel_code' => $channel?->code,
-            'product_name' => $product?->name,
-            'duration_hours' => $durationHours,
-            'duration_days' => round($durationHours / 24, 2),
-            'stockout_at' => optional($soldOut->occurred_at)->toIso8601String(),
-            'restocked_at' => optional($restocked?->occurred_at)->toIso8601String(),
-            'is_open' => $restocked === null,
+            'vends' => $vendCollection,
+            'channels' => $channelCollection,
+            'products' => $productCollection,
         ];
+    }
+
+    private function decorateStockoutDurations(array $durations, array $metadata): array
+    {
+        if (empty($durations)) {
+            return [];
+        }
+
+        $vends = $metadata['vends'] ?? collect();
+        $channels = $metadata['channels'] ?? collect();
+        $products = $metadata['products'] ?? collect();
+
+        return collect($durations)
+            ->map(function (array $duration) use ($vends, $channels, $products) {
+                $vend = $vends->get($duration['vend_id']);
+                $channel = $channels->get($duration['vend_channel_id']);
+                $product = $duration['product_id'] ? $products->get($duration['product_id']) : null;
+
+                if (!$product && $channel) {
+                    $product = $channel->relationLoaded('product') ? $channel->product : null;
+                }
+
+                $durationHours = round($duration['duration_minutes'] / 60, 2);
+
+                return [
+                    'vend_id' => $duration['vend_id'],
+                    'vend_code' => $vend?->code,
+                    'vend_name' => $vend?->name,
+                    'customer_name' => $vend?->customer?->name,
+                    'operator_name' => $vend?->operator?->name,
+                    'vend_prefix_name' => $vend?->vendPrefix?->name,
+                    'channel_code' => $channel?->code,
+                    'product_name' => $product?->name,
+                    'duration_hours' => $durationHours,
+                    'duration_days' => round($durationHours / 24, 2),
+                    'stockout_at' => optional($duration['stockout_at'])->toIso8601String(),
+                    'restocked_at' => optional($duration['restocked_at'])->toIso8601String(),
+                    'is_open' => $duration['is_open'],
+                ];
+            })
+            ->all();
     }
 
     private function getErrorCodeMetrics(array $filters): array
@@ -515,15 +647,26 @@ class MachineHealthDashboardService
             })
             ->all();
 
-        $noReachQuery = VendTemp::query()
-            ->from('vend_temps')
-            ->join('vends', 'vend_temps.vend_id', '=', 'vends.id')
+        $recentWindowStart = $now->copy()->subHours(12);
+
+        $recentTempsSubquery = DB::table('vend_temps as vt')
+            ->select([
+                'vt.vend_id',
+                DB::raw('MIN(vt.value) as min_value'),
+                DB::raw('MAX(vt.created_at) as last_recorded_at'),
+                DB::raw('COUNT(*) as reading_count'),
+            ])
+            ->where('vt.type', $sensorType)
+            ->where('vt.value', '!=', VendTemp::TEMPERATURE_ERROR)
+            ->where('vt.created_at', '>=', $recentWindowStart)
+            ->groupBy('vt.vend_id');
+
+        $noReachQuery = DB::query()
+            ->fromSub($recentTempsSubquery, 'recent_temps')
+            ->join('vends', 'recent_temps.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('operators', 'vends.operator_id', '=', 'operators.id')
             ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
-            ->where('vend_temps.type', $sensorType)
-            ->where('vend_temps.value', '!=', VendTemp::TEMPERATURE_ERROR)
-            ->where('vend_temps.created_at', '>=', $now->copy()->subHours(12))
             ->where('vends.is_temp_active', true)
             ->where('vends.is_testing', false);
 
@@ -537,13 +680,12 @@ class MachineHealthDashboardService
                 'customers.name as customer_name',
                 'operators.name as operator_name',
                 'vend_prefixes.name as vend_prefix_name',
-                DB::raw('MIN(vend_temps.value) as min_value'),
-                DB::raw('MAX(vend_temps.created_at) as last_recorded_at'),
-                DB::raw('COUNT(*) as reading_count'),
+                DB::raw('recent_temps.min_value as min_value'),
+                DB::raw('recent_temps.last_recorded_at as last_recorded_at'),
+                DB::raw('recent_temps.reading_count as reading_count'),
             ])
-            ->groupBy('vends.id', 'vends.code', 'vends.name', 'customers.name', 'operators.name', 'vend_prefixes.name')
-            ->havingRaw('MIN(vend_temps.value) > ?', [$minThresholdScaled])
-            ->orderByDesc(DB::raw('MIN(vend_temps.value)'))
+            ->where('recent_temps.min_value', '>', $minThresholdScaled)
+            ->orderByDesc(DB::raw('recent_temps.min_value'))
             ->limit($filters['machine_limit'])
             ->get()
             ->map(function ($row) use ($scale) {
