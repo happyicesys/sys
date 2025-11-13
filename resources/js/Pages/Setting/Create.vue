@@ -17,7 +17,7 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2">
               <div class="sm:col-span-6">
                 <SearchVendCodeInput v-model="form.code" @selected="onVendCodeSelected" required="true" :error="form.errors.code" v-if="type == 'create'">
-                  Code
+                  Machine ID
                 </SearchVendCodeInput>
               </div>
               <div class="sm:col-span-3">

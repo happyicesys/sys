@@ -1847,7 +1847,7 @@ class ReportController extends Controller
     {
         $periodStart = $periodStart->copy();
         $periodEndExclusive = $periodEnd->copy()->addSecond();
-        $totalSeconds = $periodEndExclusive->diffInSeconds($periodStart);
+        $totalSeconds = $periodEndExclusive->diffInSeconds($periodStart, true);
 
         if ($totalSeconds <= 0) {
             return [0, 0];
@@ -1882,7 +1882,7 @@ class ReportController extends Controller
             }
 
             if ($eventTime->gt($cursor)) {
-                $duration = $eventTime->diffInSeconds($cursor);
+                $duration = $eventTime->diffInSeconds($cursor, true);
                 if ($state !== VendChannelStockEvent::TYPE_SOLD_OUT) {
                     $availableSeconds += $duration;
                 }
@@ -1893,7 +1893,7 @@ class ReportController extends Controller
         }
 
         if ($cursor->lt($periodEndExclusive)) {
-            $duration = $periodEndExclusive->diffInSeconds($cursor);
+            $duration = $periodEndExclusive->diffInSeconds($cursor, true);
             if ($state !== VendChannelStockEvent::TYPE_SOLD_OUT) {
                 $availableSeconds += $duration;
             }
