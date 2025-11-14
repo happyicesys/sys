@@ -26,6 +26,14 @@ class GpMetricsAggregator
         $transactionDatetimeColumn = 'COALESCE(vend_transactions.transaction_datetime, vend_transactions.created_at)';
         $transactionDateExpression = "DATE($transactionDatetimeColumn)";
 
+        $applyDateRange = function ($query) use ($start, $end) {
+            $query->whereBetween('vend_transactions.transaction_datetime', [$start, $end])
+                ->orWhere(function ($or) use ($start, $end) {
+                    $or->whereNull('vend_transactions.transaction_datetime')
+                        ->whereBetween('vend_transactions.created_at', [$start, $end]);
+                });
+        };
+
         $singleRevenueExpression = 'COALESCE(vend_transactions.revenue, vend_transactions.amount, 0)';
         $singleUnitCostExpression = 'COALESCE(vend_transactions.unit_cost, 0)';
         $singleGrossProfitExpression = '(' . $singleRevenueExpression . ' - ' . $singleUnitCostExpression . ')';
@@ -37,7 +45,9 @@ class GpMetricsAggregator
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->whereBetween(DB::raw($transactionDatetimeColumn), [$start, $end])
+            ->where(function ($query) use ($applyDateRange) {
+                $applyDateRange($query);
+            })
             ->where(function ($query) {
                 $query->where('vend_transactions.is_multiple', false)
                     ->orWhereNotExists(function ($subQuery) {
@@ -96,7 +106,9 @@ class GpMetricsAggregator
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->whereBetween(DB::raw($transactionDatetimeColumn), [$start, $end])
+            ->where(function ($query) use ($applyDateRange) {
+                $applyDateRange($query);
+            })
             ->where('vend_transactions.is_multiple', true)
             ->selectRaw("$transactionDateExpression as txn_date")
             ->selectRaw('vend_transactions.operator_id as operator_id')
@@ -156,12 +168,7 @@ class GpMetricsAggregator
                 'metrics.revenue_cents',
                 'metrics.gross_profit_cents',
                 'metrics.unit_cost_cents',
-            ])
-            ->orderBy('metrics.txn_date')
-            ->orderBy('metrics.operator_id')
-            ->orderBy('metrics.vend_id')
-            ->orderBy('metrics.customer_id')
-            ->orderBy('metrics.product_id');
+            ]);
     }
 
     /**

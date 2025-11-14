@@ -51,6 +51,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use Rap2hpoutre\FastExcel\FastExcel;
@@ -265,10 +266,28 @@ class ReportController extends Controller
 
         $className = get_class(new Customer());
 
-        $vends = $this->getUnitCostByVendQuery($request);
-        $totals = $this->getSalesSubTotal($vends);
-        $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-        ->withQueryString();
+        $vendQuery = $this->getUnitCostByVendQuery($request);
+        $totals = $this->getSalesSubTotal($vendQuery);
+
+        $perPage = $numberPerPage === 'All' ? 10000 : $numberPerPage;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+
+        $rows = (clone $vendQuery)
+            ->forPage($currentPage, $perPage)
+            ->get();
+
+        $totalRows = $this->countUnitCostByVend($request);
+
+        $vends = new LengthAwarePaginator(
+            $rows,
+            $totalRows,
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
 
         return Inertia::render('Report/Gp/IndexVm', [
             'categories' => CategoryResource::collection(
@@ -1241,7 +1260,7 @@ class ReportController extends Controller
         $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";
 
         // ----- coin float (simple sum per day) -----
-        $coin = DB::table('stock_counts as sc')
+        $coinQuery = DB::table('stock_counts as sc')
             ->when($request->operators, function ($q, $ids) {
                 if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.operator_id', $ids);
             })
@@ -1258,8 +1277,11 @@ class ReportController extends Controller
                     if (count($codes) > 1) $sq->whereIn('v.code', $codes);
                     elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
                 });
-            })
-            ->whereBetween(DB::raw($dateSql), [$from->toDateString(), $to->toDateString()])
+            });
+
+        $coinQuery = $this->applyStockCountDateRange($coinQuery, $from, $to);
+
+        $coin = $coinQuery
             ->groupBy(DB::raw($dateSql))
             ->selectRaw("$dateSql as d")
             ->selectRaw('SUM(sc.coin_float_amount) / 100.0 as coin_float_rm')
@@ -1289,8 +1311,10 @@ class ReportController extends Controller
                     if (count($codes) > 1) $sq->whereIn('v.code', $codes);
                     elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
                 });
-            })
-            ->whereBetween(DB::raw($dateSql), [$from->toDateString(), $to->toDateString()])
+            });
+
+        $perProductPerDay = $this->applyStockCountDateRange($perProductPerDay, $from, $to)
+            ->groupBy(DB::raw($dateSql), 'sci.product_id')
             ->groupBy(DB::raw($dateSql), 'sci.product_id')
             ->selectRaw("$dateSql as d")
             ->selectRaw('SUM(sci.unit_cost_amount * sci.qty_vend)               as machine_cost_cents')
@@ -1370,8 +1394,9 @@ class ReportController extends Controller
                     if (count($codes) > 1) $sq->whereIn('v.code', $codes);
                     elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
                 });
-            })
-            ->whereBetween(DB::raw($dateSql), [$from->toDateString(), $to->toDateString()])
+            });
+
+        $perProductPerDay = $this->applyStockCountDateRange($perProductPerDay, $from, $to)
             ->groupBy(DB::raw($dateSql), 'sci.product_id')
             ->selectRaw("$dateSql as d")
             ->selectRaw('SUM(sci.qty_vend)     as machine_qty')
@@ -1473,7 +1498,7 @@ class ReportController extends Controller
         return $this->filterOperatorVendTransactionDB($query);
     }
 
-    private function getUnitCostByVendQuery($request)
+    private function buildUnitCostByVendBaseComponents($request): array
     {
         $currentDate = $request->currentMonth
             ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone())
@@ -1485,6 +1510,13 @@ class ReportController extends Controller
 
         $baseQuery = $this->baseGpMetricsQuery($request, $rangeStart, $rangeEnd)
             ->whereNotNull('gm.vend_id');
+
+        return [$baseQuery, $monthDiffExpression];
+    }
+
+    private function getUnitCostByVendQuery($request)
+    {
+        [$baseQuery, $monthDiffExpression] = $this->buildUnitCostByVendBaseComponents($request);
 
         $query = $baseQuery
             ->selectRaw('gm.vend_id as id')
@@ -1534,6 +1566,16 @@ class ReportController extends Controller
         });
 
         return $vends;
+    }
+
+    private function countUnitCostByVend(Request $request): int
+    {
+        [$baseQuery] = $this->buildUnitCostByVendBaseComponents($request);
+
+        return (clone $baseQuery)
+            ->select('gm.vend_id')
+            ->distinct()
+            ->count('gm.vend_id');
     }
 
     /**
@@ -1703,6 +1745,13 @@ class ReportController extends Controller
         $transactionDatetimeSql = 'COALESCE(vend_transactions.transaction_datetime, vend_transactions.created_at)';
         $transactionDatetime = DB::raw($transactionDatetimeSql);
         $monthExpressionSql = "DATE_FORMAT({$transactionDatetimeSql}, '%Y-%m')";
+        $applyTransactionDateRange = function ($query) use ($rangeStart, $rangeEnd) {
+            $query->whereBetween('vend_transactions.transaction_datetime', [$rangeStart, $rangeEnd])
+                ->orWhere(function ($sub) use ($rangeStart, $rangeEnd) {
+                    $sub->whereNull('vend_transactions.transaction_datetime')
+                        ->whereBetween('vend_transactions.created_at', [$rangeStart, $rangeEnd]);
+                });
+        };
         $monthExpression = DB::raw($monthExpressionSql);
 
         $single = DB::table('vend_transactions')
@@ -1713,7 +1762,9 @@ class ReportController extends Controller
             ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
             ->leftJoin('operators', 'vend_transactions.operator_id', '=', 'operators.id')
             ->leftJoin('vend_channels', 'vend_transactions.vend_channel_id', '=', 'vend_channels.id')
-            ->whereBetween($transactionDatetime, [$rangeStart, $rangeEnd])
+            ->where(function ($query) use ($applyTransactionDateRange) {
+                $applyTransactionDateRange($query);
+            })
             ->where(function ($query) {
                 $query->where('vend_transactions.is_multiple', false)
                     ->orWhereNull('vend_transactions.is_multiple');
@@ -1742,7 +1793,9 @@ class ReportController extends Controller
             ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
             ->leftJoin('operators', 'vend_transactions.operator_id', '=', 'operators.id')
             ->leftJoin('vend_channels', 'vend_transaction_items.vend_channel_id', '=', 'vend_channels.id')
-            ->whereBetween($transactionDatetime, [$rangeStart, $rangeEnd])
+            ->where(function ($query) use ($applyTransactionDateRange) {
+                $applyTransactionDateRange($query);
+            })
             ->where('vend_transactions.is_multiple', true)
             ->where(function ($query) {
                 $query->whereIn('vend_transactions.error_code_normalized', [0, 6])
@@ -2172,7 +2225,17 @@ class ReportController extends Controller
         $d1  = Carbon::parse($end)->subDays(2)->toDateString();
         $d2  = Carbon::parse($end)->subDays(3)->toDateString();
 
-        $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";
+        $periods = [];
+        foreach (['d0' => $d0, 'd1' => $d1, 'd2' => $d2] as $label => $date) {
+            $carbon = Carbon::parse($date);
+            $periods[$label] = [
+                'date'  => $date,
+                'year'  => (int) $carbon->year,
+                'month' => (int) $carbon->month,
+                'day'   => (int) $carbon->day,
+            ];
+        }
+        $caseExpr = fn(string $label, string $value) => $this->stockCountDateCase($periods[$label], $value);
 
         // ---------- rows (per product, 3 days) ----------
         $q = DB::table('stock_count_items as sci')
@@ -2210,56 +2273,56 @@ class ReportController extends Controller
                 }
             })
 
-            ->whereIn(DB::raw($dateSql), [$d0, $d1, $d2])
-
             ->select([
                 'p.id   as product_id',
                 'p.code as product_code',
                 'p.name as product_name',
 
                 // qty in machine (sum) + qty in warehouse (once)
-                DB::raw("SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d0"),
-                DB::raw("SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d1"),
-                DB::raw("SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d2"),
+                DB::raw('SUM(' . $caseExpr('d0', 'sci.qty_vend') . ') AS qty_vend_d0'),
+                DB::raw('SUM(' . $caseExpr('d1', 'sci.qty_vend') . ') AS qty_vend_d1'),
+                DB::raw('SUM(' . $caseExpr('d2', 'sci.qty_vend') . ') AS qty_vend_d2'),
 
-                DB::raw("MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d0"),
-                DB::raw("MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d1"),
-                DB::raw("MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d2"),
+                DB::raw('MAX(' . $caseExpr('d0', 'sci.qty_warehouse') . ') AS qty_warehouse_d0'),
+                DB::raw('MAX(' . $caseExpr('d1', 'sci.qty_warehouse') . ') AS qty_warehouse_d1'),
+                DB::raw('MAX(' . $caseExpr('d2', 'sci.qty_warehouse') . ') AS qty_warehouse_d2'),
 
                 // unit cost (RM) per day, directly from sci
-                DB::raw("ROUND(MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.unit_cost_amount ELSE 0 END) / 100, 2) AS unit_cost_d0"),
-                DB::raw("ROUND(MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.unit_cost_amount ELSE 0 END) / 100, 2) AS unit_cost_d1"),
-                DB::raw("ROUND(MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.unit_cost_amount ELSE 0 END) / 100, 2) AS unit_cost_d2"),
+                DB::raw('ROUND(MAX(' . $caseExpr('d0', 'sci.unit_cost_amount') . ') / 100, 2) AS unit_cost_d0'),
+                DB::raw('ROUND(MAX(' . $caseExpr('d1', 'sci.unit_cost_amount') . ') / 100, 2) AS unit_cost_d1'),
+                DB::raw('ROUND(MAX(' . $caseExpr('d2', 'sci.unit_cost_amount') . ') / 100, 2) AS unit_cost_d2'),
 
                 // stock value in machine (RM)
-                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d0"),
-                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d1"),
-                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d2"),
+                DB::raw('ROUND(SUM(' . $caseExpr('d0', 'sci.stock_value_amount') . ') / 100, 2) AS stock_value_d0'),
+                DB::raw('ROUND(SUM(' . $caseExpr('d1', 'sci.stock_value_amount') . ') / 100, 2) AS stock_value_d1'),
+                DB::raw('ROUND(SUM(' . $caseExpr('d2', 'sci.stock_value_amount') . ') / 100, 2) AS stock_value_d2'),
 
                 // stock cost (RM) = machine cost + ONE warehouse cost
                 DB::raw("
                     ROUND((
-                        SUM(CASE WHEN {$dateSql} = '{$d0}' THEN (sci.unit_cost_amount * sci.qty_vend) ELSE 0 END)
-                        + (MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_warehouse ELSE 0 END)
-                           * MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.unit_cost_amount ELSE 0 END))
+                        SUM(" . $caseExpr('d0', 'sci.unit_cost_amount * sci.qty_vend') . ")
+                        + (MAX(" . $caseExpr('d0', 'sci.qty_warehouse') . ")
+                           * MAX(" . $caseExpr('d0', 'sci.unit_cost_amount') . "))
                     ) / 100, 2) AS stock_cost_d0
                 "),
                 DB::raw("
                     ROUND((
-                        SUM(CASE WHEN {$dateSql} = '{$d1}' THEN (sci.unit_cost_amount * sci.qty_vend) ELSE 0 END)
-                        + (MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_warehouse ELSE 0 END)
-                           * MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.unit_cost_amount ELSE 0 END))
+                        SUM(" . $caseExpr('d1', 'sci.unit_cost_amount * sci.qty_vend') . ")
+                        + (MAX(" . $caseExpr('d1', 'sci.qty_warehouse') . ")
+                           * MAX(" . $caseExpr('d1', 'sci.unit_cost_amount') . "))
                     ) / 100, 2) AS stock_cost_d1
                 "),
                 DB::raw("
                     ROUND((
-                        SUM(CASE WHEN {$dateSql} = '{$d2}' THEN (sci.unit_cost_amount * sci.qty_vend) ELSE 0 END)
-                        + (MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_warehouse ELSE 0 END)
-                           * MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.unit_cost_amount ELSE 0 END))
+                        SUM(" . $caseExpr('d2', 'sci.unit_cost_amount * sci.qty_vend') . ")
+                        + (MAX(" . $caseExpr('d2', 'sci.qty_warehouse') . ")
+                           * MAX(" . $caseExpr('d2', 'sci.unit_cost_amount') . "))
                     ) / 100, 2) AS stock_cost_d2
                 "),
             ])
             ->groupBy('p.id', 'p.code', 'p.name');
+
+        $q = $this->applyStockCountDates($q, $periods);
 
         // sorting
         $sortKey = $request->input('sortKey', 'product_code');
@@ -2308,7 +2371,7 @@ class ReportController extends Controller
             ->first();
 
         // ---------- KPIs (cash/cashless/coin) ----------
-        $kpis = DB::table('stock_counts as sc')
+        $kpisQuery = DB::table('stock_counts as sc')
             ->when($request->operators, function ($q, $ids) {
                 if (is_array($ids) && !in_array('all', $ids, true)) {
                     $q->whereIn('sc.operator_id', $ids);
@@ -2332,20 +2395,23 @@ class ReportController extends Controller
                     if (count($codes) > 1) $sq->whereIn('v.code', $codes);
                     elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
                 });
-            })
-            ->whereIn(DB::raw($dateSql), [$d0, $d1, $d2])
+            });
+
+        $kpisQuery = $this->applyStockCountDates($kpisQuery, $periods);
+
+        $kpis = $kpisQuery
             ->selectRaw("
-                ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sc.cash_sales_amount     ELSE 0 END) / 100, 2) AS cash_sales_amount_d0,
-                ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sc.cash_sales_amount     ELSE 0 END) / 100, 2) AS cash_sales_amount_d1,
-                ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sc.cash_sales_amount     ELSE 0 END) / 100, 2) AS cash_sales_amount_d2,
+                ROUND(SUM(" . $caseExpr('d0', 'sc.cash_sales_amount') . ") / 100, 2) AS cash_sales_amount_d0,
+                ROUND(SUM(" . $caseExpr('d1', 'sc.cash_sales_amount') . ") / 100, 2) AS cash_sales_amount_d1,
+                ROUND(SUM(" . $caseExpr('d2', 'sc.cash_sales_amount') . ") / 100, 2) AS cash_sales_amount_d2,
 
-                ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sc.cashless_sales_amount ELSE 0 END) / 100, 2) AS cashless_sales_amount_d0,
-                ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sc.cashless_sales_amount ELSE 0 END) / 100, 2) AS cashless_sales_amount_d1,
-                ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sc.cashless_sales_amount ELSE 0 END) / 100, 2) AS cashless_sales_amount_d2,
+                ROUND(SUM(" . $caseExpr('d0', 'sc.cashless_sales_amount') . ") / 100, 2) AS cashless_sales_amount_d0,
+                ROUND(SUM(" . $caseExpr('d1', 'sc.cashless_sales_amount') . ") / 100, 2) AS cashless_sales_amount_d1,
+                ROUND(SUM(" . $caseExpr('d2', 'sc.cashless_sales_amount') . ") / 100, 2) AS cashless_sales_amount_d2,
 
-                ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sc.coin_float_amount     ELSE 0 END) / 100, 2) AS coin_float_amount_d0,
-                ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sc.coin_float_amount     ELSE 0 END) / 100, 2) AS coin_float_amount_d1,
-                ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sc.coin_float_amount     ELSE 0 END) / 100, 2) AS coin_float_amount_d2
+                ROUND(SUM(" . $caseExpr('d0', 'sc.coin_float_amount') . ") / 100, 2) AS coin_float_amount_d0,
+                ROUND(SUM(" . $caseExpr('d1', 'sc.coin_float_amount') . ") / 100, 2) AS coin_float_amount_d1,
+                ROUND(SUM(" . $caseExpr('d2', 'sc.coin_float_amount') . ") / 100, 2) AS coin_float_amount_d2
             ")
             ->first();
 
@@ -2368,6 +2434,69 @@ class ReportController extends Controller
         $paginator = $q->paginate($perPage)->appends($request->query());
 
         return [$paginator, ['d0' => $d0, 'd1' => $d1, 'd2' => $d2], $totals];
+    }
+
+    private function stockCountDateCase(array $periodMeta, string $valueExpression): string
+    {
+        $year = $periodMeta['year'];
+        $month = $periodMeta['month'];
+        $day = $periodMeta['day'];
+
+        return "CASE WHEN sc.year = {$year} AND sc.month = {$month} AND sc.day = {$day} THEN {$valueExpression} ELSE 0 END";
+    }
+
+    private function applyStockCountDates($query, array $periods)
+    {
+        $query->where(function ($outer) use ($periods) {
+            foreach ($periods as $period) {
+                $outer->orWhere(function ($inner) use ($period) {
+                    $inner->where('sc.year', $period['year'])
+                        ->where('sc.month', $period['month'])
+                        ->where('sc.day', $period['day']);
+                });
+            }
+        });
+
+        return $query;
+    }
+
+    private function applyStockCountDateRange($query, Carbon $from, Carbon $to)
+    {
+        $fromYear = (int) $from->year;
+        $fromMonth = (int) $from->month;
+        $fromDay = (int) $from->day;
+
+        $toYear = (int) $to->year;
+        $toMonth = (int) $to->month;
+        $toDay = (int) $to->day;
+
+        return $query->where(function ($between) use ($fromYear, $fromMonth, $fromDay, $toYear, $toMonth, $toDay) {
+            $between
+                ->where(function ($lower) use ($fromYear, $fromMonth, $fromDay) {
+                    $lower->where('sc.year', '>', $fromYear)
+                        ->orWhere(function ($eqYear) use ($fromYear, $fromMonth) {
+                            $eqYear->where('sc.year', $fromYear)
+                                ->where('sc.month', '>', $fromMonth);
+                        })
+                        ->orWhere(function ($eqYearMonth) use ($fromYear, $fromMonth, $fromDay) {
+                            $eqYearMonth->where('sc.year', $fromYear)
+                                ->where('sc.month', $fromMonth)
+                                ->where('sc.day', '>=', $fromDay);
+                        });
+                })
+                ->where(function ($upper) use ($toYear, $toMonth, $toDay) {
+                    $upper->where('sc.year', '<', $toYear)
+                        ->orWhere(function ($eqYear) use ($toYear, $toMonth) {
+                            $eqYear->where('sc.year', $toYear)
+                                ->where('sc.month', '<', $toMonth);
+                        })
+                        ->orWhere(function ($eqYearMonth) use ($toYear, $toMonth, $toDay) {
+                            $eqYearMonth->where('sc.year', $toYear)
+                                ->where('sc.month', $toMonth)
+                                ->where('sc.day', '<=', $toDay);
+                        });
+                });
+        });
     }
 
 

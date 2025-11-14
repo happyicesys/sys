@@ -659,6 +659,15 @@ class MachineHealthDashboardService
             ->where('vt.type', $sensorType)
             ->where('vt.value', '!=', VendTemp::TEMPERATURE_ERROR)
             ->where('vt.created_at', '>=', $recentWindowStart)
+            ->whereExists(function ($sub) use ($filters) {
+                $sub->select(DB::raw(1))
+                    ->from('vends')
+                    ->whereColumn('vends.id', 'vt.vend_id')
+                    ->where('vends.is_temp_active', true)
+                    ->where('vends.is_testing', false);
+
+                $this->applyVendFilters($sub, $filters, 'vends');
+            })
             ->groupBy('vt.vend_id');
 
         $noReachQuery = DB::query()

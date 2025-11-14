@@ -1586,7 +1586,15 @@ class VendController extends Controller
 
         // dd($request->all());
 
-        $vendTransactions = VendTransaction::query()
+        $perPage = $numberPerPage === 'All' ? 10000 : $numberPerPage;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+
+        $baseQuery = VendTransaction::query()
+            ->filterTransactionIndex($request);
+
+        $totalTransactions = (clone $baseQuery)->count();
+
+        $recordsQuery = (clone $baseQuery)
             ->with([
                 'vendTransactionItems.product',
                 'vendTransactionItems.vendChannelError',
@@ -1600,7 +1608,6 @@ class VendController extends Controller
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vend_transactions.vend_prefix_id')
-            ->filterTransactionIndex($request)
             ->select(
                 'vend_transactions.id',
                 'vend_transactions.order_id',
@@ -1645,8 +1652,22 @@ class VendController extends Controller
                     JOIN tags t ON (t.id = jt.tag_id OR t.name = jt.tag_name)
                 ) AS label_json
                 ")
-            )->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-            ->withQueryString();
+            );
+
+        $records = $recordsQuery
+            ->forPage($currentPage, $perPage)
+            ->get();
+
+        $vendTransactions = new LengthAwarePaginator(
+            $records,
+            $totalTransactions,
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
 
         $itemStats = DB::table('vend_transaction_items')
             ->select([
@@ -1664,8 +1685,9 @@ class VendController extends Controller
                 $join->on('vend_transactions.id', '=', 'item_stats.vend_transaction_id');
             })
             ->filterTransactionIndex($request)
-            ->whereNotIn('vend_transactions.vend_id', function($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
+            ->where(function ($query) {
+                $query->whereNull('vends.is_testing')
+                    ->orWhere('vends.is_testing', false);
             })
             ->select([
                 DB::raw('CAST(COUNT(CASE

@@ -156,6 +156,18 @@ class Product extends Model
         return $this->hasMany(VendTransaction::class);
     }
 
+    public function opsJobItemChannels()
+    {
+        return $this->hasManyThrough(
+            OpsJobItemChannel::class,
+            VendChannel::class,
+            'product_id',
+            'vend_channel_id',
+            'id',
+            'id'
+        );
+    }
+
     // mutators
     protected function isInventory(): Attribute
     {

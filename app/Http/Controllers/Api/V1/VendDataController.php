@@ -41,7 +41,32 @@ class VendDataController extends Controller
 
     public function getBindedVends()
     {
-        $vends = Vend::with('customer')->has('customer')->get();
+        $columns = [
+            'id',
+            'code',
+            'name',
+            'operator_id',
+            'customer_id',
+            'location_type_id',
+            'vend_prefix_id',
+        ];
+
+        $vends = Vend::query()
+            ->select($columns)
+            ->whereNotNull('customer_id')
+            ->with([
+                'customer' => function ($query) {
+                    $query->select([
+                        'id',
+                        'name',
+                        'virtual_customer_code',
+                        'virtual_customer_prefix',
+                        'location_type_id',
+                        'operator_id',
+                    ]);
+                },
+            ])
+            ->get();
 
         return $vends;
     }
