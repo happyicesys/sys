@@ -235,33 +235,39 @@ class ProductController extends Controller
             ->where('is_active', true)
             ->where('is_inventory', true)
             ->orderBy('code')
-            ->withAggregate(['productLimits as max_ops_job_pick_limit' => fn ($limit) => $limit
-                ->select('qty')
-                ->whereDate('date', $request->productAvailableDate)
-                ->latest('date')
-                ->limit(1)
-            ], 'qty')
-            ->withAggregate(['productLimits as limit_is_created_by_system' => fn ($limit) => $limit
-                ->select('is_created_by_system')
-                ->whereDate('date', $request->productAvailableDate)
-                ->latest('date')
-                ->limit(1)
-            ], 'is_created_by_system')
-            ->withAggregate(['opsJobItemChannels as needed_qty' => function ($query) use ($request) {
-                $query->selectRaw('COALESCE(SUM(vend_channels.capacity - vend_channels.qty), 0)')
+            ->selectSub(function ($sub) use ($request) {
+                $sub->from('product_limits')
+                    ->select('qty')
+                    ->whereColumn('product_limits.product_id', 'products.id')
+                    ->whereDate('product_limits.date', $request->productAvailableDate)
+                    ->limit(1);
+            }, 'max_ops_job_pick_limit')
+            ->selectSub(function ($sub) use ($request) {
+                $sub->from('product_limits')
+                    ->select('is_created_by_system')
+                    ->whereColumn('product_limits.product_id', 'products.id')
+                    ->whereDate('product_limits.date', $request->productAvailableDate)
+                    ->limit(1);
+            }, 'limit_is_created_by_system')
+            ->selectSub(function ($sub) use ($request) {
+                $sub->from('ops_job_item_channels')
+                    ->selectRaw('SUM(vend_channels.capacity - vend_channels.qty)')
                     ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_item_channels.ops_job_id')
                     ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
                     ->whereDate('ops_jobs.date', $request->productAvailableDate)
                     ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString());
-            }], 'ops_job_item_channels.product_id')
-            ->withAggregate(['opsJobItemChannels as not_yet_sync_api_qty' => function ($query) {
-                $query->selectRaw('COALESCE(SUM(ops_job_item_channels.picked_qty), 0)')
+            }, 'needed_qty')
+            ->selectSub(function ($sub) {
+                $sub->from('ops_job_item_channels')
+                    ->selectRaw('SUM(ops_job_item_channels.picked_qty)')
                     ->join('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
                     ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
                     ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
                     ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
                     ->whereNull('ops_job_items.cms_transaction_id');
-            }], 'ops_job_item_channels.product_id')
+            }, 'not_yet_sync_api_qty')
             ->get();
 
         $cmsQtyAvailableProducts = $this->cmsService->getCMSQtyAvailableApi();
