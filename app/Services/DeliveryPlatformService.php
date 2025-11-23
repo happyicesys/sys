@@ -52,7 +52,7 @@ class DeliveryPlatformService
   {
     // dd($platformRefId, $vendCode, $input);
     $deliveryProductMappingVend = DeliveryProductMappingVend::query()
-      ->when($platformRefId, function($query) use ($platformRefId) {
+      ->when($platformRefId, function ($query) use ($platformRefId) {
         $query->where('platform_ref_id', $platformRefId);
       })
       ->where('vend_code', $vendCode)
@@ -60,22 +60,22 @@ class DeliveryPlatformService
       ->orderBy('created_at', 'desc')
       ->first();
 
-    if(!$deliveryProductMappingVend) {
+    if (!$deliveryProductMappingVend) {
       throw new \Exception('No Vending Machine found for this Platform Ref ID.');
     }
 
     $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
 
-    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+    switch ($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $deliveryPlatformOrder = DeliveryPlatformOrder::where('order_id', $input['orderID'])->first();
 
-        if($deliveryPlatformOrder) {
+        if ($deliveryPlatformOrder) {
           throw new \Exception('Replicated Order ID on Creation');
         }
 
-        if(!$deliveryPlatformOrder) {
+        if (!$deliveryPlatformOrder) {
           DB::beginTransaction();
           $deliveryPlatformOrder = new DeliveryPlatformOrder();
           $deliveryPlatformOrder->fill($this->setGrabOrderIncomingParam($input));
@@ -94,7 +94,7 @@ class DeliveryPlatformService
         }
 
         return $deliveryPlatformOrder;
-      break;
+        break;
     }
   }
 
@@ -103,15 +103,15 @@ class DeliveryPlatformService
     $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryPlatformOrder->deliveryPlatformOperator);
 
-    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+    switch ($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->checkOrderCancelable(
           $deliveryPlatformOrder->order_id,
           $this->merchantIdFromOrder($deliveryPlatformOrder)
         );
 
-        if($response['success']) {
-          if($response['data']['cancelable']) {
+        if ($response['success']) {
+          if ($response['data']['cancelable']) {
             $response = $this->model->cancelOrder(
               $deliveryPlatformOrder->order_id,
               $this->merchantIdFromOrder($deliveryPlatformOrder),
@@ -124,7 +124,7 @@ class DeliveryPlatformService
               'datetime' => Carbon::now()->toDateTimeString(),
             ]);
             $this->syncProductMappingVendChannelOrderQtyByOrder($deliveryPlatformOrder, false);
-          }else {
+          } else {
             $deliveryPlatformOrder->is_cancelled = false;
           }
           $deliveryPlatformOrder->save();
@@ -145,14 +145,14 @@ class DeliveryPlatformService
 
     $orderID = null;
 
-    if(!$deliveryPlatformOrder->vend_transaction_order_id) {
+    if (!$deliveryPlatformOrder->vend_transaction_order_id) {
       $orderID = $this->runningNumberService->getVendOrderID($deliveryPlatformOrder->deliveryProductMappingVend->vend);
 
       $deliveryPlatformOrder->update([
         'vend_transaction_order_id' => $orderID,
       ]);
 
-    }else {
+    } else {
       $orderID = $deliveryPlatformOrder->vend_transaction_order_id;
     }
 
@@ -163,10 +163,10 @@ class DeliveryPlatformService
       'vendCode' => $deliveryPlatformOrder->deliveryProductMappingVend->vend->code,
       'channels' => [],
     ];
-    foreach($dispenseItems as $item) {
+    foreach ($dispenseItems as $item) {
       // detect if same SKU qty > 1, then replicate the dispense param to same array
-      if($item->qty > 1) {
-        for($i = 0; $i < $item->qty; $i++) {
+      if ($item->qty > 1) {
+        for ($i = 0; $i < $item->qty; $i++) {
           $dispenseData['channels'][] = [
             'code' => $item->vend_channel_code,
             'qty' => 1,
@@ -176,7 +176,7 @@ class DeliveryPlatformService
             ],
           ];
         }
-      }else {
+      } else {
         $dispenseData['channels'][] = [
           'code' => $item->vend_channel_code,
           'qty' => 1,
@@ -223,10 +223,10 @@ class DeliveryPlatformService
     $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryPlatformOrder->deliveryPlatformOperator);
 
-    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+    switch ($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->markOrderReady($deliveryPlatformOrder->order_id);
-        if($response['success']) {
+        if ($response['success']) {
           $deliveryPlatformOrder->update([
             'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_ACCEPTED],
             'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
@@ -247,7 +247,7 @@ class DeliveryPlatformService
     $content = base64_encode(json_encode($input));
     $contentLength = strlen($content);
     $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-    $md5 = md5($fid.','.$contentLength.','.$content.$key);
+    $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
 
     $dataArr = [
       'fid' => $fid,
@@ -255,7 +255,7 @@ class DeliveryPlatformService
       'key' => $vend && $vend->private_key ? $vend->private_key : '123456789110138A',
     ];
 
-    $this->vendDispenseService->dispense($deliveryPlatformOrderID, 'CM'.$vend->code, $dataArr, 'delivery-platform');
+    $this->vendDispenseService->dispense($deliveryPlatformOrderID, 'CM' . $vend->code, $dataArr, 'delivery-platform');
 
     // $this->vendDispenseService->dispense($fid, 'CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
@@ -263,25 +263,25 @@ class DeliveryPlatformService
     // $this->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
   }
 
-  public function updateOrder($platformRefId = null, $orderId = null , $input)
+  public function updateOrder($platformRefId = null, $orderId = null, $input)
   {
     $deliveryPlatformOrder = DeliveryPlatformOrder::query()
-      ->when($platformRefId, function($query, $search) {
+      ->when($platformRefId, function ($query, $search) {
         $query->where('platform_ref_id', $search);
       })
-      ->when($orderId, function($query, $search) {
+      ->when($orderId, function ($query, $search) {
         $query->where('order_id', $search);
       })
       ->first();
 
-    if(!$deliveryPlatformOrder) {
+    if (!$deliveryPlatformOrder) {
       throw new \Exception('No Order Found for this merchant ID and order ID.' . $platformRefId . ' - ' . $orderId);
     }
 
     $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryPlatformOrder->deliveryPlatformOperator);
 
-    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+    switch ($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $deliveryPlatformOrder->update([
           'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']] > $deliveryPlatformOrder->status ? DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']] : $deliveryPlatformOrder->status,
@@ -294,7 +294,7 @@ class DeliveryPlatformService
         $this->syncOrderQtyBasedOnStatus($deliveryPlatformOrder);
         $this->handleLastMileTimediff($deliveryPlatformOrder);
 
-        switch($input['state']) {
+        switch ($input['state']) {
           case strtoupper(DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DELIVERED]):
           case strtoupper(DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_CANCELLED]):
             $deliveryPlatformOrder->update([
@@ -302,7 +302,7 @@ class DeliveryPlatformService
             ]);
             break;
         }
-      break;
+        break;
     }
 
     return $deliveryPlatformOrder;
@@ -452,78 +452,82 @@ class DeliveryPlatformService
   // }
   public function getMenu($platformRefId = null, $vendCode = null)
   {
-      $deliveryProductMappingVend = DeliveryProductMappingVend::query()
-          ->when($platformRefId, fn($q) => $q->where('platform_ref_id', $platformRefId))
-          ->where('vend_code', $vendCode)
-          ->where('is_active', true)
-          ->firstOrFail();
+    $deliveryProductMappingVend = DeliveryProductMappingVend::query()
+      ->when($platformRefId, fn($q) => $q->where('platform_ref_id', $platformRefId))
+      ->where('vend_code', $vendCode)
+      ->where('is_active', true)
+      ->firstOrFail();
 
-      $deliveryProductMapping = $deliveryProductMappingVend->deliveryProductMapping;
-      $deliveryPlatformOperator = $deliveryProductMapping->deliveryPlatformOperator;
-      $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
+    $deliveryProductMapping = $deliveryProductMappingVend->deliveryProductMapping;
+    $deliveryPlatformOperator = $deliveryProductMapping->deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
 
-      if ($deliveryPlatformOperator->deliveryPlatform->slug !== 'grab') {
-          throw new \Exception('Unsupported platform.');
-      }
+    if ($deliveryPlatformOperator->deliveryPlatform->slug !== 'grab') {
+      throw new \Exception('Unsupported platform.');
+    }
 
-      if (!$deliveryPlatformOperator->externalOauthToken()->exists()) {
-          throw new \Exception('Missing OAuth token.');
-      }
+    if (!$deliveryPlatformOperator->externalOauthToken()->exists()) {
+      throw new \Exception('Missing OAuth token.');
+    }
 
-      $scope = $deliveryPlatformOperator->externalOauthToken->scopes;
+    $scope = $deliveryPlatformOperator->externalOauthToken->scopes;
 
-      if (!in_array($scope, ['mart.partner_api', 'food.partner_api'])) {
-          throw new \Exception('Unsupported scope.');
-      }
+    if (!in_array($scope, ['mart.partner_api', 'food.partner_api'])) {
+      throw new \Exception('Unsupported scope.');
+    }
 
-      // Fetch once, shared for both scopes
-      $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
-          ->with([
-              'deliveryProductMapping' => fn($q) =>
-                  $q->select(
-                      'id',
-                      DB::raw('json_unquote(json_extract(category_json, "$.id")) AS platform_category_id'),
-                      DB::raw('json_unquote(json_extract(category_json, "$.name")) AS platform_category_name'),
-                      'delivery_platform_operator_id',
-                      'is_active',
-                      'name',
-                      'operator_id'
-                  )
-                  ->with([
-                      'operator:id,name,country_id',
-                      'operator.country:id,name,code,currency_name,currency_symbol,currency_exponent'
-                  ]),
-              'deliveryProductMappingVendChannels:id,amount,delivery_product_mapping_item_id,delivery_product_mapping_vend_id,order_qty,is_active,vend_channel_code,vend_channel_id',
-              'deliveryPlatformRefNumber:id,ref_number'
-          ])
-          ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'delivery_platform_ref_number_id', 'vend_id', 'vend_code')
-          ->findOrFail($deliveryProductMappingVend->id);
+    // Fetch once, shared for both scopes
+    $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
+      ->with([
+        'deliveryProductMapping' => fn($q) =>
+          $q->select(
+            'id',
+            DB::raw('json_unquote(json_extract(category_json, "$.id")) AS platform_category_id'),
+            DB::raw('json_unquote(json_extract(category_json, "$.name")) AS platform_category_name'),
+            'delivery_platform_operator_id',
+            'is_active',
+            'name',
+            'operator_id'
+          )
+            ->with([
+              'operator:id,name,country_id',
+              'operator.country:id,name,code,currency_name,currency_symbol,currency_exponent'
+            ]),
+        'deliveryProductMappingVendChannels:id,amount,delivery_product_mapping_item_id,delivery_product_mapping_vend_id,order_qty,is_active,vend_channel_code,vend_channel_id',
+        'deliveryPlatformRefNumber:id,ref_number'
+      ])
+      ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'delivery_platform_ref_number_id', 'vend_id', 'vend_code')
+      ->findOrFail($deliveryProductMappingVend->id);
 
-      // Use eager-loaded collection to avoid extra query
-      $vendChannelIds = $deliveryProductMappingVendObj->deliveryProductMappingVendChannels->pluck('id');
+    // Use eager-loaded collection to avoid extra query
+    $vendChannelIds = $deliveryProductMappingVendObj->deliveryProductMappingVendChannels->pluck('id');
 
-      // Build shared structure
-      $response = [
-          'merchantID' => (string) $this->merchantIdFromMappingVend($deliveryProductMappingVendObj),
-          'partnerMerchantID' => (string) $deliveryProductMappingVendObj->vend_code,
-          'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
-          'sellingTimes' => [$this->getGrabMenuSellingTimes()],
+    // Build shared structure
+    $response = [
+      'merchantID' => (string) $this->merchantIdFromMappingVend($deliveryProductMappingVendObj),
+      'partnerMerchantID' => (string) $deliveryProductMappingVendObj->vend_code,
+      'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
+      'sellingTimes' => [$this->getGrabMenuSellingTimes()],
+    ];
+
+    if ($scope === 'mart.partner_api') {
+      $response['categories'] = [
+        [
+          ...$this->getGrabMenuCategoriesDefault($deliveryProductMappingVendObj),
+          'subCategories' => $this->getGrabMenuSubCategoriesItems($vendChannelIds),
+        ]
       ];
+    } elseif ($scope === 'food.partner_api') {
+      $response['categories'] = $this->getGrabMenuSubCategoriesItems($vendChannelIds);
+    }
 
-      if ($scope === 'mart.partner_api') {
-          $response['categories'] = [[
-              ...$this->getGrabMenuCategoriesDefault($deliveryProductMappingVendObj),
-              'subCategories' => $this->getGrabMenuSubCategoriesItems($vendChannelIds),
-          ]];
-      } elseif ($scope === 'food.partner_api') {
-          $response['categories'] = $this->getGrabMenuSubCategoriesItems($vendChannelIds);
-      }
-
+    if ($deliveryProductMappingVend->last_menu_json != $response) {
       $deliveryProductMappingVend->update([
-          'last_menu_json' => $response,
+        'last_menu_json' => $response,
       ]);
+    }
 
-      return $response;
+    return $response;
   }
 
 
@@ -532,10 +536,10 @@ class DeliveryPlatformService
     $this->deliveryPlatformOperator = $deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
 
-    switch($deliveryPlatformOperator->deliveryPlatform->slug) {
+    switch ($deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->getOauthToken();
-        if($response['success']) {
+        if ($response['success']) {
           return $this->model->getIncomingOauthParams($response['data']);
         }
         break;
@@ -548,20 +552,20 @@ class DeliveryPlatformService
     $this->deliveryPlatformOperator = $deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
 
-    switch($deliveryPlatformOperator->deliveryPlatform->slug) {
+    switch ($deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         // dd($deliveryPlatformOperator->toArray());
         $scope = $deliveryPlatformOperator->externalOauthToken->scopes;
-        if($scope === 'mart.partner_api') {
+        if ($scope === 'mart.partner_api') {
           $response = $this->model->listMartCategories();
-          if($response['success']) {
+          if ($response['success']) {
             return $response['data'];
-          }else {
-            if($response['code'] === 401) {
+          } else {
+            if ($response['code'] === 401) {
               SyncDeliveryPlatformOauthByOperator::dispatch($deliveryPlatformOperator);
               $this->getCategories($deliveryPlatformOperator);
-            }else {
-              throw new \Exception('Get Categories Failed, Other than 401, '.$response['code']);
+            } else {
+              throw new \Exception('Get Categories Failed, Other than 401, ' . $response['code']);
             }
           }
         } else if ($scope === 'food.partner_api') {
@@ -573,28 +577,28 @@ class DeliveryPlatformService
 
   public function notifyUpdatedMenu(DeliveryProductMappingVend $deliveryProductMappingVend)
   {
-      $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
-      $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
+    $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
 
-      switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
-        case 'grab':
+    switch ($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+      case 'grab':
         $response = $this->model->notifyUpdatedMenu([
+          'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVend),
+        ]);
+        // dd($response, $deliveryProductMappingVend->platform_ref_id);
+        if ($response['code'] === 401) {
+          SyncDeliveryPlatformOauthByOperator::dispatchSync($this->deliveryPlatformOperator);
+
+          $response = $this->model->notifyUpdatedMenu([
             'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVend),
           ]);
-          // dd($response, $deliveryProductMappingVend->platform_ref_id);
-          if($response['code'] === 401) {
-            SyncDeliveryPlatformOauthByOperator::dispatchSync($this->deliveryPlatformOperator);
-
-            $response = $this->model->notifyUpdatedMenu([
-              'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVend),
-            ]);
-            // $this->notifyUpdatedMenu($deliveryProductMappingVend);
-          }
-          if($response['success']) {
-            return $response['data'];
-          }
-          break;
-      }
+          // $this->notifyUpdatedMenu($deliveryProductMappingVend);
+        }
+        if ($response['success']) {
+          return $response['data'];
+        }
+        break;
+    }
   }
 
   public function pauseStore(DeliveryProductMappingVend $deliveryProductMappingVend)
@@ -602,14 +606,14 @@ class DeliveryPlatformService
     $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
 
-    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+    switch ($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->pauseStore([
           'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVend),
           true,
           '24h'
         ]);
-        if($response['success']) {
+        if ($response['success']) {
           return $response['data'];
         }
         break;
@@ -621,7 +625,7 @@ class DeliveryPlatformService
     $this->deliveryPlatformOperator = $deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
 
-    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+    switch ($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->updateMenuRecord([
           'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVendChannel->deliveryProductMappingVend),
@@ -631,7 +635,7 @@ class DeliveryPlatformService
           'availableStatus' => Grab::STATUS_MAPPING[$deliveryProductMappingVendChannel->is_active],
           'maxStock' => Grab::STATUS_MAPPING[$deliveryProductMappingVendChannel->is_active] === Grab::STATUS_AVAILABLE ? $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty'] : 0,
         ]);
-        if($response['success']) {
+        if ($response['success']) {
           return $response['data'];
         }
         break;
@@ -641,7 +645,7 @@ class DeliveryPlatformService
   // set delivery platform operator
   private function setDeliveryPlatformOperator($deliveryPlatformOperator)
   {
-    switch($deliveryPlatformOperator->deliveryPlatform->slug) {
+    switch ($deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $this->model = new Grab($deliveryPlatformOperator);
         return $this->model;
@@ -655,9 +659,9 @@ class DeliveryPlatformService
   {
     $envName = 'sandbox';
 
-    if(config('app.env') === 'production') {
+    if (config('app.env') === 'production') {
       $envName = 'production';
-    }else {
+    } else {
       $envName = 'sandbox';
     }
 
@@ -666,7 +670,7 @@ class DeliveryPlatformService
 
   private function createDeliveryPlatformOrderItems(DeliveryPlatformOrder $deliveryPlatformOrder, $input)
   {
-    if(!isset($input['items'])) {
+    if (!isset($input['items'])) {
       throw new \Exception('No items found in the request.');
     }
     $items = collect($input['items']);
@@ -676,21 +680,21 @@ class DeliveryPlatformService
     // use group by product id on ver2
     $deliveryProductMappingVendChannels =
       $deliveryPlatformOrder
-      ->deliveryProductMappingVend
-      ->deliveryProductMappingVendChannels()
-      ->whereHas('deliveryProductMappingItem', function($query) use ($items) {
-        $query->whereIn('id', $items->pluck('id'));
-      })
-      ->get();
+        ->deliveryProductMappingVend
+        ->deliveryProductMappingVendChannels()
+        ->whereHas('deliveryProductMappingItem', function ($query) use ($items) {
+          $query->whereIn('id', $items->pluck('id'));
+        })
+        ->get();
 
-      // dd($deliveryPlatformOrder->deliveryProductMappingVend->toArray(),$items->pluck('id'), $deliveryProductMappingVendChannels->toArray(), $deliveryPlatformOrder->toArray(), $input);
+    // dd($deliveryPlatformOrder->deliveryProductMappingVend->toArray(),$items->pluck('id'), $deliveryProductMappingVendChannels->toArray(), $deliveryPlatformOrder->toArray(), $input);
 
-    if($deliveryProductMappingVendChannels->count() === 0) {
+    if ($deliveryProductMappingVendChannels->count() === 0) {
       throw new \Exception('No items found in the mapping.');
     }
-    foreach($items as $item) {
-      foreach($deliveryProductMappingVendChannels as $index => $deliveryProductMappingVendChannel) {
-        if($item['id'] == $deliveryProductMappingVendChannel->deliveryProductMappingItem->id) {
+    foreach ($items as $item) {
+      foreach ($deliveryProductMappingVendChannels as $index => $deliveryProductMappingVendChannel) {
+        if ($item['id'] == $deliveryProductMappingVendChannel->deliveryProductMappingItem->id) {
           $deliveryPlatformOrder->deliveryPlatformOrderItems()->create([
             'delivery_product_mapping_item_id' => $item['id'],
             'amount' => $item['price'] * $item['quantity'],
@@ -710,21 +714,21 @@ class DeliveryPlatformService
   {
     $isSuccessful = true;
     $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems()->get();
-    foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
+    foreach ($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
       $deliveryProductMappingVendChannels =
         $deliveryPlatformOrderItem
-        ->deliveryPlatformOrder
-        ->deliveryProductMappingVend
-        ->deliveryProductMappingVendChannels()
-        ->whereHas('deliveryProductMappingItem', function($query) use ($deliveryPlatformOrderItem) {
-          $query->where('id', $deliveryPlatformOrderItem->delivery_product_mapping_item_id);
-        })
-        ->get();
+          ->deliveryPlatformOrder
+          ->deliveryProductMappingVend
+          ->deliveryProductMappingVendChannels()
+          ->whereHas('deliveryProductMappingItem', function ($query) use ($deliveryPlatformOrderItem) {
+            $query->where('id', $deliveryPlatformOrderItem->delivery_product_mapping_item_id);
+          })
+          ->get();
 
-      if(count($deliveryProductMappingVendChannels) === 1) {
+      if (count($deliveryProductMappingVendChannels) === 1) {
         // logic to check the qty available can cope order qty
         $deliveryProductMappingVendChannel = $deliveryProductMappingVendChannels->first();
-        if($this->verifyOrderQtyAvailable($deliveryPlatformOrderItem, $deliveryProductMappingVendChannel)) {
+        if ($this->verifyOrderQtyAvailable($deliveryPlatformOrderItem, $deliveryProductMappingVendChannel)) {
           $deliveryPlatformOrder->orderItemVendChannels()->create([
             'amount' => $deliveryPlatformOrderItem->qty * $deliveryProductMappingVendChannel->amount,
             'delivery_product_mapping_vend_channel_id' => $deliveryProductMappingVendChannel->id,
@@ -737,35 +741,35 @@ class DeliveryPlatformService
 
           $this->deliveryProductMappingService->syncVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, true);
         }
-      }else {
+      } else {
         // handle multiple vend channel same product id case
 
       }
     }
   }
 
-    // add back order qty when order is cancelled
-    private function syncOrderQtyBasedOnStatus(DeliveryPlatformOrder $deliveryPlatformOrder)
-    {
-      if($deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_CANCELLED or $deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_FAILED) {
-        $this->deliveryProductMappingService->syncVendChannelOrderQtyByDeliveryOrder($deliveryPlatformOrder, false);
-      }
+  // add back order qty when order is cancelled
+  private function syncOrderQtyBasedOnStatus(DeliveryPlatformOrder $deliveryPlatformOrder)
+  {
+    if ($deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_CANCELLED or $deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_FAILED) {
+      $this->deliveryProductMappingService->syncVendChannelOrderQtyByDeliveryOrder($deliveryPlatformOrder, false);
     }
+  }
 
   // collect timestamp for last mile time diff
   private function handleLastMileTimediff(DeliveryPlatformOrder $deliveryPlatformOrder)
   {
-    if($deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_COLLECTED) {
+    if ($deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_COLLECTED) {
       $deliveryPlatformOrder->update([
         'collected_datetime' => Carbon::now()->toDateTimeString(),
       ]);
     }
-    if($deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_DELIVERED) {
+    if ($deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_DELIVERED) {
       $deliveryPlatformOrder->update([
         'delivered_datetime' => Carbon::now()->toDateTimeString(),
       ]);
     }
-    if($deliveryPlatformOrder->collected_datetime and $deliveryPlatformOrder->delivered_datetime) {
+    if ($deliveryPlatformOrder->collected_datetime and $deliveryPlatformOrder->delivered_datetime) {
       $deliveryPlatformOrder->update([
         'last_mile_timediff_mins' => Carbon::parse($deliveryPlatformOrder->collected_datetime)->diffInMinutes(Carbon::parse($deliveryPlatformOrder->delivered_datetime)),
       ]);
@@ -776,8 +780,8 @@ class DeliveryPlatformService
   {
     $deliveryProductMappingVendChannels = $deliveryPlatformOrder->deliveryProductMappingVend->deliveryProductMappingVendChannels;
     $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems;
-    foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
-      foreach($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannel) {
+    foreach ($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
+      foreach ($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannel) {
         $this->deliveryProductMappingService->syncVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, $isAddition);
       }
     }
@@ -788,8 +792,8 @@ class DeliveryPlatformService
   {
     $response = $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel);
 
-    if($response['status']) {
-      if($response['available_qty'] >= $deliveryPlatformOrderItem->qty) {
+    if ($response['status']) {
+      if ($response['available_qty'] >= $deliveryPlatformOrderItem->qty) {
         return true;
       }
     }
@@ -801,7 +805,7 @@ class DeliveryPlatformService
   {
     $deliveryProductMappingVendChannels = DeliveryProductMappingVendChannel::query()
       ->with([
-        'deliveryProductMappingItem' => function($query) {
+        'deliveryProductMappingItem' => function ($query) {
           $query->select(
             'id',
             'amount',
@@ -832,28 +836,28 @@ class DeliveryPlatformService
       )
       ->get();
 
-      $data = [];
-      foreach($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannelIndex => $deliveryProductMappingVendChannel) {
+    $data = [];
+    foreach ($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannelIndex => $deliveryProductMappingVendChannel) {
 
-        // sync status for the channel based on qty, machine active, channel active
-        $available = false;
-        $qty = 0;
+      // sync status for the channel based on qty, machine active, channel active
+      $available = false;
+      $qty = 0;
 
-        if($deliveryProductMappingVendChannel->is_active && ! $this->deliveryProductMappingService->getVendChannelErrorStatus($deliveryProductMappingVendChannel->vendChannel) && $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty']) {
-          $available = true;
-          $qty = $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty'];
-        }
+      if ($deliveryProductMappingVendChannel->is_active && !$this->deliveryProductMappingService->getVendChannelErrorStatus($deliveryProductMappingVendChannel->vendChannel) && $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty']) {
+        $available = true;
+        $qty = $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty'];
+      }
 
-        // fill the data array
-        $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['id'] = $deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id;
-        $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['name'] = $deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_name;
-        $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['availableStatus'] = Grab::STATUS_MAPPING[$deliveryProductMappingVendChannel->deliveryProductMappingItem->is_active];
-        $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['sellingTimeID'] = $this->getGrabMenuSellingTimes()['id'];
-        $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['items'][] =
+      // fill the data array
+      $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['id'] = $deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id;
+      $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['name'] = $deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_name;
+      $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['availableStatus'] = Grab::STATUS_MAPPING[$deliveryProductMappingVendChannel->deliveryProductMappingItem->is_active];
+      $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['sellingTimeID'] = $this->getGrabMenuSellingTimes()['id'];
+      $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['items'][] =
         $this->getGrabMenuItems([
           'item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
           'item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->name,
-          'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json ? array_reduce($deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json, function($carry, $item) {
+          'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json ? array_reduce($deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json, function ($carry, $item) {
             $carry[$item['id']] = $item['name'];
             return $carry;
           }, []) : null,
@@ -863,26 +867,26 @@ class DeliveryPlatformService
           'is_active' => $available ? Grab::STATUS_AVAILABLE : Grab::STATUS_UNAVAILABLE,
           'available_qty' => $qty,
         ]);
-      }
-      $dataArr = [];
-      foreach($data as $index => $item) {
-        $dataArr[] = $item;
-      }
-      return $dataArr;
+    }
+    $dataArr = [];
+    foreach ($data as $index => $item) {
+      $dataArr[] = $item;
+    }
+    return $dataArr;
   }
 
   private function verifyIsVendChannelAssigned(DeliveryPlatformOrder $deliveryPlatformOrder)
   {
     $isSuccessful = true;
     $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems()->get();
-    foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
-      if(!$deliveryPlatformOrderItem->orderItemVendChannels()->exists()) {
+    foreach ($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
+      if (!$deliveryPlatformOrderItem->orderItemVendChannels()->exists()) {
         $isSuccessful = false;
       }
     }
 
     // for now, default logic is when no channel assigned to order item, cancel the order
-    if(!$isSuccessful) {
+    if (!$isSuccessful) {
       $this->cancelOrder($deliveryPlatformOrder);
     }
   }
@@ -985,21 +989,21 @@ class DeliveryPlatformService
 
   private function getGrabMenuSubCategories($model)
   {
-      return [
-          'name' => $params['sub_category_json']['name'],
-          'availableStatus' => isset($params['status']) ? $params['status'] : self::STATUS_AVAILABLE,
-          'sellingTimeID' => $this->getGrabMenuSellingTimes()['id'],
-      ];
+    return [
+      'name' => $model['sub_category_json']['name'],
+      'availableStatus' => isset($model['status']) ? $model['status'] : self::STATUS_AVAILABLE,
+      'sellingTimeID' => $this->getGrabMenuSellingTimes()['id'],
+    ];
   }
 
   private function getGrabMenuItems($params = [])
   {
     $data = [
-      'id' => (string)$params['item_id'],
+      'id' => (string) $params['item_id'],
       'name' => $params['item_name'],
       'nameTranslation' => isset($params['translated_item_name']) ? $params['translated_item_name'] : null,
       'description' => $params['desc'],
-      'price' =>  round($params['amount'] * 100),
+      'price' => round($params['amount'] * 100),
       'availableStatus' => $params['is_active'],
       'sellingTimeID' => $this->getGrabMenuSellingTimes()['id'],
       'photos' => [
@@ -1011,7 +1015,7 @@ class DeliveryPlatformService
       'soldByWeight' => false,
     ];
 
-    if(empty($data['nameTranslation'])) {
+    if (empty($data['nameTranslation'])) {
       unset($data['nameTranslation']);
     }
 

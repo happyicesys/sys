@@ -15,6 +15,7 @@ use App\Models\Vend;
 use App\Models\VendData;
 use App\Jobs\DispenseDeliveryPlatformOrder;
 use App\Jobs\SyncDeliveryPlatformOauthByOperator;
+use App\Jobs\ProcessGrabMenuWebhook;
 use App\Services\DeliveryPlatformService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -36,7 +37,7 @@ class DeliveryPlatformController extends Controller
         try {
             $response = $this->deliveryPlatformService->getCategories($deliveryPlatformOperator);
             return $response;
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             return $e->getMessage();
         }
     }
@@ -46,7 +47,7 @@ class DeliveryPlatformController extends Controller
         try {
             $deliveryPlatformOperator = DeliveryPlatformOperator::findOrFail($deliveryPlatformOperatorId);
             SyncDeliveryPlatformOauthByOperator::dispatch($deliveryPlatformOperator);
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             return $e->getMessage();
         }
     }
@@ -54,18 +55,21 @@ class DeliveryPlatformController extends Controller
     public function sendOauth(Request $request)
     {
         try {
+            $operatorId = $request->operator_id;
+            $type = $request->type;
+
             $clients = Client::with('tokens')
-                    ->where('id', $request->client_id)
-                    ->where('secret', $request->client_secret)
-                    ->get();
+                ->where('id', $request->client_id)
+                ->where('secret', $request->client_secret)
+                ->get();
 
             $operator = Operator::findOrFail($operatorId);
             $response = $this->deliveryPlatformService->getOauth($operator, $type);
-            if(!$this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->exists()) {
+            if (!$this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->exists()) {
                 throw new \Exception('Please set init Oauth Client ID and Client Secret');
             }
             $this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->update($response);
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             return $e->getMessage();
         }
     }
@@ -79,7 +83,7 @@ class DeliveryPlatformController extends Controller
         try {
             $response = $this->deliveryPlatformService->getMenu($merchantID, $partnerMerchantID);
             return $response;
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             return $e->getMessage();
         }
     }
@@ -87,15 +91,7 @@ class DeliveryPlatformController extends Controller
     // grab will push the menu update status to this endpoint
     public function syncGrabMenuWebhook(Request $request)
     {
-        DeliveryPlatformMenuRecord::updateOrCreate([
-            'ref_id' => $request->jobID,
-        ], [
-            'request_json' => $request->all(),
-            'delivery_platform_slug' => 'grab-menu',
-            'platform_ref_id' => $request->merchantID,
-            'request_json' => $request->all(),
-            'vend_code' => $request->partnerMerchantID,
-        ]);
+        ProcessGrabMenuWebhook::dispatch($request->all());
     }
 
     // order
@@ -103,7 +99,7 @@ class DeliveryPlatformController extends Controller
     {
         $input = $request->all();
 
-        if($request->has('order')) {
+        if ($request->has('order')) {
             $input = $request->order;
         }
 
@@ -113,7 +109,7 @@ class DeliveryPlatformController extends Controller
         $deliveryPlatformOrder = $this->deliveryPlatformService->createOrder($merchantID, $partnerMerchantID, $input);
 
         // auto mark order as ready after success creation
-        if($deliveryPlatformOrder) {
+        if ($deliveryPlatformOrder) {
             $this->deliveryPlatformService->markOrderReady($deliveryPlatformOrder);
         }
 
@@ -128,23 +124,23 @@ class DeliveryPlatformController extends Controller
         // $remarks = $request->remarks;
         $shortOrderID = $request->short_order_id;
 
-        if(!$shortOrderID || !$code) {
+        if (!$shortOrderID || !$code) {
             throw new \Exception('Please provide Short Order ID and Machine ID');
         }
 
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()
-        ->where('short_order_id', $shortOrderID)
-        ->where('vend_code', $code)
-        ->first();
+            ->where('short_order_id', $shortOrderID)
+            ->where('vend_code', $code)
+            ->first();
 
-        if(!$deliveryPlatformOrder) {
+        if (!$deliveryPlatformOrder) {
             abort(response([
                 'error_code' => 404,
                 'error_message' => 'Order not found',
             ], 404));
         }
 
-        if($deliveryPlatformOrder) {
+        if ($deliveryPlatformOrder) {
             $deliveryPlatformOrder->deliveryPlatformOrderComplaint()->create([
                 // 'driver_phone_number' => $driverPhoneNumber,
                 'original_json' => $request->all(),
@@ -162,7 +158,7 @@ class DeliveryPlatformController extends Controller
         $driverPhoneNumber = $request->driver_phone_number;
         $shortOrderID = $request->short_order_id;
 
-        if(!$shortOrderID || !$code) {
+        if (!$shortOrderID || !$code) {
             abort(response([
                 'error_code' => 400,
                 'error_message' => 'Parameters missing',
@@ -176,16 +172,16 @@ class DeliveryPlatformController extends Controller
             ->where('vend_code', $code)
             ->orderby('created_at', 'desc')
             ->first();
-            // dd($deliveryPlatformOrder->toArray());
+        // dd($deliveryPlatformOrder->toArray());
 
-        if(!$deliveryPlatformOrder) {
+        if (!$deliveryPlatformOrder) {
             abort(response([
                 'error_code' => 404,
                 'error_message' => 'Order not found',
             ], 404));
         }
 
-        if(($deliveryPlatformOrder->deliveryPlatformOperator->type === 'production') and (Carbon::parse($deliveryPlatformOrder->created_at)->diffInHours(Carbon::now()) > DeliveryPlatformOrder::ORDER_EXPIRED_HOURS)) {
+        if (($deliveryPlatformOrder->deliveryPlatformOperator->type === 'production') and (Carbon::parse($deliveryPlatformOrder->created_at)->diffInHours(Carbon::now()) > DeliveryPlatformOrder::ORDER_EXPIRED_HOURS)) {
             abort(response([
                 'error_code' => 404,
                 'error_message' => 'Order Expired',
@@ -193,8 +189,8 @@ class DeliveryPlatformController extends Controller
         }
 
         // if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
-        if(!$deliveryPlatformOrder->is_verified) {
-            if($dispenseSearch) {
+        if (!$deliveryPlatformOrder->is_verified) {
+            if ($dispenseSearch) {
                 $deliveryPlatformOrder->update([
                     'driver_phone_number' => $driverPhoneNumber,
                     'driver_request_json' => $request->all(),
@@ -207,7 +203,7 @@ class DeliveryPlatformController extends Controller
                 DispenseDeliveryPlatformOrder::dispatch($deliveryPlatformOrder);
                 // return response($deliveryPlatformOrder->response_history_json, 200);
                 return true;
-            }else {
+            } else {
                 $deliveryPlatformOrder->update([
                     'driver_phone_number' => $driverPhoneNumber,
                     'driver_request_json' => $request->all(),
@@ -217,7 +213,7 @@ class DeliveryPlatformController extends Controller
             }
 
         } else {
-            if($deliveryPlatformOrder->vendTransaction) {
+            if ($deliveryPlatformOrder->vendTransaction) {
                 abort(response($deliveryPlatformOrder->vendTransaction->vend_transaction_json, 405));
             }
             // else {

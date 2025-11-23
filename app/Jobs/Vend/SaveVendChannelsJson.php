@@ -3,6 +3,7 @@
 namespace App\Jobs\Vend;
 
 use App\Models\ProductLimit;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -40,14 +41,14 @@ class SaveVendChannelsJson implements ShouldQueue
      */
     public function handle()
     {
-        $vend = Vend::with([
+        $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)->with([
             'customer',
             'vendChannels.product.thumbnail',
             'vendChannels.product.sellingPrices',
             'vendChannels.latestOpsJobItemChannel',
             'vendChannels.vendChannelErrorLogs.vendChannelError',
             'vendChannelsWithoutClaw',
-            ])->findOrFail($this->vendId);
+        ])->findOrFail($this->vendId);
 
         $vendChannelsWithoutClaw = $vend->vendChannelsWithoutClaw;
         $vendChannels = $vend->vendChannels;
@@ -64,22 +65,22 @@ class SaveVendChannelsJson implements ShouldQueue
 
         $totals = [
             'qty'
-                => $vendTotals['vendChannelsTotalQtyWithoutClaw'],
+            => $vendTotals['vendChannelsTotalQtyWithoutClaw'],
             'capacity'
-                => $vendTotals['vendChannelsTotalCapacityWithoutClaw'],
+            => $vendTotals['vendChannelsTotalCapacityWithoutClaw'],
             'sales' => max(0, $vendTotals['vendChannelsTotalCapacityWithoutClaw'] - $vendTotals['vendChannelsTotalQtyWithoutClaw']),
             'balancePercent'
-                => $vendTotals['vendChannelsTotalCapacityWithoutClaw'] ? round($vendTotals['vendChannelsTotalQtyWithoutClaw']/ $vendTotals['vendChannelsTotalCapacityWithoutClaw'] * 100) : 0,
+            => $vendTotals['vendChannelsTotalCapacityWithoutClaw'] ? round($vendTotals['vendChannelsTotalQtyWithoutClaw'] / $vendTotals['vendChannelsTotalCapacityWithoutClaw'] * 100) : 0,
             'outOfStock'
-                => $vendTotals['vendChannelsOutOfStock'],
+            => $vendTotals['vendChannelsOutOfStock'],
             'activeErrorLogs'
-                => $vendTotals['vendChannelsErrorLogsActive'],
+            => $vendTotals['vendChannelsErrorLogsActive'],
             'count'
-                => $vendTotals['vendChannelsCount'],
+            => $vendTotals['vendChannelsCount'],
             'outOfStockSku'
-                => $vendTotals['vendChannelsOutOfStock'] + $vendTotals['vendChannelsErrorLogsActive'],
+            => $vendTotals['vendChannelsOutOfStock'] + $vendTotals['vendChannelsErrorLogsActive'],
             'outOfStockSkuPercent'
-                => $vendTotals['vendChannelsCount'] ? round(($vendTotals['vendChannelsOutOfStock'] + $vendTotals['vendChannelsErrorLogsActive'])/ $vendTotals['vendChannelsCount'] * 100) : 0,
+            => $vendTotals['vendChannelsCount'] ? round(($vendTotals['vendChannelsOutOfStock'] + $vendTotals['vendChannelsErrorLogsActive']) / $vendTotals['vendChannelsCount'] * 100) : 0,
         ];
 
         $vend->update([
@@ -87,12 +88,12 @@ class SaveVendChannelsJson implements ShouldQueue
             'vend_channels_json' => $vendChannels->map(function ($channel) use ($vend, $productLimitLookup) {
                 $sellingPriceType = $vend->customer?->selling_price_type;
                 $sellingPrice = $channel->product?->sellingPrices
-                    ?->firstWhere('type', $sellingPriceType);
+                        ?->firstWhere('type', $sellingPriceType);
 
                 return [
                     'id' => $channel->id,
-                    'amount' => $channel->amount/ 100,
-                    'amount2' => $channel->amount2/ 100,
+                    'amount' => $channel->amount / 100,
+                    'amount2' => $channel->amount2 / 100,
                     'code' => $channel->code,
                     'discount_group' => $channel->discount_group,
                     'error_rate_json' => $channel->error_rate_json,
@@ -109,7 +110,7 @@ class SaveVendChannelsJson implements ShouldQueue
                         'limit_qty' => $productLimitLookup->get($channel->product->id),
                     ] : null,
                     'last_stock_in_qty' => $channel->latestOpsJobItemChannel?->actual_qty ?? null,
-                    'server_amount' => $channel->server_amount ? $channel->server_amount/ 100 : null,
+                    'server_amount' => $channel->server_amount ? $channel->server_amount / 100 : null,
                     'ref_price' => $sellingPrice ? $sellingPrice->amount / 100 : null,
                     'qty_sold_at_date_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->format('ymd') : null,
                     'qty_sold_at_time_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->format('h:i a') : null,
@@ -133,8 +134,10 @@ class SaveVendChannelsJson implements ShouldQueue
     {
         return $vendChannels->reduce(function ($carry, $vendChannel) {
             $activeErrorCount = $vendChannel->vendChannelErrorLogs->reduce(function ($innerCarry, $errorLog) {
-                if (!$errorLog->is_error_cleared &&
-                    !in_array($errorLog->vendChannelError->code, [4, 5, 7])) {
+                if (
+                    !$errorLog->is_error_cleared &&
+                    !in_array($errorLog->vendChannelError->code, [4, 5, 7])
+                ) {
                     $innerCarry++;
                 }
                 return $innerCarry;

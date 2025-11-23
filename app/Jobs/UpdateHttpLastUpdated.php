@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Mail\VendPowerRestoredNotificationMail;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -33,7 +34,7 @@ class UpdateHttpLastUpdated implements ShouldQueue
      */
     public function handle(): void
     {
-        $vend = Vend::find($this->vendID);
+        $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)->find($this->vendID);
         if (!$vend) {
             return;
         }

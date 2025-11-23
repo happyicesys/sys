@@ -196,22 +196,15 @@ class VendController extends Controller
         ]);
         $className = get_class(new Customer());
 
+        $sortKey = $request->sortKey;
+        $needsVc = in_array($sortKey, ['thirty_days_over_full_load_ratio', 'total_stock_amount', 'total_full_load_amount']);
+        $needsVcCost = in_array($sortKey, ['total_stock_cost']);
+
+
+
         $vends = Vend::query()
             ->with([
                 'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform',
-                // 'vendChannels' => function($query) {
-                //     $query->select('*')
-                //         ->selectRaw("(SELECT amount FROM selling_prices WHERE
-                //             selling_prices.product_id = vend_channels.product_id AND
-                //             selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
-                // },
-                // // 'vendChannels.latestOpsJobItemChannel',
-                // 'vendChannels.product.thumbnail',
-                // 'vendChannels.product.sellingPrices',
-                // 'vendChannels.vendChannelErrorLogs' => function($query) {
-                //     $query->where('created_at', '>=', Carbon::today()->subDays(29));
-                // },
-                // 'vendChannels.vendChannelErrorLogs.vendChannelError',
             ])
             ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
@@ -220,8 +213,18 @@ class VendController extends Controller
             ->leftJoin('modem_units', 'modem_units.id', '=', 'vends.modem_unit_id')
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-            ->leftJoin(DB::raw('
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id');
+
+        $vends = $this->filterVendsDB($vends, $request);
+        $vends = $this->filterOperatorDB($vends, 'vends');
+
+        // Clone for count query (without expensive joins)
+        $countQuery = clone $vends;
+        $total = $countQuery->count();
+
+        // Apply conditional joins for data retrieval
+        $vends->when($needsVc, function ($query) {
+            $query->leftJoin(DB::raw('
                 (
                     SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
@@ -229,8 +232,10 @@ class VendController extends Controller
                     AND capacity > 0
                     GROUP BY vend_id
                 ) AS vc
-            '), 'vc.vend_id', '=', 'vends.id')
-            ->leftJoin(DB::raw('
+            '), 'vc.vend_id', '=', 'vends.id');
+        })
+            ->when($needsVcCost, function ($query) {
+                $query->leftJoin(DB::raw('
                 (
                     SELECT
                         vend_channels.vend_id,
@@ -248,79 +253,104 @@ class VendController extends Controller
                     GROUP BY
                         vend_channels.vend_id
                 ) AS vc_cost
-            '), 'vc_cost.vend_id', '=', 'vends.id')
-            ->select(
-                'vends.id AS id',
-                'vends.id AS vend_id',
-                'vends.amount_average_day',
-                'vends.begin_date',
-                'vends.code',
-                'vends.acb_vmc_pa_json',
-                'vends.apk_ver_json',
-                'vends.balance_percent',
-                'vends.serial_num',
-                'vends.temp',
-                'vends.temp_updated_at',
-                'vends.termination_date',
-                'vends.coin_amount',
-                'vends.firmware_ver',
-                'vends.is_active AS vend_is_active',
-                'vends.is_door_open',
-                'vends.is_disposed',
-                'vends.is_mqtt',
-                'vends.is_mqtt_active',
-                'vends.is_online',
-                'vends.is_sensor_normal',
-                'vends.is_temp_active',
-                'vends.is_temp_error',
-                'vends.is_testing',
-                'vends.label_name',
-                'vends.lcd_monitor_id',
-                'vends.last_updated_at',
-                'vends.modem_type_id',
-                'vends.modem_unit_id',
-                'vends.mqtt_last_updated_at',
-                'vends.operator_id',
-                'vends.out_of_stock_sku_percent',
-                'vends.parameter_json',
-                'vends.product_mapping_id',
-                'vends.private_key',
-                'vends.termination_date',
-                'vends.vend_channel_totals_json',
-                'vends.vend_channel_error_logs_json',
-                'vends.vend_channels_json',
-                'vends.vend_transaction_totals_json',
-                'vends.vend_type_id',
-                'vends.virtual_vend_records_thirty_days_amount_average',
-                'vends.is_active AS is_active',
-                'customers.id AS customer_id',
-                'customers.code AS customer_code',
-                'customers.is_active AS customer_is_active',
-                'customers.name AS customer_name',
-                'customers.person_json',
-                'customers.person_id AS person_id',
-                'customers.selling_price_type',
-                'customers.virtual_customer_prefix',
-                'customers.virtual_customer_code',
-                'modem_types.name AS modem_type_name',
-                'modem_types.is_resetable AS modem_type_is_resettable',
-                'modem_units.imei AS modem_unit_imei',
-                'modem_units.is_online AS modem_unit_is_online',
-                'modem_units.last_updated_at AS modem_unit_last_updated_at',
-                'product_mappings.name AS product_mapping_name',
-                'product_mappings.remarks AS product_mapping_remarks',
-                'operators.code AS operator_code',
-                'operators.name AS operator_name',
-                'vend_prefixes.name AS vend_prefix_name',
-                'vc.total_full_load_amount',
-                'vc.total_stock_amount',
-                'vc_cost.total_stock_cost',
-                // 'delivery_platforms.slug AS delivery_platform_slug'
-            );
-        $vends = $this->filterVendsDB($vends, $request);
-        $vends = $this->filterOperatorDB($vends, 'vends');
-        $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
-            ->withQueryString();
+            '), 'vc_cost.vend_id', '=', 'vends.id');
+            });
+
+        $selectColumns = [
+            'vends.id AS id',
+            'vends.id AS vend_id',
+            'vends.amount_average_day',
+            'vends.begin_date',
+            'vends.code',
+            'vends.acb_vmc_pa_json',
+            'vends.apk_ver_json',
+            'vends.balance_percent',
+            'vends.serial_num',
+            'vends.temp',
+            'vends.temp_updated_at',
+            'vends.termination_date',
+            'vends.coin_amount',
+            'vends.firmware_ver',
+            'vends.is_active AS vend_is_active',
+            'vends.is_door_open',
+            'vends.is_disposed',
+            'vends.is_mqtt',
+            'vends.is_mqtt_active',
+            'vends.is_online',
+            'vends.is_sensor_normal',
+            'vends.is_temp_active',
+            'vends.is_temp_error',
+            'vends.is_testing',
+            'vends.label_name',
+            'vends.lcd_monitor_id',
+            'vends.last_updated_at',
+            'vends.modem_type_id',
+            'vends.modem_unit_id',
+            'vends.mqtt_last_updated_at',
+            'vends.operator_id',
+            'vends.out_of_stock_sku_percent',
+            'vends.parameter_json',
+            'vends.product_mapping_id',
+            'vends.private_key',
+            'vends.termination_date',
+            'vends.vend_channel_totals_json',
+            'vends.vend_channel_error_logs_json',
+            'vends.vend_channels_json',
+            'vends.vend_transaction_totals_json',
+            'vends.vend_type_id',
+            'vends.virtual_vend_records_thirty_days_amount_average',
+            'vends.is_active AS is_active',
+            'customers.id AS customer_id',
+            'customers.code AS customer_code',
+            'customers.is_active AS customer_is_active',
+            'customers.name AS customer_name',
+            'customers.person_json',
+            'customers.person_id AS person_id',
+            'customers.selling_price_type',
+            'customers.virtual_customer_prefix',
+            'customers.virtual_customer_code',
+            'modem_types.name AS modem_type_name',
+            'modem_types.is_resetable AS modem_type_is_resettable',
+            'modem_units.imei AS modem_unit_imei',
+            'modem_units.is_online AS modem_unit_is_online',
+            'modem_units.last_updated_at AS modem_unit_last_updated_at',
+            'product_mappings.name AS product_mapping_name',
+            'product_mappings.remarks AS product_mapping_remarks',
+            'operators.code AS operator_code',
+            'operators.name AS operator_name',
+            'vend_prefixes.name AS vend_prefix_name',
+            // 'delivery_platforms.slug AS delivery_platform_slug'
+        ];
+
+        if ($needsVc) {
+            $selectColumns[] = 'vc.total_full_load_amount';
+            $selectColumns[] = 'vc.total_stock_amount';
+        }
+
+        if ($needsVcCost) {
+            $selectColumns[] = 'vc_cost.total_stock_cost';
+        }
+
+        $vends->select($selectColumns);
+
+        $page = Paginator::resolveCurrentPage() ?: 1;
+        $perPage = $request->numberPerPage === 'All' ? 10000 : ($request->numberPerPage ?: 50);
+
+        $items = $vends->forPage($page, $perPage)->get();
+
+        $vends = new LengthAwarePaginator($items, $total, $perPage, $page, [
+            'path' => Paginator::resolveCurrentPath(),
+            'query' => $request->query(),
+        ]);
+
+        if (!$needsVc || !$needsVcCost) {
+            $types = [];
+            if (!$needsVc)
+                $types[] = 'vc';
+            if (!$needsVcCost)
+                $types[] = 'vc_cost';
+            $this->loadAggregates($vends->getCollection(), $types);
+        }
 
         $totals = [
             // 'thirtyDays' => collect((clone $vends)
@@ -434,7 +464,17 @@ class VendController extends Controller
             'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
             'productAvailableDate' => isset($request->productFilters['productAvailableDate']) ? Carbon::parse($request->productFilters['productAvailableDate'])->toDateString() : Carbon::today()->addDay()->toDateString()
         ]);
+
         $className = get_class(new Customer());
+
+        $sortKey = $request->sortKey;
+        $needsVc = in_array($sortKey, ['thirty_days_over_full_load_ratio', 'total_stock_amount', 'total_full_load_amount']);
+        $needsVcCost = in_array($sortKey, ['total_stock_cost']);
+        $needsVcStock = in_array($sortKey, ['actual_stock_in_value', 'actual_stock_in_qty']);
+        $needsLastOpsJobs = in_array($sortKey, ['last_ops_job_acc_total_amount', 'last_ops_job_acc_total_count', 'last_ops_job_amount', 'last_ops_job_cash_amount', 'last_ops_job_count']);
+        $needsLastSecondOpsJobs = in_array($sortKey, ['last_second_ops_job_acc_total_amount', 'last_second_ops_job_acc_total_count', 'last_second_ops_job_amount', 'last_second_ops_job_cash_amount', 'last_second_ops_job_count']);
+        $needsNextOpsJobs = in_array($sortKey, ['next_ops_job_amount', 'next_ops_job_cash_amount', 'next_ops_job_count']);
+        $needsLastThirtyDaysStockIn = in_array($sortKey, ['last_thirty_days_stock_in_amount', 'last_thirty_days_stock_in_qty', 'thirty_days_stock_in_delta_amount', 'thirty_days_stock_in_delta_percent']);
 
         $shouldAutoload = $request->boolean('autoload', false);
         $perPage = $request->numberPerPage === 'All' ? 10000 : $request->numberPerPage;
@@ -460,19 +500,6 @@ class VendController extends Controller
                             'vend:id,server_price_type',
                         ]);
                     },
-                    // 'vend.vendChannels' => function($query) {
-                    //     $query->select('*')
-                    //         ->selectRaw("(SELECT amount FROM selling_prices WHERE
-                    //             selling_prices.product_id = vend_channels.product_id AND
-                    //             selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
-                    // },
-                    // 'vend.vendChannels.latestOpsJobItemChannel:id,actual_qty,vend_channel_id',
-                    // 'vend.vendChannels.product.thumbnail',
-                    // 'vend.vendChannels.product.sellingPrices',
-                    // 'vend.vendChannels.vendChannelErrorLogs' => function($query) {
-                    //     $query->where('created_at', '>=', Carbon::today()->subDays(29));
-                    // },
-                    // 'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
                     'vend.modemUnit',
                     'vend.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
                     'vend.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
@@ -480,7 +507,6 @@ class VendController extends Controller
                     'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name'
                 ])
                 ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-                ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
                 ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
                 ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
                 ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
@@ -490,10 +516,19 @@ class VendController extends Controller
                 ->leftJoin('addresses', function ($query) {
                     $query->on('addresses.modelable_id', '=', 'customers.id')
                         ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                        ->where('addresses.type', '=', 2)
-                        ->limit(1);
+                        ->where('addresses.type', '=', 2);
                 })
-                ->leftJoin(DB::raw('
+                ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id');
+
+            $vends = $this->filterVendsDB($vends, $request);
+            $vends = $this->filterOperatorDB($vends, 'customers');
+
+            // Clone for count query (without expensive joins)
+            $countQuery = clone $vends;
+            $total = $countQuery->count();
+
+            $vends->when($needsVc, function ($query) {
+                $query->leftJoin(DB::raw('
                 (
                     SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
@@ -501,8 +536,10 @@ class VendController extends Controller
                     AND capacity > 0
                     GROUP BY vend_id
                 ) AS vc
-            '), 'vc.vend_id', '=', 'vends.id')
-                ->leftJoin(DB::raw('
+            '), 'vc.vend_id', '=', 'vends.id');
+            })
+                ->when($needsVcCost, function ($query) {
+                    $query->leftJoin(DB::raw('
                 (
                     SELECT
                         vend_channels.vend_id,
@@ -520,8 +557,10 @@ class VendController extends Controller
                     GROUP BY
                         vend_channels.vend_id
                 ) AS vc_cost
-            '), 'vc_cost.vend_id', '=', 'vends.id')
-                ->leftJoin(DB::raw('
+            '), 'vc_cost.vend_id', '=', 'vends.id');
+                })
+                ->when($needsVcStock, function ($query) {
+                    $query->leftJoin(DB::raw('
                 (
                     SELECT
                         vend_channels.vend_id,
@@ -569,9 +608,10 @@ class VendController extends Controller
                     GROUP BY
                         vend_channels.vend_id
                 ) AS vc_stock
-            '), 'vc_stock.vend_id', '=', 'vends.id')
-
-                ->leftJoin(DB::raw('
+            '), 'vc_stock.vend_id', '=', 'vends.id');
+                })
+                ->when($needsLastOpsJobs, function ($query) {
+                    $query->leftJoin(DB::raw('
                 (
                     SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
                         SUM(oji_c.actual_qty * vc.amount) AS amount,
@@ -594,8 +634,10 @@ class VendController extends Controller
                     WHERE oji.rn = 1 AND oj.date < CURDATE() + INTERVAL 1 DAY
                     GROUP BY oji.customer_id
                 ) AS last_ops_jobs
-            '), 'last_ops_jobs.customer_id', '=', 'customers.id')
-                ->leftJoin(DB::raw('
+            '), 'last_ops_jobs.customer_id', '=', 'customers.id');
+                })
+                ->when($needsLastSecondOpsJobs, function ($query) {
+                    $query->leftJoin(DB::raw('
                 (
                     SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
                         SUM(oji_c.actual_qty * vc.amount) AS amount,
@@ -618,8 +660,10 @@ class VendController extends Controller
                     WHERE oji.rn = 2 AND oj.date < CURDATE() + INTERVAL 1 DAY
                     GROUP BY oji.customer_id
                 ) AS last_second_ops_jobs
-            '), 'last_second_ops_jobs.customer_id', '=', 'customers.id')
-                ->leftJoin(DB::raw('
+            '), 'last_second_ops_jobs.customer_id', '=', 'customers.id');
+                })
+                ->when($needsNextOpsJobs, function ($query) {
+                    $query->leftJoin(DB::raw('
                 (
                     SELECT oji.customer_id, oji.cash_amount,
                         SUM(ojic.picked_qty * vc.amount) AS amount,
@@ -637,9 +681,11 @@ class VendController extends Controller
                     WHERE oji.status < 3 AND oj.date >= CURDATE()
                     GROUP BY oji.customer_id
                     ) AS next_ops_jobs
-            '), 'next_ops_jobs.customer_id', '=', 'customers.id')
-                ->leftJoin(
-                    DB::raw('(
+            '), 'next_ops_jobs.customer_id', '=', 'customers.id');
+                })
+                ->when($needsLastThirtyDaysStockIn, function ($query) {
+                    $query->leftJoin(
+                        DB::raw('(
                 SELECT SUM(ops_job_item_channels.actual_qty) AS qty,
                        SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
                        ops_job_items.customer_id
@@ -652,112 +698,161 @@ class VendController extends Controller
                 AND ops_jobs.date BETWEEN CURDATE() - INTERVAL 29 DAY AND CURDATE()
                 GROUP BY ops_job_items.customer_id
             ) AS last_thirty_days_stock_in'),
-                    'last_thirty_days_stock_in.customer_id',
-                    '=',
-                    'customers.id'
-                )
-                ->select(
-                    'customers.id AS id',
-                    'vends.id AS vend_id',
-                    'vends.amount_average_day',
-                    'vends.code',
-                    'vends.acb_vmc_pa_json',
-                    'vends.apk_ver_json',
-                    'vends.balance_percent',
-                    'vends.serial_num',
-                    DB::raw("CASE WHEN customers.is_active THEN vends.temp ELSE customers.snap_vend_status_json->>'$.t1' END AS temp"),
-                    'vends.temp_updated_at',
-                    'vends.coin_amount',
-                    'vends.firmware_ver',
-                    'vends.is_door_open',
-                    'vends.is_disposed',
-                    'vends.is_mqtt',
-                    'vends.is_mqtt_active',
-                    'vends.is_online',
-                    'vends.is_sensor_normal',
-                    'vends.is_temp_active',
-                    'vends.is_temp_error',
-                    'vends.is_testing',
-                    DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
-                    DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
-                    'customers.next_invoice_driver_id',
-                    'vends.label_name',
-                    'vends.last_updated_at',
-                    'vends.mqtt_last_updated_at',
-                    'vends.out_of_stock_sku_percent',
-                    DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
-                    'vends.product_mapping_id',
-                    'vends.private_key',
-                    'vends.vend_channel_totals_json',
-                    DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
-                    'customers.totals_json AS vend_transaction_totals_json',
-                    'vends.vend_type_id',
-                    'vends.vend_channels_json',
-                    'vends.virtual_vend_records_thirty_days_amount_average',
-                    'customers.id AS customer_id',
-                    DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
-                    'customers.begin_date',
-                    'customers.cms_invoice_history',
-                    'customers.code AS customer_code',
-                    'customers.frequency_per_week_status',
-                    'customers.is_active AS is_active',
-                    'customers.is_active AS customer_is_active',
-                    'customers.location_type_id',
-                    'customers.name',
-                    'customers.name AS customer_name',
-                    'customers.operator_id',
-                    'customers.ops_note',
-                    'customers.person_json',
-                    'customers.person_id AS person_id',
-                    'customers.preferred_visit_days_json',
-                    'customers.selling_price_type',
-                    'customers.termination_date',
-                    'customers.virtual_customer_prefix',
-                    'customers.virtual_customer_code',
-                    'location_types.name AS location_type_name',
-                    'last_ops_jobs.acc_total_amount AS last_ops_job_acc_total_amount',
-                    'last_ops_jobs.acc_total_count AS last_ops_job_acc_total_count',
-                    'last_ops_jobs.amount AS last_ops_job_amount',
-                    'last_ops_jobs.cash_amount AS last_ops_job_cash_amount',
-                    'last_ops_jobs.count AS last_ops_job_count',
-                    'last_second_ops_jobs.acc_total_amount AS last_second_ops_job_acc_total_amount',
-                    'last_second_ops_jobs.acc_total_count AS last_second_ops_job_acc_total_count',
-                    'last_second_ops_jobs.amount AS last_second_ops_job_amount',
-                    'last_second_ops_jobs.cash_amount AS last_second_ops_job_cash_amount',
-                    'last_second_ops_jobs.count AS last_second_ops_job_count',
-                    'last_thirty_days_stock_in.amount AS last_thirty_days_stock_in_amount',
-                    'last_thirty_days_stock_in.qty AS last_thirty_days_stock_in_qty',
-                    'next_ops_jobs.amount AS next_ops_job_amount',
-                    'next_ops_jobs.cash_amount AS next_ops_job_cash_amount',
-                    'next_ops_jobs.count AS next_ops_job_count',
-                    'product_mappings.name AS product_mapping_name',
-                    'product_mappings.remarks AS product_mapping_remarks',
-                    'operators.code AS operator_code',
-                    'operators.name AS operator_name',
-                    'addresses.postcode AS postcode',
-                    'vend_prefixes.name AS vend_prefix_name',
-                    'vc.total_full_load_amount',
-                    'vc.total_stock_amount',
-                    'vc_cost.total_stock_cost',
-                    'vc_stock.actual_stock_in_value',
-                    'vc_stock.actual_stock_in_qty',
-                    'zones.name AS zone_name',
-                    DB::raw('
+                        'last_thirty_days_stock_in.customer_id',
+                        '=',
+                        'customers.id'
+                    );
+                });
+            $selectColumns = [
+                'customers.id AS id',
+                'vends.id AS vend_id',
+                'vends.amount_average_day',
+                'vends.code',
+                'vends.acb_vmc_pa_json',
+                'vends.apk_ver_json',
+                'vends.balance_percent',
+                'vends.serial_num',
+                DB::raw("CASE WHEN customers.is_active THEN vends.temp ELSE customers.snap_vend_status_json->>'$.t1' END AS temp"),
+                'vends.temp_updated_at',
+                'vends.coin_amount',
+                'vends.firmware_ver',
+                'vends.is_door_open',
+                'vends.is_disposed',
+                'vends.is_mqtt',
+                'vends.is_mqtt_active',
+                'vends.is_online',
+                'vends.is_sensor_normal',
+                'vends.is_temp_active',
+                'vends.is_temp_error',
+                'vends.is_testing',
+                DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
+                DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
+                'customers.next_invoice_driver_id',
+                'vends.label_name',
+                'vends.last_updated_at',
+                'vends.mqtt_last_updated_at',
+                'vends.out_of_stock_sku_percent',
+                DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
+                'vends.product_mapping_id',
+                'vends.private_key',
+                'vends.vend_channel_totals_json',
+                DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
+                'customers.totals_json AS vend_transaction_totals_json',
+                'vends.vend_type_id',
+                'vends.vend_channels_json',
+                'vends.virtual_vend_records_thirty_days_amount_average',
+                'customers.id AS customer_id',
+                DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
+                'customers.begin_date',
+                'customers.cms_invoice_history',
+                'customers.code AS customer_code',
+                'customers.frequency_per_week_status',
+                'customers.is_active AS is_active',
+                'customers.is_active AS customer_is_active',
+                'customers.location_type_id',
+                'customers.name',
+                'customers.name AS customer_name',
+                'customers.operator_id',
+                'customers.ops_note',
+                'customers.person_json',
+                'customers.person_id AS person_id',
+                'customers.preferred_visit_days_json',
+                'customers.selling_price_type',
+                'customers.termination_date',
+                'customers.virtual_customer_prefix',
+                'customers.virtual_customer_code',
+                'location_types.name AS location_type_name',
+                'product_mappings.name AS product_mapping_name',
+                'product_mappings.remarks AS product_mapping_remarks',
+                'operators.code AS operator_code',
+                'operators.name AS operator_name',
+                'addresses.postcode AS postcode',
+                'vend_prefixes.name AS vend_prefix_name',
+                'zones.name AS zone_name',
+            ];
+
+            if ($needsVc) {
+                $selectColumns[] = 'vc.total_full_load_amount';
+                $selectColumns[] = 'vc.total_stock_amount';
+                $selectColumns[] = DB::raw('
                     (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.vend_records_thirty_days_amount_average")) *30 /100)/
                     (vc.total_full_load_amount / 100) AS thirty_days_over_full_load_ratio
-                '),
-                    DB::raw('
-                    (last_thirty_days_stock_in.amount/100 - (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount"))/100)) AS thirty_days_stock_in_delta_amount
-                '),
-                    DB::raw('
-                    ((last_thirty_days_stock_in.amount/100 - (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount"))/100)))/ (last_thirty_days_stock_in.amount/100) * 100  AS thirty_days_stock_in_delta_percent
-                '),
-                );
-            $vends = $this->filterVendsDB($vends, $request);
-            $vends = $this->filterOperatorDB($vends, 'customers');
+                ');
+            }
 
-            $vends = $vends->paginate($perPage)
-                ->withQueryString();
+            if ($needsVcCost) {
+                $selectColumns[] = 'vc_cost.total_stock_cost';
+            }
+
+            if ($needsVcStock) {
+                $selectColumns[] = 'vc_stock.actual_stock_in_value';
+                $selectColumns[] = 'vc_stock.actual_stock_in_qty';
+            }
+
+            if ($needsLastOpsJobs) {
+                $selectColumns[] = 'last_ops_jobs.acc_total_amount AS last_ops_job_acc_total_amount';
+                $selectColumns[] = 'last_ops_jobs.acc_total_count AS last_ops_job_acc_total_count';
+                $selectColumns[] = 'last_ops_jobs.amount AS last_ops_job_amount';
+                $selectColumns[] = 'last_ops_jobs.cash_amount AS last_ops_job_cash_amount';
+                $selectColumns[] = 'last_ops_jobs.count AS last_ops_job_count';
+            }
+
+            if ($needsLastSecondOpsJobs) {
+                $selectColumns[] = 'last_second_ops_jobs.acc_total_amount AS last_second_ops_job_acc_total_amount';
+                $selectColumns[] = 'last_second_ops_jobs.acc_total_count AS last_second_ops_job_acc_total_count';
+                $selectColumns[] = 'last_second_ops_jobs.amount AS last_second_ops_job_amount';
+                $selectColumns[] = 'last_second_ops_jobs.cash_amount AS last_second_ops_job_cash_amount';
+                $selectColumns[] = 'last_second_ops_jobs.count AS last_second_ops_job_count';
+            }
+
+            if ($needsNextOpsJobs) {
+                $selectColumns[] = 'next_ops_jobs.amount AS next_ops_job_amount';
+                $selectColumns[] = 'next_ops_jobs.cash_amount AS next_ops_job_cash_amount';
+                $selectColumns[] = 'next_ops_jobs.count AS next_ops_job_count';
+            }
+
+            if ($needsLastThirtyDaysStockIn) {
+                $selectColumns[] = 'last_thirty_days_stock_in.amount AS last_thirty_days_stock_in_amount';
+                $selectColumns[] = 'last_thirty_days_stock_in.qty AS last_thirty_days_stock_in_qty';
+                $selectColumns[] = DB::raw('
+                    (last_thirty_days_stock_in.amount/100 - (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount"))/100)) AS thirty_days_stock_in_delta_amount
+                ');
+                $selectColumns[] = DB::raw('
+                    ((last_thirty_days_stock_in.amount/100 - (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount"))/100)))/ (last_thirty_days_stock_in.amount/100) * 100  AS thirty_days_stock_in_delta_percent
+                ');
+            }
+
+            $vends->select($selectColumns);
+
+            $page = Paginator::resolveCurrentPage() ?: 1;
+            $perPage = $request->numberPerPage === 'All' ? 10000 : ($request->numberPerPage ?: 50);
+
+            $items = $vends->forPage($page, $perPage)->get();
+
+            $vends = new LengthAwarePaginator($items, $total, $perPage, $page, [
+                'path' => Paginator::resolveCurrentPath(),
+                'query' => $request->query(),
+            ]);
+
+            if (!$needsVc || !$needsVcCost || !$needsVcStock || !$needsLastOpsJobs || !$needsLastSecondOpsJobs || !$needsNextOpsJobs || !$needsLastThirtyDaysStockIn) {
+                $types = [];
+                if (!$needsVc)
+                    $types[] = 'vc';
+                if (!$needsVcCost)
+                    $types[] = 'vc_cost';
+                if (!$needsVcStock)
+                    $types[] = 'vc_stock';
+                if (!$needsLastOpsJobs)
+                    $types[] = 'last_ops_jobs';
+                if (!$needsLastSecondOpsJobs)
+                    $types[] = 'last_second_ops_jobs';
+                if (!$needsNextOpsJobs)
+                    $types[] = 'next_ops_jobs';
+                if (!$needsLastThirtyDaysStockIn)
+                    $types[] = 'last_thirty_days_stock_in';
+
+                $this->loadAggregates($vends->getCollection(), $types);
+            }
 
             $totals = [
                 'mapApiKey' => $mapApiKey,
@@ -2140,6 +2235,7 @@ class VendController extends Controller
     public function exportVendSnapshotExcel($vendSnapshotId)
     {
         $vendSnapshot = VendSnapshot::findOrFail($vendSnapshotId);
+        $vendTransactions = $vendSnapshot->vendTransactions;
 
         return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($vendTransaction) {
             return [
@@ -2906,5 +3002,296 @@ class VendController extends Controller
                 }
             }
         }
+    }
+    private function loadAggregates($items, $types = ['vc', 'vc_cost'])
+    {
+        $vendIds = $items->map(function ($item) {
+            return $item->vend_id ?? $item->id;
+        })->filter()->unique()->toArray();
+
+        $customerIds = $items->map(function ($item) {
+            return $item->customer_id ?? $item->id;
+        })->filter()->unique()->toArray();
+
+        if (empty($vendIds) && empty($customerIds)) {
+            return $items;
+        }
+
+        if (in_array('vc', $types) && !empty($vendIds)) {
+            $vcData = DB::table('vend_channels')
+                ->select('vend_id', DB::raw('SUM(amount * qty) as total_stock_amount'), DB::raw('SUM(amount * capacity) as total_full_load_amount'))
+                ->whereIn('vend_id', $vendIds)
+                ->where('is_active', true)
+                ->where('capacity', '>', 0)
+                ->groupBy('vend_id')
+                ->get()
+                ->keyBy('vend_id');
+
+            foreach ($items as $item) {
+                $vid = $item->vend_id ?? $item->id;
+                if (isset($vcData[$vid])) {
+                    $item->total_stock_amount = $vcData[$vid]->total_stock_amount;
+                    $item->total_full_load_amount = $vcData[$vid]->total_full_load_amount;
+                } else {
+                    $item->total_stock_amount = 0;
+                    $item->total_full_load_amount = 0;
+                }
+            }
+        }
+
+        if (in_array('vc_cost', $types) && !empty($vendIds)) {
+            $vcCostData = DB::table('vend_channels')
+                ->join('products', 'vend_channels.product_id', '=', 'products.id')
+                ->join('unit_costs', 'products.id', '=', 'unit_costs.product_id')
+                ->select('vend_channels.vend_id', DB::raw('SUM(vend_channels.qty * unit_costs.cost) as total_stock_cost'))
+                ->where('unit_costs.is_current', true)
+                ->where('vend_channels.is_active', true)
+                ->where('vend_channels.capacity', '>', 0)
+                ->whereIn('vend_channels.vend_id', $vendIds)
+                ->groupBy('vend_channels.vend_id')
+                ->get()
+                ->keyBy('vend_id');
+
+            foreach ($items as $item) {
+                $vid = $item->vend_id ?? $item->id;
+                if (isset($vcCostData[$vid])) {
+                    $item->total_stock_cost = $vcCostData[$vid]->total_stock_cost;
+                } else {
+                    $item->total_stock_cost = 0;
+                }
+            }
+        }
+
+        if (in_array('vc_stock', $types) && !empty($vendIds)) {
+            $vcStockData = DB::table('vend_channels')
+                ->join('products', 'vend_channels.product_id', '=', 'products.id')
+                ->leftJoinSub(function ($query) {
+                    $query->select('id', 'product_id', 'qty', 'date')
+                        ->fromSub(function ($query) {
+                            $query->select('id', 'product_id', 'qty', 'date', DB::raw('ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY id DESC) as rn'))
+                                ->from('product_limits')
+                                ->where('date', DB::raw('CURDATE()'));
+                        }, 'pl_inner')
+                        ->where('rn', 1);
+                }, 'product_limits', 'products.id', '=', 'product_limits.product_id')
+                ->select(
+                    'vend_channels.vend_id',
+                    DB::raw('SUM(vend_channels.amount * GREATEST(CASE WHEN product_limits.id AND product_limits.qty < vend_channels.capacity THEN (product_limits.qty - vend_channels.qty) ELSE (vend_channels.capacity - vend_channels.qty) END, 0)) AS actual_stock_in_value'),
+                    DB::raw('SUM(GREATEST(CASE WHEN product_limits.id AND product_limits.qty < vend_channels.capacity THEN (product_limits.qty - vend_channels.qty) ELSE (vend_channels.capacity - vend_channels.qty) END, 0)) AS actual_stock_in_qty')
+                )
+                ->where('products.is_available', true)
+                ->where('vend_channels.is_active', true)
+                ->where('vend_channels.capacity', '>', 0)
+                ->whereIn('vend_channels.vend_id', $vendIds)
+                ->groupBy('vend_channels.vend_id')
+                ->get()
+                ->keyBy('vend_id');
+
+            foreach ($items as $item) {
+                $vid = $item->vend_id ?? $item->id;
+                if (isset($vcStockData[$vid])) {
+                    $item->actual_stock_in_value = $vcStockData[$vid]->actual_stock_in_value;
+                    $item->actual_stock_in_qty = $vcStockData[$vid]->actual_stock_in_qty;
+                } else {
+                    $item->actual_stock_in_value = 0;
+                    $item->actual_stock_in_qty = 0;
+                }
+            }
+        }
+
+        if (in_array('last_ops_jobs', $types) && !empty($customerIds)) {
+            $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
+            $data = DB::select("
+                SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
+                    SUM(oji_c.actual_qty * vc.amount) AS amount,
+                    SUM(oji_c.actual_qty) AS count
+                FROM (
+                    SELECT
+                        id,
+                        customer_id,
+                        cash_amount,
+                        acc_total_amount,
+                        acc_total_count,
+                        ops_job_id,
+                        ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) as rn
+                    FROM ops_job_items
+                    WHERE status >= 3 AND status <> 99
+                    AND customer_id IN ($placeholders)
+                ) oji
+                INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
+                INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
+                INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
+                WHERE oji.rn = 1 AND oj.date < CURDATE() + INTERVAL 1 DAY
+                GROUP BY oji.customer_id
+            ", $customerIds);
+
+            $keyedData = collect($data)->keyBy('customer_id');
+            foreach ($items as $item) {
+                $cid = $item->customer_id ?? $item->id;
+                if (isset($keyedData[$cid])) {
+                    $row = $keyedData[$cid];
+                    $item->last_ops_job_acc_total_amount = $row->acc_total_amount;
+                    $item->last_ops_job_acc_total_count = $row->acc_total_count;
+                    $item->last_ops_job_amount = $row->amount;
+                    $item->last_ops_job_cash_amount = $row->cash_amount;
+                    $item->last_ops_job_count = $row->count;
+                } else {
+                    $item->last_ops_job_acc_total_amount = null;
+                    $item->last_ops_job_acc_total_count = null;
+                    $item->last_ops_job_amount = null;
+                    $item->last_ops_job_cash_amount = null;
+                    $item->last_ops_job_count = null;
+                }
+            }
+        }
+
+        if (in_array('last_second_ops_jobs', $types) && !empty($customerIds)) {
+            $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
+            $data = DB::select("
+                SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
+                    SUM(oji_c.actual_qty * vc.amount) AS amount,
+                    SUM(oji_c.actual_qty) AS count
+                FROM (
+                    SELECT
+                        id,
+                        customer_id,
+                        cash_amount,
+                        acc_total_amount,
+                        acc_total_count,
+                        ops_job_id,
+                        ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) as rn
+                    FROM ops_job_items
+                    WHERE status >= 3 AND status <> 99
+                    AND customer_id IN ($placeholders)
+                ) oji
+                INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
+                INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
+                INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
+                WHERE oji.rn = 2 AND oj.date < CURDATE() + INTERVAL 1 DAY
+                GROUP BY oji.customer_id
+            ", $customerIds);
+
+            $keyedData = collect($data)->keyBy('customer_id');
+            foreach ($items as $item) {
+                $cid = $item->customer_id ?? $item->id;
+                if (isset($keyedData[$cid])) {
+                    $row = $keyedData[$cid];
+                    $item->last_second_ops_job_acc_total_amount = $row->acc_total_amount;
+                    $item->last_second_ops_job_acc_total_count = $row->acc_total_count;
+                    $item->last_second_ops_job_amount = $row->amount;
+                    $item->last_second_ops_job_cash_amount = $row->cash_amount;
+                    $item->last_second_ops_job_count = $row->count;
+                } else {
+                    $item->last_second_ops_job_acc_total_amount = null;
+                    $item->last_second_ops_job_acc_total_count = null;
+                    $item->last_second_ops_job_amount = null;
+                    $item->last_second_ops_job_cash_amount = null;
+                    $item->last_second_ops_job_count = null;
+                }
+            }
+        }
+
+        if (in_array('next_ops_jobs', $types) && !empty($customerIds)) {
+            $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
+            $data = DB::select("
+                SELECT oji.customer_id, oji.cash_amount,
+                    SUM(ojic.picked_qty * vc.amount) AS amount,
+                    SUM(ojic.picked_qty) AS count
+                FROM ops_job_items oji
+                INNER JOIN (
+                    SELECT customer_id, MAX(created_at) AS min_created_at
+                    FROM ops_job_items
+                    WHERE status < 3
+                    AND customer_id IN ($placeholders)
+                    GROUP BY customer_id
+                ) next_job ON next_job.customer_id = oji.customer_id AND oji.created_at = next_job.min_created_at
+                INNER JOIN ops_job_item_channels ojic ON oji.id = ojic.ops_job_item_id
+                INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
+                INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
+                WHERE oji.status < 3 AND oj.date >= CURDATE()
+                AND oji.customer_id IN ($placeholders)
+                GROUP BY oji.customer_id
+            ", array_merge($customerIds, $customerIds));
+
+            $keyedData = collect($data)->keyBy('customer_id');
+            foreach ($items as $item) {
+                $cid = $item->customer_id ?? $item->id;
+                if (isset($keyedData[$cid])) {
+                    $row = $keyedData[$cid];
+                    $item->next_ops_job_amount = $row->amount;
+                    $item->next_ops_job_cash_amount = $row->cash_amount;
+                    $item->next_ops_job_count = $row->count;
+                } else {
+                    $item->next_ops_job_amount = null;
+                    $item->next_ops_job_cash_amount = null;
+                    $item->next_ops_job_count = null;
+                }
+            }
+        }
+
+        if (in_array('last_thirty_days_stock_in', $types) && !empty($customerIds)) {
+            $data = DB::table('ops_job_item_channels')
+                ->join('vend_channels', 'ops_job_item_channels.vend_channel_id', '=', 'vend_channels.id')
+                ->join('ops_job_items', 'ops_job_item_channels.ops_job_item_id', '=', 'ops_job_items.id')
+                ->join('ops_jobs', 'ops_job_items.ops_job_id', '=', 'ops_jobs.id')
+                ->select(
+                    'ops_job_items.customer_id',
+                    DB::raw('SUM(ops_job_item_channels.actual_qty) AS qty'),
+                    DB::raw('SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount')
+                )
+                ->where('ops_job_items.status', '>=', 3)
+                ->where('ops_job_items.status', '<>', 99)
+                ->whereBetween('ops_jobs.date', [DB::raw('CURDATE() - INTERVAL 29 DAY'), DB::raw('CURDATE()')])
+                ->whereIn('ops_job_items.customer_id', $customerIds)
+                ->groupBy('ops_job_items.customer_id')
+                ->get()
+                ->keyBy('customer_id');
+
+            foreach ($items as $item) {
+                $cid = $item->customer_id ?? $item->id;
+                if (isset($data[$cid])) {
+                    $item->last_thirty_days_stock_in_amount = $data[$cid]->amount;
+                    $item->last_thirty_days_stock_in_qty = $data[$cid]->qty;
+                } else {
+                    $item->last_thirty_days_stock_in_amount = 0;
+                    $item->last_thirty_days_stock_in_qty = 0;
+                }
+            }
+        }
+
+        // Calculate derived fields for indexCustomer
+        foreach ($items as $item) {
+            if (isset($item->vend_transaction_totals_json)) {
+                $totals = is_string($item->vend_transaction_totals_json)
+                    ? json_decode($item->vend_transaction_totals_json, true)
+                    : $item->vend_transaction_totals_json;
+
+                // thirty_days_over_full_load_ratio
+                if (!isset($item->thirty_days_over_full_load_ratio)) {
+                    if (isset($item->total_full_load_amount) && $item->total_full_load_amount > 0) {
+                        $avg = $totals['vend_records_thirty_days_amount_average'] ?? 0;
+                        $item->thirty_days_over_full_load_ratio = ($avg * 30 / 100) / ($item->total_full_load_amount / 100);
+                    } else {
+                        $item->thirty_days_over_full_load_ratio = null;
+                    }
+                }
+
+                // thirty_days_stock_in_delta_amount and percent
+                if (!isset($item->thirty_days_stock_in_delta_amount) && isset($item->last_thirty_days_stock_in_amount)) {
+                    $thirtyDaysAmount = $totals['thirty_days_amount'] ?? 0;
+                    $stockInAmount = $item->last_thirty_days_stock_in_amount;
+
+                    $item->thirty_days_stock_in_delta_amount = ($stockInAmount / 100) - ($thirtyDaysAmount / 100);
+
+                    if ($stockInAmount > 0) {
+                        $item->thirty_days_stock_in_delta_percent = ($item->thirty_days_stock_in_delta_amount) / ($stockInAmount / 100) * 100;
+                    } else {
+                        $item->thirty_days_stock_in_delta_percent = null;
+                    }
+                }
+            }
+        }
+
+        return $items;
     }
 }
