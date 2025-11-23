@@ -521,10 +521,18 @@ class DeliveryPlatformService
       $response['categories'] = $this->getGrabMenuSubCategoriesItems($vendChannelIds);
     }
 
-    if ($deliveryProductMappingVend->last_menu_json != $response) {
-      $deliveryProductMappingVend->update([
-        'last_menu_json' => $response,
-      ]);
+    // Use hash comparison to avoid expensive JSON comparison on large payloads
+    $responseHash = md5(json_encode($response));
+    $existingHash = $deliveryProductMappingVend->last_menu_json
+      ? md5(json_encode($deliveryProductMappingVend->last_menu_json))
+      : null;
+
+    // Update asynchronously via job to avoid blocking API response (large JSON payload)
+    if ($responseHash !== $existingHash) {
+      \App\Jobs\UpdateDeliveryMenuJson::dispatch(
+        $deliveryProductMappingVend->id,
+        $response
+      )->onQueue('default');
     }
 
     return $response;
