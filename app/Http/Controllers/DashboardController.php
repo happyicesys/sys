@@ -40,23 +40,30 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $this->setDefaultOperators($request);
+
+        // Fetch testing vend IDs once and reuse across all queries
+        $testingVendIds = \DB::table('vends')
+            ->where('is_testing', true)
+            ->pluck('id')
+            ->toArray();
+
         $bestPerformerLimit = (int) $request->input('best_performer_limit', $request->input('performer_limit', 20));
         $bestPerformerLimit = max(1, min(50, $bestPerformerLimit));
         $worstPerformerLimit = (int) $request->input('worst_performer_limit', 20);
         $worstPerformerLimit = max(1, min(50, $worstPerformerLimit));
-        $dayGraph = $this->getDayGraph($request);
+        $dayGraph = $this->getDayGraph($request, $testingVendIds);
         $productGraph = $this->getProductGraph($request);
-        $bestPerformer = $this->getBestPerformer($request, $bestPerformerLimit);
-        $worstPerformer = $this->getWorstPerformer($request, $worstPerformerLimit);
-        $vendCount = $this->getVendCount($request);
-        $monthGraphData = $this->getMonthGraphData($request);
+        $bestPerformer = $this->getBestPerformer($request, $bestPerformerLimit, $testingVendIds);
+        $worstPerformer = $this->getWorstPerformer($request, $worstPerformerLimit, $testingVendIds);
+        $vendCount = $this->getVendCount($request, $testingVendIds);
+        $monthGraphData = $this->getMonthGraphData($request, $testingVendIds);
         // $monthGraphData = Cache::remember(
         //     'month_graph_data_' . auth()->id(),
         //     300, // cache duration in seconds (5 minutes)
         //     fn () => $this->getMonthGraphData($request)
         // );
 
-        $activeMachineGraphData = $this->getActiveMachineGraphData($request);
+        $activeMachineGraphData = $this->getActiveMachineGraphData($request, $testingVendIds);
         $monthlyAnalytics = $this->getMonthlyAnalytics($request);
 
         return Inertia::render('Dashboard', [
@@ -89,22 +96,24 @@ class DashboardController extends Controller
     private function setDefaultOperators(Request $request)
     {
         if (!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
-            }else {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
     }
 
-    private function getDayGraph(Request $request)
+    private function getDayGraph(Request $request, array $testingVendIds)
     {
         $day_date_from = $request->day_date_from ? Carbon::parse($request->day_date_from)->setTimezone($this->getUserTimezone()) : Carbon::today()->startOfMonth()->setTimezone($this->getUserTimezone());
         $day_date_to = $request->day_date_to ? Carbon::parse($request->day_date_to)->setTimezone($this->getUserTimezone()) : Carbon::today()->endOfMonth()->setTimezone($this->getUserTimezone());
@@ -112,12 +121,10 @@ class DashboardController extends Controller
         $dayGraph = VendRecord::query()
             ->whereBetween('date', [$day_date_from->copy()->subMonth()->startOfDay(), $day_date_to->copy()->endOfDay()])
             ->filterIndex($request)
-            ->whereNotIn('vend_id', function ($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
-            });
+            ->whereNotIn('vend_id', $testingVendIds);
 
-            // dd($dayGraph->get()->toArray());
-            $dayGraph->groupBy('date')
+        // dd($dayGraph->get()->toArray());
+        $dayGraph->groupBy('date')
             ->select(
                 DB::raw('MONTH(date) as month'),
                 DB::raw('MONTHNAME(date) as month_name'),
@@ -136,9 +143,7 @@ class DashboardController extends Controller
                     ->orWhere('is_multiple', true);
             })
             ->whereBetween('transaction_datetime', [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()])
-            ->whereNotIn('vend_id', function ($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
-            })
+            ->whereNotIn('vend_id', $testingVendIds)
             ->select(
                 DB::raw('MONTH(transaction_datetime) as month'),
                 DB::raw('MONTHNAME(transaction_datetime) as month_name'),
@@ -234,62 +239,56 @@ class DashboardController extends Controller
         });
     }
 
-    private function getBestPerformer(Request $request, int $limit)
+    private function getBestPerformer(Request $request, int $limit, array $testingVendIds)
     {
         return VendRecord::query()
             ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name'])
             ->filterIndex($request)
             ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
-            ->whereNotIn('vend_id', function ($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
-            })
-            ->groupBy('vend_id')
+            ->whereNotIn('vend_id', $testingVendIds)
+            ->groupBy('vend_records.vend_id')
             ->select(
-                'id',
-                'customer_id',
-                'vend_id',
-                DB::raw('SUM(total_amount) as amount'),
-                DB::raw('SUM(total_count) as count')
+                'vend_records.id',
+                'vend_records.customer_id',
+                'vend_records.vend_id',
+                DB::raw('SUM(vend_records.total_amount) as amount'),
+                DB::raw('SUM(vend_records.total_count) as count')
             )
             ->orderBy('amount', 'desc')
             ->limit($limit)
             ->get();
     }
 
-    private function getWorstPerformer(Request $request, int $limit)
+    private function getWorstPerformer(Request $request, int $limit, array $testingVendIds)
     {
         return VendRecord::query()
             ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name'])
             ->filterIndex($request)
             ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
-            ->whereNotIn('vend_id', function ($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
-            })
-            ->groupBy('vend_id')
+            ->whereNotIn('vend_id', $testingVendIds)
+            ->groupBy('vend_records.vend_id')
             ->select(
-                'id',
-                'customer_id',
-                'vend_id',
-                DB::raw('SUM(total_amount) as amount'),
-                DB::raw('SUM(total_count) as count')
+                'vend_records.id',
+                'vend_records.customer_id',
+                'vend_records.vend_id',
+                DB::raw('SUM(vend_records.total_amount) as amount'),
+                DB::raw('SUM(vend_records.total_count) as count')
             )
             ->orderBy('amount', 'asc')
             ->limit($limit)
             ->get();
     }
 
-    private function getVendCount(Request $request)
+    private function getVendCount(Request $request, array $testingVendIds)
     {
         return VendRecord::query()
             ->filterIndex($request)
             ->whereDate('date', Carbon::yesterday())
-            ->whereNotIn('vend_id', function ($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
-            })
+            ->whereNotIn('vend_id', $testingVendIds)
             ->count();
     }
 
-    private function getMonthGraphData(Request $request)
+    private function getMonthGraphData(Request $request, array $testingVendIds)
     {
         $lastYear = Carbon::today()->subYear()->startOfYear();
         $thisYear = Carbon::today()->endOfYear();
@@ -313,9 +312,7 @@ class DashboardController extends Controller
         $monthGraph = VendRecord::query()
             ->whereBetween('date', [$lastYear->startOfDay(), $thisYear->endOfDay()])
             ->filterIndex($request)
-            ->whereNotIn('vend_id', function ($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
-            })
+            ->whereNotIn('vend_id', $testingVendIds)
             ->groupBy('year', 'month')
             ->select(
                 DB::raw('MONTH(date) as month'),
@@ -335,7 +332,7 @@ class DashboardController extends Controller
         return collect($monthsArrInit);
     }
 
-    private function getActiveMachineGraphData(Request $request)
+    private function getActiveMachineGraphData(Request $request, array $testingVendIds)
     {
         $lastYear = Carbon::today()->subYear()->startOfYear();
         $thisYear = Carbon::today()->endOfYear();
@@ -360,21 +357,23 @@ class DashboardController extends Controller
             ->selectRaw('MAX(date) as latest_date, year, month')
             ->groupBy('year', 'month');
 
+        // Get testing vend IDs + vends with null customer_id
+        $excludeVendIds = \DB::table('vends')
+            ->where(function ($q) {
+                $q->where('is_testing', true)
+                    ->orWhereNull('customer_id');
+            })
+            ->pluck('id')
+            ->toArray();
+
         $activeMachineGraph = DB::table('vend_records')
             ->joinSub($latestSub, 'latest', function ($join) {
                 $join->on('vend_records.date', '=', 'latest.latest_date')
-                     ->on('vend_records.year', '=', 'latest.year')
-                     ->on('vend_records.month', '=', 'latest.month');
+                    ->on('vend_records.year', '=', 'latest.year')
+                    ->on('vend_records.month', '=', 'latest.month');
             })
             ->whereBetween('vend_records.date', [$lastYear->startOfDay(), $thisYear->endOfDay()])
-            ->whereNotIn('vend_records.vend_id', function ($query) {
-                $query->select('id')
-                    ->from('vends')
-                    ->where(function ($query) {
-                        $query->where('is_testing', true)
-                            ->orWhereNull('customer_id');
-                    });
-            })
+            ->whereNotIn('vend_records.vend_id', $excludeVendIds)
             ->when(method_exists(new \App\Models\VendRecord, 'scopeFilterIndex'), function ($query) use ($request) {
                 // Apply filterIndex() scope only if it exists
                 \App\Models\VendRecord::applyScope($query, 'filterIndex', $request);
@@ -417,23 +416,23 @@ class DashboardController extends Controller
                     });
                 }
             })
-            ->when($request->vendModels, function($query, $search) {
-                if(!in_array('all', $search)){
+            ->when($request->vendModels, function ($query, $search) {
+                if (!in_array('all', $search)) {
                     $query->whereIn('vend_records.vend_model_id', $search);
                 }
             })
-            ->when($request->vendPrefixes, function($query, $search) {
-                if(!in_array('all', $search)){
-                    if(in_array('single-ud', $search)) {
+            ->when($request->vendPrefixes, function ($query, $search) {
+                if (!in_array('all', $search)) {
+                    if (in_array('single-ud', $search)) {
                         $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
                         unset($search[array_search('single-ud', $search)]);
                     }
                     $query->whereIn('vend_records.vend_prefix_id', $search);
                 }
             })
-            ->when($request->locationType, function($query, $search) use ($request) {
+            ->when($request->locationType, function ($query, $search) use ($request) {
                 // dd($request->all(), $search);
-                if($search != 'all') {
+                if ($search != 'all') {
                     $query->where('vend_records.location_type_id', $search);
                 }
             })
@@ -601,69 +600,69 @@ class DashboardController extends Controller
     // }
 
     private function getMonthlySalesQuery($request, $className)
-{
-    $dateFrom = Carbon::parse($request->monthlyDateFrom);
-    $dateTo = Carbon::parse($request->monthlyDateTo);
+    {
+        $dateFrom = Carbon::parse($request->monthlyDateFrom);
+        $dateTo = Carbon::parse($request->monthlyDateTo);
 
-    // Subquery: daily active vend count per id (location_type_id/operator) & date
-    $dailyActive = VendRecord::query()
-        ->selectRaw('vend_records.location_type_id as location_type_id')
-        ->selectRaw('vend_records.operator_id as operator_id')
-        ->selectRaw('vend_records.date as date')
-        ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as daily_active_count')
-        ->leftJoin('vends as v2', function($join) {
-            $join->on('vend_records.vend_id', '=', 'v2.id')
-                ->where('v2.is_testing', true);
-        })
-        ->whereBetween('vend_records.date', [$dateFrom, $dateTo])
-        ->whereNull('v2.id') // replaces NOT IN for efficiency
-        ->when($request->operators, fn($q) => $q->whereIn('vend_records.operator_id', $request->operators))
-        ->groupBy('vend_records.date');
+        // Subquery: daily active vend count per id (location_type_id/operator) & date
+        $dailyActive = VendRecord::query()
+            ->selectRaw('vend_records.location_type_id as location_type_id')
+            ->selectRaw('vend_records.operator_id as operator_id')
+            ->selectRaw('vend_records.date as date')
+            ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as daily_active_count')
+            ->leftJoin('vends as v2', function ($join) {
+                $join->on('vend_records.vend_id', '=', 'v2.id')
+                    ->where('v2.is_testing', true);
+            })
+            ->whereBetween('vend_records.date', [$dateFrom, $dateTo])
+            ->whereNull('v2.id') // replaces NOT IN for efficiency
+            ->when($request->operators, fn($q) => $q->whereIn('vend_records.operator_id', $request->operators))
+            ->groupBy('vend_records.date');
 
-    if ($className === 'location_types') {
-        $dailyActive->groupBy('vend_records.location_type_id');
-    } elseif ($className === 'operators') {
-        $dailyActive->groupBy('vend_records.operator_id');
+        if ($className === 'location_types') {
+            $dailyActive->groupBy('vend_records.location_type_id');
+        } elseif ($className === 'operators') {
+            $dailyActive->groupBy('vend_records.operator_id');
+        }
+
+        $query = VendRecord::query()
+            ->selectRaw('vend_records.month')
+            ->selectRaw('SUM(vend_records.total_amount) as amount')
+            ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as vend_count')
+            ->selectRaw('AVG(vend_records.total_amount) as average')
+            ->leftJoin('vends as v2', function ($join) {
+                $join->on('vend_records.vend_id', '=', 'v2.id')
+                    ->where('v2.is_testing', true);
+            })
+            ->leftJoinSub($dailyActive, 'daily_active', function ($join) use ($className) {
+                $join->on('vend_records.date', '=', 'daily_active.date');
+                if ($className === 'location_types') {
+                    $join->on('vend_records.location_type_id', '=', 'daily_active.location_type_id');
+                } elseif ($className === 'operators') {
+                    $join->on('vend_records.operator_id', '=', 'daily_active.operator_id');
+                }
+            })
+            ->whereBetween('vend_records.date', [$dateFrom, $dateTo])
+            ->whereNull('v2.id') // replaces NOT IN
+            ->when($request->operators, fn($q) => $q->whereIn('vend_records.operator_id', $request->operators));
+
+        if ($className === 'location_types') {
+            $query->leftJoin('location_types', 'vend_records.location_type_id', '=', 'location_types.id')
+                ->selectRaw('location_types.id as id')
+                ->selectRaw('location_types.name as name')
+                ->groupBy('location_types.id', 'vend_records.month')
+                ->orderBy('location_types.name', 'asc');
+        } elseif ($className === 'operators') {
+            $query->leftJoin('operators', 'vend_records.operator_id', '=', 'operators.id')
+                ->selectRaw('operators.id as id')
+                ->selectRaw('operators.name as name')
+                ->groupBy('operators.id', 'vend_records.month')
+                ->orderBy('operators.name', 'asc');
+        }
+
+        $query->selectRaw('ROUND(AVG(daily_active.daily_active_count), 2) as average_active_count');
+
+        return $query;
     }
-
-    $query = VendRecord::query()
-        ->selectRaw('vend_records.month')
-        ->selectRaw('SUM(vend_records.total_amount) as amount')
-        ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as vend_count')
-        ->selectRaw('AVG(vend_records.total_amount) as average')
-        ->leftJoin('vends as v2', function($join) {
-            $join->on('vend_records.vend_id', '=', 'v2.id')
-                ->where('v2.is_testing', true);
-        })
-        ->leftJoinSub($dailyActive, 'daily_active', function($join) use ($className) {
-            $join->on('vend_records.date', '=', 'daily_active.date');
-            if ($className === 'location_types') {
-                $join->on('vend_records.location_type_id', '=', 'daily_active.location_type_id');
-            } elseif ($className === 'operators') {
-                $join->on('vend_records.operator_id', '=', 'daily_active.operator_id');
-            }
-        })
-        ->whereBetween('vend_records.date', [$dateFrom, $dateTo])
-        ->whereNull('v2.id') // replaces NOT IN
-        ->when($request->operators, fn($q) => $q->whereIn('vend_records.operator_id', $request->operators));
-
-    if ($className === 'location_types') {
-        $query->leftJoin('location_types', 'vend_records.location_type_id', '=', 'location_types.id')
-              ->selectRaw('location_types.id as id')
-              ->selectRaw('location_types.name as name')
-              ->groupBy('location_types.id', 'vend_records.month')
-              ->orderBy('location_types.name', 'asc');
-    } elseif ($className === 'operators') {
-        $query->leftJoin('operators', 'vend_records.operator_id', '=', 'operators.id')
-              ->selectRaw('operators.id as id')
-              ->selectRaw('operators.name as name')
-              ->groupBy('operators.id', 'vend_records.month')
-              ->orderBy('operators.name', 'asc');
-    }
-
-    $query->selectRaw('ROUND(AVG(daily_active.daily_active_count), 2) as average_active_count');
-
-    return $query;
-}
 
 }

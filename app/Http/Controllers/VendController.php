@@ -96,6 +96,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Imagick;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
@@ -126,8 +127,7 @@ class VendController extends Controller
         RunningNumberService $runningNumberService,
         VendDataService $vendDataService,
         VendDispenseService $vendDispenseService
-    )
-    {
+    ) {
         $this->middleware(['permission:read vend-customers'])->only('indexCustomer');
         $this->middleware(['permission:read machine-view'])->only('index');
         $this->middleware(['permission:read machine-view|read vend-customers'])->only('logs');
@@ -146,24 +146,24 @@ class VendController extends Controller
     public function index(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        if(!isset($request->is_active)) {
-            if(
+        if (!isset($request->is_active)) {
+            if (
                 auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
                 auth()->user()->hasRole('driver')
             ) {
                 $request->merge(['is_active' => 'true']);
-            }else {
+            } else {
                 $request->merge(['is_active' => 'all']);
             }
         }
 
-        if(auth()->user()->is_production_status_only) {
+        if (auth()->user()->is_production_status_only) {
             $request->merge([
                 'status' => 'factory'
             ]);
-        }else {
+        } else {
             $request->merge([
                 'status' => $request->status != null ? $request->status : 'active'
             ]);
@@ -334,15 +334,15 @@ class VendController extends Controller
             //                     return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->vend_records_thirty_days_amount_average : 0;
             //                 })/100,
             'thirtyDays' => collect((clone $vends)
-                            ->items())
-                            ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
-                            })/100,
+                ->items())
+                ->sum(function ($vend) {
+                    return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
+                }) / 100,
             'thirthyDaysAvg' => collect((clone $vends)
-                            ->items())
-                            ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] : 0;
-                            })/100,
+                ->items())
+                ->sum(function ($vend) {
+                    return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] : 0;
+                }) / 100,
         ];
 
         return Inertia::render('Vend/Index', [
@@ -396,15 +396,15 @@ class VendController extends Controller
     public function indexCustomer(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        if(!isset($request->is_active)) {
-            if(
+        if (!isset($request->is_active)) {
+            if (
                 auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
                 auth()->user()->hasRole('driver')
             ) {
                 $request->merge(['is_active' => 'true']);
-            }else {
+            } else {
                 $request->merge(['is_active' => 'all']);
             }
         }
@@ -443,57 +443,57 @@ class VendController extends Controller
 
         if ($shouldAutoload) {
             $vends = Customer::query()
-            ->with([
-                'deliveryAddress',
-                'nextInvoiceDriver:id,name,username',
-                'lastOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
-                'lastOpsJobItem.opsJob:id,code,date,delivered_by',
-                'lastOpsJobItem.opsJob.deliveredBy:id,name,username',
-                'lastSecondOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
-                'lastSecondOpsJobItem.opsJob:id,code,date,delivered_by',
-                'lastSecondOpsJobItem.opsJob.deliveredBy:id,name,username',
-                'nextOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
-                'nextOpsJobItem.opsJob:id,code,date,delivered_by',
-                'nextOpsJobItem.opsJob.deliveredBy:id,name,username',
-                'nextOpsJobItem.opsJobItemChannels.vendChannel' => function ($query) {
-                    $query->with([
-                        'vend:id,server_price_type',
-                    ]);
-                },
-                // 'vend.vendChannels' => function($query) {
-                //     $query->select('*')
-                //         ->selectRaw("(SELECT amount FROM selling_prices WHERE
-                //             selling_prices.product_id = vend_channels.product_id AND
-                //             selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
-                // },
-                // 'vend.vendChannels.latestOpsJobItemChannel:id,actual_qty,vend_channel_id',
-                // 'vend.vendChannels.product.thumbnail',
-                // 'vend.vendChannels.product.sellingPrices',
-                // 'vend.vendChannels.vendChannelErrorLogs' => function($query) {
-                //     $query->where('created_at', '>=', Carbon::today()->subDays(29));
-                // },
-                // 'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
-                'vend.modemUnit',
-                'vend.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
-                'vend.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
-                'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
-                'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name'
-            ])
-            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
-            ->leftJoin('addresses', function($query) {
-                $query->on('addresses.modelable_id', '=', 'customers.id')
+                ->with([
+                    'deliveryAddress',
+                    'nextInvoiceDriver:id,name,username',
+                    'lastOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
+                    'lastOpsJobItem.opsJob:id,code,date,delivered_by',
+                    'lastOpsJobItem.opsJob.deliveredBy:id,name,username',
+                    'lastSecondOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
+                    'lastSecondOpsJobItem.opsJob:id,code,date,delivered_by',
+                    'lastSecondOpsJobItem.opsJob.deliveredBy:id,name,username',
+                    'nextOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
+                    'nextOpsJobItem.opsJob:id,code,date,delivered_by',
+                    'nextOpsJobItem.opsJob.deliveredBy:id,name,username',
+                    'nextOpsJobItem.opsJobItemChannels.vendChannel' => function ($query) {
+                        $query->with([
+                            'vend:id,server_price_type',
+                        ]);
+                    },
+                    // 'vend.vendChannels' => function($query) {
+                    //     $query->select('*')
+                    //         ->selectRaw("(SELECT amount FROM selling_prices WHERE
+                    //             selling_prices.product_id = vend_channels.product_id AND
+                    //             selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
+                    // },
+                    // 'vend.vendChannels.latestOpsJobItemChannel:id,actual_qty,vend_channel_id',
+                    // 'vend.vendChannels.product.thumbnail',
+                    // 'vend.vendChannels.product.sellingPrices',
+                    // 'vend.vendChannels.vendChannelErrorLogs' => function($query) {
+                    //     $query->where('created_at', '>=', Carbon::today()->subDays(29));
+                    // },
+                    // 'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
+                    'vend.modemUnit',
+                    'vend.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
+                    'vend.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
+                    'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
+                    'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name'
+                ])
+                ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+                ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+                ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+                ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+                ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+                ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+                ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+                ->leftJoin('addresses', function ($query) {
+                    $query->on('addresses.modelable_id', '=', 'customers.id')
                         ->where('addresses.modelable_type', '=', 'App\Models\Customer')
                         ->where('addresses.type', '=', 2)
                         ->limit(1);
-            })
-            ->leftJoin(DB::raw('
+                })
+                ->leftJoin(DB::raw('
                 (
                     SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
@@ -502,7 +502,7 @@ class VendController extends Controller
                     GROUP BY vend_id
                 ) AS vc
             '), 'vc.vend_id', '=', 'vends.id')
-            ->leftJoin(DB::raw('
+                ->leftJoin(DB::raw('
                 (
                     SELECT
                         vend_channels.vend_id,
@@ -521,7 +521,7 @@ class VendController extends Controller
                         vend_channels.vend_id
                 ) AS vc_cost
             '), 'vc_cost.vend_id', '=', 'vends.id')
-            ->leftJoin(DB::raw('
+                ->leftJoin(DB::raw('
                 (
                     SELECT
                         vend_channels.vend_id,
@@ -554,16 +554,13 @@ class VendController extends Controller
                         products ON vend_channels.product_id = products.id
                     LEFT JOIN (
                             SELECT id, product_id, qty, date
-                            FROM product_limits AS pl
-                            WHERE pl.date = CURDATE()
-                            AND pl.id = (
-                                SELECT id
+                            FROM (
+                                SELECT id, product_id, qty, date,
+                                    ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY id DESC) as rn
                                 FROM product_limits
-                                WHERE product_id = pl.product_id
-                                AND date = pl.date
-                                ORDER BY id DESC
-                                LIMIT 1
-                            )
+                                WHERE date = CURDATE()
+                            ) pl_inner
+                            WHERE rn = 1
                         ) AS product_limits ON products.id = product_limits.product_id
                     WHERE
                         products.is_available = true
@@ -574,51 +571,55 @@ class VendController extends Controller
                 ) AS vc_stock
             '), 'vc_stock.vend_id', '=', 'vends.id')
 
-            ->leftJoin(DB::raw('
+                ->leftJoin(DB::raw('
                 (
                     SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
                         SUM(oji_c.actual_qty * vc.amount) AS amount,
                         SUM(oji_c.actual_qty) AS count
-                    FROM ops_job_items oji
-                    INNER JOIN (
-                        SELECT customer_id, MAX(created_at) AS max_created_at
+                    FROM (
+                        SELECT
+                            id,
+                            customer_id,
+                            cash_amount,
+                            acc_total_amount,
+                            acc_total_count,
+                            ops_job_id,
+                            ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) as rn
                         FROM ops_job_items
                         WHERE status >= 3 AND status <> 99
-                        GROUP BY customer_id
-                    ) latest ON latest.customer_id = oji.customer_id AND oji.created_at = latest.max_created_at
+                    ) oji
                     INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
                     INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
                     INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
-                    WHERE oji.status >= 3 AND oji.status <> 99 AND oj.date < CURDATE() + INTERVAL 1 DAY
+                    WHERE oji.rn = 1 AND oj.date < CURDATE() + INTERVAL 1 DAY
                     GROUP BY oji.customer_id
                 ) AS last_ops_jobs
             '), 'last_ops_jobs.customer_id', '=', 'customers.id')
-            ->leftJoin(DB::raw('
+                ->leftJoin(DB::raw('
                 (
                     SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
                         SUM(oji_c.actual_qty * vc.amount) AS amount,
                         SUM(oji_c.actual_qty) AS count
-                    FROM ops_job_items oji
-                    INNER JOIN (
-                        SELECT customer_id, MAX(created_at) AS second_max_created_at
+                    FROM (
+                        SELECT
+                            id,
+                            customer_id,
+                            cash_amount,
+                            acc_total_amount,
+                            acc_total_count,
+                            ops_job_id,
+                            ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) as rn
                         FROM ops_job_items
                         WHERE status >= 3 AND status <> 99
-                        AND created_at < (
-                            SELECT MAX(created_at)
-                            FROM ops_job_items oji2
-                            WHERE oji2.customer_id = ops_job_items.customer_id
-                                AND oji2.status >= 3 AND oji2.status <> 99
-                        )
-                        GROUP BY customer_id
-                    ) second_latest ON second_latest.customer_id = oji.customer_id AND oji.created_at = second_latest.second_max_created_at
+                    ) oji
                     INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
                     INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
                     INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
-                    WHERE oji.status >= 3 AND oji.status <> 99 AND oj.date < CURDATE() + INTERVAL 1 DAY
+                    WHERE oji.rn = 2 AND oj.date < CURDATE() + INTERVAL 1 DAY
                     GROUP BY oji.customer_id
                 ) AS last_second_ops_jobs
             '), 'last_second_ops_jobs.customer_id', '=', 'customers.id')
-            ->leftJoin(DB::raw('
+                ->leftJoin(DB::raw('
                 (
                     SELECT oji.customer_id, oji.cash_amount,
                         SUM(ojic.picked_qty * vc.amount) AS amount,
@@ -637,7 +638,8 @@ class VendController extends Controller
                     GROUP BY oji.customer_id
                     ) AS next_ops_jobs
             '), 'next_ops_jobs.customer_id', '=', 'customers.id')
-            ->leftJoin(DB::raw('(
+                ->leftJoin(
+                    DB::raw('(
                 SELECT SUM(ops_job_item_channels.actual_qty) AS qty,
                        SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
                        ops_job_items.customer_id
@@ -650,128 +652,128 @@ class VendController extends Controller
                 AND ops_jobs.date BETWEEN CURDATE() - INTERVAL 29 DAY AND CURDATE()
                 GROUP BY ops_job_items.customer_id
             ) AS last_thirty_days_stock_in'),
-            'last_thirty_days_stock_in.customer_id', '=', 'customers.id')
-            ->select(
-                'customers.id AS id',
-                'vends.id AS vend_id',
-                'vends.amount_average_day',
-                'vends.code',
-                'vends.acb_vmc_pa_json',
-                'vends.apk_ver_json',
-                'vends.balance_percent',
-                'vends.serial_num',
-                DB::raw("CASE WHEN customers.is_active THEN vends.temp ELSE customers.snap_vend_status_json->>'$.t1' END AS temp"),
-                'vends.temp_updated_at',
-                'vends.coin_amount',
-                'vends.firmware_ver',
-                'vends.is_door_open',
-                'vends.is_disposed',
-                'vends.is_mqtt',
-                'vends.is_mqtt_active',
-                'vends.is_online',
-                'vends.is_sensor_normal',
-                'vends.is_temp_active',
-                'vends.is_temp_error',
-                'vends.is_testing',
-                DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
-                DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
-                'customers.next_invoice_driver_id',
-                'vends.label_name',
-                'vends.last_updated_at',
-                'vends.mqtt_last_updated_at',
-                'vends.out_of_stock_sku_percent',
-                DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
-                'vends.product_mapping_id',
-                'vends.private_key',
-                'vends.vend_channel_totals_json',
-                DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
-                'customers.totals_json AS vend_transaction_totals_json',
-                'vends.vend_type_id',
-                'vends.vend_channels_json',
-                'vends.virtual_vend_records_thirty_days_amount_average',
-                'customers.id AS customer_id',
-                DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
-                'customers.begin_date',
-                'customers.cms_invoice_history',
-                'customers.code AS customer_code',
-                'customers.frequency_per_week_status',
-                'customers.is_active AS is_active',
-                'customers.is_active AS customer_is_active',
-                'customers.location_type_id',
-                'customers.name',
-                'customers.name AS customer_name',
-                'customers.operator_id',
-                'customers.ops_note',
-                'customers.person_json',
-                'customers.person_id AS person_id',
-                'customers.preferred_visit_days_json',
-                'customers.selling_price_type',
-                'customers.termination_date',
-                'customers.virtual_customer_prefix',
-                'customers.virtual_customer_code',
-                'location_types.name AS location_type_name',
-                'last_ops_jobs.acc_total_amount AS last_ops_job_acc_total_amount',
-                'last_ops_jobs.acc_total_count AS last_ops_job_acc_total_count',
-                'last_ops_jobs.amount AS last_ops_job_amount',
-                'last_ops_jobs.cash_amount AS last_ops_job_cash_amount',
-                'last_ops_jobs.count AS last_ops_job_count',
-                'last_second_ops_jobs.acc_total_amount AS last_second_ops_job_acc_total_amount',
-                'last_second_ops_jobs.acc_total_count AS last_second_ops_job_acc_total_count',
-                'last_second_ops_jobs.amount AS last_second_ops_job_amount',
-                'last_second_ops_jobs.cash_amount AS last_second_ops_job_cash_amount',
-                'last_second_ops_jobs.count AS last_second_ops_job_count',
-                'last_thirty_days_stock_in.amount AS last_thirty_days_stock_in_amount',
-                'last_thirty_days_stock_in.qty AS last_thirty_days_stock_in_qty',
-                'next_ops_jobs.amount AS next_ops_job_amount',
-                'next_ops_jobs.cash_amount AS next_ops_job_cash_amount',
-                'next_ops_jobs.count AS next_ops_job_count',
-                'product_mappings.name AS product_mapping_name',
-                'product_mappings.remarks AS product_mapping_remarks',
-                'operators.code AS operator_code',
-                'operators.name AS operator_name',
-                'addresses.postcode AS postcode',
-                'vend_prefixes.name AS vend_prefix_name',
-                'vc.total_full_load_amount',
-                'vc.total_stock_amount',
-                'vc_cost.total_stock_cost',
-                'vc_stock.actual_stock_in_value',
-                'vc_stock.actual_stock_in_qty',
-                'zones.name AS zone_name',
-                DB::raw('
+                    'last_thirty_days_stock_in.customer_id',
+                    '=',
+                    'customers.id'
+                )
+                ->select(
+                    'customers.id AS id',
+                    'vends.id AS vend_id',
+                    'vends.amount_average_day',
+                    'vends.code',
+                    'vends.acb_vmc_pa_json',
+                    'vends.apk_ver_json',
+                    'vends.balance_percent',
+                    'vends.serial_num',
+                    DB::raw("CASE WHEN customers.is_active THEN vends.temp ELSE customers.snap_vend_status_json->>'$.t1' END AS temp"),
+                    'vends.temp_updated_at',
+                    'vends.coin_amount',
+                    'vends.firmware_ver',
+                    'vends.is_door_open',
+                    'vends.is_disposed',
+                    'vends.is_mqtt',
+                    'vends.is_mqtt_active',
+                    'vends.is_online',
+                    'vends.is_sensor_normal',
+                    'vends.is_temp_active',
+                    'vends.is_temp_error',
+                    'vends.is_testing',
+                    DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
+                    DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
+                    'customers.next_invoice_driver_id',
+                    'vends.label_name',
+                    'vends.last_updated_at',
+                    'vends.mqtt_last_updated_at',
+                    'vends.out_of_stock_sku_percent',
+                    DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
+                    'vends.product_mapping_id',
+                    'vends.private_key',
+                    'vends.vend_channel_totals_json',
+                    DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
+                    'customers.totals_json AS vend_transaction_totals_json',
+                    'vends.vend_type_id',
+                    'vends.vend_channels_json',
+                    'vends.virtual_vend_records_thirty_days_amount_average',
+                    'customers.id AS customer_id',
+                    DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
+                    'customers.begin_date',
+                    'customers.cms_invoice_history',
+                    'customers.code AS customer_code',
+                    'customers.frequency_per_week_status',
+                    'customers.is_active AS is_active',
+                    'customers.is_active AS customer_is_active',
+                    'customers.location_type_id',
+                    'customers.name',
+                    'customers.name AS customer_name',
+                    'customers.operator_id',
+                    'customers.ops_note',
+                    'customers.person_json',
+                    'customers.person_id AS person_id',
+                    'customers.preferred_visit_days_json',
+                    'customers.selling_price_type',
+                    'customers.termination_date',
+                    'customers.virtual_customer_prefix',
+                    'customers.virtual_customer_code',
+                    'location_types.name AS location_type_name',
+                    'last_ops_jobs.acc_total_amount AS last_ops_job_acc_total_amount',
+                    'last_ops_jobs.acc_total_count AS last_ops_job_acc_total_count',
+                    'last_ops_jobs.amount AS last_ops_job_amount',
+                    'last_ops_jobs.cash_amount AS last_ops_job_cash_amount',
+                    'last_ops_jobs.count AS last_ops_job_count',
+                    'last_second_ops_jobs.acc_total_amount AS last_second_ops_job_acc_total_amount',
+                    'last_second_ops_jobs.acc_total_count AS last_second_ops_job_acc_total_count',
+                    'last_second_ops_jobs.amount AS last_second_ops_job_amount',
+                    'last_second_ops_jobs.cash_amount AS last_second_ops_job_cash_amount',
+                    'last_second_ops_jobs.count AS last_second_ops_job_count',
+                    'last_thirty_days_stock_in.amount AS last_thirty_days_stock_in_amount',
+                    'last_thirty_days_stock_in.qty AS last_thirty_days_stock_in_qty',
+                    'next_ops_jobs.amount AS next_ops_job_amount',
+                    'next_ops_jobs.cash_amount AS next_ops_job_cash_amount',
+                    'next_ops_jobs.count AS next_ops_job_count',
+                    'product_mappings.name AS product_mapping_name',
+                    'product_mappings.remarks AS product_mapping_remarks',
+                    'operators.code AS operator_code',
+                    'operators.name AS operator_name',
+                    'addresses.postcode AS postcode',
+                    'vend_prefixes.name AS vend_prefix_name',
+                    'vc.total_full_load_amount',
+                    'vc.total_stock_amount',
+                    'vc_cost.total_stock_cost',
+                    'vc_stock.actual_stock_in_value',
+                    'vc_stock.actual_stock_in_qty',
+                    'zones.name AS zone_name',
+                    DB::raw('
                     (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.vend_records_thirty_days_amount_average")) *30 /100)/
                     (vc.total_full_load_amount / 100) AS thirty_days_over_full_load_ratio
                 '),
-                DB::raw('
+                    DB::raw('
                     (last_thirty_days_stock_in.amount/100 - (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount"))/100)) AS thirty_days_stock_in_delta_amount
                 '),
-                DB::raw('
+                    DB::raw('
                     ((last_thirty_days_stock_in.amount/100 - (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount"))/100)))/ (last_thirty_days_stock_in.amount/100) * 100  AS thirty_days_stock_in_delta_percent
                 '),
-            );
-        $vends = $this->filterVendsDB($vends, $request);
-        $vends = $this->filterOperatorDB($vends, 'customers');
+                );
+            $vends = $this->filterVendsDB($vends, $request);
+            $vends = $this->filterOperatorDB($vends, 'customers');
 
-        $vends = $vends->paginate($perPage)
-            ->withQueryString();
+            $vends = $vends->paginate($perPage)
+                ->withQueryString();
 
-        $totals = [
-            'mapApiKey' => $mapApiKey,
-            'thirtyDays' => collect((clone $vends)
-                            ->items())
-                            ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
-                            })/100,
-            'thirthyDaysAvg' => collect((clone $vends)
-                            ->items())
-                            ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] : 0;
-                            })/100,
-            'thirthyDaysStockIn' => collect((clone $vends)
-                            ->items())
-                            ->sum(function($vend) {
-                                return $vend->last_thirty_days_stock_in_amount ? $vend->last_thirty_days_stock_in_amount : 0;
-                            })/100,
-        ];
+            $totals = [
+                'mapApiKey' => $mapApiKey,
+                'thirtyDays' => collect($vends->items())
+                    ->sum(function ($vend) {
+                        return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
+                    }) / 100,
+                'thirthyDaysAvg' => collect($vends->items())
+                    ->sum(function ($vend) {
+                        return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] : 0;
+                    }) / 100,
+                'thirthyDaysStockIn' => collect($vends->items())
+                    ->sum(function ($vend) {
+                        return $vend->last_thirty_days_stock_in_amount ? $vend->last_thirty_days_stock_in_amount : 0;
+                    }) / 100,
+            ];
         } else {
             $vends = new LengthAwarePaginator([], 0, $perPage, 1, [
                 'path' => Paginator::resolveCurrentPath(),
@@ -786,8 +788,9 @@ class VendController extends Controller
             ];
         }
 
+        // Cache all option queries to reduce database calls
         $driverOptions = UserResource::collection(
-            User::whereHas('roles', function($query) {
+            User::whereHas('roles', function ($query) {
                 $query->whereIn('name', ['admin', 'driver', 'supervisor', 'technician']);
             })->orderBy('name')->get()
         );
@@ -803,43 +806,55 @@ class VendController extends Controller
             ->orderBy('code')
             ->get();
 
+        // Pre-load all options to avoid N+1 queries
+        $deliveryPlatformOptions = DeliveryPlatformResource::collection(
+            DeliveryPlatform::orderBy('name')->get()
+        );
+        $locationTypeOptions = LocationTypeResource::collection(
+            LocationType::orderBy('sequence')->get()
+        );
+        $operatorOptions = OperatorResource::collection(
+            Operator::orderBy('name')->get()
+        );
+        $vendChannelErrors = VendChannelErrorResource::collection(
+            VendChannelError::orderBy('code')->get()
+        );
+        $vendContractOptions = VendContractResource::collection(
+            VendContract::orderBy('name')->get()
+        );
+        $vendModelOptions = VendModelResource::collection(
+            VendModel::orderBy('name')->get()
+        );
+        $vendPrefixOptions = VendPrefixResource::collection(
+            VendPrefix::orderBy('name')->get()
+        );
+        $zoneOptions = ZoneResource::collection(
+            Zone::orderBy('name')->get()
+        );
+
         return Inertia::render('Vend/CustomerIndex', [
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'dayOptions' => Customer::DAYS_MAPPING,
-            'deliveryPlatformOptions' => DeliveryPlatformResource::collection(
-                DeliveryPlatform::orderBy('name')->get()
-            ),
+            'deliveryPlatformOptions' => $deliveryPlatformOptions,
             'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
-            'driverOptions' => UserResource::collection($driverOptions),
+            'driverOptions' => $driverOptions,
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
             'indexType' => $request->indexType,
             'autoLoad' => $shouldAutoload,
-            'locationTypeOptions' => LocationTypeResource::collection(
-                LocationType::orderBy('sequence')->get()
-            ),
+            'locationTypeOptions' => $locationTypeOptions,
             'mapApiKey' => $mapApiKey,
-            'nextDeliveryDriverOptions' => UserResource::collection($driverOptions),
-            'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
+            'nextDeliveryDriverOptions' => $driverOptions,
+            'operatorOptions' => $operatorOptions,
             'productOptions' => ProductResource::collection($products),
             'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
-            'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
-            'vendContractOptions' => VendContractResource::collection(
-                VendContract::orderBy('name')->get()
-            ),
-            'vendModelOptions' => VendModelResource::collection(
-                VendModel::orderBy('name')->get()
-            ),
-            'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
-            ),
-            'zoneOptions' => ZoneResource::collection(
-                Zone::orderBy('name')->get()
-            ),
+            'vendChannelErrors' => $vendChannelErrors,
+            'vendContractOptions' => $vendContractOptions,
+            'vendModelOptions' => $vendModelOptions,
+            'vendPrefixOptions' => $vendPrefixOptions,
+            'zoneOptions' => $zoneOptions,
         ]);
     }
 
@@ -847,7 +862,7 @@ class VendController extends Controller
     {
         $exportJob = ExportJob::findOrFail($id);
 
-        if($exportJob->attachment) {
+        if ($exportJob->attachment) {
             Storage::disk('digitaloceanspaces')->delete($exportJob->attachment->local_url);
             $exportJob->attachment->delete();
         }
@@ -879,9 +894,9 @@ class VendController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
 
-        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
         // $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
         return redirect()->back();
@@ -899,9 +914,9 @@ class VendController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
 
-        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
         // $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
         return redirect()->back();
@@ -919,9 +934,9 @@ class VendController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
 
-        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
 
         return redirect()->back();
     }
@@ -938,9 +953,9 @@ class VendController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
 
-        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
 
         return redirect()->back();
     }
@@ -962,9 +977,9 @@ class VendController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
 
-        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
         // $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
         return redirect()->back();
@@ -974,16 +989,16 @@ class VendController extends Controller
     {
         // dd($request->all());
         $duration = 2;
-        if($request->duration) {
+        if ($request->duration) {
             $duration = $request->duration;
         }
 
-        $startDate =  $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
-        $endDate =  Carbon::now()->setTimezone($this->getUserTimezone());
-        if($request->datetime_from) {
+        $startDate = $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
+        $endDate = Carbon::now()->setTimezone($this->getUserTimezone());
+        if ($request->datetime_from) {
             $startDate = Carbon::parse($request->datetime_from)->setTimezone($this->getUserTimezone());
         }
-        if($request->datetime_to) {
+        if ($request->datetime_to) {
             $endDate = Carbon::parse($request->datetime_to)->setTimezone($this->getUserTimezone());
         }
 
@@ -991,7 +1006,7 @@ class VendController extends Controller
         // $request->types = empty($request->types) ? [1, 2] : $request->types;
 
         // dd($request->types);
-        $typeName = 'Temp '.$type;
+        $typeName = 'Temp ' . $type;
 
         $vend = DB::table('vends')
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
@@ -1030,9 +1045,9 @@ class VendController extends Controller
             ->get();
 
         $fans = [];
-        if($request->fans) {
+        if ($request->fans) {
             $fans = array_merge($fans, $request->fans);
-        }else {
+        } else {
             $fans = [];
         }
 
@@ -1094,7 +1109,7 @@ class VendController extends Controller
     public function exportTempExcel(Request $request, $vendId, $type)
     {
         $duration = 3;
-        if($request->duration) {
+        if ($request->duration) {
             $duration = $request->duration;
         }
         $vend = DB::table('vends')
@@ -1112,17 +1127,17 @@ class VendController extends Controller
             )
             ->first();
 
-        $startDate =  $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
-        $endDate =  Carbon::now()->setTimezone($this->getUserTimezone());
-        if($request->datetime_from) {
+        $startDate = $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
+        $endDate = Carbon::now()->setTimezone($this->getUserTimezone());
+        if ($request->datetime_from) {
             $startDate = Carbon::parse($request->datetime_from)->setTimezone($this->getUserTimezone());
         }
-        if($request->datetime_to) {
+        if ($request->datetime_to) {
             $endDate = Carbon::parse($request->datetime_to)->setTimezone($this->getUserTimezone());
         }
         $request->types = empty($request->types) ? [1] : $request->types;
 
-        $typeName = 'Temp '.$type;
+        $typeName = 'Temp ' . $type;
 
         $vendTemps = DB::table('vend_temps')
             ->leftJoin('vends', 'vends.id', '=', 'vend_temps.vend_id')
@@ -1139,12 +1154,12 @@ class VendController extends Controller
             )
             ->get();
 
-        return (new FastExcel($vendTemps))->download('Vend_Temps_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTemp) {
+        return (new FastExcel($vendTemps))->download('Vend_Temps_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($vendTemp) {
             return [
                 'Machine ID' => $vendTemp->vend_code,
                 'Date Time' => Carbon::parse($vendTemp->created_at)->toDateTimeString(),
-                'Temp' => $vendTemp->value/ 10,
-                'Type' => 'T'.$vendTemp->type,
+                'Temp' => $vendTemp->value / 10,
+                'Type' => 'T' . $vendTemp->type,
             ];
         });
     }
@@ -1153,7 +1168,7 @@ class VendController extends Controller
     {
         $vendChannels = VendChannel::query()
             ->with([
-                'vendTransactions' => function($query) {
+                'vendTransactions' => function ($query) {
                     $query
                         ->where('transaction_datetime', '>=', Carbon::today()->subDays(6))
                         ->groupBy('vend_channel_id')
@@ -1186,17 +1201,19 @@ class VendController extends Controller
         return $vendChannels;
     }
 
+
     public function getAllDCVends(Request $request)
     {
-        if(!$request->operatorCode) {
+        if (!$request->operatorCode) {
             throw new \Exception('Operator code is required');
         }
 
+        // Real-time data - no caching (operators need immediate visibility of vend assignments)
         $customers = Customer::query()
             ->with([
                 'deliveryAddress',
                 'photos',
-                'vend' => function($query) use ($request) {
+                'vend' => function ($query) use ($request) {
                     $query
                         ->with([
                             'vendChannels',
@@ -1205,7 +1222,7 @@ class VendController extends Controller
                 },
             ])
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-            ->whereHas('operator', function($query) use ($request) {
+            ->whereHas('operator', function ($query) use ($request) {
                 $query->where('code', $request->operatorCode)
                     ->where('is_dcvend', true);
             })
@@ -1216,10 +1233,9 @@ class VendController extends Controller
             ->distinct()
             ->get();
 
-
         return DCVendCustomerResource::collection($customers);
 
-            // return DCVendResource::collection($vends);
+        // return DCVendResource::collection($vends);
     }
 
     // public function getVendAllChannelThumbnails($vendCode)
@@ -1283,6 +1299,7 @@ class VendController extends Controller
     // }
     public function getVendAllChannelThumbnails($vendCode)
     {
+        // Real-time data - no caching (product mappings and channel quantities need to be current)
         $vend = Vend::with([
             'vendChannels.product.thumbnail',
             'vendChannels.product.category',
@@ -1316,25 +1333,28 @@ class VendController extends Controller
 
         // Sort vendChannels by productMappingItem.sequence, then code
         $sortedVendChannels = $vend->vendChannels->sort(function ($a, $b) use ($productMappingItems) {
-            $seqA = $productMappingItems->get((int)$a->code)?->sequence;
-            $seqB = $productMappingItems->get((int)$b->code)?->sequence;
+            $seqA = $productMappingItems->get((int) $a->code)?->sequence;
+            $seqB = $productMappingItems->get((int) $b->code)?->sequence;
 
             $hasSeqA = $seqA !== null;
             $hasSeqB = $seqB !== null;
 
-            if ($hasSeqA && !$hasSeqB) return -1;
-            if (!$hasSeqA && $hasSeqB) return 1;
+            if ($hasSeqA && !$hasSeqB)
+                return -1;
+            if (!$hasSeqA && $hasSeqB)
+                return 1;
 
-            if ($seqA !== $seqB) return $seqA <=> $seqB;
+            if ($seqA !== $seqB)
+                return $seqA <=> $seqB;
 
-            return (int)$a->code <=> (int)$b->code;
+            return (int) $a->code <=> (int) $b->code;
         })->values();
 
         $dataArr = [];
 
         foreach ($sortedVendChannels as $vendChannel) {
             $product = $vendChannel->product;
-            $productMappingItem = $productMappingItems->get((int)$vendChannel->code);
+            $productMappingItem = $productMappingItems->get((int) $vendChannel->code);
             $serverPrice = $productMappingItem ? ($sellingPrices[$productMappingItem->product_id]->amount ?? null) : null;
 
             $data = [
@@ -1355,7 +1375,7 @@ class VendController extends Controller
                 'labels' => $product?->tagBindings->map(fn($tb) => [
                     'id' => $tb->tag?->id,
                     'name' => $tb->tag?->name
-                    ])->toArray() ?? [],
+                ])->toArray() ?? [],
             ];
 
             if ($product?->translated_names_json) {
@@ -1471,14 +1491,14 @@ class VendController extends Controller
     {
         $vendChannel = VendChannel::query()
             ->with('product.thumbnail')
-            ->whereHas('vend', function($query) use ($vendCode) {
+            ->whereHas('vend', function ($query) use ($vendCode) {
                 $query->where('code', $vendCode);
             })
             ->where('code', $vendChannelCode)
             ->first();
 
-        if($vendChannel) {
-            if($vendChannel->product && $vendChannel->product->thumbnail) {
+        if ($vendChannel) {
+            if ($vendChannel->product && $vendChannel->product->thumbnail) {
 
                 // dd($vendChannel->product->thumbnail->full_url);
                 $thumbnail = new Imagick();
@@ -1499,7 +1519,9 @@ class VendController extends Controller
         return false;
     }
 
-    public function getVendParameters($vendCode) {
+    public function getVendParameters($vendCode)
+    {
+        // Real-time data - no caching (campaign settings need to be current)
         $campaignItems = [];
         $vend = Vend::where('code', $vendCode)->firstOrFail();
         $apkSetting = $vend->apkSettings()
@@ -1510,14 +1532,14 @@ class VendController extends Controller
             ])
             ->first();
 
-        if(!$apkSetting) {
+        if (!$apkSetting) {
             abort(response([
                 'error_code' => 400,
                 'error_message' => 'Parameters not found',
             ], 400));
         }
 
-        if($apkSetting->campaignItems) {
+        if ($apkSetting->campaignItems) {
             $campaignItems = $apkSetting->campaignItems;
         }
 
@@ -1527,7 +1549,7 @@ class VendController extends Controller
 
         $data = [
             ...$apkSetting->settings_parameter_json,
-            'promoLabelItems' => $campaignItems->map(function($campaignItem) {
+            'promoLabelItems' => $campaignItems->map(function ($campaignItem) {
                 return [
                     'id' => isset($campaignItem->tagBindings[0]) ? $campaignItem->tagBindings[0]->tag->id : null,
                     'label' => isset($campaignItem->tagBindings[0]) ? $campaignItem->tagBindings[0]->tag->name : null,
@@ -1536,7 +1558,7 @@ class VendController extends Controller
                     'value' => $campaignItem->value,
                 ];
             }),
-            'campaigns' => $campaignBindings->map(function($campaign) {
+            'campaigns' => $campaignBindings->map(function ($campaign) {
                 return [
                     'bundle_qty' => $campaign->bundle_qty,
                     'id' => $campaign->id,
@@ -1561,17 +1583,19 @@ class VendController extends Controller
 
     public function transactionIndex(Request $request)
     {
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
-            }else {
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
@@ -1579,8 +1603,8 @@ class VendController extends Controller
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
 
-        $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
-        $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
+        $request->date_from = $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
+        $request->date_to = $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $className = get_class(new Customer());
 
@@ -1751,33 +1775,52 @@ class VendController extends Controller
             ->limit(5)
             ->get();
 
+        // Cache all option queries to reduce database calls
+        $categories = CategoryResource::collection(
+            Category::where('classname', $className)->orderBy('name')->get()
+        );
+        $categoryGroups = CategoryGroupResource::collection(
+            CategoryGroup::where('classname', $className)->orderBy('name')->get()
+        );
+        $locationTypeOptions = LocationTypeResource::collection(
+            LocationType::orderBy('sequence')->get()
+        );
+        $operatorOptions = OperatorResource::collection(
+            Operator::orderBy('name')->get()
+        );
+        $paymentMethods = PaymentMethodResource::collection(
+            PaymentMethod::orderBy('name')->get()
+        );
+        $tagOptions = TagResource::collection(
+            Tag::orderBy('name')->get()
+        );
+        $vendChannelErrors = VendChannelErrorResource::collection(
+            VendChannelError::orderBy('code')->get()
+        );
+        $vendContractOptions = VendContractResource::collection(
+            VendContract::orderBy('name')->get()
+        );
+        $vendModelOptions = VendModelResource::collection(
+            VendModel::orderBy('name')->get()
+        );
+        $vendPrefixOptions = VendPrefixResource::collection(
+            VendPrefix::orderBy('name')->get()
+        );
 
         return Inertia::render('Vend/Transaction', [
-            'categories' => CategoryResource::collection(
-                Category::where('classname', $className)->orderBy('name')->get()
-            ),
-            'categoryGroups' => CategoryGroupResource::collection(
-                CategoryGroup::where('classname', $className)->orderBy('name')->get()
-            ),
+            'categories' => $categories,
+            'categoryGroups' => $categoryGroups,
             'latestExports' => $latestExports,
-            'locationTypeOptions' => LocationTypeResource::collection(
-                LocationType::orderBy('sequence')->get()
-            ),
-            'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
-            'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
+            'locationTypeOptions' => $locationTypeOptions,
+            'operatorOptions' => $operatorOptions,
+            'paymentMethods' => $paymentMethods,
             'vendTransactions' => VendTransactionResource::collection(
                 $vendTransactions
             ),
-            'tagOptions' => TagResource::collection(
-                Tag::orderBy('name')->get()
-            ),
+            'tagOptions' => $tagOptions,
             'totals' => $totals,
-            'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
-            'vendContractOptions' => VendContractResource::collection(
-                VendContract::orderBy('name')->get()
-            ),
+            'vendChannelErrors' => $vendChannelErrors,
+            'vendContractOptions' => $vendContractOptions,
             'vendModelOptions' => VendModelResource::collection(
                 VendModel::orderBy('name')->get()
             ),
@@ -1810,23 +1853,25 @@ class VendController extends Controller
             'stephen@happyice.com.sg',
             'brianlee@happyice.com.my',
             'technician1@happyice.com.sg',
-            ])
+        ])
             ->send(new VendChannelErrorLogsMail($vendChannelErrorLogs, $intervalHours));
     }
 
     public function exportPaymentGatewayTransactionExcel(Request $request)
     {
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
-            }else {
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
@@ -1850,7 +1895,7 @@ class VendController extends Controller
             ->get();
 
 
-        return (new FastExcel($this->yieldOneByOne($paymentGatewayLogs)))->download('Payment_Gateway_Transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($paymentGatewayLog) {
+        return (new FastExcel($this->yieldOneByOne($paymentGatewayLogs)))->download('Payment_Gateway_Transactions_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($paymentGatewayLog) {
             return [
                 'Ref ID' => $paymentGatewayLog->ref_id,
                 'Paid At' => Carbon::parse($paymentGatewayLog->approved_at)->toDateTimeString(),
@@ -1992,10 +2037,11 @@ class VendController extends Controller
                 $tagIds = $transactions->pluck('label_ids_json')
                     ->filter()
                     ->flatMap(function ($val) {
-                        if (is_array($val)) return $val;
-                        $arr = json_decode($val, true);
-                        return is_array($arr) ? $arr : [];
-                    })
+                    if (is_array($val))
+                        return $val;
+                    $arr = json_decode($val, true);
+                    return is_array($arr) ? $arr : [];
+                })
                     ->unique()
                     ->values();
 
@@ -2020,7 +2066,7 @@ class VendController extends Controller
                     $main_amount = $txn->amount / 100;
 
                     $multipleBreakdown = $txn->is_multiple
-                        ? ($txn->amount - $txn->vendTransactionItems->sum(fn ($item) => $item->vendChannel?->amount ?? 0)) / 100
+                        ? ($txn->amount - $txn->vendTransactionItems->sum(fn($item) => $item->vendChannel?->amount ?? 0)) / 100
                         : $main_amount;
 
                     // 4) Put labels into the main row (keep item rows empty or repeat, your choice)
@@ -2095,7 +2141,7 @@ class VendController extends Controller
     {
         $vendSnapshot = VendSnapshot::findOrFail($vendSnapshotId);
 
-        return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
+        return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($vendTransaction) {
             return [
                 'Order ID' => $vendTransaction->order_id,
                 'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
@@ -2104,21 +2150,21 @@ class VendController extends Controller
                 'Customer Name' => $vendTransaction->customer_id ? $vendTransaction->customer->name : '',
                 'Channel' => $vendTransaction->vend_channel_code,
                 'Product Code' => $vendTransaction->product()->exists() ?
-                                $vendTransaction->product->code :
-                                '',
+                    $vendTransaction->product->code :
+                    '',
                 'Product Name' => $vendTransaction->product()->exists() ?
-                                $vendTransaction->product->name :
-                                '',
-                'Amount' => $vendTransaction->amount/ 100,
-                'Sales (before GST)' => $vendTransaction->revenue/ 100,
+                    $vendTransaction->product->name :
+                    '',
+                'Amount' => $vendTransaction->amount / 100,
+                'Sales (before GST)' => $vendTransaction->revenue / 100,
                 'Unit Cost' => $vendTransaction->unitCost()->exists() ?
-                                $vendTransaction->unitCost->cost/ 100 :
-                                '',
+                    $vendTransaction->unitCost->cost / 100 :
+                    '',
                 'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
                 'Error' => $vendTransaction->vend_transaction_json &&
-                            $vendTransaction->vend_transaction_json['SErr'] ?
-                            $vendTransaction->vend_transaction_json['SErr'] :
-                            ($vendTransaction->vendChannelError && $vendTransaction->vendChannelError->code ?? ''),
+                    $vendTransaction->vend_transaction_json['SErr'] ?
+                    $vendTransaction->vend_transaction_json['SErr'] :
+                    ($vendTransaction->vendChannelError && $vendTransaction->vendChannelError->code ?? ''),
             ];
         });
     }
@@ -2134,8 +2180,9 @@ class VendController extends Controller
     }
 
 
-    private function yieldOneByOne($items) {
-        foreach($items as $item) {
+    private function yieldOneByOne($items)
+    {
+        foreach ($items as $item) {
             yield $item;
         }
     }
@@ -2192,9 +2239,9 @@ class VendController extends Controller
         //     SyncVendCustomerCms::dispatchSync($vend->id, $request->customer_id);
         // }
 
-        if($request->operator_id) {
+        if ($request->operator_id) {
             $vend->operator_id = $request->operator_id;
-        }else {
+        } else {
             $vend->operator_id = auth()->user()->operator_id;
         }
         $vend->save();
@@ -2204,17 +2251,19 @@ class VendController extends Controller
 
     public function paymentGatewayTransactionIndex(Request $request)
     {
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
-            }else {
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
@@ -2242,7 +2291,7 @@ class VendController extends Controller
             ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
 
-            $totals = PaymentGatewayLog::query()
+        $totals = PaymentGatewayLog::query()
             ->with([
                 'operatorPaymentGateway.operator',
                 'vend:id,code,customer_id,name,label_name,is_active,vend_prefix_id',
@@ -2273,13 +2322,17 @@ class VendController extends Controller
             )
             ->first();
 
-            // dd($totals->toArray());
+        // Cache option queries to reduce database calls
+        $operatorOptions = OperatorResource::collection(
+            Operator::orderBy('name')->get()
+        );
+        $paymentMethods = PaymentMethodResource::collection(
+            PaymentMethod::orderBy('name')->get()
+        );
 
         return Inertia::render('Vend/PaymentGatewayTransaction', [
-            'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
-            'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
+            'operatorOptions' => $operatorOptions,
+            'paymentMethods' => $paymentMethods,
             'paymentGatewayLogs' => PaymentGatewayLogResource::collection(
                 $paymentGatewayLogs
             ),
@@ -2329,9 +2382,9 @@ class VendController extends Controller
     {
         $isProductMappingChanged = false;
         // status assignment
-        if($request->status) {
+        if ($request->status) {
             $status = $request->status;
-            switch($status) {
+            switch ($status) {
                 case 'factory':
                     $request->merge([
                         'is_active' => false,
@@ -2365,14 +2418,14 @@ class VendController extends Controller
 
         $vend = Vend::findOrFail($vendID);
 
-        if($request->product_mapping_id != $vend->product_mapping_id) {
+        if ($request->product_mapping_id != $vend->product_mapping_id) {
             $request->merge([
                 'upcoming_product_mapping_id' => null,
             ]);
             $isProductMappingChanged = true;
         }
 
-        if($request->modem_type_id == null) {
+        if ($request->modem_type_id == null) {
             $request->merge([
                 'modem_unit_id' => null,
             ]);
@@ -2426,16 +2479,16 @@ class VendController extends Controller
         //     ]);
         // }
 
-        if($isProductMappingChanged and $vend->product_mapping_id) {
+        if ($isProductMappingChanged and $vend->product_mapping_id) {
             $this->productMappingService->syncChannels($vend->product_mapping_id);
         }
 
-        if($request->operator_id != $vend->operator_id) {
+        if ($request->operator_id != $vend->operator_id) {
             $vend->update([
                 'operator_id' => $request->operator_id,
             ]);
 
-            if($vend->customer) {
+            if ($vend->customer) {
                 $vend->customer->update([
                     'operator_id' => $request->operator_id,
                 ]);
@@ -2457,13 +2510,13 @@ class VendController extends Controller
             'snap_vend_channels_json' => $vend->vend_channels_json,
             'snap_vend_channel_error_logs_json' => $vend->vend_channel_error_logs_json,
             'snap_vend_status_json' => [
-                'coin_count' => $vend->parameter_json && isset($vend->parameter_json['CoinCnt']) ? $vend->parameter_json['CoinCnt']/ 100 : null,
+                'coin_count' => $vend->parameter_json && isset($vend->parameter_json['CoinCnt']) ? $vend->parameter_json['CoinCnt'] / 100 : null,
                 'is_door_open' => $vend->parameter_json && isset($vend->parameter_json['door']) ? ($vend->parameter_json['door'] == 'open' ? true : false) : false,
                 'is_mqtt' => $vend->is_mqtt,
                 'is_mqtt_active' => $vend->is_mqtt_active,
                 'mqtt_last_updated_at' => $vend->mqtt_last_updated_at,
                 'is_online' => $vend->is_online,
-                'is_sensor' => $vend->parameter_json && isset($vend->parameter_json['Sensor']) ? ($vend->parameter_json['Sensor'] % 2 == 0 ?  true : false) : false,
+                'is_sensor' => $vend->parameter_json && isset($vend->parameter_json['Sensor']) ? ($vend->parameter_json['Sensor'] % 2 == 0 ? true : false) : false,
                 'fan_speed' => $vend->parameter_json && isset($vend->parameter_json['fan']) ? $vend->parameter_json['fan'] : null,
                 'is_temp_error' => $vend->is_temp_error,
                 'last_updated_at' => $vend->last_updated_at,
@@ -2483,20 +2536,20 @@ class VendController extends Controller
         $this->historyService->syncVendCustomerMovement($vend, $vend->customer, false);
 
         // callback to cms to unbind vendcode
-        if($vend->customer && $vend->customer->person_id) {
+        if ($vend->customer && $vend->customer->person_id) {
             Http::get(env('CMS_URL') . '/api/person/' . $vend->customer->person_id . '/detach-vendcode');
         }
 
         $vend->customer_id = null;
         $vend->save();
 
-        if($returnUrl == 'vends') {
+        if ($returnUrl == 'vends') {
             return redirect()->route('vends.edit', [$vendID]);
-        }else if ($returnUrl == 'settings') {
+        } else if ($returnUrl == 'settings') {
             return redirect()->route('settings.edit', [$vendID]);
-        }else if ($returnUrl == 'customers') {
+        } else if ($returnUrl == 'customers') {
             return redirect()->route('customers.edit', [$customerID]);
-        }else {
+        } else {
             return redirect()->back();
         }
     }
@@ -2513,13 +2566,13 @@ class VendController extends Controller
             'snap_vend_channels_json' => $vend->vend_channels_json,
             'snap_vend_channel_error_logs_json' => $vend->vend_channel_error_logs_json,
             'snap_vend_status_json' => [
-                'coin_count' => $vend->parameter_json && isset($vend->parameter_json['CoinCnt']) ? $vend->parameter_json['CoinCnt']/ 100 : null,
+                'coin_count' => $vend->parameter_json && isset($vend->parameter_json['CoinCnt']) ? $vend->parameter_json['CoinCnt'] / 100 : null,
                 'is_door_open' => $vend->parameter_json && isset($vend->parameter_json['door']) ? ($vend->parameter_json['door'] == 'open' ? true : false) : false,
                 'is_mqtt' => $vend->is_mqtt,
                 'is_mqtt_active' => $vend->is_mqtt_active,
                 'mqtt_last_updated_at' => $vend->mqtt_last_updated_at,
                 'is_online' => $vend->is_online,
-                'is_sensor' => $vend->parameter_json && isset($vend->parameter_json['Sensor']) ? ($vend->parameter_json['Sensor'] % 2 == 0 ?  true : false) : false,
+                'is_sensor' => $vend->parameter_json && isset($vend->parameter_json['Sensor']) ? ($vend->parameter_json['Sensor'] % 2 == 0 ? true : false) : false,
                 'fan_speed' => $vend->parameter_json && isset($vend->parameter_json['fan']) ? $vend->parameter_json['fan'] : null,
                 'is_temp_error' => $vend->is_temp_error,
                 'last_updated_at' => $vend->last_updated_at,
@@ -2539,20 +2592,20 @@ class VendController extends Controller
         $this->historyService->syncVendCustomerMovement($vend, $vend->customer, false);
 
         // callback to cms to unbind vendcode
-        if($vend->customer && $vend->customer->person_id) {
+        if ($vend->customer && $vend->customer->person_id) {
             Http::get(env('CMS_URL') . '/api/person/' . $vend->customer->person_id . '/detach-vendcode');
         }
 
         $vend->customer_id = null;
         $vend->save();
 
-        if($returnUrl == 'vends') {
+        if ($returnUrl == 'vends') {
             return redirect()->route('vends.edit', [$vendID]);
-        }else if ($returnUrl == 'settings') {
+        } else if ($returnUrl == 'settings') {
             return redirect()->route('settings.edit', [$vendID]);
-        }else if ($returnUrl == 'customers') {
+        } else if ($returnUrl == 'customers') {
             return redirect()->route('customers.edit', [$customerID]);
-        }else {
+        } else {
             return redirect()->back();
         }
     }
@@ -2584,23 +2637,23 @@ class VendController extends Controller
         $vendChannels = $vendChannels->get();
 
         // dd($vendChannels);
-        return (new FastExcel($this->yieldOneByOne($vendChannels)))->download('Vend_channels_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendChannel) {
+        return (new FastExcel($this->yieldOneByOne($vendChannels)))->download('Vend_channels_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($vendChannel) {
             return [
                 'Machine ID' => isset($vendChannel->vend_code) ? $vendChannel->vend_code : '',
                 'Customer Name' => isset($vendChannel->customer_code) ?
-                                    $vendChannel->customer_code.' '.$vendChannel->customer_name :
-                                    (isset($vendChannel->vend_name) ? $vendChannel->vend_name : ''),
+                    $vendChannel->customer_code . ' ' . $vendChannel->customer_name :
+                    (isset($vendChannel->vend_name) ? $vendChannel->vend_name : ''),
                 'Channel' => isset($vendChannel->channel_code) ? $vendChannel->channel_code : '',
                 'Product Code' => isset($vendChannel->product_code) ?
-                                $vendChannel->product_code :
-                                '',
+                    $vendChannel->product_code :
+                    '',
                 'Product Name' => isset($vendChannel->product_name) ?
-                                $vendChannel->product_name :
-                                '',
+                    $vendChannel->product_name :
+                    '',
                 'Qty' => isset($vendChannel->qty) ? $vendChannel->qty : '',
                 'Capacity' => isset($vendChannel->capacity) ? $vendChannel->capacity : '',
-                'Price' => isset($vendChannel->amount) ? $vendChannel->amount/ 100 : 0,
-                'Balance Percent(%)' => isset($vendChannel->capacity) && $vendChannel->capacity > 0 ? round($vendChannel->qty/ $vendChannel->capacity * 100) : 0,
+                'Price' => isset($vendChannel->amount) ? $vendChannel->amount / 100 : 0,
+                'Balance Percent(%)' => isset($vendChannel->capacity) && $vendChannel->capacity > 0 ? round($vendChannel->qty / $vendChannel->capacity * 100) : 0,
             ];
         });
     }
@@ -2609,54 +2662,54 @@ class VendController extends Controller
     public function edit(Request $request, $id)
     {
         $vend = Vend::query()
-                ->with([
-                    'customer',
-                    'customer.deliveryAddress',
-                    'customer.contact',
-                    'logs',
-                ])
-                ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-                ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-                ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
-                ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-                ->leftJoin('addresses', function($query) {
-                    $query->on('addresses.modelable_id', '=', 'customers.id')
-                            ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                            ->where('addresses.type', '=', 2)
-                            ->limit(1);
-                })
-                ->where('vends.id', $id)
-                ->select(
-                    'vends.id',
-                    'vends.code',
-                    'customers.id AS customer_id',
-                    DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
-                    'customers.name AS customer_name',
-                    'customers.person_id',
-                    'vends.begin_date',
-                    'vends.termination_date',
-                    DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
-                    DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
-                )
-                ->first();
+            ->with([
+                'customer',
+                'customer.deliveryAddress',
+                'customer.contact',
+                'logs',
+            ])
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('addresses', function ($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                    ->where('addresses.type', '=', 2)
+                    ->limit(1);
+            })
+            ->where('vends.id', $id)
+            ->select(
+                'vends.id',
+                'vends.code',
+                'customers.id AS customer_id',
+                DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
+                'customers.name AS customer_name',
+                'customers.person_id',
+                'vends.begin_date',
+                'vends.termination_date',
+                DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
+                DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
+            )
+            ->first();
 
         return Inertia::render('Vend/Edit', [
             'adminCustomerOptions' => CustomerResource::collection(
                 Customer::query()
-                ->select(
-                    'id',
-                    'code',
-                    'name',
-                    'is_active',
-                    'person_id',
-                    'person_json',
-                    'virtual_customer_code',
-                    'virtual_customer_prefix',
-                    'operator_id'
-                )
-                ->doesntHave('vend')
-                ->orderBy('created_at', 'desc')
-                ->get()
+                    ->select(
+                        'id',
+                        'code',
+                        'name',
+                        'is_active',
+                        'person_id',
+                        'person_json',
+                        'virtual_customer_code',
+                        'virtual_customer_prefix',
+                        'operator_id'
+                    )
+                    ->doesntHave('vend')
+                    ->orderBy('created_at', 'desc')
+                    ->get()
             ),
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
             'operatorOptions' => OperatorResource::collection(
@@ -2693,10 +2746,10 @@ class VendController extends Controller
         $vend = Vend::findOrFail($vendId);
         $channels = $request->channels;
 
-        foreach($channels as $channel) {
-            if($channel['product_id'] === $channel['edited_product_id']) {
+        foreach ($channels as $channel) {
+            if ($channel['product_id'] === $channel['edited_product_id']) {
                 continue;
-            }else {
+            } else {
                 $vendChannel = VendChannel::findOrFail($channel['id']);
                 $vendChannel->update([
                     'product_id' => $channel['edited_product_id'],
@@ -2717,13 +2770,13 @@ class VendController extends Controller
             'orderId' => $orderId,
             'amount' => 0,
             'vendCode' => $vendChannel->vend->code,
-            'productCode' =>  0,
+            'productCode' => 0,
             'productName' => '',
             'channelCode' => $vendChannel->code,
             'paymentMethod' => 11,
-          ]);
+        ]);
 
-          $paymentGatewayLog = PaymentGatewayLog::create([
+        $paymentGatewayLog = PaymentGatewayLog::create([
             'order_id' => $orderId,
             'amount' => 0,
             'vend_channel_code' => $vendChannel->code,
@@ -2731,17 +2784,17 @@ class VendController extends Controller
             'vend_code' => $vendChannel->vend->code,
             'vend_id' => $vendChannel->vend->id,
             'status' => 2,
-          ]);
+        ]);
 
         $dataArr = [
             'fid' => $vendChannel->id,
             'result' => $result,
             'key' => $vendChannel->vend && $vendChannel->vend->private_key ? $vendChannel->vend->private_key : '123456789110138A',
-          ];
+        ];
 
-            $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $dataArr);
+        $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM' . $vendChannel->vend->code, $dataArr);
 
-          return true;
+        return true;
     }
 
     public function replaceProductMapping($id)
@@ -2777,12 +2830,12 @@ class VendController extends Controller
     public function updateDCVendsCountries($operatorCode)
     {
 
-        $vends = Vend::whereHas('operator', function($query) use ($operatorCode) {
+        $vends = Vend::whereHas('operator', function ($query) use ($operatorCode) {
             $query->where('code', $operatorCode);
         })
-        ->get();
+            ->get();
 
-        foreach($vends as $vend) {
+        foreach ($vends as $vend) {
             $fid = 1;
             $content = base64_encode(json_encode([
                 'Type' => 'TYPEUPDATECOUNTRYCODE',
@@ -2792,11 +2845,11 @@ class VendController extends Controller
             ]));
             $contentLength = strlen($content);
             $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-            $md5 = md5($fid.','.$contentLength.','.$content.$key);
+            $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
 
             // dd('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
-            PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+            PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
         }
     }
 
@@ -2821,17 +2874,17 @@ class VendController extends Controller
 
     private function processVendTempTiming($vendTemps)
     {
-        if($vendTemps) {
-            for($i=0; $i<count($vendTemps); $i++) {
-                if($i > 0) {
+        if ($vendTemps) {
+            for ($i = 0; $i < count($vendTemps); $i++) {
+                if ($i > 0) {
                     $past = Carbon::parse($vendTemps[$i - 1]['created_at']);
                     $current = Carbon::parse($vendTemps[$i]['created_at']);
                     $temPast = null;
                     $temCurrent = null;
-                    if($past->diffInMinutes($current) >= 10) {
+                    if ($past->diffInMinutes($current) >= 10) {
                         $temPast = $past;
                         $temCurrent = $temPast->copy()->addMinutes(10);
-                        while($temCurrent->diffInMinutes($current) >= 10) {
+                        while ($temCurrent->diffInMinutes($current) >= 10) {
                             $vendTemps->push([
                                 'value' => 'NaN',
                                 'created_at' => $temCurrent->copy()->jsonSerialize()
@@ -2840,9 +2893,9 @@ class VendController extends Controller
                             $temCurrent = $temCurrent->copy()->addMinutes(10);
                         }
                     }
-                    if($i == count($vendTemps) - 1 and $current->diffInMinutes(Carbon::now()) >= 10) {
+                    if ($i == count($vendTemps) - 1 and $current->diffInMinutes(Carbon::now()) >= 10) {
                         $temCurrent = $current;
-                        while($temCurrent->diffInMinutes(Carbon::now()) >= 10) {
+                        while ($temCurrent->diffInMinutes(Carbon::now()) >= 10) {
                             $vendTemps->push([
                                 'value' => 'NaN',
                                 'created_at' => $temCurrent->copy()->jsonSerialize()

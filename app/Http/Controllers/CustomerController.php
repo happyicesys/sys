@@ -77,24 +77,24 @@ class CustomerController extends Controller
         $className = get_class(new Customer());
 
         $customers = Customer::with([
-                'attachments',
-                'category',
-                'category.categoryGroup',
-                'contact',
-                'deliveryAddress',
-                'firstTransaction',
-                'operator',
-                'profile',
-                'status',
-                'tagBindings',
-                'vend.vendPrefix',
-                'zone'
-            ])
-            ->leftJoin('addresses', function($query) {
+            'attachments',
+            'category',
+            'category.categoryGroup',
+            'contact',
+            'deliveryAddress',
+            'firstTransaction',
+            'operator',
+            'profile',
+            'status',
+            'tagBindings',
+            'vend.vendPrefix',
+            'zone'
+        ])
+            ->leftJoin('addresses', function ($query) {
                 $query->on('addresses.modelable_id', '=', 'customers.id')
-                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                        ->where('addresses.type', '=', 2)
-                        ->limit(1);
+                    ->where('addresses.modelable_type', '=', 'App\\Models\\Customer')
+                    ->where('addresses.type', '=', 2)
+                    ->limit(1);
             })
             ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
@@ -134,47 +134,28 @@ class CustomerController extends Controller
         $customers = $customers
             ->paginate(
                 $request->numberPerPage === 'All' ?
-                    10000 :
-                    $request->numberPerPage
+                10000 :
+                $request->numberPerPage
             )
             ->withQueryString();
+
+        // Use OptionsService to load all dropdown options
+        $optionsService = app(\App\Services\OptionsService::class);
 
         return Inertia::render('Customer/Index', [
             'customers' => CustomerResource::collection(
                 $customers
             ),
-            'categories' => CategoryResource::collection(
-                Category::query()
-                    ->where('classname', $className)
-                    ->orderBy('sequence')
-                    ->get()
-            ),
-            'categoryGroups' => CategoryGroupResource::collection(
-                CategoryGroup::query()
-                    ->whereHas('categories', function ($query) use ($className) {
-                        $query->where('classname', $className);
-                    })->orderBy('name')->get()
-            ),
+            'categories' => $optionsService->categories($className),
+            'categoryGroups' => $optionsService->categoryGroups($className),
             'cmsEndpoint' => env('CMS_URL'),
             'days' => Customer::DAYS_MAPPING,
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
-            'locationTypeOptions' => LocationTypeResource::collection(
-                LocationType::orderBy('name')->get()
-            ),
+            'locationTypeOptions' => $optionsService->locationTypes(),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
-            'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
-            'priceTemplates' => PriceTemplateResource::collection(
-                PriceTemplate::query()
-                    ->orderBy('name')
-                    ->get()
-            ),
-            'profiles' => ProfileResource::collection(
-                Profile::query()
-                    ->orderBy('name')
-                    ->get()
-            ),
+            'operatorOptions' => $optionsService->operators(),
+            'priceTemplates' => $optionsService->priceTemplates(),
+            'profiles' => $optionsService->profiles(),
             'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'statuses' => [
                 [
@@ -188,28 +169,11 @@ class CustomerController extends Controller
                     ];
                 })
             ],
-            'tags' => TagResource::collection(
-                Tag::query()
-                    ->orderBy('name')
-                    ->get()
-            ),
-            'users' => UserResource::collection(
-                User::query()
-                    ->orderBy('name')
-                    ->get()
-            ),
-            'vendModelOptions' => VendModelResource::collection(
-                VendModel::orderBy('name')->get()
-            ),
-            'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
-            ),
-            'zoneOptions' => ZoneResource::collection(
-                Zone::query()
-                    ->orderBy('sequence')
-                    ->orderBy('name')
-                    ->get()
-            ),
+            'tags' => $optionsService->tags($className),
+            'users' => $optionsService->users(),
+            'vendModelOptions' => $optionsService->vendModels(),
+            'vendPrefixOptions' => $optionsService->vendPrefixes(),
+            'zoneOptions' => $optionsService->zones(),
         ]);
     }
 
@@ -229,16 +193,16 @@ class CustomerController extends Controller
 
     public function create()
     {
+        // Use OptionsService for dropdown options
+        $optionsService = app(\App\Services\OptionsService::class);
 
         return Inertia::render('Customer/Create', [
             'cmsCustomerOptions' => Http::get(env('CMS_URL') . '/api/vends/unbind')->collect() ?
                 Http::get(env('CMS_URL') . '/api/vends/unbind')->collect()->whereNotIn('id', Customer::select('person_id')->pluck('person_id'))->all() :
                 [],
-            'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            'countries' => $optionsService->countries(),
             'customer' => new Customer(),
-            'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
+            'operatorOptions' => $optionsService->operators(),
             'vendOptions' => Vend::query()
                 ->select('id', 'code', 'customer_id')
                 ->where('customer_id', null)
@@ -269,58 +233,57 @@ class CustomerController extends Controller
     {
         $customerInit = Customer::findOrFail($id);
 
-        if($request->selling_price_type) {
+        if ($request->selling_price_type) {
             $type = $request->selling_price_type;
-        }else {
+        } else {
             $type = $customerInit->selling_price_type;
         }
 
         $customer = Customer::query()
-        ->with([
-            'attachments',
-            'billingAddress',
-            'category',
-            'category.categoryGroup',
-            'contact',
-            'customerVendBindings.vend:id,code,customer_id',
-            'customerVendBindings.vendPrefix',
-            'deliveryAddress',
-            'firstTransaction',
-            'photos',
-            'profile',
-            'status',
-            'tagBindings',
-            'vend:id,code,customer_id,product_mapping_id',
-            'vend.productMapping.attachments' => function ($query) use ($type) {
-                // $query->when($type, function ($query, $type) {
-                //     $query->where('type', $type);
-                // });
-                $query->where('type', $type);
-            },
-            'vend.vendChannels:id,amount,amount2,code,vend_id,product_id',
-            'vend.vendChannels.product:id,name,code,desc',
-            'vend.vendChannels.product.sellingPrices' => function ($query) use ($type) {
-                // $query->when($type, function ($query, $type) {
-                //     $query->where('type', $type);
-                // });
-                $query->where('type', $type);
-            },
-            'vend.vendChannels.product.thumbnail',
-            'zone',
-        ])
-        ->find($id);
+            ->with([
+                'attachments',
+                'billingAddress',
+                'category',
+                'category.categoryGroup',
+                'contact',
+                'customerVendBindings.vend:id,code,customer_id',
+                'customerVendBindings.vendPrefix',
+                'deliveryAddress',
+                'firstTransaction',
+                'photos',
+                'profile',
+                'status',
+                'tagBindings',
+                'vend:id,code,customer_id,product_mapping_id',
+                'vend.productMapping.attachments' => function ($query) use ($type) {
+                    // $query->when($type, function ($query, $type) {
+                    //     $query->where('type', $type);
+                    // });
+                    $query->where('type', $type);
+                },
+                'vend.vendChannels:id,amount,amount2,code,vend_id,product_id',
+                'vend.vendChannels.product:id,name,code,desc',
+                'vend.vendChannels.product.sellingPrices' => function ($query) use ($type) {
+                    // $query->when($type, function ($query, $type) {
+                    //     $query->where('type', $type);
+                    // });
+                    $query->where('type', $type);
+                },
+                'vend.vendChannels.product.thumbnail',
+                'zone',
+            ])
+            ->find($id);
+
+        // Use OptionsService for dropdown options
+        $optionsService = app(\App\Services\OptionsService::class);
 
         return Inertia::render('Customer/Edit', [
             'cmsEndpoint' => env('CMS_URL'),
-            'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            'countries' => $optionsService->countries(),
             'days' => Customer::DAYS_MAPPING,
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
-            'locationTypeOptions' => LocationTypeResource::collection(
-                LocationType::orderBy('name')->get()
-            ),
-            'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
+            'locationTypeOptions' => $optionsService->locationTypes(),
+            'operatorOptions' => $optionsService->operators(),
             'sellingPriceTypeOptions' => collect(SellingPrice::TYPE_MAPPINGS),
             'vendOptions' => Vend::query()
                 ->select('id', 'code', 'customer_id')
@@ -329,12 +292,7 @@ class CustomerController extends Controller
                 ->get(),
             'customer' => $customer,
             'type' => 'update',
-            'zoneOptions' => ZoneResource::collection(
-                Zone::query()
-                    ->orderBy('sequence')
-                    ->orderBy('name')
-                    ->get()
-            ),
+            'zoneOptions' => $optionsService->zones(),
         ]);
     }
 
@@ -413,7 +371,7 @@ class CustomerController extends Controller
 
             $customer = Customer::where('person_id', $request->cms_customer_id)->first();
 
-            if($request->operator_id) {
+            if ($request->operator_id) {
                 $customer->update([
                     'operator_id' => $request->operator_id,
                 ]);
@@ -464,8 +422,8 @@ class CustomerController extends Controller
             ->whereIn('id', $request->customerIDs)
             ->get();
 
-        if($customers) {
-            foreach($customers as $customer) {
+        if ($customers) {
+            foreach ($customers as $customer) {
                 SyncTransactionItemCMS::dispatch($customer->id)->onQueue('default');
                 // SyncTransactionItemCMS::dispatchSync($customer->id);
             }
@@ -474,31 +432,54 @@ class CustomerController extends Controller
 
     public function syncNextDeliveryDate($people = [])
     {
-        if(!$people) {
+        if (!$people) {
             // get all people from cms
             $response = Http::get(env('CMS_URL') . '/api/people/last-invoice-date');
             $people = $response->collect();
         }
 
-        if ($people) {
-            foreach ($people as $person) {
-                $customer = Customer::where('person_id', $person['id'])->first();
+        if (empty($people)) {
+            return true;
+        }
 
-                if ($customer) {
-                    $customer->update([
-                        'cms_invoice_history' => $person,
-                        'last_invoice_date' => $person['last_delivery_date'],
-                        'next_invoice_date' => $person['next_delivery_date'],
+        // Batch load all customers by person_id
+        $personIds = collect($people)->pluck('id')->toArray();
+        $customers = Customer::whereIn('person_id', $personIds)
+            ->get()
+            ->keyBy('person_id');
+
+        // Batch load all ops job items by cms_transaction_id
+        $transactionIds = collect($people)
+            ->pluck('next_transaction_id')
+            ->filter()
+            ->toArray();
+        $opsJobItems = OpsJobItem::whereIn('cms_transaction_id', $transactionIds)
+            ->get()
+            ->keyBy('cms_transaction_id');
+
+        // Prepare bulk updates
+        $now = now();
+
+        foreach ($people as $person) {
+            $customer = $customers->get($person['id']);
+
+            if ($customer) {
+                $customer->update([
+                    'cms_invoice_history' => $person,
+                    'last_invoice_date' => $person['last_delivery_date'],
+                    'next_invoice_date' => $person['next_delivery_date'],
+                    'updated_at' => $now,
+                ]);
+            }
+
+            if ($person['next_transaction_id'] && $person['next_transaction_sequence']) {
+                $opsJobItem = $opsJobItems->get($person['next_transaction_id']);
+
+                if ($opsJobItem) {
+                    $opsJobItem->update([
+                        'sequence' => $person['next_transaction_sequence'],
+                        'updated_at' => $now,
                     ]);
-                }
-                if($person['next_transaction_id'] && $person['next_transaction_sequence']) {
-                    $opsJobItem = OpsJobItem::where('cms_transaction_id', $person['next_transaction_id'])->first();
-
-                    if($opsJobItem) {
-                        $opsJobItem->update([
-                            'sequence' => $person['next_transaction_sequence'],
-                        ]);
-                    }
                 }
             }
         }
@@ -519,7 +500,7 @@ class CustomerController extends Controller
             $requestCustomerArr['is_active'] = false;
         }
 
-        if(isset($requestCustomerArr['is_restricted_access']) and $requestCustomerArr['is_restricted_access'] === 'true') {
+        if (isset($requestCustomerArr['is_restricted_access']) and $requestCustomerArr['is_restricted_access'] === 'true') {
             $requestCustomerArr['is_restricted_access'] = true;
         } else {
             $requestCustomerArr['is_restricted_access'] = false;
@@ -553,13 +534,13 @@ class CustomerController extends Controller
                 }
             }
             $isMovement = false;
-            if(!$vend->customer_id && $customer->id) {
+            if (!$vend->customer_id && $customer->id) {
                 $isMovement = true;
             }
             $vend->customer_id = $customer->id;
             $vend->save();
 
-            if($isMovement) {
+            if ($isMovement) {
                 $this->historyService->syncVendCustomerMovement($vend, $customer, true);
             }
         } else {
@@ -567,9 +548,9 @@ class CustomerController extends Controller
             $customer->update($request->customer);
 
             if ($request->customer['contact'] && isset($request->customer['contact']['name'])) {
-                if($customer->contact) {
+                if ($customer->contact) {
                     $customer->contact->update($request->customer['contact']);
-                }else {
+                } else {
                     $customer->contact()->create($request->customer['contact']);
                 }
             }
@@ -584,23 +565,23 @@ class CustomerController extends Controller
                 $vend = Vend::find($request->customer['vend_id']);
 
                 $isMovement = false;
-                if(!$vend->customer_id && $customer->id) {
+                if (!$vend->customer_id && $customer->id) {
                     $isMovement = true;
                 }
                 $vend->customer_id = $customer->id;
                 $vend->save();
 
-                if($isMovement) {
+                if ($isMovement) {
                     $this->historyService->syncVendCustomerMovement($vend, $customer, true);
                 }
             }
         }
 
-        if($customer->deliveryAddress) {
-            if((!$customer->deliveryAddress->latitude or !$customer->deliveryAddress->longitude) and $customer->deliveryAddress->country->code == 'SG') {
+        if ($customer->deliveryAddress) {
+            if ((!$customer->deliveryAddress->latitude or !$customer->deliveryAddress->longitude) and $customer->deliveryAddress->country->code == 'SG') {
                 $location = $this->getAddressResult($customer->deliveryAddress->postcode);
 
-                if($location) {
+                if ($location) {
                     $customer->deliveryAddress->update([
                         'latitude' => $location['latitude'],
                         'longitude' => $location['longitude'],

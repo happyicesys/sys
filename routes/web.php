@@ -89,9 +89,9 @@ Route::get('/', function () {
 
 Route::post('/SetPara2', [VendDataController::class, 'create']);
 
-Route::middleware(['auth', 'cors'])->group(function() {
+Route::middleware(['auth', 'cors'])->group(function () {
 
-    Route::prefix('apk-settings')->group(function() {
+    Route::prefix('apk-settings')->group(function () {
         Route::get('/', [ApkSettingController::class, 'index'])->name('apk-settings');
         Route::get('/create', [ApkSettingController::class, 'create']);
         Route::post('/{id}/campaigns/bind', [ApkSettingController::class, 'bindCampaigns']);
@@ -109,28 +109,28 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/unbind-vend/{vendId}', [ApkSettingController::class, 'unbindVend']);
     });
 
-    Route::prefix('attachments')->group(function() {
+    Route::prefix('attachments')->group(function () {
         Route::get('/', [AttachmentController::class, 'index'])->name('attachments');
         Route::post('/create', [AttachmentController::class, 'create']);
         Route::post('/{id}/update', [AttachmentController::class, 'update']);
         Route::delete('/{id}', [AttachmentController::class, 'delete']);
     });
 
-    Route::prefix('cashless-providers')->group(function() {
+    Route::prefix('cashless-providers')->group(function () {
         Route::get('/', [CashlessProviderController::class, 'index'])->name('cashless-providers');
         Route::post('/create', [CashlessProviderController::class, 'create']);
         Route::post('/{id}/update', [CashlessProviderController::class, 'update']);
         Route::delete('/{id}', [CashlessProviderController::class, 'delete']);
     });
 
-    Route::prefix('cashless-terminals')->group(function() {
+    Route::prefix('cashless-terminals')->group(function () {
         Route::get('/', [CashlessTerminalController::class, 'index'])->name('cashless-terminals');
         Route::post('/store', [CashlessTerminalController::class, 'store']);
         Route::post('/{id}/update', [CashlessTerminalController::class, 'update']);
         Route::delete('/{id}', [CashlessTerminalController::class, 'delete']);
     });
 
-    Route::prefix('campaigns')->group(function() {
+    Route::prefix('campaigns')->group(function () {
         Route::get('/', [CampaignController::class, 'index'])->name('campaigns');
         Route::get('/create', [CampaignController::class, 'createView'])->name('campaigns.create');
         Route::post('/create', [CampaignController::class, 'create']);
@@ -139,7 +139,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [CampaignController::class, 'delete']);
     });
 
-    Route::prefix('categories')->group(function() {
+    Route::prefix('categories')->group(function () {
         Route::get('/', [CategoryController::class, 'index'])->name('categories');
         Route::post('/create', [CategoryController::class, 'create']);
         Route::post('/{id}/update', [CategoryController::class, 'update']);
@@ -147,14 +147,14 @@ Route::middleware(['auth', 'cors'])->group(function() {
     });
 
 
-    Route::prefix('category-groups')->group(function() {
+    Route::prefix('category-groups')->group(function () {
         Route::get('/', [CategoryGroupController::class, 'index'])->name('category-groups');
         Route::post('/create', [CategoryGroupController::class, 'create']);
         Route::post('/{id}/update', [CategoryGroupController::class, 'update']);
         Route::delete('/{id}', [CategoryGroupController::class, 'delete']);
     });
 
-    Route::prefix('countries')->group(function() {
+    Route::prefix('countries')->group(function () {
         Route::get('/', [CountryController::class, 'index'])->name('countries');
         Route::post('/create', [CountryController::class, 'create']);
         Route::post('/{id}/update', [CountryController::class, 'update']);
@@ -162,7 +162,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [CountryController::class, 'delete']);
     });
 
-    Route::prefix('customers')->group(function() {
+    Route::prefix('customers')->group(function () {
         Route::get('/', [CustomerController::class, 'index'])->name('customers');
         Route::get('/{id}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
         Route::get('/create', [CustomerController::class, 'create']);
@@ -180,11 +180,11 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/map', [CustomerController::class, 'getMap']);
     });
 
-    Route::prefix('dashboard')->group(function() {
+    Route::prefix('dashboard')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     });
 
-    Route::prefix('delivery-platform-campaigns')->group(function() {
+    Route::prefix('delivery-platform-campaigns')->group(function () {
         Route::get('/', [DeliveryPlatformCampaignController::class, 'index'])->name('delivery-platform-campaigns');
         Route::get('/create', [DeliveryPlatformCampaignController::class, 'create']);
         Route::get('/{id}/edit', [DeliveryPlatformCampaignController::class, 'edit'])->name('delivery-platform-campaigns.edit');
@@ -196,14 +196,14 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/item/{deliveryPlatformCampaignItemID}', [DeliveryPlatformCampaignController::class, 'deleteItem']);
         Route::delete('/item-vend/{delPlaCamItemVendID}', [DeliveryPlatformCampaignController::class, 'deleteItemVend']);
     });
-    Route::prefix('delivery-platform-orders')->group(function() {
+    Route::prefix('delivery-platform-orders')->group(function () {
         Route::get('/', [DeliveryPlatformOrderController::class, 'index'])->name('delivery-platform-orders');
         Route::get('/excel', [DeliveryPlatformOrderController::class, 'exportExcel']);
         Route::get('/{id}/edit', [DeliveryPlatformOrderController::class, 'edit'])->name('delivery-platform-orders.edit');
         Route::post('/{id}/request-cancel-order', [DeliveryPlatformOrderController::class, 'requestCancelOrder']);
     });
 
-    Route::prefix('delivery-product-mappings')->group(function() {
+    Route::prefix('delivery-product-mappings')->group(function () {
         Route::get('/', [DeliveryProductMappingController::class, 'index'])->name('delivery-product-mappings');
         Route::get('/create', [DeliveryProductMappingController::class, 'create'])->name('delivery-product-mappings.create');
         Route::post('/{id}/bind-vend', [DeliveryProductMappingController::class, 'bindVend']);
@@ -220,18 +220,18 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/bulks/{deliveryProductMappingBulkID}', [DeliveryProductMappingController::class, 'deleteDeliveryProductMappingBulk']);
     });
 
-    Route::prefix('delivery-product-mapping-items')->group(function() {
+    Route::prefix('delivery-product-mapping-items')->group(function () {
         Route::delete('/{id}', [DeliveryProductMappingController::class, 'deleteDeliveryProductMappingItem']);
         Route::post('/delivery-product-mapping/{id}/store', [DeliveryProductMappingController::class, 'storeDeliveryProductMappingItem']);
         Route::post('/{id}/update', [DeliveryProductMappingController::class, 'updateDeliveryProductMappingItem']);
         Route::post('/{id}/toggle-pause', [DeliveryProductMappingController::class, 'togglePauseDeliveryProductMappingItem']);
     });
 
-    Route::prefix('delivery-product-mapping-vends')->group(function() {
+    Route::prefix('delivery-product-mapping-vends')->group(function () {
         Route::get('/', [DeliveryProductMappingVendController::class, 'index'])->name('delivery-product-mapping-vends');
     });
 
-    Route::prefix('delivery-platform-ref-numbers')->group(function() {
+    Route::prefix('delivery-platform-ref-numbers')->group(function () {
         Route::get('/', [DeliveryPlatformRefNumberController::class, 'index'])->name('delivery-platform-ref-numbers');
         Route::get('/create', [DeliveryPlatformRefNumberController::class, 'create'])->name('delivery-platform-ref-numbers.create');
         Route::post('/', [DeliveryPlatformRefNumberController::class, 'store'])->name('delivery-platform-ref-numbers.store');
@@ -239,31 +239,31 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/update', [DeliveryPlatformRefNumberController::class, 'update'])->name('delivery-platform-ref-numbers.update');
     });
 
-    Route::prefix('delivery-platform-operators')->group(function() {
+    Route::prefix('delivery-platform-operators')->group(function () {
         Route::delete('/{id}', [OperatorController::class, 'deleteDeliveryPlatformOperator']);
         Route::post('/operator/{id}/store', [OperatorController::class, 'storeDeliveryPlatformOperator']);
     });
 
-    Route::prefix('keys')->group(function() {
+    Route::prefix('keys')->group(function () {
         Route::get('/', [KeyController::class, 'index'])->name('keys');
         Route::post('/store', [KeyController::class, 'store']);
         Route::post('/{id}/update', [KeyController::class, 'update']);
         Route::delete('/{id}', [KeyController::class, 'delete']);
     });
 
-    Route::prefix('vend-criterias')->group(function() {
+    Route::prefix('vend-criterias')->group(function () {
         Route::get('/', [VendCriteriaController::class, 'index'])->name('vend-criterias');
         Route::post('/{id}/update', [VendCriteriaController::class, 'update']);
     });
 
-    Route::prefix('vend-criteria-bindings')->group(function() {
+    Route::prefix('vend-criteria-bindings')->group(function () {
         Route::get('/', [VendCriteriaBindingController::class, 'index'])->name('vend-criteria-bindings');
         Route::post('/create', [VendCriteriaBindingController::class, 'create']);
         Route::post('/{id}/update', [VendCriteriaBindingController::class, 'update']);
         Route::delete('/{id}', [VendCriteriaBindingController::class, 'delete']);
     });
 
-    Route::prefix('hid-cards')->group(function() {
+    Route::prefix('hid-cards')->group(function () {
         Route::get('/', [HidCardController::class, 'index'])->name('hid-cards'); // List
 
         Route::get('/create', [HidCardController::class, 'create'])->name('hid-cards.create'); // Form page
@@ -278,22 +278,22 @@ Route::middleware(['auth', 'cors'])->group(function() {
     });
 
 
-    Route::prefix('holidays')->group(function() {
+    Route::prefix('holidays')->group(function () {
         Route::get('/', [HolidayController::class, 'index'])->name('holidays');
         Route::post('/create', [HolidayController::class, 'create']);
         Route::post('/{id}/update', [HolidayController::class, 'update']);
         Route::delete('/{id}', [HolidayController::class, 'delete']);
     });
 
-    Route::prefix('maps')->group(function() {
+    Route::prefix('maps')->group(function () {
         Route::get('/', [MapController::class, 'index'])->name('maps');
     });
 
-    Route::prefix('oauth-clients')->group(function() {
+    Route::prefix('oauth-clients')->group(function () {
         Route::get('/', [OauthController::class, 'index'])->name('oauth-clients');
     });
 
-    Route::prefix('operators')->group(function() {
+    Route::prefix('operators')->group(function () {
         Route::get('/', [OperatorController::class, 'index'])->name('operators');
         Route::get('/create', [OperatorController::class, 'create']);
         Route::post('/store', [OperatorController::class, 'store']);
@@ -308,17 +308,17 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/delivery-platform/{delivery_platform_operator_id}', [OperatorController::class, 'unbindDeliveryPlatform']);
     });
 
-    Route::prefix('operator-payment-gateways')->group(function() {
+    Route::prefix('operator-payment-gateways')->group(function () {
         Route::delete('/{id}', [OperatorController::class, 'deleteOperatorPaymentGateway']);
         Route::post('/operator/{id}/store', [OperatorController::class, 'storeOperatorPaymentGateway']);
     });
 
-    Route::prefix('operator-vends')->group(function() {
+    Route::prefix('operator-vends')->group(function () {
         Route::delete('/{id}', [OperatorController::class, 'deleteOperatorVend']);
         Route::post('/store', [OperatorController::class, 'bindVend']);
     });
 
-    Route::prefix('ops-jobs')->group(function() {
+    Route::prefix('ops-jobs')->group(function () {
         Route::get('/', [OpsJobController::class, 'index'])->name('ops-jobs');
         Route::get('/create', [OpsJobController::class, 'create']);
         Route::get('/{id}/edit', [OpsJobController::class, 'edit'])->name('ops-jobs.edit');
@@ -353,7 +353,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/sequence', [OpsJobController::class, 'saveSequence']);
     });
 
-    Route::prefix('reports')->group(function() {
+    Route::prefix('reports')->group(function () {
         Route::get('/sales/{type}/excel', [ReportController::class, 'exportSalesExcel']);
         Route::get('/sales/{type}', [ReportController::class, 'indexSales']);
 
@@ -377,28 +377,28 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/machine-health', [ReportController::class, 'indexMachineHealth']);
     });
 
-    Route::prefix('resource-centers')->group(function() {
+    Route::prefix('resource-centers')->group(function () {
         Route::get('/', [ResourceCenterController::class, 'index'])->name('resource-centers');
         Route::post('/create', [ResourceCenterController::class, 'create']);
         Route::post('/{id}/update', [ResourceCenterController::class, 'update']);
         Route::delete('/{id}', [ResourceCenterController::class, 'delete']);
     });
 
-    Route::prefix('location-types')->group(function() {
+    Route::prefix('location-types')->group(function () {
         Route::get('/', [LocationTypeController::class, 'index'])->name('location-types');
         Route::post('/create', [LocationTypeController::class, 'create']);
         Route::post('/{id}/update', [LocationTypeController::class, 'update']);
         Route::delete('/{id}', [LocationTypeController::class, 'delete']);
     });
 
-    Route::prefix('modem-types')->group(function() {
+    Route::prefix('modem-types')->group(function () {
         Route::get('/', [ModemTypeController::class, 'index'])->name('modem-types');
         Route::post('/store', [ModemTypeController::class, 'store']);
         Route::post('/{id}/update', [ModemTypeController::class, 'update']);
         Route::delete('/{id}', [ModemTypeController::class, 'delete']);
     });
 
-    Route::prefix('modem-units')->group(function() {
+    Route::prefix('modem-units')->group(function () {
         Route::get('/', [ModemUnitController::class, 'index'])->name('modem-units');
         Route::post('/{id}/reset', [ModemUnitController::class, 'reset']);
         Route::post('/store', [ModemUnitController::class, 'store']);
@@ -406,16 +406,15 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [ModemUnitController::class, 'delete']);
     });
 
-    Route::prefix('payment-methods')->group(function() {
+    Route::prefix('payment-methods')->group(function () {
         Route::get('/', [PaymentMethodController::class, 'index'])->name('payment-methods');
         Route::post('/create', [PaymentMethodController::class, 'create']);
         Route::post('/{id}/update', [PaymentMethodController::class, 'update']);
         Route::delete('/{id}', [PaymentMethodController::class, 'delete']);
     });
 
-    Route::prefix('products')->group(function() {
+    Route::prefix('products')->group(function () {
         Route::get('/', [ProductController::class, 'index'])->name('products');
-        Route::get('/unit-costs', [ProductController::class, 'unitCostIndex'])->name('unit-costs');
         Route::post('/{id}/toggle-activate-deactivate', [ProductController::class, 'toggleActivateDeactivate']);
         Route::post('/{id}/uom-binding', [ProductController::class, 'bindUom']);
         Route::delete('/product-uoms/{productUomId}', [ProductController::class, 'deleteProductUom']);
@@ -430,7 +429,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/availability', [ProductController::class, 'availability'])->name('products-availability');
     });
 
-    Route::prefix('product-mappings')->group(function() {
+    Route::prefix('product-mappings')->group(function () {
         Route::get('/', [ProductMappingController::class, 'index'])->name('product-mappings');
         Route::post('/create', [ProductMappingController::class, 'create']);
         Route::get('/{id}/edit', [ProductMappingController::class, 'edit'])->name('product-mappings.edit');
@@ -447,21 +446,21 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     });
 
-    Route::prefix('profiles')->group(function() {
+    Route::prefix('profiles')->group(function () {
         Route::get('/', [ProfileController::class, 'index'])->name('profiles');
         Route::post('/create', [ProfileController::class, 'create']);
         Route::post('/{id}/update', [ProfileController::class, 'update']);
         Route::delete('/{id}', [ProfileController::class, 'delete']);
     });
 
-    Route::prefix('permissions')->group(function() {
+    Route::prefix('permissions')->group(function () {
         Route::get('/', [RolePermissionController::class, 'indexPermission'])->name('permissions');
         Route::post('/create', [RolePermissionController::class, 'createPermission']);
         Route::post('/{id}/update', [RolePermissionController::class, 'updatePermission']);
         Route::delete('/{id}', [RolePermissionController::class, 'deletePermission']);
     });
 
-    Route::prefix('settings')->group(function() {
+    Route::prefix('settings')->group(function () {
         Route::get('/', [SettingController::class, 'index'])->name('settings');
         Route::get('/vend/create', [SettingController::class, 'create']);
         Route::get('/vend/{id}/update', [SettingController::class, 'edit'])->name('settings.edit');
@@ -471,66 +470,66 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation']);
     });
 
-    Route::prefix('machine-alert-parameters')->group(function() {
+    Route::prefix('machine-alert-parameters')->group(function () {
         Route::get('/', [VendAlertParameterController::class, 'index'])->name('machine-alert-parameters');
         Route::post('/bulk-update', [VendAlertParameterController::class, 'bulkUpdate'])->name('machine-alert-parameters.bulk-update');
     });
 
-    Route::prefix('simcards')->group(function() {
+    Route::prefix('simcards')->group(function () {
         Route::get('/', [SimcardController::class, 'index'])->name('simcards');
         Route::post('/store', [SimcardController::class, 'store']);
         Route::post('/{id}/update', [SimcardController::class, 'update']);
         Route::delete('/{id}', [SimcardController::class, 'delete']);
     });
 
-    Route::prefix('statuses')->group(function() {
+    Route::prefix('statuses')->group(function () {
         Route::get('/', [StatusController::class, 'index'])->name('statuses');
         Route::post('/create', [StatusController::class, 'create']);
         Route::post('/{id}/update', [StatusController::class, 'update']);
         Route::delete('/{id}', [StatusController::class, 'delete']);
     });
 
-    Route::prefix('tags')->group(function() {
+    Route::prefix('tags')->group(function () {
         Route::get('/', [TagController::class, 'index'])->name('tags');
         Route::post('/create', [TagController::class, 'create']);
         Route::post('/{id}/update', [TagController::class, 'update']);
         Route::delete('/{id}', [TagController::class, 'delete']);
     });
 
-    Route::prefix('taxes')->group(function() {
+    Route::prefix('taxes')->group(function () {
         Route::get('/', [TaxController::class, 'index'])->name('taxes');
         Route::post('/create', [TaxController::class, 'create']);
         Route::post('/{id}/update', [TaxController::class, 'update']);
         Route::delete('/{id}', [TaxController::class, 'delete']);
     });
 
-    Route::prefix('telcos')->group(function() {
+    Route::prefix('telcos')->group(function () {
         Route::get('/', [TelcoController::class, 'index'])->name('telcos');
         Route::post('/create', [TelcoController::class, 'create']);
         Route::post('/{id}/update', [TelcoController::class, 'update']);
         Route::delete('/{id}', [TelcoController::class, 'delete']);
     });
 
-    Route::prefix('roles')->group(function() {
+    Route::prefix('roles')->group(function () {
         Route::get('/', [RolePermissionController::class, 'indexRole'])->name('roles');
         Route::post('/create', [RolePermissionController::class, 'createRole']);
         Route::post('/{id}/update', [RolePermissionController::class, 'updateRole']);
         Route::delete('/{id}', [RolePermissionController::class, 'deleteRole']);
     });
 
-    Route::prefix('self')->group(function() {
+    Route::prefix('self')->group(function () {
         Route::get('/', [UserController::class, 'selfIndex'])->name('self');
         Route::post('/{id}/update', [UserController::class, 'selfUpdate']);
     });
 
-    Route::prefix('uoms')->group(function() {
+    Route::prefix('uoms')->group(function () {
         Route::get('/', [UomController::class, 'index'])->name('uoms');
         Route::post('/create', [UomController::class, 'create']);
         Route::post('/{id}/update', [UomController::class, 'update']);
         Route::delete('/{id}', [UomController::class, 'delete']);
     });
 
-    Route::prefix('users')->group(function() {
+    Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('users');
         Route::post('/create', [UserController::class, 'create']);
         Route::get('/{id}/edit', [UserController::class, 'edit'])->name('users.edit');
@@ -541,7 +540,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/unbind-vend', [UserController::class, 'unbindVend']);
     });
 
-    Route::prefix('vends')->group(function() {
+    Route::prefix('vends')->group(function () {
         Route::post('/create', [VendController::class, 'create']);
         Route::get('/channels/excel', [VendController::class, 'exportChannelExcel']);
         Route::get('/customers', [VendController::class, 'indexCustomer'])->name('vends.customer');
@@ -577,14 +576,14 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/upload-attachments', [VendController::class, 'uploadAttachment']);
     });
 
-    Route::prefix('vend-channel-errors')->group(function() {
+    Route::prefix('vend-channel-errors')->group(function () {
         Route::get('/', [VendChannelErrorController::class, 'index'])->name('vend-channel-errors');
         Route::post('/create', [VendChannelErrorController::class, 'create']);
         Route::post('/{id}/update', [VendChannelErrorController::class, 'update']);
         Route::delete('/{id}', [VendChannelErrorController::class, 'delete']);
     });
 
-    Route::prefix('vend-configs')->group(function() {
+    Route::prefix('vend-configs')->group(function () {
         Route::get('/', [VendConfigController::class, 'index'])->name('vend-configs');
         Route::post('/create', [VendConfigController::class, 'create']);
         Route::get('/{id}/edit', [VendConfigController::class, 'edit'])->name('vend-configs.edit');
@@ -594,21 +593,21 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/upload-attachments', [VendConfigController::class, 'uploadAttachment']);
     });
 
-    Route::prefix('vend-contracts')->group(function() {
+    Route::prefix('vend-contracts')->group(function () {
         Route::get('/', [VendContractController::class, 'index'])->name('vend-contracts');
         Route::post('/store', [VendContractController::class, 'store']);
         Route::post('/{id}/update', [VendContractController::class, 'update']);
         Route::delete('/{id}', [VendContractController::class, 'delete']);
     });
 
-    Route::prefix('vend-models')->group(function() {
+    Route::prefix('vend-models')->group(function () {
         Route::get('/', [VendModelController::class, 'index'])->name('vend-models');
         Route::post('/store', [VendModelController::class, 'store']);
         Route::post('/{id}/update', [VendModelController::class, 'update']);
         Route::delete('/{id}', [VendModelController::class, 'delete']);
     });
 
-    Route::prefix('vend-prefixes')->group(function() {
+    Route::prefix('vend-prefixes')->group(function () {
         Route::get('/', [VendPrefixController::class, 'index'])->name('vend-prefixes');
         Route::post('/create', [VendPrefixController::class, 'create']);
         Route::get('/{id}/edit', [VendPrefixController::class, 'edit'])->name('vend-prefixes.edit');
@@ -616,7 +615,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [VendPrefixController::class, 'delete']);
     });
 
-    Route::prefix('vend-serial-numbers')->group(function() {
+    Route::prefix('vend-serial-numbers')->group(function () {
         Route::get('/', [VendSerialNumberController::class, 'index'])->name('vend-serial-numbers');
         Route::post('/store', [VendSerialNumberController::class, 'store']);
         Route::post('/{id}/update', [VendSerialNumberController::class, 'update']);
@@ -624,7 +623,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/excel', [VendSerialNumberController::class, 'exportExcel']);
     });
 
-    Route::prefix('vouchers')->group(function() {
+    Route::prefix('vouchers')->group(function () {
         Route::get('/', [VoucherController::class, 'index'])->name('vouchers');
         Route::get('/create/{batchType}', [VoucherController::class, 'create']);
         Route::get('/edit/{id}', [VoucherController::class, 'edit'])->name('vouchers.edit');
@@ -634,7 +633,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [VoucherController::class, 'delete']);
     });
 
-    Route::prefix('zones')->group(function() {
+    Route::prefix('zones')->group(function () {
         Route::get('/', [ZoneController::class, 'index'])->name('zones');
         Route::post('/create', [ZoneController::class, 'create']);
         Route::post('/{id}/update', [ZoneController::class, 'update']);
@@ -644,4 +643,4 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

@@ -22,6 +22,7 @@ use App\Services\VendTransactionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class PaymentController extends Controller
 {
@@ -39,8 +40,7 @@ class PaymentController extends Controller
     VendDataService $vendDataService,
     VendDispenseService $vendDispenseService,
     VendTransactionService $vendTransactionService
-  )
-  {
+  ) {
     $this->mqttService = $mqttService;
     $this->paymentGatewayService = $paymentGatewayService;
     $this->vendDataService = $vendDataService;
@@ -49,7 +49,7 @@ class PaymentController extends Controller
 
   public function createPaymentGatewayLog(Request $request, $company)
   {
-    if(!$company) {
+    if (!$company) {
       throw new \Exception('Payment gateway not parsed in url');
     }
 
@@ -60,10 +60,10 @@ class PaymentController extends Controller
     $refId = null;
     $qrRefID = null;
 
-    switch($company) {
+    switch ($company) {
       case 'midtrans':
-        if(isset($input['transaction_status'])) {
-          switch($input['transaction_status']) {
+        if (isset($input['transaction_status'])) {
+          switch ($input['transaction_status']) {
             case 'pending':
               $status = PaymentGatewayLog::STATUS_PENDING;
               break;
@@ -85,14 +85,14 @@ class PaymentController extends Controller
         $orderId = $input['order_id'];
         $refId = $input['transaction_id'];
         $qrRefID = null;
-      break;
+        break;
 
       case 'omise':
-        switch($input['data']['object']) {
+        switch ($input['data']['object']) {
           case 'charge':
           case 'source':
-            if(isset($input['data']['status'])) {
-              switch($input['data']['status']) {
+            if (isset($input['data']['status'])) {
+              switch ($input['data']['status']) {
                 case 'pending':
                   $status = PaymentGatewayLog::STATUS_PENDING;
                   break;
@@ -115,9 +115,9 @@ class PaymentController extends Controller
         $orderId = $input['data']['metadata']['order_id'];
         $refId = $input['data']['id'];
         $qrRefID = isset($input['data']['source']) && isset($input['data']['source']['provider_references']) && isset($input['data']['source']['provider_references']['reference_number_1']) ? $input['data']['source']['provider_references']['reference_number_1'] : null;
-      break;
+        break;
       case 'fiuu':
-        switch($input['status'] ?? null) {
+        switch ($input['status'] ?? null) {
           case '00':
           case '0':
             $status = PaymentGatewayLog::STATUS_APPROVE;
@@ -134,11 +134,11 @@ class PaymentController extends Controller
         $orderId = $input['orderid'] ?? null;
         $refId = $input['tranID'] ?? null;
         $qrRefID = null;
-      break;
+        break;
     }
 
     $paymentGatewayLogSearchStatus = PaymentGatewayLog::STATUS_PENDING;
-    switch($status) {
+    switch ($status) {
       case PaymentGatewayLog::STATUS_PENDING:
       case PaymentGatewayLog::STATUS_APPROVE:
       case PaymentGatewayLog::STATUS_DECLINE:
@@ -149,26 +149,26 @@ class PaymentController extends Controller
     }
     $paymentGatewayLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', $paymentGatewayLogSearchStatus)->first();
 
-    if(!$paymentGatewayLog) {
+    if (!$paymentGatewayLog) {
       return;
       // throw new \Exception('This payment is not trigger before');
     }
 
     switch ($company) {
       case 'midtrans':
-          $method = isset($input['acquirer']) ? $input['acquirer'] : null;
-          break;
+        $method = isset($input['acquirer']) ? $input['acquirer'] : null;
+        break;
       case 'omise':
-          $method = isset($input['data']['source']['type']) ? $input['data']['source']['type'] : null;
-          break;
+        $method = isset($input['data']['source']['type']) ? $input['data']['source']['type'] : null;
+        break;
       case 'fiuu':
-          $method = $input['channel'] ?? null;
-          break;
+        $method = $input['channel'] ?? null;
+        break;
     }
 
-    if($company === 'fiuu' && $paymentGatewayLog) {
+    if ($company === 'fiuu' && $paymentGatewayLog) {
       $operatorPaymentGateway = $paymentGatewayLog->operatorPaymentGateway;
-      if($operatorPaymentGateway) {
+      if ($operatorPaymentGateway) {
         $fiuuGateway = new Fiuu(
           $operatorPaymentGateway->key1,
           $operatorPaymentGateway->key2,
@@ -176,7 +176,7 @@ class PaymentController extends Controller
           $operatorPaymentGateway->type === OperatorPaymentGateway::TYPE_SANDBOX
         );
 
-        if(!$fiuuGateway->verifyResponse($input)) {
+        if (!$fiuuGateway->verifyResponse($input)) {
           Log::warning('Fiuu callback signature mismatch', ['payload' => $input]);
           return;
         }
@@ -194,15 +194,15 @@ class PaymentController extends Controller
       'response' => $input,
     ]);
 
-    if($updatedPaymentGatewayLog and $status === PaymentGatewayLog::STATUS_APPROVE) {
+    if ($updatedPaymentGatewayLog and $status === PaymentGatewayLog::STATUS_APPROVE) {
 
       if ($paymentGatewayLog->created_at->diffInSeconds(Carbon::now()) > 210) {
         switch ($company) {
-            case 'midtrans':
-                break;
-            case 'omise':
-                RefundOmiseJob::dispatch($paymentGatewayLog->order_id);
-                break;
+          case 'midtrans':
+            break;
+          case 'omise':
+            RefundOmiseJob::dispatch($paymentGatewayLog->order_id);
+            break;
         }
         return;
       }
@@ -217,50 +217,53 @@ class PaymentController extends Controller
 
   public function getPaymentMerchantsApi($countryCode = 'SG', $paymentGatewayName = 'omise')
   {
+    $cacheKey = "payment_merchants:{$countryCode}:{$paymentGatewayName}";
 
-    $paymentMethods = PaymentMethod::query()
-      ->with([
-        'paymentGateway',
-        'paymentMerchant',
-      ])
-      ->whereHas('paymentGateway', function($query) use ($countryCode, $paymentGatewayName) {
-        $query
-        ->where('name', $paymentGatewayName)
-        ->whereHas('country', function($query) use ($countryCode) {
-          $query->where('code', $countryCode);
-        });
-      })
-      ->where('is_active', true)
-      ->orderByRaw('ISNULL(sequence), sequence ASC')
-      ->get();
-      // dd($paymentMethods->toArray());
+    $dataArr = Cache::remember($cacheKey, 600, function () use ($countryCode, $paymentGatewayName) {
+      $paymentMethods = PaymentMethod::query()
+        ->with([
+            'paymentGateway',
+            'paymentMerchant',
+          ])
+        ->whereHas('paymentGateway', function ($query) use ($countryCode, $paymentGatewayName) {
+          $query
+            ->where('name', $paymentGatewayName)
+            ->whereHas('country', function ($query) use ($countryCode) {
+              $query->where('code', $countryCode);
+            });
+        })
+        ->where('is_active', true)
+        ->orderByRaw('ISNULL(sequence), sequence ASC')
+        ->get();
 
-      if($paymentMethods) {
-        $dataArr = [];
-        foreach($paymentMethods as $paymentMethod) {
-          array_push($dataArr, [
-            'name' => $paymentMethod->paymentMerchant->name,
-            'image_url' => $paymentMethod->paymentMerchant->image_url,
-            'slug' => $paymentMethod->type_name,
-            'sequence' => $paymentMethod->sequence,
-            'timeout_seconds' => 150,
-            'is_default' => $paymentMethod->paymentGateway->default_payment_method_id === $paymentMethod->id,
-          ]);
-        }
+      if ($paymentMethods->isEmpty()) {
+        return [];
       }
 
-      return $dataArr;
+      return $paymentMethods->map(function ($paymentMethod) {
+        return [
+          'name' => $paymentMethod->paymentMerchant->name,
+          'image_url' => $paymentMethod->paymentMerchant->image_url,
+          'slug' => $paymentMethod->type_name,
+          'sequence' => $paymentMethod->sequence,
+          'timeout_seconds' => 150,
+          'is_default' => $paymentMethod->paymentGateway->default_payment_method_id === $paymentMethod->id,
+        ];
+      })->toArray();
+    });
+
+    return $dataArr;
   }
 
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)
   {
     // $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->order_id, -5), '0'))->first();
-    if($paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE and $paymentGatewayLog->paymentGateway()->exists()) {
+    if ($paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE and $paymentGatewayLog->paymentGateway()->exists()) {
 
       $paymentMethod = null;
-      switch($paymentGatewayLog->paymentGateway->name){
+      switch ($paymentGatewayLog->paymentGateway->name) {
         case 'midtrans':
-            $paymentMethod = array_search($paymentGatewayLog->method, Midtrans::PAYMENT_METHOD_MAPPING);
+          $paymentMethod = array_search($paymentGatewayLog->method, Midtrans::PAYMENT_METHOD_MAPPING);
           break;
         case 'omise':
           $paymentMethod = array_search($paymentGatewayLog->method, Omise::PAYMENT_METHOD_MAPPING);
@@ -270,7 +273,7 @@ class PaymentController extends Controller
           break;
       }
 
-      if($paymentGatewayLog->vend_channels_json) {
+      if ($paymentGatewayLog->vend_channels_json) {
         $result = $this->vendDispenseService->getMultipleParam([
           'orderId' => $paymentGatewayLog->order_id,
           'amount' => $paymentGatewayLog->request['PRICE'],
@@ -279,15 +282,15 @@ class PaymentController extends Controller
           'paymentMethod' => $paymentMethod,
           'txn_src' => $paymentGatewayLog->txn_src,
         ]);
-      }else {
+      } else {
         $result = $this->vendDispenseService->getSingleParam([
           'orderId' => $paymentGatewayLog->order_id,
           'amount' => $paymentGatewayLog->request['PRICE'],
           'vendCode' => $paymentGatewayLog->vend_code,
-          'productCode' =>  $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->code : null,
+          'productCode' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->code : null,
           'productID' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->id : null,
           'productName' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->name : null,
-          'channelCode' =>  $paymentGatewayLog->vendChannel ? $paymentGatewayLog->vend_channel_code : null,
+          'channelCode' => $paymentGatewayLog->vendChannel ? $paymentGatewayLog->vend_channel_code : null,
           'paymentMethod' => $paymentMethod,
           'txn_src' => $paymentGatewayLog->txn_src,
         ]);
@@ -305,13 +308,13 @@ class PaymentController extends Controller
       // $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
       // if($paymentGatewayLog->vend_code == '2007' or $paymentGatewayLog->vend_code == '2003' or $paymentGatewayLog->vend_code == '2009') {
-        // $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
-        $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$paymentGatewayLog->vend_code, $dataArr);
+      // $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
+      $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM' . $paymentGatewayLog->vend_code, $dataArr);
       // }else {
       //   PublishMqtt::dispatch('CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
       // }
-    }else {
-      PublishMqtt::dispatch('CM'.$paymentGatewayLog->vend_code, 'Error: QR code expired or payment gateway invalid')->onQueue('high');
+    } else {
+      PublishMqtt::dispatch('CM' . $paymentGatewayLog->vend_code, 'Error: QR code expired or payment gateway invalid')->onQueue('high');
       // $this->mqttService->publish('CM'.$paymentGatewayLog->vend_code, 'Error: QR code expired or payment gateway invalid');
     }
   }

@@ -18,31 +18,39 @@ class ClientController extends Controller
         $request->validate([
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
+            'per_page' => 'nullable|integer|min:1|max:100',
         ]);
-        $vendTransactions = ClientVendTransactionResource::collection(
-            VendTransaction::with([
-                'paymentMethod',
-                'product',
-                'vend.customer',
-                'vendChannel',
-                'vendChannelError',
-            ])
+
+        $perPage = $request->input('per_page', 50);
+
+        $vendTransactions = VendTransaction::with([
+            'paymentMethod',
+            'product',
+            'vend.customer',
+            'vendChannel',
+            'vendChannelError',
+        ])
             ->filterTransactionIndex($request)
-            ->get()
-        );
-        return $vendTransactions;
+            ->paginate($perPage);
+
+        return ClientVendTransactionResource::collection($vendTransactions);
     }
 
     public function getChannels(Request $request)
     {
-        $vendChannels = ClientVendResource::collection(
-            Vend::with([
-                'customer',
-                'vendChannels.product',
-            ])
+        $request->validate([
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $perPage = $request->input('per_page', 50);
+
+        $vendChannels = Vend::with([
+            'customer',
+            'vendChannels.product',
+        ])
             ->filterIndex($request)
-            ->get()
-        );
-        return $vendChannels;
+            ->paginate($perPage);
+
+        return ClientVendResource::collection($vendChannels);
     }
 }

@@ -70,15 +70,16 @@ class VoucherController extends Controller
             'validUnitMappings' => Voucher::VALID_UNIT_MAPPINGS,
             'vendOptions' => VendResource::collection(
                 Vend::with([
-                'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
-            ])
-            ->when($request->operator_id, function($query, $search) {
-                $query->where('operator_id', $search);
-            })
-            ->has('customer')
-            ->where('is_active', true)
-            ->orderBy('code')
-            ->get()),
+                    'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
+                ])
+                    ->when($request->operator_id, function ($query, $search) {
+                        $query->where('operator_id', $search);
+                    })
+                    ->has('customer')
+                    ->where('is_active', true)
+                    ->orderBy('code')
+                    ->get()
+            ),
             'voucherModeMappings' => Voucher::VOUCHER_MODE_MAPPINGS,
             'voucherPlatformMappings' => Voucher::VOUCHER_PLATFORM_MAPPINGS,
         ]);
@@ -95,17 +96,17 @@ class VoucherController extends Controller
             ], 404);
         }
 
-        if($voucher->is_dcvend) {
+        if ($voucher->is_dcvend) {
             $this->voucherService->syncDCVendVouchers($voucher, 'delete');
         }
 
-        if($voucher->voucherItems()->exists()) {
-            $voucher->voucherItems()->each(function($voucherItem) {
+        if ($voucher->voucherItems()->exists()) {
+            $voucher->voucherItems()->each(function ($voucherItem) {
                 $voucherItem->delete();
             });
         }
 
-        if($voucher->vends()->exists()) {
+        if ($voucher->vends()->exists()) {
             $voucher->vends()->detach();
         }
 
@@ -132,15 +133,16 @@ class VoucherController extends Controller
             'validUnitMappings' => Voucher::VALID_UNIT_MAPPINGS,
             'vendOptions' => VendResource::collection(
                 Vend::with([
-                'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
-            ])
-            ->when($request->operator_id, function($query, $search) {
-                $query->where('operator_id', $search);
-            })
-            ->has('customer')
-            ->where('is_active', true)
-            ->orderBy('code')
-            ->get()),
+                    'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
+                ])
+                    ->when($request->operator_id, function ($query, $search) {
+                        $query->where('operator_id', $search);
+                    })
+                    ->has('customer')
+                    ->where('is_active', true)
+                    ->orderBy('code')
+                    ->get()
+            ),
             'voucher' => VoucherResource::make($voucher),
         ]);
     }
@@ -149,8 +151,8 @@ class VoucherController extends Controller
     {
         $voucher = Voucher::with('voucherItems')->find($request->id);
 
-        if($voucher->voucherItems()->exists()) {
-            return (new FastExcel($this->yieldOneByOne($voucher->voucherItems)))->download('Voucher_Codes_'.Carbon::now()->toDateTimeString().'.xlsx', function ($voucherItem) {
+        if ($voucher->voucherItems()->exists()) {
+            return (new FastExcel($this->yieldOneByOne($voucher->voucherItems)))->download('Voucher_Codes_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($voucherItem) {
                 return [
                     'Code' => $voucherItem->code,
                     'Status' => Voucher::STATUS_MAPPINGS[$voucherItem->status],
@@ -180,12 +182,22 @@ class VoucherController extends Controller
             return [];
         }
 
-        $results = [];
-        foreach($codes as $codeIndex => $code) {
-            $voucher = Voucher::with('voucherItems')->where('code', $code)->first()
-                ?? VoucherItem::with('voucher')->where('code', $code)->first();
+        // Batch load all vouchers and voucher items at once
+        $vouchers = Voucher::with('voucherItems')
+            ->whereIn('code', $codes)
+            ->get()
+            ->keyBy('code');
 
-            if($voucher) {
+        $voucherItems = VoucherItem::with('voucher')
+            ->whereIn('code', $codes)
+            ->get()
+            ->keyBy('code');
+
+        $results = [];
+        foreach ($codes as $codeIndex => $code) {
+            $voucher = $vouchers->get($code) ?? $voucherItems->get($code);
+
+            if ($voucher) {
                 $results[$codeIndex] = VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID);
             }
         }
@@ -240,6 +252,7 @@ class VoucherController extends Controller
         if (count($codeArr) === 1) {
             $isSameCode = false;
 
+            // Combined query: check both Voucher and VoucherItem in one go
             $voucher = Voucher::with(['vends', 'voucherItems'])
                 ->whereIn('code', $codeArr)
                 ->first();
@@ -393,7 +406,7 @@ class VoucherController extends Controller
             'max_promo_value' => $request->max_promo_value ? $request->max_promo_value : null,
         ]);
 
-        if($request->is_batch_code) {
+        if ($request->is_batch_code) {
             $validatedRequest = $request->validate([
                 'code' => 'nullable|string|max:255',
                 'date_from' => 'required|date',
@@ -418,7 +431,7 @@ class VoucherController extends Controller
                 'value' => 'nullable|numeric|min:0',
                 'vends' => 'nullable|array',
             ]);
-        }else {
+        } else {
             $validatedRequest = $request->validate([
                 'code' => 'required|string|max:255|unique:App\Models\Voucher,code',
                 'date_from' => 'required|date',
@@ -452,11 +465,11 @@ class VoucherController extends Controller
 
         $this->voucherService->syncVoucherItems($voucher);
 
-        if($request->vends) {
+        if ($request->vends) {
             $voucher->vends()->sync($request->vends);
         }
 
-        if($voucher->is_dcvend) {
+        if ($voucher->is_dcvend) {
             $this->voucherService->syncDCVendVouchers($voucher, 'create');
         }
 
@@ -498,8 +511,9 @@ class VoucherController extends Controller
         return redirect()->route('vouchers.edit', ['id' => $voucher->id])->with('success', 'Voucher updated successfully');
     }
 
-    private function yieldOneByOne($items) {
-        foreach($items as $item) {
+    private function yieldOneByOne($items)
+    {
+        foreach ($items as $item) {
             yield $item;
         }
     }

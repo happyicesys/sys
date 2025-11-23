@@ -15,6 +15,7 @@ use App\Services\VendDataService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Log;
 
 class VendDataController extends Controller
@@ -33,7 +34,7 @@ class VendDataController extends Controller
         $standardizedVendData = $this->vendDataService->standardizedVendData($input, $connectionType);
         // dd($standardizedVendData);
         $decodedData = $this->vendDataService->decodeVendData($standardizedVendData);
-// dd($decodedData);
+        // dd($decodedData);
         $response = $this->vendDataService->processVendData($standardizedVendData, $decodedData, $ipAddress, $connectionType);
 
         return $response;
@@ -41,6 +42,7 @@ class VendDataController extends Controller
 
     public function getBindedVends()
     {
+        // Real-time data - no caching (vend bindings need to be current)
         $columns = [
             'id',
             'code',
@@ -73,9 +75,12 @@ class VendDataController extends Controller
 
     public function getVendMediaContent($code)
     {
-        $vend = Vend::where('code', $code)->firstOrFail();
+        $cacheKey = "vend_media:{$code}";
 
-        $imgUrl = $vend->mediaContents->first()->full_url ?? null;
+        $imgUrl = Cache::remember($cacheKey, 600, function () use ($code) {
+            $vend = Vend::with('mediaContents')->where('code', $code)->firstOrFail();
+            return $vend->mediaContents->first()->full_url ?? null;
+        });
 
         return $imgUrl;
     }

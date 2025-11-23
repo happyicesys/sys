@@ -53,17 +53,19 @@ class OpsJobController extends Controller
     {
         $isDriver = auth()->user()->hasRole('driver');
 
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
-            }else {
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
@@ -83,189 +85,159 @@ class OpsJobController extends Controller
             ]);
         }
 
-        $opsJobs = OpsJob::query()
-            ->with(['createdBy', 'deliveredBy', 'operator', 'pickedBy', 'updatedBy'])
-            ->selectRaw('ops_jobs.*,
-                (SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id) as ops_job_items_count')
-            ->selectRaw('(SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id AND ops_job_items.status >= ? AND ops_job_items.status <> ?) as ops_job_items_delivered_count', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
+        $query = OpsJob::query()
+            ->with(['createdBy', 'deliveredBy', 'operator', 'pickedBy', 'updatedBy']);
 
-            ->selectRaw('(SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id AND ops_job_items.picked_at IS NOT NULL) as ops_job_items_picked_count')
-            ->selectRaw('
-                IFNULL(
-                    ((SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id AND ops_job_items.picked_at IS NOT NULL) / (SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id)) * 100,
-                    0
-                ) as ops_job_items_picked_count_percentage')
-
-            ->selectRaw('(SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id AND ops_job_items.status = ?) as ops_job_items_verified_count', [OpsJob::STATUS_VERIFIED])
-            ->selectRaw('
-                IFNULL(
-                    ((SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id AND ops_job_items.status >= ? AND ops_job_items.status <> ?) / (SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id)) * 100,
-                    0
-                ) as ops_job_items_delivered_count_percentage', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
-            ->selectRaw('
-                IFNULL(
-                    ((SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id AND ops_job_items.status = ?) / (SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id)) * 100,
-                    0
-                ) as ops_job_items_verified_count_percentage', [OpsJob::STATUS_VERIFIED])
-            ->selectRaw('
-                (SELECT SUM(ops_job_item_channels.picked_qty * vend_channels.amount)
-                FROM ops_job_item_channels
-                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
-                JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                AND ops_job_items.status >= ?
-                ) as picked_amount', [OpsJob::STATUS_PICKED])
-            ->selectRaw('
-                (SELECT SUM(ops_job_item_channels.picked_qty)
-                FROM ops_job_item_channels
-                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
-                JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                AND ops_job_items.status >= ?
-                ) as picked_count', [OpsJob::STATUS_PICKED])
-            ->selectRaw('
-                (
-                SELECT SUM(ops_job_item_channels.picked_qty * unit_costs.cost)
-                FROM ops_job_item_channels
-                JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
-                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
-                JOIN products ON products.id = vend_channels.product_id
-                JOIN unit_costs ON unit_costs.product_id = products.id
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                AND unit_costs.is_current = true
-                AND ops_job_items.status >= ?
-                ORDER BY unit_costs.date_from DESC, unit_costs.created_at DESC
-                LIMIT 1
-                ) as picked_cost', [OpsJob::STATUS_PICKED])
-            ->selectRaw('
-                (SELECT SUM(ops_job_item_channels.actual_qty * vend_channels.amount)
-                FROM ops_job_item_channels
-                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
-                JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                AND ops_job_items.status >= ?
-                AND ops_job_items.status <> ?
-                ) as stock_in_amount', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
-            ->selectRaw('
-                (SELECT SUM(ops_job_item_channels.actual_qty)
-                FROM ops_job_item_channels
-                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
-                JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                AND ops_job_items.status >= ?
-                AND ops_job_items.status <> ?
-                ) as stock_in_count', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
-                ->selectRaw('
-                (
-                SELECT SUM(ops_job_item_channels.actual_qty * unit_costs.cost)
-                FROM ops_job_item_channels
-                JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
-                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
-                JOIN products ON products.id = vend_channels.product_id
-                JOIN unit_costs ON unit_costs.product_id = products.id
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                AND unit_costs.is_current = true
-                AND ops_job_items.status >= ?
-                AND ops_job_items.status <> ?
-                ORDER BY unit_costs.date_from DESC, unit_costs.created_at DESC
-                LIMIT 1
-                ) as stock_in_cost', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
-            ->selectRaw('(
-                SELECT SUM(ops_job_items.cash_amount)
-                FROM ops_job_items
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                ) as total_cash_amount')
-            // disabled due to most of vmc havent update apk
-            // ->selectRaw('(
-            //     SELECT SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(vend_channel_records.before_statis_json, "$.CashAmt")) AS DECIMAL(10, 2)))
-            //     FROM ops_job_items
-            //     JOIN vend_channel_records ON vend_channel_records.id = ops_job_items.vend_channel_record_id
-            //     WHERE ops_job_items.ops_job_id = ops_jobs.id
-            //     ) as total_cash_amount_from_vmc')
-            ->selectRaw('(
-                SELECT SUM(ops_job_items.temp_cash_amount_from_vmc)
-                FROM ops_job_items
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                ) as total_cash_amount_from_vmc')
-            ->selectRaw('(
-                SELECT SUM(ops_job_items.cash_amount) - SUM(ops_job_items.temp_cash_amount_from_vmc)
-                FROM ops_job_items
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                ) as delta_cash_amount')
-            ->selectRaw('(
-                SELECT SUM(ops_job_items.acc_total_amount)
-                FROM ops_job_items
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                ) as acc_vend_transactions_amount')
-            ->selectRaw('(
-                SELECT SUM(ops_job_items.acc_total_cash_amount)
-                FROM ops_job_items
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                ) as acc_vend_transactions_cash_amount')
-            ->selectRaw('(
-                SELECT SUM(ops_job_items.acc_total_cashless_amount)
-                FROM ops_job_items
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                ) as acc_vend_transactions_cashless_amount')
-            ->selectRaw('(
-                SELECT SUM(ops_job_items.acc_total_promo_amount)
-                FROM ops_job_items
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                ) as acc_vend_transactions_promo_amount')
-            ->selectRaw('(
-                SELECT SUM(ops_job_items.acc_total_count)
-                FROM ops_job_items
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                ) as acc_vend_transactions_count')
-            ->selectRaw('(
-                SELECT COUNT(ops_job_items.id)
-                FROM ops_job_items
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                AND ops_job_items.cms_transaction_id IS NOT NULL
-                ) as cms_transaction_count')
-            ->selectRaw('(
-                (SELECT COUNT(ops_job_items.id)
-                FROM ops_job_items
-                WHERE ops_job_items.ops_job_id = ops_jobs.id
-                AND ops_job_items.cms_transaction_id IS NOT NULL) * 100.0
-                /
-                NULLIF(
-                    (SELECT COUNT(*)
-                    FROM ops_job_items
-                    WHERE ops_job_items.ops_job_id = ops_jobs.id
-                    AND ops_job_items.status >= ?
-                    AND ops_job_items.status <> ?),
-                    0
-                )
-            ) as cms_transaction_percentage', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
-
-            ->when($request->code, function($query, $search) {
-                $query->where('code', 'LIKE', "%{$search}%");
-            })
-            ->when($request->date_from, function($query, $search) {
+        // Apply filters
+        $query->when($request->code, function ($query, $search) {
+            $query->where('code', 'LIKE', "%{$search}%");
+        })
+            ->when($request->date_from, function ($query, $search) {
                 $query->where('date', '>=', $search);
             })
-            ->when($request->date_to, function($query, $search) {
+            ->when($request->date_to, function ($query, $search) {
                 $query->where('date', '<=', $search);
             })
-            ->when($request->delivered_by, function($query, $search) {
+            ->when($request->delivered_by, function ($query, $search) {
                 $query->where('delivered_by', $search);
             })
-            ->when($request->created_by, function($query, $search) {
+            ->when($request->created_by, function ($query, $search) {
                 $query->where('created_by', $search);
             })
-            ->when($request->ops_job_item_ref_id, function($query, $search) {
-                $query->whereHas('opsJobItems', function($query) use ($search) {
+            ->when($request->ops_job_item_ref_id, function ($query, $search) {
+                $query->whereHas('opsJobItems', function ($query) use ($search) {
                     $query->where('id', $search - 25000);
                 });
             })
-            ->when($request->vend_code, function($query, $search) {
-                $query->whereHas('opsJobItems.vend', function($query) use ($search) {
+            ->when($request->vend_code, function ($query, $search) {
+                $query->whereHas('opsJobItems.vend', function ($query) use ($search) {
                     $query->where('code', $search);
                 });
             })
-            ->when($request->sortKey, function($query, $search) use ($request) {
-                if (in_array($search, [
+            ->whereHas('deliveredBy', function ($query) use ($request) {
+                $query->whereIn('operator_id', $request->operators);
+            });
+
+        // Sorting (standard columns)
+        if (
+            !in_array($request->sortKey, [
+                'ops_job_items_count',
+                'ops_job_items_delivered_count',
+                'ops_job_items_verified_count',
+                'ops_job_items_delivered_count_percentage',
+                'ops_job_items_verified_count_percentage',
+                'total_cash_amount_from_vmc',
+                'delta_cash_amount',
+            ])
+        ) {
+            $query->orderBy($request->sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+        }
+
+        // Paginate first to get the target IDs
+        $opsJobs = $query->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)->withQueryString();
+        $opsJobIds = $opsJobs->pluck('id')->toArray();
+
+        if (!empty($opsJobIds)) {
+            // 1. Item Stats Aggregation (Filtered by IDs)
+            $itemStats = DB::table('ops_job_items')
+                ->whereIn('ops_job_id', $opsJobIds)
+                ->selectRaw('
+                    ops_job_id,
+                    COUNT(*) as ops_job_items_count,
+                    SUM(CASE WHEN status >= ? AND status <> ? THEN 1 ELSE 0 END) as ops_job_items_delivered_count,
+                    SUM(CASE WHEN picked_at IS NOT NULL THEN 1 ELSE 0 END) as ops_job_items_picked_count,
+                    SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as ops_job_items_verified_count,
+                    SUM(cash_amount) as total_cash_amount,
+                    SUM(temp_cash_amount_from_vmc) as total_cash_amount_from_vmc,
+                    SUM(cash_amount) - SUM(temp_cash_amount_from_vmc) as delta_cash_amount,
+                    SUM(acc_total_amount) as acc_vend_transactions_amount,
+                    SUM(acc_total_cash_amount) as acc_vend_transactions_cash_amount,
+                    SUM(acc_total_cashless_amount) as acc_vend_transactions_cashless_amount,
+                    SUM(acc_total_promo_amount) as acc_vend_transactions_promo_amount,
+                    SUM(acc_total_count) as acc_vend_transactions_count,
+                    SUM(CASE WHEN cms_transaction_id IS NOT NULL THEN 1 ELSE 0 END) as cms_transaction_count
+                ', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED, OpsJob::STATUS_VERIFIED])
+                ->groupBy('ops_job_id')
+                ->get()
+                ->keyBy('ops_job_id');
+
+            // 2. Channel Stats Aggregation (Filtered by IDs)
+            $channelStats = DB::table('ops_job_item_channels as ojic')
+                ->join('ops_job_items as oji', 'ojic.ops_job_item_id', '=', 'oji.id')
+                ->join('vend_channels as vc', 'ojic.vend_channel_id', '=', 'vc.id')
+                ->leftJoin('products as p', 'vc.product_id', '=', 'p.id')
+                ->leftJoin('unit_costs as uc', function ($join) {
+                    $join->on('p.id', '=', 'uc.product_id')
+                        ->where('uc.is_current', '=', true);
+                })
+                ->whereIn('oji.ops_job_id', $opsJobIds)
+                ->selectRaw('
+                    oji.ops_job_id,
+                    SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty * vc.amount ELSE 0 END) as picked_amount,
+                    SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty ELSE 0 END) as picked_count,
+                    SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty * COALESCE(uc.cost, 0) ELSE 0 END) as picked_cost,
+                    SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * vc.amount ELSE 0 END) as stock_in_amount,
+                    SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty ELSE 0 END) as stock_in_count,
+                    SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * COALESCE(uc.cost, 0) ELSE 0 END) as stock_in_cost
+                ', [
+                    OpsJob::STATUS_PICKED,
+                    OpsJob::STATUS_PICKED,
+                    OpsJob::STATUS_PICKED,
+                    OpsJob::STATUS_DELIVERED,
+                    OpsJob::STATUS_CANCELLED,
+                    OpsJob::STATUS_DELIVERED,
+                    OpsJob::STATUS_CANCELLED,
+                    OpsJob::STATUS_DELIVERED,
+                    OpsJob::STATUS_CANCELLED
+                ])
+                ->groupBy('oji.ops_job_id')
+                ->get()
+                ->keyBy('ops_job_id');
+
+            // 3. Merge Data
+            foreach ($opsJobs as $job) {
+                $iStat = $itemStats->get($job->id);
+                $cStat = $channelStats->get($job->id);
+
+                $job->ops_job_items_count = $iStat?->ops_job_items_count ?? 0;
+                $job->ops_job_items_delivered_count = $iStat?->ops_job_items_delivered_count ?? 0;
+                $job->ops_job_items_picked_count = $iStat?->ops_job_items_picked_count ?? 0;
+                $job->ops_job_items_verified_count = $iStat?->ops_job_items_verified_count ?? 0;
+                $job->total_cash_amount = $iStat?->total_cash_amount ?? 0;
+                $job->total_cash_amount_from_vmc = $iStat?->total_cash_amount_from_vmc ?? 0;
+                $job->delta_cash_amount = $iStat?->delta_cash_amount ?? 0;
+                $job->acc_vend_transactions_amount = $iStat?->acc_vend_transactions_amount ?? 0;
+                $job->acc_vend_transactions_cash_amount = $iStat?->acc_vend_transactions_cash_amount ?? 0;
+                $job->acc_vend_transactions_cashless_amount = $iStat?->acc_vend_transactions_cashless_amount ?? 0;
+                $job->acc_vend_transactions_promo_amount = $iStat?->acc_vend_transactions_promo_amount ?? 0;
+                $job->acc_vend_transactions_count = $iStat?->acc_vend_transactions_count ?? 0;
+                $job->cms_transaction_count = $iStat?->cms_transaction_count ?? 0;
+
+                $job->picked_amount = $cStat?->picked_amount ?? 0;
+                $job->picked_count = $cStat?->picked_count ?? 0;
+                $job->picked_cost = $cStat?->picked_cost ?? 0;
+                $job->stock_in_amount = $cStat?->stock_in_amount ?? 0;
+                $job->stock_in_count = $cStat?->stock_in_count ?? 0;
+                $job->stock_in_cost = $cStat?->stock_in_cost ?? 0;
+
+                // Percentages
+                $job->ops_job_items_picked_count_percentage = $job->ops_job_items_count > 0
+                    ? ($job->ops_job_items_picked_count / $job->ops_job_items_count) * 100
+                    : 0;
+                $job->ops_job_items_delivered_count_percentage = $job->ops_job_items_count > 0
+                    ? ($job->ops_job_items_delivered_count / $job->ops_job_items_count) * 100
+                    : 0;
+                $job->ops_job_items_verified_count_percentage = $job->ops_job_items_count > 0
+                    ? ($job->ops_job_items_verified_count / $job->ops_job_items_count) * 100
+                    : 0;
+                $job->cms_transaction_percentage = $job->ops_job_items_delivered_count > 0
+                    ? ($job->cms_transaction_count / $job->ops_job_items_delivered_count) * 100
+                    : 0;
+            }
+
+            // Sorting for aggregated columns (after data is merged)
+            if (
+                in_array($request->sortKey, [
                     'ops_job_items_count',
                     'ops_job_items_delivered_count',
                     'ops_job_items_verified_count',
@@ -273,17 +245,15 @@ class OpsJobController extends Controller
                     'ops_job_items_verified_count_percentage',
                     'total_cash_amount_from_vmc',
                     'delta_cash_amount',
-                ])) {
-                    $query->orderByRaw("{$search} " . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
-                } else {
-                    $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
-                }
-            })
-            ->whereHas('deliveredBy', function($query) use ($request) {
-                $query->whereIn('operator_id', $request->operators);
-            })
-            ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
-            ->withQueryString();
+                ])
+            ) {
+                $opsJobs->getCollection()->sortBy(
+                    $request->sortKey,
+                    SORT_REGULAR,
+                    filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? false : true // true for descending
+                );
+            }
+        }
 
 
         return Inertia::render('OpsJob/Index', [
@@ -295,8 +265,8 @@ class OpsJobController extends Controller
             ),
             'userOptions' => UserResource::collection(
                 User::when($isDriver, function ($q) {
-                        $q->where('id', auth()->id());
-                    })
+                    $q->where('id', auth()->id());
+                })
                     ->orderBy('name')
                     ->get()
             ),
@@ -307,7 +277,7 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        switch($opsJobItem->status) {
+        switch ($opsJobItem->status) {
             case 1:
                 $opsJobItem->update([
                     'status' => OpsJob::STATUS_PICKED,
@@ -317,8 +287,8 @@ class OpsJobController extends Controller
                     'undo_picked_by' => null,
                 ]);
 
-                if($request->channels) {
-                    foreach($request->channels as $channel) {
+                if ($request->channels) {
+                    foreach ($request->channels as $channel) {
                         $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                         $opsJobItemChannel->update([
                             'picked_before_qty' => $channel['qty'],
@@ -341,8 +311,8 @@ class OpsJobController extends Controller
                     'undo_completed_by' => null,
                 ]);
 
-                if($request->channels) {
-                    foreach($request->channels as $channel) {
+                if ($request->channels) {
+                    foreach ($request->channels as $channel) {
                         $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                         $opsJobItemChannel->update([
                             'actual_before_qty' => $channel['qty'],
@@ -361,7 +331,7 @@ class OpsJobController extends Controller
                     ->orderBy('id', 'desc')
                     ->first();
 
-                if($previousOpsJobItem) {
+                if ($previousOpsJobItem) {
                     $vendTransactions = VendTransaction::query()
                         ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
                         ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
@@ -397,14 +367,14 @@ class OpsJobController extends Controller
                     ])
                     ->first();
 
-                if($vendChannelRecord) {
+                if ($vendChannelRecord) {
                     $opsJobItem->update([
                         'vend_channel_record_id' => $vendChannelRecord->id,
                     ]);
 
-                    if($vendChannelRecord->before_data_json || $vendChannelRecord->after_data_json) {
-                        $opsJobItem->opsJobItemChannels->each(function($opsJobItemChannel) use ($vendChannelRecord) {
-                            if($vendChannelRecord->before_data_json) {
+                    if ($vendChannelRecord->before_data_json || $vendChannelRecord->after_data_json) {
+                        $opsJobItem->opsJobItemChannels->each(function ($opsJobItemChannel) use ($vendChannelRecord) {
+                            if ($vendChannelRecord->before_data_json) {
                                 $channels = $vendChannelRecord->before_data_json['channels'] ?? [];
 
                                 foreach ($channels as $channel) {
@@ -417,7 +387,7 @@ class OpsJobController extends Controller
                                 }
                             }
 
-                            if($vendChannelRecord->after_data_json) {
+                            if ($vendChannelRecord->after_data_json) {
                                 if ($vendChannelRecord->after_data_json) {
                                     $channels = $vendChannelRecord->after_data_json['channels'] ?? [];
 
@@ -466,14 +436,14 @@ class OpsJobController extends Controller
         $dataArr = [];
         $input = collect($request->all());
         $items = VendChannel::query()
-        ->with([
-            'product:id,code,name,desc,is_available',
-            'product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
-        ])
-        ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
-        ->leftJoin('ops_job_item_channels', 'ops_job_item_channels.vend_channel_id', '=', 'vend_channels.id')
-        ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-        ->whereIn('ops_job_items.id', $input->pluck('id')->toArray());
+            ->with([
+                'product:id,code,name,desc,is_available',
+                'product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
+            ])
+            ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
+            ->leftJoin('ops_job_item_channels', 'ops_job_item_channels.vend_channel_id', '=', 'vend_channels.id')
+            ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->whereIn('ops_job_items.id', $input->pluck('id')->toArray());
 
         switch ($status) {
             case OpsJob::STATUS_PICKED:
@@ -526,13 +496,13 @@ class OpsJobController extends Controller
         $opsJob = OpsJob::findOrFail($id);
 
         $opsJob = OpsJob::query()
-        ->with([
-            'createdBy',
-            'deliveredBy',
-            'opsJobItems.customer',
-            'opsJobItems.opsJobItemChannels.vendChannel.product'
-        ])
-        ->find($id);
+            ->with([
+                'createdBy',
+                'deliveredBy',
+                'opsJobItems.customer',
+                'opsJobItems.opsJobItemChannels.vendChannel.product'
+            ])
+            ->find($id);
 
         $data = [
             'date' => Carbon::parse($opsJob->date)->format('Y-m-d'),
@@ -542,12 +512,12 @@ class OpsJobController extends Controller
             'customers' => [],
         ];
 
-        if($opsJob->opsJobItems) {
-            foreach($opsJob->opsJobItems as $opsJobItem) {
-                if(($opsJobItem->status < OpsJob::STATUS_DELIVERED) or ($opsJobItem->status == OpsJob::STATUS_CANCELLED) or ($opsJobItem->cms_transaction_id)){
+        if ($opsJob->opsJobItems) {
+            foreach ($opsJob->opsJobItems as $opsJobItem) {
+                if (($opsJobItem->status < OpsJob::STATUS_DELIVERED) or ($opsJobItem->status == OpsJob::STATUS_CANCELLED) or ($opsJobItem->cms_transaction_id)) {
                     continue;
                 }
-                if($opsJobItem->customer && $opsJobItem->customer->person_id) {
+                if ($opsJobItem->customer && $opsJobItem->customer->person_id) {
                     SyncOpsJobTransactionCMS::dispatch($opsJobItem, $data, auth()->user()->id);
                 }
             }
@@ -561,55 +531,55 @@ class OpsJobController extends Controller
     public function edit(Request $request, $id)
     {
         $opsJob = OpsJob::query()
-        ->with([
-            'createdBy:id,name', // Select only necessary columns
-            'deliveredBy:id,name',
-            'operator:id,name',
-            'opsJobItems' => function($query) use ($request) {
-                $query->when($request->vend_code, function($query, $search) {
-                    $query->whereHas('vend', function($query) use ($search) {
-                        $query->where('code', 'LIKE', "{$search}%");
-                    });
-                });
-                $query->when($request->customer, function($query, $search) {
-                    $query->where(function($query) use ($search) {
-                        $query->whereHas('vend.customer', function($query) use ($search) {
-                            $query->where('name', 'LIKE', "%{$search}%")
-                                ->orWhere('virtual_customer_code', 'LIKE', "{$search}%");
+            ->with([
+                'createdBy:id,name', // Select only necessary columns
+                'deliveredBy:id,name',
+                'operator:id,name',
+                'opsJobItems' => function ($query) use ($request) {
+                    $query->when($request->vend_code, function ($query, $search) {
+                        $query->whereHas('vend', function ($query) use ($search) {
+                            $query->where('code', 'LIKE', "{$search}%");
                         });
                     });
-                });
+                    $query->when($request->customer, function ($query, $search) {
+                        $query->where(function ($query) use ($search) {
+                            $query->whereHas('vend.customer', function ($query) use ($search) {
+                                $query->where('name', 'LIKE', "%{$search}%")
+                                    ->orWhere('virtual_customer_code', 'LIKE', "{$search}%");
+                            });
+                        });
+                    });
 
-                // Select necessary columns
-                $query->select([
-                    'id',
-                    'cash_amount',
-                    'cashless_amount',
-                    'customer_id',
-                    'notes',
-                    'ops_job_id',
-                    'vend_id',
-                    'cms_transaction_at',
-                    'cms_transaction_by',
-                    'cms_transaction_id',
-                    'is_cash_collected',
-                    'sequence',
-                    'status',
-                    'picked_at',
-                    'picked_by',
-                    'previous_ops_job_item_id',
-                    'completed_at',
-                    'completed_by',
-                    'remarks',
-                    'remarks_updated_at',
-                    'remarks_updated_by',
-                    'temp_cash_amount_from_vmc',
-                    'vend_channel_record_id',
-                    'verified_at',
-                    'verified_by',
-                ]);
+                    // Select necessary columns
+                    $query->select([
+                        'id',
+                        'cash_amount',
+                        'cashless_amount',
+                        'customer_id',
+                        'notes',
+                        'ops_job_id',
+                        'vend_id',
+                        'cms_transaction_at',
+                        'cms_transaction_by',
+                        'cms_transaction_id',
+                        'is_cash_collected',
+                        'sequence',
+                        'status',
+                        'picked_at',
+                        'picked_by',
+                        'previous_ops_job_item_id',
+                        'completed_at',
+                        'completed_by',
+                        'remarks',
+                        'remarks_updated_at',
+                        'remarks_updated_by',
+                        'temp_cash_amount_from_vmc',
+                        'vend_channel_record_id',
+                        'verified_at',
+                        'verified_by',
+                    ]);
 
-                $query->selectRaw('
+                    $query->selectRaw('
                     (SELECT
                         CASE
                             WHEN ops_job_items.status = 1 THEN created_at
@@ -620,7 +590,7 @@ class OpsJobController extends Controller
                             WHEN ops_job_items.status = 99 THEN cancelled_at
                     ELSE NULL END) as status_at');
 
-                $query->selectRaw('
+                    $query->selectRaw('
                     (SELECT
                         CASE
                             WHEN ops_job_items.status = 1 THEN created_by
@@ -631,8 +601,8 @@ class OpsJobController extends Controller
                             WHEN ops_job_items.status = 99 THEN cancelled_by
                     ELSE NULL END) as status_by');
 
-                // Adjust the selectRaw queries to correctly reference the opsJobItems relationship
-                $query->selectRaw('
+                    // Adjust the selectRaw queries to correctly reference the opsJobItems relationship
+                    $query->selectRaw('
                     (SELECT SUM(ops_job_item_channels.picked_qty * vend_channels.amount)
                     FROM ops_job_item_channels
                     JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
@@ -640,7 +610,7 @@ class OpsJobController extends Controller
                     AND ops_job_items.status >= ?
                     ) as picked_amount', [OpsJob::STATUS_PICKED]);
 
-                $query->selectRaw('
+                    $query->selectRaw('
                     (SELECT SUM(ops_job_item_channels.picked_qty)
                     FROM ops_job_item_channels
                     JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
@@ -648,7 +618,7 @@ class OpsJobController extends Controller
                     AND ops_job_items.status >= ?
                     ) as picked_count', [OpsJob::STATUS_PICKED]);
 
-                $query->selectRaw('
+                    $query->selectRaw('
                     (SELECT SUM(ops_job_item_channels.actual_qty * vend_channels.amount)
                      FROM ops_job_item_channels
                      JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
@@ -657,7 +627,7 @@ class OpsJobController extends Controller
                      AND ops_job_items.status <> ?
                     ) as stock_in_amount', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED]);
 
-                $query->selectRaw('
+                    $query->selectRaw('
                     (SELECT SUM(ops_job_item_channels.actual_qty)
                      FROM ops_job_item_channels
                      JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
@@ -666,96 +636,98 @@ class OpsJobController extends Controller
                      AND ops_job_items.status <> ?
                     ) as stock_in_count', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED]);
 
-                $query->selectRaw('(
+                    $query->selectRaw('(
                     SELECT SUM(oj_items.acc_total_amount)
                     FROM ops_job_items oj_items
                     WHERE oj_items.id = ops_job_items.id
                     ) as acc_vend_transactions_amount');
 
-                $query->selectRaw('(
+                    $query->selectRaw('(
                     SELECT SUM(oj_items.acc_total_count)
                     FROM ops_job_items oj_items
                     WHERE oj_items.id = ops_job_items.id
                     ) as acc_vend_transactions_count');
 
-                $query->selectRaw('(
+                    $query->selectRaw('(
                         SELECT SUM(oj_items.acc_total_cash_amount)
                         FROM ops_job_items oj_items
                         WHERE oj_items.id = ops_job_items.id
                     ) as acc_vend_transactions_cash_amount');
 
-                $query->selectRaw('(
+                    $query->selectRaw('(
                     SELECT SUM(oj_items.cash_amount)
                     FROM ops_job_items oj_items
                     WHERE oj_items.id = ops_job_items.id
                     ) as total_cash_amount');
 
-                // $query->selectRaw('(
-                //     SELECT SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(vend_channel_records.before_statis_json, "$.CashAmt")) AS DECIMAL(10, 2)))
-                //     FROM ops_job_items oj_items
-                //     JOIN vend_channel_records ON vend_channel_records.id = oj_items.vend_channel_record_id
-                //     WHERE oj_items.id = ops_job_items.id
-                // ) as total_cash_amount_from_vmc');
-                $query->selectRaw('(
+                    // $query->selectRaw('(
+                    //     SELECT SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(vend_channel_records.before_statis_json, "$.CashAmt")) AS DECIMAL(10, 2)))
+                    //     FROM ops_job_items oj_items
+                    //     JOIN vend_channel_records ON vend_channel_records.id = oj_items.vend_channel_record_id
+                    //     WHERE oj_items.id = ops_job_items.id
+                    // ) as total_cash_amount_from_vmc');
+                    $query->selectRaw('(
                     SELECT SUM(oj_items.temp_cash_amount_from_vmc)
                     FROM ops_job_items oj_items
                     WHERE oj_items.id = ops_job_items.id
                 ) as total_cash_amount_from_vmc');
 
-                $query->selectRaw('(
+                    $query->selectRaw('(
                     SELECT SUM(oj_items.cash_amount) - SUM(oj_items.temp_cash_amount_from_vmc)
                     FROM ops_job_items oj_items
                     WHERE oj_items.id = ops_job_items.id
                 ) as delta_cash_amount');
 
-                $query->selectRaw('
+                    $query->selectRaw('
                     (SELECT delivery_address.postcode
                     FROM addresses AS delivery_address
                     WHERE delivery_address.modelable_id = ops_job_items.customer_id
                     AND delivery_address.modelable_type = "App\\\Models\\\Customer"
                     AND delivery_address.type = 2
                     LIMIT 1) as delivery_postcode'
-                );
+                    );
 
-                $query->when($request->sortKey, function($query, $search) use ($request) {
-                    if (in_array($search, [
-                        'picked_amount',
-                        'stock_in_amount',
-                        'acc_vend_transactions_amount',
-                        'total_cash_amount',
-                        'total_cash_amount_from_vmc',
-                        'delta_cash_amount',
-                    ])) {
-                        $query->orderByRaw("{$search} " . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
-                    } else {
-                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
-                    }
-                }, function($query) {
-                    $query->orderByRaw('ISNULL(sequence), sequence ASC')->orderBy('created_at');
-                });
-            },
-            'opsJobItems.attachments',
-            'opsJobItems.vend:id,customer_id,code,vend_prefix_id',
-            'opsJobItems.cmsTransactionBy',
-            'opsJobItems.customer.deliveryAddress',
-            'opsJobItems.opsJobItemChannels.vendChannel.product.thumbnail',
-            'opsJobItems.remarksUpdatedBy:id,name',
-            'opsJobItems.vend.vendPrefix',
-            'opsJobItems.pickedBy:id,name',
-            'opsJobItems.previousOpsJobItem',
-            'opsJobItems.statusBy',
-            'opsJobItems.completedBy:id,name',
-            'opsJobItems.vendChannelRecord',
-            'opsJobItems.verifiedBy',
-            'updatedBy:id,name'
-        ])
-        ->findOrFail($id);
+                    $query->when($request->sortKey, function ($query, $search) use ($request) {
+                        if (
+                            in_array($search, [
+                                'picked_amount',
+                                'stock_in_amount',
+                                'acc_vend_transactions_amount',
+                                'total_cash_amount',
+                                'total_cash_amount_from_vmc',
+                                'delta_cash_amount',
+                            ])
+                        ) {
+                            $query->orderByRaw("{$search} " . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                        } else {
+                            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                        }
+                    }, function ($query) {
+                        $query->orderByRaw('ISNULL(sequence), sequence ASC')->orderBy('created_at');
+                    });
+                },
+                'opsJobItems.attachments',
+                'opsJobItems.vend:id,customer_id,code,vend_prefix_id',
+                'opsJobItems.cmsTransactionBy',
+                'opsJobItems.customer.deliveryAddress',
+                'opsJobItems.opsJobItemChannels.vendChannel.product.thumbnail',
+                'opsJobItems.remarksUpdatedBy:id,name',
+                'opsJobItems.vend.vendPrefix',
+                'opsJobItems.pickedBy:id,name',
+                'opsJobItems.previousOpsJobItem',
+                'opsJobItems.statusBy',
+                'opsJobItems.completedBy:id,name',
+                'opsJobItems.vendChannelRecord',
+                'opsJobItems.verifiedBy',
+                'updatedBy:id,name'
+            ])
+            ->findOrFail($id);
 
         $unbindedVendOptions = Vend::query()
             ->select(['id', 'customer_id', 'operator_id', 'code']) // Select necessary columns
             ->with(['customer:id,name']) // Select necessary columns
             ->has('customer')
-            ->whereDoesntHave('opsJobItems', function($query) use ($opsJob) {
+            ->whereDoesntHave('opsJobItems', function ($query) use ($opsJob) {
                 $query->where('ops_job_id', $opsJob->id);
             })
             ->get();
@@ -783,9 +755,9 @@ class OpsJobController extends Controller
                 'customer.deliveryAddress',
                 'vend.vendPrefix',
                 'opsJob',
-                'opsJobItemChannels.vendChannel.product' => function($query) use ($opsJob) {
+                'opsJobItemChannels.vendChannel.product' => function ($query) use ($opsJob) {
                     $query->select('*')
-                    ->selectRaw('(
+                        ->selectRaw('(
                         SELECT qty FROM product_limits
                         WHERE product_limits.product_id = products.id
                         AND product_limits.date = ?
@@ -877,7 +849,7 @@ class OpsJobController extends Controller
             'updated_at' => null,
         ]);
 
-        foreach($vendsID as $vendID) {
+        foreach ($vendsID as $vendID) {
             $this->createOpsJobItem($opsJob->id, $vendID);
         }
     }
@@ -891,8 +863,8 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        if($request->nextStatus) {
-            switch($request->nextStatus) {
+        if ($request->nextStatus) {
+            switch ($request->nextStatus) {
                 case 99:
                     $opsJobItem->status = OpsJob::STATUS_CANCELLED;
                     $opsJobItem->cancelled_at = Carbon::now();
@@ -937,7 +909,7 @@ class OpsJobController extends Controller
         $opsJob->opsJobItems()
             ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')') // Use FIELD to order by the provided id sequence
             ->get()
-            ->each(function($opsJobItem, $index) {
+            ->each(function ($opsJobItem, $index) {
                 $opsJobItem->update([
                     'sequence' => $index + 1,
                 ]);
@@ -959,20 +931,20 @@ class OpsJobController extends Controller
         $opsJob = OpsJob::query()
             ->with([
                 'deliveredBy',
-                'opsJobItems' => function($query) use ($request) {
+                'opsJobItems' => function ($query) use ($request) {
                     $query
                         ->leftJoin('customers', 'customers.id', '=', 'ops_job_items.customer_id')
-                        ->leftJoin('addresses', function($query) {
+                        ->leftJoin('addresses', function ($query) {
                             $query->on('addresses.modelable_id', '=', 'customers.id')
-                                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                                    ->where('addresses.type', '=', 2)
-                                    ->limit(1);
+                                ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                                ->where('addresses.type', '=', 2)
+                                ->limit(1);
                         })
                         ->select('ops_job_items.*', 'postcode AS delivery_postcode');
 
-                    $query->when($request->sortKey, function($query, $search) use ($request) {
+                    $query->when($request->sortKey, function ($query, $search) use ($request) {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
-                    }, function($query) {
+                    }, function ($query) {
                         $query->orderByRaw('ISNULL(ops_job_items.sequence), ops_job_items.sequence ASC')->orderBy('postcode');
                     });
                 },
@@ -990,15 +962,15 @@ class OpsJobController extends Controller
                 Address::where('type', '100')
                     ->latest()
                     ->get()
-                    // ->merge($opsJobAddresses)
-                    // ->unique('id')
+                // ->merge($opsJobAddresses)
+                // ->unique('id')
             ),
             'originAddresses' => AddressResource::collection(
                 Address::where('type', '90')
                     ->latest()
                     ->get()
-                    // ->merge($opsJobAddresses)
-                    // ->unique('id')
+                // ->merge($opsJobAddresses)
+                // ->unique('id')
             ),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => OpsJobResource::make($opsJob),
@@ -1009,8 +981,8 @@ class OpsJobController extends Controller
     {
         $opsJob = OpsJob::findOrFail($id);
 
-        foreach($request->opsJobItems as $opsJobItemRequest) {
-            if(isset($opsJobItemRequest['isOpsJobItem']) and $opsJobItemRequest['isOpsJobItem'] == false) {
+        foreach ($request->opsJobItems as $opsJobItemRequest) {
+            if (isset($opsJobItemRequest['isOpsJobItem']) and $opsJobItemRequest['isOpsJobItem'] == false) {
                 continue;
             }
             $opsJobItem = OpsJobItem::findOrFail($opsJobItemRequest['id']);
@@ -1092,9 +1064,9 @@ class OpsJobController extends Controller
     {
         $opsJob = OpsJob::findOrFail($id);
 
-        if($opsJob->opsJobItems) {
-            foreach($opsJob->opsJobItems as $opsJobItem) {
-                if($opsJobItem->opsJobItemChannels) {
+        if ($opsJob->opsJobItems) {
+            foreach ($opsJob->opsJobItems as $opsJobItem) {
+                if ($opsJobItem->opsJobItemChannels) {
                     $opsJobItem->opsJobItemChannels()->delete();
                 }
             }
@@ -1110,11 +1082,11 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        if($opsJobItem->cms_transaction_id) {
+        if ($opsJobItem->cms_transaction_id) {
             $this->opsJobService->deleteJobItemCMSTransaction($id);
         }
 
-        if($opsJobItem->opsJobItemChannels) {
+        if ($opsJobItem->opsJobItemChannels) {
             $opsJobItem->opsJobItemChannels()->delete();
         }
 
@@ -1149,7 +1121,7 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        switch($opsJobItem->status) {
+        switch ($opsJobItem->status) {
             case OpsJob::STATUS_PICKED:
                 $opsJobItem->status = OpsJob::STATUS_PENDING;
                 $opsJobItem->picked_at = null;
@@ -1199,7 +1171,7 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        if($request->cash_amount or $request->temp_cash_amount_from_vmc or $request->cashless_amount or $request->remarks) {
+        if ($request->cash_amount or $request->temp_cash_amount_from_vmc or $request->cashless_amount or $request->remarks) {
             $opsJobItem->update([
                 'cash_amount' => $request->cash_amount,
                 'cashless_amount' => $request->cashless_amount,
@@ -1210,7 +1182,7 @@ class OpsJobController extends Controller
             ]);
         }
 
-        if($request->has('sequence')) {
+        if ($request->has('sequence')) {
             $opsJobItem->update([
                 'sequence' => $request->sequence,
                 'updated_at' => Carbon::now(),
@@ -1218,8 +1190,8 @@ class OpsJobController extends Controller
             ]);
         }
 
-        if($request->delivered_by or $request->date) {
-            if(($request->delivered_by != $opsJobItem->opsJob->delivered_by) or ($request->date != $opsJobItem->opsJob->date)) {
+        if ($request->delivered_by or $request->date) {
+            if (($request->delivered_by != $opsJobItem->opsJob->delivered_by) or ($request->date != $opsJobItem->opsJob->date)) {
                 $opsJob = OpsJob::firstOrCreate([
                     'date' => $request->date,
                     'delivered_by' => $request->delivered_by,
@@ -1270,7 +1242,7 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        if($request->files) {
+        if ($request->files) {
             $files = $request->file('files');
             $dir = 'sys/ops-job-items';
             $storedPath = $files->storePublicly('sys/ops-job-items');
@@ -1278,7 +1250,7 @@ class OpsJobController extends Controller
             $url = Storage::url($storedPath);
             $opsJobItem->attachments()->create([
                 'full_url' => $url,
-                'local_url' => $dir.'/'.$fileName,
+                'local_url' => $dir . '/' . $fileName,
             ]);
         }
         return true;
@@ -1288,7 +1260,7 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        switch($request->verify) {
+        switch ($request->verify) {
             case 0:
                 $opsJobItem->update([
                     'status' => OpsJob::STATUS_FLAGGED,
@@ -1323,7 +1295,7 @@ class OpsJobController extends Controller
             ->where('status', '<', OpsJob::STATUS_DELIVERED)
             ->exists();
 
-        if(!$hasAnyUndoneOpsJobItem) {
+        if (!$hasAnyUndoneOpsJobItem) {
             $opsJobItem = OpsJobItem::create([
                 'customer_id' => $vend->customer_id,
                 'ops_job_id' => $opsJobID,
@@ -1333,7 +1305,7 @@ class OpsJobController extends Controller
                 'updated_by' => auth()->id(),
             ]);
 
-            foreach($vend->vendChannels as $vendChannel) {
+            foreach ($vend->vendChannels as $vendChannel) {
                 // dd($vendChannel->toArray());
                 $opsJobItem->opsJobItemChannels()->create([
                     'amount' => $vendChannel->amount,
