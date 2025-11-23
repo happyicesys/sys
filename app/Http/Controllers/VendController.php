@@ -1488,7 +1488,10 @@ class VendController extends Controller
     public function getVendBannerImage($vendCode)
     {
         $imageArray = [];
-        $vend = Vend::where('code', $vendCode)->first();
+        // Eager load apkSettings and images to avoid N+1 queries
+        $vend = Vend::with(['apkSettings.images'])
+            ->where('code', $vendCode)
+            ->first();
 
         if ($vend && $vend->apkSettings->isNotEmpty()) { // Ensure vend exists and apkSettings is not empty
             $apkSetting = $vend->apkSettings->first(); // Use first() to avoid undefined index error

@@ -1,7 +1,9 @@
 <?php
 
 namespace App\Services;
+use App\Models\Customer;
 use App\Models\ModemUnit;
+use App\Models\Scopes\OperatorCustomerFilterScope;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
 use App\Models\VendData;
@@ -227,9 +229,10 @@ class VendDataService
         return $response;
       }
 
-      // Lazy load customer only when needed
+      // Lazy load customer only when needed (without global scope for performance)
       if ($vend->customer_id) {
-        $customer = $vend->customer;
+        $customer = Customer::withoutGlobalScope(OperatorCustomerFilterScope::class)
+          ->find($vend->customer_id);
         if ($customer && !$customer->totals_json) {
           SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
         }
