@@ -38,6 +38,7 @@ use App\Jobs\ExportVendTransactionCsvChunk;
 use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Mail\VendChannelErrorLogsMail;
+use App\Models\Campaign;
 use App\Models\CampaignItem;
 use App\Models\Category;
 use App\Models\CategoryGroup;
@@ -1663,7 +1664,7 @@ class VendController extends Controller
                     'label' => $campaign->name ?? $campaign->slug ?? (string) $campaign->id,
                     'labels_x' => collect($campaign->labelsX)->pluck('id')->values()->all(),
                     'labels_y' => collect($campaign->labelsY)->pluck('id')->values()->all(),
-                    'promo_type' => $campaign->promo_type,
+                    'promo_type' => $campaign->promo_type === 'Item' ? Campaign::TYPE_ITEM : $campaign->promo_type,
                     'slug' => $campaign->slug ?? $campaign->name ?? null,
                     'value' => $campaign->value,
                     'start_date' => optional($campaign->start_at)?->toDateString(),
