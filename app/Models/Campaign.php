@@ -17,7 +17,7 @@ class Campaign extends Model
     const TYPE_PERCENTAGE = 'Percentage';
     const TYPE_AMOUNT = 'Amount';
     const TYPE_ABSOLUTE = 'Absolute';
-    const TYPE_ITEM = 'Item';
+    const TYPE_ITEM = 'Free';
 
     const TYPES_MAPPING = [
         self::TYPE_PERCENTAGE => 'Percentage',
@@ -64,16 +64,16 @@ class Campaign extends Model
     {
 
         $query = $query
-            ->when($request->name, function($query, $search) {
+            ->when($request->name, function ($query, $search) {
                 $query->where('name', 'LIKE', "%{$search}%");
             })
-            ->when($request->operators, function($query, $search) {
-                if($search != 'all') {
+            ->when($request->operators, function ($query, $search) {
+                if ($search != 'all') {
                     // Keep compatibility; if a single operator_id is passed
                     // use it directly, else assume an array of IDs
-                    $query->when(is_array($search), function($q) use ($search) {
+                    $query->when(is_array($search), function ($q) use ($search) {
                         $q->whereIn('operator_id', $search);
-                    }, function($q) use ($search) {
+                    }, function ($q) use ($search) {
                         $q->where('operator_id', $search);
                     });
                 }
@@ -137,24 +137,24 @@ class Campaign extends Model
     protected function value(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
-            set: fn ($value) => $this->convertDecimalToStoredInteger($value)
+            get: fn($value) => $this->convertStoredIntegerToDecimal($value),
+            set: fn($value) => $this->convertDecimalToStoredInteger($value)
         );
     }
 
     protected function minBasketValue(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
-            set: fn ($value) => $this->convertDecimalToStoredInteger($value)
+            get: fn($value) => $this->convertStoredIntegerToDecimal($value),
+            set: fn($value) => $this->convertDecimalToStoredInteger($value)
         );
     }
 
     protected function maxDiscountValue(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
-            set: fn ($value) => $this->convertDecimalToStoredInteger($value)
+            get: fn($value) => $this->convertStoredIntegerToDecimal($value),
+            set: fn($value) => $this->convertDecimalToStoredInteger($value)
         );
     }
 

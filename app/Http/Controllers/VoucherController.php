@@ -15,6 +15,7 @@ use App\Models\Vend;
 use App\Models\Voucher;
 use App\Models\VoucherItem;
 use App\Services\VoucherService;
+use App\Traits\ExportOptimizationTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,6 +23,8 @@ use Rap2hpoutre\FastExcel\FastExcel;
 
 class VoucherController extends Controller
 {
+    use ExportOptimizationTrait;
+
     protected $voucherService;
 
     public function __construct()
@@ -149,16 +152,22 @@ class VoucherController extends Controller
 
     public function exportExcelVoucherCodes(Request $request)
     {
-        $voucher = Voucher::with('voucherItems')->find($request->id);
+        $voucher = Voucher::find($request->id);
 
-        if ($voucher->voucherItems()->exists()) {
-            return (new FastExcel($this->yieldOneByOne($voucher->voucherItems)))->download('Voucher_Codes_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($voucherItem) {
-                return [
-                    'Code' => $voucherItem->code,
-                    'Status' => Voucher::STATUS_MAPPINGS[$voucherItem->status],
-                    'Redeemed At' => $voucherItem->redeemed_at ? Carbon::parse($voucherItem->redeemed_at)->toDateTimeString() : '',
-                ];
-            });
+        if ($voucher && $voucher->voucherItems()->exists()) {
+            // Use cursor for memory-efficient iteration
+            $query = VoucherItem::query()->where('voucher_id', $voucher->id);
+
+            return (new FastExcel($this->exportWithCursor($query)))->download(
+                $this->formatExportFilename('Voucher_Codes', 'xlsx'),
+                function ($voucherItem) {
+                    return [
+                        'Code' => $voucherItem->code,
+                        'Status' => Voucher::STATUS_MAPPINGS[$voucherItem->status],
+                        'Redeemed At' => $voucherItem->redeemed_at ? Carbon::parse($voucherItem->redeemed_at)->toDateTimeString() : '',
+                    ];
+                }
+            );
         }
     }
 
@@ -511,10 +520,5 @@ class VoucherController extends Controller
         return redirect()->route('vouchers.edit', ['id' => $voucher->id])->with('success', 'Voucher updated successfully');
     }
 
-    private function yieldOneByOne($items)
-    {
-        foreach ($items as $item) {
-            yield $item;
-        }
-    }
+
 }

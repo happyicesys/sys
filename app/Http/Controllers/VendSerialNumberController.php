@@ -18,6 +18,7 @@ use App\Models\VendPrefix;
 use App\Models\VendSerialNumber;
 use App\Models\Vend;
 use App\Models\VendModel;
+use App\Traits\ExportOptimizationTrait;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ use Rap2hpoutre\FastExcel\FastExcel;
 
 class VendSerialNumberController extends Controller
 {
+    use ExportOptimizationTrait;
     public function index(Request $request)
     {
         $request->merge([
@@ -35,28 +37,28 @@ class VendSerialNumberController extends Controller
         ]);
 
         return Inertia::render('VendSerialNumber/Index', [
-                'lcdMonitorOptions' => Vend::LCD_MONITOR_MAPPINGS,
-                'locationTypeOptions' => LocationTypeResource::collection(
-                    LocationType::orderBy('sequence')->get()
-                ),
-                'operatorOptions' => OperatorResource::collection(
-                    Operator::orderBy('name')->get()
-                ),
-                'vendSerialNumbers' => VendSerialNumberResource::collection(
-                    $this->getMainQuery()->filterIndex($request)->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)->withQueryString()
-                ),
-                'vendConfigOptions' => VendConfigResource::collection(
-                    VendConfig::orderBy('name')->get()
-                ),
-                'vendContractOptions' => VendContractResource::collection(
-                    VendContract::orderBy('name')->get()
-                ),
-                'vendModelOptions' => VendModelResource::collection(
-                    VendModel::orderBy('name')->get()
-                ),
-                'vendPrefixOptions' => VendPrefixResource::collection(
-                    VendPrefix::orderBy('name')->get()
-                ),
+            'lcdMonitorOptions' => Vend::LCD_MONITOR_MAPPINGS,
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'vendSerialNumbers' => VendSerialNumberResource::collection(
+                $this->getMainQuery()->filterIndex($request)->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)->withQueryString()
+            ),
+            'vendConfigOptions' => VendConfigResource::collection(
+                VendConfig::orderBy('name')->get()
+            ),
+            'vendContractOptions' => VendContractResource::collection(
+                VendContract::orderBy('name')->get()
+            ),
+            'vendModelOptions' => VendModelResource::collection(
+                VendModel::orderBy('name')->get()
+            ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
         ]);
     }
 
@@ -67,9 +69,12 @@ class VendSerialNumberController extends Controller
             'sortBy' => $request->sortBy ? $request->sortBy : true,
         ]);
 
-        $vendSerialNumbers = $this->getMainQuery()->filterIndex($request)->get();
+        $query = $this->getMainQuery()->filterIndex($request);
 
-            return (new FastExcel($this->yieldOneByOne($vendSerialNumbers)))->download('VendSerialNumber'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendSerialNumber) {
+        // Use cursor for memory-efficient iteration
+        return (new FastExcel($this->exportWithCursor($query)))->download(
+            $this->formatExportFilename('VendSerialNumber', 'xlsx'),
+            function ($vendSerialNumber) {
                 return [
                     'Serial Number' => $vendSerialNumber->code,
                     'Remarks' => $vendSerialNumber->desc,
@@ -80,12 +85,13 @@ class VendSerialNumberController extends Controller
                     'Begin Date' => Carbon::parse($vendSerialNumber->vend_begin_date)->toDateString(),
                     'Prefix' => $vendSerialNumber->vend_prefix_name,
                     'Contract' => $vendSerialNumber->vend_contract_name,
-                    'Customer Name' => $vendSerialNumber->customer_virtual_code . ' (' .  $vendSerialNumber->vend_prefix_name . ') ' . $vendSerialNumber->customer_name,
+                    'Customer Name' => $vendSerialNumber->customer_virtual_code . ' (' . $vendSerialNumber->vend_prefix_name . ') ' . $vendSerialNumber->customer_name,
                     'Postcode' => $vendSerialNumber->postcode,
                     'Operator' => $vendSerialNumber->operator_name,
                     'Location Type' => $vendSerialNumber->location_type_name,
                 ];
-            });
+            }
+        );
     }
 
     public function store(Request $request)
@@ -102,7 +108,7 @@ class VendSerialNumberController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'code' => 'required|unique:vend_serial_numbers,code,'.$id,
+            'code' => 'required|unique:vend_serial_numbers,code,' . $id,
         ]);
 
         $model = VendSerialNumber::findOrFail($id);
@@ -131,11 +137,11 @@ class VendSerialNumberController extends Controller
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
             ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-            ->leftJoin('addresses', function($query) {
+            ->leftJoin('addresses', function ($query) {
                 $query->on('addresses.modelable_id', '=', 'customers.id')
-                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                        ->where('addresses.type', '=', 2)
-                        ->limit(1);
+                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                    ->where('addresses.type', '=', 2)
+                    ->limit(1);
             })
             ->select(
                 'addresses.postcode AS postcode',
@@ -169,9 +175,5 @@ class VendSerialNumberController extends Controller
             );
     }
 
-    private function yieldOneByOne($items) {
-        foreach($items as $item) {
-            yield $item;
-        }
-    }
+
 }

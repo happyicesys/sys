@@ -8,6 +8,7 @@ use App\Http\Resources\VendResource;
 use App\Models\HidCard;
 use App\Models\Operator;
 use App\Models\Vend;
+use App\Traits\ExportOptimizationTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,6 +16,7 @@ use Rap2hpoutre\FastExcel\FastExcel;
 
 class HidCardController extends Controller
 {
+    use ExportOptimizationTrait;
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
@@ -24,22 +26,22 @@ class HidCardController extends Controller
         return Inertia::render('HidCard/Index', [
             'hidCards' => HidCardResource::collection(
                 HidCard::with('operator')
-                    ->when($request->name, function($query, $search) {
+                    ->when($request->name, function ($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->when($request->email, function($query, $search) {
+                    ->when($request->email, function ($query, $search) {
                         $query->where('email', 'LIKE', "%{$search}%");
                     })
-                    ->when($request->value, function($query, $search) {
+                    ->when($request->value, function ($query, $search) {
                         $query->where('value', 'LIKE', "{$search}%");
                     })
-                    ->when($request->operator_id, function($query, $search) {
-                        if($search !== 'all') {
+                    ->when($request->operator_id, function ($query, $search) {
+                        if ($search !== 'all') {
                             $query->where('operator_id', $search);
                         }
                     })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($sortKey, function ($query, $search) use ($sortBy) {
+                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
@@ -57,16 +59,16 @@ class HidCardController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'vendOptions' => VendResource::collection(
-                    Vend::with([
+                Vend::with([
                     'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
                 ])
-                ->when($request->operator_id, function($query, $search) {
-                    $query->where('operator_id', $search);
-                })
-                ->has('customer')
-                ->where('is_active', true)
-                ->orderBy('code')
-                ->get()
+                    ->when($request->operator_id, function ($query, $search) {
+                        $query->where('operator_id', $search);
+                    })
+                    ->has('customer')
+                    ->where('is_active', true)
+                    ->orderBy('code')
+                    ->get()
             ),
         ]);
     }
@@ -84,16 +86,16 @@ class HidCardController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'vendOptions' => VendResource::collection(
-                    Vend::with([
+                Vend::with([
                     'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
                 ])
-                ->when($request->operator_id, function($query, $search) {
-                    $query->where('operator_id', $search);
-                })
-                ->has('customer')
-                ->where('is_active', true)
-                ->orderBy('code')
-                ->get()
+                    ->when($request->operator_id, function ($query, $search) {
+                        $query->where('operator_id', $search);
+                    })
+                    ->has('customer')
+                    ->where('is_active', true)
+                    ->orderBy('code')
+                    ->get()
             ),
         ]);
     }
@@ -103,7 +105,7 @@ class HidCardController extends Controller
     {
         $hidCard = HidCard::findOrFail($hidCardID);
 
-        if($hidCard->vends()->count() > 0) {
+        if ($hidCard->vends()->count() > 0) {
             $hidCard->vends()->detach();
         }
 
@@ -119,35 +121,38 @@ class HidCardController extends Controller
             'sortBy' => $request->sortBy ? $request->sortBy : true,
         ]);
 
-        $hidCards = HidCard::query()
+        $query = HidCard::query()
             ->with('operator')
-            ->when($request->name, function($query, $search) {
+            ->when($request->name, function ($query, $search) {
                 $query->where('name', 'LIKE', "%{$search}%");
             })
-            ->when($request->email, function($query, $search) {
+            ->when($request->email, function ($query, $search) {
                 $query->where('email', 'LIKE', "%{$search}%");
             })
-            ->when($request->value, function($query, $search) {
+            ->when($request->value, function ($query, $search) {
                 $query->where('value', 'LIKE', "{$search}%");
             })
-            ->when($request->operator_id, function($query, $search) {
-                if($search !== 'all') {
+            ->when($request->operator_id, function ($query, $search) {
+                if ($search !== 'all') {
                     $query->where('operator_id', $search);
                 }
             })
-            ->when($request->sortKey, function($query, $search) use ($request) {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            })
-            ->get();
+            ->when($request->sortKey, function ($query, $search) use ($request) {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+            });
 
-        return (new FastExcel($this->yieldOneByOne($hidCards)))->download('HIDCards'.Carbon::now()->toDateTimeString().'.csv', function ($hidCard) {
-            return [
-                'Card Value' => $hidCard->value,
-                'Operator' => $hidCard->operator?->code,
-                'Name' => $hidCard->name,
-                'Email' => $hidCard->email,
-            ];
-        });
+        // Use cursor for memory-efficient iteration
+        return (new FastExcel($this->exportWithCursor($query)))->download(
+            $this->formatExportFilename('HIDCards', 'csv'),
+            function ($hidCard) {
+                return [
+                    'Card Value' => $hidCard->value,
+                    'Operator' => $hidCard->operator?->code,
+                    'Name' => $hidCard->name,
+                    'Email' => $hidCard->email,
+                ];
+            }
+        );
     }
 
     public function exportExcel(Request $request)
@@ -157,35 +162,38 @@ class HidCardController extends Controller
             'sortBy' => $request->sortBy ? $request->sortBy : true,
         ]);
 
-        $hidCards = HidCard::query()
+        $query = HidCard::query()
             ->with('operator')
-            ->when($request->name, function($query, $search) {
+            ->when($request->name, function ($query, $search) {
                 $query->where('name', 'LIKE', "%{$search}%");
             })
-            ->when($request->email, function($query, $search) {
+            ->when($request->email, function ($query, $search) {
                 $query->where('email', 'LIKE', "%{$search}%");
             })
-            ->when($request->value, function($query, $search) {
+            ->when($request->value, function ($query, $search) {
                 $query->where('value', 'LIKE', "{$search}%");
             })
-            ->when($request->operator_id, function($query, $search) {
-                if($search !== 'all') {
+            ->when($request->operator_id, function ($query, $search) {
+                if ($search !== 'all') {
                     $query->where('operator_id', $search);
                 }
             })
-            ->when($request->sortKey, function($query, $search) use ($request) {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            })
-            ->get();
+            ->when($request->sortKey, function ($query, $search) use ($request) {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+            });
 
-            return (new FastExcel($this->yieldOneByOne($hidCards)))->download('HIDCards'.Carbon::now()->toDateTimeString().'.xlsx', function ($hidCard) {
+        // Use cursor for memory-efficient iteration
+        return (new FastExcel($this->exportWithCursor($query)))->download(
+            $this->formatExportFilename('HIDCards', 'xlsx'),
+            function ($hidCard) {
                 return [
                     'Card Value' => $hidCard->value,
                     'Operator' => $hidCard->operator?->code,
                     'Name' => $hidCard->name,
                     'Email' => $hidCard->email,
                 ];
-            });
+            }
+        );
     }
 
 
@@ -242,7 +250,7 @@ class HidCardController extends Controller
 
         $checkReplication = HidCard::where('value', $request->value)->where('operator_id', $request->operator_id)->first();
 
-        if($checkReplication) {
+        if ($checkReplication) {
             return redirect()->back()->withErrors(['value' => 'HID Card already exists for this operator.']);
         }
 
@@ -268,10 +276,10 @@ class HidCardController extends Controller
 
         $hidCard = HidCard::findOrFail($hidCardID);
 
-        if($hidCard->value != $request->value) {
+        if ($hidCard->value != $request->value) {
             $checkReplication = HidCard::where('value', $request->value)->where('operator_id', $request->operator_id)->first();
 
-            if($checkReplication) {
+            if ($checkReplication) {
                 return redirect()->back()->withErrors(['value' => 'HID Card already exists for this operator.']);
             }
         }
@@ -283,10 +291,6 @@ class HidCardController extends Controller
         return redirect()->route('hid-cards.edit', ['id' => $hidCard->id])->with('success', 'Voucher updated successfully');
     }
 
-    private function yieldOneByOne($items) {
-        foreach($items as $item) {
-            yield $item;
-        }
-    }
+
 
 }
