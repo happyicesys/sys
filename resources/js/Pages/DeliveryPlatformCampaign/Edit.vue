@@ -546,6 +546,7 @@ import TableHead from '@/Components/TableHead.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PencilSquareIcon, PlayCircleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { computed, ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
     deliveryPlatformCampaign: Object,
@@ -564,6 +565,7 @@ const props = defineProps({
   const isClearForm = ref(false)
   const showItemEditModal = ref(false)
   const typeName = ref('')
+  const toast = useToast()
   // const permissions = usePage().props.auth.permissions
 
 
@@ -755,6 +757,12 @@ function createItemVend() {
     settings_name: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_name : '',
     vend_code: form.value.bind_delivery_product_mapping_vend ? form.value.bind_delivery_product_mapping_vend.code : '',
   }, {
+      onSuccess: () => {
+        toast.success("Campaign bound to vend successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to bind campaign to vend", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -769,6 +777,12 @@ function batchCreateItemVend() {
     settings_label: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_label : '',
     settings_name: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_name : '',
   }, {
+      onSuccess: () => {
+        toast.success("Campaign batch bound successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to batch bind campaign", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -781,6 +795,12 @@ function onDeleteCampaign(deliveryPlatformCampaignItemVendId) {
       return;
   }
   router.delete('/delivery-platform-campaigns/item-vend/' + deliveryPlatformCampaignItemVendId, {
+      onSuccess: () => {
+        toast.success("Campaign item vend deleted successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to delete campaign item vend", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -814,6 +834,12 @@ function removeDeliveryPlatformCampaignItem(deliveryPlatformCampaignItemID) {
       return;
   }
   router.delete('/delivery-platform-campaigns/item/' + deliveryPlatformCampaignItemID, {
+      onSuccess: () => {
+        toast.success("Campaign item deleted successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to delete campaign item", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -829,6 +855,12 @@ function saveCampaignItem()
     delivery_platform_campaign_item_scope_eater_type: form.value.delivery_platform_campaign_item_scope_eater_type ? form.value.delivery_platform_campaign_item_scope_eater_type.id : '',
     settings_label: deliveryPlatformCampaignItemDesc.value,
   }, {
+      onSuccess: () => {
+        toast.success("Campaign item created successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to create campaign item", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -855,6 +887,12 @@ function submitCampaign(id) {
       return;
   }
   router.post('/delivery-platform-campaigns/' + id + '/submit-platform', {}, {
+      onSuccess: () => {
+        toast.success("Campaign submitted to platform successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to submit campaign to platform", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -868,6 +906,12 @@ function togglePauseAllVends(deliveryProductMappingId) {
       return;
   }
   router.post('/delivery-product-mappings/' + deliveryProductMappingId + '/toggle-pause-all-vends', {}, {
+      onSuccess: () => {
+        toast.success("All vends paused/resumed successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to pause/resume all vends", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -881,6 +925,12 @@ function togglePauseVend(deliveryProductMappingVend) {
       return;
   }
   router.post('/delivery-product-mappings/vends/' + deliveryProductMappingVend.id + '/toggle-pause-vend', {}, {
+      onSuccess: () => {
+        toast.success("Machine paused/resumed successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to pause/resume machine", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -893,13 +943,17 @@ function unbindVend(deliveryProductMappingVendId) {
       return;
   }
   router.delete('/delivery-product-mappings/unbind/' + deliveryProductMappingVendId, {
-      preserveState: false,
-      preserveScroll: true,
-      replace: true,
       onSuccess: () => {
+        toast.success("Machine unbound successfully", { timeout: 3000 })
         router.reload({only: ['unbindedVendOptions']})
         unbindedVendOptions.value = props.unbindedVendOptions ? props.unbindedVendOptions.data : []
       },
+      onError: () => {
+        toast.error("Failed to unbind machine", { timeout: 3000 })
+      },
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
   })
 }
 </script>

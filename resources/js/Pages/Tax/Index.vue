@@ -165,6 +165,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 defineProps({
   taxes: Object,
@@ -179,6 +180,7 @@ const filters = ref({
 const showModal = ref(false)
 const tax = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -202,7 +204,14 @@ function onDeleteClicked(tax) {
   if (!approval) {
       return;
   }
-  router.delete('/taxes/' + tax.id)
+  router.delete('/taxes/' + tax.id, {
+    onSuccess: () => {
+      toast.success("Tax deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete tax", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(taxValue) {

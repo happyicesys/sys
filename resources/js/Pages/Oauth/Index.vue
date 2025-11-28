@@ -113,6 +113,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   clients: Object,
@@ -128,6 +129,7 @@ const filters = ref({
 const showModal = ref(false)
 const client = ref()
 const type = ref('')
+const toast = useToast()
 
 onMounted(() => {
   console.log(JSON.parse(JSON.stringify(props.clients)))
@@ -145,7 +147,14 @@ function onDeleteClicked(client) {
   if (!approval) {
       return;
   }
-  router.delete('/clients/' + client.id)
+  router.delete('/clients/' + client.id, {
+    onSuccess: () => {
+      toast.success("OAuth client deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete OAuth client", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(telcoValue) {

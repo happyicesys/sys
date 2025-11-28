@@ -965,6 +965,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
     cashlessTerminalOptions: Object,
@@ -1034,9 +1035,9 @@ const filters = ref({
   const modemTypeOptions = ref([])
   const modemUnitOptions = ref([])
   const numberPerPageOptions = ref([])
-  const operatorOptions = ref([])
   const type = ref('')
   const vend = ref()
+  const toast = useToast()
   const lcdMonitorOptions = ref([])
   const ledMatrixPanelOptions = ref([])
   const operatorCountry = usePage().props.auth.operatorCountry
@@ -1173,7 +1174,14 @@ function onDeleteClicked(vend) {
   if (!approval) {
       return;
   }
-  router.delete('/vends/' + vend.id)
+  router.delete('/vends/' + vend.id, {
+    onSuccess: () => {
+      toast.success("Machine deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete machine", { timeout: 3000 })
+    }
+  })
 }
 
 function onSearchFilterUpdated() {

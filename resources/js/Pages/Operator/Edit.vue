@@ -687,6 +687,7 @@ import SearchVendCodeWithOperatorInput from '@/Components/SearchVendCodeWithOper
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlusCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
     countries: [Array, Object],
@@ -736,6 +737,7 @@ const props = defineProps({
   const logoInput = ref(null)
   const initialLogoUrl = ref(null)
   const tempLogoPreview = ref(null)
+  const toast = useToast()
 
   const displayedLogoUrl = computed(() => {
     if (tempLogoPreview.value) {
@@ -916,6 +918,12 @@ function deleteDeliveryPlatformOperator(model) {
       return;
   }
   router.delete('/delivery-platform-operators/' + model.id, {
+      onSuccess: () => {
+        toast.success("Delivery platform operator deleted successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to delete delivery platform operator", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -928,6 +936,12 @@ function deleteOperatorPaymentGateway(model) {
       return;
   }
   router.delete('/operator-payment-gateways/' + model.id, {
+      onSuccess: () => {
+        toast.success("Operator payment gateway deleted successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to delete operator payment gateway", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -943,6 +957,12 @@ function deleteOperatorVend(model) {
     vend_id: model.id,
     operator_id: form.value.id,
   },{
+      onSuccess: () => {
+        toast.success("Machine unbound from operator successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to unbind machine from operator", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -961,6 +981,12 @@ function storeDeliveryPlatformOperator() {
         oauth_client_secret: form.value.delivery_platform_oauth_client_secret,
         type: form.value.delivery_platform_type.id,
     }, {
+      onSuccess: () => {
+        toast.success("Delivery platform operator added successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to add delivery platform operator", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -977,6 +1003,12 @@ function storeOperatorPaymentGateway() {
       key3: form.value.payment_gateway_key3,
       type: form.value.payment_gateway_type.id,
     }, {
+      onSuccess: () => {
+        toast.success("Operator payment gateway added successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to add operator payment gateway", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -990,6 +1022,12 @@ function bindOperatorVend() {
       vend_id: form.value.vend_id_value,
       operator_id: form.value.id,
     }, {
+      onSuccess: () => {
+        toast.success("Machine bound to operator successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to bind machine to operator", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,

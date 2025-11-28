@@ -210,6 +210,7 @@ import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import ExchangeRate from './ExchangeRate.vue';
+import { useToast } from "vue-toastification";
 
 defineProps({
   countries: Object,
@@ -226,6 +227,7 @@ const showExchangeRateModal = ref(false)
 const country = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
+const toast = useToast()
 const authUser = computed(() => usePage().props.auth.user)
 
 onMounted(() => {
@@ -249,7 +251,14 @@ function onDeleteClicked(country) {
   if (!approval) {
       return;
   }
-  router.delete('/countries/' + country.id)
+  router.delete('/countries/' + country.id, {
+    onSuccess: () => {
+      toast.success("Country deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete country", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(countryValue) {

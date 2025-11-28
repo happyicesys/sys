@@ -231,13 +231,14 @@ import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { AdjustmentsHorizontalIcon, BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
     apkSettings: Object,
@@ -255,8 +256,10 @@ const filters = ref({
   })
   const authOperator = usePage().props.auth.operator
   const loading = ref(false)
-  const operatorOptions = ref([])
+  const showModal = ref(false)
+  const apkSetting = ref()
   const type = ref('')
+  const toast = useToast()
   const numberPerPageOptions = ref([])
   const operatorCountry = usePage().props.auth.operatorCountry
   const operatorRole = usePage().props.auth.operatorRole
@@ -300,7 +303,14 @@ function onDeleteClicked(apkSetting) {
   if (!approval) {
       return;
   }
-  router.delete('/apk-settings/' + apkSetting.id)
+  router.delete('/apk-settings/' + apkSetting.id, {
+    onSuccess: () => {
+      toast.success("APK setting deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete APK setting", { timeout: 3000 })
+    }
+  })
 }
 
 function onUnbindVendClicked(vend) {
@@ -309,8 +319,14 @@ function onUnbindVendClicked(vend) {
       return;
   }
   router.delete('/apk-settings/unbind-vend/' + vend.id, {
-      preserveState: true,
-      replace: true,
+    onSuccess: () => {
+      toast.success("Machine unbound from APK setting successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to unbind machine from APK setting", { timeout: 3000 })
+    },
+    preserveState: true,
+    replace: true,
   })
 }
 

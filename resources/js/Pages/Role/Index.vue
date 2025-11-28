@@ -160,6 +160,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import moment from 'moment';
+import { useToast } from "vue-toastification";
 
 defineProps({
   roles: Object,
@@ -174,6 +175,7 @@ const filters = ref({
 const showModal = ref(false)
 const role = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -197,7 +199,14 @@ function onDeleteClicked(role) {
   if (!approval) {
       return;
   }
-  router.delete('/roles/' + role.id)
+  router.delete('/roles/' + role.id, {
+    onSuccess: () => {
+      toast.success("Role deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete role", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(roleValue) {

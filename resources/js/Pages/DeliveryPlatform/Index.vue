@@ -241,6 +241,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   deliveryProductMappings: Object,
@@ -258,6 +259,7 @@ const filters = ref({
 const showModal = ref(false)
 const deliveryProductMapping = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 const platformRefNumberOptions = ref([])
 const selectedPlatformRefNumber = ref(null)
@@ -297,7 +299,14 @@ function onDeleteClicked(deliveryProductMapping) {
   if (!approval) {
       return;
   }
-  router.delete('/delivery-product-mappings/' + deliveryProductMapping.id)
+  router.delete('/delivery-product-mappings/' + deliveryProductMapping.id, {
+    onSuccess: () => {
+      toast.success("Delivery product mapping deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete delivery product mapping", { timeout: 3000 })
+    }
+  })
 }
 
 function onSearchFilterUpdated() {

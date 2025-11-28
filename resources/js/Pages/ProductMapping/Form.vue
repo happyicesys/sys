@@ -204,6 +204,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { router, useForm } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   products: Object,
@@ -219,6 +220,7 @@ const form = ref(
 )
 const productOptions = ref([])
 const productMappingItems = ref([])
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.productMapping ? useForm(props.productMapping) : useForm(getDefaultForm())
@@ -243,7 +245,11 @@ function submit() {
     form.value
     .post('/product-mappings/create', {
       onSuccess: () => {
+        toast.success("Product mapping created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create product mapping", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -258,7 +264,11 @@ function submit() {
       }))
       .post('/product-mappings/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Product mapping updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update product mapping", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -286,7 +296,11 @@ function replicateProductMapping() {
     preserveState: true,
     replace: true,
     onSuccess: (page) => {
+      toast.success("Product mapping replicated successfully", { timeout: 3000 })
       emit('modalClose')
+    },
+    onError: () => {
+      toast.error("Failed to replicate product mapping", { timeout: 3000 })
     },
   })
 }

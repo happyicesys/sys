@@ -385,6 +385,7 @@ import TableData from '@/Components/TableData.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   cmsEndpoint: String,
@@ -413,6 +414,7 @@ const showModal = ref(false)
 const showVendFormModal = ref(false)
 const productMapping = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
@@ -467,7 +469,14 @@ function onDeleteClicked(productMapping) {
   if (!approval) {
       return;
   }
-  router.delete('/product-mappings/' + productMapping.id)
+  router.delete('/product-mappings/' + productMapping.id, {
+    onSuccess: () => {
+      toast.success("Product mapping deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete product mapping", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(productMappingValue) {

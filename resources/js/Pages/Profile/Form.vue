@@ -201,6 +201,7 @@ import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   profile: Object,
@@ -215,6 +216,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const countryOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   countryOptions.value = props.countries.data
@@ -284,7 +286,11 @@ function submit() {
     }))
     .post('/profiles/create', {
       onSuccess: () => {
+        toast.success("Profile created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create profile", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -307,7 +313,11 @@ function submit() {
       }))
       .post('/profiles/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Profile updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update profile", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

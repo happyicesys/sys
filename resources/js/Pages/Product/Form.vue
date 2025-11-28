@@ -523,6 +523,7 @@ import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, FolderMinusIcon, Fo
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import moment from 'moment';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   categories: Object,
@@ -556,6 +557,7 @@ const operatorRole = usePage().props.auth.operatorRole;
 const priceTypeOptions = ref([]);
 const productTagOptions = ref([]);
 const sellingPrices = ref([]);
+const toast = useToast();
 
 onMounted(() => {
   categoryOptions.value = props.categories.data.map(category => ({ id: category.id, name: category.name, full_name: category.name }));
@@ -621,7 +623,11 @@ function submit() {
       }))
       .post('/products/create', {
         onSuccess: () => {
+          toast.success("Product created successfully", { timeout: 3000 })
           emit('modalClose');
+        },
+        onError: () => {
+          toast.error("Failed to create product", { timeout: 3000 })
         },
         preserveState: true,
         replace: true,
@@ -658,7 +664,11 @@ function submit() {
       })
       .post('/products/' + form.value.id + '/update', {
         onSuccess: () => {
+          toast.success("Product updated successfully", { timeout: 3000 })
           emit('modalClose');
+        },
+        onError: () => {
+          toast.error("Failed to update product", { timeout: 3000 })
         },
         preserveScroll: true,
         preserveState: true,
@@ -670,7 +680,11 @@ function submit() {
 function toggleActivateDeactivate() {
   form.value.post('/products/' + form.value.id + '/toggle-activate-deactivate', {
     onSuccess: () => {
+      toast.success(form.value.is_active ? "Product deactivated successfully" : "Product activated successfully", { timeout: 3000 })
       emit('modalClose');
+    },
+    onError: () => {
+      toast.error("Failed to toggle product status", { timeout: 3000 })
     },
     preserveState: true,
     replace: true,
@@ -680,7 +694,11 @@ function toggleActivateDeactivate() {
 function onProductUomDeleted(productUom) {
   form.value.delete('/products/product-uoms/' + productUom.id, {
     onSuccess: () => {
+      toast.success("Product UOM deleted successfully", { timeout: 3000 })
       emit('modalClose');
+    },
+    onError: () => {
+      toast.error("Failed to delete product UOM", { timeout: 3000 })
     },
     preserveState: true,
     resetOnSuccess: true,
@@ -741,7 +759,11 @@ function removeSellingPrice(sellingPrice) {
   if (sellingPrice.id) {
     form.value.delete('/products/selling-prices/' + sellingPrice.id, {
       onSuccess: () => {
+        toast.success("Selling price deleted successfully", { timeout: 3000 })
         emit('modalClose');
+      },
+      onError: () => {
+        toast.error("Failed to delete selling price", { timeout: 3000 })
       },
       preserveState: true,
       resetOnSuccess: true,

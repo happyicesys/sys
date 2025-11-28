@@ -104,6 +104,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted, watch } from 'vue'
 import axios from 'axios';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   hidCard: Object,
@@ -120,6 +121,7 @@ const form = ref(
 )
 const operatorOptions = ref(props.operatorOptions || [])
 const vendOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   vendOptions.value = props.vendOptions.data?.map((vend) => ({
@@ -173,7 +175,11 @@ function submit() {
     }))
     .post('/hid-cards/create', {
       onSuccess: () => {
+        toast.success("HID card created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create HID card", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -189,7 +195,11 @@ function submit() {
       }))
       .post('/hid-cards/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("HID card updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update HID card", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

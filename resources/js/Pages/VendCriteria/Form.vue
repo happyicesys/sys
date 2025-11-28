@@ -71,6 +71,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   vendCriteria: Object,
@@ -83,6 +84,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.vendCriteria ? useForm(props.vendCriteria) : useForm(getDefaultForm())
@@ -102,7 +104,11 @@ function submit() {
     form.value
       .post('/vend-criterias/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Machine criteria updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update machine criteria", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

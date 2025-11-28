@@ -206,6 +206,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { computed, onMounted, ref, watch } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   type: {
@@ -237,6 +238,7 @@ const tagOptions = ref([])
 const promoTypeOptions = ref([])
 const isUsingQtyOptions = ref(getIsUsingQtyOptions())
 const form = ref(useForm(getDefaultForm()))
+const toast = useToast()
 
 const labelsXError = computed(() => form.value.errors.labels_x ?? form.value.errors['labels_x.0'] ?? null)
 const labelsYError = computed(() => form.value.errors.labels_y ?? form.value.errors['labels_y.0'] ?? null)
@@ -537,6 +539,12 @@ function submit() {
     : '/campaigns/create'
 
   request.post(url, {
+    onSuccess: () => {
+      toast.success(props.type === 'update' ? "Campaign updated successfully" : "Campaign created successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error(props.type === 'update' ? "Failed to update campaign" : "Failed to create campaign", { timeout: 3000 })
+    },
     preserveState: true,
     replace: true,
   })

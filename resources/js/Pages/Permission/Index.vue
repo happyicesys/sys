@@ -157,6 +157,7 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
+import { useToast } from "vue-toastification";
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 
@@ -173,6 +174,7 @@ const filters = ref({
 const showModal = ref(false)
 const permission = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -196,7 +198,14 @@ function onDeleteClicked(permission) {
   if (!approval) {
       return;
   }
-  router.delete('/permissions/' + permission.id)
+  router.delete('/permissions/' + permission.id, {
+    onSuccess: () => {
+      toast.success("Permission deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete permission", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(permissionValue) {

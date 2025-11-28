@@ -159,6 +159,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   uoms: Object,
@@ -173,6 +174,7 @@ const filters = ref({
 const showModal = ref(false)
 const uom = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -196,7 +198,14 @@ function onDeleteClicked(uom) {
   if (!approval) {
       return;
   }
-  router.delete('/uoms/' + uom.id)
+  router.delete('/uoms/' + uom.id, {
+    onSuccess: () => {
+      toast.success("UOM deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete UOM", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(uomValue) {

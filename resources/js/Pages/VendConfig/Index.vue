@@ -318,6 +318,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   operatorOptions: [Array, Object],
@@ -346,6 +347,7 @@ const showAttachmentOverviewModal = ref(false)
 const showModal = ref(false)
 const vendConfig = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 const vendPrefixOptions = ref([])
 const versionOptions = ref([])
@@ -397,7 +399,14 @@ function onDeleteClicked(vendConfig) {
   if (!approval) {
       return;
   }
-  router.delete('/vend-configs/' + vendConfig.id)
+  router.delete('/vend-configs/' + vendConfig.id, {
+    onSuccess: () => {
+      toast.success("Setting chart deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete setting chart", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(telcoValue) {

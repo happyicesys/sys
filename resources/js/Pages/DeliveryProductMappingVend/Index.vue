@@ -386,6 +386,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   deliveryProductMappingVends: Object,
@@ -423,6 +424,7 @@ const numberPerPageOptions = ref([])
 const showChannelOverviewModal = ref(false)
 const permissions = usePage().props.auth.permissions
 const vend = ref()
+const toast = useToast()
 
 onMounted(() => {
   booleanOptions.value = [
@@ -530,13 +532,14 @@ function unbindVend(deliveryProductMappingVendId) {
       return;
   }
   router.delete('/delivery-product-mappings/unbind/' + deliveryProductMappingVendId, {
-      preserveState: false,
-      preserveScroll: true,
-      replace: true,
-      onSuccess: () => {
-        router.reload({only: ['unbindedVendOptions']})
-        unbindedVendOptions.value = props.unbindedVendOptions ? props.unbindedVendOptions.data : []
-      },
+    onSuccess: () => {
+      toast.success("Delivery product mapping vend unbound successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to unbind delivery product mapping vend", { timeout: 3000 })
+    },
+    preserveState: true,
+    replace: true,
   })
 }
 

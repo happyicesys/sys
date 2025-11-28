@@ -101,6 +101,7 @@ import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const authOperator = usePage().props.auth.operator
 
@@ -118,6 +119,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const operatorOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.opsJob ? useForm(props.opsJob) : useForm(getDefaultForm())
@@ -172,7 +174,11 @@ function submit() {
   })
   .post('/ops-jobs/store', {
     onSuccess: () => {
+      toast.success("Ops job created successfully", { timeout: 3000 })
       emit('modalClose')
+    },
+    onError: () => {
+      toast.error("Failed to create ops job", { timeout: 3000 })
     },
     preserveState: true,
     replace: true,

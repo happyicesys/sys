@@ -642,6 +642,7 @@ import { ArrowPathIcon, ArrowUpCircleIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, 
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
     adminCustomerOptions: Object,
@@ -666,6 +667,7 @@ const countryOptions = ref([])
 const isExisting = ref(1)
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const toast = useToast()
 
 function getDefaultForm() {
   return {
@@ -749,11 +751,15 @@ onMounted(() => {
 
 function syncVendChannels(vendID) {
   router.post('/vends/' + vendID + '/sync-vend-channels', {}, {
+    onSuccess: () => {
+      toast.success("Machine channels synced successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to sync machine channels", { timeout: 3000 })
+    },
     preserveScroll: true,
     preserveState: true,
     replace: true,
-    onSuccess: () => {
-    }
   })
 }
 
@@ -763,21 +769,29 @@ function formatDatetime(datetime) {
 
 function restartAPK(vendID) {
   router.post('/vends/' + vendID + '/restart-apk', {}, {
+    onSuccess: () => {
+      toast.success("APK restarted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to restart APK", { timeout: 3000 })
+    },
     preserveScroll: true,
     preserveState: true,
     replace: true,
-    onSuccess: () => {
-    }
   })
 }
 
 function restartVMC(vendID) {
   router.post('/vends/' + vendID + '/restart-vmc', {}, {
+    onSuccess: () => {
+      toast.success("VMC restarted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to restart VMC", { timeout: 3000 })
+    },
     preserveScroll: true,
     preserveState: true,
     replace: true,
-    onSuccess: () => {
-    }
   })
 }
 

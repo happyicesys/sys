@@ -73,6 +73,7 @@ import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted, watch } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   holiday: Object,
@@ -85,6 +86,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.holiday ? useForm(props.holiday) : useForm(getDefaultForm())
@@ -114,7 +116,11 @@ function submit() {
     form.value
     .post('/holidays/create', {
       onSuccess: () => {
+        toast.success("Holiday created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create holiday", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -125,7 +131,11 @@ function submit() {
     form.value
       .post('/holidays/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Holiday updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update holiday", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

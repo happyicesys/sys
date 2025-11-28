@@ -183,6 +183,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   cashlessProviderOptions: Object,
@@ -201,6 +202,7 @@ const filters = ref({
 const showModal = ref(false)
 const cashlessTerminal = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 const cashlessProviderOptions = ref([])
 const operatorOptions = ref([])
@@ -234,7 +236,14 @@ function onDeleteClicked(cashlessTerminal) {
   if (!approval) {
       return;
   }
-  router.delete('/cashless-terminals/' + cashlessTerminal.id)
+  router.delete('/cashless-terminals/' + cashlessTerminal.id, {
+    onSuccess: () => {
+      toast.success("Cashless terminal deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete cashless terminal", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(model) {

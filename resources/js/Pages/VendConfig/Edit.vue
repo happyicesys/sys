@@ -269,6 +269,7 @@ import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   products: Object,
@@ -293,6 +294,7 @@ const vendConfigOptions = ref([])
 const vendPrefixes = ref([])
 const vendPrefixOptions = ref([])
 const versionOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   vendConfigOptions.value = props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -376,6 +378,12 @@ function replicateProductMapping() {
     id: form.value.id,
   },
   {
+    onSuccess: () => {
+      toast.success("Setting chart replicated successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to replicate setting chart", { timeout: 3000 })
+    },
     preserveState: true,
     replace: true,
   })

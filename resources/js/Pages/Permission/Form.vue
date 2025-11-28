@@ -56,6 +56,7 @@ import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   permission: Object,
@@ -68,6 +69,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.permission ? useForm(props.permission) : useForm(getDefaultForm())
@@ -86,7 +88,11 @@ function submit() {
     form.value
     .post('/permissions/create', {
       onSuccess: () => {
+        toast.success("Permission created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create permission", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -97,7 +103,11 @@ function submit() {
     form.value
       .post('/permissions/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Permission updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update permission", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

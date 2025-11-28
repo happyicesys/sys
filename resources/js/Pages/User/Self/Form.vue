@@ -54,6 +54,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import FormInput from '@/Components/FormInput.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user.data}) : useForm(getDefaultForm())
@@ -67,6 +68,7 @@ const props = defineProps({
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 function getDefaultForm() {
   return {
@@ -88,6 +90,12 @@ function submit() {
   //   })
   form.value.post('/self/' + form.value.id + '/update',
     {
+      onSuccess: () => {
+        toast.success("Account updated successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to update account", { timeout: 3000 })
+      },
       preserveState: true,
       replace: true,
     }

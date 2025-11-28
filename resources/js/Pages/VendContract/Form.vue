@@ -62,6 +62,7 @@ import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   vendContract: Object,
@@ -74,6 +75,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.vendContract ? useForm(props.vendContract) : useForm(getDefaultForm())
@@ -93,7 +95,11 @@ function submit() {
     form.value
     .post('/vend-contracts/store', {
       onSuccess: () => {
+        toast.success("Machine contract created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create vend contract", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -104,7 +110,11 @@ function submit() {
     form.value
       .post('/vend-contracts/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Machine contract updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update vend contract", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

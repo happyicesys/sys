@@ -159,6 +159,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   locationTypes: Object,
@@ -174,6 +175,7 @@ const showModal = ref(false)
 const locationType = ref()
 const permissions = usePage().props.auth.permissions
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -197,7 +199,14 @@ function onDeleteClicked(locationType) {
   if (!approval) {
       return;
   }
-  router.delete('/location-types/' + locationType.id)
+  router.delete('/location-types/' + locationType.id, {
+    onSuccess: () => {
+      toast.success("Location type deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete location type", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(telcoValue) {

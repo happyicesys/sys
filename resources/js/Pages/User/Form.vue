@@ -239,6 +239,7 @@ import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   user: Object,
@@ -261,6 +262,7 @@ const operatorOptions = ref([])
 const roleOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
 const unbindedVendOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user}) : useForm(getDefaultForm())
@@ -313,7 +315,11 @@ function submit() {
     }))
     .post('/users/create', {
       onSuccess: () => {
+        toast.success("User created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create user", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -330,7 +336,11 @@ function submit() {
       }))
       .post('/users/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("User updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update user", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

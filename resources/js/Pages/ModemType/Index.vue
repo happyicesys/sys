@@ -167,6 +167,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   modemTypes: Object,
@@ -181,6 +182,7 @@ const filters = ref({
 const showModal = ref(false)
 const modemType = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -204,7 +206,14 @@ function onDeleteClicked(modemType) {
   if (!approval) {
       return;
   }
-  router.delete('/modem-types/' + modemType.id)
+  router.delete('/modem-types/' + modemType.id, {
+    onSuccess: () => {
+      toast.success("Modem type deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete modem type", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(telcoValue) {

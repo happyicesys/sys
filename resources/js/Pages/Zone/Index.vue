@@ -159,6 +159,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 defineProps({
   zones: Object,
@@ -173,6 +174,7 @@ const filters = ref({
 const showModal = ref(false)
 const zone = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -196,7 +198,14 @@ function onDeleteClicked(zone) {
   if (!approval) {
       return;
   }
-  router.delete('/zones/' + zone.id)
+  router.delete('/zones/' + zone.id, {
+    onSuccess: () => {
+      toast.success("Zone deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete zone", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(zoneValue) {

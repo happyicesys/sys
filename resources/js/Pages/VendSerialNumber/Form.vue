@@ -82,6 +82,7 @@ import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { useForm, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   vendSerialNumber: Object,
@@ -94,6 +95,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.vendSerialNumber ? useForm(props.vendSerialNumber) : useForm(getDefaultForm())
@@ -127,7 +129,11 @@ function submit() {
     })
     .post('/vend-serial-numbers/store', {
       onSuccess: () => {
+        toast.success("Serial number created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create serial number", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -143,7 +149,11 @@ function submit() {
     })
       .post('/vend-serial-numbers/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Serial number updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update serial number", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

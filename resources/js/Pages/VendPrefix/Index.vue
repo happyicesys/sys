@@ -349,7 +349,6 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import AttachmentOverview from '@/Components/AttachmentOverview.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/VendPrefix/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
@@ -368,6 +367,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 import { filter } from 'lodash';
 
 const props = defineProps({
@@ -393,6 +393,7 @@ const showAttachmentOverviewModal = ref(false);
 const showModal = ref(false);
 const vendPrefix = ref();
 const type = ref('');
+const toast = useToast();
 const numberPerPageOptions = ref([]);
 const productMappingOptions = ref([]);
 const vendConfigOptions = ref([]);
@@ -448,7 +449,14 @@ function onDeleteClicked(vendPrefix) {
   if (!approval) {
     return;
   }
-  router.delete('/vend-prefixes/' + vendPrefix.id);
+  router.delete('/vend-prefixes/' + vendPrefix.id, {
+    onSuccess: () => {
+      toast.success("Machine prefix deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete machine prefix", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(telcoValue) {

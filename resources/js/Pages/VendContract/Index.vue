@@ -173,6 +173,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   vendContracts: Object,
@@ -187,6 +188,7 @@ const filters = ref({
 const showModal = ref(false)
 const vendContract = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -210,7 +212,14 @@ function onDeleteClicked(vendContract) {
   if (!approval) {
       return;
   }
-  router.delete('/vend-contracts/' + vendContract.id)
+  router.delete('/vend-contracts/' + vendContract.id, {
+    onSuccess: () => {
+      toast.success("Machine contract deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete machine contract", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(telcoValue) {

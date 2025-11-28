@@ -183,6 +183,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
     profiles: Object,
@@ -200,6 +201,7 @@ const filters = ref({
 const showEditModal = ref(false)
 const profile = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -223,7 +225,14 @@ function onDeleteProfileClicked(profile) {
     if (!approval) {
         return;
     }
-    router.delete('/profiles/' + profile.id)
+    router.delete('/profiles/' + profile.id, {
+      onSuccess: () => {
+        toast.success("Profile deleted successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to delete profile", { timeout: 3000 })
+      }
+    })
 }
 
 function onEditProfileClicked(profileValue) {

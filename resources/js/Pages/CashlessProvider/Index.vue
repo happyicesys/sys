@@ -157,6 +157,7 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
+import { useToast } from "vue-toastification";
 import { Head } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3'
@@ -174,6 +175,7 @@ const filters = ref({
 const showModal = ref(false)
 const cashlessProvider = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -197,7 +199,14 @@ function onDeleteClicked(cashlessProvider) {
   if (!approval) {
       return;
   }
-  router.delete('/cashless-providers/' + cashlessProvider.id)
+  router.delete('/cashless-providers/' + cashlessProvider.id, {
+    onSuccess: () => {
+      toast.success("Cashless provider deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete cashless provider", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(cashlessProviderValue) {

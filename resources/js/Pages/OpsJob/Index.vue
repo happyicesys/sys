@@ -479,17 +479,19 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/OpsJob/Form.vue';
+import ChangeDriver from '@/Pages/OpsJob/ChangeDriver.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon, UserIcon } from '@heroicons/vue/20/solid';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 import moment from 'moment';
 
 const props = defineProps({
@@ -517,10 +519,12 @@ const authRoles = usePage().props.auth.roles || []
 const isDriver = authRoles.includes('driver')
 const showAddressModal = ref(false)
 const showModal = ref(false)
-const operatorCountry = usePage().props.auth.operatorCountry
-const operatorOptions = ref([])
+const showChangeDriverModal = ref(false)
 const opsJob = ref()
 const type = ref('')
+const toast = useToast()
+const operatorCountry = usePage().props.auth.operatorCountry
+const operatorOptions = ref([])
 const numberPerPageOptions = ref([])
 const userOptions = ref([])
 
@@ -576,7 +580,14 @@ function onDeleteClicked(opsJob) {
   if (!approval) {
       return;
   }
-  router.delete('/ops-jobs/' + opsJob.id)
+  router.delete('/ops-jobs/' + opsJob.id, {
+    onSuccess: () => {
+      toast.success("Ops job deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete ops job", { timeout: 3000 })
+    }
+  })
 }
 
 function onSearchFilterUpdated() {

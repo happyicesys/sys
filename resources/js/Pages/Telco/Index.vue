@@ -159,6 +159,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   telcos: Object,
@@ -173,6 +174,7 @@ const filters = ref({
 const showModal = ref(false)
 const telco = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -196,7 +198,14 @@ function onDeleteClicked(telco) {
   if (!approval) {
       return;
   }
-  router.delete('/telcos/' + telco.id)
+  router.delete('/telcos/' + telco.id, {
+    onSuccess: () => {
+      toast.success("Telco deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete telco", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(telcoValue) {

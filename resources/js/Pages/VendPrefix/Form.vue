@@ -153,6 +153,7 @@ import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, watch } from 'vue'
+import { useToast } from "vue-toastification";
 
 const authOperator = usePage().props.auth.operator
 
@@ -173,6 +174,7 @@ const form = ref(
 const operatorOptions = ref([])
 const productMappingOptions = ref([])
 const vendConfigOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   operatorOptions.value = [
@@ -332,7 +334,11 @@ function submit() {
     })
     .post('/vend-prefixes/create', {
       onSuccess: () => {
+        toast.success("Machine prefix created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create vend prefix", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -351,7 +357,11 @@ function submit() {
       })
       .post('/vend-prefixes/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Machine prefix updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update vend prefix", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

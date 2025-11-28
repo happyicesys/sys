@@ -189,6 +189,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   categories: Object,
@@ -206,6 +207,7 @@ const filters = ref({
 const showModal = ref(false)
 const category = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 const categoryGroupOptions = ref([])
 
@@ -231,7 +233,14 @@ function onDeleteClicked(category) {
   if (!approval) {
       return;
   }
-  router.delete('/categories/' + category.id)
+  router.delete('/categories/' + category.id, {
+    onSuccess: () => {
+      toast.success("Category deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete category", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(categoryValue) {

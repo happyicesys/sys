@@ -62,6 +62,7 @@ import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   vendModel: Object,
@@ -74,6 +75,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.vendModel ? useForm(props.vendModel) : useForm(getDefaultForm())
@@ -93,7 +95,11 @@ function submit() {
     form.value
     .post('/vend-models/store', {
       onSuccess: () => {
+        toast.success("Machine model created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create vend model", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -104,7 +110,11 @@ function submit() {
     form.value
       .post('/vend-models/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Machine model updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update vend model", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

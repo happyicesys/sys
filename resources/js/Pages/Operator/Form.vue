@@ -587,6 +587,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { router, useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 // import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -616,6 +617,7 @@ const deliveryPlatformOperatorTypes = ref([])
 const operatorPaymentGateways = ref([])
 const operatorPaymentGatewayTypes = ref([])
 const unbindedVendOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   countryDeliveryPlatformOptions.value = props.countryDeliveryPlatforms.data
@@ -699,7 +701,11 @@ function bindDeliveryPlatform() {
       }))
       .post('/operators/' + form.value.id + '/delivery-platform/create', {
       onSuccess: () => {
+        toast.success("Delivery platform added successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to add delivery platform", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -744,7 +750,11 @@ function submit() {
     }))
     .post('/operators/create', {
       onSuccess: () => {
+        toast.success("Operator created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create operator", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -764,7 +774,11 @@ function submit() {
       }))
       .post('/operators/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Operator updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update operator", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

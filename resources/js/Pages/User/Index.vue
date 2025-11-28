@@ -248,6 +248,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   users: Object,
@@ -269,9 +270,10 @@ const filters = ref({
 const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
 const operatorOptions = ref([])
-const showFormModal = ref(false)
+const showModal = ref(false)
 const user = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 
@@ -308,7 +310,14 @@ function onDeleteClicked(user) {
   if (!approval) {
       return;
   }
-  router.delete('/users/' + user.id)
+  router.delete('/users/' + user.id, {
+    onSuccess: () => {
+      toast.success("User deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete user", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(userValue) {

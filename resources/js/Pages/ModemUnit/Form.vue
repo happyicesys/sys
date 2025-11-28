@@ -76,6 +76,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   modemTypeOptions: Object,
@@ -91,6 +92,7 @@ const form = ref(
 )
 
 const modemTypeOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   if (props.modemTypeOptions && props.modemTypeOptions.data) {
@@ -137,7 +139,11 @@ function submit() {
     })
     .post('/modem-units/store', {
       onSuccess: () => {
+        toast.success("Modem unit created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create modem unit", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -154,7 +160,11 @@ function submit() {
       })
       .post('/modem-units/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Modem unit updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update modem unit", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

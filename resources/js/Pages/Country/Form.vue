@@ -76,6 +76,7 @@ import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   country: Object,
@@ -88,6 +89,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.country ? useForm(props.country) : useForm(getDefaultForm())
@@ -110,7 +112,11 @@ function submit() {
     form.value
     .post('/countries/create', {
       onSuccess: () => {
+        toast.success("Country created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create country", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -121,7 +127,11 @@ function submit() {
     form.value
       .post('/countries/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Country updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update country", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

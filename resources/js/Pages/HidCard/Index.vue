@@ -211,17 +211,17 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import Create from '@/Pages/HidCard/Create.vue';
-import Edit from '@/Pages/HidCard/Edit.vue';
+import Form from '@/Pages/HidCard/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 import moment from 'moment'
 
 const props = defineProps({
@@ -240,9 +240,11 @@ const filters = ref({
   numberPerPage: 100,
 })
 const loading = ref(false)
+const showModal = ref(false)
 const operatorOptions = ref([])
 const hidCard = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -305,7 +307,14 @@ function onDeleteClicked(hidCard) {
   if (!approval) {
       return;
   }
-  router.delete('/hid-cards/' + hidCard.id)
+  router.delete('/hid-cards/' + hidCard.id, {
+    onSuccess: () => {
+      toast.success("HID card deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete HID card", { timeout: 3000 })
+    }
+  })
 }
 
 function onSearchFilterUpdated() {

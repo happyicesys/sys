@@ -81,6 +81,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   simcard: Object,
@@ -95,6 +96,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const telcoOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   telcoOptions.value = props.telcos.data.map((data) => {return {id: data.id, name: data.name}})
@@ -126,7 +128,11 @@ function submit() {
     })
     .post('/simcards/store', {
       onSuccess: () => {
+        toast.success("Simcard created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create simcard", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -143,7 +149,11 @@ function submit() {
     })
       .post('/simcards/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Simcard updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update simcard", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

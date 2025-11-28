@@ -184,9 +184,9 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   holidays: Object,
@@ -203,6 +203,7 @@ const filters = ref({
 const showModal = ref(false)
 const holiday = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 const yearOptions = ref([])
 
@@ -230,7 +231,14 @@ function onDeleteClicked(holiday) {
   if (!approval) {
       return;
   }
-  router.delete('/holidays/' + holiday.id)
+  router.delete('/holidays/' + holiday.id, {
+    onSuccess: () => {
+      toast.success("Holiday deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete holiday", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(holidayValue) {

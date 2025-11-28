@@ -288,6 +288,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   vouchers: Object,
@@ -306,6 +307,7 @@ const operatorCountry = usePage().props.auth.operatorCountry
 const showModal = ref(false)
 const voucher = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -342,7 +344,14 @@ function onDeleteClicked(voucher) {
   if (!approval) {
       return;
   }
-  router.delete('/vouchers/' + voucher.id)
+  router.delete('/vouchers/' + voucher.id, {
+    onSuccess: () => {
+      toast.success("Voucher deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete voucher", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(telcoValue) {

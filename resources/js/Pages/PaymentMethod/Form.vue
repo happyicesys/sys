@@ -56,6 +56,7 @@ import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   paymentMethod: Object,
@@ -68,6 +69,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.paymentMethod ? useForm(props.paymentMethod) : useForm(getDefaultForm())
@@ -86,7 +88,11 @@ function submit() {
     form.value
     .post('/payment-methods/create', {
       onSuccess: () => {
+        toast.success("Payment method created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create payment method", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -97,7 +103,11 @@ function submit() {
     form.value
       .post('/payment-methods/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Payment method updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update payment method", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

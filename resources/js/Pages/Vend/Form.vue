@@ -237,6 +237,7 @@ import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon,
 import { router, useForm } from '@inertiajs/vue3';
 import moment from 'moment';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   vend: Object,
@@ -251,6 +252,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.vend ? useForm(props.vend) : useForm(getDefaultForm())
@@ -276,7 +278,11 @@ function restartVend(vendID) {
     preserveState: true,
     replace: true,
     onSuccess: () => {
+      toast.success("Machine restarted successfully", { timeout: 3000 })
       emit('modalClose')
+    },
+    onError: () => {
+      toast.error("Failed to restart machine", { timeout: 3000 })
     }
   })
 }
@@ -287,7 +293,11 @@ function submit() {
   form.value
     .post('/vends/' + form.value.id + '/update', {
     onSuccess: () => {
+      toast.success("Machine updated successfully", { timeout: 3000 })
       emit('modalClose')
+    },
+    onError: () => {
+      toast.error("Failed to update machine", { timeout: 3000 })
     },
     preserveState: true,
     replace: true,
@@ -298,7 +308,11 @@ function triggerLogUpload() {
   form.value
     .post('/vends/' + form.value.id + '/trigger-log-upload', {
     onSuccess: () => {
+      toast.success("Log upload triggered successfully", { timeout: 3000 })
       emit('modalClose')
+    },
+    onError: () => {
+      toast.error("Failed to trigger log upload", { timeout: 3000 })
     },
     preserveState: true,
     replace: true,
@@ -309,7 +323,11 @@ function unbindCustomer(vendId) {
   form.value
       .post('/vends/' + vendId + '/unbind', {
         onSuccess: () => {
+          toast.success("Customer unbinded successfully", { timeout: 3000 })
           emit('modalClose')
+        },
+        onError: () => {
+          toast.error("Failed to unbind customer", { timeout: 3000 })
         },
         preserveState: true,
         replace: true,

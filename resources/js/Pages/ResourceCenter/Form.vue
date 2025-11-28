@@ -62,6 +62,7 @@ import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   resourceCenter: Object,
@@ -74,6 +75,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.resourceCenter ? useForm(props.resourceCenter) : useForm(getDefaultForm())
@@ -92,7 +94,11 @@ function submit() {
     form.value
     .post('/resource-centers/create', {
       onSuccess: () => {
+        toast.success("Resource center created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create resource center", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -103,7 +109,11 @@ function submit() {
     form.value
       .post('/resource-centers/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Resource center updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update resource center", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

@@ -199,6 +199,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   countries: Object,
@@ -220,6 +221,7 @@ const filters = ref({
 const showModal = ref(false)
 const operator = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
 const roles = usePage().props.auth.roles
@@ -246,7 +248,14 @@ function onDeleteClicked(operator) {
   if (!approval) {
       return;
   }
-  router.delete('/operators/' + operator.id)
+  router.delete('/operators/' + operator.id, {
+    onSuccess: () => {
+      toast.success("Operator deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete operator", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(operatorValue) {

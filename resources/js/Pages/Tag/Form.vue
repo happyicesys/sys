@@ -63,6 +63,7 @@ import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   classname: String,
@@ -77,6 +78,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.tag ? useForm(props.tag) : useForm(getDefaultForm())
@@ -100,7 +102,11 @@ function submit() {
     }))
     .post('/tags/create', {
       onSuccess: () => {
+        toast.success("Tag created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create tag", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -115,7 +121,11 @@ function submit() {
       }))
       .post('/tags/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Tag updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update tag", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

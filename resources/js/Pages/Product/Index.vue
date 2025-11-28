@@ -403,6 +403,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, watch } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   categories: Object,
@@ -439,6 +440,7 @@ const operatorOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
 const product = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -525,7 +527,14 @@ function onDeleteClicked(product) {
   if (!approval) {
       return;
   }
-  router.delete('/products/' + product.id)
+  router.delete('/products/' + product.id, {
+    onSuccess: () => {
+      toast.success("Product deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete product", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(productValue) {

@@ -56,6 +56,7 @@ import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   zone: Object,
@@ -68,6 +69,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.zone ? useForm(props.zone) : useForm(getDefaultForm())
@@ -86,7 +88,11 @@ function submit() {
     form.value
     .post('/zones/create', {
       onSuccess: () => {
+        toast.success("Zone created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create zone", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -97,7 +103,11 @@ function submit() {
     form.value
       .post('/zones/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Zone updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update zone", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

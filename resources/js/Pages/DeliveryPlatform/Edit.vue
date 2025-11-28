@@ -739,6 +739,7 @@ import TableHead from '@/Components/TableHead.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PencilSquareIcon, PlayCircleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
     bundleSalesOptions: [Array, Object],
@@ -773,6 +774,7 @@ const props = defineProps({
   const vend = ref()
   const unbindedVendOptions = ref([])
   const platformRefNumberOptions = ref([])
+  const toast = useToast()
 
 onMounted(() => {
     if(props.type == 'create') {
@@ -899,6 +901,12 @@ function addDeliveryProductMappingItem() {
       ...form.value,
         product_id: form.value.product_id ? form.value.product_id.id : null,
     },{
+        onSuccess: () => {
+          toast.success("Product mapping item added successfully", { timeout: 3000 })
+        },
+        onError: () => {
+          toast.error("Failed to add product mapping item", { timeout: 3000 })
+        },
         preserveState: false,
         preserveScroll: true,
         replace: true,
@@ -919,6 +927,12 @@ function bindVend(vendId) {
       platform_ref_id: platformRefId,
       delivery_platform_ref_number_id: platformRefNumberId,
     }, {
+    onSuccess: () => {
+      toast.success("Machine bound successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to bind machine", { timeout: 3000 })
+    },
     preserveState: false,
     preserveScroll: true,
     replace: true,
@@ -961,6 +975,12 @@ function removeDeliveryProductMappingBulk(deliveryProductMappingBulkID) {
       return;
   }
   router.delete('/delivery-product-mappings/bulks/' + deliveryProductMappingBulkID, {
+      onSuccess: () => {
+        toast.success("Bundle deleted successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to delete bundle", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -986,6 +1006,12 @@ function saveBundleSales()
       bundleSalesItems: bundleSalesItems.value && bundleSalesItems.value.length > 0 ? bundleSalesItems.value.map((data) => {return {id: data.delivery_product_mapping_item_id.id, qty: data.qty}}) : [],
       total_qty: form.value.total_qty,
   }, {
+      onSuccess: () => {
+        toast.success("Bundle sales saved successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to save bundle sales", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -1013,6 +1039,12 @@ function togglePauseAllVends() {
       return;
   }
   router.post('/delivery-product-mappings/' + form.value.id + '/toggle-pause-all-vends', {}, {
+      onSuccess: () => {
+        toast.success("All vends paused/resumed successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to pause/resume all vends", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -1026,6 +1058,12 @@ function togglePauseVend(deliveryProductMappingVend) {
       return;
   }
   router.post('/delivery-product-mappings/vends/' + deliveryProductMappingVend.id + '/toggle-pause-vend', {}, {
+      onSuccess: () => {
+        toast.success("Machine paused/resumed successfully", { timeout: 3000 })
+      },
+      onError: () => {
+        toast.error("Failed to pause/resume machine", { timeout: 3000 })
+      },
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -1038,13 +1076,17 @@ function unbindVend(deliveryProductMappingVendId) {
       return;
   }
   router.delete('/delivery-product-mappings/unbind/' + deliveryProductMappingVendId, {
-      preserveState: false,
-      preserveScroll: true,
-      replace: true,
       onSuccess: () => {
+        toast.success("Machine unbound successfully", { timeout: 3000 })
         router.reload({only: ['unbindedVendOptions']})
         unbindedVendOptions.value = props.unbindedVendOptions ? props.unbindedVendOptions.data : []
       },
+      onError: () => {
+        toast.error("Failed to unbind machine", { timeout: 3000 })
+      },
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
   })
 }
 </script>

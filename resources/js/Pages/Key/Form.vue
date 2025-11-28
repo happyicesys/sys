@@ -63,6 +63,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   keyModel: Object,
@@ -75,6 +76,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.keyModel ? useForm(props.keyModel) : useForm(getDefaultForm())
@@ -100,7 +102,11 @@ function submit() {
     })
     .post('/keys/store', {
       onSuccess: () => {
+        toast.success("Key created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create key", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -117,7 +123,11 @@ function submit() {
     })
       .post('/keys/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Key updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update key", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

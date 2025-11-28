@@ -102,6 +102,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const authOperator = usePage().props.auth.operator
 
@@ -119,6 +120,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const operatorOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   operatorOptions.value = props.operatorOptions
@@ -153,7 +155,11 @@ function submit() {
     })
     .post('/cashless-terminals/store', {
       onSuccess: () => {
+        toast.success("Cashless terminal created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create cashless terminal", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -171,7 +177,11 @@ function submit() {
     })
       .post('/cashless-terminals/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Cashless terminal updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update cashless terminal", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

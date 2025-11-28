@@ -82,6 +82,7 @@ import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   category: Object,
@@ -97,6 +98,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const categoryGroupOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   categoryGroupOptions.value = props.categoryGroups.data
@@ -126,7 +128,11 @@ function submit() {
     }))
     .post('/categories/create', {
       onSuccess: () => {
+        toast.success("Category created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create category", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -142,7 +148,11 @@ function submit() {
       }))
       .post('/categories/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Category updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update category", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

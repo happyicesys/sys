@@ -165,6 +165,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   modelName: String,
@@ -181,6 +182,7 @@ const filters = ref({
 const showModal = ref(false)
 const tag = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -204,7 +206,14 @@ function onDeleteClicked(tag) {
   if (!approval) {
       return;
   }
-  router.delete('/tags/' + tag.id)
+  router.delete('/tags/' + tag.id, {
+    onSuccess: () => {
+      toast.success(`${props.modelName} label deleted successfully`, { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error(`Failed to delete ${props.modelName.toLowerCase()} label`, { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(categoryValue) {

@@ -85,6 +85,7 @@ import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const authOperator = usePage().props.auth.operator
 
@@ -101,6 +102,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const operatorOptions = ref([])
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.vendConfig ? useForm(props.vendConfig) : useForm(getDefaultForm())
@@ -131,7 +133,11 @@ function submit() {
     })
     .post('/vend-configs/create', {
       onSuccess: () => {
+        toast.success("Setting chart created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create vend config", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -148,7 +154,11 @@ function submit() {
       })
       .post('/vend-configs/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Setting chart updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update vend config", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

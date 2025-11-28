@@ -253,7 +253,6 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import Form from '@/Pages/LocationType/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -263,6 +262,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   vendCriteriaBindings: Object,
@@ -287,6 +287,7 @@ const filters = ref({
 const showModal = ref(false)
 const vendCriteriaBinding = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 
@@ -311,7 +312,14 @@ function onDeleteClicked(vendCriteriaBinding) {
   if (!approval) {
       return;
   }
-  router.delete('/location-types/' + vendCriteriaBinding.id)
+  router.delete('/location-types/' + vendCriteriaBinding.id, {
+    onSuccess: () => {
+      toast.success("Machine criteria binding deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete machine criteria binding", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(telcoValue) {

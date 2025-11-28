@@ -153,6 +153,7 @@ import Form from '@/Pages/PaymentMethod/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import { useToast } from "vue-toastification";
 import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
@@ -173,6 +174,7 @@ const filters = ref({
 const showModal = ref(false)
 const paymentMethod = ref()
 const type = ref('')
+const toast = useToast()
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
@@ -196,7 +198,14 @@ function onDeleteClicked(paymentMethod) {
   if (!approval) {
       return;
   }
-  router.delete('/payment-methods/' + paymentMethod.id)
+  router.delete('/payment-methods/' + paymentMethod.id, {
+    onSuccess: () => {
+      toast.success("Payment method deleted successfully", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to delete payment method", { timeout: 3000 })
+    }
+  })
 }
 
 function onEditClicked(paymentMethodValue) {

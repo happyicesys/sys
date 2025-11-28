@@ -72,6 +72,7 @@ import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   vendChannelError: Object,
@@ -84,6 +85,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const toast = useToast()
 
 onMounted(() => {
   form.value = props.vendChannelError ? useForm(props.vendChannelError) : useForm(getDefaultForm())
@@ -104,7 +106,11 @@ function submit() {
     form.value
     .post('/vend-channel-errors/create', {
       onSuccess: () => {
+        toast.success("Machine channel error created successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to create vend channel error", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -115,7 +121,11 @@ function submit() {
     form.value
       .post('/vend-channel-errors/' + form.value.id + '/update', {
       onSuccess: () => {
+        toast.success("Machine channel error updated successfully", { timeout: 3000 })
         emit('modalClose')
+      },
+      onError: () => {
+        toast.error("Failed to update vend channel error", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
