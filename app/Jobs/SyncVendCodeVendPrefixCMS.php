@@ -28,9 +28,15 @@ class SyncVendCodeVendPrefixCMS implements ShouldQueue
      */
     public function handle(): void
     {
-        // $this->endpoint = env('CMS_URL') . '/api/person/' . $personID . '/vendcode/';
+        $baseUrl = config('app.cms_url');
 
-        $response = Http::get(env('CMS_URL') . '/api/sys/person/' . $this->vend->customer->person_id . '/vendcode/' . $this->vend->code, [
+        if (!$baseUrl) {
+            return;
+        }
+
+        // $this->endpoint = $baseUrl . '/api/person/' . $personID . '/vendcode/';
+
+        $response = Http::get($baseUrl . '/api/sys/person/' . $this->vend->customer->person_id . '/vendcode/' . $this->vend->code, [
             'vend_prefix' => $this->vend->vendPrefix ? $this->vend->vendPrefix->name : null,
         ]);
     }

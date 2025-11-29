@@ -21,7 +21,6 @@ class DeleteTransactionsCMS implements ShouldQueue
     public function __construct($cmsTransactionID)
     {
         $this->cmsTransactionID = $cmsTransactionID;
-        $this->endpoint = env('CMS_URL') . '/api/sys/transactions/delete';
     }
 
     /**
@@ -29,9 +28,17 @@ class DeleteTransactionsCMS implements ShouldQueue
      */
     public function handle(): void
     {
+        $baseUrl = config('app.cms_url');
+
+        if (!$baseUrl) {
+            return;
+        }
+
+        $this->endpoint = $baseUrl . '/api/sys/transactions/delete';
+
         $response = Http::post($this->endpoint, ['transaction_id' => $this->cmsTransactionID]);
 
-        if($response->successful()) {
+        if ($response->successful()) {
             $responseArr = $response->json();
         }
     }

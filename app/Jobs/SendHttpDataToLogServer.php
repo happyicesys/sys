@@ -19,8 +19,6 @@ class SendHttpDataToLogServer implements ShouldQueue
     public function __construct($data)
     {
         $this->data = $data;
-        $this->endpoint = env('LOG_SERVER_URL') . '/api/vend-data';
-        $this->token = env('LOG_SERVER_ACCESS_TOKEN');
     }
 
     /**
@@ -28,6 +26,16 @@ class SendHttpDataToLogServer implements ShouldQueue
      */
     public function handle(): void
     {
+        $baseUrl = config('app.log_server_url');
+        $token = config('app.log_server_access_token');
+
+        if (!$baseUrl || !$token) {
+            return;
+        }
+
+        $this->endpoint = $baseUrl . '/api/vend-data';
+        $this->token = $token;
+
         Http::withToken($this->token)
             ->post($this->endpoint, $this->data);
     }

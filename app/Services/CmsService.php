@@ -11,7 +11,13 @@ class CmsService
 
     public function getCMSQtyAvailableApi()
     {
-        $url = env('CMS_URL') . self::AVAILABLE_PCS_ENDPOINT;
+        $url = config('app.cms_url');
+
+        if (!$url) {
+            return [];
+        }
+
+        $url .= self::AVAILABLE_PCS_ENDPOINT;
         $response = Http::get($url);
         return $response ? $response->json() : [];
     }

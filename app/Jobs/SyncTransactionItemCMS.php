@@ -22,7 +22,6 @@ class SyncTransactionItemCMS implements ShouldQueue
     public function __construct($customerID)
     {
         $this->customerID = $customerID;
-        $this->endpoint = env('CMS_URL') . '/api/transactions/deals';
     }
 
     /**
@@ -30,9 +29,17 @@ class SyncTransactionItemCMS implements ShouldQueue
      */
     public function handle(): void
     {
+        $baseUrl = config('app.cms_url');
+
+        if (!$baseUrl) {
+            return;
+        }
+
+        $this->endpoint = $baseUrl . '/api/transactions/deals';
+
         $customer = Customer::findOrFail($this->customerID);
 
-        if($customer->cms_invoice_history and isset($customer->cms_invoice_history['next_transaction_id'])) {
+        if ($customer->cms_invoice_history and isset($customer->cms_invoice_history['next_transaction_id'])) {
             $data = [
                 'status' => 'Confirmed',
                 'cms_person_id' => isset($customer->cms_invoice_history['id']) ? $customer->cms_invoice_history['id'] : null,
@@ -40,9 +47,9 @@ class SyncTransactionItemCMS implements ShouldQueue
                 'items' => [],
             ];
 
-            if($customer->vend and $customer->vend->vendChannels) {
-                foreach($customer->vend->vendChannels as $vendChannel) {
-                    if($vendChannel->capacity > 0 and $vendChannel->is_active and $vendChannel->product and $vendChannel->product->is_available) {
+            if ($customer->vend and $customer->vend->vendChannels) {
+                foreach ($customer->vend->vendChannels as $vendChannel) {
+                    if ($vendChannel->capacity > 0 and $vendChannel->is_active and $vendChannel->product and $vendChannel->product->is_available) {
                         $data['items'][$vendChannel->code] = [
                             'product_code' => $vendChannel->product->code,
                             'capacity' => $vendChannel->capacity,

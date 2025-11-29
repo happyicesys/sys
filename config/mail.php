@@ -13,7 +13,9 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'smtp'),
+    'default' => env('MAIL_MAILER', 'smtp') == 'smtp' && (!env('MAIL_HOST') || !env('MAIL_USERNAME') || !env('MAIL_PASSWORD'))
+        ? 'log'
+        : env('MAIL_MAILER', 'smtp'),
 
     /*
     |--------------------------------------------------------------------------

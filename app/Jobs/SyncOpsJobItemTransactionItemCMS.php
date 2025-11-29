@@ -22,7 +22,6 @@ class SyncOpsJobItemTransactionItemCMS implements ShouldQueue
     public function __construct($opsJobItemID)
     {
         $this->opsJobItemID = $opsJobItemID;
-        $this->endpoint = env('CMS_URL') . '/api/transactions/deals';
     }
 
     /**
@@ -30,9 +29,17 @@ class SyncOpsJobItemTransactionItemCMS implements ShouldQueue
      */
     public function handle(): void
     {
+        $baseUrl = config('app.cms_url');
+
+        if (!$baseUrl) {
+            return;
+        }
+
+        $this->endpoint = $baseUrl . '/api/transactions/deals';
+
         $opsJobItem = OpsJobItem::with(['customer', 'opsJobItemChannels.vendChannel.product'])->find($this->opsJobItemID);
 
-        if($opsJobItem->cms_transaction_id) {
+        if ($opsJobItem->cms_transaction_id) {
             $data = [
                 'status' => 'Delivered',
                 'cms_person_id' => $opsJobItem->customer->person_id,
@@ -40,9 +47,9 @@ class SyncOpsJobItemTransactionItemCMS implements ShouldQueue
                 'items' => [],
             ];
 
-            if($opsJobItem->opsJobItemChannels) {
-                foreach($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
-                    if($opsJobItemChannel->actual_qty > 0) {
+            if ($opsJobItem->opsJobItemChannels) {
+                foreach ($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
+                    if ($opsJobItemChannel->actual_qty > 0) {
                         $data['items'][$opsJobItemChannel->vend_channel_code] = [
                             'product_code' => $opsJobItemChannel->vendChannel->product->code,
                             'capacity' => $opsJobItemChannel->capacity,

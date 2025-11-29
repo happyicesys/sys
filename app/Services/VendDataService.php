@@ -321,7 +321,7 @@ class VendDataService
     }
 
     if ($saveVendData) {
-      if (env('APP_ENV') == 'production' && env('LOG_SERVER_URL') && env('LOG_SERVER_ACCESS_TOKEN')) {
+      if (config('app.env') == 'production' && config('app.log_server_url') && config('app.log_server_access_token')) {
         SendHttpDataToLogServer::dispatch($originalInput)->onQueue('default');
       }
       // CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');

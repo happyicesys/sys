@@ -36,14 +36,21 @@ class SyncVendCustomerCms implements ShouldQueue
 
     public function __construct($personID = null, $vendID = null)
     {
-        $this->callBackVendCodeEndPoint = env('CMS_URL') . '/api/sys/person/' . $personID . '/vendcode/';
-        $this->endPointUrl = env('CMS_URL') . '/api/person/migrate/' .  $personID;
         $this->personID = $personID;
         $this->vendID = $vendID;
     }
 
     public function handle()
     {
+        $baseUrl = config('app.cms_url');
+
+        if (!$baseUrl) {
+            return;
+        }
+
+        $this->callBackVendCodeEndPoint = $baseUrl . '/api/sys/person/' . $this->personID . '/vendcode/';
+        $this->endPointUrl = $baseUrl . '/api/person/migrate/' . $this->personID;
+
         $response = Http::get($this->endPointUrl);
         $customerCollection = $response->collect();
 
@@ -53,107 +60,109 @@ class SyncVendCustomerCms implements ShouldQueue
         $categoryGroupId = null;
         $profileId = null;
 
-        if($customerCollection and isset($customerCollection[0])) {
+        if ($customerCollection and isset($customerCollection[0])) {
             $customerCollection = collect($customerCollection[0]);
 
-                if(isset($customerCollection['location_type'])) {
-                    $locationTypeData = $customerCollection['location_type'];
-                    $locationType = LocationType::firstOrCreate([
+            if (isset($customerCollection['location_type'])) {
+                $locationTypeData = $customerCollection['location_type'];
+                $locationType = LocationType::firstOrCreate(
+                    [
                         'name' => $locationTypeData['name'],
                     ],
                     [
                         'remarks' => isset($locationTypeData['remarks']) ? $locationTypeData['remarks'] : null,
                         'sequence' => isset($locationTypeData['sequence']) ? $locationTypeData['sequence'] : null,
-                    ]);
-                    $locationTypeId = $locationType->id;
-                }
+                    ]
+                );
+                $locationTypeId = $locationType->id;
+            }
 
-                if(isset($customerCollection['profile'])) {
-                    $profileData = $customerCollection['profile'];
-                    $baseCurrencyCountryData = $profileData['currency'];
-                    $baseCurrencyCountry = null;
-                    // dd($profileData);
-                    if(isset($baseCurrencyCountryData['currency_name'])) {
-                        switch($baseCurrencyCountryData['currency_name']) {
-                            case 'SGD':
-                                $baseCurrencyCountry = Country::updateOrCreate([
-                                    'currency_name' => $baseCurrencyCountryData['currency_name'],
-                                ], [
-                                    'name' => 'Singapore',
-                                    'code' => 'SG',
-                                    'currency_symbol' => 'S$',
-                                    'phone_code' => '65',
-                                    'is_state' => false,
-                                    'sequence' => 1,
-                                ]);
-                                $baseCurrencyCountryId = $baseCurrencyCountry->id;
-                                break;
-                            case 'MYR':
-                                $baseCurrencyCountry = Country::updateOrCreate([
-                                    'currency_name' => $baseCurrencyCountryData['currency_name'],
-                                ], [
-                                    'name' => 'Malaysia',
-                                    'code' => 'MY',
-                                    'currency_symbol' => 'RM',
-                                    'phone_code' => '60',
-                                    'is_state' => true,
-                                    'sequence' => 2,
-                                ]);
-                                $baseCurrencyCountryId = $baseCurrencyCountry->id;
-                                break;
-                            case 'RMB':
-                                $baseCurrencyCountry = Country::updateOrCreate([
-                                    'currency_name' => $baseCurrencyCountryData['currency_name'],
-                                ], [
-                                    'name' => 'China',
-                                    'code' => 'CN',
-                                    'currency_symbol' => '¥',
-                                    'phone_code' => '86',
-                                    'is_state' => true,
-                                    'sequence' => 3,
-                                ]);
-                                $baseCurrencyCountryId = $baseCurrencyCountry->id;
-                                break;
-                            case 'IDR':
-                                $baseCurrencyCountry = Country::updateOrCreate([
-                                    'currency_name' => $baseCurrencyCountryData['currency_name'],
-                                ], [
-                                    'name' => 'Indonesia',
-                                    'code' => 'ID',
-                                    'currency_symbol' => 'Rp',
-                                    'phone_code' => '62',
-                                    'is_state' => false,
-                                    'sequence' => 4,
-                                ]);
-                                $baseCurrencyCountryId = $baseCurrencyCountry->id;
-                                break;
-                            case 'THB':
-                                $baseCurrencyCountry = Country::updateOrCreate([
-                                    'currency_name' => $baseCurrencyCountryData['currency_name'],
-                                ], [
-                                    'name' => 'Thailand',
-                                    'code' => 'TH',
-                                    'currency_symbol' => '฿',
-                                    'phone_code' => '66',
-                                    'is_state' => false,
-                                    'sequence' => 5,
-                                ]);
-                                $baseCurrencyCountryId = $baseCurrencyCountry->id;
-                                break;
-                        }
+            if (isset($customerCollection['profile'])) {
+                $profileData = $customerCollection['profile'];
+                $baseCurrencyCountryData = $profileData['currency'];
+                $baseCurrencyCountry = null;
+                // dd($profileData);
+                if (isset($baseCurrencyCountryData['currency_name'])) {
+                    switch ($baseCurrencyCountryData['currency_name']) {
+                        case 'SGD':
+                            $baseCurrencyCountry = Country::updateOrCreate([
+                                'currency_name' => $baseCurrencyCountryData['currency_name'],
+                            ], [
+                                'name' => 'Singapore',
+                                'code' => 'SG',
+                                'currency_symbol' => 'S$',
+                                'phone_code' => '65',
+                                'is_state' => false,
+                                'sequence' => 1,
+                            ]);
+                            $baseCurrencyCountryId = $baseCurrencyCountry->id;
+                            break;
+                        case 'MYR':
+                            $baseCurrencyCountry = Country::updateOrCreate([
+                                'currency_name' => $baseCurrencyCountryData['currency_name'],
+                            ], [
+                                'name' => 'Malaysia',
+                                'code' => 'MY',
+                                'currency_symbol' => 'RM',
+                                'phone_code' => '60',
+                                'is_state' => true,
+                                'sequence' => 2,
+                            ]);
+                            $baseCurrencyCountryId = $baseCurrencyCountry->id;
+                            break;
+                        case 'RMB':
+                            $baseCurrencyCountry = Country::updateOrCreate([
+                                'currency_name' => $baseCurrencyCountryData['currency_name'],
+                            ], [
+                                'name' => 'China',
+                                'code' => 'CN',
+                                'currency_symbol' => '¥',
+                                'phone_code' => '86',
+                                'is_state' => true,
+                                'sequence' => 3,
+                            ]);
+                            $baseCurrencyCountryId = $baseCurrencyCountry->id;
+                            break;
+                        case 'IDR':
+                            $baseCurrencyCountry = Country::updateOrCreate([
+                                'currency_name' => $baseCurrencyCountryData['currency_name'],
+                            ], [
+                                'name' => 'Indonesia',
+                                'code' => 'ID',
+                                'currency_symbol' => 'Rp',
+                                'phone_code' => '62',
+                                'is_state' => false,
+                                'sequence' => 4,
+                            ]);
+                            $baseCurrencyCountryId = $baseCurrencyCountry->id;
+                            break;
+                        case 'THB':
+                            $baseCurrencyCountry = Country::updateOrCreate([
+                                'currency_name' => $baseCurrencyCountryData['currency_name'],
+                            ], [
+                                'name' => 'Thailand',
+                                'code' => 'TH',
+                                'currency_symbol' => '฿',
+                                'phone_code' => '66',
+                                'is_state' => false,
+                                'sequence' => 5,
+                            ]);
+                            $baseCurrencyCountryId = $baseCurrencyCountry->id;
+                            break;
                     }
-
-                    $profile = Profile::updateOrCreate([
-                        'name' => $profileData['name']
-                    ], [
-                        'alias' => $profileData['acronym'],
-                        'uen' => $profileData['roc_no'],
-                        'base_currency_id' => isset($baseCurrencyCountryId) ? $baseCurrencyCountryId : null,
-                    ]);
-                    $profileId = $profile->id;
                 }
 
-            if($this->personID or isset($customerCollection['id'])) {
+                $profile = Profile::updateOrCreate([
+                    'name' => $profileData['name']
+                ], [
+                    'alias' => $profileData['acronym'],
+                    'uen' => $profileData['roc_no'],
+                    'base_currency_id' => isset($baseCurrencyCountryId) ? $baseCurrencyCountryId : null,
+                ]);
+                $profileId = $profile->id;
+            }
+
+            if ($this->personID or isset($customerCollection['id'])) {
                 $personID = $this->personID ? $this->personID : $customerCollection['id'];
 
                 $customer = Customer::updateOrCreate([
@@ -170,12 +179,12 @@ class SyncVendCustomerCms implements ShouldQueue
                 ]);
 
                 // dd($customerCollection['delivery_country'], $customerCollection['del_postcode'], $customerCollection);
-                if(isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {
+                if (isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {
                     $deliveryCountry = $customerCollection['delivery_country'];
                     $deliveryPostcode = $customerCollection['del_postcode'];
                     $deliveryCountryCol = Country::where('name', $deliveryCountry['name'])->first();
 
-                    if($deliveryCountryCol and $deliveryCountryCol->name == 'Singapore') {
+                    if ($deliveryCountryCol and $deliveryCountryCol->name == 'Singapore') {
                         $customer->addresses()->updateOrCreate([
                             'type' => 2,
                         ], [
@@ -188,7 +197,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     }
                 }
 
-                if(isset($customerCollection['name']) and isset($customerCollection['contact'])) {
+                if (isset($customerCollection['name']) and isset($customerCollection['contact'])) {
                     $countryID = Country::where('name', $deliveryCountry['name'])->first();
 
                     $customer->contact()->updateOrCreate([
@@ -201,15 +210,15 @@ class SyncVendCustomerCms implements ShouldQueue
                     ]);
                 }
 
-                if($this->vendID and Vend::find($this->vendID)) {
-                    $beginDate =  isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
+                if ($this->vendID and Vend::find($this->vendID)) {
+                    $beginDate = isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
 
                     $vend = Vend::findOrFail($this->vendID);
 
-                    if($vend && $customer) {
+                    if ($vend && $customer) {
                         $isExisting = Vend::where('customer_id', $customer->id)->first();
 
-                        if(!$isExisting) {
+                        if (!$isExisting) {
                             $vend->update([
                                 'customer_id' => $customer->id,
                             ]);
@@ -222,7 +231,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     }
 
                     // call back point to cms to update vend code
-                    $response = Http::get($this->callBackVendCodeEndPoint.$vend->code, [
+                    $response = Http::get($this->callBackVendCodeEndPoint . $vend->code, [
                         'vend_prefix' => $vend->vendPrefix ? $vend->vendPrefix->name : null,
                     ]);
                 }

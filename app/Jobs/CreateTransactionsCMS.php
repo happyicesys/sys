@@ -25,7 +25,6 @@ class CreateTransactionsCMS implements ShouldQueue
     {
         $this->opsJobService = new OpsJobService();
         $this->dataArr = $dataArr;
-        $this->endpoint = env('CMS_URL') . '/api/sys/transactions/create';
     }
 
     /**
@@ -33,10 +32,18 @@ class CreateTransactionsCMS implements ShouldQueue
      */
     public function handle(): void
     {
+        $baseUrl = config('app.cms_url');
+
+        if (!$baseUrl) {
+            return;
+        }
+
+        $this->endpoint = $baseUrl . '/api/sys/transactions/create';
+
         $response = Http::post($this->endpoint, $this->dataArr);
 
         $responseArr = $response->body();
-        if($response->successful()) {
+        if ($response->successful()) {
             $responseArr = $response->json();
             $this->opsJobService->updateJobItemCMSTransactionID($responseArr);
         }

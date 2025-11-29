@@ -12,16 +12,16 @@ class VoucherService
 {
   public function getVoucherRunningNumber()
   {
-      do {
-          $randomString = strtoupper(substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 6));
-      } while (Voucher::where('code', $randomString)->exists());
+    do {
+      $randomString = strtoupper(substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 6));
+    } while (Voucher::where('code', $randomString)->exists());
 
-      return $randomString;
+    return $randomString;
   }
 
   public function lockVoucherCode($model, $vendID)
   {
-    if($model instanceof VoucherItem) {
+    if ($model instanceof VoucherItem) {
       $voucherItem = VoucherItem::find($model->id);
       $voucherItem->is_locked = true;
       $voucherItem->locked_at = Carbon::now();
@@ -33,7 +33,13 @@ class VoucherService
   public function syncDCVendVouchers(Voucher $voucher, $action = 'create')
   {
     // action has 3 options, create, update, delete
-    $endpoint = env('DCVEND_URL') . '/api/v1/vouchers/sync';
+    $baseUrl = config('app.dcvend_url');
+
+    if (!$baseUrl) {
+      return true;
+    }
+
+    $endpoint = $baseUrl . '/api/v1/vouchers/sync';
 
     Http::post($endpoint, [
       'action' => $action,
@@ -53,16 +59,16 @@ class VoucherService
   {
     $voucherItems = [];
 
-    if($voucher->is_batch_code) {
+    if ($voucher->is_batch_code) {
       for ($i = 0; $i < $voucher->qty; $i++) {
         $voucherItems[] = [
-            'code' => $this->getVoucherRunningNumber(),
-            'member_id' => null,
-            'is_active' => true,
-            'is_redeemed' => false,
-            'redeemed_at' => null,
-            'status' => Voucher::STATUS_ACTIVE,
-            'voucher_id' => $voucher->id,
+          'code' => $this->getVoucherRunningNumber(),
+          'member_id' => null,
+          'is_active' => true,
+          'is_redeemed' => false,
+          'redeemed_at' => null,
+          'status' => Voucher::STATUS_ACTIVE,
+          'voucher_id' => $voucher->id,
         ];
       }
     }
@@ -72,17 +78,17 @@ class VoucherService
 
   public function syncVoucherCount($model)
   {
-    if($model instanceof Voucher) {
+    if ($model instanceof Voucher) {
       $voucher = Voucher::find($model->id);
       $voucher->used_qty += 1;
 
-      if($voucher->qty <= $voucher->used_qty + 1) {
+      if ($voucher->qty <= $voucher->used_qty + 1) {
         $voucher->status = Voucher::STATUS_REDEEMED;
       }
       $voucher->save();
     }
 
-    if($model instanceof VoucherItem) {
+    if ($model instanceof VoucherItem) {
       $voucherItem = VoucherItem::find($model->id);
       $voucherItem->status = Voucher::STATUS_REDEEMED;
       $voucherItem->is_redeemed = true;
@@ -101,14 +107,14 @@ class VoucherService
   {
     $voucher = Voucher::where('code', $voucherCode)->first();
 
-    if($voucher) {
+    if ($voucher) {
       $this->syncVoucherCount($voucher);
       return;
     }
 
     $voucherItem = VoucherItem::where('code', $voucherCode)->first();
 
-    if($voucherItem) {
+    if ($voucherItem) {
       // ReleaseVoucherLock::dispatch($voucherItem);
       $this->syncVoucherCount($voucherItem);
       return;

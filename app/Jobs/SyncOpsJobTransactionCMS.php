@@ -32,7 +32,6 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
         $this->data = $data;
         $this->opsJobItem = $opsJobItem;
         $this->opsJobService = new OpsJobService();
-        $this->endpoint = env('CMS_URL') . '/api/transactions/deals';
         $this->userID = $userID;
     }
 
@@ -41,10 +40,18 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
      */
     public function handle(): void
     {
+        $baseUrl = config('app.cms_url');
+
+        if (!$baseUrl) {
+            return;
+        }
+
+        $this->endpoint = $baseUrl . '/api/transactions/deals';
+
         $data = $this->data;
         $opsJobItem = $this->opsJobItem;
 
-        if($opsJobItem->customer && $opsJobItem->customer->person_id) {
+        if ($opsJobItem->customer && $opsJobItem->customer->person_id) {
             $data['customers'][$opsJobItem->customer->person_id] = [
                 'attachments' => [],
                 'cash_collected' => $opsJobItem->cash_amount ? $opsJobItem->cash_amount : 0,
@@ -53,10 +60,10 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
                 'sequence' => $opsJobItem->sequence,
             ];
 
-            if($opsJobItem->opsJobItemChannels) {
-                foreach($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
-                    if($opsJobItemChannel->actual_qty > 0) {
-                        if(!$opsJobItemChannel->vendChannel->product || !$opsJobItemChannel->vendChannel->product->code) {
+            if ($opsJobItem->opsJobItemChannels) {
+                foreach ($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
+                    if ($opsJobItemChannel->actual_qty > 0) {
+                        if (!$opsJobItemChannel->vendChannel->product || !$opsJobItemChannel->vendChannel->product->code) {
                             throw new \Exception('Product code is missing, please check bindings: ' . $opsJobItemChannel->vend_channel_code);
                         }
 
@@ -72,8 +79,8 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
                 }
             }
 
-            if($opsJobItem->attachments) {
-                foreach($opsJobItem->attachments as $attachment) {
+            if ($opsJobItem->attachments) {
+                foreach ($opsJobItem->attachments as $attachment) {
                     $data['customers'][$opsJobItem->customer->person_id]['attachments'][$attachment->id] = [
                         'created_at' => $attachment->created_at,
                         'name' => $attachment->name,
@@ -90,7 +97,7 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
 
         $response = Http::post($this->endpoint, $data);
 
-        if($response->successful()) {
+        if ($response->successful()) {
             $this->opsJobService->updateJobItemCMSTransactionID($response->json());
         }
     }

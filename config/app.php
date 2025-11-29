@@ -58,6 +58,12 @@ return [
 
     'cms_url' => env('CMS_URL', 'http://localhost'),
 
+    'dcvend_url' => env('DCVEND_URL'),
+
+    'log_server_url' => env('LOG_SERVER_URL'),
+
+    'log_server_access_token' => env('LOG_SERVER_ACCESS_TOKEN'),
+
     'asset_url' => env('ASSET_URL'),
 
     /*

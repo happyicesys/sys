@@ -25,7 +25,7 @@ class SendDataToDcvend implements ShouldQueue
     public function __construct($vendTransactionID, $dcvendUserID)
     {
         $this->vendTransactionID = $vendTransactionID;
-        $this->endpoint = env('DCVEND_URL') . '/api/v1/transactions/create/users/' . $dcvendUserID;
+        $this->dcvendUserID = $dcvendUserID;
         $this->vendTransactionService = new VendTransactionService();
     }
 
@@ -34,6 +34,14 @@ class SendDataToDcvend implements ShouldQueue
      */
     public function handle(): void
     {
+        $baseUrl = config('app.dcvend_url');
+
+        if (!$baseUrl) {
+            return;
+        }
+
+        $this->endpoint = $baseUrl . '/api/v1/transactions/create/users/' . $this->dcvendUserID;
+
         $vendTransaction = VendTransaction::find($this->vendTransactionID);
 
         $data = $this->vendTransactionService->setDcvendParam($vendTransaction->id);
