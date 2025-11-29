@@ -386,6 +386,21 @@ function getDefaultForm() {
 
 
 function onSequenceChanged(changedItem) {
+  // Validate that the item has a valid ID before attempting to update
+  if (!changedItem.id || typeof changedItem.id !== 'number') {
+    toast.error("Unable to update sequence. Please refresh the page and try again.", {
+      timeout: 5000
+    });
+    // Reload the page to get fresh data
+    router.reload({
+      only: ['productMapping'],
+      replace: true,
+      preserveState: true,
+      preserveScroll: true,
+    });
+    return;
+  }
+
   router.post('/product-mappings/items/' + changedItem.id + '/sequence', {
     sequence: changedItem.sequence,
   }, {
@@ -402,6 +417,11 @@ function onSequenceChanged(changedItem) {
         replace: true,
         preserveState: true,
       })
+    },
+    onError: (errors) => {
+      toast.error("Failed to update sequence: " + (errors.sequence || "Unknown error"), {
+        timeout: 5000
+      });
     },
     preserveState: true,
     preserveScroll: true,
@@ -445,6 +465,14 @@ function bindProductMappingItem() {
       toast.success("Product Mapping Item added", {
         timeout: 3000
       });
+
+      // Reload to ensure fresh data with proper IDs
+      router.reload({
+        only: ['productMapping'],
+        replace: true,
+        preserveState: true,
+        preserveScroll: true,
+      })
     },
     preserveState: true,
     preserveScroll: true,
