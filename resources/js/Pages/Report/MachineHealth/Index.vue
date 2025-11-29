@@ -641,7 +641,7 @@ const renderPerCodeSummary = (perCode) => {
               Stockout KPI Overview
             </h3>
             <p class="text-sm text-gray-500">
-              Rolling {{ stockouts.metadata?.lookback_days ?? 30 }} day window based on
+              Rolling {{ stockouts.metadata?.lookback_days ?? 30 }}-day window based on
               refill telemetry.
             </p>
 
@@ -902,6 +902,9 @@ const renderPerCodeSummary = (perCode) => {
                       {{ row.vend_code }} (Δ {{ formatNumber(row.delta, 1) }}°C)
                     </div>
                     <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
                       {{ row.first_day }}: {{ row.first_min_temp }}°C → {{ row.latest_day }}:
                       {{ row.latest_min_temp }}°C
                     </div>
@@ -935,6 +938,9 @@ const renderPerCodeSummary = (perCode) => {
                       {{ row.vend_code }} · {{ row.worst_min_temp }}°C
                     </div>
                     <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
                       {{ formatDateTime(row.last_recorded_at) }}
                     </div>
                   </li>
@@ -966,6 +972,9 @@ const renderPerCodeSummary = (perCode) => {
                   >
                     <div class="font-medium text-gray-900">
                       {{ row.vend_code }} · {{ row.min_value }}°C
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
                       {{ formatDateTime(row.last_recorded_at) }} ({{ row.reading_count }} samples)
@@ -1012,6 +1021,9 @@ const renderPerCodeSummary = (perCode) => {
                       {{ row.vend_code }} · {{ formatHours(row.hours_offline) }}
                     </div>
                     <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
                       Last contact {{ formatDateTime(row.last_contact_at) }}
                     </div>
                   </li>
@@ -1046,6 +1058,9 @@ const renderPerCodeSummary = (perCode) => {
                   >
                     <div class="font-medium text-gray-900">
                       {{ row.vend_code }} · {{ formatHours(row.hours_offline) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
                       Last contact {{ formatDateTime(row.last_contact_at) }}
@@ -1093,6 +1108,9 @@ const renderPerCodeSummary = (perCode) => {
                       {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
                       Last sale {{ formatDateTime(row.last_transaction_at) }}
                     </div>
                   </li>
@@ -1126,6 +1144,9 @@ const renderPerCodeSummary = (perCode) => {
                   >
                     <div class="font-medium text-gray-900">
                       {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
                       {{ formatDateTime(row.last_transaction_at) }}
@@ -1163,6 +1184,9 @@ const renderPerCodeSummary = (perCode) => {
                       {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
                       {{ formatDateTime(row.last_transaction_at) }}
                     </div>
                   </li>
@@ -1196,6 +1220,9 @@ const renderPerCodeSummary = (perCode) => {
                   >
                     <div class="font-medium text-gray-900">
                       {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
                       {{ formatDateTime(row.last_transaction_at) }}

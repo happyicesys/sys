@@ -322,7 +322,7 @@
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
                           <div class="flex flex-col space-y-2">
                             <span>
-                              Needed/Capacity
+                              Needed Qty/Capacity
                             </span>
                             <span :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
                               Picked
@@ -570,7 +570,7 @@
                           Product
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
-                          Needed/ Capacity
+                          Needed Qty/ Capacity
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
                           Picked
