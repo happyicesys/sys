@@ -21,18 +21,21 @@ class DeliveryPlatformRefNumberResource extends JsonResource
             'delivery_platform_id' => $this->delivery_platform_id,
             'operator_id' => $this->operator_id,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
-            'binding_count' => $this->when(isset($this->delivery_product_mapping_vends_count), function() {
+            'binding_count' => $this->when(isset($this->delivery_product_mapping_vends_count), function () {
                 return (int) $this->delivery_product_mapping_vends_count;
             }, 0),
-            'current_vend_code' => $this->whenLoaded('currentDeliveryProductMappingVend', function() {
+            'current_vend_code' => $this->whenLoaded('currentDeliveryProductMappingVend', function () {
                 return $this->currentDeliveryProductMappingVend?->vend_code;
+            }, null),
+            'vend_prefix' => $this->whenLoaded('currentDeliveryProductMappingVend', function () {
+                return $this->currentDeliveryProductMappingVend?->vend?->vendPrefix?->name;
             }, null),
             'active_binding_count' => $this->when(isset($this->active_delivery_product_mapping_vends_count), function () {
                 return (int) $this->active_delivery_product_mapping_vends_count;
             }, 0),
             'has_active_binding' => $this->when(
                 isset($this->active_delivery_product_mapping_vends_count),
-                fn () => (int) $this->active_delivery_product_mapping_vends_count > 0,
+                fn() => (int) $this->active_delivery_product_mapping_vends_count > 0,
                 false
             ),
             'ref_number' => $this->ref_number,

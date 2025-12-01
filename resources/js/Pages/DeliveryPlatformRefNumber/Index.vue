@@ -37,6 +37,23 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Vend Prefix
+            </label>
+            <MultiSelect
+              v-model="filters.vendPrefixes"
+              :options="vendPrefixOptions.data"
+              trackBy="id"
+              valueProp="id"
+              label="name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              mode="tags"
+            >
+            </MultiSelect>
+          </div>
           <SearchInput placeholderStr="Platform ID" v-model="filters.ref_number">
             Platform ID
           </SearchInput>
@@ -127,6 +144,9 @@
                       Current Machine ID
                     </TableHeadSort>
                     <TableHead>
+                      Vend Prefix
+                    </TableHead>
+                    <TableHead>
                       Operator
                     </TableHead>
                     <TableHeadSort modelName="status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('status')">
@@ -163,6 +183,9 @@
                     </TableData>
                     <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
                       {{ refNumber.current_vend_code ?? '' }}
+                    </TableData>
+                    <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                      {{ refNumber.vend_prefix ?? '' }}
                     </TableData>
                     <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
                       <span v-if="refNumber.operator">{{ refNumber.operator.code }} - {{ refNumber.operator.name }}</span>
@@ -217,12 +240,14 @@ import { Head, Link, router } from '@inertiajs/vue3';
 const props = defineProps({
   deliveryPlatformRefNumbers: Object,
   operatorOptions: Object,
+  vendPrefixOptions: Object,
 })
 
 const filters = ref({
   ref_number: '',
   current_vend_code: '',
   operators: [],
+  vendPrefixes: [],
   sortKey: 'created_at',
   sortBy: false,
   numberPerPage: 100,
@@ -258,6 +283,7 @@ function onSearchFilterUpdated() {
   router.get('/delivery-platform-ref-numbers', {
       ...filters.value,
       operators: filters.value.operators.map((operator) => { return operator.id }),
+      vend_prefixes: filters.value.vendPrefixes.map((prefix) => { return prefix.id }),
       is_active: filters.value.is_active?.id ?? 'all',
       numberPerPage: filters.value.numberPerPage.id,
   }, {
