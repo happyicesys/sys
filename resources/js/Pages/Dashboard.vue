@@ -142,15 +142,176 @@
                         <p class="text-center p-2">
                             {{ (filters && filters.operator ? filters.operator.name : operator.name)  }}
                         </p>
-                        <Graph
-                            :key="componentKey1"
-                            type="scatter"
-                            :labels="dayGraphLabels"
-                            :datasets="dayGraphDatasets"
-                            :options="dayGraphOptions"
-                        >
-                        </Graph>
 
+                        <div class="border rounded-md p-4 bg-gray-50">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-medium text-gray-900">Historical Analysis</h3>
+                                <div class="flex space-x-2 items-center">
+                                    <select v-model="filters.monthYear" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                        <option v-for="option in monthYearOptions" :key="option.value" :value="option.value">
+                                            {{ option.label }}
+                                        </option>
+                                    </select>
+                                    <Button class="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                        @click="onSearchFilterUpdated()"
+                                    >
+                                        Apply
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <Graph
+                                :key="componentKey1"
+                                type="scatter"
+                                :labels="dayGraphLabels"
+                                :datasets="dayGraphDatasets"
+                                :options="dayGraphOptions"
+                            >
+                            </Graph>
+
+                            <div class="pt-5">
+                                <Graph
+                                    :key="componentKey3"
+                                    type="scatter"
+                                    :labels="monthGraphLabels"
+                                    :datasets="monthGraphDatasets"
+                                    :options="monthGraphOptions"
+                                >
+                                </Graph>
+                            </div>
+                            <div class="pt-5">
+                                <Graph
+                                    :key="componentKey4"
+                                    type="scatter"
+                                    :labels="activeMachineGraphLabels"
+                                    :datasets="activeMachineGraphDatasets"
+                                    :options="activeMachineGraphOptions"
+                                >
+                                </Graph>
+                            </div>
+
+                            <div class="pt-5 my-1 mx-4 px-4">
+                                <p class="text-sm flex justify-between">
+                                    <div>
+                                        Monthly Analytics By Criteria
+                                    </div>
+                                </p>
+                                <div class="pb-3 mb-2">
+                                    <div class="sm:hidden">
+                                        <label for="tabs" class="sr-only">Select a tab</label>
+                                        <select id="tabs" name="tabs" class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm" @change="onTabChanged($event)">
+                                            <option v-for="tab in tabs" :key="tab" :value="tab.href" :selected="tab.current">
+                                                {{ tab.name }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div class="hidden sm:block">
+                                        <div class="border-b border-gray-200">
+                                            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                                                <span v-for="tab in tabs" :key="tab.name"
+                                                class="hover:cursor-pointer"
+                                                :class="[tab.current ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-200 hover:text-gray-700', 'flex whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium']"
+                                                @click="onTabChanged(tab)"
+                                                >
+                                                    {{ tab.name }}
+                                            </span>
+                                            </nav>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-2 flow-root">
+                                    <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                                        <div class="inline-block min-w-full py-2 align-middle sm:px-3 lg:px-4">
+                                        <div class="overflow-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                                            <table class="min-w-full divide-y divide-gray-300">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900">
+                                                        Name
+                                                    </th>
+                                                    <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
+                                                    </th>
+                                                    <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900" v-for="month in months.data">
+                                                        <span :class="[
+                                                            month.number == moment().format('M') ? 'bg-yellow-300 rounded p-2' : ''
+                                                        ]">
+                                                            {{ month.short_name }} {{ moment(filters.monthYear).format('YY') }}
+                                                        </span>
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-200 bg-white" v-for="(item, itemIndex) in monthsByModel">
+
+                                                <tr >
+                                                    <td rowspan="3" class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 row-span-3">
+                                                        {{ itemIndex }}
+                                                    </td>
+                                                    <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
+                                                        Daily Sales/ VM
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
+                                                        <span v-for="(data, dataIndex) in item">
+                                                            <span v-if="month.number == dataIndex"
+                                                                :class="[
+                                                                    data.current ? 'font-bold' : 'font-medium',
+                                                                    item[dataIndex - 1] && item[dataIndex - 1].average < data.average ? 'text-green-600' : (!item[dataIndex - 1] ? '' : 'text-red-600' )
+                                                                ]"
+                                                            >
+                                                                {{ data.average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                                            </span>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
+                                                        Machine Count
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
+                                                        <span v-for="(data, dataIndex) in item">
+                                                            <span v-if="month.number == dataIndex"
+                                                                :class="[
+                                                                        data.current ? 'font-bold' : 'font-medium'
+                                                                ]"
+                                                            >
+                                                                {{ data.vend_count.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                                            </span>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
+                                                        Total Sales
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
+                                                        <span v-for="(data, dataIndex) in item">
+                                                            <span v-if="month.number == dataIndex"
+                                                                :class="[
+                                                                        data.current ? 'font-bold' : 'font-medium'
+                                                                ]"
+                                                            >
+                                                                {{ data.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                                            </span>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <tr v-if="!bestPerformerGraphData.data.length">
+                                                    <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                                                        No Results Found
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                            </table>
+                                        </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border rounded-md p-4 bg-gray-50 mt-6">
+                            <div class="mb-4">
+                                <h3 class="text-lg font-medium text-gray-900">Current Stat</h3>
+                            </div>
                         <div class="pt-5 flex justify-center">
                             <div class="w-full md:w-2/3 lg:w-1/2">
                                 <Graph
@@ -330,143 +491,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <div class="pt-5">
-                            <Graph
-                                :key="componentKey3"
-                                type="scatter"
-                                :labels="monthGraphLabels"
-                                :datasets="monthGraphDatasets"
-                                :options="monthGraphOptions"
-                            >
-                            </Graph>
-                        </div>
-                        <div class="pt-5">
-                            <Graph
-                                :key="componentKey4"
-                                type="scatter"
-                                :labels="activeMachineGraphLabels"
-                                :datasets="activeMachineGraphDatasets"
-                                :options="activeMachineGraphOptions"
-                            >
-                            </Graph>
-                        </div>
-
-                        <div class="pt-5 my-1 mx-4 px-4">
-                            <p class="text-sm flex justify-between">
-                                <div>
-                                    Monthly Analytics By Criteria
-                                </div>
-                            </p>
-                            <div class="pb-3 mb-2">
-                                <div class="sm:hidden">
-                                    <label for="tabs" class="sr-only">Select a tab</label>
-                                    <select id="tabs" name="tabs" class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm" @change="onTabChanged($event)">
-                                        <option v-for="tab in tabs" :key="tab" :value="tab.href" :selected="tab.current">
-                                            {{ tab.name }}
-                                        </option>
-                                    </select>
-                                </div>
-                                <div class="hidden sm:block">
-                                    <div class="border-b border-gray-200">
-                                        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                                            <span v-for="tab in tabs" :key="tab.name"
-                                            class="hover:cursor-pointer"
-                                            :class="[tab.current ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-200 hover:text-gray-700', 'flex whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium']"
-                                            @click="onTabChanged(tab)"
-                                            >
-                                                {{ tab.name }}
-                                        </span>
-                                        </nav>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mt-2 flow-root">
-                                <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                                    <div class="inline-block min-w-full py-2 align-middle sm:px-3 lg:px-4">
-                                    <div class="overflow-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                                        <table class="min-w-full divide-y divide-gray-300">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900">
-                                                    Name
-                                                </th>
-                                                <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
-                                                </th>
-                                                <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900" v-for="month in months.data">
-                                                    <span :class="[
-                                                        month.number == moment().format('M') ? 'bg-yellow-300 rounded p-2' : ''
-                                                    ]">
-                                                        {{ month.short_name }}
-                                                    </span>
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-gray-200 bg-white" v-for="(item, itemIndex) in monthsByModel">
-
-                                            <tr >
-                                                <td rowspan="3" class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 row-span-3">
-                                                    {{ itemIndex }}
-                                                </td>
-                                                <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
-                                                    Daily Sales/ VM
-                                                </td>
-                                                <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
-                                                    <span v-for="(data, dataIndex) in item">
-                                                        <span v-if="month.number == dataIndex"
-                                                            :class="[
-                                                                data.current ? 'font-bold' : 'font-medium',
-                                                                item[dataIndex - 1] && item[dataIndex - 1].average < data.average ? 'text-green-600' : (!item[dataIndex - 1] ? '' : 'text-red-600' )
-                                                            ]"
-                                                        >
-                                                            {{ data.average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                                                        </span>
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
-                                                    Machine Count
-                                                </td>
-                                                <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
-                                                    <span v-for="(data, dataIndex) in item">
-                                                        <span v-if="month.number == dataIndex"
-                                                            :class="[
-                                                                    data.current ? 'font-bold' : 'font-medium'
-                                                            ]"
-                                                        >
-                                                            {{ data.vend_count.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                                                        </span>
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
-                                                    Total Sales
-                                                </td>
-                                                <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
-                                                    <span v-for="(data, dataIndex) in item">
-                                                        <span v-if="month.number == dataIndex"
-                                                            :class="[
-                                                                    data.current ? 'font-bold' : 'font-medium'
-                                                            ]"
-                                                        >
-                                                            {{ data.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                                                        </span>
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                            <tr v-if="!bestPerformerGraphData.data.length">
-                                                <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                                                    No Results Found
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                        </table>
-                                    </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                     </div>
@@ -513,7 +537,9 @@
         monthlyTypeName: 'location-type',
         vendModels: [],
         vendPrefixes: [],
+        monthYear: moment().format('YYYY-MM'),
     })
+    const monthYearOptions = ref([]);
     const performerLimit = ref(props.performerLimit ?? 20);
     const performerLoading = ref(false);
     const worstPerformerLimit = ref(props.worstPerformerLimit ?? 20);
@@ -708,6 +734,7 @@
             {id: 'single-ud', value: 'Single UD'},
 			...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	    ]
+        generateMonthYearOptions();
         syncDashboardData()
     })
 
@@ -724,6 +751,21 @@
             ] : [],
         ] : operatorOptions.value[0]
     })
+
+    function generateMonthYearOptions() {
+        const options = [];
+        const currentDate = moment();
+        const endDate = moment().subtract(3, 'years');
+
+        while (currentDate.isAfter(endDate)) {
+            options.push({
+                value: currentDate.format('YYYY-MM'),
+                label: currentDate.format('MMMM YYYY')
+            });
+            currentDate.subtract(1, 'month');
+        }
+        monthYearOptions.value = options;
+    }
 
     function hexToRGBA(hex, alpha) {
         var r = parseInt(hex.slice(1, 3), 16);
@@ -746,6 +788,7 @@
             performer_limit: performerLimit.value,
             best_performer_limit: performerLimit.value,
             worst_performer_limit: worstPerformerLimit.value,
+            month_year: filters.value.monthYear,
         };
     }
 

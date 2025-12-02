@@ -115,8 +115,14 @@ class DashboardController extends Controller
 
     private function getDayGraph(Request $request, array $testingVendIds)
     {
-        $day_date_from = $request->day_date_from ? Carbon::parse($request->day_date_from)->setTimezone($this->getUserTimezone()) : Carbon::today()->startOfMonth()->setTimezone($this->getUserTimezone());
-        $day_date_to = $request->day_date_to ? Carbon::parse($request->day_date_to)->setTimezone($this->getUserTimezone()) : Carbon::today()->endOfMonth()->setTimezone($this->getUserTimezone());
+        if ($request->month_year) {
+            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year)->setTimezone($this->getUserTimezone());
+            $day_date_from = $baseDate->copy()->startOfMonth();
+            $day_date_to = $baseDate->copy()->endOfMonth();
+        } else {
+            $day_date_from = $request->day_date_from ? Carbon::parse($request->day_date_from)->setTimezone($this->getUserTimezone()) : Carbon::today()->startOfMonth()->setTimezone($this->getUserTimezone());
+            $day_date_to = $request->day_date_to ? Carbon::parse($request->day_date_to)->setTimezone($this->getUserTimezone()) : Carbon::today()->endOfMonth()->setTimezone($this->getUserTimezone());
+        }
 
         $dayGraph = VendRecord::query()
             ->whereBetween('date', [$day_date_from->copy()->subMonth()->startOfDay(), $day_date_to->copy()->endOfDay()])
@@ -127,37 +133,41 @@ class DashboardController extends Controller
         $dayGraph->groupBy('date')
             ->select(
                 DB::raw('MONTH(date) as month'),
-                DB::raw('MONTHNAME(date) as month_name'),
+                DB::raw('DATE_FORMAT(date, "%M %Y") as month_name'),
                 DB::raw('DATE(date) as date'),
                 DB::raw('DAY(date) as day'),
                 DB::raw('SUM(total_amount) as amount'),
                 DB::raw('SUM(total_count) as count')
             );
 
-        $todayGraph = VendTransaction::query()
-            ->filterTransactionIndex($request)
-            ->where(function ($query) {
-                $query->where('error_code_normalized', 0)
-                    ->orWhere('error_code_normalized', 6)
-                    ->orWhereNull('error_code_normalized')
-                    ->orWhere('is_multiple', true);
-            })
-            ->whereBetween('transaction_datetime', [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()])
-            ->whereNotIn('vend_id', $testingVendIds)
-            ->select(
-                DB::raw('MONTH(transaction_datetime) as month'),
-                DB::raw('MONTHNAME(transaction_datetime) as month_name'),
-                DB::raw('DATE(transaction_datetime) as date'),
-                DB::raw('DAY(transaction_datetime) as day'),
-                DB::raw('SUM(amount) as amount'),
-                DB::raw('SUM(success_qty) as count')
-            );
+        $today = Carbon::today()->setTimezone($this->getUserTimezone());
+        if ($today->between($day_date_from->copy()->subMonth()->startOfDay(), $day_date_to->copy()->endOfDay())) {
+            $todayGraph = VendTransaction::query()
+                ->filterTransactionIndex($request)
+                ->where(function ($query) {
+                    $query->where('error_code_normalized', 0)
+                        ->orWhere('error_code_normalized', 6)
+                        ->orWhereNull('error_code_normalized')
+                        ->orWhere('is_multiple', true);
+                })
+                ->whereBetween('transaction_datetime', [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()])
+                ->whereNotIn('vend_id', $testingVendIds)
+                ->select(
+                    DB::raw('MONTH(transaction_datetime) as month'),
+                    DB::raw('DATE_FORMAT(transaction_datetime, "%M %Y") as month_name'),
+                    DB::raw('DATE(transaction_datetime) as date'),
+                    DB::raw('DAY(transaction_datetime) as day'),
+                    DB::raw('SUM(amount) as amount'),
+                    DB::raw('SUM(success_qty) as count')
+                );
 
-        $dayGraph = $dayGraph->union($todayGraph)
-            ->orderBy('date', 'asc')
+            $dayGraph = $dayGraph->union($todayGraph);
+        }
+
+        $dayGraph = $dayGraph->orderBy('date', 'asc')
             ->get();
 
-        return $this->fillEmptyDates($dayGraph, Carbon::today()->subMonth()->startOfMonth(), Carbon::today());
+        return $this->fillEmptyDates($dayGraph, $day_date_from->copy()->subMonth(), $day_date_to);
     }
 
     private function fillEmptyDates($dayGraph, $startDate, $endDate)
@@ -179,7 +189,7 @@ class DashboardController extends Controller
                 $newModel->date = $currentDate->copy()->startOfDay();
                 $newModel->day = $currentDate->copy()->day;
                 $newModel->month = $currentDate->copy()->month;
-                $newModel->month_name = $currentDate->copy()->format('F');
+                $newModel->month_name = $currentDate->copy()->format('F Y');
                 $dayGraph->push($newModel);
             }
 
@@ -290,13 +300,23 @@ class DashboardController extends Controller
 
     private function getMonthGraphData(Request $request, array $testingVendIds)
     {
-        $lastYear = Carbon::today()->subYear()->startOfYear();
-        $thisYear = Carbon::today()->endOfYear();
+        if ($request->month_year) {
+            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year);
+            $thisYear = $baseDate->copy()->endOfYear();
+            $lastYear = $baseDate->copy()->subYear()->startOfYear();
+            $compareYear = $baseDate->year;
+            $compareMonth = $baseDate->month;
+        } else {
+            $thisYear = Carbon::today()->endOfYear();
+            $lastYear = Carbon::today()->subYear()->startOfYear();
+            $compareYear = Carbon::today()->year;
+            $compareMonth = Carbon::today()->month;
+        }
 
         $monthsArrInit = [];
         foreach ([$lastYear->year, $thisYear->year] as $year) {
             for ($i = 1; $i <= 12; $i++) {
-                if ($year == Carbon::today()->year && $i > Carbon::today()->month) {
+                if ($year == $compareYear && $i > $compareMonth) {
                     continue;
                 }
                 $monthsArrInit[$year][$i] = [
@@ -334,13 +354,23 @@ class DashboardController extends Controller
 
     private function getActiveMachineGraphData(Request $request, array $testingVendIds)
     {
-        $lastYear = Carbon::today()->subYear()->startOfYear();
-        $thisYear = Carbon::today()->endOfYear();
+        if ($request->month_year) {
+            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year);
+            $thisYear = $baseDate->copy()->endOfYear();
+            $lastYear = $baseDate->copy()->subYear()->startOfYear();
+            $compareYear = $baseDate->year;
+            $compareMonth = $baseDate->month;
+        } else {
+            $thisYear = Carbon::today()->endOfYear();
+            $lastYear = Carbon::today()->subYear()->startOfYear();
+            $compareYear = Carbon::today()->year;
+            $compareMonth = Carbon::today()->month;
+        }
 
         $activeMonths = [];
         foreach ([$lastYear->year, $thisYear->year] as $year) {
             for ($i = 1; $i <= 12; $i++) {
-                if ($year == Carbon::today()->year && $i > Carbon::today()->month) {
+                if ($year == $compareYear && $i > $compareMonth) {
                     continue;
                 }
                 $activeMonths[$year][$i] = [
@@ -444,6 +474,7 @@ class DashboardController extends Controller
                 DB::raw('COUNT(vend_records.vend_id) as count')
             )
             ->groupBy('year', 'month')
+            ->orderBy('year', 'asc')
             ->orderBy('month', 'asc')
             ->get();
 
@@ -457,9 +488,20 @@ class DashboardController extends Controller
 
     private function getMonthlyAnalytics(Request $request)
     {
+        if ($request->month_year) {
+            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year);
+            $monthlyDateFrom = $baseDate->copy()->startOfYear()->startOfDay();
+            $monthlyDateTo = $baseDate->copy()->endOfYear()->endOfDay();
+            $currentMonthNumber = $baseDate->month;
+        } else {
+            $monthlyDateFrom = Carbon::today()->startOfYear()->startOfDay();
+            $monthlyDateTo = Carbon::today()->endOfYear()->endOfDay();
+            $currentMonthNumber = Carbon::today()->month;
+        }
+
         $request->merge([
-            'monthlyDateFrom' => Carbon::today()->startOfYear()->startOfDay(),
-            'monthlyDateTo' => Carbon::today()->endOfYear()->endOfDay(),
+            'monthlyDateFrom' => $monthlyDateFrom,
+            'monthlyDateTo' => $monthlyDateTo,
             'monthlyTypeName' => $request->monthlyTypeName ?? 'location-type'
         ]);
 
@@ -485,7 +527,6 @@ class DashboardController extends Controller
 
         $monthsByModel = [];
         $months = Month::all();
-        $currentMonthNumber = Carbon::today()->month;
 
         foreach ($items as $item) {
             foreach ($months as $month) {
