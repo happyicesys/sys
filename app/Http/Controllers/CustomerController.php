@@ -197,9 +197,9 @@ class CustomerController extends Controller
         $optionsService = app(\App\Services\OptionsService::class);
 
         return Inertia::render('Customer/Create', [
-            'cmsCustomerOptions' => Http::get(env('CMS_URL') . '/api/vends/unbind')->collect() ?
+            'cmsCustomerOptions' => env('CMS_URL') ? (Http::get(env('CMS_URL') . '/api/vends/unbind')->collect() ?
                 Http::get(env('CMS_URL') . '/api/vends/unbind')->collect()->whereNotIn('id', Customer::select('person_id')->pluck('person_id'))->all() :
-                [],
+                []) : [],
             'countries' => $optionsService->countries(),
             'customer' => new Customer(),
             'operatorOptions' => $optionsService->operators(),
