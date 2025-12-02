@@ -308,7 +308,7 @@
                             </div>
                         </div>
 
-                        <div class="border rounded-md p-4 bg-gray-50 mt-6">
+                        <div class="border rounded-md p-4 bg-blue-50 mt-6">
                             <div class="mb-4">
                                 <h3 class="text-lg font-medium text-gray-900">Current Stat</h3>
                             </div>
