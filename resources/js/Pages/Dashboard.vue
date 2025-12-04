@@ -171,6 +171,16 @@
                             >
                             </Graph>
 
+                            <h4 class="text-gray-900 font-medium mb-2 mt-5">Sales Comparison (Current vs Last Year)</h4>
+                            <Graph
+                                :key="componentKey5"
+                                type="bar"
+                                :labels="salesComparisonGraphLabels"
+                                :datasets="salesComparisonGraphDatasets"
+                                :options="salesComparisonGraphOptions"
+                            >
+                            </Graph>
+
                             <div class="pt-5">
                                 <Graph
                                     :key="componentKey3"
@@ -528,6 +538,7 @@
         vendCount: Number,
         vendModelOptions: Object,
         vendPrefixOptions: Object,
+        salesComparisonGraphData: Object,
     });
     const filters = ref({
         codes: '',
@@ -551,6 +562,7 @@
     const componentKey2 = ref(0);
     const componentKey3 = ref(0);
     const componentKey4 = ref(0);
+    const componentKey5 = ref(0);
     const forceRerender1 = () => {
         componentKey1.value += 1;
     };
@@ -562,6 +574,9 @@
     };
     const forceRerender4 = () => {
         componentKey4.value += 1;
+    };
+    const forceRerender5 = () => {
+        componentKey5.value += 1;
     };
     const locationTypeOptions = ref([])
     const operator = usePage().props.auth.operator
@@ -614,6 +629,39 @@
             }
         }
     })
+
+    const salesComparisonGraphData = ref([]);
+    const salesComparisonGraphDatasets = ref([])
+    const salesComparisonGraphLabels = ref([])
+    const salesComparisonGraphOptions = ref({
+        scales: {
+            x: {
+                ticks: {
+                    min: 1,
+                    max: 31,
+                    stepSize: 1
+                }
+            },
+            y: {
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Sales(' + operatorCountry.currency_symbol +')'
+                },
+                beginAtZero: true
+            },
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: 'Sales Comparison'
+            },
+            legend: {
+                reverse: false,
+            }
+        }
+    })
+
 
     const monthGraphData = ref([]);
     const monthGraphDatasets = ref([])
@@ -797,7 +845,7 @@
     function onSearchFilterUpdated() {
         router.visit(
             route('dashboard', buildDashboardQueryParams()),{
-                only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'performerLimit', 'worstPerformerGraphData', 'worstPerformerLimit', 'vendCount'],
+                only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'performerLimit', 'worstPerformerGraphData', 'worstPerformerLimit', 'vendCount', 'salesComparisonGraphData'],
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
@@ -900,6 +948,9 @@
         productGraphData.value = []
         productGraphDatasets.value = []
         productGraphLabels.value = []
+        salesComparisonGraphData.value = []
+        salesComparisonGraphDatasets.value = []
+        salesComparisonGraphLabels.value = []
         performerLimit.value = props.performerLimit ?? performerLimit.value
         worstPerformerLimit.value = props.worstPerformerLimit ?? worstPerformerLimit.value
 
@@ -997,10 +1048,102 @@
             activeMachineGraphLabels.value.push(i)
         }
 
+        salesComparisonGraphData.value = JSON.parse(JSON.stringify(props.salesComparisonGraphData))
+        if (salesComparisonGraphData.value) {
+            // Current Year Bars - Vibrant colors with good contrast
+            if (salesComparisonGraphData.value.prev_month) {
+                salesComparisonGraphDatasets.value.push({
+                    label: salesComparisonGraphData.value.prev_month.label + ' (Prev)',
+                    data: salesComparisonGraphData.value.prev_month.data,
+                    backgroundColor: 'rgba(59, 130, 246, 0.6)', // Bright Blue
+                    borderColor: 'rgba(37, 99, 235, 1)',
+                    borderWidth: 2,
+                    type: 'bar',
+                    order: 3,
+                })
+            }
+            if (salesComparisonGraphData.value.current_month) {
+                salesComparisonGraphDatasets.value.push({
+                    label: salesComparisonGraphData.value.current_month.label + ' (Current)',
+                    data: salesComparisonGraphData.value.current_month.data,
+                    backgroundColor: 'rgba(16, 185, 129, 0.7)', // Vibrant Green - most prominent
+                    borderColor: 'rgba(5, 150, 105, 1)',
+                    borderWidth: 2,
+                    type: 'bar',
+                    order: 2,
+                })
+            }
+            if (salesComparisonGraphData.value.next_month) {
+                salesComparisonGraphDatasets.value.push({
+                    label: salesComparisonGraphData.value.next_month.label + ' (Next)',
+                    data: salesComparisonGraphData.value.next_month.data,
+                    backgroundColor: 'rgba(168, 85, 247, 0.6)', // Bright Purple
+                    borderColor: 'rgba(126, 34, 206, 1)',
+                    borderWidth: 2,
+                    type: 'bar',
+                    order: 4,
+                })
+            }
+
+            // Last Year Lines - Muted/desaturated colors, thicker lines, dashed
+            if (salesComparisonGraphData.value.last_year_prev_month) {
+                salesComparisonGraphDatasets.value.push({
+                    label: salesComparisonGraphData.value.last_year_prev_month.label + ' (Prev)',
+                    data: salesComparisonGraphData.value.last_year_prev_month.data,
+                    borderColor: 'rgba(96, 165, 250, 0.85)', // Muted Blue
+                    backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                    borderDash: [8, 4],
+                    borderWidth: 3,
+                    type: 'line',
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    order: 1,
+                })
+            }
+            if (salesComparisonGraphData.value.last_year_same_month) {
+                salesComparisonGraphDatasets.value.push({
+                    label: salesComparisonGraphData.value.last_year_same_month.label + ' (Current)',
+                    data: salesComparisonGraphData.value.last_year_same_month.data,
+                    borderColor: 'rgba(52, 211, 153, 0.85)', // Muted Green
+                    backgroundColor: 'rgba(52, 211, 153, 0.1)',
+                    borderDash: [8, 4],
+                    borderWidth: 3,
+                    type: 'line',
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    order: 0, // Most important comparison line
+                })
+            }
+            if (salesComparisonGraphData.value.last_year_next_month) {
+                salesComparisonGraphDatasets.value.push({
+                    label: salesComparisonGraphData.value.last_year_next_month.label + ' (Next)',
+                    data: salesComparisonGraphData.value.last_year_next_month.data,
+                    borderColor: 'rgba(196, 181, 253, 0.85)', // Muted Purple
+                    backgroundColor: 'rgba(196, 181, 253, 0.1)',
+                    borderDash: [8, 4],
+                    borderWidth: 3,
+                    type: 'line',
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    order: 1,
+                })
+            }
+        }
+        for(let i = 1; i <= 31; i++) {
+            salesComparisonGraphLabels.value.push(i)
+        }
+
         forceRerender1()
         forceRerender2()
         forceRerender3()
         forceRerender4()
+        forceRerender5()
     }
 
 </script>

@@ -90,7 +90,83 @@ class DashboardController extends Controller
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),
+            'salesComparisonGraphData' => $this->getSalesComparisonGraph($request, $testingVendIds),
         ]);
+    }
+
+    private function getSalesComparisonGraph(Request $request, array $testingVendIds)
+    {
+        if ($request->month_year) {
+            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year)->setTimezone($this->getUserTimezone());
+        } else {
+            $baseDate = Carbon::today()->setTimezone($this->getUserTimezone());
+        }
+
+        // Define the 6 periods
+        $periods = [
+            'current_month' => $baseDate->copy(),
+            'prev_month' => $baseDate->copy()->subMonth(),
+            'next_month' => $baseDate->copy()->addMonth(),
+            'last_year_same_month' => $baseDate->copy()->subYear(),
+            'last_year_prev_month' => $baseDate->copy()->subYear()->subMonth(),
+            'last_year_next_month' => $baseDate->copy()->subYear()->addMonth(),
+        ];
+
+        // Filter out future "next month"
+        if ($periods['next_month']->isFuture()) {
+            unset($periods['next_month']);
+        }
+
+        $query = VendRecord::query()
+            ->filterIndex($request)
+            ->whereNotIn('vend_id', $testingVendIds)
+            ->select(
+                DB::raw('SUM(total_amount) as amount'),
+                DB::raw('DAY(date) as day'),
+                DB::raw('MONTH(date) as month'),
+                DB::raw('YEAR(date) as year')
+            )
+            ->groupBy('year', 'month', 'day');
+
+        // Build where clause for all periods
+        $query->where(function ($q) use ($periods) {
+            foreach ($periods as $key => $date) {
+                $q->orWhere(function ($subQ) use ($date) {
+                    $subQ->whereYear('date', $date->year)
+                        ->whereMonth('date', $date->month);
+                });
+            }
+        });
+
+        $results = $query->get();
+
+        // Initialize structure
+        $data = [];
+        foreach ($periods as $key => $date) {
+            $data[$key] = [
+                'label' => $date->format('M Y'),
+                'data' => array_fill(1, 31, 0), // Initialize 1-31 with 0
+                'year' => $date->year,
+                'month' => $date->month,
+            ];
+        }
+
+        // Fill data
+        foreach ($results as $row) {
+            foreach ($data as $key => &$periodData) {
+                if ($row->year == $periodData['year'] && $row->month == $periodData['month']) {
+                    $periodData['data'][$row->day] = (float) $row->amount / 100; // Convert to float and adjust currency
+                }
+            }
+        }
+
+        // Re-index data to be 0-indexed arrays for Chart.js (or keep as object if handling labels manually)
+        // Chart.js expects arrays matching labels. Labels are 1-31.
+        foreach ($data as &$periodData) {
+            $periodData['data'] = array_values($periodData['data']);
+        }
+
+        return $data;
     }
 
     private function setDefaultOperators(Request $request)
