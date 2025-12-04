@@ -1051,6 +1051,7 @@
         salesComparisonGraphData.value = JSON.parse(JSON.stringify(props.salesComparisonGraphData))
         if (salesComparisonGraphData.value) {
             // Current Year Bars - Vibrant colors with good contrast
+            // Order: Prev (leftmost), Current (middle), Next (rightmost)
             if (salesComparisonGraphData.value.prev_month) {
                 salesComparisonGraphDatasets.value.push({
                     label: salesComparisonGraphData.value.prev_month.label + ' (Prev)',
@@ -1059,7 +1060,7 @@
                     borderColor: 'rgba(37, 99, 235, 1)',
                     borderWidth: 2,
                     type: 'bar',
-                    order: 3,
+                    order: 1, // Leftmost bar
                 })
             }
             if (salesComparisonGraphData.value.current_month) {
@@ -1070,7 +1071,7 @@
                     borderColor: 'rgba(5, 150, 105, 1)',
                     borderWidth: 2,
                     type: 'bar',
-                    order: 2,
+                    order: 2, // Middle bar
                 })
             }
             if (salesComparisonGraphData.value.next_month) {
@@ -1081,11 +1082,12 @@
                     borderColor: 'rgba(126, 34, 206, 1)',
                     borderWidth: 2,
                     type: 'bar',
-                    order: 4,
+                    order: 3, // Rightmost bar
                 })
             }
 
             // Last Year Lines - Muted/desaturated colors, thicker lines, dashed
+            // Visible points for easier hovering
             if (salesComparisonGraphData.value.last_year_prev_month) {
                 salesComparisonGraphDatasets.value.push({
                     label: salesComparisonGraphData.value.last_year_prev_month.label + ' (Prev)',
@@ -1097,8 +1099,11 @@
                     type: 'line',
                     fill: false,
                     tension: 0.3,
-                    pointRadius: 0,
-                    pointHoverRadius: 5,
+                    pointRadius: 3, // Visible points
+                    pointHoverRadius: 6, // Larger on hover
+                    pointBackgroundColor: 'rgba(96, 165, 250, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
                     order: 1,
                 })
             }
@@ -1113,9 +1118,12 @@
                     type: 'line',
                     fill: false,
                     tension: 0.3,
-                    pointRadius: 0,
-                    pointHoverRadius: 5,
-                    order: 0, // Most important comparison line
+                    pointRadius: 3, // Visible points
+                    pointHoverRadius: 6, // Larger on hover
+                    pointBackgroundColor: 'rgba(52, 211, 153, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    order: 0, // Most important comparison line - drawn on top
                 })
             }
             if (salesComparisonGraphData.value.last_year_next_month) {
@@ -1129,9 +1137,12 @@
                     type: 'line',
                     fill: false,
                     tension: 0.3,
-                    pointRadius: 0,
-                    pointHoverRadius: 5,
-                    order: 1,
+                    pointRadius: 3, // Visible points
+                    pointHoverRadius: 6, // Larger on hover
+                    pointBackgroundColor: 'rgba(196, 181, 253, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    order: 2,
                 })
             }
         }

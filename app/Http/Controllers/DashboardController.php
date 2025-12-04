@@ -102,6 +102,8 @@ class DashboardController extends Controller
             $baseDate = Carbon::today()->setTimezone($this->getUserTimezone());
         }
 
+        $today = Carbon::today()->setTimezone($this->getUserTimezone());
+
         // Define the 6 periods
         $periods = [
             'current_month' => $baseDate->copy(),
@@ -113,7 +115,8 @@ class DashboardController extends Controller
         ];
 
         // Filter out future "next month"
-        if ($periods['next_month']->isFuture()) {
+        $includeNextMonth = !$periods['next_month']->isFuture();
+        if (!$includeNextMonth) {
             unset($periods['next_month']);
         }
 
@@ -145,23 +148,36 @@ class DashboardController extends Controller
         foreach ($periods as $key => $date) {
             $data[$key] = [
                 'label' => $date->format('M Y'),
-                'data' => array_fill(1, 31, 0), // Initialize 1-31 with 0
+                'data' => [],
                 'year' => $date->year,
                 'month' => $date->month,
             ];
-        }
 
-        // Fill data
-        foreach ($results as $row) {
-            foreach ($data as $key => &$periodData) {
-                if ($row->year == $periodData['year'] && $row->month == $periodData['month']) {
-                    $periodData['data'][$row->day] = (float) $row->amount / 100; // Convert to float and adjust currency
+            // Initialize days 1-31
+            for ($day = 1; $day <= 31; $day++) {
+                // Check if this date is in the future
+                $checkDate = Carbon::create($date->year, $date->month, $day)->setTimezone($this->getUserTimezone());
+
+                // Use null for future dates (Chart.js won't draw lines to null values)
+                // Use 0 for past/today dates with no data
+                if ($checkDate->isFuture()) {
+                    $data[$key]['data'][$day] = null;
+                } else {
+                    $data[$key]['data'][$day] = 0;
                 }
             }
         }
 
-        // Re-index data to be 0-indexed arrays for Chart.js (or keep as object if handling labels manually)
-        // Chart.js expects arrays matching labels. Labels are 1-31.
+        // Fill data from query results
+        foreach ($results as $row) {
+            foreach ($data as $key => &$periodData) {
+                if ($row->year == $periodData['year'] && $row->month == $periodData['month']) {
+                    $periodData['data'][$row->day] = (float) $row->amount / 100;
+                }
+            }
+        }
+
+        // Re-index data to be 0-indexed arrays for Chart.js
         foreach ($data as &$periodData) {
             $periodData['data'] = array_values($periodData['data']);
         }
