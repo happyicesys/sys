@@ -1119,7 +1119,7 @@ onMounted(() => {
     ];
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
-        ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
+        ...(props.operatorOptions?.data || []).map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
     ]
     sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
     simcardOptions.value = [
@@ -1150,7 +1150,7 @@ onMounted(() => {
       operatorOptions.value.find(operator => operator.code == 'HIESG'),
       operatorOptions.value.find(operator => operator.code == 'IP'),
     ] : [],
-	] : operatorOptions.value[0]
+	].filter(Boolean) : operatorOptions.value[0]
 
       filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
     // filters.value.is_active = booleanOptions.value[1]
