@@ -1049,6 +1049,7 @@ const filters = ref({
   const vendConfigOptions = ref([])
   const vendModelOptions = ref([])
   const vendPrefixOptions = ref([])
+  const operatorOptions = ref([])
   const now = ref(moment().format('HH:mm:ss'))
   const statusOptions = ref([
     {id: 'all', value: 'All'},

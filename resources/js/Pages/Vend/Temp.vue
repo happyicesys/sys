@@ -47,7 +47,7 @@
                   </span>
                   {{ vend.code }}
               </h2>
-              <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight">
+              <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.customer_id && vend.customer_name">
                    {{ vend.customer_id + 20000 }} - {{ vend.customer_name }}
               </h2>
           </div>
