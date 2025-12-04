@@ -89,8 +89,7 @@ class ReportController extends Controller
 
     public function __construct(
         private MachineHealthDashboardService $machineHealthDashboardService
-    )
-    {
+    ) {
         $this->middleware(['permission:read reports']);
     }
 
@@ -114,10 +113,10 @@ class ReportController extends Controller
             'is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true'),
         ]);
 
-        if($request->currentFilterDate) {
-            if($request->currentFilterDate != '-1') {
-                $request->merge(['date_from' => explode(',',$request->currentFilterDate)[0]]);
-                $request->merge(['date_to' => explode(',',$request->currentFilterDate)[1]]);
+        if ($request->currentFilterDate) {
+            if ($request->currentFilterDate != '-1') {
+                $request->merge(['date_from' => explode(',', $request->currentFilterDate)[0]]);
+                $request->merge(['date_to' => explode(',', $request->currentFilterDate)[1]]);
             }
         }
         // if(!$request->date_from) {
@@ -133,7 +132,7 @@ class ReportController extends Controller
         $categoryClassName = get_class(new Customer());
         $modelName = 'vends';
 
-        switch($type) {
+        switch ($type) {
             case 'category':
                 $modelName = 'categories';
                 break;
@@ -156,8 +155,8 @@ class ReportController extends Controller
 
         $items = $this->getSalesQuery($request, $modelName);
         $totals = $this->getSalesReportTotals($items);
-        $items = $items->when($request->sortKey, function($query, $search) use ($request) {
-            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+        $items = $items->when($request->sortKey, function ($query, $search) use ($request) {
+            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
         });
 
         $items = $items->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
@@ -550,17 +549,19 @@ class ReportController extends Controller
 
     public function indexSnapshot(Request $request)
     {
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => array_filter([
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ])]);
-            }else {
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => array_filter([
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ])
+                ]);
+            } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
@@ -601,17 +602,19 @@ class ReportController extends Controller
     public function indexStockCount(Request $request)
     {
         // ---- Operators default
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
-            }else {
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
@@ -628,7 +631,7 @@ class ReportController extends Controller
         if ($cfd) {
             if ($cfd !== '-1') {
                 // Expect "YYYY-MM-DD,YYYY-MM-DD"
-                [$df, $dt] = explode(',', (string)$cfd);
+                [$df, $dt] = explode(',', (string) $cfd);
                 $request->merge(['date_from' => $df, 'date_to' => $dt]);
             } else {
                 $tz = $this->getUserTimezone();
@@ -652,7 +655,7 @@ class ReportController extends Controller
         // keep sortKey/sortBy as they’ll be used by the pivot query for allowed keys
         $request->merge([
             'sortKey' => $request->input('sortKey', 'product_code'),
-            'sortBy'  => $request->input('sortBy', false),
+            'sortBy' => $request->input('sortBy', false),
         ]);
         // numberPerPage is read inside the pivot query
         if (!$request->filled('numberPerPage')) {
@@ -675,12 +678,12 @@ class ReportController extends Controller
             // meta block your Paginator component expects
             'meta' => [
                 'current_page' => $paginator->currentPage(),
-                'from'         => $paginator->firstItem(),
-                'last_page'    => $paginator->lastPage(),
-                'path'         => $paginator->path(),
-                'per_page'     => $paginator->perPage(),
-                'to'           => $paginator->lastItem(),
-                'total'        => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'last_page' => $paginator->lastPage(),
+                'path' => $paginator->path(),
+                'per_page' => $paginator->perPage(),
+                'to' => $paginator->lastItem(),
+                'total' => $paginator->total(),
             ],
         ];
 
@@ -702,8 +705,8 @@ class ReportController extends Controller
 
             // Pivot payload (note: this is a DB paginator, not Eloquent models)
             'stockCounts' => $stockCounts,   // rows have *_d0/_d1/_d2 fields
-            'pivotDates'  => $pivotDates,    // { d0, d1, d2 } for table headers
-            'totals'      => $totals,
+            'pivotDates' => $pivotDates,    // { d0, d1, d2 } for table headers
+            'totals' => $totals,
         ]);
     }
 
@@ -712,14 +715,16 @@ class ReportController extends Controller
         // ---- Default operators
         if (!$request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
@@ -730,18 +735,18 @@ class ReportController extends Controller
         $qtyGraph = $this->getStockCountQtyDayGraph($request);
 
         return Inertia::render('Report/IndexStockCountDashboard', [
-            'dayGraphData'        => StockCountDayGraphResource::collection($dayGraph),
-            'qtyGraphData'        => StockCountDayGraphResource::collection($qtyGraph),
+            'dayGraphData' => StockCountDayGraphResource::collection($dayGraph),
+            'qtyGraphData' => StockCountDayGraphResource::collection($qtyGraph),
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
-            'operatorOptions'     => OperatorResource::collection(
+            'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'productOptions'      => ProductResource::collection(
+            'productOptions' => ProductResource::collection(
                 Product::where('is_inventory', true)->orderBy('name')->orderBy('code')->get()
             ),
-            'vendPrefixOptions'   => VendPrefixResource::collection(
+            'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),
         ]);
@@ -756,24 +761,24 @@ class ReportController extends Controller
 
         $vends = $this->getUnitCostByVendQuery($request)->get();
 
-        return (new FastExcel($this->yieldOneByOne($vends)))->download('UnitCostByVend_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vend) {
+        return (new FastExcel($this->yieldOneByOne($vends)))->download('UnitCostByVend_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($vend) {
             return [
                 'ID' => $vend->code,
                 'Customer Name' => $vend->customer_code &&
-                                    $vend->customer_name ?
-                                    $vend->customer_code.''.$vend->customer_name :
-                                    $vend->name,
+                    $vend->customer_name ?
+                    $vend->customer_code . '' . $vend->customer_name :
+                    $vend->name,
                 'Sales# (thisMth)' => $vend->this_month_count,
-                'Sales$ (thisMth)' => $vend->this_month_revenue/ 100,
-                'GP (thisMth)' => $vend->this_month_gross_profit/ 100,
+                'Sales$ (thisMth)' => $vend->this_month_revenue / 100,
+                'GP (thisMth)' => $vend->this_month_gross_profit / 100,
                 'GM (thisMth)' => $vend->this_month_gross_profit_margin,
                 'Sales# (lastMth)' => $vend->last_month_count,
-                'Sales$ (lastMth)' => $vend->last_month_revenue/ 100,
-                'GP (lastMth)' => $vend->last_month_gross_profit/ 100,
+                'Sales$ (lastMth)' => $vend->last_month_revenue / 100,
+                'GP (lastMth)' => $vend->last_month_gross_profit / 100,
                 'GM (lastMth)' => $vend->last_month_gross_profit_margin,
                 'Sales# (last2Mth)' => $vend->last_two_month_count,
-                'Sales$ (last2Mth)' => $vend->last_two_month_revenue/ 100,
-                'GP (last2Mth)' => $vend->last_two_month_gross_profit/ 100,
+                'Sales$ (last2Mth)' => $vend->last_two_month_revenue / 100,
+                'GP (last2Mth)' => $vend->last_two_month_gross_profit / 100,
                 'GM (last2Mth)' => $vend->last_two_month_gross_profit_margin,
             ];
         });
@@ -784,16 +789,18 @@ class ReportController extends Controller
         // ------- mirror the defaults/normalization from indexStockCount -------
 
         // Default operators
-        if(!$request->operators) {
+        if (!$request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
@@ -808,7 +815,7 @@ class ReportController extends Controller
 
         if ($cfd) {
             if ($cfd !== '-1') {
-                [$df, $dt] = explode(',', (string)$cfd);
+                [$df, $dt] = explode(',', (string) $cfd);
                 $request->merge(['date_from' => $df, 'date_to' => $dt]);
             } else {
                 $tz = $this->getUserTimezone();
@@ -829,9 +836,9 @@ class ReportController extends Controller
 
         // Sorting & page size (export = all)
         $request->merge([
-            'visited'       => $request->boolean('visited'),
-            'sortKey'       => $request->input('sortKey', 'product_code'),
-            'sortBy'        => $request->input('sortBy', false),
+            'visited' => $request->boolean('visited'),
+            'sortKey' => $request->input('sortKey', 'product_code'),
+            'sortBy' => $request->input('sortBy', false),
             'numberPerPage' => 'All',
         ]);
 
@@ -877,30 +884,30 @@ class ReportController extends Controller
         $makeProductRow = function ($r) use ($template, $d0, $d1, $d2) {
             $row = $template;
 
-            $row['Product ID']   = $r->product_code;
+            $row['Product ID'] = $r->product_code;
             $row['Product Name'] = $r->product_name;
 
             // d0
-            $row["{$d0} Unit Cost"]       = (float) ($r->unit_cost_d0 ?? 0);
-            $row["{$d0} Stock Value"]      = (float) ($r->stock_value_d0 ?? 0);
-            $row["{$d0} Qty in Machine"]   = (int)   ($r->qty_vend_d0 ?? 0);
-            $row["{$d0} Qty in Warehouse"] = (int)   ($r->qty_warehouse_d0 ?? 0);
-            $row["{$d0} Stock Cost"]       = (float) ($r->stock_cost_d0 ?? 0);
+            $row["{$d0} Unit Cost"] = (float) ($r->unit_cost_d0 ?? 0);
+            $row["{$d0} Stock Value"] = (float) ($r->stock_value_d0 ?? 0);
+            $row["{$d0} Qty in Machine"] = (int) ($r->qty_vend_d0 ?? 0);
+            $row["{$d0} Qty in Warehouse"] = (int) ($r->qty_warehouse_d0 ?? 0);
+            $row["{$d0} Stock Cost"] = (float) ($r->stock_cost_d0 ?? 0);
             // Dollar Value left null for product rows
 
             // d1
-            $row["{$d1} Unit Cost"]       = (float) ($r->unit_cost_d1 ?? 0);
-            $row["{$d1} Stock Value"]      = (float) ($r->stock_value_d1 ?? 0);
-            $row["{$d1} Qty in Machine"]   = (int)   ($r->qty_vend_d1 ?? 0);
-            $row["{$d1} Qty in Warehouse"] = (int)   ($r->qty_warehouse_d1 ?? 0);
-            $row["{$d1} Stock Cost"]       = (float) ($r->stock_cost_d1 ?? 0);
+            $row["{$d1} Unit Cost"] = (float) ($r->unit_cost_d1 ?? 0);
+            $row["{$d1} Stock Value"] = (float) ($r->stock_value_d1 ?? 0);
+            $row["{$d1} Qty in Machine"] = (int) ($r->qty_vend_d1 ?? 0);
+            $row["{$d1} Qty in Warehouse"] = (int) ($r->qty_warehouse_d1 ?? 0);
+            $row["{$d1} Stock Cost"] = (float) ($r->stock_cost_d1 ?? 0);
 
             // d2
-            $row["{$d2} Unit Cost"]       = (float) ($r->unit_cost_d2 ?? 0);
-            $row["{$d2} Stock Value"]      = (float) ($r->stock_value_d2 ?? 0);
-            $row["{$d2} Qty in Machine"]   = (int)   ($r->qty_vend_d2 ?? 0);
-            $row["{$d2} Qty in Warehouse"] = (int)   ($r->qty_warehouse_d2 ?? 0);
-            $row["{$d2} Stock Cost"]       = (float) ($r->stock_cost_d2 ?? 0);
+            $row["{$d2} Unit Cost"] = (float) ($r->unit_cost_d2 ?? 0);
+            $row["{$d2} Stock Value"] = (float) ($r->stock_value_d2 ?? 0);
+            $row["{$d2} Qty in Machine"] = (int) ($r->qty_vend_d2 ?? 0);
+            $row["{$d2} Qty in Warehouse"] = (int) ($r->qty_warehouse_d2 ?? 0);
+            $row["{$d2} Stock Cost"] = (float) ($r->stock_cost_d2 ?? 0);
 
             return $row;
         };
@@ -911,7 +918,7 @@ class ReportController extends Controller
         // Helper to build KPI rows with only "Dollar Value" filled
         $makeKpiRow = function (string $label, $d0Val, $d1Val, $d2Val) use ($template, $d0, $d1, $d2) {
             $row = $template;
-            $row['Product ID']   = null;
+            $row['Product ID'] = null;
             $row['Product Name'] = $label;
 
             $row["{$d0} Dollar Value"] = (float) ($d0Val ?? 0);
@@ -944,7 +951,7 @@ class ReportController extends Controller
 
         // --- Stream the file ---
         return (new FastExcel($this->yieldOneByOne($exportRows)))
-            ->download('Stock_Count_'.Carbon::now()->format('Ymd_His').'.xlsx', fn ($row) => $row);
+            ->download('Stock_Count_' . Carbon::now()->format('Ymd_His') . '.xlsx', fn($row) => $row);
     }
 
     public function exportUnitCostProductExcel(Request $request)
@@ -954,21 +961,21 @@ class ReportController extends Controller
 
         $products = $this->getUnitCostByProductQuery($request)->get();
 
-        return (new FastExcel($this->yieldOneByOne($products)))->download('UnitCostByProduct_'.Carbon::now()->toDateTimeString().'.xlsx', function ($product) {
+        return (new FastExcel($this->yieldOneByOne($products)))->download('UnitCostByProduct_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($product) {
             return [
                 'ID' => $product->code,
                 'Name' => $product->name,
                 'Sales# (thisMth)' => $product->this_month_count,
-                'Sales$ (thisMth)' => $product->this_month_revenue/ 100,
-                'GP (thisMth)' => $product->this_month_gross_profit/ 100,
+                'Sales$ (thisMth)' => $product->this_month_revenue / 100,
+                'GP (thisMth)' => $product->this_month_gross_profit / 100,
                 'GM (thisMth)' => $product->this_month_gross_profit_margin,
                 'Sales# (lastMth)' => $product->last_month_count,
-                'Sales$ (lastMth)' => $product->last_month_revenue/ 100,
-                'GP (lastMth)' => $product->last_month_gross_profit/ 100,
+                'Sales$ (lastMth)' => $product->last_month_revenue / 100,
+                'GP (lastMth)' => $product->last_month_gross_profit / 100,
                 'GM (lastMth)' => $product->last_month_gross_profit_margin,
                 'Sales# (last2Mth)' => $product->last_two_month_count,
-                'Sales$ (last2Mth)' => $product->last_two_month_revenue/ 100,
-                'GP (last2Mth)' => $product->last_two_month_gross_profit/ 100,
+                'Sales$ (last2Mth)' => $product->last_two_month_revenue / 100,
+                'GP (last2Mth)' => $product->last_two_month_gross_profit / 100,
                 'GM (last2Mth)' => $product->last_two_month_gross_profit_margin,
             ];
         });
@@ -981,20 +988,20 @@ class ReportController extends Controller
 
         $categories = $this->getUnitCostByCategoryQuery($request)->get();
 
-        return (new FastExcel($this->yieldOneByOne($categories)))->download('UnitCostByCategory_'.Carbon::now()->toDateTimeString().'.xlsx', function ($category) {
+        return (new FastExcel($this->yieldOneByOne($categories)))->download('UnitCostByCategory_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($category) {
             return [
                 'Name' => $category->name,
                 'Sales# (thisMth)' => $category->this_month_count,
-                'Sales$ (thisMth)' => $category->this_month_revenue/ 100,
-                'GP (thisMth)' => $category->this_month_gross_profit/ 100,
+                'Sales$ (thisMth)' => $category->this_month_revenue / 100,
+                'GP (thisMth)' => $category->this_month_gross_profit / 100,
                 'GM (thisMth)' => $category->this_month_gross_profit_margin,
                 'Sales# (lastMth)' => $category->last_month_count,
-                'Sales$ (lastMth)' => $category->last_month_revenue/ 100,
-                'GP (lastMth)' => $category->last_month_gross_profit/ 100,
+                'Sales$ (lastMth)' => $category->last_month_revenue / 100,
+                'GP (lastMth)' => $category->last_month_gross_profit / 100,
                 'GM (lastMth)' => $category->last_month_gross_profit_margin,
                 'Sales# (last2Mth)' => $category->last_two_month_count,
-                'Sales$ (last2Mth)' => $category->last_two_month_revenue/ 100,
-                'GP (last2Mth)' => $category->last_two_month_gross_profit/ 100,
+                'Sales$ (last2Mth)' => $category->last_two_month_revenue / 100,
+                'GP (last2Mth)' => $category->last_two_month_gross_profit / 100,
                 'GM (last2Mth)' => $category->last_two_month_gross_profit_margin,
             ];
         });
@@ -1008,20 +1015,20 @@ class ReportController extends Controller
 
         $locationTypes = $this->getUnitCostByLocationTypeQuery($request)->get();
 
-        return (new FastExcel($this->yieldOneByOne($locationTypes)))->download('UnitCostByLocationType_'.Carbon::now()->toDateTimeString().'.xlsx', function ($locationType) {
+        return (new FastExcel($this->yieldOneByOne($locationTypes)))->download('UnitCostByLocationType_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($locationType) {
             return [
                 'Name' => $locationType->name,
                 'Sales# (thisMth)' => $locationType->this_month_count,
-                'Sales$ (thisMth)' => $locationType->this_month_revenue/ 100,
-                'GP (thisMth)' => $locationType->this_month_gross_profit/ 100,
+                'Sales$ (thisMth)' => $locationType->this_month_revenue / 100,
+                'GP (thisMth)' => $locationType->this_month_gross_profit / 100,
                 'GM (thisMth)' => $locationType->this_month_gross_profit_margin,
                 'Sales# (lastMth)' => $locationType->last_month_count,
-                'Sales$ (lastMth)' => $locationType->last_month_revenue/ 100,
-                'GP (lastMth)' => $locationType->last_month_gross_profit/ 100,
+                'Sales$ (lastMth)' => $locationType->last_month_revenue / 100,
+                'GP (lastMth)' => $locationType->last_month_gross_profit / 100,
                 'GM (lastMth)' => $locationType->last_month_gross_profit_margin,
                 'Sales# (last2Mth)' => $locationType->last_two_month_count,
-                'Sales$ (last2Mth)' => $locationType->last_two_month_revenue/ 100,
-                'GP (last2Mth)' => $locationType->last_two_month_gross_profit/ 100,
+                'Sales$ (last2Mth)' => $locationType->last_two_month_revenue / 100,
+                'GP (last2Mth)' => $locationType->last_two_month_gross_profit / 100,
                 'GM (last2Mth)' => $locationType->last_two_month_gross_profit_margin,
             ];
         });
@@ -1040,29 +1047,29 @@ class ReportController extends Controller
         $vendSnapshots = $vendSnapshots->get();
         $vendChannelsArr = [];
         foreach ($vendSnapshots as $vendSnapshot) {
-            if($vendSnapshot->vend_channels_json) {
-                foreach(json_decode($vendSnapshot->vend_channels_json) as $channel) {
-                    if($channel->is_active == 1) {
+            if ($vendSnapshot->vend_channels_json) {
+                foreach (json_decode($vendSnapshot->vend_channels_json) as $channel) {
+                    if ($channel->is_active == 1) {
                         array_push($vendChannelsArr, [
                             'vend_code' => $vendSnapshot->vend_code,
                             'full_name' => $vendSnapshot->customer_code ?
-                                $vendSnapshot->customer_code.' '.$vendSnapshot->customer_name :
+                                $vendSnapshot->customer_code . ' ' . $vendSnapshot->customer_name :
                                 $vendSnapshot->vend_name,
                             'channel_code' => $channel->code,
                             'product_code' => $channel->product ? $channel->product->code : '',
                             'product_name' => $channel->product ? $channel->product->name : '',
                             'qty' => $channel->qty,
                             'capacity' => $channel->capacity,
-                            'price' => $channel->amount/ 100,
+                            'price' => $channel->amount / 100,
                             'unit_cost' => $channel->product ? (UnitCost::where('product_id', $channel->product->id)->first() ? UnitCost::where('product_id', $channel->product->id)->first()->cost : 0) : '',
-                            'balance_percent' => $channel->capacity ? round($channel->qty/ $channel->capacity * 100) : '',
+                            'balance_percent' => $channel->capacity ? round($channel->qty / $channel->capacity * 100) : '',
                         ]);
                     }
                 }
             }
         }
 
-        return (new FastExcel($this->yieldOneByOne($vendChannelsArr)))->download('Vend_channels_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendChannel) {
+        return (new FastExcel($this->yieldOneByOne($vendChannelsArr)))->download('Vend_channels_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($vendChannel) {
             return [
                 'Machine ID' => $vendChannel['vend_code'],
                 'Customer Name' => $vendChannel['full_name'],
@@ -1083,16 +1090,16 @@ class ReportController extends Controller
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
 
-        if($request->currentFilterDate) {
-            if($request->currentFilterDate != '-1') {
-                $request->merge(['date_from' => explode(',',$request->currentFilterDate)[0]]);
-                $request->merge(['date_to' => explode(',',$request->currentFilterDate)[1]]);
+        if ($request->currentFilterDate) {
+            if ($request->currentFilterDate != '-1') {
+                $request->merge(['date_from' => explode(',', $request->currentFilterDate)[0]]);
+                $request->merge(['date_to' => explode(',', $request->currentFilterDate)[1]]);
             }
-            if($request->currentFilterDate == '-1') {
+            if ($request->currentFilterDate == '-1') {
                 $request->merge(['date_from' => Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->toDateString()]);
                 $request->merge(['date_to' => Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->toDateString()]);
             }
-        }else {
+        } else {
             $request->merge(['date_from' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
             $request->merge(['date_to' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
         }
@@ -1102,7 +1109,7 @@ class ReportController extends Controller
         $categoryClassName = get_class(new Customer());
         $modelName = 'vends';
 
-        switch($type) {
+        switch ($type) {
             case 'category':
                 $modelName = 'categories';
                 break;
@@ -1124,17 +1131,17 @@ class ReportController extends Controller
         }
 
         $items = $this->getSalesQuery($request, $modelName);
-        $items = $items->when($request->sortKey, function($query, $search) use ($request) {
-            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+        $items = $items->when($request->sortKey, function ($query, $search) use ($request) {
+            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
         })
-        ->get();
+            ->get();
 
-        return (new FastExcel($this->yieldOneByOne($items)))->download('SalesReport_'.$type.'_'.Carbon::now()->toDateTimeString().'.xlsx', function ($item) {
+        return (new FastExcel($this->yieldOneByOne($items)))->download('SalesReport_' . $type . '_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($item) {
             return [
                 'ID' => isset($item->code) ? $item->code : null,
                 'Name' => $item->name,
                 'Count' => $item->count,
-                'Amount' => $item->amount/ 100,
+                'Amount' => $item->amount / 100,
             ];
         });
     }
@@ -1250,32 +1257,39 @@ class ReportController extends Controller
 
     private function getStockCountDayGraph(Request $request)
     {
-        $tz   = $this->getUserTimezone();
+        $tz = $this->getUserTimezone();
         $from = now($tz)->startOfMonth()->subMonth()->startOfDay();
-        $to   = now($tz)->endOfDay();
+        $to = now($tz)->endOfDay();
 
-        if ($request->filled('day_date_from')) $from = Carbon::parse($request->day_date_from, $tz)->startOfDay();
-        if ($request->filled('day_date_to'))   $to   = Carbon::parse($request->day_date_to,   $tz)->endOfDay();
+        if ($request->filled('day_date_from'))
+            $from = Carbon::parse($request->day_date_from, $tz)->startOfDay();
+        if ($request->filled('day_date_to'))
+            $to = Carbon::parse($request->day_date_to, $tz)->endOfDay();
 
         $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";
 
         // ----- coin float (simple sum per day) -----
         $coinQuery = DB::table('stock_counts as sc')
             ->when($request->operators, function ($q, $ids) {
-                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.operator_id', $ids);
+                if (is_array($ids) && !in_array('all', $ids, true))
+                    $q->whereIn('sc.operator_id', $ids);
             })
             ->when($request->vendPrefixes, function ($q, $ids) {
-                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.vend_prefix_id', $ids);
+                if (is_array($ids) && !in_array('all', $ids, true))
+                    $q->whereIn('sc.vend_prefix_id', $ids);
             })
             ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
-                if ($val !== 'all') $q->whereIn('sc.location_type_id', (array) $val);
+                if ($val !== 'all')
+                    $q->whereIn('sc.location_type_id', (array) $val);
             })
             ->when($request->codes, function ($q, $codes) {
-                $codes = is_string($codes) ? array_values(array_filter(array_map('trim', explode(',', $codes)))) : (array)$codes;
+                $codes = is_string($codes) ? array_values(array_filter(array_map('trim', explode(',', $codes)))) : (array) $codes;
                 $q->whereExists(function ($sq) use ($codes) {
                     $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
-                    if (count($codes) > 1) $sq->whereIn('v.code', $codes);
-                    elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
+                    if (count($codes) > 1)
+                        $sq->whereIn('v.code', $codes);
+                    elseif (count($codes) === 1)
+                        $sq->where('v.code', 'LIKE', '%' . $codes[0] . '%');
                 });
             });
 
@@ -1296,20 +1310,25 @@ class ReportController extends Controller
         $perProductPerDay = DB::table('stock_count_items as sci')
             ->join('stock_counts as sc', 'sc.id', '=', 'sci.stock_count_id')
             ->when($request->operators, function ($q, $ids) {
-                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.operator_id', $ids);
+                if (is_array($ids) && !in_array('all', $ids, true))
+                    $q->whereIn('sc.operator_id', $ids);
             })
             ->when($request->vendPrefixes, function ($q, $ids) {
-                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.vend_prefix_id', $ids);
+                if (is_array($ids) && !in_array('all', $ids, true))
+                    $q->whereIn('sc.vend_prefix_id', $ids);
             })
             ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
-                if ($val !== 'all') $q->whereIn('sc.location_type_id', (array) $val);
+                if ($val !== 'all')
+                    $q->whereIn('sc.location_type_id', (array) $val);
             })
             ->when($request->codes, function ($q, $codes) {
-                $codes = is_string($codes) ? array_values(array_filter(array_map('trim', explode(',', $codes)))) : (array)$codes;
+                $codes = is_string($codes) ? array_values(array_filter(array_map('trim', explode(',', $codes)))) : (array) $codes;
                 $q->whereExists(function ($sq) use ($codes) {
                     $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
-                    if (count($codes) > 1) $sq->whereIn('v.code', $codes);
-                    elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
+                    if (count($codes) > 1)
+                        $sq->whereIn('v.code', $codes);
+                    elseif (count($codes) === 1)
+                        $sq->where('v.code', 'LIKE', '%' . $codes[0] . '%');
                 });
             });
 
@@ -1337,39 +1356,41 @@ class ReportController extends Controller
         $series = [];
         $cursor = $from->copy();
         while ($cursor->lte($to)) {
-            $d   = $cursor->toDateString();
-            $y   = (int)$cursor->year;
-            $m   = (int)$cursor->month;
-            $day = (int)$cursor->day;
+            $d = $cursor->toDateString();
+            $y = (int) $cursor->year;
+            $m = (int) $cursor->month;
+            $day = (int) $cursor->day;
 
             $row = $rows->get($d);
             $series[] = (object) [
-                'amount'     => $row?->stock_value_rm ?? 0.0, // y (left): Stock Value in Machines (RM)
-                'count'      => $row?->stock_cost_rm  ?? 0.0, // y1 (right): Total Stock Cost - before GST (RM)
-                'coin_float' => $coin[$d]            ?? 0.0,
+                'amount' => $row?->stock_value_rm ?? 0.0, // y (left): Stock Value in Machines (RM)
+                'count' => $row?->stock_cost_rm ?? 0.0, // y1 (right): Total Stock Cost - before GST (RM)
+                'coin_float' => $coin[$d] ?? 0.0,
 
-                'date'       => $d,
-                'day'        => $day,
-                'month'      => $m,
+                'date' => $d,
+                'day' => $day,
+                'month' => $m,
                 'month_name' => Carbon::createFromDate($y, $m, 1)->format('F'),
-                'year'       => $y,
+                'year' => $y,
             ];
 
             $cursor->addDay();
         }
 
-        usort($series, fn($a,$b) => strcmp($a->date, $b->date));
+        usort($series, fn($a, $b) => strcmp($a->date, $b->date));
         return collect($series);
     }
 
     private function getStockCountQtyDayGraph(Request $request)
     {
-        $tz   = $this->getUserTimezone();
+        $tz = $this->getUserTimezone();
         $from = now($tz)->startOfMonth()->subMonth()->startOfDay();
-        $to   = now($tz)->endOfDay();
+        $to = now($tz)->endOfDay();
 
-        if ($request->filled('day_date_from')) $from = Carbon::parse($request->day_date_from, $tz)->startOfDay();
-        if ($request->filled('day_date_to'))   $to   = Carbon::parse($request->day_date_to,   $tz)->endOfDay();
+        if ($request->filled('day_date_from'))
+            $from = Carbon::parse($request->day_date_from, $tz)->startOfDay();
+        if ($request->filled('day_date_to'))
+            $to = Carbon::parse($request->day_date_to, $tz)->endOfDay();
 
         $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";
 
@@ -1379,20 +1400,25 @@ class ReportController extends Controller
         $perProductPerDay = DB::table('stock_count_items as sci')
             ->join('stock_counts as sc', 'sc.id', '=', 'sci.stock_count_id')
             ->when($request->operators, function ($q, $ids) {
-                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.operator_id', $ids);
+                if (is_array($ids) && !in_array('all', $ids, true))
+                    $q->whereIn('sc.operator_id', $ids);
             })
             ->when($request->vendPrefixes, function ($q, $ids) {
-                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.vend_prefix_id', $ids);
+                if (is_array($ids) && !in_array('all', $ids, true))
+                    $q->whereIn('sc.vend_prefix_id', $ids);
             })
             ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
-                if ($val !== 'all') $q->whereIn('sc.location_type_id', (array) $val);
+                if ($val !== 'all')
+                    $q->whereIn('sc.location_type_id', (array) $val);
             })
             ->when($request->codes, function ($q, $codes) {
-                $codes = is_string($codes) ? array_values(array_filter(array_map('trim', explode(',', $codes)))) : (array)$codes;
+                $codes = is_string($codes) ? array_values(array_filter(array_map('trim', explode(',', $codes)))) : (array) $codes;
                 $q->whereExists(function ($sq) use ($codes) {
                     $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
-                    if (count($codes) > 1) $sq->whereIn('v.code', $codes);
-                    elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
+                    if (count($codes) > 1)
+                        $sq->whereIn('v.code', $codes);
+                    elseif (count($codes) === 1)
+                        $sq->where('v.code', 'LIKE', '%' . $codes[0] . '%');
                 });
             });
 
@@ -1416,26 +1442,26 @@ class ReportController extends Controller
         $series = [];
         $cursor = $from->copy();
         while ($cursor->lte($to)) {
-            $d   = $cursor->toDateString();
-            $y   = (int)$cursor->year;
-            $m   = (int)$cursor->month;
-            $day = (int)$cursor->day;
+            $d = $cursor->toDateString();
+            $y = (int) $cursor->year;
+            $m = (int) $cursor->month;
+            $day = (int) $cursor->day;
 
             $row = $rows->get($d);
-            $series[] = (object)[
-                'date'          => $d,
-                'day'           => $day,
-                'month'         => $m,
-                'month_name'    => Carbon::createFromDate($y, $m, 1)->format('F'),
-                'year'          => $y,
-                'machine_qty'   => $row?->machine_qty   ?? 0,
+            $series[] = (object) [
+                'date' => $d,
+                'day' => $day,
+                'month' => $m,
+                'month_name' => Carbon::createFromDate($y, $m, 1)->format('F'),
+                'year' => $y,
+                'machine_qty' => $row?->machine_qty ?? 0,
                 'warehouse_qty' => $row?->warehouse_qty ?? 0,
             ];
 
             $cursor->addDay();
         }
 
-        usort($series, fn($a,$b) => strcmp($a->date, $b->date));
+        usort($series, fn($a, $b) => strcmp($a->date, $b->date));
         return collect($series);
     }
 
@@ -1446,12 +1472,16 @@ class ReportController extends Controller
         $today = Carbon::today();
         $queries = [];
 
+        // Split at the end of the previous month.
+        // This ensures that the current month is always calculated live, avoiding missing data issues
+        // if the background job is delayed.
+        $endOfLastMonth = $today->copy()->startOfMonth()->subDay();
+
         $factStart = $start->copy();
         $factEndCandidate = $end->copy();
-        $yesterday = $today->copy()->subDay();
 
-        if ($factStart->lte($yesterday)) {
-            $effectiveFactEnd = $factEndCandidate->min($yesterday);
+        if ($factStart->lte($endOfLastMonth)) {
+            $effectiveFactEnd = $factEndCandidate->min($endOfLastMonth);
             if ($effectiveFactEnd->gte($factStart)) {
                 $queries[] = DB::table('gp_metrics')
                     ->select($columns)
@@ -1459,8 +1489,10 @@ class ReportController extends Controller
             }
         }
 
-        if ($end->gte($today)) {
-            $liveStart = $start->copy()->max($today);
+        // If the requested range extends beyond the end of last month, use live aggregation for that part
+        if ($end->gt($endOfLastMonth)) {
+            $startOfCurrentMonth = $endOfLastMonth->copy()->addDay();
+            $liveStart = $start->copy()->max($startOfCurrentMonth);
             $queries[] = GpMetricsAggregator::buildRawQuery($liveStart, $end);
         }
 
@@ -1534,8 +1566,8 @@ class ReportController extends Controller
         $vends = DB::query()
             ->fromSub($query, 'transac')
             ->select(
-                'customer_code',
-                'customer_name',
+                DB::raw('MAX(customer_code) as customer_code'),
+                DB::raw('MAX(customer_name) as customer_name'),
                 'id',
                 'name',
                 'code',
@@ -1552,7 +1584,7 @@ class ReportController extends Controller
                 DB::raw('SUM(CASE WHEN month_diff = 2 THEN gross_profit ELSE 0 END) AS last_two_month_gross_profit'),
                 DB::raw('SUM(CASE WHEN month_diff = 2 THEN gross_profit_margin ELSE 0 END) AS last_two_month_gross_profit_margin')
             )
-            ->groupBy('customer_code', 'customer_name', 'id', 'name', 'code');
+            ->groupBy('id', 'name', 'code');
 
         $vends = $vends->when($request->sortKey, function ($query, $search) use ($request) {
             if (strpos($search, '->')) {
@@ -1561,7 +1593,27 @@ class ReportController extends Controller
                     'LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc')
                 )->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
             } else {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                $dir = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+                if (
+                    in_array($search, [
+                        'this_month_count',
+                        'this_month_revenue',
+                        'this_month_gross_profit',
+                        'this_month_gross_profit_margin',
+                        'last_month_count',
+                        'last_month_revenue',
+                        'last_month_gross_profit',
+                        'last_month_gross_profit_margin',
+                        'last_two_month_count',
+                        'last_two_month_revenue',
+                        'last_two_month_gross_profit',
+                        'last_two_month_gross_profit_margin'
+                    ])
+                ) {
+                    $query->orderByRaw("CAST($search AS DECIMAL(15,2)) $dir");
+                } else {
+                    $query->orderBy($search, $dir);
+                }
             }
         });
 
@@ -2007,7 +2059,27 @@ class ReportController extends Controller
                     'LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc')
                 )->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
             } else {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                $dir = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+                if (
+                    in_array($search, [
+                        'this_month_count',
+                        'this_month_revenue',
+                        'this_month_gross_profit',
+                        'this_month_gross_profit_margin',
+                        'last_month_count',
+                        'last_month_revenue',
+                        'last_month_gross_profit',
+                        'last_month_gross_profit_margin',
+                        'last_two_month_count',
+                        'last_two_month_revenue',
+                        'last_two_month_gross_profit',
+                        'last_two_month_gross_profit_margin'
+                    ])
+                ) {
+                    $query->orderByRaw("CAST($search AS DECIMAL(15,2)) $dir");
+                } else {
+                    $query->orderBy($search, $dir);
+                }
             }
         });
 
@@ -2068,7 +2140,27 @@ class ReportController extends Controller
                     'LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc')
                 )->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
             } else {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                $dir = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+                if (
+                    in_array($search, [
+                        'this_month_count',
+                        'this_month_revenue',
+                        'this_month_gross_profit',
+                        'this_month_gross_profit_margin',
+                        'last_month_count',
+                        'last_month_revenue',
+                        'last_month_gross_profit',
+                        'last_month_gross_profit_margin',
+                        'last_two_month_count',
+                        'last_two_month_revenue',
+                        'last_two_month_gross_profit',
+                        'last_two_month_gross_profit_margin'
+                    ])
+                ) {
+                    $query->orderByRaw("CAST($search AS DECIMAL(15,2)) $dir");
+                } else {
+                    $query->orderBy($search, $dir);
+                }
             }
         });
 
@@ -2126,7 +2218,27 @@ class ReportController extends Controller
                     'LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc')
                 )->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
             } else {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                $dir = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+                if (
+                    in_array($search, [
+                        'this_month_count',
+                        'this_month_revenue',
+                        'this_month_gross_profit',
+                        'this_month_gross_profit_margin',
+                        'last_month_count',
+                        'last_month_revenue',
+                        'last_month_gross_profit',
+                        'last_month_gross_profit_margin',
+                        'last_two_month_count',
+                        'last_two_month_revenue',
+                        'last_two_month_gross_profit',
+                        'last_two_month_gross_profit_margin'
+                    ])
+                ) {
+                    $query->orderByRaw("CAST($search AS DECIMAL(15,2)) $dir");
+                } else {
+                    $query->orderBy($search, $dir);
+                }
             }
         });
 
@@ -2166,7 +2278,7 @@ class ReportController extends Controller
 
 
         $vendSnapshots = $vendSnapshots
-            ->when($request->currentMonth, function($query, $search) {
+            ->when($request->currentMonth, function ($query, $search) {
                 $query
                     ->where('vend_snapshots.created_at', '>=', $search->copy()->startOfMonth()->addDay()->startOfDay())
                     ->where('vend_snapshots.created_at', '<=', $search->copy()->endOfMonth()->addDay()->endOfDay());
@@ -2179,11 +2291,11 @@ class ReportController extends Controller
     private function getStockCountQuery($request)
     {
         // read sort inputs (sortBy=true => DESC, false => ASC)
-        $sortKey  = $request->input('sortKey');                // 'sequence' | 'channel_code' | null
+        $sortKey = $request->input('sortKey');                // 'sequence' | 'channel_code' | null
         $sortDesc = filter_var($request->input('sortBy'), FILTER_VALIDATE_BOOLEAN); // bool
-        $dir      = $sortDesc ? 'DESC' : 'ASC';
+        $dir = $sortDesc ? 'DESC' : 'ASC';
 
-        if(!$sortKey) {
+        if (!$sortKey) {
             // default to sequence if not specified
             $sortKey = 'product_code';
         }
@@ -2191,13 +2303,13 @@ class ReportController extends Controller
         $stockCounts = StockCount::query()
             ->with([
                 'stockCountItems' => function ($q) use ($sortKey, $dir) {
-                    if($sortKey === 'stock_value_amount') {
+                    if ($sortKey === 'stock_value_amount') {
                         $q->orderBy('stock_value_amount', $dir);
-                    }else if($sortKey === 'qty_vend') {
+                    } else if ($sortKey === 'qty_vend') {
                         $q->orderBy('qty_vend', $dir);
-                    }else if($sortKey === 'qty_warehouse') {
+                    } else if ($sortKey === 'qty_warehouse') {
                         $q->orderBy('qty_warehouse', $dir);
-                    }else if($sortKey === 'stock_cost_amount') {
+                    } else if ($sortKey === 'stock_cost_amount') {
                         $q->orderBy('stock_cost_amount', $dir);
                     }
                 },
@@ -2205,7 +2317,7 @@ class ReportController extends Controller
                     if ($sortKey === 'product_code') {
                         // nulls last, then sequence asc/desc, then channel_code as tiebreaker
                         $q->orderByRaw("CAST(code AS UNSIGNED) $dir")
-                          ->orderBy('code', $dir);
+                            ->orderBy('code', $dir);
 
                     }
                 },
@@ -2219,20 +2331,20 @@ class ReportController extends Controller
 
     private function getStockCountPivot3dQuery(Request $request)
     {
-        $tz  = $this->getUserTimezone();
+        $tz = $this->getUserTimezone();
         $end = Carbon::parse($request->date_to ?? Carbon::today($tz), $tz)->toDateString();
-        $d0  = Carbon::parse($end)->subDay()->toDateString();
-        $d1  = Carbon::parse($end)->subDays(2)->toDateString();
-        $d2  = Carbon::parse($end)->subDays(3)->toDateString();
+        $d0 = Carbon::parse($end)->subDay()->toDateString();
+        $d1 = Carbon::parse($end)->subDays(2)->toDateString();
+        $d2 = Carbon::parse($end)->subDays(3)->toDateString();
 
         $periods = [];
         foreach (['d0' => $d0, 'd1' => $d1, 'd2' => $d2] as $label => $date) {
             $carbon = Carbon::parse($date);
             $periods[$label] = [
-                'date'  => $date,
-                'year'  => (int) $carbon->year,
+                'date' => $date,
+                'year' => (int) $carbon->year,
                 'month' => (int) $carbon->month,
-                'day'   => (int) $carbon->day,
+                'day' => (int) $carbon->day,
             ];
         }
         $caseExpr = fn(string $label, string $value) => $this->stockCountDateCase($periods[$label], $value);
@@ -2254,7 +2366,8 @@ class ReportController extends Controller
                 }
             })
             ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
-                if ($val !== 'all') $q->whereIn('sc.location_type_id', (array) $val);
+                if ($val !== 'all')
+                    $q->whereIn('sc.location_type_id', (array) $val);
             })
             ->when($request->codes, function ($q, $codes) {
                 $codes = is_string($codes)
@@ -2263,8 +2376,10 @@ class ReportController extends Controller
 
                 $q->whereExists(function ($sq) use ($codes) {
                     $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
-                    if (count($codes) > 1) $sq->whereIn('v.code', $codes);
-                    elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
+                    if (count($codes) > 1)
+                        $sq->whereIn('v.code', $codes);
+                    elseif (count($codes) === 1)
+                        $sq->where('v.code', 'LIKE', '%' . $codes[0] . '%');
                 });
             })
             ->when($request->products, function ($q, $ids) {
@@ -2326,19 +2441,30 @@ class ReportController extends Controller
 
         // sorting
         $sortKey = $request->input('sortKey', 'product_code');
-        $desc    = filter_var($request->input('sortBy', false), FILTER_VALIDATE_BOOLEAN);
-        $dir     = $desc ? 'desc' : 'asc';
+        $desc = filter_var($request->input('sortBy', false), FILTER_VALIDATE_BOOLEAN);
+        $dir = $desc ? 'desc' : 'asc';
         $allowed = [
             'product_code',
-            'unit_cost_d0','unit_cost_d1','unit_cost_d2',
-            'qty_vend_d0','qty_vend_d1','qty_vend_d2',
-            'qty_warehouse_d0','qty_warehouse_d1','qty_warehouse_d2',
-            'stock_value_d0','stock_value_d1','stock_value_d2',
-            'stock_cost_d0','stock_cost_d1','stock_cost_d2'
+            'unit_cost_d0',
+            'unit_cost_d1',
+            'unit_cost_d2',
+            'qty_vend_d0',
+            'qty_vend_d1',
+            'qty_vend_d2',
+            'qty_warehouse_d0',
+            'qty_warehouse_d1',
+            'qty_warehouse_d2',
+            'stock_value_d0',
+            'stock_value_d1',
+            'stock_value_d2',
+            'stock_cost_d0',
+            'stock_cost_d1',
+            'stock_cost_d2'
         ];
-        if (!in_array($sortKey, $allowed, true)) $sortKey = 'product_code';
+        if (!in_array($sortKey, $allowed, true))
+            $sortKey = 'product_code';
         if ($sortKey === 'product_code') {
-            $q->orderByRaw('CAST(product_code AS UNSIGNED) '.$dir)->orderBy('product_code', $dir);
+            $q->orderByRaw('CAST(product_code AS UNSIGNED) ' . $dir)->orderBy('product_code', $dir);
         } else {
             $q->orderBy($sortKey, $dir);
         }
@@ -2383,7 +2509,8 @@ class ReportController extends Controller
                 }
             })
             ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
-                if ($val !== 'all') $q->whereIn('sc.location_type_id', (array) $val);
+                if ($val !== 'all')
+                    $q->whereIn('sc.location_type_id', (array) $val);
             })
             ->when($request->codes, function ($q, $codes) {
                 $codes = is_string($codes)
@@ -2392,8 +2519,10 @@ class ReportController extends Controller
 
                 $q->whereExists(function ($sq) use ($codes) {
                     $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
-                    if (count($codes) > 1) $sq->whereIn('v.code', $codes);
-                    elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
+                    if (count($codes) > 1)
+                        $sq->whereIn('v.code', $codes);
+                    elseif (count($codes) === 1)
+                        $sq->where('v.code', 'LIKE', '%' . $codes[0] . '%');
                 });
             });
 
@@ -2420,17 +2549,17 @@ class ReportController extends Controller
             $totals->{$k} = $v ?? 0;
         }
         $totals->dollar_value_d0 = ($totals->cash_sales_amount_d0 ?? 0)
-                                 + ($totals->cashless_sales_amount_d0 ?? 0)
-                                 + ($totals->coin_float_amount_d0 ?? 0);
+            + ($totals->cashless_sales_amount_d0 ?? 0)
+            + ($totals->coin_float_amount_d0 ?? 0);
         $totals->dollar_value_d1 = ($totals->cash_sales_amount_d1 ?? 0)
-                                 + ($totals->cashless_sales_amount_d1 ?? 0)
-                                 + ($totals->coin_float_amount_d1 ?? 0);
+            + ($totals->cashless_sales_amount_d1 ?? 0)
+            + ($totals->coin_float_amount_d1 ?? 0);
         $totals->dollar_value_d2 = ($totals->cash_sales_amount_d2 ?? 0)
-                                 + ($totals->cashless_sales_amount_d2 ?? 0)
-                                 + ($totals->coin_float_amount_d2 ?? 0);
+            + ($totals->cashless_sales_amount_d2 ?? 0)
+            + ($totals->coin_float_amount_d2 ?? 0);
 
         // pagination
-        $perPage   = ($request->numberPerPage === 'All') ? 10000 : (int)($request->numberPerPage ?? 100);
+        $perPage = ($request->numberPerPage === 'All') ? 10000 : (int) ($request->numberPerPage ?? 100);
         $paginator = $q->paginate($perPage)->appends($request->query());
 
         return [$paginator, ['d0' => $d0, 'd1' => $d1, 'd2' => $d2], $totals];
@@ -2502,50 +2631,50 @@ class ReportController extends Controller
 
     private function getSalesSubTotal($dataCols)
     {
-        return collect((clone $dataCols)->get())->pipe(function($data) {
-            $thisMonthTotal = $data->sum(function($data) {
-                return $data->this_month_revenue/ 100;
+        return collect((clone $dataCols)->get())->pipe(function ($data) {
+            $thisMonthTotal = $data->sum(function ($data) {
+                return $data->this_month_revenue / 100;
             });
-            $thisMonthGrossProfitTotal = $data->sum(function($data) {
-                return $data->this_month_gross_profit/ 100;
+            $thisMonthGrossProfitTotal = $data->sum(function ($data) {
+                return $data->this_month_gross_profit / 100;
             });
-            $lastMonthTotal = $data->sum(function($data) {
-                return $data->last_month_revenue/ 100;
+            $lastMonthTotal = $data->sum(function ($data) {
+                return $data->last_month_revenue / 100;
             });
-            $lastMonthGrossProfitTotal = $data->sum(function($data) {
-                return $data->last_month_gross_profit/ 100;
+            $lastMonthGrossProfitTotal = $data->sum(function ($data) {
+                return $data->last_month_gross_profit / 100;
             });
-            $lastTwoMonthTotal = $data->sum(function($data) {
-                return $data->last_two_month_revenue/ 100;
+            $lastTwoMonthTotal = $data->sum(function ($data) {
+                return $data->last_two_month_revenue / 100;
             });
-            $lastTwoMonthGrossProfitTotal = $data->sum(function($data) {
-                return $data->last_two_month_gross_profit/ 100;
+            $lastTwoMonthGrossProfitTotal = $data->sum(function ($data) {
+                return $data->last_two_month_gross_profit / 100;
             });
             return [
                 'this_month_count_total' => $data->sum('this_month_count'),
                 'this_month_revenue_total' => $thisMonthTotal,
                 'this_month_gross_profit_total' => $thisMonthGrossProfitTotal,
-                'this_month_gross_margin_total' => round($thisMonthGrossProfitTotal/($thisMonthTotal ? $thisMonthTotal : 1) * 100, 1),
+                'this_month_gross_margin_total' => round($thisMonthGrossProfitTotal / ($thisMonthTotal ? $thisMonthTotal : 1) * 100, 1),
                 'last_month_count_total' => $data->sum('last_month_count'),
                 'last_month_revenue_total' => $lastMonthTotal,
                 'last_month_gross_profit_total' => $lastMonthGrossProfitTotal,
-                'last_month_gross_margin_total' => round($lastMonthGrossProfitTotal/($lastMonthTotal ? $lastMonthTotal : 1) * 100, 1),
+                'last_month_gross_margin_total' => round($lastMonthGrossProfitTotal / ($lastMonthTotal ? $lastMonthTotal : 1) * 100, 1),
                 'last_two_month_count_total' => $data->sum('last_two_month_count'),
                 'last_two_month_revenue_total' => $lastTwoMonthTotal,
                 'last_two_month_gross_profit_total' => $lastTwoMonthGrossProfitTotal,
-                'last_two_month_gross_margin_total' => round($lastTwoMonthGrossProfitTotal/($lastTwoMonthTotal ? $lastTwoMonthTotal : 1) * 100, 1),
+                'last_two_month_gross_margin_total' => round($lastTwoMonthGrossProfitTotal / ($lastTwoMonthTotal ? $lastTwoMonthTotal : 1) * 100, 1),
             ];
         });
     }
 
     private function getSalesReportTotals($items)
     {
-        return collect((clone $items)->get())->pipe(function($item) {
-            $total_count = $item->sum(function($item) {
+        return collect((clone $items)->get())->pipe(function ($item) {
+            $total_count = $item->sum(function ($item) {
                 return $item->count;
             });
-            $total_amount = $item->sum(function($item) {
-                return $item->amount/ 100;
+            $total_amount = $item->sum(function ($item) {
+                return $item->amount / 100;
             });
             return [
                 'total_count' => $total_count,
@@ -2554,8 +2683,9 @@ class ReportController extends Controller
         });
     }
 
-    private function yieldOneByOne($items) {
-        foreach($items as $item) {
+    private function yieldOneByOne($items)
+    {
+        foreach ($items as $item) {
             yield $item;
         }
     }

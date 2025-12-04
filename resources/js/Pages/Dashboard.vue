@@ -147,6 +147,7 @@
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-lg font-medium text-gray-900">Historical Analysis</h3>
                                 <div class="flex space-x-2 items-center">
+                                    <span class="text-gray-700 font-medium">Chosen Month</span>
                                     <select v-model="filters.monthYear" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                                         <option v-for="option in monthYearOptions" :key="option.value" :value="option.value">
                                             {{ option.label }}
@@ -160,6 +161,7 @@
                                 </div>
                             </div>
 
+                            <h4 class="text-gray-900 font-medium mb-2">Chosen month vs last month</h4>
                             <Graph
                                 :key="componentKey1"
                                 type="scatter"
