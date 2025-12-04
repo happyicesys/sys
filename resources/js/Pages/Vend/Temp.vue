@@ -41,13 +41,14 @@
               </MultiSelect>
           </div>
           <div class="flex flex-col items-start pl-1">
-              <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.customer_code">
-                  <span v-if="vend.virtual_customer_prefix && vend.virtual_customer_code">
-                      {{ vend.virtual_customer_prefix }}-{{ vend.virtual_customer_code }}
-                  </span>
-              </h2>
               <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.customer_name">
-                  {{ vend.customer_name }}
+                  <span v-if="vend.vend_prefix_name">
+                      {{ vend.vend_prefix_name }}-
+                  </span>
+                  {{ vend.code }}
+              </h2>
+              <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight">
+                   {{ vend.customer_id + 20000 }} - {{ vend.customer_name }}
               </h2>
           </div>
           <div class="flex space-x-2 font-semibold text-md text-gray-500 leading-tight pl-1">

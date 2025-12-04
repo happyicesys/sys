@@ -1118,13 +1118,17 @@ class VendController extends Controller
                 'vends.is_mqtt_active',
                 'vends.is_online',
                 'vends.is_testing',
+                'vends.is_testing',
+                'customers.id AS customer_id',
                 'customers.virtual_customer_prefix',
                 'customers.virtual_customer_code',
                 DB::raw('CASE WHEN customers.person_id THEN CONCAT(customers.virtual_customer_code, " (", customers.virtual_customer_prefix, ")") ELSE customers.code END AS customer_code'),
                 'customers.name AS customer_name',
                 'parameter_json',
                 'temp',
+                'vend_prefixes.name AS vend_prefix_name',
             )
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->first();
 
         $vendTemps = DB::table('vend_temps')
