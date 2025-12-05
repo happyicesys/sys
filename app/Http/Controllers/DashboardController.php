@@ -146,6 +146,7 @@ class DashboardController extends Controller
         // Initialize structure
         $data = [];
         foreach ($periods as $key => $date) {
+            $daysInMonth = $date->daysInMonth;
             $data[$key] = [
                 'label' => $date->format('M Y'),
                 'data' => [],
@@ -153,8 +154,8 @@ class DashboardController extends Controller
                 'month' => $date->month,
             ];
 
-            // Initialize days 1-31
-            for ($day = 1; $day <= 31; $day++) {
+            // Initialize days based on actual days in month
+            for ($day = 1; $day <= $daysInMonth; $day++) {
                 // Check if this date is in the future
                 $checkDate = Carbon::create($date->year, $date->month, $day)->setTimezone($this->getUserTimezone());
 
@@ -172,7 +173,10 @@ class DashboardController extends Controller
         foreach ($results as $row) {
             foreach ($data as $key => &$periodData) {
                 if ($row->year == $periodData['year'] && $row->month == $periodData['month']) {
-                    $periodData['data'][$row->day] = (float) $row->amount / 100;
+                    // Only set data if the day exists in the initialized array (sanity check)
+                    if (isset($periodData['data'][$row->day])) {
+                        $periodData['data'][$row->day] = (float) $row->amount / 100;
+                    }
                 }
             }
         }

@@ -637,9 +637,21 @@
         scales: {
             x: {
                 ticks: {
-                    min: 1,
-                    max: 31,
-                    stepSize: 1
+                    autoSkip: false,
+                    maxRotation: 0,
+                    callback: function(val, index) {
+                        const label = this.getLabelForValue(val);
+                        // Always show labels that are arrays (Month Year labels)
+                        if (Array.isArray(label)) {
+                            return label;
+                        }
+                        // For day numbers, show sparsely to avoid crowding
+                        // Show 1st, and every 5th day (1, 5, 10, 15, 20, 25, 30)
+                        if (label == 1 || label % 5 === 0) {
+                            return label;
+                        }
+                        return null;
+                    }
                 }
             },
             y: {
@@ -1050,104 +1062,140 @@
 
         salesComparisonGraphData.value = JSON.parse(JSON.stringify(props.salesComparisonGraphData))
         if (salesComparisonGraphData.value) {
-            // Current Year Bars - Vibrant colors with good contrast
-            // Order: Prev (leftmost), Current (middle), Next (rightmost)
+            let labels = [];
+
+            // Data arrays for the 4 datasets
+            let prevMonthData = [];
+            let currMonthData = [];
+            let nextMonthData = [];
+            let lastYearData = [];
+
+            // Helper to process a period
+            const processPeriod = (periodKey, lastYearKey, targetDataArray) => {
+                if (!salesComparisonGraphData.value[periodKey]) return;
+
+                const currentData = salesComparisonGraphData.value[periodKey].data;
+                const lastData = salesComparisonGraphData.value[lastYearKey]?.data || [];
+                const monthLabel = salesComparisonGraphData.value[periodKey].label; // e.g., "Dec 2023"
+
+                const length = Math.max(currentData.length, lastData.length);
+                const middleDay = Math.ceil(length / 2);
+
+                for (let i = 0; i < length; i++) {
+                    // 1. Add to the specific target array (Prev, Curr, or Next)
+                    targetDataArray.push(currentData[i] !== undefined ? currentData[i] : null);
+
+                    // 2. Pad the OTHER current-year arrays with null
+                    if (targetDataArray !== prevMonthData) prevMonthData.push(null);
+                    if (targetDataArray !== currMonthData) currMonthData.push(null);
+                    if (targetDataArray !== nextMonthData) nextMonthData.push(null);
+
+                    // 3. Add to Last Year Data (always continuous)
+                    lastYearData.push(lastData[i] !== undefined ? lastData[i] : null);
+
+                    // 4. Add Label
+                    // If it's the middle day, add the Month Year
+                    if (i + 1 === middleDay) {
+                        labels.push([i + 1, monthLabel]);
+                    } else {
+                        labels.push(i + 1);
+                    }
+                }
+            };
+
+            // Helper to add spacer
+            const addSpacer = () => {
+                prevMonthData.push(null);
+                currMonthData.push(null);
+                nextMonthData.push(null);
+                lastYearData.push(null);
+                labels.push('');
+            };
+
+            // 1. Prev Month
+            if (salesComparisonGraphData.value.prev_month) {
+                processPeriod('prev_month', 'last_year_prev_month', prevMonthData);
+            }
+
+            // Spacer
+            addSpacer();
+
+            // 2. Current Month
+            if (salesComparisonGraphData.value.current_month) {
+                processPeriod('current_month', 'last_year_same_month', currMonthData);
+            }
+
+            // Spacer
+            addSpacer();
+
+            // 3. Next Month
+            if (salesComparisonGraphData.value.next_month) {
+                processPeriod('next_month', 'last_year_next_month', nextMonthData);
+            }
+
+            salesComparisonGraphLabels.value = labels;
+
+            // Dataset 1: Prev Month (Blue)
             if (salesComparisonGraphData.value.prev_month) {
                 salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.prev_month.label + ' (Prev)',
-                    data: salesComparisonGraphData.value.prev_month.data,
-                    backgroundColor: 'rgba(59, 130, 246, 0.6)', // Bright Blue
+                    label: salesComparisonGraphData.value.prev_month.label,
+                    data: prevMonthData,
+                    backgroundColor: 'rgba(59, 130, 246, 0.6)', // Blue
                     borderColor: 'rgba(37, 99, 235, 1)',
                     borderWidth: 2,
                     type: 'bar',
-                    order: 1, // Leftmost bar
-                })
+                    order: 2,
+                    barPercentage: 1.0,
+                    categoryPercentage: 1.0
+                });
             }
+
+            // Dataset 2: Current Month (Green)
             if (salesComparisonGraphData.value.current_month) {
                 salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.current_month.label + ' (Current)',
-                    data: salesComparisonGraphData.value.current_month.data,
-                    backgroundColor: 'rgba(16, 185, 129, 0.7)', // Vibrant Green - most prominent
+                    label: salesComparisonGraphData.value.current_month.label,
+                    data: currMonthData,
+                    backgroundColor: 'rgba(16, 185, 129, 0.7)', // Green
                     borderColor: 'rgba(5, 150, 105, 1)',
                     borderWidth: 2,
                     type: 'bar',
-                    order: 2, // Middle bar
-                })
+                    order: 2,
+                    barPercentage: 1.0,
+                    categoryPercentage: 1.0
+                });
             }
+
+            // Dataset 3: Next Month (Purple)
             if (salesComparisonGraphData.value.next_month) {
                 salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.next_month.label + ' (Next)',
-                    data: salesComparisonGraphData.value.next_month.data,
-                    backgroundColor: 'rgba(168, 85, 247, 0.6)', // Bright Purple
+                    label: salesComparisonGraphData.value.next_month.label,
+                    data: nextMonthData,
+                    backgroundColor: 'rgba(168, 85, 247, 0.6)', // Purple
                     borderColor: 'rgba(126, 34, 206, 1)',
                     borderWidth: 2,
                     type: 'bar',
-                    order: 3, // Rightmost bar
-                })
+                    order: 2,
+                    barPercentage: 1.0,
+                    categoryPercentage: 1.0
+                });
             }
 
-            // Last Year Lines - Muted/desaturated colors, thicker lines, dashed
-            // Visible points for easier hovering
-            if (salesComparisonGraphData.value.last_year_prev_month) {
-                salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.last_year_prev_month.label + ' (Prev)',
-                    data: salesComparisonGraphData.value.last_year_prev_month.data,
-                    borderColor: 'rgba(96, 165, 250, 0.85)', // Muted Blue
-                    backgroundColor: 'rgba(96, 165, 250, 0.1)',
-                    borderDash: [8, 4],
-                    borderWidth: 3,
-                    type: 'line',
-                    fill: false,
-                    tension: 0.3,
-                    pointRadius: 3, // Visible points
-                    pointHoverRadius: 6, // Larger on hover
-                    pointBackgroundColor: 'rgba(96, 165, 250, 1)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    order: 1,
-                })
-            }
-            if (salesComparisonGraphData.value.last_year_same_month) {
-                salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.last_year_same_month.label + ' (Current)',
-                    data: salesComparisonGraphData.value.last_year_same_month.data,
-                    borderColor: 'rgba(52, 211, 153, 0.85)', // Muted Green
-                    backgroundColor: 'rgba(52, 211, 153, 0.1)',
-                    borderDash: [8, 4],
-                    borderWidth: 3,
-                    type: 'line',
-                    fill: false,
-                    tension: 0.3,
-                    pointRadius: 3, // Visible points
-                    pointHoverRadius: 6, // Larger on hover
-                    pointBackgroundColor: 'rgba(52, 211, 153, 1)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    order: 0, // Most important comparison line - drawn on top
-                })
-            }
-            if (salesComparisonGraphData.value.last_year_next_month) {
-                salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.last_year_next_month.label + ' (Next)',
-                    data: salesComparisonGraphData.value.last_year_next_month.data,
-                    borderColor: 'rgba(196, 181, 253, 0.85)', // Muted Purple
-                    backgroundColor: 'rgba(196, 181, 253, 0.1)',
-                    borderDash: [8, 4],
-                    borderWidth: 3,
-                    type: 'line',
-                    fill: false,
-                    tension: 0.3,
-                    pointRadius: 3, // Visible points
-                    pointHoverRadius: 6, // Larger on hover
-                    pointBackgroundColor: 'rgba(196, 181, 253, 1)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    order: 2,
-                })
-            }
-        }
-        for(let i = 1; i <= 31; i++) {
-            salesComparisonGraphLabels.value.push(i)
+            // Dataset 4: Last Year (Line)
+            salesComparisonGraphDatasets.value.push({
+                label: 'Last Year',
+                data: lastYearData,
+                borderColor: 'rgba(239, 68, 68, 1)', // Red
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderWidth: 2,
+                type: 'line',
+                fill: false,
+                tension: 0.4,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointHitRadius: 20,
+                spanGaps: true,
+                order: 1,
+            });
         }
 
         forceRerender1()
