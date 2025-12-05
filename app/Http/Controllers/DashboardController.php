@@ -114,11 +114,11 @@ class DashboardController extends Controller
             'last_year_next_month' => $baseDate->copy()->subYear()->addMonth(),
         ];
 
-        // Filter out future "next month"
-        $includeNextMonth = !$periods['next_month']->isFuture();
-        if (!$includeNextMonth) {
-            unset($periods['next_month']);
-        }
+        // Filter out future "next month" - REMOVED to always show 3 months
+        // $includeNextMonth = !$periods['next_month']->isFuture();
+        // if (!$includeNextMonth) {
+        //     unset($periods['next_month']);
+        // }
 
         $query = VendRecord::query()
             ->filterIndex($request)
