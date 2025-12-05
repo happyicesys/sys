@@ -144,11 +144,12 @@ class MachineHealthDashboardService
             ->orderBy('vend_channel_id')
             ->orderBy('occurred_at');
 
-        if ($filters['channel_sku']) {
-            $eventsQuery->whereHas('vendChannel', function (EloquentBuilder $query) use ($filters) {
+        $eventsQuery->whereHas('vendChannel', function (EloquentBuilder $query) use ($filters) {
+            $query->where('is_active', true);
+            if ($filters['channel_sku']) {
                 $query->where('sku_code', $filters['channel_sku']);
-            });
-        }
+            }
+        });
 
         $pendingSoldOut = [];
         $topDurations = [];
@@ -318,7 +319,7 @@ class MachineHealthDashboardService
         }
 
         $list[] = $duration;
-        usort($list, fn ($a, $b) => $b['duration_minutes'] <=> $a['duration_minutes']);
+        usort($list, fn($a, $b) => $b['duration_minutes'] <=> $a['duration_minutes']);
         if (count($list) > $limit) {
             $list = array_slice($list, 0, $limit);
         }
@@ -466,7 +467,7 @@ class MachineHealthDashboardService
                 ->join('vend_channel_errors', 'vend_channel_error_logs.vend_channel_error_id', '=', 'vend_channel_errors.id')
                 ->join('vend_channels', 'vend_channel_error_logs.vend_channel_id', '=', 'vend_channels.id')
                 ->join('vends', 'vend_channels.vend_id', '=', 'vends.id')
-                ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
+                ->join('customers', 'vends.customer_id', '=', 'customers.id')
                 ->leftJoin('operators', 'vends.operator_id', '=', 'operators.id')
                 ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
                 ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
@@ -564,6 +565,15 @@ class MachineHealthDashboardService
             ->whereBetween('period_start', [$shortStart, $now])
             ->whereHas('vend', function (EloquentBuilder $query) use ($filters) {
                 $this->applyVendFilters($query, $filters);
+
+                if (!empty($filters['channel_sku'])) {
+                    $sku = $filters['channel_sku'];
+                    $query->whereHas('vendChannels', function ($q) use ($sku) {
+                        $q->where('sku_code', $sku)
+                            ->orWhere('sku_code', 'LIKE', "{$sku}%");
+                    });
+                }
+
                 $query->where('is_testing', false);
             })
             ->orderBy('vend_id')
@@ -571,7 +581,7 @@ class MachineHealthDashboardService
             ->get();
 
         $rising = $dailyMetrics->groupBy('vend_id')->map(function (Collection $metrics) use ($deltaThresholdScaled, $scale) {
-            $usable = $metrics->filter(fn ($metric) => $metric->min_temp_value !== null)->sortBy('period_start')->values();
+            $usable = $metrics->filter(fn($metric) => $metric->min_temp_value !== null)->sortBy('period_start')->values();
 
             if ($usable->count() < 2) {
                 return null;
@@ -605,7 +615,7 @@ class MachineHealthDashboardService
         $worstMinimaQuery = VendTempMetric::query()
             ->from('vend_temp_metrics')
             ->join('vends', 'vend_temp_metrics.vend_id', '=', 'vends.id')
-            ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
+            ->join('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('operators', 'vends.operator_id', '=', 'operators.id')
             ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
             ->where('vend_temp_metrics.period_type', VendTempMetric::PERIOD_DAILY)
@@ -614,6 +624,14 @@ class MachineHealthDashboardService
             ->where('vends.is_testing', false);
 
         $this->applyVendFilters($worstMinimaQuery, $filters, 'vends');
+
+        if (!empty($filters['channel_sku'])) {
+            $sku = $filters['channel_sku'];
+            $worstMinimaQuery->whereHas('vend.vendChannels', function ($q) use ($sku) {
+                $q->where('sku_code', $sku)
+                    ->orWhere('sku_code', 'LIKE', "{$sku}%");
+            });
+        }
 
         $worstMinimaRows = $worstMinimaQuery
             ->select([
@@ -667,13 +685,26 @@ class MachineHealthDashboardService
                     ->where('vends.is_testing', false);
 
                 $this->applyVendFilters($sub, $filters, 'vends');
+
+                if (!empty($filters['channel_sku'])) {
+                    $sku = $filters['channel_sku'];
+                    $sub->whereExists(function ($q) use ($sku) {
+                        $q->select(DB::raw(1))
+                            ->from('vend_channels')
+                            ->whereColumn('vend_channels.vend_id', 'vends.id')
+                            ->where(function ($q2) use ($sku) {
+                                $q2->where('sku_code', $sku)
+                                    ->orWhere('sku_code', 'LIKE', "{$sku}%");
+                            });
+                    });
+                }
             })
             ->groupBy('vt.vend_id');
 
         $noReachQuery = DB::query()
             ->fromSub($recentTempsSubquery, 'recent_temps')
             ->join('vends', 'recent_temps.vend_id', '=', 'vends.id')
-            ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
+            ->join('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('operators', 'vends.operator_id', '=', 'operators.id')
             ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
             ->where('vends.is_temp_active', true)
@@ -780,7 +811,7 @@ class MachineHealthDashboardService
             ->values();
 
         $secondaryList = $primaryList
-            ->filter(fn ($entry) => $entry['hours_offline'] >= $secondaryThreshold)
+            ->filter(fn($entry) => $entry['hours_offline'] >= $secondaryThreshold)
             ->values();
 
         return [
@@ -800,18 +831,18 @@ class MachineHealthDashboardService
         return [
             'thresholds' => $thresholds,
             'any_sales' => $this->buildNoTxnList('last_vend_transaction_at', $thresholds['any'], $filters, $now, $limit)->all(),
-            'cash_sales' => $this->buildNoTxnList('last_cash_vend_transaction_at', $thresholds['cash'], $filters, $now, $limit)->all(),
-            'card_sales' => $this->buildNoTxnList('last_card_vend_transaction_at', $thresholds['card'], $filters, $now, $limit)->all(),
-            'qr_sales' => $this->buildNoTxnList('last_cashless_vend_transaction_at', $thresholds['cashless'], $filters, $now, $limit)->all(),
+            'cash_sales' => $this->buildNoTxnList('last_cash_vend_transaction_at', $thresholds['cash'], $filters, $now, $limit, 'cash')->all(),
+            'card_sales' => $this->buildNoTxnList('last_card_vend_transaction_at', $thresholds['card'], $filters, $now, $limit, 'card')->all(),
+            'qr_sales' => $this->buildNoTxnList('last_cashless_vend_transaction_at', $thresholds['cashless'], $filters, $now, $limit, 'cashless')->all(),
         ];
     }
 
-    private function buildNoTxnList(string $column, int $threshold, array $filters, Carbon $now, int $limit): Collection
+    private function buildNoTxnList(string $column, int $threshold, array $filters, Carbon $now, int $limit, ?string $type = null): Collection
     {
         $nowSql = $now->toDateTimeString();
         $hoursExpr = "ROUND(TIMESTAMPDIFF(MINUTE, {$column}, '{$nowSql}') / 60, 2)";
 
-        return $this->baseVendQuery($filters)
+        $query = $this->baseVendQuery($filters)
             ->select([
                 'id',
                 'code',
@@ -825,8 +856,17 @@ class MachineHealthDashboardService
             ->whereNotNull($column)
             ->having('hours_since', '>=', $threshold)
             ->orderByDesc('hours_since')
-            ->limit($limit)
-            ->get()
+            ->limit($limit);
+
+        if ($type === 'cash') {
+            $query->where('parameter_json->BILLStat', 3);
+        } elseif ($type === 'card') {
+            $query->where('parameter_json->CSHLStat', 3);
+        } elseif ($type === 'cashless') {
+            $query->where('acb_vmc_pa_json->QRCode', 1);
+        }
+
+        return $query->get()
             ->map(function (Vend $vend) use ($threshold) {
                 $lastTransaction = $vend->last_transaction_at ? Carbon::parse($vend->last_transaction_at) : null;
 
@@ -873,6 +913,20 @@ class MachineHealthDashboardService
         if (!empty($filters['machine_codes'])) {
             $query->whereIn("{$table}.code", $filters['machine_codes']);
         }
+
+        if (!empty($filters['channel_sku']) && $query instanceof EloquentBuilder && $query->getModel() instanceof Vend) {
+            $sku = $filters['channel_sku'];
+            $query->whereHas('vendChannels', function ($q) use ($sku) {
+                $q->where('sku_code', $sku)
+                    ->orWhere('sku_code', 'LIKE', "{$sku}%");
+            });
+        }
+
+        if ($query instanceof EloquentBuilder && $query->getModel() instanceof Vend) {
+            $query->has('customer');
+        } else {
+            $query->whereNotNull("{$table}.customer_id");
+        }
     }
 
     private function baseVendInfo(?Vend $vend): array
@@ -894,12 +948,12 @@ class MachineHealthDashboardService
 
     private function normalizeIdArray($input): array
     {
-        return array_values(array_filter(array_map('intval', $this->normalizeArray($input)), fn ($value) => $value > 0));
+        return array_values(array_filter(array_map('intval', $this->normalizeArray($input)), fn($value) => $value > 0));
     }
 
     private function normalizeStringArray($input): array
     {
-        return array_values(array_filter(array_map(static fn ($value) => trim((string) $value), $this->normalizeArray($input)), fn ($value) => $value !== ''));
+        return array_values(array_filter(array_map(static fn($value) => trim((string) $value), $this->normalizeArray($input)), fn($value) => $value !== ''));
     }
 
     private function normalizeArray($input): array

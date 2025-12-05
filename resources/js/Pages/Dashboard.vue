@@ -161,23 +161,23 @@
                                 </div>
                             </div>
 
-                            <h4 class="text-gray-900 font-medium mb-2">Chosen month vs last month</h4>
-                            <Graph
-                                :key="componentKey1"
-                                type="scatter"
-                                :labels="dayGraphLabels"
-                                :datasets="dayGraphDatasets"
-                                :options="dayGraphOptions"
-                            >
-                            </Graph>
-
-                            <h4 class="text-gray-900 font-medium mb-2 mt-5">Sales Comparison (Current vs Last Year)</h4>
+                            <h4 class="text-gray-900 font-medium mb-2">Sales Comparison (Current vs Last Year)</h4>
                             <Graph
                                 :key="componentKey5"
                                 type="bar"
                                 :labels="salesComparisonGraphLabels"
                                 :datasets="salesComparisonGraphDatasets"
                                 :options="salesComparisonGraphOptions"
+                            >
+                            </Graph>
+
+                            <h4 class="text-gray-900 font-medium mb-2 mt-5">Chosen month vs last month</h4>
+                            <Graph
+                                :key="componentKey1"
+                                type="scatter"
+                                :labels="dayGraphLabels"
+                                :datasets="dayGraphDatasets"
+                                :options="dayGraphOptions"
                             >
                             </Graph>
 

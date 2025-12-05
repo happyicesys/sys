@@ -207,17 +207,19 @@ watch([operatorSelectOptions, authOperator], ensureDefaultOperatorFilters, {
   immediate: true,
 })
 
-const createRowLimiter = (rowsSource) => {
+const createRowLimiter = (rowsSource, limitSource) => {
   const expanded = ref(false)
 
   const rows = computed(() => {
     const list = rowsSource.value ?? []
-    return expanded.value ? list : list.slice(0, DEFAULT_VISIBLE)
+    const limit = limitSource ? limitSource() : DEFAULT_VISIBLE
+    return expanded.value ? list : list.slice(0, limit)
   })
 
   const hasMore = computed(() => {
     const list = rowsSource.value ?? []
-    return !expanded.value && list.length > DEFAULT_VISIBLE
+    const limit = limitSource ? limitSource() : DEFAULT_VISIBLE
+    return !expanded.value && list.length > limit
   })
 
   const showAll = () => {
@@ -239,7 +241,10 @@ const {
   rows: stockoutRows,
   hasMore: canLoadMoreStockouts,
   showAll: loadRemainingStockouts,
-} = createRowLimiter(computed(() => stockouts.value.top_channels ?? []))
+} = createRowLimiter(
+  computed(() => stockouts.value.top_channels ?? []),
+  () => filters.channel_limit,
+)
 
 const bucketExpansion = reactive({})
 const expandBucketRows = (key) => {
@@ -252,7 +257,9 @@ const canExpandBucket = (bucket) => {
 }
 const visibleBucketRows = (bucket) => {
   const rows = bucket.rows ?? []
-  return isBucketExpanded(bucket.key) ? rows : rows.slice(0, DEFAULT_VISIBLE)
+  return isBucketExpanded(bucket.key)
+    ? rows
+    : rows.slice(0, filters.machine_limit)
 }
 watch(
   errorBuckets,
@@ -276,6 +283,7 @@ const {
   showAll: loadRemainingRising,
 } = createRowLimiter(
   computed(() => temperature.value.rising_lowest?.rows ?? []),
+  () => filters.machine_limit,
 )
 
 const {
@@ -284,6 +292,7 @@ const {
   showAll: loadRemainingWorstMinima,
 } = createRowLimiter(
   computed(() => temperature.value.worst_minima?.rows ?? []),
+  () => filters.machine_limit,
 )
 
 const {
@@ -292,19 +301,26 @@ const {
   showAll: loadRemainingNotReaching,
 } = createRowLimiter(
   computed(() => temperature.value.not_reaching_threshold?.rows ?? []),
+  () => filters.machine_limit,
 )
 
 const {
   rows: offlinePrimaryRows,
   hasMore: canLoadMoreOfflinePrimary,
   showAll: loadRemainingOfflinePrimary,
-} = createRowLimiter(computed(() => connectivity.value.primary ?? []))
+} = createRowLimiter(
+  computed(() => connectivity.value.primary ?? []),
+  () => filters.machine_limit,
+)
 
 const {
   rows: offlineSecondaryRows,
   hasMore: canLoadMoreOfflineSecondary,
   showAll: loadRemainingOfflineSecondary,
-} = createRowLimiter(computed(() => connectivity.value.secondary ?? []))
+} = createRowLimiter(
+  computed(() => connectivity.value.secondary ?? []),
+  () => filters.machine_limit,
+)
 
 const {
   rows: noTxnAnyRows,
@@ -312,6 +328,7 @@ const {
   showAll: loadRemainingNoTxnAny,
 } = createRowLimiter(
   computed(() => noTransactions.value.any_sales ?? []),
+  () => filters.machine_limit,
 )
 
 const {
@@ -320,6 +337,7 @@ const {
   showAll: loadRemainingNoTxnCash,
 } = createRowLimiter(
   computed(() => noTransactions.value.cash_sales ?? []),
+  () => filters.machine_limit,
 )
 
 const {
@@ -328,13 +346,17 @@ const {
   showAll: loadRemainingNoTxnCard,
 } = createRowLimiter(
   computed(() => noTransactions.value.card_sales ?? []),
+  () => filters.machine_limit,
 )
 
 const {
   rows: noTxnQrRows,
   hasMore: canLoadMoreNoTxnQr,
   showAll: loadRemainingNoTxnQr,
-} = createRowLimiter(computed(() => noTransactions.value.qr_sales ?? []))
+} = createRowLimiter(
+  computed(() => noTransactions.value.qr_sales ?? []),
+  () => filters.machine_limit,
+)
 
 const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined || Number.isNaN(value)) {
@@ -471,7 +493,7 @@ const renderPerCodeSummary = (perCode) => {
               </p>
             </div>
             <form class="mt-4 space-y-4" @submit.prevent="applyFilters">
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <label class="flex flex-col space-y-1 text-sm">
                   <span class="font-medium text-gray-700">Machine Limit</span>
                   <input
@@ -482,108 +504,6 @@ const renderPerCodeSummary = (perCode) => {
                     step="5"
                     type="number"
                   />
-                </label>
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700"
-                    >Channel Limit (Stockouts)</span
-                  >
-                  <input
-                    v-model.number="filters.channel_limit"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    max="50"
-                    min="10"
-                    step="5"
-                    type="number"
-                  />
-                </label>
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Error Window (days)</span>
-                  <input
-                    v-model.number="filters.error_window_days"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    max="90"
-                    min="1"
-                    type="number"
-                  />
-                </label>
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700"
-                    >Stockout Target (hours)</span
-                  >
-                  <input
-                    v-model.number="filters.stockout_target_hours"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    min="1"
-                    type="number"
-                  />
-                </label>
-              </div>
-
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Temperature Window</span>
-                  <div class="grid grid-cols-2 gap-2">
-                    <input
-                      v-model.number="filters.temperature_window_days"
-                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      min="3"
-                      type="number"
-                    />
-                    <input
-                      v-model.number="filters.temperature_long_window_days"
-                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      min="7"
-                      type="number"
-                    />
-                  </div>
-                  <span class="text-xs text-gray-500">
-                    Short vs. long lookback (days)
-                  </span>
-                </label>
-
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Temp Delta Threshold</span>
-                  <input
-                    v-model.number="filters.temperature_delta_threshold"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    step="0.5"
-                    type="number"
-                  />
-                </label>
-
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700"
-                    >Temp Minimum Threshold (°C)</span
-                  >
-                  <input
-                    v-model.number="filters.temperature_min_threshold"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    step="0.5"
-                    type="number"
-                  />
-                </label>
-              </div>
-
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Offline Threshold (h)</span>
-                  <div class="grid grid-cols-2 gap-2">
-                    <input
-                      v-model.number="filters.offline_threshold_hours"
-                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      min="1"
-                      type="number"
-                    />
-                    <input
-                      v-model.number="filters.offline_secondary_threshold_hours"
-                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      min="1"
-                      type="number"
-                    />
-                  </div>
-                  <span class="text-xs text-gray-500">
-                    Primary vs. escalation thresholds
-                  </span>
                 </label>
 
                 <label class="flex flex-col space-y-1 text-sm">
@@ -644,6 +564,36 @@ const renderPerCodeSummary = (perCode) => {
               Rolling {{ stockouts.metadata?.lookback_days ?? 30 }}-day window based on
               refill telemetry.
             </p>
+
+            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Channel Limit (Stockouts)</span>
+                  <input
+                    v-model.number="filters.channel_limit"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    max="50"
+                    min="10"
+                    step="5"
+                    type="number"
+                  />
+                </label>
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Stockout Target (hours)</span>
+                  <input
+                    v-model.number="filters.stockout_target_hours"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    min="1"
+                    type="number"
+                  />
+                </label>
+                <div>
+                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </form>
 
             <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
               <div class="rounded-lg border border-gray-200 p-4">
@@ -722,6 +672,9 @@ const renderPerCodeSummary = (perCode) => {
                           {{ row.vend_code }} · {{ row.channel_code ?? '—' }}
                         </div>
                         <div class="text-xs text-gray-500">
+                          {{ row.vend_prefix_name ?? '—' }}
+                        </div>
+                        <div class="text-xs text-gray-500">
                           {{ row.customer_name ?? 'Unassigned' }}
                         </div>
                       </td>
@@ -781,6 +734,26 @@ const renderPerCodeSummary = (perCode) => {
                 Grouped by dispense stability vs. mechanical codes.
               </p>
             </div>
+
+            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Error Window (days)</span>
+                  <input
+                    v-model.number="filters.error_window_days"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    max="90"
+                    min="1"
+                    type="number"
+                  />
+                </label>
+                <div>
+                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </form>
             <div class="mt-4 space-y-6">
               <div
                 v-for="bucket in errorBuckets"
@@ -809,6 +782,9 @@ const renderPerCodeSummary = (perCode) => {
                           Machine
                         </th>
                         <th class="px-4 py-2 text-left font-medium text-gray-500">
+                          Vend Prefix
+                        </th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-500">
                           Customer
                         </th>
                         <th class="px-4 py-2 text-left font-medium text-gray-500">
@@ -829,6 +805,9 @@ const renderPerCodeSummary = (perCode) => {
                       <tr v-for="row in visibleBucketRows(bucket)" :key="row.vend_id">
                         <td class="px-4 py-2">
                           <div class="font-medium text-gray-900">{{ row.vend_code }}</div>
+                        </td>
+                        <td class="px-4 py-2 text-gray-700">
+                          {{ row.vend_prefix_name ?? '—' }}
                         </td>
                         <td class="px-4 py-2 text-gray-700">
                           {{ row.customer_name ?? '—' }}
@@ -883,6 +862,57 @@ const renderPerCodeSummary = (perCode) => {
               Sensor type {{ filters.temperature_sensor_type }} · Threshold
               {{ formatNumber(filters.temperature_min_threshold, 1) }}°C
             </p>
+
+            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-4 items-end">
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Temperature Window</span>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input
+                      v-model.number="filters.temperature_window_days"
+                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      min="3"
+                      type="number"
+                    />
+                    <input
+                      v-model.number="filters.temperature_long_window_days"
+                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      min="7"
+                      type="number"
+                    />
+                  </div>
+                  <span class="text-xs text-gray-500">
+                    Short vs. long lookback (days)
+                  </span>
+                </label>
+
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Temp Delta Threshold</span>
+                  <input
+                    v-model.number="filters.temperature_delta_threshold"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    step="0.5"
+                    type="number"
+                  />
+                </label>
+
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Temp Minimum Threshold (°C)</span>
+                  <input
+                    v-model.number="filters.temperature_min_threshold"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    step="0.5"
+                    type="number"
+                  />
+                </label>
+
+                <div>
+                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </form>
             <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-3">
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
@@ -900,6 +930,9 @@ const renderPerCodeSummary = (perCode) => {
                   >
                     <div class="font-medium text-gray-900">
                       {{ row.vend_code }} (Δ {{ formatNumber(row.delta, 1) }}°C)
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
                       {{ row.customer_name ?? '—' }}
@@ -938,6 +971,9 @@ const renderPerCodeSummary = (perCode) => {
                       {{ row.vend_code }} · {{ row.worst_min_temp }}°C
                     </div>
                     <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
                       {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -974,6 +1010,9 @@ const renderPerCodeSummary = (perCode) => {
                       {{ row.vend_code }} · {{ row.min_value }}°C
                     </div>
                     <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
                       {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1005,6 +1044,36 @@ const renderPerCodeSummary = (perCode) => {
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
             <h3 class="text-lg font-semibold text-gray-900">Connectivity</h3>
+
+            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Offline Threshold (h)</span>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input
+                      v-model.number="filters.offline_threshold_hours"
+                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      min="1"
+                      type="number"
+                    />
+                    <input
+                      v-model.number="filters.offline_secondary_threshold_hours"
+                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      min="1"
+                      type="number"
+                    />
+                  </div>
+                  <span class="text-xs text-gray-500">
+                    Primary vs. escalation thresholds
+                  </span>
+                </label>
+                <div>
+                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </form>
             <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
@@ -1019,6 +1088,9 @@ const renderPerCodeSummary = (perCode) => {
                   >
                     <div class="font-medium text-gray-900">
                       {{ row.vend_code }} · {{ formatHours(row.hours_offline) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
                       {{ row.customer_name ?? '—' }}
@@ -1058,6 +1130,9 @@ const renderPerCodeSummary = (perCode) => {
                   >
                     <div class="font-medium text-gray-900">
                       {{ row.vend_code }} · {{ formatHours(row.hours_offline) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
                       {{ row.customer_name ?? '—' }}
@@ -1108,6 +1183,9 @@ const renderPerCodeSummary = (perCode) => {
                       {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
                       {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1144,6 +1222,9 @@ const renderPerCodeSummary = (perCode) => {
                   >
                     <div class="font-medium text-gray-900">
                       {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
                       {{ row.customer_name ?? '—' }}
@@ -1184,6 +1265,9 @@ const renderPerCodeSummary = (perCode) => {
                       {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
                       {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1220,6 +1304,9 @@ const renderPerCodeSummary = (perCode) => {
                   >
                     <div class="font-medium text-gray-900">
                       {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
                       {{ row.customer_name ?? '—' }}
