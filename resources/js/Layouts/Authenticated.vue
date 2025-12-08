@@ -7,7 +7,9 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { ArrowsPointingInIcon, BuildingOfficeIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, FolderIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon, BookOpenIcon, TicketIcon } from '@heroicons/vue/20/solid'
 
-const navigation = [
+const page = usePage()
+
+const navigation = computed(() => [
     {
         name: 'Dashboard',
         icon: ClipboardDocumentListIcon,
@@ -128,7 +130,8 @@ const navigation = [
         children: [
             {name: 'Products', href: '/products', permission: 'read products'},
             {name: 'Mappings', href: '/product-mappings', permission: 'read product-mappings'},
-            {name: 'Availability', href: '/products/availability', permission: 'read product-availability'},
+            ...(page.props.isCmsUrlSet ? [{name: 'Availability', href: '/products/availability', permission: 'read product-availability'}] : []),
+            ...(!page.props.isCmsUrlSet ? [{name: 'Product Movement', href: '/products/movements', permission: 'read products'}] : []),
             {name: 'Categories', href: '/category-groups?classname=App\\Models\\Product', 'permission': 'read product-categories'},
             {name: 'SubCategories', href: '/categories?classname=App\\Models\\Product', 'permission': 'read product-subcategories'},
             {name: 'Campaign Labels', href: '/tags?classname=App\\Models\\Product', 'permission': 'read product-campaign-labels'},
@@ -297,9 +300,8 @@ const navigation = [
     //     href: 'maps',
     //     permission: 'read vends',
     // },
-]
+]);
 
-const page = usePage()
 const showingNavigationDropdown = ref(false);
 const logoUrl = computed(() => page.props.logoUrl)
 const permissions = page.props.auth.permissions

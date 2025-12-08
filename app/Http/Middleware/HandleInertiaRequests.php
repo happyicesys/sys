@@ -44,7 +44,7 @@ class HandleInertiaRequests extends Middleware
 
         $setting = Setting::query()->first();
         $allowOverrideIds = collect($setting?->allow_overwrite_logo_operator_ids_array ?? [])
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->filter()
             ->unique()
             ->values();
@@ -69,10 +69,10 @@ class HandleInertiaRequests extends Middleware
                 'operator.name' => $operator ? $operator->name : null,
                 'operatorCountry' => $operator ? $operator->country : null,
                 'roles' => function () use ($request) {
-                    return ( $request->user() ? $request->user()->roles->pluck('name')->all() : null );
+                    return ($request->user() ? $request->user()->roles->pluck('name')->all() : null);
                 },
                 'permissions' => function () use ($request) {
-                    return ( $request->user() && $request->user()->roles && $request->user()->roles->first() ? $request->user()->roles->first()->permissions->pluck('name')->all() : null );
+                    return ($request->user() && $request->user()->roles && $request->user()->roles->first() ? $request->user()->roles->first()->permissions->pluck('name')->all() : null);
                 },
                 'operatorRole' => $user ? $user->hasRole('operator') : null,
                 'profile' => $user ? $user->profile : null,
@@ -89,6 +89,7 @@ class HandleInertiaRequests extends Middleware
             'logoUrl' => $logoUrl,
             'smallLogoUrl' => $smallLogoUrl ?: $logoUrl,
             'defaultLogoUrl' => $defaultLogoUrl,
+            'isCmsUrlSet' => !empty(env('CMS_URL')),
         ]);
     }
 }

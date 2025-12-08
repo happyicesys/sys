@@ -574,7 +574,7 @@
                   </Button>
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 hover:cursor-pointer w-fit"
                   @click.prevent="syncCMSInvoices()"
-                  v-if="!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null) && (opsJob.opsJobItems.some(item => item.status >= 3 && item.status != 99))"
+                  v-if="props.cmsBaseUrl && (!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null) && (opsJob.opsJobItems.some(item => item.status >= 3 && item.status != 99)))"
                   >
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">
@@ -583,6 +583,7 @@
                       </span>
                     </span>
                   </Button>
+
                 </div>
                 <div class="flex space-x-1 md:justify-end">
                   <Link :href="'/ops-jobs'">
@@ -760,6 +761,22 @@ function syncCMSInvoices() {
   form.value.post('/ops-jobs/' + opsJob.value.id + '/sync-cms-invoices', {
     onSuccess: () => {
       toast.success("Data Sent to CMS", {
+        timeout: 3000
+      });
+    },
+    preserveState: true,
+    replace: true,
+  })
+}
+
+function syncInventory() {
+  const approval = confirm('Are you sure to sync inventory?');
+  if (!approval) {
+      return;
+  }
+  form.value.post('/ops-jobs/' + opsJob.value.id + '/sync-inventory', {
+    onSuccess: () => {
+      toast.success("Inventory Synced", {
         timeout: 3000
       });
     },
@@ -1076,5 +1093,7 @@ function updateSequence(opsJobItem) {
     replace: true,
   })
 }
+
+
 
 </script>

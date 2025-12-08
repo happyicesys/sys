@@ -33,6 +33,7 @@ class OpsJobItem extends Model
         'flagged_by',
         'is_cash_collected',
         'is_ignore_limit',
+        'is_inventory_adjusted',
         'notes',
         'ops_job_id',
         'previous_ops_job_item_id',
@@ -66,6 +67,7 @@ class OpsJobItem extends Model
         'cms_transaction_at' => 'datetime',
         'flagged_at' => 'datetime',
         'is_ignore_limit' => 'boolean',
+        'is_inventory_adjusted' => 'boolean',
         'picked_at' => 'datetime',
         'remarks_updated_at' => 'datetime',
         'verified_at' => 'datetime',
@@ -82,8 +84,8 @@ class OpsJobItem extends Model
         return Attribute::make(
             // get: fn ($value) => $value != null ? $value / 100 : null,
             // set: fn ($value) => $value != null ? $value * 100 : null,
-            get: fn ($value) => $value / 100,
-            set: fn ($value) => $value * 100,
+            get: fn($value) => $value / 100,
+            set: fn($value) => $value * 100,
         );
     }
 
@@ -91,16 +93,16 @@ class OpsJobItem extends Model
     public function cashlessAmount(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value / 100,
-            set: fn ($value) => $value * 100,
+            get: fn($value) => $value / 100,
+            set: fn($value) => $value * 100,
         );
     }
 
     public function tempCashAmountFromVmc(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value / 100,
-            set: fn ($value) => $value * 100,
+            get: fn($value) => $value / 100,
+            set: fn($value) => $value * 100,
         );
     }
 

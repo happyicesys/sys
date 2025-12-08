@@ -519,6 +519,7 @@ class OpsJobController extends Controller
                 }
                 if ($opsJobItem->customer && $opsJobItem->customer->person_id) {
                     SyncOpsJobTransactionCMS::dispatch($opsJobItem, $data, auth()->user()->id);
+                    $opsJobItem->update(['is_inventory_adjusted' => true]);
                 }
             }
         }
@@ -526,6 +527,19 @@ class OpsJobController extends Controller
 
 
         return redirect()->back();
+    }
+
+    public function syncInventory($id)
+    {
+        $opsJob = OpsJob::with('opsJobItems')->findOrFail($id);
+
+        $opsJob->opsJobItems->each(function ($opsJobItem) {
+            if ($opsJobItem->status >= OpsJob::STATUS_DELIVERED && $opsJobItem->status != OpsJob::STATUS_CANCELLED && !$opsJobItem->is_inventory_adjusted) {
+                $opsJobItem->update(['is_inventory_adjusted' => true]);
+            }
+        });
+
+        return redirect()->back()->with('success', 'Inventory Synced Successfully');
     }
 
     public function edit(Request $request, $id)
@@ -563,6 +577,7 @@ class OpsJobController extends Controller
                         'cms_transaction_by',
                         'cms_transaction_id',
                         'is_cash_collected',
+                        'is_inventory_adjusted',
                         'sequence',
                         'status',
                         'picked_at',
@@ -876,7 +891,6 @@ class OpsJobController extends Controller
                     $opsJobItem->attachments()->delete();
                     $opsJobItem->delete();
                     return redirect()->route('ops-jobs');
-                    break;
             }
         }
 

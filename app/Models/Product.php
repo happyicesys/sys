@@ -111,6 +111,11 @@ class Product extends Model
         return $this->hasMany(ProductLimit::class);
     }
 
+    public function productMovements()
+    {
+        return $this->hasMany(ProductMovement::class);
+    }
+
     public function productSubCategory()
     {
         return $this->belongsTo(ProductSubCategory::class);
@@ -172,24 +177,24 @@ class Product extends Model
     protected function isInventory(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value,
-            set: fn ($value) => $value ? true : false,
+            get: fn($value) => $value,
+            set: fn($value) => $value ? true : false,
         );
     }
 
     protected function isCommission(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value,
-            set: fn ($value) => $value ? true : false,
+            get: fn($value) => $value,
+            set: fn($value) => $value ? true : false,
         );
     }
 
     protected function isSupermarketFee(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value,
-            set: fn ($value) => $value ? true : false,
+            get: fn($value) => $value,
+            set: fn($value) => $value ? true : false,
         );
     }
 
@@ -202,114 +207,114 @@ class Product extends Model
             'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
         ]);
 
-        return $query->when($request->has('visited'), function($query, $search) use ($request) {
-            if($request->visited == 'true') {
+        return $query->when($request->has('visited'), function ($query, $search) use ($request) {
+            if ($request->visited == 'true') {
                 $query->whereRaw('1 = 1');
-            }else {
+            } else {
                 $query->whereRaw('1 = 0');
             }
         })
-        ->when($request->codes, function($query, $search) {
-            if(strpos($search, ',') !== false) {
-                $search = explode(',', $search);
-            }else {
-                $search = [$search];
-            }
-            $query->whereHas('vendChannels.vend', function($query) use ($search) {
-                $query->whereIn('code', $search);
-            });
-        })
-        ->when($request->channel_codes, function($query, $search) {
-            if(strpos($search, ',') !== false) {
-                $search = explode(',', $search);
-            }else {
-                $search = [$search];
-            }
-            $query->whereHas('vendChannels', function($query) use ($search) {
-                $query->whereIn('code', $search);
-            });
-        })
-        ->when($request->customer_code, function($query, $search) {
-            $query->whereHas('vendChannels.vend.customer', function($query) use ($search) {
+            ->when($request->codes, function ($query, $search) {
+                if (strpos($search, ',') !== false) {
+                    $search = explode(',', $search);
+                } else {
+                    $search = [$search];
+                }
+                $query->whereHas('vendChannels.vend', function ($query) use ($search) {
+                    $query->whereIn('code', $search);
+                });
+            })
+            ->when($request->channel_codes, function ($query, $search) {
+                if (strpos($search, ',') !== false) {
+                    $search = explode(',', $search);
+                } else {
+                    $search = [$search];
+                }
+                $query->whereHas('vendChannels', function ($query) use ($search) {
+                    $query->whereIn('code', $search);
+                });
+            })
+            ->when($request->customer_code, function ($query, $search) {
+                $query->whereHas('vendChannels.vend.customer', function ($query) use ($search) {
+                    $query->where('code', 'LIKE', "%{$search}%");
+                });
+            })
+            ->when($request->customer_name, function ($query, $search) {
+                $query->whereHas('vendChannels.vend.customer', function ($query) use ($search) {
+                    $query->where('name', 'LIKE', "%{$search}%");
+                })
+                    ->orWhereHas('vendChannels.vend', function ($query) use ($search) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    });
+            })
+            ->when($request->categories, function ($query, $search) {
+                $query->whereHas('vendChannels.vend.customer.category', function ($query) use ($search) {
+                    $query->whereIn('id', $search);
+                });
+            })
+            ->when($request->categoryGroups, function ($query, $search) {
+                $query->whereHas('vendChannels.vend.customer.category.categoryGroup', function ($query) use ($search) {
+                    $query->whereIn('id', $search);
+                });
+            })
+            ->when($request->is_binded_customer, function ($query, $search) {
+                if ($search != 'all') {
+                    if ($search == 'true') {
+                        $query->has('vendChannels.vend.customer');
+                    } else {
+                        $query->doesntHave('vendChannels.vend.customer');
+                    }
+                }
+            })
+            ->when($request->location_type_id, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereHas('vendChannels.vend.customer', function ($query) use ($search) {
+                        $query->where('location_type_id', $search);
+                    });
+                }
+            })
+            ->when($request->operator_id, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereHas('operator', function ($query) use ($search) {
+                        $query->where('operators.id', $search);
+                    });
+                }
+            })
+            ->when($request->code, function ($query, $search) {
                 $query->where('code', 'LIKE', "%{$search}%");
-            });
-        })
-        ->when($request->customer_name, function($query, $search) {
-            $query->whereHas('vendChannels.vend.customer', function($query) use ($search) {
+            })
+            ->when($request->name, function ($query, $search) {
                 $query->where('name', 'LIKE', "%{$search}%");
             })
-            ->orWhereHas('vendChannels.vend', function($query) use ($search) {
-                $query->where('name', 'LIKE', "%{$search}%");
-            });
-        })
-        ->when($request->categories, function($query, $search) {
-            $query->whereHas('vendChannels.vend.customer.category', function($query) use ($search) {
-                $query->whereIn('id', $search);
-            });
-        })
-        ->when($request->categoryGroups, function($query, $search) {
-            $query->whereHas('vendChannels.vend.customer.category.categoryGroup', function($query) use ($search) {
-                $query->whereIn('id', $search);
-            });
-        })
-        ->when($request->is_binded_customer, function($query, $search) {
-            if($search != 'all') {
-                if($search == 'true') {
-                    $query->has('vendChannels.vend.customer');
-                }else {
-                    $query->doesntHave('vendChannels.vend.customer');
+            ->when($request->is_active, function ($query, $search) {
+                $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            })
+            ->when($request->is_inventory, function ($query, $search) {
+                $query->where('is_inventory', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            })
+            ->when($request->is_comm_or_sf, function ($query, $search) {
+                switch ($search) {
+                    case 'comm':
+                        $query->where('is_commission', 1)->where('is_supermarket_fee', 0);
+                        break;
+                    case 'sf':
+                        $query->where('is_commission', 0)->where('is_supermarket_fee', 1);
+                        break;
+                    case 'both':
+                        $query->where(function ($query) {
+                            $query->where('is_commission', 1)->orWhere('is_supermarket_fee', 1);
+                        });
+                        break;
                 }
-            }
-        })
-        ->when($request->location_type_id, function($query, $search) {
-            if($search != 'all') {
-                $query->whereHas('vendChannels.vend.customer', function($query) use ($search) {
-                    $query->where('location_type_id', $search);
-                });
-            }
-        })
-        ->when($request->operator_id, function($query, $search) {
-            if($search != 'all') {
-                $query->whereHas('operator', function($query) use ($search) {
-                    $query->where('operators.id', $search);
-                });
-            }
-        })
-        ->when($request->code, function($query, $search) {
-            $query->where('code', 'LIKE', "%{$search}%");
-        })
-        ->when($request->name, function($query, $search) {
-            $query->where('name', 'LIKE', "%{$search}%");
-        })
-        ->when($request->is_active, function($query, $search) {
-            $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-        })
-        ->when($request->is_inventory, function($query, $search) {
-            $query->where('is_inventory', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-        })
-        ->when($request->is_comm_or_sf, function($query, $search) {
-            switch($search) {
-                case 'comm':
-                    $query->where('is_commission', 1)->where('is_supermarket_fee', 0);
-                    break;
-                case 'sf':
-                    $query->where('is_commission', 0)->where('is_supermarket_fee', 1);
-                    break;
-                case 'both':
-                    $query->where(function($query)  {
-                        $query->where('is_commission', 1)->orWhere('is_supermarket_fee', 1);
-                    });
-                    break;
-            }
-        })
-        ->when($request->sortKey, function($query, $search) use ($request) {
-            if(strpos($search, '->')) {
-                $inputSearch = explode("->", $search);
-                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
-                ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            }else {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            }
-        });
+            })
+            ->when($request->sortKey, function ($query, $search) use ($request) {
+                if (strpos($search, '->')) {
+                    $inputSearch = explode("->", $search);
+                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                        ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                } else {
+                    $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                }
+            });
     }
 }

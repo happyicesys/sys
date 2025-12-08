@@ -13,7 +13,13 @@
         <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
           <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
             <div class="py-4">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                  <SearchInput placeholderStr="Product ID/ Code" v-model="filters.product_code">
+                    Product ID
+                  </SearchInput>
+                  <SearchInput placeholderStr="Product Name" v-model="filters.product_name">
+                    Product Name
+                  </SearchInput>
                   <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
                       Operator
@@ -31,18 +37,34 @@
                     >
                     </MultiSelect>
                   </div>
+                  <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                      Is Available?
+                    </label>
+                    <MultiSelect
+                      v-model="filters.is_available"
+                      :options="booleanOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="value"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                    >
+                    </MultiSelect>
+                  </div>
               </div>
 
               <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-2">
                   <div class="flex space-x-1">
-                      <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                      @click.prevent="onSearchFilterUpdated()"
-                      >
-                          <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
-                          <span>
-                              Search
-                          </span>
-                      </Button>
+            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            @click.prevent="onSearchFilterUpdated()"
+            >
+                <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
+                <span>
+                    Search
+                </span>
+            </Button>
                       <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                       @click="resetFilters()"
                       >
@@ -217,7 +239,8 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon } from '@heroicons/vue/20/solid';
 import DatePicker from '@/Components/DatePicker.vue';
-import { onBeforeMount, onMounted, ref } from 'vue';
+import SearchInput from '@/Components/SearchInput.vue';
+import { onBeforeMount, onMounted, ref, watch } from 'vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -232,15 +255,21 @@ const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const filters = ref({
-  name: '',
-  code: '',
+  product_name: '',
+  product_code: '',
   is_available: '',
   operators: [],
   productAvailableDate: moment().add(1, 'days').format('YYYY-MM-DD'),
 });
 const today = moment().format('YYYY-MM-DD');
 
+const booleanOptions = ref([])
 onMounted(() => {
+  booleanOptions.value = [
+    {id: 'all', value: 'All'},
+    {id: 'true', value: 'Yes'},
+    {id: 'false', value: 'No'},
+  ]
   operatorOptions.value = [
 			{id: 'all', full_name: 'All'},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
@@ -259,6 +288,12 @@ onMounted(() => {
   filters.value = {
     ...filters.value,
     ...props.products.filters,
+  }
+
+  if(!filters.value.is_available) {
+    filters.value.is_available = booleanOptions.value[0]
+  } else {
+    filters.value.is_available = booleanOptions.value.find(option => option.id === filters.value.is_available)
   }
 })
 
@@ -357,10 +392,12 @@ function onMaxOpsJobPickLimitSelected(id, max_ops_job_pick_limit) {
 }
 
 
+
 function onSearchFilterUpdated() {
   router.get(baseUrl.value, {
     ...filters.value,
     operators: filters.value.operators.map(operator => operator.id),
+    is_available: filters.value.is_available ? filters.value.is_available.id : 'all',
   }, {
     replace: true,
     preserveState: true,
@@ -372,9 +409,6 @@ function resetFilters() {
   router.get(baseUrl.value)
 }
 </script>
-
-
-// Update the state locally without reloading the page
 const updatedProduct = response.data; // Assuming the server returns the updated product
 
 // Find the product in the list and update its max_ops_job_pick_limit

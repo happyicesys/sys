@@ -29,6 +29,7 @@ use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\OpsJobController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductMovementController;
 use App\Http\Controllers\ProductMappingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ResourceCenterController;
@@ -340,6 +341,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/items/{itemID}/toggle/is-ignore-limit', [OpsJobController::class, 'toggleIsIgnoreLimit']);
         Route::post('/{id}/create-cms-empty-invoices', [OpsJobController::class, 'createCmsEmptyInvoices']);
         Route::post('/{id}/sync-cms-invoices', [OpsJobController::class, 'syncCmsInvoices']);
+        Route::post('/{id}/sync-inventory', [OpsJobController::class, 'syncInventory']);
         Route::delete('/items/{itemId}', [OpsJobController::class, 'deleteItem']);
         Route::get('/items/{itemID}/edit', [OpsJobController::class, 'editItem']);
         Route::post('/items/{itemId}/confirm', [OpsJobController::class, 'confirmItem']);
@@ -414,6 +416,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
     });
 
     Route::prefix('products')->group(function () {
+        // Product Movement
+        Route::get('/movements', [ProductMovementController::class, 'index'])->name('product-movements.index');
+        Route::post('/movements', [ProductMovementController::class, 'store'])->name('product-movements.store');
+
         Route::get('/', [ProductController::class, 'index'])->name('products');
         Route::post('/{id}/toggle-activate-deactivate', [ProductController::class, 'toggleActivateDeactivate']);
         Route::post('/{id}/uom-binding', [ProductController::class, 'bindUom']);
@@ -424,9 +430,12 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/update', [ProductController::class, 'update']);
         Route::delete('/{id}', [ProductController::class, 'delete']);
         Route::delete('/selling-prices/{sellingPriceId}', [ProductController::class, 'deleteSellingPrice']);
-        Route::post('/toggle-is-available', [ProductController::class, 'toggleIsAvailable']);
-        Route::post('/{id}/max-ops-job-pick-limit', [ProductController::class, 'updateMaxOpsJobPickLimit']);
         Route::get('/availability', [ProductController::class, 'availability'])->name('products-availability');
+        Route::post('/availability/update-max-ops-job-pick-limit/{product_id}', [ProductController::class, 'updateMaxOpsJobPickLimit'])->name('products-availability.update-max-ops-job-pick-limit');
+        Route::post('/availability/toggle-is-available', [ProductController::class, 'toggleIsAvailable'])->name('products-availability.toggle-is-available');
+
+
+
     });
 
     Route::prefix('product-mappings')->group(function () {

@@ -53,14 +53,14 @@ class ProductController extends Controller
 
         return Inertia::render('Product/Index', [
             'categories' => CategoryResource::collection(
-                    Category::where('classname', $className)
-                        ->orderBy('name')
-                        ->get()
+                Category::where('classname', $className)
+                    ->orderBy('name')
+                    ->get()
             ),
             'categoryGroups' => CategoryGroupResource::collection(
-                    CategoryGroup::where('classname', $className)
-                        ->orderBy('name')
-                        ->get()
+                CategoryGroup::where('classname', $className)
+                    ->orderBy('name')
+                    ->get()
             ),
             'languageOptions' => config('language'),
             'measurementUnitOptions' => Product::MEASUREMENT_UNIT_MAPPINGS,
@@ -70,19 +70,19 @@ class ProductController extends Controller
             'priceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'products' => ProductResource::collection(
                 Product::with([
-                        'attachments',
-                        'category',
-                        'categoryGroup',
-                        'latestUnitCost',
-                        'operator',
-                        'productUoms.uom',
-                        'sellingPrices',
-                        'tagBindings.tag',
-                        'thumbnail',
-                        'unitCosts' => function($query) {
-                            $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
-                        },
-                    ])
+                    'attachments',
+                    'category',
+                    'categoryGroup',
+                    'latestUnitCost',
+                    'operator',
+                    'productUoms.uom',
+                    'sellingPrices',
+                    'tagBindings.tag',
+                    'thumbnail',
+                    'unitCosts' => function ($query) {
+                        $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
+                    },
+                ])
                     ->filterIndex($request)
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
@@ -121,9 +121,9 @@ class ProductController extends Controller
                     ->get()
             ),
             'categoryGroups' => CategoryGroupResource::collection(
-                    CategoryGroup::where('classname', $className)
-                        ->orderBy('name')
-                        ->get()
+                CategoryGroup::where('classname', $className)
+                    ->orderBy('name')
+                    ->get()
             ),
             'languageOptions' => config('language'),
             'measurementUnitOptions' => Product::MEASUREMENT_UNIT_MAPPINGS,
@@ -161,15 +161,15 @@ class ProductController extends Controller
 
         $product = new Product();
         $product = $product->fill($request->all());
-        if(!$request->operator_id) {
+        if (!$request->operator_id) {
             $product->operator_id = auth()->user()->operator_id;
         }
-        if(!$request->measurement_count) {
+        if (!$request->measurement_count) {
             $product->measurement_count = 1;
         }
         $product->save();
 
-        if($request->hasFile('thumbnail')){
+        if ($request->hasFile('thumbnail')) {
             $request->validate([
                 'thumbnail' => 'sometimes|image|max:10000',
             ]);
@@ -188,17 +188,19 @@ class ProductController extends Controller
     public function availability(Request $request)
     {
         // dd($request->operators, $request->all());
-        if($request->operators == null) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
-            }else {
+        if ($request->operators == null) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
                 $request->merge(['operators' => auth()->user()->operator_id]);
             }
         }
@@ -217,9 +219,20 @@ class ProductController extends Controller
                 'productLimits.createdBy',
                 'thumbnail',
             ])
-            ->when($request->operators, function($query, $search) {
-                if(!in_array('all', $search)){
+            ->when($request->operators, function ($query, $search) {
+                if (!in_array('all', $search)) {
                     $query->whereIn('operator_id', $search);
+                }
+            })
+            ->when($request->product_code, function ($query, $search) {
+                $query->where('code', 'LIKE', "%{$search}%");
+            })
+            ->when($request->product_name, function ($query, $search) {
+                $query->where('name', 'LIKE', "%{$search}%");
+            })
+            ->when($request->is_available !== null, function ($query) use ($request) {
+                if ($request->is_available !== 'all') {
+                    $query->where('is_available', filter_var($request->is_available, FILTER_VALIDATE_BOOLEAN));
                 }
             })
             ->select([
@@ -272,10 +285,10 @@ class ProductController extends Controller
 
         $cmsQtyAvailableProducts = $this->cmsService->getCMSQtyAvailableApi();
 
-        foreach($products as $product) {
-            if($cmsQtyAvailableProducts) {
-                foreach($cmsQtyAvailableProducts as $cmsQtyAvailableProduct) {
-                    if($product->code == $cmsQtyAvailableProduct['code']) {
+        foreach ($products as $product) {
+            if ($cmsQtyAvailableProducts) {
+                foreach ($cmsQtyAvailableProducts as $cmsQtyAvailableProduct) {
+                    if ($product->code == $cmsQtyAvailableProduct['code']) {
                         $product->qty_available_pcs_api = $cmsQtyAvailableProduct['qty'];
                         $product->net_available_qty_pcs_api = $cmsQtyAvailableProduct['qty'] - $product->not_yet_sync_api_qty;
                     }
@@ -310,7 +323,7 @@ class ProductController extends Controller
 
         $this->tagBindingService->sync($product, Arr::wrap($request->tags));
 
-        if($request->hasFile('thumbnail')){
+        if ($request->hasFile('thumbnail')) {
             $request->validate([
                 'thumbnail' => 'sometimes|image|max:500',
             ]);
@@ -323,17 +336,17 @@ class ProductController extends Controller
             ]);
         }
 
-        if($request->has('languages')) {
+        if ($request->has('languages')) {
             $product->update([
                 'translated_names_json' => $request->languages
             ]);
         }
 
-        if($request->has('sellingPrices')) {
+        if ($request->has('sellingPrices')) {
             $sellingPrices = $request->sellingPrices;
-            if($sellingPrices) {
-                foreach($sellingPrices as $sellingPrice) {
-                    if(!isset($sellingPrice['id'])) {
+            if ($sellingPrices) {
+                foreach ($sellingPrices as $sellingPrice) {
+                    if (!isset($sellingPrice['id'])) {
                         $product->sellingPrices()->create([
                             'amount' => $sellingPrice['amount'],
                             'type' => $sellingPrice['type'],
@@ -343,12 +356,12 @@ class ProductController extends Controller
             }
         }
 
-        if($request->has('unitCosts')) {
+        if ($request->has('unitCosts')) {
             $unitCosts = $request->unitCosts;
-            if($unitCosts) {
-                foreach($unitCosts as $unitCost) {
-                    if(!isset($unitCost['id'])) {
-                        if($product->unitCosts()->exists()) {
+            if ($unitCosts) {
+                foreach ($unitCosts as $unitCost) {
+                    if (!isset($unitCost['id'])) {
+                        if ($product->unitCosts()->exists()) {
                             $product->unitcosts()->update([
                                 'is_current' => false,
                             ]);
@@ -396,11 +409,11 @@ class ProductController extends Controller
         // dd($request->all());
         $product = Product::findOrFail($productId);
 
-        if($request->is_base_uom) {
+        if ($request->is_base_uom) {
             $product->productUoms()->update(['is_base_uom' => false]);
         }
 
-        if($request->is_transaction_uom) {
+        if ($request->is_transaction_uom) {
             $product->productUoms()->update(['is_transaction_uom' => false]);
         }
 
@@ -421,17 +434,17 @@ class ProductController extends Controller
     {
         $productUom = ProductUom::findOrFail($productUomId);
 
-        if($productUom->is_base_uom) {
-            $assignProductBaseUom =  $productUom->product->productUoms()->where('value', 1)->first();
-            if($assignProductBaseUom) {
+        if ($productUom->is_base_uom) {
+            $assignProductBaseUom = $productUom->product->productUoms()->where('value', 1)->first();
+            if ($assignProductBaseUom) {
                 $assignProductBaseUom->is_base_uom = true;
                 $assignProductBaseUom->save();
             }
         }
 
-        if($productUom->is_transaction_uom) {
-            $assignProductTransactionUom =  $productUom->product->productUoms()->orderBy('value', 'desc')->first();
-            if($assignProductTransactionUom) {
+        if ($productUom->is_transaction_uom) {
+            $assignProductTransactionUom = $productUom->product->productUoms()->orderBy('value', 'desc')->first();
+            if ($assignProductTransactionUom) {
                 $assignProductTransactionUom->is_transaction_uom = true;
                 $assignProductTransactionUom->save();
             }
@@ -462,7 +475,7 @@ class ProductController extends Controller
             'sellingPrices',
             'tagBindings.tag',
             'thumbnail',
-            'unitCosts' => function($query) {
+            'unitCosts' => function ($query) {
                 $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
             },
         ])->findOrFail($productId);
@@ -504,10 +517,10 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($productID);
 
-        if($request->max_ops_job_pick_limit === null) {
+        if ($request->max_ops_job_pick_limit === null) {
             $product->productLimits()
-            ->where('date', '>=', $request->date)
-            ->delete();
+                ->where('date', '>=', $request->date)
+                ->delete();
 
             return redirect()->back();
         }
@@ -526,13 +539,13 @@ class ProductController extends Controller
             'created_by' => auth()->user()->id,
         ]);
 
-            // Find and update any future product limits for the product
+        // Find and update any future product limits for the product
         $product->productLimits()
-        ->where('date', '>', $request->date)
-        ->update([
-            'qty' => $request->max_ops_job_pick_limit,
-            'is_created_by_system' => true,
-        ]);
+            ->where('date', '>', $request->date)
+            ->update([
+                'qty' => $request->max_ops_job_pick_limit,
+                'is_created_by_system' => true,
+            ]);
 
         // Retrieve the current `max_ops_job_pick_limit_json` as an associative array
         $maxOpsJobPickLimitJson = $product->max_ops_job_pick_limit_json;

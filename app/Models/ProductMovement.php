@@ -9,17 +9,24 @@ class ProductMovement extends Model
 {
     use HasFactory;
 
+    const TYPE_INCOMING = 1;
+    const TYPE_ADJUSTMENT = 2;
+
     protected $fillable = [
-        'code',
-        'batch',
-        'date',
+        'product_id',
+        'type',
+        'qty',
+        'operator_id',
         'remarks',
-        'type'
     ];
 
-    // relationships
-    public function productMovementItems()
+    public function product()
     {
-        return $this->hasMany(ProductMovementItem::class);
+        return $this->belongsTo(Product::class);
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 }
