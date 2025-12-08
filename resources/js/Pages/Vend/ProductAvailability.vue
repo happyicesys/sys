@@ -361,7 +361,7 @@ function getProductNeededQtyTotalCost() {
 // Event handlers for availability toggling and limit selection
 function onIsAvailableClicked(product) {
   if(permissions.includes('admin-access product-availability')) {
-    router.post('/products/toggle-is-available', {
+    router.post('/products/availability/toggle-is-available', {
       product_id: product.id
     }, {
         preserveState: true,
@@ -372,7 +372,7 @@ function onIsAvailableClicked(product) {
 }
 
 function onMaxOpsJobPickLimitSelected(id, max_ops_job_pick_limit) {
-  axios.post('/products/' + id + '/max-ops-job-pick-limit', {
+  axios.post('/products/availability/update-max-ops-job-pick-limit/' + id, {
     date: filters.value.productAvailableDate,
     max_ops_job_pick_limit,
   })
