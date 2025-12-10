@@ -40,34 +40,34 @@ class CreateFVMBackDate extends Command
     public function handle()
     {
         $data = [
-            ['vend' => 1802, 'cash' => 506.00, 'cashless' => 298.16],
-            ['vend' => 1806, 'cash' => 163.00, 'cashless' => 212.85],
-            ['vend' => 1808, 'cash' => 50.00,  'cashless' => 140.40],
-            ['vend' => 1809, 'cash' => 428.50, 'cashless' => 0.00],
-            ['vend' => 1810, 'cash' => 0.00,   'cashless' => 413.73],
+            ['vend' => 1802, 'cash' => 287.00, 'cashless' => 305.65],
+            ['vend' => 1806, 'cash' => 149.00, 'cashless' => 240.10],
+            ['vend' => 1808, 'cash' => 66.00, 'cashless' => 251.31],
+            ['vend' => 1809, 'cash' => 616.00, 'cashless' => 0.00],
+            ['vend' => 1810, 'cash' => 0.00, 'cashless' => 313.15],
         ];
 
 
         $dayCountInMonth = Carbon::now()->subMonth()->daysInMonth;
 
-        if($data) {
+        if ($data) {
             foreach ($data as $vend) {
                 $dailyCash = 0;
                 $dailyCashless = 0;
 
-                if($cash = $vend['cash'] * 100) {
+                if ($cash = $vend['cash'] * 100) {
                     // Calculate basic division and remainder for cash
                     $dailyCash = intval($cash / $dayCountInMonth);
                     $cashRemainder = $cash % $dayCountInMonth; // Remainder
                 }
 
-                if($cashless = $vend['cashless'] * 100) {
+                if ($cashless = $vend['cashless'] * 100) {
                     // Calculate basic division and remainder for cashless
                     $dailyCashless = intval($cashless / $dayCountInMonth);
                     $cashlessRemainder = $cashless % $dayCountInMonth; // Remainder
                 }
 
-                for($i = 0; $i < $dayCountInMonth; $i++) {
+                for ($i = 0; $i < $dayCountInMonth; $i++) {
                     if ($dailyCash > 0 || $dailyCashless > 0) {
                         $vendModel = Vend::where('code', $vend['vend'])->firstOrFail(); // Fetch vend model
                     } else {
@@ -117,11 +117,11 @@ class CreateFVMBackDate extends Command
             StoreVendsRecord::dispatch(Carbon::now()->subMonth()->startOfMonth()->toDateString(), Carbon::now()->subMonth()->endOfMonth()->toDateString(), true);
 
 
-            foreach($data as $vend) {
+            foreach ($data as $vend) {
                 $vend = Vend::where('code', $vend['vend'])->firstOrFail();
                 SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
 
-                if($vend->customer) {
+                if ($vend->customer) {
                     SyncVendTransactionTotalsJson::dispatch($vend->customer)->onQueue('default');
                 }
             }
