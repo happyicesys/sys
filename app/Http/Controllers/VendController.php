@@ -1815,6 +1815,18 @@ class VendController extends Controller
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
                     THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
 
+                // Start of New Logic for Success Payment Count (0 or 6 only)
+                DB::raw('CAST(COUNT(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL
+                    THEN 1 ELSE NULL END) AS SIGNED) AS success_payment_count'),
+
+                DB::raw('COUNT(*) AS total_transaction_count'),
+
+                DB::raw('ROUND(COUNT(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL
+                    THEN 1 ELSE NULL END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS success_payment_rate'),
+                // End of New Logic
+
                 DB::raw('ROUND(COALESCE(SUM(CASE
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
                     THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
@@ -1828,7 +1840,7 @@ class VendController extends Controller
                 DB::raw('CAST(SUM(CASE
                     WHEN item_stats.success_items IS NOT NULL THEN item_stats.success_items
                     WHEN item_stats.success_items IS NULL AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
-                         AND is_multiple = 0 THEN 1
+                            AND is_multiple = 0 THEN 1
                     ELSE 0
                 END) AS SIGNED) AS success_total_qty'),
 
@@ -1836,7 +1848,7 @@ class VendController extends Controller
                 DB::raw('ROUND(SUM(CASE
                     WHEN item_stats.success_items IS NOT NULL THEN item_stats.success_items
                     WHEN item_stats.success_items IS NULL AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
-                         AND is_multiple = 0 THEN 1
+                            AND is_multiple = 0 THEN 1
                     ELSE 0
                 END) * 100.0 / NULLIF(SUM(COALESCE(item_stats.total_items, 1)), 0), 2) AS success_total_qty_rate'),
 

@@ -498,26 +498,42 @@
         <!-- <dl class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-5"> -->
         <dl class="grid grid-cols-1 md:grid-cols-4 gap-2">
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Total Revenue {{ operatorCountry.currency_symbol }} (Success)</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">Total Revenue {{ operatorCountry.currency_symbol }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{((totals['success_amount'] ? totals['success_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Transactions Count (Success)</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">Transaction Count</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    <div class="flex flex-col space-y-2">
-                        <span>
-                            {{(totals['success_count'] ? totals['success_count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
-                        </span>
-                        <div class="flex space-x-2 items-center">
-                            <span class="truncate text-xs font-medium text-gray-600">
-                                Success Rate
+                    <div class="flex flex-col space-y-1">
+                        <div class="flex justify-between items-center space-x-2">
+                             <span class="truncate text-xs font-medium text-gray-600">
+                                Successful Payment Cnt:
                             </span>
-                            <span class="text-gray-600 text-base">
-                                {{(totals['success_count_rate'] ? totals['success_count_rate'] : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}%
+                             <span class="text-sm">
+                                {{(totals['success_payment_count'] ? totals['success_payment_count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                             </span>
                         </div>
+
+                         <div class="flex justify-between items-center space-x-2">
+                             <span class="truncate text-xs font-medium text-gray-600">
+                                Total Transaction:
+                            </span>
+                             <span class="text-sm">
+                                {{(totals['total_transaction_count'] ? totals['total_transaction_count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                            </span>
+                        </div>
+
+                         <div class="flex justify-between items-center space-x-2 border-t pt-1 mt-1 border-gray-300">
+                             <span class="truncate text-xs font-medium text-gray-600">
+                                Success Rate:
+                            </span>
+                             <span class="text-sm">
+                                {{(totals['success_payment_rate'] ? totals['success_payment_rate'] : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}%
+                            </span>
+                        </div>
+
                     </div>
                 </dd>
             </div>
@@ -526,7 +542,7 @@
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div class="flex justify-between items-center">
                         <span class="truncate text-xs font-medium text-gray-600">
-                            From Delivery Platform:
+                            From Delivery Platform (Grab):
                         </span>
                         <span>
                             {{(totals['multiple_count_delivery_platform'] ? totals['multiple_count_delivery_platform'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
