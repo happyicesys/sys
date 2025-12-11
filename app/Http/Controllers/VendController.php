@@ -98,7 +98,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
-use Imagick;
+use Intervention\Image\Laravel\Facades\Image;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use Rap2hpoutre\FastExcel\FastExcel;
@@ -1603,16 +1603,10 @@ class VendController extends Controller
         if ($vendChannel) {
             if ($vendChannel->product && $vendChannel->product->thumbnail) {
 
-                // dd($vendChannel->product->thumbnail->full_url);
-                $thumbnail = new Imagick();
-                $thumbnail->readImageBlob(file_get_contents($vendChannel->product->thumbnail->full_url));
-                $thumbnail->resizeImage(500, 500, Imagick::FILTER_LANCZOS, 1);
-                return response($thumbnail, 200)
-                    ->header('Content-Type', 'image/*');
-
-                // $thumbnail = file_get_contents($vendChannel->product->thumbnail->full_url);
-                // return response($thumbnail, 200)
-                //     ->header('Content-Type', 'image/*');
+                $thumbnail = Image::read(file_get_contents($vendChannel->product->thumbnail->full_url));
+                $thumbnail->resize(500, 500);
+                return response($thumbnail->toPng(), 200)
+                    ->header('Content-Type', 'image/png');
             }
         }
 

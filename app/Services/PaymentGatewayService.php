@@ -16,8 +16,8 @@ use Zxing\QrReader;
 use Symfony\Component\BrowserKit\HttpBrowser;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpClient\HttpClient;
-use Imagick;
-use ImagickPixel;
+// use Imagick;
+// use ImagickPixel;
 use Intervention\Image\Laravel\Facades\Image;
 
 class PaymentGatewayService
@@ -115,71 +115,66 @@ class PaymentGatewayService
         // dd(file_get_contents($qrCodeUrl));
         // dd($qrCodeUrl, $isCreateInput, $isRequiredDecode, $isResizeImage);
         $img = false;
-        if($isRequiredDecode) {
-          if($isResizeImage) {
+        if ($isRequiredDecode) {
+            if ($isResizeImage) {
 
-            if($this->isDataUri($qrCodeUrl)) {
-                $imagick = new Imagick();
-                $imagick->readImageBlob($this->decodeDataUri($qrCodeUrl));
-            }elseif(filter_var($qrCodeUrl, FILTER_VALIDATE_URL) !== false) {
-                $imagick = new Imagick();
-                $imagick->readImageBlob(file_get_contents($qrCodeUrl));
-            }else {
-                $imagick = new Imagick($qrCodeUrl);
+                $content = $qrCodeUrl;
+                if ($this->isDataUri($qrCodeUrl)) {
+                    $content = $this->decodeDataUri($qrCodeUrl);
+                } elseif (filter_var($qrCodeUrl, FILTER_VALIDATE_URL) !== false) {
+                    $content = file_get_contents($qrCodeUrl);
+                }
+
+                $image = Image::read($content);
+                $image->resize(150, 150);
+                $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', $image->toPng(), 'public');
+
+
+                // $imagick = new Imagick();
+                // $imagick->setBackgroundColor(new ImagickPixel('transparent'));
+                // $imagick->readImageBlob(file_get_contents($qrCodeUrl));
+                // $imagick->setImageFormat('png24');
+                // $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
+// dd($image->toPng());
+            } else {
+                if ($this->isDataUri($qrCodeUrl)) {
+                    $binary = $this->decodeDataUri($qrCodeUrl);
+                    $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', $binary, 'public');
+                } elseif (isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
+                    $image = Image::read(file_get_contents($qrCodeUrl));
+                    $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', $image->toPng(), 'public');
+                } else {
+                    $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', file_get_contents($qrCodeUrl), 'public');
+                }
             }
+            $url = Storage::url('/qr-code/' . $params['metadata']['order_id'] . '.png');
 
-            $imagick->resizeImage(150, 150, Imagick::FILTER_LANCZOS, 1);
-            $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
-
-
-            // $imagick = new Imagick();
-            // $imagick->setBackgroundColor(new ImagickPixel('transparent'));
-            // $imagick->readImageBlob(file_get_contents($qrCodeUrl));
-            // $imagick->setImageFormat('png24');
-            // $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
-// dd($imagick->getImageBlob());
-          }else {
-            if($this->isDataUri($qrCodeUrl)) {
-              $binary = $this->decodeDataUri($qrCodeUrl);
-              $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $binary, 'public');
-            }elseif(isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
-              $imagick = new Imagick();
-              $imagick->setBackgroundColor(new ImagickPixel('transparent'));
-              $imagick->readImageBlob(file_get_contents($qrCodeUrl));
-              $imagick->setImageFormat('png24');
-              $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
-            }else {
-              $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', file_get_contents($qrCodeUrl), 'public');
-            }
-          }
-          $url = Storage::url('/qr-code/'.$params['metadata']['order_id'].'.png');
-
-          $qrCodeReader = new QrReader($url);
-          $qrCodeText = $qrCodeReader->text([
-              'POSSIBLE_FORMATS' => 'QR_CODE',
-              'TRY_HARDER' => true,
-          ]);
-          Storage::disk('public')->delete('/qr-code/'.$params['metadata']['order_id'].'.png');
-        }else {
-            switch($operatorPaymentGateway->paymentGateway->name) {
+            $qrCodeReader = new QrReader($url);
+            $qrCodeText = $qrCodeReader->text([
+                'POSSIBLE_FORMATS' => 'QR_CODE',
+                'TRY_HARDER' => true,
+            ]);
+            Storage::disk('public')->delete('/qr-code/' . $params['metadata']['order_id'] . '.png');
+        } else {
+            switch ($operatorPaymentGateway->paymentGateway->name) {
                 case 'omise':
-                  if(isset($params['type']) and $params['type'] == 'shopeepay') {
-                    // use crawler programmatically crawl for qr code text
-                    $browser = new HttpBrowser(HttpClient::create());
-                    $crawler = $browser->request('GET', $qrCodeUrl);
-                    $form = $crawler->filter('form')->form();
-                    $firstResponse = $browser->submit($form);
-                    $htmlString = $firstResponse->html();
-                  }else {
-                    $htmlString = Http::get($qrCodeUrl)->body();
-                  }
+                    if (isset($params['type']) and $params['type'] == 'shopeepay') {
+                        // use crawler programmatically crawl for qr code text
+                        $browser = new HttpBrowser(HttpClient::create());
+                        $crawler = $browser->request('GET', $qrCodeUrl);
+                        $form = $crawler->filter('form')->form();
+                        $firstResponse = $browser->submit($form);
+                        $htmlString = $firstResponse->html();
+                    } else {
+                        $htmlString = Http::get($qrCodeUrl)->body();
+                    }
 
-                  $doc = new \DOMDocument;
-                  $doc->loadHTML($htmlString);
-                  $xpath = new \DOMXpath($doc);
-                  $val= $xpath->query('//input[@type="hidden" and @id = "qr_string"]/@value');
-                  $qrCodeText = isset($val[0]) ? $val[0]->nodeValue : null;
-                  break;
+                    $doc = new \DOMDocument;
+                    $doc->loadHTML($htmlString);
+                    $xpath = new \DOMXpath($doc);
+                    $val = $xpath->query('//input[@type="hidden" and @id = "qr_string"]/@value');
+                    $qrCodeText = isset($val[0]) ? $val[0]->nodeValue : null;
+                    break;
             }
         }
 
@@ -202,9 +197,9 @@ class PaymentGatewayService
                 $vendChannel =
                     $vendChannel && $vendChannel->product ?
                     $vend
-                    ->vendChannels()
-                    ->with(['product:id,code,name'])
-                    ->where('code', $vendChannelCode)->first(['id', 'code', 'product_id']) :
+                        ->vendChannels()
+                        ->with(['product:id,code,name'])
+                        ->where('code', $vendChannelCode)->first(['id', 'code', 'product_id']) :
                     [
                         'code' => $vendChannelCode,
                         'product' => null,
@@ -247,10 +242,10 @@ class PaymentGatewayService
     {
         $paymentGateway = $this->getOperatorPaymentGateway($vend);
         $operatorPaymentGateway = $paymentGateway->getOperatorPaymentGateway();
-        if(!$params['amount']) {
+        if (!$params['amount']) {
             $this->errorService->throwErrorWithMqtt('Amount is not set', $vend);
         }
-        if(!$params['metadata']) {
+        if (!$params['metadata']) {
             $this->errorService->throwErrorWithMqtt('OrderID is not set within metadata', $vend);
         }
 
@@ -279,7 +274,7 @@ class PaymentGatewayService
 
         $response = $paymentGateway->createPayment($processedParams);
 
-        if($response->failed()) {
+        if ($response->failed()) {
             $this->errorService->throwErrorWithMqtt('Payment creation failed: ' . $response->body(), $vend);
         }
 
@@ -318,7 +313,7 @@ class PaymentGatewayService
                             $obj->setOperatorPaymentGateway($operatorPaymentGateway);
                             return $obj;
                             break;
-                        case 'omise' :
+                        case 'omise':
                             $obj = new Omise($operatorPaymentGateway->key1, $operatorPaymentGateway->key2);
                             $obj->setOperatorPaymentGateway($operatorPaymentGateway);
                             return $obj;

@@ -543,17 +543,30 @@
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Total Qty (Success)</dt>
+                <dt class="truncate text-sm font-medium text-gray-500">Total Qty</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    <div class="flex flex-col space-y-2">
-                        <span>
-                            {{(totals['success_total_qty'] ? totals['success_total_qty'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
-                        </span>
-                        <div class="flex space-x-2 items-center">
+                    <div class="flex flex-col">
+                        <div class="flex justify-between items-center space-x-2">
                             <span class="truncate text-xs font-medium text-gray-600">
-                                Success Rate
+                                Dispensed:
                             </span>
-                            <span class="text-gray-600 text-base">
+                             <span class="text-lg">
+                                {{Number(totals['success_total_qty'] ? totals['success_total_qty'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                            </span>
+                        </div>
+                         <div class="flex justify-between items-center space-x-2">
+                            <span class="truncate text-xs font-medium text-gray-600">
+                                Purchased:
+                            </span>
+                             <span class="text-lg">
+                                {{Number(totals['total_qty'] ? totals['total_qty'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                            </span>
+                        </div>
+                         <div class="flex justify-between items-center space-x-2 border-t pt-1 mt-1 border-gray-300">
+                            <span class="truncate text-xs font-medium text-gray-600">
+                                Dispensing Rate:
+                            </span>
+                             <span class="text-lg">
                                 {{(totals['success_total_qty_rate'] ? totals['success_total_qty_rate'] : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}%
                             </span>
                         </div>
