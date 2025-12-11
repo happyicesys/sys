@@ -542,18 +542,18 @@
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div class="flex justify-between items-center">
                         <span class="truncate text-xs font-medium text-gray-600">
-                            From Delivery Platform (Grab):
-                        </span>
-                        <span>
-                            {{(totals['multiple_count_delivery_platform'] ? totals['multiple_count_delivery_platform'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="truncate text-xs font-medium text-gray-600">
                             From Machine:
                         </span>
                         <span>
                             {{(totals['multiple_count_machine'] ? totals['multiple_count_machine'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="truncate text-xs font-medium text-gray-600">
+                            From Delivery Platform (Grab):
+                        </span>
+                        <span>
+                            {{(totals['multiple_count_delivery_platform'] ? totals['multiple_count_delivery_platform'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                         </span>
                     </div>
                 </dd>
@@ -641,7 +641,7 @@
                             Channels Error
                         </TableHead>
                         <TableHead>
-                            Payment Received
+                            Payment Status
                         </TableHead>
                         <TableHead>
                             Refunded?
@@ -780,7 +780,7 @@
                             <div
                                 v-for="tag in normalizedLabels(vendTransaction)"
                                 :key="(tag.id ?? tag.slug ?? tag) + '-' + vendTransaction.id"
-                                class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs border w-fit hover:cursor-default bd-indigo-300 bg-indigo-100 text-indigo-800"
+                                class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs border w-fit hover:cursor-default border-indigo-300 bg-indigo-100 text-indigo-800"
                                 title="Label"
                             >
                                 <span class="font-semibold grow-0">
@@ -1189,6 +1189,7 @@ function chipClass(tag) {
 function normalizedLabels(tx) {
   // Accept: array of objects, array of IDs, or JSON string
   let raw = tx.labelJson;
+  console.log('Transaction Labels Debug:', tx.id, raw); // Temporary Debug
 
   if (!raw) return [];
 
