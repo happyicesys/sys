@@ -511,7 +511,7 @@
                              <span class="truncate text-xs font-medium text-gray-600">
                                 Successful Payment Cnt:
                             </span>
-                             <span class="text-sm">
+                             <span class="text-lg">
                                 {{(totals['success_payment_count'] ? totals['success_payment_count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                             </span>
                         </div>
@@ -520,7 +520,7 @@
                              <span class="truncate text-xs font-medium text-gray-600">
                                 Total Transaction:
                             </span>
-                             <span class="text-sm">
+                             <span class="text-lg">
                                 {{(totals['total_transaction_count'] ? totals['total_transaction_count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                             </span>
                         </div>
@@ -529,7 +529,7 @@
                              <span class="truncate text-xs font-medium text-gray-600">
                                 Success Rate:
                             </span>
-                             <span class="text-sm">
+                             <span class="text-lg">
                                 {{(totals['success_payment_rate'] ? totals['success_payment_rate'] : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}%
                             </span>
                         </div>
