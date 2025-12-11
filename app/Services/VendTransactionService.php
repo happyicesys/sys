@@ -100,14 +100,14 @@ class VendTransactionService
                     $this->updateVendPaymentTimestamps(
                         $vend,
                         $transaction->transaction_datetime instanceof Carbon
-                            ? $transaction->transaction_datetime->copy()
-                            : Carbon::parse($transaction->transaction_datetime),
+                        ? $transaction->transaction_datetime->copy()
+                        : Carbon::parse($transaction->transaction_datetime),
                         $processedInput['paymentClassification'] ?? null
                     );
                 }
 
-                if($processedInput['vouchers']) {
-                    foreach($processedInput['vouchers'] as $voucher) {
+                if ($processedInput['vouchers']) {
+                    foreach ($processedInput['vouchers'] as $voucher) {
                         $this->voucherService->updateUsedVoucher($voucher['code']);
                     }
                 }
@@ -120,7 +120,7 @@ class VendTransactionService
             }
 
             // store vend transaction id if found delivery platform order
-            if($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
+            if ($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
                 $deliveryPlatformOrder->update([
                     'vend_transaction_id' => $vendTransaction->id,
                     'status' => DeliveryPlatformOrder::STATUS_DISPENSED > $deliveryPlatformOrder->status ? DeliveryPlatformOrder::STATUS_DISPENSED : $deliveryPlatformOrder->status,
@@ -132,7 +132,7 @@ class VendTransactionService
                 ]);
             }
 
-            if($paymentGatewayLog = PaymentGatewayLog::where('order_id', $vendTransaction->order_id)->first()) {
+            if ($paymentGatewayLog = PaymentGatewayLog::where('order_id', $vendTransaction->order_id)->first()) {
                 $vendTransaction->update([
                     'payment_gateway_log_id' => $paymentGatewayLog->id,
                 ]);
@@ -160,8 +160,8 @@ class VendTransactionService
         SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
 
         if ($vendTransaction) {
-// dd(sizeof($processedInput['children']), $processedInput['children']);
-            if(sizeof($processedInput['children']) > 1) {
+            // dd(sizeof($processedInput['children']), $processedInput['children']);
+            if (sizeof($processedInput['children']) > 1) {
                 foreach ($processedInput['children'] as $child) {
                     $this->createVendTransactionItem($vendTransaction, $child);
                 }
@@ -398,15 +398,15 @@ class VendTransactionService
         $vendChannelError = VendChannelError::where('code', $input['errorCode'])->where('code', '!=', 0)->first();
 
         // hardcode when 0 and 6 error code means successful dispense
-        if($input['errorCode'] == '0' or $input['errorCode'] == '6') {
+        if ($input['errorCode'] == '0' or $input['errorCode'] == '6') {
             $isPaymentReceived = true;
             $isSuccessful = true;
         }
         // 0, 7, 6, 9
 
         // handle those QR payment and grab mart, treat as payment received by default
-        if($paymentMethod) {
-            if(isset(Midtrans::PAYMENT_METHOD_MAPPING[$paymentMethod->code]) or isset(Omise::PAYMENT_METHOD_MAPPING[$paymentMethod->code]) or Grab::PAYMENT_METHOD_GRABMART == $paymentMethod->code) {
+        if ($paymentMethod) {
+            if (isset(Midtrans::PAYMENT_METHOD_MAPPING[$paymentMethod->code]) or isset(Omise::PAYMENT_METHOD_MAPPING[$paymentMethod->code]) or Grab::PAYMENT_METHOD_GRABMART == $paymentMethod->code) {
                 $isPaymentReceived = true;
             }
         }
@@ -417,9 +417,9 @@ class VendTransactionService
         // }
 
         // mapping product ID, and find unit cost, gst rate
-        if(isset($vendChannel) and $vendChannel and $vend->productMapping()->exists()) {
+        if (isset($vendChannel) and $vendChannel and $vend->productMapping()->exists()) {
             $productMappingItem = $vend->productMapping->productMappingItems()->where('channel_code', $vendChannel->code)->first();
-            if($productMappingItem) {
+            if ($productMappingItem) {
                 $product = $productMappingItem->product;
                 $unitCost = $product->unitCosts()->where('is_current', true)->first();
                 $gstVatRate = $product->operator ? $product->operator->gst_vat_rate : 0;
@@ -427,7 +427,7 @@ class VendTransactionService
         }
 
         // handle not found vend channel
-        if(!$vendChannel and $input['vendChannelCode'] != 0){
+        if (!$vendChannel and $input['vendChannelCode'] != 0) {
             $vendChannel = $this->createVendChannel($vend->id, $input['vendChannelCode']);
         }
 
@@ -476,7 +476,47 @@ class VendTransactionService
         $data['amount'] = isset($input['Price']) ? (isset($input['transf_info']) ? ($input['Price'] * 100) : $input['Price']) : 0;
         $data['dcvendUserID'] = isset($input['dcvend_user_id']) ? $input['dcvend_user_id'] : null;
         $data['dcvendDiscountAmount'] = isset($input['dcvend_discount_amount']) ? $input['dcvend_discount_amount'] : null;
-        $data['label'] = isset($input['label']) ? $input['label'] : null;
+        // Process labels: Legacy 'label' + New 'campaign_label_pivot'
+        $labels = [];
+
+        // 1. Handle legacy 'label' (could be string, JSON string, or array)
+        if (isset($input['label'])) {
+            $raw = $input['label'];
+            if (is_array($raw)) {
+                $labels = array_merge($labels, $raw);
+            } elseif (is_string($raw)) {
+                // Try decoding if it's a JSON string
+                $decoded = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $labels = array_merge($labels, $decoded);
+                } else {
+                    // Otherwise treat as a single label string
+                    $labels[] = $raw;
+                }
+            }
+        }
+
+        // 2. Handle 'campaign_label_pivot' -> resolve to "slug(id)"
+        if (isset($input['campaign_label_pivot']) && is_array($input['campaign_label_pivot']) && !empty($input['campaign_label_pivot'])) {
+            $pivotIds = $input['campaign_label_pivot'];
+
+            // Assume 'campaign_tag' table exists and has 'id' as primary key
+            $tags = DB::table('campaign_tag as ct')
+                ->join('campaigns as c', 'ct.campaign_id', '=', 'c.id')
+                ->whereIn('ct.id', $pivotIds)
+                ->select('c.slug', 'ct.id as pivot_id')
+                ->get();
+
+            foreach ($tags as $tag) {
+                if ($tag->slug) {
+                    $labels[] = $tag->slug . '(' . $tag->pivot_id . ')';
+                }
+            }
+        }
+
+        // Deduplicate and assign
+        $labels = array_values(array_unique($labels));
+        $data['label'] = !empty($labels) ? $labels : null;
         $data['orderID'] = isset($input['ORDRID']) ? $input['ORDRID'] : null;
         $data['paymentMethodCode'] = isset($input['PAY_TYPE']) ? $input['PAY_TYPE'] : null;
         $data['planItemID'] = isset($input['plan_item_id']) ? $input['plan_item_id'] : null;
@@ -497,7 +537,7 @@ class VendTransactionService
         $data['success_qty'] = in_array($normalizedErrorCode, $successErrorCodes, true) ? 1 : 0;
         $data['dispensed_qty'] = in_array($normalizedErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
 
-        if(isset($input['transf_info']) and sizeof($input['transf_info']) == 1) {
+        if (isset($input['transf_info']) and sizeof($input['transf_info']) == 1) {
             $data['qty'] = 1;
             $data['isMultiple'] = false;
             $data['errorCode'] = $input['transf_info'][0]['SErr'];
@@ -508,12 +548,12 @@ class VendTransactionService
             $data['dispensed_qty'] = in_array($singleErrorCode, $dispensedErrorCodes, true) ? 1 : 0;
         }
 
-        if(isset($input['transf_info']) and sizeof($input['transf_info']) > 1) {
+        if (isset($input['transf_info']) and sizeof($input['transf_info']) > 1) {
             $data['isMultiple'] = true;
             $data['qty'] = sizeof($input['transf_info']);
             $data['success_qty'] = 0;
             $data['dispensed_qty'] = 0;
-            foreach($input['transf_info'] as $trans) {
+            foreach ($input['transf_info'] as $trans) {
                 $childAmount = $this->extractChildAmountCents($trans);
                 $transErrorCode = is_numeric($trans['SErr']) ? (int) $trans['SErr'] : null;
                 $childSuccessQty = in_array($transErrorCode, $successErrorCodes, true) ? 1 : 0;
@@ -551,13 +591,13 @@ class VendTransactionService
             'vendTransactionItems.product.thumbnail',
             'vendTransactionItems.vendChannelError:id,code',
         ])
-        ->find($vendTransactionID);
+            ->find($vendTransactionID);
 
         $data = [
             'id' => $vendTransaction->id,
             'apk_ver' => isset($vendTransaction->apk_ver_json['apkver']) ? $vendTransaction->apk_ver_json['apkver'] : null,
             'datetime' => $vendTransaction->created_at,
-            'firmware_ver' => isset($vendTransaction->parameter_json['Ver']) ? ($vendTransaction->parameter_json['Ver']).toString(16) : null,
+            'firmware_ver' => isset($vendTransaction->parameter_json['Ver']) ? ($vendTransaction->parameter_json['Ver']) . toString(16) : null,
             'total_amount' => $vendTransaction->amount,
             'customer_id' => $vendTransaction->customer_id,
             'customer_name' => $vendTransaction->customer?->name,
@@ -575,8 +615,8 @@ class VendTransactionService
             'vouchers' => isset($vendTransaction->meta_json['vouchers']) ? $vendTransaction->meta_json['vouchers'] : null,
         ];
 
-        if($vendTransaction->vendTransactionItems) {
-            $data['items'] = $vendTransaction->vendTransactionItems->map(function($item){
+        if ($vendTransaction->vendTransactionItems) {
+            $data['items'] = $vendTransaction->vendTransactionItems->map(function ($item) {
                 return [
                     'product_id' => $item->product?->id,
                     'product_name' => $item->product?->name,
@@ -591,8 +631,8 @@ class VendTransactionService
             });
         }
 
-        if(count($vendTransaction->vendTransactionItems) == 0 and isset($vendTransaction->vend_transaction_json['transf_info']) and count($vendTransaction->vend_transaction_json['transf_info']) > 0) {
-            foreach($vendTransaction->vend_transaction_json['transf_info'] as $transfInfo) {
+        if (count($vendTransaction->vendTransactionItems) == 0 and isset($vendTransaction->vend_transaction_json['transf_info']) and count($vendTransaction->vend_transaction_json['transf_info']) > 0) {
+            foreach ($vendTransaction->vend_transaction_json['transf_info'] as $transfInfo) {
 
                 $product = Product::find($transfInfo['goods_id']);
                 $vendChannel = VendChannel::where('code', $transfInfo['SId'])->where('vend_id', $vendTransaction->vend_id)->first();
@@ -603,7 +643,7 @@ class VendTransactionService
                     'product_thumbnail_url' => $product?->thumbnail?->full_url,
                     'qty' => 1,
                     'vend_channel_code' => $transfInfo['SId'],
-                    'vend_channel_id' =>  $vendChannel->id,
+                    'vend_channel_id' => $vendChannel->id,
                     'vend_channel_error_code' => $transfInfo['SErr'],
                     'vend_channel_error_name' => $vendChannelError->desc,
                     'vend_channel_error_id' => $vendChannelError->id,
@@ -618,7 +658,7 @@ class VendTransactionService
     {
         $vends = Vend::with('customer')->has('customer')->where('is_active', true)->get();
 
-        foreach($vends as $vend) {
+        foreach ($vends as $vend) {
             SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
         }
     }
