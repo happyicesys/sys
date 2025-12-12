@@ -38,7 +38,8 @@ class ExportVendTransactionCsv implements ShouldQueue
     public function handle()
     {
         $job = ExportJob::find($this->jobId);
-        if (!$job) return;
+        if (!$job)
+            return;
 
         $user = User::find($this->userID ?? $job->user_id);
 
@@ -53,14 +54,16 @@ class ExportVendTransactionCsv implements ShouldQueue
 
             if (!$request->operators) {
                 if ($user->operator->code == 'HIPL') {
-                    $request->merge(['operators' => [
-                        $user->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
-                    ]]);
+                    $request->merge([
+                        'operators' => [
+                            $user->operator_id,
+                            Operator::where('code', 'HIMD')->first()?->id,
+                            Operator::where('code', 'LEA')->first()?->id,
+                            Operator::where('code', 'DCVIC')->first()?->id,
+                            Operator::where('code', 'HIESG')->first()?->id,
+                            Operator::where('code', 'IP')->first()?->id,
+                        ]
+                    ]);
                 } else {
                     $request->merge(['operators' => [$user->operator_id]]);
                 }
@@ -72,12 +75,33 @@ class ExportVendTransactionCsv implements ShouldQueue
             $stream = fopen('php://temp', 'r+');
 
             fputcsv($stream, [
-                'Order ID', 'Transaction Datetime', 'Machine ID', 'Machine Prefix',
-                'Customer ID', 'Customer Code', 'Customer Name', 'Channel',
-                'Product Code', 'Product Name', 'Price Type', 'Amount', 'Amount Breakdown',
-                'Unit Cost', 'Payment Method', 'Error Code', 'Location Type',
-                'Operator', 'Is Successful', 'Is Refunded', 'Is Multiple',
-                'Multiple Qty', 'TXN Source', 'Member ID', 'HID Card ID', 'Voucher', 'Campaign Labels'
+                'Order ID',
+                'Transaction Datetime',
+                'Machine ID',
+                'Machine Prefix',
+                'Customer ID',
+                'Customer Code',
+                'Customer Name',
+                'Channel',
+                'Product Code',
+                'Product Name',
+                'Price Type',
+                'Amount',
+                'Amount Breakdown',
+                'Unit Cost',
+                'Payment Method',
+                'Error Code',
+                'Location Type',
+                'Operator',
+                'Payment Successful',
+                'Is Refunded',
+                'Is Multiple',
+                'Multiple Qty',
+                'TXN Source',
+                'Member ID',
+                'HID Card ID',
+                'Voucher',
+                'Campaign Labels'
             ]);
 
             VendTransaction::query()
@@ -127,21 +151,22 @@ class ExportVendTransactionCsv implements ShouldQueue
                         'unitCost:id,cost',
                         'vendChannelError:id,code,desc',
                     ])->whereIn('vend_transaction_id', $transactionIds)
-                    ->get()
-                    ->groupBy('vend_transaction_id');
+                        ->get()
+                        ->groupBy('vend_transaction_id');
 
                     // Collect all label values (ints and strings) across this chunk
                     $rawLabelVals = $transactions->pluck('label_ids_json')
                         ->filter()
                         ->flatMap(function ($val) {
-                            if (is_array($val)) return $val;
-                            $arr = json_decode($val, true);
-                            return is_array($arr) ? $arr : [];
-                        });
+                        if (is_array($val))
+                            return $val;
+                        $arr = json_decode($val, true);
+                        return is_array($arr) ? $arr : [];
+                    });
 
                     $tagIds = $rawLabelVals
                         ->filter(fn($v) => is_int($v) || (is_string($v) && ctype_digit($v)))
-                        ->map(fn($v) => (int)$v)
+                        ->map(fn($v) => (int) $v)
                         ->unique()
                         ->values();
 
@@ -152,15 +177,15 @@ class ExportVendTransactionCsv implements ShouldQueue
 
                     // Fetch tags by id or by name/slug
                     $tagsById = Tag::whereIn('id', $tagIds)
-                        ->get(['id','name','slug'])
+                        ->get(['id', 'name', 'slug'])
                         ->keyBy('id');
 
                     $tagsByNameSlug = $tagNames->isEmpty()
                         ? []
                         : Tag::whereIn('name', $tagNames)
                             ->orWhereIn('slug', $tagNames)
-                            ->get(['id','name','slug'])
-                            ->reduce(function($carry, $tag) {
+                            ->get(['id', 'name', 'slug'])
+                            ->reduce(function ($carry, $tag) {
                                 $carry[$tag->name] = $tag;
                                 $carry[$tag->slug] = $tag;
                                 return $carry;
@@ -175,11 +200,11 @@ class ExportVendTransactionCsv implements ShouldQueue
                         // Build labels string honoring provided order
                         $labelStr = collect($vals)->map(function ($v) use ($tagsById, $tagsByNameSlug) {
                             if (is_int($v) || (is_string($v) && ctype_digit($v))) {
-                                $t = $tagsById->get((int)$v);
+                                $t = $tagsById->get((int) $v);
                             } else {
                                 $t = $tagsByNameSlug[$v] ?? null;
                             }
-                            return $t->name ?? $t->slug ?? (string)$v;
+                            return $t->name ?? $t->slug ?? (string) $v;
                         })->implode(', ');
 
                         // existing JSON parsing
@@ -218,7 +243,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $txn->vend_channel_error_code,
                             $txn->location_type_name,
                             $txn->operator_code,
-                            in_array($txn->vend_channel_error_code, [null,0,6]) ? 'Successful' : 'Unsuccessful',
+                            in_array($txn->vend_channel_error_code, [null, 0, 6]) ? 'Successful' : 'Unsuccessful',
                             $txn->is_refunded ? 'Yes' : '',
                             $txn->is_multiple ? 'Yes' : 'No',
                             $txn->is_multiple ? $txnItems->count() : 1,
@@ -239,18 +264,18 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 $txn->customer_id + 20000,
                                 $txn->person_id ? $txn->virtual_customer_code : '',
                                 $txn->customer_name,
-                                (int)$item->vend_channel_code,
+                                (int) $item->vend_channel_code,
                                 $item->product->code ?? '',
                                 $item->product->name ?? '',
                                 'P1',
                                 '',
                                 $item->vendChannel ? $item->vendChannel->amount / 100 : '',
                                 $item->unitCost ? $item->unitCost->cost : '',
-                                $txn->payment_method_name,
+                                '',
                                 $item->vendChannelError->code ?? '',
                                 $txn->location_type_name,
                                 $txn->operator_code,
-                                in_array($item->vendChannelError->code ?? null, [null,0,6]) ? 'Successful' : 'Unsuccessful',
+                                '',
                                 '',
                                 $txn->is_multiple ? 'Yes' : 'No',
                                 0,

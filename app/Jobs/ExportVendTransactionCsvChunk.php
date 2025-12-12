@@ -44,12 +44,14 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
     public function handle()
     {
         $job = ExportJob::find($this->jobId);
-        if (!$job) return;
+        if (!$job)
+            return;
 
         $chunk = ExportJobChunk::where('export_job_id', $this->jobId)
             ->where('chunk_index', $this->chunkIndex)
             ->first();
-        if (!$chunk) return;
+        if (!$chunk)
+            return;
 
 
         $user = User::find($this->userID ?? $job->user_id);
@@ -65,14 +67,16 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
 
             if (!$request->operators) {
                 if ($user->operator->code == 'HIPL') {
-                    $request->merge(['operators' => [
-                        $user->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
-                    ]]);
+                    $request->merge([
+                        'operators' => [
+                            $user->operator_id,
+                            Operator::where('code', 'HIMD')->first()?->id,
+                            Operator::where('code', 'LEA')->first()?->id,
+                            Operator::where('code', 'DCVIC')->first()?->id,
+                            Operator::where('code', 'HIESG')->first()?->id,
+                            Operator::where('code', 'IP')->first()?->id,
+                        ]
+                    ]);
                 } else {
                     $request->merge(['operators' => [$user->operator_id]]);
                 }
@@ -85,12 +89,33 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
             $stream = fopen('php://temp', 'r+');
 
             fputcsv($stream, [
-                'Order ID', 'Transaction Datetime', 'Machine ID', 'Machine Prefix',
-                'Customer ID', 'Customer Code', 'Customer Name', 'Channel',
-                'Product Code', 'Product Name', 'Price Type', 'Amount', 'Amount Breakdown',
-                'Unit Cost', 'Payment Method', 'Error Code', 'Location Type',
-                'Operator', 'Is Successful', 'Is Refunded', 'Is Multiple',
-                'Multiple Qty', 'TXN Source', 'Member ID', 'HID Card ID', 'Voucher', 'Campaign Labels'
+                'Order ID',
+                'Transaction Datetime',
+                'Machine ID',
+                'Machine Prefix',
+                'Customer ID',
+                'Customer Code',
+                'Customer Name',
+                'Channel',
+                'Product Code',
+                'Product Name',
+                'Price Type',
+                'Amount',
+                'Amount Breakdown',
+                'Unit Cost',
+                'Payment Method',
+                'Error Code',
+                'Location Type',
+                'Operator',
+                'Payment Successful',
+                'Is Refunded',
+                'Is Multiple',
+                'Multiple Qty',
+                'TXN Source',
+                'Member ID',
+                'HID Card ID',
+                'Voucher',
+                'Campaign Labels'
             ]);
 
             VendTransaction::query()
@@ -142,22 +167,23 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                         'unitCost:id,cost',
                         'vendChannelError:id,code,desc',
                     ])
-                    ->whereIn('vend_transaction_id', $transactionIds)
-                    ->get()
-                    ->groupBy('vend_transaction_id');
+                        ->whereIn('vend_transaction_id', $transactionIds)
+                        ->get()
+                        ->groupBy('vend_transaction_id');
 
                     // 🔹 Collect all label values (ints and strings) across this chunk
                     $rawLabelVals = $transactions->pluck('label_ids_json')
                         ->filter()
                         ->flatMap(function ($val) {
-                            if (is_array($val)) return $val;
-                            $arr = json_decode($val, true);
-                            return is_array($arr) ? $arr : [];
-                        });
+                        if (is_array($val))
+                            return $val;
+                        $arr = json_decode($val, true);
+                        return is_array($arr) ? $arr : [];
+                    });
 
                     $tagIds = $rawLabelVals
                         ->filter(fn($v) => is_int($v) || (is_string($v) && ctype_digit($v)))
-                        ->map(fn($v) => (int)$v)
+                        ->map(fn($v) => (int) $v)
                         ->unique()
                         ->values();
 
@@ -168,7 +194,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
 
                     // 🔹 Fetch tags by id
                     $tagsById = Tag::whereIn('id', $tagIds)
-                        ->get(['id','name','slug'])
+                        ->get(['id', 'name', 'slug'])
                         ->keyBy('id');
 
                     // 🔹 Fetch tags by name or slug and index by both values
@@ -176,12 +202,12 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                         ? []
                         : Tag::whereIn('name', $tagNames)
                             ->orWhereIn('slug', $tagNames)
-                            ->get(['id','name','slug'])
-                            ->reduce(function($carry, $tag) {
-                                $carry[$tag->name] = $tag;
-                                $carry[$tag->slug] = $tag;
-                                return $carry;
-                            }, []);
+                            ->get(['id', 'name', 'slug'])
+                            ->reduce(function ($carry, $tag) {
+                            $carry[$tag->name] = $tag;
+                            $carry[$tag->slug] = $tag;
+                            return $carry;
+                        }, []);
 
                     foreach ($transactions as $txn) {
                         // Normalize label values for this txn (could be ints or strings)
@@ -191,14 +217,14 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
 
                         // Build Labels string honoring provided order
                         $labelStr = collect($vals)
-                            ->map(function($v) use ($tagsById, $tagsByNameSlug) {
-                                if (is_int($v) || (is_string($v) && ctype_digit($v))) {
-                                    $t = $tagsById->get((int)$v);
-                                } else {
-                                    $t = $tagsByNameSlug[$v] ?? null;
-                                }
-                                return $t->name ?? $t->slug ?? (string)$v;
-                            })
+                            ->map(function ($v) use ($tagsById, $tagsByNameSlug) {
+                            if (is_int($v) || (is_string($v) && ctype_digit($v))) {
+                                $t = $tagsById->get((int) $v);
+                            } else {
+                                $t = $tagsByNameSlug[$v] ?? null;
+                            }
+                            return $t->name ?? $t->slug ?? (string) $v;
+                        })
                             ->implode(', ');
 
                         // existing JSON parsing
@@ -214,7 +240,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
 
                         $main_amount = $txn->amount / 100;
                         $multipleBreakdown = $txn->is_multiple
-                            ? ($txn->amount - $txnItems->sum(fn ($item) => $item->vendChannel?->amount ?? 0)) / 100
+                            ? ($txn->amount - $txnItems->sum(fn($item) => $item->vendChannel?->amount ?? 0)) / 100
                             : $main_amount;
 
                         // ✏️ Parent row — append $labelStr at the end
@@ -265,11 +291,11 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 '',
                                 $item->vendChannel ? $item->vendChannel->amount / 100 : '',
                                 $item->unitCost ? $item->unitCost->cost : '',
-                                $txn->payment_method_name,
+                                '',
                                 $item->vendChannelError->code ?? '',
                                 $txn->location_type_name,
                                 $txn->operator_code,
-                                in_array($item->vendChannelError->code ?? null, [null, 0, 6]) ? 'Successful' : 'Unsuccessful',
+                                '',
                                 '',
                                 $txn->is_multiple ? 'Yes' : 'No',
                                 0,

@@ -848,66 +848,67 @@ class ReportController extends Controller
 
         // d0 = yesterday of end date, d1 = -2 days, d2 = -3 days
         $d0 = Carbon::parse($pivotDates['d0'])->toDateString();
-        $d1 = Carbon::parse($pivotDates['d1'])->toDateString();
-        $d2 = Carbon::parse($pivotDates['d2'])->toDateString();
+        // $d1 = Carbon::parse($pivotDates['d1'])->toDateString();
+        // $d2 = Carbon::parse($pivotDates['d2'])->toDateString();
 
         // ----- Build a single canonical header list (order matters) -----
         $headers = [
+            'Date',
             'Product ID',
             'Product Name',
 
-            "{$d0} Unit Cost",
-            "{$d0} Stock Value",
-            "{$d0} Qty in Machine",
-            "{$d0} Qty in Warehouse",
-            "{$d0} Stock Cost",
-            "{$d0} Dollar Value",
+            "Unit Cost",
+            "Stock Value",
+            "Qty in Machine",
+            "Qty in Warehouse",
+            "Stock Cost",
 
-            "{$d1} Unit Cost",
-            "{$d1} Stock Value",
-            "{$d1} Qty in Machine",
-            "{$d1} Qty in Warehouse",
-            "{$d1} Stock Cost",
-            "{$d1} Dollar Value",
+            // "{$d1} Unit Cost",
+            // "{$d1} Stock Value",
+            // "{$d1} Qty in Machine",
+            // "{$d1} Qty in Warehouse",
+            // "{$d1} Stock Cost",
+            // "{$d1} Dollar Value",
 
-            "{$d2} Unit Cost",
-            "{$d2} Stock Value",
-            "{$d2} Qty in Machine",
-            "{$d2} Qty in Warehouse",
-            "{$d2} Stock Cost",
-            "{$d2} Dollar Value",
+            // "{$d2} Unit Cost",
+            // "{$d2} Stock Value",
+            // "{$d2} Qty in Machine",
+            // "{$d2} Qty in Warehouse",
+            // "{$d2} Stock Cost",
+            // "{$d2} Dollar Value",
         ];
 
         $template = array_fill_keys($headers, null);
 
         // Helper to build a product row with all keys present
-        $makeProductRow = function ($r) use ($template, $d0, $d1, $d2) {
+        $makeProductRow = function ($r) use ($template, $d0) {
             $row = $template;
 
+            $row['Date'] = $d0;
             $row['Product ID'] = $r->product_code;
             $row['Product Name'] = $r->product_name;
 
             // d0
-            $row["{$d0} Unit Cost"] = (float) ($r->unit_cost_d0 ?? 0);
-            $row["{$d0} Stock Value"] = (float) ($r->stock_value_d0 ?? 0);
-            $row["{$d0} Qty in Machine"] = (int) ($r->qty_vend_d0 ?? 0);
-            $row["{$d0} Qty in Warehouse"] = (int) ($r->qty_warehouse_d0 ?? 0);
-            $row["{$d0} Stock Cost"] = (float) ($r->stock_cost_d0 ?? 0);
+            $row["Unit Cost"] = (float) ($r->unit_cost_d0 ?? 0);
+            $row["Stock Value"] = (float) ($r->stock_value_d0 ?? 0);
+            $row["Qty in Machine"] = (int) ($r->qty_vend_d0 ?? 0);
+            $row["Qty in Warehouse"] = (int) ($r->qty_warehouse_d0 ?? 0);
+            $row["Stock Cost"] = (float) ($r->stock_cost_d0 ?? 0);
             // Dollar Value left null for product rows
 
-            // d1
-            $row["{$d1} Unit Cost"] = (float) ($r->unit_cost_d1 ?? 0);
-            $row["{$d1} Stock Value"] = (float) ($r->stock_value_d1 ?? 0);
-            $row["{$d1} Qty in Machine"] = (int) ($r->qty_vend_d1 ?? 0);
-            $row["{$d1} Qty in Warehouse"] = (int) ($r->qty_warehouse_d1 ?? 0);
-            $row["{$d1} Stock Cost"] = (float) ($r->stock_cost_d1 ?? 0);
+            // // d1
+            // $row["{$d1} Unit Cost"] = (float) ($r->unit_cost_d1 ?? 0);
+            // $row["{$d1} Stock Value"] = (float) ($r->stock_value_d1 ?? 0);
+            // $row["{$d1} Qty in Machine"] = (int) ($r->qty_vend_d1 ?? 0);
+            // $row["{$d1} Qty in Warehouse"] = (int) ($r->qty_warehouse_d1 ?? 0);
+            // $row["{$d1} Stock Cost"] = (float) ($r->stock_cost_d1 ?? 0);
 
-            // d2
-            $row["{$d2} Unit Cost"] = (float) ($r->unit_cost_d2 ?? 0);
-            $row["{$d2} Stock Value"] = (float) ($r->stock_value_d2 ?? 0);
-            $row["{$d2} Qty in Machine"] = (int) ($r->qty_vend_d2 ?? 0);
-            $row["{$d2} Qty in Warehouse"] = (int) ($r->qty_warehouse_d2 ?? 0);
-            $row["{$d2} Stock Cost"] = (float) ($r->stock_cost_d2 ?? 0);
+            // // d2
+            // $row["{$d2} Unit Cost"] = (float) ($r->unit_cost_d2 ?? 0);
+            // $row["{$d2} Stock Value"] = (float) ($r->stock_value_d2 ?? 0);
+            // $row["{$d2} Qty in Machine"] = (int) ($r->qty_vend_d2 ?? 0);
+            // $row["{$d2} Qty in Warehouse"] = (int) ($r->qty_warehouse_d2 ?? 0);
+            // $row["{$d2} Stock Cost"] = (float) ($r->stock_cost_d2 ?? 0);
 
             return $row;
         };
@@ -916,38 +917,39 @@ class ReportController extends Controller
         $exportRows = $rows->map($makeProductRow);
 
         // Helper to build KPI rows with only "Dollar Value" filled
-        $makeKpiRow = function (string $label, $d0Val, $d1Val, $d2Val) use ($template, $d0, $d1, $d2) {
+        $makeKpiRow = function (string $label, $d0Val, $d1Val, $d2Val) use ($template, $d0) {
             $row = $template;
+            $row['Date'] = $d0;
             $row['Product ID'] = null;
             $row['Product Name'] = $label;
 
-            $row["{$d0} Dollar Value"] = (float) ($d0Val ?? 0);
-            $row["{$d1} Dollar Value"] = (float) ($d1Val ?? 0);
-            $row["{$d2} Dollar Value"] = (float) ($d2Val ?? 0);
+            // $row["{$d0} Dollar Value"] = (float) ($d0Val ?? 0);
+            // $row["{$d1} Dollar Value"] = (float) ($d1Val ?? 0);
+            // $row["{$d2} Dollar Value"] = (float) ($d2Val ?? 0);
             return $row;
         };
 
         // Append the 3 KPI rows (values already RM from getStockCountPivot3dQuery)
-        $exportRows->push($makeKpiRow(
-            'Receivable - Daily cash sales',
-            $totals->cash_sales_amount_d0 ?? 0,
-            $totals->cash_sales_amount_d1 ?? 0,
-            $totals->cash_sales_amount_d2 ?? 0,
-        ));
+        // $exportRows->push($makeKpiRow(
+        //     'Receivable - Daily cash sales',
+        //     $totals->cash_sales_amount_d0 ?? 0,
+        //     $totals->cash_sales_amount_d1 ?? 0,
+        //     $totals->cash_sales_amount_d2 ?? 0,
+        // ));
 
-        $exportRows->push($makeKpiRow(
-            'Receivable - Daily cashless sales',
-            $totals->cashless_sales_amount_d0 ?? 0,
-            $totals->cashless_sales_amount_d1 ?? 0,
-            $totals->cashless_sales_amount_d2 ?? 0,
-        ));
+        // $exportRows->push($makeKpiRow(
+        //     'Receivable - Daily cashless sales',
+        //     $totals->cashless_sales_amount_d0 ?? 0,
+        //     $totals->cashless_sales_amount_d1 ?? 0,
+        //     $totals->cashless_sales_amount_d2 ?? 0,
+        // ));
 
-        $exportRows->push($makeKpiRow(
-            'Coin Float in machines',
-            $totals->coin_float_amount_d0 ?? 0,
-            $totals->coin_float_amount_d1 ?? 0,
-            $totals->coin_float_amount_d2 ?? 0,
-        ));
+        // $exportRows->push($makeKpiRow(
+        //     'Coin Float in machines',
+        //     $totals->coin_float_amount_d0 ?? 0,
+        //     $totals->coin_float_amount_d1 ?? 0,
+        //     $totals->coin_float_amount_d2 ?? 0,
+        // ));
 
         // --- Stream the file ---
         return (new FastExcel($this->yieldOneByOne($exportRows)))
