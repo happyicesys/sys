@@ -108,6 +108,12 @@ class Operator extends Model
         return $this->hasMany(Vend::class)->orderBy('code');
     }
 
+    public function operatorCallbacks()
+    {
+        return $this->hasMany(OperatorCallback::class);
+    }
+
+
     // scopes
     public function scopeActive($query)
     {

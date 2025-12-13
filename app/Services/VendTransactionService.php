@@ -177,6 +177,19 @@ class VendTransactionService
         if ($processedInput['dcvendUserID']) {
             SendDataToDcvend::dispatch($vendTransaction->id, $processedInput['dcvendUserID'])->onQueue('default');
         }
+
+        // Send Callback
+        if ($vendTransaction && $vend->operator) {
+            $callback = $vend->operator->operatorCallbacks()->where('code', 'transaction_upload')->first();
+            if ($callback) {
+                // Use Resource for customizable payload
+                $resource = new \App\Http\Resources\Callback\TransactionCallbackResource($vendTransaction);
+                // Resolve resource to array
+                $payload = $resource->resolve();
+
+                \App\Jobs\SendOperatorCallback::dispatch($callback->url, $payload)->onQueue('default');
+            }
+        }
     }
 
     private function createVendTransaction($vend, $input, $isCurrentTime)

@@ -90,6 +90,10 @@ Route::get('/', function () {
 
 Route::post('/SetPara2', [VendDataController::class, 'create']);
 
+Route::get('/client/api-docs', function () {
+    return Inertia::render('Client/ApiDocs');
+});
+
 Route::middleware(['auth', 'cors'])->group(function () {
 
     Route::prefix('apk-settings')->group(function () {
@@ -307,6 +311,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/unbind-vend', [OperatorController::class, 'unbindVend']);
         Route::post('/{id}/delivery-platform/create', [OperatorController::class, 'bindDeliveryPlatform']);
         Route::delete('/delivery-platform/{delivery_platform_operator_id}', [OperatorController::class, 'unbindDeliveryPlatform']);
+        Route::post('/{id}/callbacks', [OperatorController::class, 'storeOperatorCallback'])->name('operators.store-callback');
+        Route::delete('/callbacks/{id}', [OperatorController::class, 'deleteOperatorCallback'])->name('operators.delete-callback');
     });
 
     Route::prefix('operator-payment-gateways')->group(function () {

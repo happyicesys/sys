@@ -48,6 +48,20 @@ class AlertEmailService
             ]);
         }
 
+        // Send Callback
+        if ($operator) {
+            $callback = $operator->operatorCallbacks()->where('code', 'channel_error_alert')->first();
+            if ($callback) {
+                \App\Jobs\SendOperatorCallback::dispatch($callback->url, [
+                    'event' => 'channel_error_alert',
+                    'operator_id' => $operator->id,
+                    'occurred_at' => now()->toIso8601String(),
+                    'errors' => $vendErrorsByVend->toArray(), // Beware of size
+                    'vend_count' => $vendCount,
+                ])->onQueue('default');
+            }
+        }
+
         return $emails->count();
     }
 
@@ -61,7 +75,7 @@ class AlertEmailService
         $recipientCount = $this->queueVendNotification(
             $vend,
             'is_send_offline_notification',
-            fn () => new VendOfflineNotificationMail((int) $vend->getKey(), $thresholdMinutes),
+            fn() => new VendOfflineNotificationMail((int) $vend->getKey(), $thresholdMinutes),
             'VendOfflineNotificationMail',
             [
                 'threshold_minutes' => $thresholdMinutes,
@@ -81,6 +95,19 @@ class AlertEmailService
             ]);
         }
 
+        // Send Callback
+        if ($vend->operator) {
+            $callback = $vend->operator->operatorCallbacks()->where('code', 'vend_offline_alert')->first();
+            if ($callback) {
+                \App\Jobs\SendOperatorCallback::dispatch($callback->url, [
+                    'event' => 'vend_offline_alert',
+                    'vend_code' => $vend->code,
+                    'occurred_at' => now()->toIso8601String(),
+                    'threshold_minutes' => $thresholdMinutes,
+                ])->onQueue('default');
+            }
+        }
+
         return $recipientCount;
     }
 
@@ -94,7 +121,7 @@ class AlertEmailService
         $recipientCount = $this->queueVendNotification(
             $vend,
             'is_send_power_restored_notification',
-            fn () => new VendPowerRestoredNotificationMail((int) $vend->getKey(), $thresholdMinutes),
+            fn() => new VendPowerRestoredNotificationMail((int) $vend->getKey(), $thresholdMinutes),
             'VendPowerRestoredNotificationMail',
             [
                 'threshold_minutes' => $thresholdMinutes,
@@ -112,6 +139,19 @@ class AlertEmailService
                 ],
                 'occurred_at' => now(),
             ]);
+        }
+
+        // Send Callback
+        if ($vend->operator) {
+            $callback = $vend->operator->operatorCallbacks()->where('code', 'vend_power_restored_alert')->first();
+            if ($callback) {
+                \App\Jobs\SendOperatorCallback::dispatch($callback->url, [
+                    'event' => 'vend_power_restored_alert',
+                    'vend_code' => $vend->code,
+                    'occurred_at' => now()->toIso8601String(),
+                    'threshold_minutes' => $thresholdMinutes,
+                ])->onQueue('default');
+            }
         }
 
         return $recipientCount;
@@ -156,7 +196,7 @@ class AlertEmailService
         ]));
 
         $payload = $vendSummaries
-            ->map(fn ($summary) => $summary)
+            ->map(fn($summary) => $summary)
             ->values()
             ->all();
 
@@ -182,7 +222,7 @@ class AlertEmailService
             ->where($flag, true)
             ->where(function ($q) use ($operatorId) {
                 $q->whereNull('operator_id')
-                  ->orWhere('operator_id', $operatorId);
+                    ->orWhere('operator_id', $operatorId);
             })
             ->pluck('email')
             ->filter()

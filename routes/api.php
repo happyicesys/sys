@@ -18,16 +18,20 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::prefix('client')
-    // ->middleware(['throttle:client'])
-    // ->middleware('auth:api')
-    ->group(function() {
-        Route::post('/transactions', [ClientController::class, 'getTransactions']);
-        Route::post('/channels', [ClientController::class, 'getChannels']);
+Route::prefix('v1')->group(function () {
+    Route::prefix('client')
+        ->middleware(['throttle:client'])
+        ->middleware('auth:api')
+        ->group(function () {
+            Route::post('/transactions', [ClientController::class, 'getTransactions']);
+            Route::post('/machine-status', [ClientController::class, 'getChannels']);
+        });
+
+    // Legacy support for existing endpoint
+    Route::prefix('client')->group(function () {
         Route::post('/dcvends', [VendController::class, 'getAllDCVends']);
     });
 
-Route::prefix('v1')->group(function() {
     Route::post('/vend-data', [VendDataController::class, 'create']);
     // Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
     Route::post('/customers/person/{personID?}', [CustomerController::class, 'getCustomersByPersonID']);
@@ -37,17 +41,17 @@ Route::prefix('v1')->group(function() {
     Route::post('/vends/{id}/upload-log', [VendDataController::class, 'uploadLog']);
     Route::post('/content/vends/{code}', [VendDataController::class, 'getVendMediaContent']);
 
-    Route::prefix('customers')->group(function() {
+    Route::prefix('customers')->group(function () {
         Route::post('/people', [CustomerController::class, 'syncNextDeliveryDate']);
     });
 
-    Route::prefix('ops-jobs')->group(function() {
+    Route::prefix('ops-jobs')->group(function () {
         Route::post('/item/{opsJobItemID}', [OpsJobController::class, 'syncOpsJobItem']);
     });
 });
 
-Route::prefix('delivery')->group(function() {
-    Route::prefix('grab')->group(function() {
+Route::prefix('delivery')->group(function () {
+    Route::prefix('grab')->group(function () {
         Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class, 'getCategories']);
         Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getGrabMenu']);
         Route::get('/oauth/{deliveryPlatformOperatorId}', [DeliveryPlatformController::class, 'getOauth']);
@@ -59,22 +63,22 @@ Route::prefix('delivery')->group(function() {
     Route::post('/order/complaint', [DeliveryPlatformController::class, 'submitGrabOrderComplaint']);
 });
 
-Route::prefix('hid-cards')->group(function() {
+Route::prefix('hid-cards')->group(function () {
     Route::post('/search', [HidCardController::class, 'search']);
 });
 
-Route::prefix('vouchers')->group(function() {
+Route::prefix('vouchers')->group(function () {
     Route::get('/dcvend', [VoucherController::class, 'getDCVends']);
     Route::post('/search', [VoucherController::class, 'search']);
     Route::post('/details', [VoucherController::class, 'getVoucherDetails']);
 });
 
 // Internal api
-Route::prefix('customers')->group(function() {
+Route::prefix('customers')->group(function () {
     Route::get('/search/{search?}', [CustomerController::class, 'search']);
 });
 
-Route::prefix('vends')->group(function() {
+Route::prefix('vends')->group(function () {
     Route::get('/search/{code?}', [VendController::class, 'searchVendCode']);
     Route::get('/search/operator/{code?}', [VendController::class, 'searchVendCodeWithOperator']);
     Route::get('/{vendCode}/vend-channels/{vendChanelCode}/thumbnail', [VendController::class, 'getVendChannelThumnail']);

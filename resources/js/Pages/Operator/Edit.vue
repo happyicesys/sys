@@ -129,8 +129,8 @@
               </div>
               <div class="sm:col-span-6">
                 <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
-                  Remarks
-                </FormTextarea>
+                    Remarks
+                  </FormTextarea>
               </div>
               <div class="sm:col-span-6">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
@@ -545,6 +545,36 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Callbacks </span>
+                  </div>
+                </div>
+              </div>
+
+               <div class="sm:col-span-6 mt-3" v-if="form.id">
+                  <FormInput v-model="form.transaction_callback_url" :error="form.errors.transaction_callback_url" placeholder="https://example.com/webhook/transaction">
+                      Transaction Callback URL
+                  </FormInput>
+                  <p class="text-xs text-gray-500 mt-2">
+                      Triggered when a new transaction is uploaded (Event: transaction_upload).
+                  </p>
+               </div>
+
+               <div class="sm:col-span-6 mt-3" v-if="form.id">
+                  <FormInput v-model="form.alert_callback_url" :error="form.errors.alert_callback_url" placeholder="https://example.com/webhook/alert">
+                      Alert Callback URL
+                  </FormInput>
+                  <p class="text-xs text-gray-500 mt-2">
+                      Triggered for system alerts: Machine Offline, Power Restored, and Channel Errors.
+                  </p>
+               </div>
+
+
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
                     <span class="px-3 bg-white text-lg font-medium text-gray-900"> Machine(s) </span>
                   </div>
                 </div>
@@ -738,6 +768,7 @@ const props = defineProps({
   const initialLogoUrl = ref(null)
   const tempLogoPreview = ref(null)
   const toast = useToast()
+  // const operatorCallbacks = ref([])
 
   const displayedLogoUrl = computed(() => {
     if (tempLogoPreview.value) {
@@ -800,6 +831,20 @@ onMounted(() => {
         })
       : useForm(getDefaultForm());
 
+    // hydrate new fields
+    if (props.operator && props.operator.data.operatorCallbacks) {
+        const callbacks = props.operator.data.operatorCallbacks;
+        const txnCb = callbacks.find(c => c.code === 'transaction_upload');
+        const alertCb = callbacks.find(c => ['channel_error_alert', 'vend_offline_alert', 'vend_power_restored_alert'].includes(c.code));
+
+        if (txnCb) form.value.transaction_callback_url = txnCb.url;
+        if (alertCb) form.value.alert_callback_url = alertCb.url;
+    }
+
+    // operatorCallbacks.value = props.operator?.data?.operatorCallbacks || [];
+});
+
+
 
     timezoneOptions.value = props.timezones.map((timezone, index) => {return {id: index, name: timezone}})
     operatorPaymentGatewayTypes.value = props.operatorPaymentGatewayTypes
@@ -809,7 +854,7 @@ onMounted(() => {
 
     hydrateLogoState()
 
-})
+
 
 function getDefaultForm() {
   return {
@@ -838,7 +883,10 @@ function getDefaultForm() {
     vend_id: '',
     vend_id_value: '',
     logo: null,
+    logo: null,
     logo_remove: false,
+    transaction_callback_url: '',
+    alert_callback_url: '',
   }
 }
 

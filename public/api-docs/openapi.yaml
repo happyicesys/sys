@@ -1,0 +1,235 @@
+openapi: 3.0.3
+info:
+  title: Client API
+  version: 1.2.1
+  description: >
+    API documentation for accessing transaction records and machine status.
+    All requests must be authenticated using a Bearer Token.
+
+servers:
+  - url: /api/v1/client
+    description: Production Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Transaction:
+      type: object
+      properties:
+        amount:
+          type: string
+          example: "5.00"
+        order_id:
+          type: string
+          example: "ORD-123456"
+        payment_method:
+          type: string
+          example: "Cashless"
+        product_id:
+          type: string
+          example: "P-001"
+        product_name:
+          type: string
+          example: "Cola 330ml"
+        transaction_datetime:
+          type: string
+          format: date-time
+          example: "2023-10-25 14:30:00"
+        vend_id:
+          type: string
+          example: "1001"
+        vend_name:
+          type: string
+          example: "Mall Entrance A"
+        channel:
+          type: string
+          example: "10"
+        error:
+          type: integer
+          nullable: true
+          example: null
+
+    VendChannel:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "10"
+        qty:
+          type: integer
+          example: 5
+        capacity:
+          type: integer
+          example: 10
+        price:
+          type: number
+          format: float
+          example: 2.50
+        product:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "P-001"
+            name:
+              type: string
+              example: "Cola 330ml"
+
+    MachineStatus:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "1001"
+        name:
+          type: string
+          example: "Mall Entrance A"
+        is_online:
+          type: boolean
+          example: true
+        is_door_open:
+          type: string
+          example: "No"
+        is_temp_error:
+          type: boolean
+          example: false
+        last_updated_at:
+          type: string
+          example: "2 mins ago"
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendChannel'
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "The given data was invalid."
+        errors:
+          type: object
+          x-additionalPropertiesName: field_name
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            date_from:
+              - "The date from field is required."
+            codes:
+              - "The codes must be a string."
+
+security:
+  - bearerAuth: []
+
+paths:
+  /transactions:
+    post:
+      operationId: getTransactions
+      summary: Get Transactions
+      description: >
+        Retrieve a filtered list of vending transactions.
+        **Note:** Date range must not exceed 12 months.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - date_from
+                - date_to
+              properties:
+                date_from:
+                  type: string
+                  format: date
+                  description: Start date (YYYY-MM-DD).
+                  example: "2023-10-01"
+                date_to:
+                  type: string
+                  format: date
+                  description: End date (YYYY-MM-DD). Max 12 months range.
+                  example: "2023-10-31"
+                codes:
+                  type: string
+                  description: Comma-separated list of machine codes.
+                  example: "1001,1002"
+                order_id:
+                  type: string
+                  description: Filter by specific Order ID.
+                  example: "Exxxxx"
+                page:
+                  type: integer
+                  description: Page number.
+                  default: 1
+                per_page:
+                  type: integer
+                  description: Items per page (max 100).
+                  default: 50
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  meta:
+                    type: object
+                    description: Pagination metadata
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /machine-status:
+    post:
+      operationId: getMachineStatus
+      summary: Get Machine Status
+      description: >
+        Retrieve status and stock levels for **Active** machines.
+        Inactive machines are excluded.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                codes:
+                  type: string
+                  description: Comma-separated list of machine codes.
+                  example: "1001"
+                page:
+                  type: integer
+                  default: 1
+                per_page:
+                  type: integer
+                  default: 50
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MachineStatus'
+                  meta:
+                    type: object
+                    description: Pagination metadata

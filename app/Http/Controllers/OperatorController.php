@@ -61,12 +61,12 @@ class OperatorController extends Controller
                     'country:id,name,code,currency_name,currency_symbol',
                     'vends:id,code,customer_id,is_active',
                     'vends.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
-                    ])
-                    ->when($request->name, function($query, $search) {
+                ])
+                    ->when($request->name, function ($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($sortKey, function ($query, $search) use ($sortBy) {
+                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
@@ -154,32 +154,33 @@ class OperatorController extends Controller
                 'address',
                 'address.country',
                 'country',
-                'vends' => function($query) use ($request) {
+                'vends' => function ($query) use ($request) {
                     $query
-                    ->when($request->is_active_vend, function($query, $search) {
-                        if($search != 'all') {
-                            $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-                        }
-                    })
-                    ->when($request->vend_code, function($query, $search) {
-                        $query->where('code', 'LIKE', '%'.$search.'%');
-                    });
+                        ->when($request->is_active_vend, function ($query, $search) {
+                            if ($search != 'all') {
+                                $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                            }
+                        })
+                        ->when($request->vend_code, function ($query, $search) {
+                            $query->where('code', 'LIKE', '%' . $search . '%');
+                        });
                     $query->select('id', 'code', 'name', 'customer_id', 'operator_id');
                 },
-                'vends.customer' => function($query) use ($request) {
+                'vends.customer' => function ($query) use ($request) {
                     $query
-                    ->when($request->prefix_code, function($query, $search) {
-                        $query->where(function($query) use ($search) {
-                            $query->where('virtual_customer_prefix', 'LIKE', '%'.$search.'%')
-                                ->orWhere('virtual_customer_code', 'LIKE', '%'.$search.'%');
+                        ->when($request->prefix_code, function ($query, $search) {
+                            $query->where(function ($query) use ($search) {
+                                $query->where('virtual_customer_prefix', 'LIKE', '%' . $search . '%')
+                                    ->orWhere('virtual_customer_code', 'LIKE', '%' . $search . '%');
+                            });
+                        })
+                        ->when($request->name, function ($query, $search) {
+                            $query->where('name', 'LIKE', '%' . $search . '%');
                         });
-                    })
-                    ->when($request->name, function($query, $search) {
-                        $query->where('name', 'LIKE', '%'.$search.'%');
-                    });
                     $query->select('id', 'code', 'name', 'virtual_customer_code', 'virtual_customer_prefix', 'operator_id', 'person_id', 'is_active');
                 },
                 'deliveryPlatformOperators.deliveryPlatform',
+                'operatorCallbacks',
                 'operatorPaymentGateways.paymentGateway',
                 'logo',
             ])
@@ -187,7 +188,7 @@ class OperatorController extends Controller
         $timezones = DateTimeZone::listIdentifiers();
         $setting = Setting::query()->first();
         $logoOverrideOperatorIds = collect($setting?->allow_overwrite_logo_operator_ids_array ?? [])
-            ->map(fn ($value) => (int) $value)
+            ->map(fn($value) => (int) $value)
             ->filter()
             ->unique()
             ->values()
@@ -204,18 +205,18 @@ class OperatorController extends Controller
             'countryDeliveryPlatforms' =>
                 DeliveryPlatformResource::collection(
                     DeliveryPlatform::with(['country'])
-                    ->when($request->country_id, function($query, $search) {
-                        $query->where('country_id', $search);
-                    })
-                    ->orderBy('name')
-                    ->get()
+                        ->when($request->country_id, function ($query, $search) {
+                            $query->where('country_id', $search);
+                        })
+                        ->orderBy('name')
+                        ->get()
                 )
             ,
             'countryPaymentGateways' =>
                 PaymentGatewayResource::collection(
                     PaymentGateway::with(['country'])
-                    ->orderBy('name')
-                    ->get()
+                        ->orderBy('name')
+                        ->get()
                 )
             ,
             'deliveryPlatformOperatorTypes' => [
@@ -224,18 +225,18 @@ class OperatorController extends Controller
             ],
             'emailUserOptions' => UserResource::collection(
                 User::query()
-                    ->select('id','name','email','operator_id','is_active')
+                    ->select('id', 'name', 'email', 'operator_id', 'is_active')
                     ->where('is_active', true)
-                    ->where(function($query) {
+                    ->where(function ($query) {
                         $operatorId = auth()->user()->operator_id;
                         $isHappyIce = $operatorId == 1;
                         if (!$isHappyIce && $operatorId) {
                             // Include users from current operator OR superuser group (operator_id = 1)
-                            $query->where(function($q) use ($operatorId) {
-                                $q->whereHas('operator', function($oq) use ($operatorId) {
+                            $query->where(function ($q) use ($operatorId) {
+                                $q->whereHas('operator', function ($oq) use ($operatorId) {
                                     $oq->where('id', $operatorId);
                                 })
-                                ->orWhere('operator_id', 1);
+                                    ->orWhere('operator_id', 1);
                             });
                         }
                         // If superuser, show all active users by default
@@ -296,12 +297,12 @@ class OperatorController extends Controller
             'country_id' => 'required',
             'name' => 'required',
             'timezone' => 'required',
-            'email_recipients' => ['nullable','array'],
-            'email_recipients.*.email' => ['required','email'],
-            'email_recipients.*.label' => ['nullable','string','max:255'],
+            'email_recipients' => ['nullable', 'array'],
+            'email_recipients.*.email' => ['required', 'email'],
+            'email_recipients.*.label' => ['nullable', 'string', 'max:255'],
         ]);
 
-        if(!$request->has('gst_vat_rate') or $request->gst_vat_rate == null) {
+        if (!$request->has('gst_vat_rate') or $request->gst_vat_rate == null) {
             $request->merge(['gst_vat_rate' => 0]);
         }
         $operator = Operator::create(
@@ -325,7 +326,7 @@ class OperatorController extends Controller
         $userEmails = User::whereIn('id', $operator->email_recipients_json['user_ids'] ?? [])
             ->whereNotNull('email')
             ->pluck('email');
-            // dd($userEmails);
+        // dd($userEmails);
         $this->syncAlertEmailItemsGeneric($operator, $userEmails->merge($customEmails));
 
 
@@ -354,11 +355,13 @@ class OperatorController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email_user_ids' => ['nullable','array'],
-            'email_user_ids.*' => ['integer','exists:users,id'],
-            'email_customs' => ['nullable','array'],
-            'email_customs.*.email' => ['required','email'],
-            'email_customs.*.label' => ['nullable','string','max:255'],
+            'email_user_ids' => ['nullable', 'array'],
+            'email_user_ids.*' => ['integer', 'exists:users,id'],
+            'email_customs' => ['nullable', 'array'],
+            'email_customs.*.email' => ['required', 'email'],
+            'email_customs.*.label' => ['nullable', 'string', 'max:255'],
+            'transaction_callback_url' => ['nullable', 'url', 'max:255'],
+            'alert_callback_url' => ['nullable', 'url', 'max:255'],
         ]);
 
         if ($request->hasFile('logo')) {
@@ -379,7 +382,7 @@ class OperatorController extends Controller
 
             $uploadedLogo = $request->file('logo');
             $image = Image::read($uploadedLogo)
-                ->scaleDown(400, 400, fn ($constraint) => $constraint->upsize());
+                ->scaleDown(400, 400, fn($constraint) => $constraint->upsize());
 
             $extension = $uploadedLogo->getClientOriginalExtension() ?: 'png';
             $filename = Str::uuid() . '.' . strtolower($extension);
@@ -406,7 +409,7 @@ class OperatorController extends Controller
 
         // Update the rest of the fields
         $payload = collect($request->all())
-            ->except(['email_user_ids','email_customs','logo','logo_remove'])
+            ->except(['email_user_ids', 'email_customs', 'logo', 'logo_remove', 'transaction_callback_url', 'alert_callback_url'])
             ->toArray();
         $operator->update($payload);
 
@@ -425,28 +428,52 @@ class OperatorController extends Controller
 
         $operator->email_recipients_json = [
             'user_ids' => $userIds->all(),
-            'customs'  => $customs->all(),
+            'customs' => $customs->all(),
         ];
         $operator->save();
 
         // Flatten to email items (with user_id when available) for alert_email_items
         $userEmailItems = User::whereIn('id', $userIds)
             ->whereNotNull('email')
-            ->get(['id','email'])
+            ->get(['id', 'email'])
             ->map(fn($u) => [
-                'email'   => strtolower(trim((string) $u->email)),
+                'email' => strtolower(trim((string) $u->email)),
                 'user_id' => (int) $u->id,
             ]);
 
         $customEmailItems = $customs->pluck('email')
             ->map(fn($e) => [
-                'email'   => strtolower(trim((string) $e)),
+                'email' => strtolower(trim((string) $e)),
                 'user_id' => null,
             ]);
 
         $items = $userEmailItems->merge($customEmailItems);
 
         $this->syncAlertEmailItemsGeneric($operator, $items);
+
+        // Handle callbacks
+        $txnUrl = $request->input('transaction_callback_url');
+        if ($txnUrl) {
+            $operator->operatorCallbacks()->updateOrCreate(
+                ['code' => 'transaction_upload'],
+                ['url' => $txnUrl, 'format' => 'json']
+            );
+        } else {
+            $operator->operatorCallbacks()->where('code', 'transaction_upload')->delete();
+        }
+
+        $alertUrl = $request->input('alert_callback_url');
+        $alertCodes = ['channel_error_alert', 'vend_offline_alert', 'vend_power_restored_alert'];
+        if ($alertUrl) {
+            foreach ($alertCodes as $code) {
+                $operator->operatorCallbacks()->updateOrCreate(
+                    ['code' => $code],
+                    ['url' => $alertUrl, 'format' => 'json']
+                );
+            }
+        } else {
+            $operator->operatorCallbacks()->whereIn('code', $alertCodes)->delete();
+        }
 
         return redirect()->route('operators.edit', [$operatorId]);
     }
@@ -475,7 +502,7 @@ class OperatorController extends Controller
         $vend = Vend::findOrFail($request->vend_id);
         $vend->update(['operator_id' => $request->operator_id]);
 
-        if($vend->customer) {
+        if ($vend->customer) {
             $vend->customer()->update(['operator_id' => $request->operator_id]);
         }
 
@@ -505,7 +532,7 @@ class OperatorController extends Controller
         $operator = Operator::findOrFail($id);
         // dd($request->all());
         $createdDeliveryPlatformOperator = $operator->deliveryPlatformOperators()->create($request->all());
-        if($request->has('oauth_client_id') and $request->has('oauth_client_secret')) {
+        if ($request->has('oauth_client_id') and $request->has('oauth_client_secret')) {
             $createdDeliveryPlatformOperator->externalOauthToken()->updateOrCreate([
                 'client_id' => $request->oauth_client_id,
                 'client_secret' => $request->oauth_client_secret,
@@ -519,7 +546,7 @@ class OperatorController extends Controller
     public function unbindDeliveryPlatform($paymentGatewayOperatorId)
     {
         $paymentGatewayOperator = DeliveryPlatformOperator::findOrFail($paymentGatewayOperatorId);
-        if($paymentGatewayOperator->externalOauthToken()->exists()) {
+        if ($paymentGatewayOperator->externalOauthToken()->exists()) {
             $paymentGatewayOperator->externalOauthToken()->delete();
         }
         $paymentGatewayOperator->delete();
@@ -527,12 +554,12 @@ class OperatorController extends Controller
 
     protected function deleteOperatorLogo(Operator $operator): void
     {
-        if (! $operator->relationLoaded('logo')) {
+        if (!$operator->relationLoaded('logo')) {
             $operator->load('logo');
         }
 
         $logo = $operator->logo;
-        if (! $logo) {
+        if (!$logo) {
             return;
         }
 
@@ -567,7 +594,7 @@ class OperatorController extends Controller
         DB::transaction(function () use ($operator, $emails, $flags) {
             $q = AlertEmailItem::query();
             $operator ? $q->where('operator_id', $operator->id)
-                    : $q->whereNull('operator_id');
+                : $q->whereNull('operator_id');
             $q->delete();
 
             // Coerce to items with email + optional user_id
@@ -585,25 +612,48 @@ class OperatorController extends Controller
                 ->unique('email')
                 ->values();
 
-            if ($items->isEmpty()) return;
+            if ($items->isEmpty())
+                return;
 
             $now = now();
             $rows = $items->map(fn($it) => [
                 'operator_id' => $operator?->id,
-                'user_id'     => $it['user_id'],
-                'email'       => $it['email'],
-                'is_active'   => $flags['is_active'],
-                'is_send_channel_error_log'    => $flags['is_send_channel_error_log'],
+                'user_id' => $it['user_id'],
+                'email' => $it['email'],
+                'is_active' => $flags['is_active'],
+                'is_send_channel_error_log' => $flags['is_send_channel_error_log'],
                 'is_send_offline_notification' => $flags['is_send_offline_notification'],
                 'is_send_power_restored_notification' => $flags['is_send_power_restored_notification'],
                 'is_send_transaction_no_entry_notification' => $flags['is_send_transaction_no_entry_notification'],
-                'created_at'  => $now,
-                'updated_at'  => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
             ])->all();
 
             AlertEmailItem::insert($rows);
         });
     }
 
+    public function storeOperatorCallback(Request $request, $operatorId)
+    {
+        $request->validate([
+            'code' => 'required|string|max:255',
+            'url' => 'required|url',
+            'format' => 'nullable|string|in:json,xml,form',
+            'description' => 'nullable|string|max:255',
+        ]);
 
+        $operator = Operator::findOrFail($operatorId);
+        $operator->operatorCallbacks()->create($request->all());
+
+        return redirect()->route('operators.edit', [$operatorId]);
+    }
+
+    public function deleteOperatorCallback($id)
+    {
+        $callback = \App\Models\OperatorCallback::findOrFail($id);
+        $operatorId = $callback->operator_id;
+        $callback->delete();
+
+        return redirect()->route('operators.edit', [$operatorId]);
+    }
 }
