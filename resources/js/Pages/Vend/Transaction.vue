@@ -498,13 +498,13 @@
         <!-- <dl class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-5"> -->
         <dl class="grid grid-cols-1 md:grid-cols-4 gap-2">
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Total Revenue {{ operatorCountry.currency_symbol }}</dt>
+                <dt class="truncate text-base font-bold text-gray-800">Total Revenue {{ operatorCountry.currency_symbol }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{((totals['success_amount'] ? totals['success_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Transaction Count</dt>
+                <dt class="truncate text-base font-bold text-gray-800">Transaction Count</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div class="flex flex-col space-y-1">
                         <div class="flex justify-between items-center space-x-2">
@@ -538,7 +538,7 @@
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Multiple Puchases Count</dt>
+                <dt class="truncate text-base font-bold text-gray-800">Multiple Purchases Count</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div class="flex justify-between items-center">
                         <span class="truncate text-xs font-medium text-gray-600">
@@ -559,7 +559,7 @@
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Total Qty</dt>
+                <dt class="truncate text-base font-bold text-gray-800">Total Qty</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div class="flex flex-col">
                         <div class="flex justify-between items-center space-x-2">
@@ -638,10 +638,10 @@
                             Payment Method
                         </TableHead>
                         <TableHead>
-                            Channels Error
+                            Payment Status
                         </TableHead>
                         <TableHead>
-                            Payment Status
+                            Channels Error
                         </TableHead>
                         <TableHead>
                             Refunded?
@@ -731,16 +731,16 @@
                             {{ vendTransaction.payment_method_name }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            <span v-if="vendTransaction.vend_channel_error_desc">
-                                {{ vendTransaction.vend_channel_error_desc }}
-                            </span>
-                        </TableData>
-                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.is_payment_received">
                                 {{ vendTransaction.is_payment_received ? 'Successful' : 'Unsuccessful' }}
                             </span>
                             <span v-else>
                                 {{ vendTransaction.vend_channel_error_code ? (vendTransaction.vend_channel_error_code == 0 || vendTransaction.vend_channel_error_code == 6 ? 'Successful' : "Unsuccessful") : 'Successful' }}
+                            </span>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <span v-if="vendTransaction.vend_channel_error_desc">
+                                {{ vendTransaction.vend_channel_error_desc }}
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
@@ -813,19 +813,19 @@
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100" colspan="3">
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
-                            <span v-if="vendTransactionItem.vendChannelError">
-                                {{ vendTransactionItem.vendChannelError ? vendTransactionItem.vendChannelError.desc : null }}
-                            </span>
-                            <span v-if="!vendTransactionItem.vendChannelError && vendTransactionItem.vend_channel_error_code">
-                                ({{ vendTransactionItem.vend_channel_error_code }})
-                            </span>
-                        </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             <span v-if="!vendTransactionItem.vendChannelError || (vendTransactionItem.vendChannelError && vendTransactionItem.vendChannelError.code == 0) || (vendTransactionItem.vendChannelError && vendTransactionItem.vendChannelError.code == 6)">
                                 Successful
                             </span>
                             <span v-else>
                                 Unsuccessful
+                            </span>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
+                            <span v-if="vendTransactionItem.vendChannelError">
+                                {{ vendTransactionItem.vendChannelError ? vendTransactionItem.vendChannelError.desc : null }}
+                            </span>
+                            <span v-if="!vendTransactionItem.vendChannelError && vendTransactionItem.vend_channel_error_code">
+                                ({{ vendTransactionItem.vend_channel_error_code }})
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
