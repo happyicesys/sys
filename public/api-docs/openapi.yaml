@@ -194,10 +194,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationError'
 
-  /machine-status:
+  /channel-stock-level:
     post:
-      operationId: getMachineStatus
-      summary: Get Machine Status
+      operationId: getChannelStockLevel
+      summary: Get Channel Stock Level
       description: >
         Retrieve status and stock levels for **Active** machines.
         Inactive machines are excluded.

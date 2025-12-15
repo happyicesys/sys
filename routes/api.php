@@ -24,7 +24,7 @@ Route::prefix('v1')->group(function () {
         ->middleware('auth:api')
         ->group(function () {
             Route::post('/transactions', [ClientController::class, 'getTransactions']);
-            Route::post('/machine-status', [ClientController::class, 'getChannels']);
+            Route::post('/channel-stock-level', [ClientController::class, 'getChannels']);
         });
 
     // Legacy support for existing endpoint
