@@ -32,8 +32,7 @@ class RemoveOddTransactions implements ShouldQueue
      */
     public function handle(): void
     {
-
-        $retainPaymentMethod = PaymentMethod::where(function($query) {
+        $retainPaymentMethod = PaymentMethod::where(function ($query) {
             $query->where('code', 10)
                 ->orWhere('code', 11);
         })->pluck('id')->toArray();
@@ -41,7 +40,7 @@ class RemoveOddTransactions implements ShouldQueue
         $retainOperator = Operator::where('code', 'TEST')->pluck('id')->toArray();
 
         VendTransaction::query()
-            ->where(function($query) {
+            ->where(function ($query) {
                 $query->where('amount', '=', 20000)
                     ->orWhere('amount', '=', 0)
                     ->orWhere('amount', '=', 10);
@@ -50,6 +49,14 @@ class RemoveOddTransactions implements ShouldQueue
             ->whereNotIn('operator_id', $retainOperator)
             ->where('vend_transactions.created_at', '>=', Carbon::parse($this->from)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($this->to)->endOfDay())
-            ->delete();
+            ->chunkById(500, function ($transactions) {
+                $transactionIds = $transactions->pluck('id')->toArray();
+
+                if (!empty($transactionIds)) {
+                    \App\Models\VendChannelErrorLog::whereIn('vend_transaction_id', $transactionIds)->delete();
+                    \App\Models\VendTransactionItem::whereIn('vend_transaction_id', $transactionIds)->delete();
+                    VendTransaction::whereIn('id', $transactionIds)->delete();
+                }
+            });
     }
 }

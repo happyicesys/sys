@@ -506,12 +506,35 @@ class MachineHealthDashboardService
                 ->limit($limit)
                 ->get();
 
+            $vendIds = $rows->pluck('vend_id')->all();
+            $detailedEvents = [];
+
+            if (!empty($vendIds)) {
+                $detailedEvents = VendChannelErrorLog::query()
+                    ->join('vend_channels', 'vend_channel_error_logs.vend_channel_id', '=', 'vend_channels.id')
+                    ->join('vend_channel_errors', 'vend_channel_error_logs.vend_channel_error_id', '=', 'vend_channel_errors.id')
+                    ->whereIn('vend_channel_error_logs.vend_channel_id', function ($query) use ($vendIds) {
+                        $query->select('id')->from('vend_channels')->whereIn('vend_id', $vendIds);
+                    })
+                    ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
+                    ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
+                    ->select([
+                        'vend_channels.vend_id',
+                        'vend_channels.code as channel_code',
+                        'vend_channel_errors.code as error_code',
+                        'vend_channel_error_logs.created_at',
+                    ])
+                    ->orderByDesc('vend_channel_error_logs.created_at')
+                    ->get()
+                    ->groupBy('vend_id');
+            }
+
             $results[$key] = [
                 'label' => $definition['label'],
                 'window_days' => $windowDays,
                 'limit' => $limit,
                 'codes' => $definition['codes'],
-                'rows' => $rows->map(function ($row) use ($definition) {
+                'rows' => $rows->map(function ($row) use ($definition, $detailedEvents) {
                     $perCode = collect($definition['codes'])->map(function ($code) use ($row) {
                         return [
                             'code' => $code,
@@ -529,6 +552,15 @@ class MachineHealthDashboardService
                         'total_events' => (int) $row->total_events,
                         'last_event_at' => $row->last_event_at ? Carbon::parse($row->last_event_at)->toIso8601String() : null,
                         'per_code' => $perCode,
+                        'events' => isset($detailedEvents[$row->vend_id])
+                            ? $detailedEvents[$row->vend_id]->map(function ($event) {
+                                return [
+                                    'channel_code' => $event->channel_code,
+                                    'error_code' => $event->error_code,
+                                    'created_at' => $event->created_at->toIso8601String(),
+                                ];
+                            })->all()
+                            : [],
                     ];
                 })->all(),
             ];

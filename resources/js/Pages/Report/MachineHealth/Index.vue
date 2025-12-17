@@ -470,6 +470,51 @@ const renderPerCodeSummary = (perCode) => {
     .map((item) => `E${item.code}: ${item.count}`)
     .join(' · ')
 }
+
+const getCodeCount = (perCode, code) => {
+  if (!perCode) {
+    return 0
+  }
+  const match = perCode.find((item) => Number(item.code) === Number(code))
+  return match?.count ?? 0
+}
+
+const formatEventBreakdown = (event) => {
+  const date = new Date(event.created_at)
+  const yymmdd =
+    String(date.getFullYear()).slice(-2) +
+    String(date.getMonth() + 1).padStart(2, '0') +
+    String(date.getDate()).padStart(2, '0')
+
+  let hours = date.getHours()
+  const suffix = hours >= 12 ? 'pm' : 'am'
+  hours %= 12
+  if (hours === 0) hours = 12
+  const time = `${String(hours).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} ${suffix}`
+
+  return `${event.channel_code} (E${event.error_code}) - ${yymmdd} ${time}`
+}
+
+const getEventsForCode = (events, code) => {
+  if (!events) return []
+  return events.filter((e) => Number(e.error_code) === Number(code))
+}
+
+const formatEventBreakdownSimple = (event) => {
+  const date = new Date(event.created_at)
+  const yymmdd =
+    String(date.getFullYear()).slice(-2) +
+    String(date.getMonth() + 1).padStart(2, '0') +
+    String(date.getDate()).padStart(2, '0')
+
+  let hours = date.getHours()
+  const suffix = hours >= 12 ? 'pm' : 'am'
+  hours %= 12
+  if (hours === 0) hours = 12
+  const time = `${String(hours).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} ${suffix}`
+
+  return `${event.channel_code} - ${yymmdd} ${time}`
+}
 </script>
 
 <template>
@@ -787,14 +832,16 @@ const renderPerCodeSummary = (perCode) => {
                         <th class="px-4 py-2 text-left font-medium text-gray-500">
                           Customer
                         </th>
-                        <th class="px-4 py-2 text-left font-medium text-gray-500">
-                          Operator
-                        </th>
+
                         <th class="px-4 py-2 text-left font-medium text-gray-500">
                           Events
                         </th>
-                        <th class="px-4 py-2 text-left font-medium text-gray-500">
-                          Breakdown
+                        <th
+                          v-for="code in bucket.codes"
+                          :key="code"
+                          class="px-4 py-2 text-left font-medium text-gray-500"
+                        >
+                          Error {{ code }}
                         </th>
                         <th class="px-4 py-2 text-left font-medium text-gray-500">
                           Last Event
@@ -812,14 +859,25 @@ const renderPerCodeSummary = (perCode) => {
                         <td class="px-4 py-2 text-gray-700">
                           {{ row.customer_name ?? '—' }}
                         </td>
-                        <td class="px-4 py-2 text-gray-700">
-                          {{ row.operator_name ?? '—' }}
-                        </td>
+
                         <td class="px-4 py-2 text-gray-700">
                           {{ row.total_events }}
                         </td>
-                        <td class="px-4 py-2 text-gray-700">
-                          {{ renderPerCodeSummary(row.per_code) }}
+                        <td
+                          v-for="code in bucket.codes"
+                          :key="code"
+                          class="px-4 py-2 text-gray-700 text-xs"
+                        >
+                          <div class="font-bold mb-1 border-b border-gray-100 pb-1">
+                            {{ getEventsForCode(row.events, code).length }}
+                          </div>
+                          <div
+                            v-for="(event, index) in getEventsForCode(row.events, code)"
+                            :key="index"
+                            class="whitespace-nowrap"
+                          >
+                            {{ formatEventBreakdownSimple(event) }}
+                          </div>
                         </td>
                         <td class="px-4 py-2 text-gray-700">
                           {{ formatDateTime(row.last_event_at) }}
@@ -830,7 +888,7 @@ const renderPerCodeSummary = (perCode) => {
                       <tr>
                         <td
                           class="px-4 py-6 text-center text-sm text-gray-500"
-                          colspan="6"
+                          :colspan="5 + (bucket.codes?.length ?? 0)"
                         >
                           No events detected for this grouping.
                         </td>
