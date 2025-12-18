@@ -430,6 +430,8 @@ class MachineHealthDashboardService
         $limit = $filters['machine_limit'];
         $windowDays = $filters['error_window_days'];
         $periodEnd = Carbon::now();
+        // Ensure we include the entire start day (00:00:00).
+        // If windowDays = 1, this goes back to T-1 (Yesterday) 00:00:00, effectively covering Yesterday + Today(partial).
         $periodStart = $periodEnd->copy()->subDays($windowDays)->startOfDay();
 
         $codes = VendChannelError::query()
