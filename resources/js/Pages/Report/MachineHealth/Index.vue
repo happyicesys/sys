@@ -843,9 +843,7 @@ const formatEventBreakdownSimple = (event) => {
                         >
                           Error {{ code }}
                         </th>
-                        <th class="px-4 py-2 text-left font-medium text-gray-500">
-                          Last Event
-                        </th>
+
                       </tr>
                     </thead>
                     <tbody v-if="bucket.rows?.length" class="divide-y divide-gray-200 bg-white">
@@ -879,16 +877,14 @@ const formatEventBreakdownSimple = (event) => {
                             {{ formatEventBreakdownSimple(event) }}
                           </div>
                         </td>
-                        <td class="px-4 py-2 text-gray-700">
-                          {{ formatDateTime(row.last_event_at) }}
-                        </td>
+
                       </tr>
                     </tbody>
                     <tbody v-else>
                       <tr>
                         <td
                           class="px-4 py-6 text-center text-sm text-gray-500"
-                          :colspan="5 + (bucket.codes?.length ?? 0)"
+                          :colspan="4 + (bucket.codes?.length ?? 0)"
                         >
                           No events detected for this grouping.
                         </td>
