@@ -52,8 +52,8 @@ class SyncVendChannelErrorLog implements ShouldQueue
 
         $vendChannelError = VendChannelError::where('code', $vendChannelErrorCode)->first();
 
-        if($vendChannelError) {
-            if($vendChannelError->code > 0) {
+        if ($vendChannelError) {
+            if ($vendChannelError->code > 0) {
                 $vendChannel = VendChannel::firstOrCreate([
                     'vend_id' => $vend->id,
                     'code' => $vendChannelCode,
@@ -63,7 +63,7 @@ class SyncVendChannelErrorLog implements ShouldQueue
 
                 // dd($vendChannel->toArray(), $lastVendChannelErrorLog->toArray(), $lastVendChannelErrorLog->vendChannelError->code, $vendChannelErrorCode, $lastVendChannelErrorLog->is_error_cleared);
 
-                if(!$lastVendChannelErrorLog or ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode) or $lastVendChannelErrorLog->is_error_cleared == 1) {
+                if ($vendTransactionId or !$lastVendChannelErrorLog or ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode) or $lastVendChannelErrorLog->is_error_cleared == 1) {
                     $vendChannelErrorLog = VendChannelErrorLog::create([
                         'vend_channel_id' => $vendChannel->id,
                         'vend_channel_error_id' => $vendChannelError->id
@@ -92,23 +92,23 @@ class SyncVendChannelErrorLog implements ShouldQueue
                         }
                     }
 
-                    if($vendTransactionId) {
+                    if ($vendTransactionId) {
                         $vendChannelErrorLog->vend_transaction_id = $vendTransactionId;
                         $vendChannelErrorLog->save();
                     }
 
-                    if($lastVendChannelErrorLog and ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode)) {
+                    if ($lastVendChannelErrorLog and ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode)) {
                         $lastVendChannelErrorLog->is_error_cleared = true;
                         $lastVendChannelErrorLog->save();
                     }
                 }
 
-            }else {
+            } else {
                 $recoveredChannel = VendChannel::where('vend_id', $vend->id)->where('code', $vendChannelCode)->first();
-                if($recoveredChannel) {
+                if ($recoveredChannel) {
                     $recoveredVendChannelErrorLogs = VendChannelErrorLog::where('vend_channel_id', $recoveredChannel->id)->get();
-                    if($recoveredVendChannelErrorLogs) {
-                        foreach($recoveredVendChannelErrorLogs as $recoveredVendChannelErrorLog) {
+                    if ($recoveredVendChannelErrorLogs) {
+                        foreach ($recoveredVendChannelErrorLogs as $recoveredVendChannelErrorLog) {
                             $recoveredVendChannelErrorLog->is_error_cleared = true;
                             $recoveredVendChannelErrorLog->save();
                         }
