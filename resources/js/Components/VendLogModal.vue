@@ -133,7 +133,8 @@ watch(
     } else {
       resetState()
     }
-  }
+  },
+  { immediate: true }
 )
 
 watch(
