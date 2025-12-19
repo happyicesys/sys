@@ -1218,7 +1218,9 @@ function displayTagName(tag) {
     ? (tag.name ?? tag.slug ?? tag.id ?? '')
     : tag;
 
-  return prettify(val);
+  const res = prettify(val);
+  // User request: format (33) -> (id:33)
+  return res.replace(/\((\d+)\)$/, ' (id:$1)');
 }
 
 function prettify(str) {
