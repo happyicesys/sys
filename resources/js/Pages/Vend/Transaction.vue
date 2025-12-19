@@ -1189,7 +1189,7 @@ function chipClass(tag) {
 function normalizedLabels(tx) {
   // Accept: array of objects, array of IDs, or JSON string
   let raw = tx.label_json ?? tx.labelJson;
-  console.log('Transaction Labels Debug:', tx.id, raw); // Temporary Debug
+
 
   if (!raw) return [];
 

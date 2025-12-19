@@ -1762,6 +1762,7 @@ class VendController extends Controller
                 'vend_transactions.items_json',
                 'vend_transactions.meta_json',
                 'vend_transactions.vend_transaction_json',
+                'vend_transactions.label_json AS raw_label_json',
                 DB::raw("
                 (
                     SELECT JSON_ARRAYAGG(

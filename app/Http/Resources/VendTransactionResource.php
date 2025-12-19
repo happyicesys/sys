@@ -18,7 +18,7 @@ class VendTransactionResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'amount' => $this->amount/ 100,
+            'amount' => $this->amount / 100,
             'avg_seven_days_amount' => isset($this->avg_seven_days_amount) ? $this->avg_seven_days_amount : null,
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
@@ -28,9 +28,20 @@ class VendTransactionResource extends JsonResource
             'is_payment_received' => $this->is_payment_received,
             'is_refunded' => isset($this->is_refunded) && $this->is_refunded ? true : false,
             'itemsJson' => $this->items_json,
-            'labelJson' => is_string($this->label_json)
-                ? json_decode($this->label_json, true)
-                : ($this->label_json ?? null),
+            'labelJson' => (function () {
+                $computed = is_string($this->label_json) ? json_decode($this->label_json, true) : ($this->label_json ?? []);
+                $raw = is_string($this->raw_label_json) ? json_decode($this->raw_label_json, true) : ($this->raw_label_json ?? []);
+
+                $merged = collect($computed ?? []);
+                if ($raw && is_array($raw)) {
+                    foreach ($raw as $r) {
+                        if (is_string($r)) {
+                            $merged->push($r);
+                        }
+                    }
+                }
+                return $merged;
+            })(),
             'metaJson' => $this->meta_json,
             'order_id' => $this->order_id,
             'operator_code' => isset($this->operator_code) ? $this->operator_code : null,
@@ -51,8 +62,8 @@ class VendTransactionResource extends JsonResource
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vendChannel' => VendChannelResource::make($this->whenLoaded('vendChannel')),
             'vend_channel_code' => $this->vend_channel_code,
-            'vend_channel_amount' => isset($this->vend_channel_amount) ? $this->vend_channel_amount/ 100 : null,
-            'vend_channel_amount2' => isset($this->vend_channel_amount2) ? $this->vend_channel_amount2/ 100 : null,
+            'vend_channel_amount' => isset($this->vend_channel_amount) ? $this->vend_channel_amount / 100 : null,
+            'vend_channel_amount2' => isset($this->vend_channel_amount2) ? $this->vend_channel_amount2 / 100 : null,
             'vend_channel_error_code' => isset($this->vend_channel_error_code) ? $this->vend_channel_error_code : null,
             'vend_channel_error_desc' => isset($this->vend_channel_error_desc) ? $this->vend_channel_error_desc : null,
             'vend_code' => isset($this->vend_code) ? $this->vend_code : null,
