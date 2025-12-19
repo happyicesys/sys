@@ -23,6 +23,7 @@ class CampaignResource extends JsonResource
             'uuid' => $this->uuid,
             'campaignItems' => CampaignItemResource::collection($this->whenLoaded('campaignItems')),
             'is_active' => $this->is_active ? true : false,
+            'is_in_use' => $this->apkSettings()->exists(),
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,

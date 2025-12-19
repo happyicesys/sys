@@ -38,8 +38,8 @@ class CampaignController extends Controller
                 Campaign::query()
                     ->with(['operator', 'labelsX', 'labelsY'])
                     ->filterIndex($request)
-                    ->when($request->sortKey, function($query, $search) use ($request) {
-                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($request->sortKey, function ($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     })
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
@@ -114,16 +114,16 @@ class CampaignController extends Controller
 
         $labelsXPivot = collect($validated['labels_x'] ?? [])
             ->filter()
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->unique()
-            ->mapWithKeys(fn ($id) => [$id => ['type' => 'x']])
+            ->mapWithKeys(fn($id) => [$id => ['type' => 'x']])
             ->toArray();
 
         $labelsYPivot = collect($validated['labels_y'] ?? [])
             ->filter()
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->unique()
-            ->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])
+            ->mapWithKeys(fn($id) => [$id => ['type' => 'y']])
             ->toArray();
 
         $campaign->labelsX()->sync($labelsXPivot);
@@ -204,16 +204,16 @@ class CampaignController extends Controller
 
         $labelsXPivot = collect($validated['labels_x'] ?? [])
             ->filter()
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->unique()
-            ->mapWithKeys(fn ($id) => [$id => ['type' => 'x']])
+            ->mapWithKeys(fn($id) => [$id => ['type' => 'x']])
             ->toArray();
 
         $labelsYPivot = collect($validated['labels_y'] ?? [])
             ->filter()
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->unique()
-            ->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])
+            ->mapWithKeys(fn($id) => [$id => ['type' => 'y']])
             ->toArray();
 
         $campaign->labelsX()->sync($labelsXPivot);
@@ -227,7 +227,15 @@ class CampaignController extends Controller
      */
     public function destroy(Campaign $campaign)
     {
-        //
+        if ($campaign->apkSettings()->exists()) {
+            return back()->with('error', 'Campaign is currently in use and cannot be deleted.');
+        }
+
+        $campaign->labelsX()->detach();
+        $campaign->labelsY()->detach();
+        $campaign->delete();
+
+        return redirect()->route('campaigns');
     }
 
     private function promoTypeOptions()

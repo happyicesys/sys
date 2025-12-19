@@ -704,6 +704,16 @@
               >
                 {{ vend.label_name }}
               </div>
+              <Button
+                type="button"
+                class="bg-orange-400 hover:bg-orange-500 px-2 py-1 text-xs text-white flex space-x-1 items-center"
+                @click="openLogModal(vend)"
+              >
+                <ClockIcon class="w-4 h-4" />
+                <span>
+                    Log
+                </span>
+              </Button>
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
@@ -763,6 +773,16 @@
               >
                 {{ vend.label_name }}
               </div>
+              <Button
+                type="button"
+                class="bg-orange-400 hover:bg-orange-500 px-2 py-1 text-xs text-white flex space-x-1 items-center"
+                @click="openLogModal(vend)"
+              >
+                <ClockIcon class="w-4 h-4" />
+                <span>
+                    Log
+                </span>
+              </Button>
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -1444,16 +1464,7 @@
                 </span>
                 </Button>
               </Link>
-              <Button
-                type="button"
-                class="bg-orange-400 hover:bg-orange-500 px-3 py-2 text-xs text-white flex space-x-1 items-center"
-                @click="openLogModal(vend)"
-              >
-                <ClockIcon class="w-4 h-4" />
-                <span>
-                    Log
-                </span>
-              </Button>
+
             </div>
           </TableData>
         </tr>

@@ -509,8 +509,6 @@
                     <TableHeadSort modelName="termination_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('termination_date')">
                       Retired Date
                     </TableHeadSort>
-                    <TableHead>
-                    </TableHead>
                   </tr>
                 </thead>
                   <tbody class="bg-white">
@@ -534,6 +532,16 @@
                           >
                             {{ vend.label_name }}
                           </div>
+                          <Button
+                            type="button"
+                            class="bg-orange-400 hover:bg-orange-500 px-2 py-1 text-xs text-white flex space-x-1 items-center"
+                            @click="openLogModal(vend)"
+                          >
+                            <ClockIcon class="w-4 h-4" />
+                            <span>
+                                Log
+                            </span>
+                          </Button>
                         </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -882,9 +890,9 @@
                         {{ vend.termination_date_short }}
                       </TableData>
 
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <div class="flex flex-col justify-center space-y-1">
-                          <Link :href="'/settings/vend/' + vend.id + '/update'">
+                      <!-- <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        <div class="flex flex-col justify-center space-y-1"> -->
+                          <!-- <Link :href="'/settings/vend/' + vend.id + '/update'">
                             <Button
                               type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             >
@@ -893,17 +901,8 @@
                                   Edit
                               </span>
                             </Button>
-                          </Link>
-                          <Button
-                            type="button"
-                            class="bg-orange-400 hover:bg-orange-500 px-3 py-2 text-xs text-white flex space-x-1 items-center"
-                            @click="openLogModal(vend)"
-                          >
-                            <ClockIcon class="w-4 h-4" />
-                            <span>
-                                Log
-                            </span>
-                          </Button>
+                          </Link> -->
+
                           <!-- <Link :href="'/settings/vend/' + vend.id + '/parameter'">
                             <Button
                               type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -932,8 +931,8 @@
                                 Delete
                             </span>
                           </Button> -->
-                        </div>
-                      </TableData>
+                        <!-- </div>
+                      </TableData> -->
                       </tr>
                 <tr v-if="!vends.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">

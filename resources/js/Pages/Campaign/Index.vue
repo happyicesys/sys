@@ -183,7 +183,7 @@
                       {{ campaign.remarks ?? '' }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
-                      <div class="flex justify-center space-x-1">
+                      <div class="flex justify-center space-x-1 items-start">
                         <Link :href="'/campaigns/' + campaign.id + '/edit'">
                           <Button
                             type="button"
@@ -193,6 +193,19 @@
                             <span>Edit</span>
                           </Button>
                         </Link>
+                        <Button
+                          type="button"
+                          class="px-2 py-1 text-xs text-white flex flex-col items-center space-y-0.5"
+                          :class="campaign.is_in_use ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'"
+                          :disabled="campaign.is_in_use"
+                          @click="!campaign.is_in_use && deleteCampaign(campaign)"
+                        >
+                          <div class="flex items-center space-x-1">
+                            <TrashIcon class="w-4 h-4" />
+                            <span>Delete</span>
+                          </div>
+                          <span v-if="campaign.is_in_use" class="text-[10px] leading-none">(In Use)</span>
+                        </Button>
                       </div>
                     </TableData>
                   </tr>
@@ -217,7 +230,7 @@ import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted } from 'vue';
@@ -363,6 +376,12 @@ function isPromoTypeFreeItem(promoType) {
   }
 
   return false
+}
+
+function deleteCampaign(campaign) {
+  if (confirm('Are you sure you want to delete this campaign?')) {
+    router.delete('/campaigns/' + campaign.id)
+  }
 }
 
 </script>
