@@ -2183,7 +2183,16 @@ function onChannelOverviewClosed() {
 }
 
 	function openLogModal(vendData) {
-		logVend.value = { ...vendData, id: vendData.vend_id }
+		let targetId = vendData.vend_id;
+		if (!targetId && vendData.vend && vendData.vend.id) {
+			targetId = vendData.vend.id;
+		}
+
+		logVend.value = {
+			...vendData,
+			id: targetId,
+			code: vendData.code || (vendData.vend ? vendData.vend.code : '')
+		}
 		showLogModal.value = true
 	}
 
