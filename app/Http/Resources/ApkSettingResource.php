@@ -25,6 +25,7 @@ class ApkSettingResource extends JsonResource
             'remarks' => $this->remarks,
             'settings_parameter_json' => $this->settings_parameter_json,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
+            'is_in_use' => $this->vends()->exists(),
             'videos' => AttachmentResource::collection($this->whenLoaded('videos')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

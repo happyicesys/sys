@@ -115,8 +115,8 @@ class ApkSettingController extends Controller
     {
         $campaignItem = CampaignItem::findOrFail($id);
 
-        if($campaignItem->tagBindings) {
-            foreach($campaignItem->tagBindings as $tagBinding) {
+        if ($campaignItem->tagBindings) {
+            foreach ($campaignItem->tagBindings as $tagBinding) {
                 $tagBinding->delete();
             }
         }
@@ -174,19 +174,19 @@ class ApkSettingController extends Controller
                 Vend::with([
                     'customer'
                 ])
-                ->doesntHave('apkSettingVend')
-                ->where(function($query) {
-                    $query->orWhere('is_active', true)
-                        ->orWhere('is_testing', true);
-                })
-                ->select(
-                    'id',
-                    'code',
-                    'customer_id',
-                    'name',
-                )
-                ->orderBy('code')
-                ->get()
+                    ->doesntHave('apkSettingVend')
+                    ->where(function ($query) {
+                        $query->orWhere('is_active', true)
+                            ->orWhere('is_testing', true);
+                    })
+                    ->select(
+                        'id',
+                        'code',
+                        'customer_id',
+                        'name',
+                    )
+                    ->orderBy('code')
+                    ->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
@@ -198,8 +198,8 @@ class ApkSettingController extends Controller
     {
         $apkSetting = ApkSetting::findOrFail($id);
 
-        if($apkSetting->vends) {
-            foreach($apkSetting->vends as $vend) {
+        if ($apkSetting->vends) {
+            foreach ($apkSetting->vends as $vend) {
                 $this->syncApkSettings($vend->id);
             }
         }
@@ -213,7 +213,7 @@ class ApkSettingController extends Controller
         $vend = Vend::findOrFail($vendID);
         $apkSetting = $vend->apkSettingVend;
 
-        if($apkSetting) {
+        if ($apkSetting) {
             $apkSettingVend = ApkSettingVend::findOrFail($apkSetting->id);
             $apkSettingVend->delete();
         }
@@ -256,7 +256,7 @@ class ApkSettingController extends Controller
     {
         $apkSetting = ApkSetting::findOrFail($id);
 
-        if($request->files) {
+        if ($request->files) {
             $files = $request->file('files');
             $dir = 'sys/vends/campaign-images';
             $storedPath = $files->storePublicly($dir);
@@ -276,7 +276,7 @@ class ApkSettingController extends Controller
     {
         $apkSetting = ApkSetting::findOrFail($id);
 
-        if($request->files) {
+        if ($request->files) {
             $files = $request->file('files');
             $dir = 'sys/vends/campaign-videos';
             $storedPath = $files->storePublicly($dir);
@@ -296,7 +296,7 @@ class ApkSettingController extends Controller
     {
         $apkSetting = ApkSetting::findOrFail($id);
 
-        if($request->files) {
+        if ($request->files) {
             $files = $request->file('files');
             $dir = 'sys/vends/banner-images';
             $storedPath = $files->storePublicly($dir);
@@ -316,7 +316,7 @@ class ApkSettingController extends Controller
     {
         $apkSetting = ApkSetting::findOrFail($id);
 
-        if($request->files) {
+        if ($request->files) {
             $files = $request->file('files');
             $dir = 'sys/vends/banner-videos';
             $storedPath = $files->storePublicly($dir);
@@ -332,6 +332,46 @@ class ApkSettingController extends Controller
         return true;
     }
 
+    public function destroy($id)
+    {
+        $apkSetting = ApkSetting::findOrFail($id);
+
+        if ($apkSetting->vends()->exists()) {
+            return back()->with('error', 'APK Setting is currently in use and cannot be deleted.');
+        }
+
+        $apkSetting->campaigns()->detach();
+
+        foreach ($apkSetting->campaignItems as $campaignItem) {
+            if ($campaignItem->tagBindings) {
+                foreach ($campaignItem->tagBindings as $tagBinding) {
+                    $tagBinding->delete();
+                }
+            }
+            $campaignItem->delete();
+        }
+
+        foreach ($apkSetting->images as $image) {
+            $image->delete();
+        }
+
+        foreach ($apkSetting->videos as $video) {
+            $video->delete();
+        }
+
+        foreach ($apkSetting->campaignImages as $campaignImage) {
+            $campaignImage->delete();
+        }
+
+        foreach ($apkSetting->campaignVideos as $campaignVideo) {
+            $campaignVideo->delete();
+        }
+
+        $apkSetting->delete();
+
+        return redirect()->back();
+    }
+
     private function syncApkSettings($vendID)
     {
         $vend = Vend::findOrFail($vendID);
@@ -345,8 +385,8 @@ class ApkSettingController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
 
-        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
     }
 }

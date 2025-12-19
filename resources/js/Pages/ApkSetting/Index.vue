@@ -196,18 +196,31 @@
                       </TableData>
 
                       <TableData :currentIndex="apkSettingIndex" :totalLength="apkSettings.length" inputClass="text-center">
-                        <div class="flex flex-col justify-center space-y-1">
-                          <Link :href="'/apk-settings/' + apkSetting.id + '/edit'">
+                          <div class="flex justify-center space-x-1 items-start">
+                            <Link :href="'/apk-settings/' + apkSetting.id + '/edit'">
+                              <Button
+                                type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                              >
+                                <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                                <span>
+                                    Edit
+                                </span>
+                              </Button>
+                            </Link>
                             <Button
-                              type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                              type="button"
+                              class="px-2 py-2 text-xs text-white flex flex-col items-center space-y-0.5"
+                              :class="apkSetting.is_in_use ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'"
+                              :disabled="apkSetting.is_in_use"
+                              @click="!apkSetting.is_in_use && onDeleteClicked(apkSetting)"
                             >
-                              <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                              <span>
-                                  Edit
-                              </span>
+                              <div class="flex items-center space-x-1">
+                                <TrashIcon class="w-4 h-4" />
+                                <span>Delete</span>
+                              </div>
+                              <span v-if="apkSetting.is_in_use" class="text-[10px] leading-none">(In Use)</span>
                             </Button>
-                          </Link>
-                        </div>
+                          </div>
                       </TableData>
                       </tr>
                 <tr v-if="!apkSettings.data.length">
