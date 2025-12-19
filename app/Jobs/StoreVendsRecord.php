@@ -55,6 +55,7 @@ SQL;
             ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
             ->where('vend_transactions.transaction_datetime', '>', Carbon::parse($this->from)->setTimezone('Asia/Singapore')->startOfDay())
             ->where('vend_transactions.transaction_datetime', '<', Carbon::parse($this->to)->setTimezone('Asia/Singapore')->endOfDay())
+            ->where('vend_transactions.amount', '>', 0)
             ->groupBy('date', 'vends.id')
             ->select(
                 'vends.id AS vend_id',
@@ -174,9 +175,9 @@ SQL;
             ->get();
 
         $vendWithTransactions = [];
-        foreach($vends as $vend) {
+        foreach ($vends as $vend) {
             $vendWithTransactions[$vend->date][] = $vend->id;
-            if($vend->id == 0) {
+            if ($vend->id == 0) {
                 continue;
             }
             VendRecord::updateOrCreate([
@@ -209,26 +210,26 @@ SQL;
         }
 
         // also init the vends without transactions
-        if($vendWithTransactions and $this->seedActive) {
-            foreach($vendWithTransactions as $date => $vendIDs) {
+        if ($vendWithTransactions and $this->seedActive) {
+            foreach ($vendWithTransactions as $date => $vendIDs) {
                 $vendWithoutTransactions = Vend::query()
-                ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-                ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
-                ->select(
-                    'vends.id as id',
-                    'vends.code as code',
-                    'vends.operator_id',
-                    'vends.vend_prefix_id',
-                    'customers.id as customer_id',
-                    'location_types.id as location_type_id'
-                )
-                ->where('customers.is_active', true)
-                ->whereNotIn('vends.id', $vendIDs)
-                ->where('vends.id', '!=', 0)
-                ->where('vends.code', '!=', null)
-                ->get();
+                    ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+                    ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
+                    ->select(
+                        'vends.id as id',
+                        'vends.code as code',
+                        'vends.operator_id',
+                        'vends.vend_prefix_id',
+                        'customers.id as customer_id',
+                        'location_types.id as location_type_id'
+                    )
+                    ->where('customers.is_active', true)
+                    ->whereNotIn('vends.id', $vendIDs)
+                    ->where('vends.id', '!=', 0)
+                    ->where('vends.code', '!=', null)
+                    ->get();
 
-                foreach($vendWithoutTransactions as $vend) {
+                foreach ($vendWithoutTransactions as $vend) {
                     VendRecord::updateOrCreate([
                         'vend_id' => $vend->id,
                         'date' => Carbon::parse($date)->toDateString(),

@@ -247,6 +247,7 @@ class DashboardController extends Controller
                         ->orWhere('is_multiple', true);
                 })
                 ->whereBetween('transaction_datetime', [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()])
+                ->where('amount', '>', 0)
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->select(
                     DB::raw('MONTH(transaction_datetime) as month'),

@@ -96,7 +96,7 @@ class VendTransactionService
 
                 $transaction = $this->createVendTransaction($vend, $processedInput, $isCurrentTime);
 
-                if ($transaction) {
+                if ($transaction && $transaction->amount > 0) {
                     $this->updateVendPaymentTimestamps(
                         $vend,
                         $transaction->transaction_datetime instanceof Carbon
@@ -200,6 +200,7 @@ class VendTransactionService
         $vendTransaction = VendTransaction::create([
             'transaction_datetime' => $isCurrentTime ? Carbon::now() : Carbon::parse($input['time']),
             'amount' => $input['amount'],
+            'is_zero_amount' => $input['amount'] == 0,
             'order_id' => $input['orderID'],
             'interface_type' => $input['interfaceType'],
             'is_multiple' => $input['isMultiple'],
@@ -610,7 +611,7 @@ class VendTransactionService
             'id' => $vendTransaction->id,
             'apk_ver' => isset($vendTransaction->apk_ver_json['apkver']) ? $vendTransaction->apk_ver_json['apkver'] : null,
             'datetime' => $vendTransaction->created_at,
-            'firmware_ver' => isset($vendTransaction->parameter_json['Ver']) ? ($vendTransaction->parameter_json['Ver']) . toString(16) : null,
+            'firmware_ver' => isset($vendTransaction->parameter_json['Ver']) ? dechex($vendTransaction->parameter_json['Ver']) : null,
             'total_amount' => $vendTransaction->amount,
             'customer_id' => $vendTransaction->customer_id,
             'customer_name' => $vendTransaction->customer?->name,

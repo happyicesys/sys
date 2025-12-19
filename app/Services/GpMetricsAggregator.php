@@ -48,6 +48,7 @@ class GpMetricsAggregator
             ->where(function ($query) use ($applyDateRange) {
                 $applyDateRange($query);
             })
+            ->where('vend_transactions.amount', '>', 0)
             ->where(function ($query) {
                 $query->where('vend_transactions.is_multiple', false)
                     ->orWhereNotExists(function ($subQuery) {
@@ -109,6 +110,7 @@ class GpMetricsAggregator
             ->where(function ($query) use ($applyDateRange) {
                 $applyDateRange($query);
             })
+            ->where('vend_transactions.amount', '>', 0)
             ->where('vend_transactions.is_multiple', true)
             ->selectRaw("$transactionDateExpression as txn_date")
             ->selectRaw('vend_transactions.operator_id as operator_id')
@@ -239,7 +241,7 @@ class GpMetricsAggregator
     private static function isDeadlock(QueryException $exception): bool
     {
         $sqlState = $exception->errorInfo[0] ?? null;
-        $driverCode = (int)($exception->errorInfo[1] ?? 0);
+        $driverCode = (int) ($exception->errorInfo[1] ?? 0);
 
         return in_array($sqlState, ['40001', 'HY000'], true)
             && in_array($driverCode, [1205, 1213], true);

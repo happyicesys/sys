@@ -59,7 +59,8 @@ class SyncBackDateVendTransaction implements ShouldQueue
                 'customer_name' => $this->vend->customer()->exists() ? $this->vend->customer->name : null,
                 'vend_prefix_id' => $this->vend->vendPrefix()->exists() ? $this->vend->vendPrefix->id : null,
                 'vend_prefix_name' => $this->vend->vendPrefix()->exists() ? $this->vend->vendPrefix->name : null,
-            ]
+            ],
+            'is_zero_amount' => $input['amount'] == 0,
         ]);
 
         SyncUnitCostJson::dispatch($vendTransaction)->onQueue('default');

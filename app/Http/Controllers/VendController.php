@@ -1673,6 +1673,10 @@ class VendController extends Controller
             })->values(),
         ];
 
+        if ($vend->apk_ver_json && isset($vend->apk_ver_json['apkver']) && $vend->apk_ver_json['apkver'] >= 213) {
+            unset($data['promoLabelItems']);
+        }
+
         return $data;
 
         // return $vend->apkSettings[0]->settings_parameter_json;

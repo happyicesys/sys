@@ -1172,6 +1172,9 @@
                           Machine Name
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Apk Version
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                           Action
                         </th>
                       </tr>
@@ -1196,6 +1199,11 @@
                           </span>
                           <span v-else>
                             {{ vend.name }}
+                          </span>
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          <span v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
+                            {{ vend.apkVerJson['apkver'] }}
                           </span>
                         </td>
                         <td class="whitespace-nowrap py-4 text-sm text-center">

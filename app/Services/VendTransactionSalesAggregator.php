@@ -25,7 +25,8 @@ class VendTransactionSalesAggregator
         $end = $end->copy()->endOfDay();
 
         $singleQuery = VendTransaction::query()
-            ->whereBetween('vend_transactions.transaction_datetime', [$start, $end]);
+            ->whereBetween('vend_transactions.transaction_datetime', [$start, $end])
+            ->where('vend_transactions.amount', '>', 0);
 
         if ($applyFilter) {
             $applyFilter($singleQuery);
@@ -52,6 +53,7 @@ class VendTransactionSalesAggregator
 
         $multiQuery = VendTransaction::query()
             ->whereBetween('vend_transactions.transaction_datetime', [$start, $end])
+            ->where('vend_transactions.amount', '>', 0)
             ->where('vend_transactions.is_multiple', true);
 
         if ($applyFilter) {

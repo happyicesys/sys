@@ -42,7 +42,6 @@ class RemoveOddTransactions implements ShouldQueue
         VendTransaction::query()
             ->where(function ($query) {
                 $query->where('amount', '=', 20000)
-                    ->orWhere('amount', '=', 0)
                     ->orWhere('amount', '=', 10);
             })
             ->whereNotIn('payment_method_id', $retainPaymentMethod)
