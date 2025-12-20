@@ -29,56 +29,33 @@ class FixCampaignLabels extends Command
         $days = (int) $this->option('days');
         $dateFrom = \Carbon\Carbon::now()->subDays($days)->startOfDay();
 
-        $this->info("Looking for transactions with 'campaign_label_pivot' starting from: " . $dateFrom->toDateTimeString());
+        $this->info("Looking for transactions starting from: " . $dateFrom->toDateTimeString());
 
-        $query = \App\Models\VendTransaction::query()
-            ->where('created_at', '>=', $dateFrom)
-            ->whereNotNull('vend_transaction_json');
+        // Find range
+        $minId = \App\Models\VendTransaction::where('created_at', '>=', $dateFrom)->min('id');
+        $maxId = \App\Models\VendTransaction::max('id');
 
-        // Note: JSON where clauses can be slow, but since we have a date filter, it satisfies the index usage.
-// We will filter in PHP to avoid "whereJsonContains" slowness if the index is missing.
+        if (!$minId || !$maxId) {
+            $this->info("No transactions found.");
+            return;
+        }
 
-        $totalProcessed = 0;
-        $totalUpdated = 0;
+        $this->info("Dispatching jobs for ID range: $minId to $maxId");
 
-        $this->output->progressStart($query->count());
+        $chunkSize = 1000;
+        $totalJobs = ceil(($maxId - $minId) / $chunkSize);
+        $bar = $this->output->createProgressBar($totalJobs);
 
-        $query->chunkById(500, function ($transactions) use (&$totalProcessed, &$totalUpdated) {
-            foreach ($transactions as $transaction) {
-                // Cast to array to safely access keys, avoiding "Cannot use object of type json as array"
-                $json = (array) $transaction->vend_transaction_json;
+        for ($currentId = $minId; $currentId <= $maxId; $currentId += $chunkSize) {
+            $endId = min($currentId + $chunkSize - 1, $maxId);
 
-                // Check if pivot exists
-                if (
-                    isset($json['campaign_label_pivot']) && is_array($json['campaign_label_pivot']) &&
-                    !empty($json['campaign_label_pivot'])
-                ) {
+            \App\Jobs\FixCampaignLabelsJob::dispatch($currentId, $endId);
 
-                    $pivotIds = $json['campaign_label_pivot'];
+            $bar->advance();
+        }
 
-                    // Resolve Campaigns
-                    $campaigns = \App\Models\Campaign::whereIn('id', $pivotIds)->get();
-                    $labels = [];
-
-                    foreach ($campaigns as $campaign) {
-                        if ($campaign->slug) {
-                            $labels[] = $campaign->slug . '(' . $campaign->id . ')';
-                        }
-                    }
-
-                    if (!empty($labels) && $transaction->label_json !== $labels) {
-                        $transaction->label_json = $labels;
-                        $transaction->save();
-                        $totalUpdated++;
-                    }
-                }
-
-                $totalProcessed++;
-                $this->output->progressAdvance();
-            }
-        });
-
-        $this->output->progressFinish();
-        $this->info("Done! Processed: $totalProcessed, Updated: $totalUpdated");
+        $bar->finish();
+        $this->newLine();
+        $this->info("Done! Dispatched $totalJobs jobs to the 'low' queue.");
     }
 }
