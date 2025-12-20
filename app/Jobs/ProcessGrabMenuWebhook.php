@@ -33,13 +33,18 @@ class ProcessGrabMenuWebhook implements ShouldQueue
      */
     public function handle()
     {
-        DeliveryPlatformMenuRecord::updateOrCreate([
-            'ref_id' => $this->data['jobID'],
-        ], [
+        $data = [
             'request_json' => $this->data,
             'delivery_platform_slug' => 'grab-menu',
-            'platform_ref_id' => $this->data['merchantID'],
-            'vend_code' => $this->data['partnerMerchantID'],
-        ]);
+            'platform_ref_id' => $this->data['merchantID'] ?? null,
+        ];
+
+        if (array_key_exists('partnerMerchantID', $this->data)) {
+            $data['vend_code'] = $this->data['partnerMerchantID'];
+        }
+
+        DeliveryPlatformMenuRecord::updateOrCreate([
+            'ref_id' => $this->data['jobID'] ?? null,
+        ], $data);
     }
 }

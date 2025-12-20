@@ -514,16 +514,13 @@ class VendTransactionService
         if (isset($input['campaign_label_pivot']) && is_array($input['campaign_label_pivot']) && !empty($input['campaign_label_pivot'])) {
             $pivotIds = $input['campaign_label_pivot'];
 
-            // Assume 'campaign_tag' table exists and has 'id' as primary key
-            $tags = DB::table('campaign_tag as ct')
-                ->join('campaigns as c', 'ct.campaign_id', '=', 'c.id')
-                ->whereIn('ct.id', $pivotIds)
-                ->select('c.slug', 'ct.id as pivot_id')
-                ->get();
+            // Proposed Change: Look up Campaigns directly
+            // The 'campaign_label_pivot' now contains Campaign IDs, not campaign_tag IDs.
+            $campaigns = \App\Models\Campaign::whereIn('id', $pivotIds)->get();
 
-            foreach ($tags as $tag) {
-                if ($tag->slug) {
-                    $labels[] = $tag->slug . '(' . $tag->pivot_id . ')';
+            foreach ($campaigns as $campaign) {
+                if ($campaign->slug) {
+                    $labels[] = $campaign->slug . '(' . $campaign->id . ')';
                 }
             }
         }
