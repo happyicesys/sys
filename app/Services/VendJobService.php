@@ -38,7 +38,7 @@ class VendJobService
         $vendJob = VendJob::create([
             'vend_id' => $vendId,
             'type' => $type,
-            'payload' => $payload, // Initial payload
+            'payload' => json_encode($payload), // Initial payload must be stringified since we removed model casting
             'is_returned' => false,
             'retries_count' => 0,
         ]);
