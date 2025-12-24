@@ -24,7 +24,7 @@ class VendJobService
         $vendCode = $vendModel->code;
 
         // BETA TESTING CHECK: Only execute VendJob logic for code 2007
-        if ($vendCode !== '2007') {
+        if ((string) $vendCode !== '2007') {
             if ($formatter) {
                 $message = $formatter($payload, $vendModel);
             } else {
