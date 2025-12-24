@@ -19,6 +19,7 @@ use App\Http\Resources\VendResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Services\TagBindingService;
 use App\Services\VendParameterService;
+use App\Services\VendJobService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -28,11 +29,13 @@ class ApkSettingController extends Controller
 {
     protected $tagBindingService;
     protected $vendParameterService;
+    protected $vendJobService;
 
-    public function __construct()
+    public function __construct(VendJobService $vendJobService)
     {
         $this->tagBindingService = new TagBindingService();
         $this->vendParameterService = new VendParameterService();
+        $this->vendJobService = $vendJobService;
     }
 
     public function index(Request $request)
@@ -376,17 +379,21 @@ class ApkSettingController extends Controller
     {
         $vend = Vend::findOrFail($vendID);
 
-        $fid = 1;
-        $content = base64_encode(json_encode([
+        $payload = [
             'Type' => 'TYPESYNCSETTINGSPARAM',
             'time' => Carbon::now()->timestamp,
             'action' => '',
             'mid' => $vend->code,
-        ]));
-        $contentLength = strlen($content);
-        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+        ];
 
-        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
+        $this->vendJobService->dispatch($vend, 'TYPESYNCSETTINGSPARAM', $payload, function ($payload, $vend) {
+            $fid = 1;
+            $content = base64_encode(json_encode($payload));
+            $contentLength = strlen($content);
+            $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+            $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+
+            return $fid . ',' . $contentLength . ',' . $content . ',' . $md5;
+        });
     }
 }

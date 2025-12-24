@@ -34,6 +34,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('save:today-stock-count')->dailyAt('23:59');
         $schedule->command('vend-temp:compute-metrics')->dailyAt('00:20');
         $schedule->command('gp:compute-metrics')->dailyAt('00:40');
+        $schedule->command('vend:retry-jobs')->everyMinute();
+        $schedule->command('vend:cleanup-jobs')->dailyAt('02:00');
         // $schedule->command('release:voucher-lock-every-2-mins')->everyMinute();
     }
 
@@ -44,7 +46,7 @@ class Kernel extends ConsoleKernel
      */
     protected function commands()
     {
-        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__ . '/Commands');
 
         require base_path('routes/console.php');
     }

@@ -7,6 +7,7 @@ use App\Models\Scopes\OperatorCustomerFilterScope;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
 use App\Models\VendData;
+use App\Models\VendJob;
 use App\Jobs\PublishMqtt;
 use App\Jobs\SendHttpDataToLogServer;
 use App\Jobs\SyncAcbVmcPa;
@@ -252,6 +253,29 @@ class VendDataService
           case 'CONFIRM':
             if (isset($processedInput['orderid'])) {
               GetPurchaseConfirm::dispatch($processedInput['orderid'], $vend)->onQueue('high');
+            }
+            break;
+          case 'JOBAPKSETTING':
+            $vendJob = null;
+            if (isset($processedInput['vend_job_id'])) {
+              $vendJob = VendJob::find($processedInput['vend_job_id']);
+            } else {
+              // Fallback: Find the latest unreturned job for this vend and type
+              // Ensure we only match jobs that are within the current active retry window
+              $vendJob = VendJob::where('vend_id', $vend->id)
+                ->where('type', 'TYPESYNCSETTINGSPARAM') // Mapping JOBAPKSETTING response to original request type
+                ->where('is_returned', false)
+                ->where('updated_at', '>=', Carbon::now()->subMinutes(VendJob::RETRY_TIMEOUT_MINUTES))
+                ->latest()
+                ->first();
+            }
+
+            if ($vendJob) {
+              $vendJob->update([
+                'is_returned' => true,
+                'response_at' => Carbon::now(),
+                'response_payload' => $processedInput
+              ]);
             }
             break;
           case 'PWRON':
