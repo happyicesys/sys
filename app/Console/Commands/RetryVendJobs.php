@@ -38,12 +38,9 @@ class RetryVendJobs extends Command
 
         foreach ($jobs as $job) {
             if ($job->vend) {
-                $payload = $job->payload;
-                if (is_array($payload) || is_object($payload)) {
-                    $message = json_encode($payload);
-                } else {
-                    $message = (string) $payload;
-                }
+                // Since we store the exact final message string in payload (no array cast)
+                // We just send it as is.
+                $message = (string) $job->payload;
 
                 // Publish MQTT
                 \App\Jobs\PublishMqtt::dispatch('CM' . $job->vend->code, $message, 0)->onQueue('default');

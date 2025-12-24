@@ -49,12 +49,10 @@ class VendJobService
         // 3. Determine the final message and stored payload
         if ($formatter) {
             $message = $formatter($payload, $vendModel);
-            // If using a custom format, we store the FINAL message string
-            // so the retry job sends the exact same thing.
             $storedPayload = $message;
         } else {
             $message = json_encode($payload);
-            $storedPayload = $payload;
+            $storedPayload = $message; // Store the JSON string
         }
 
         // 4. Update the job with the final payload

@@ -11,7 +11,7 @@ class VendJob extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'payload' => 'array',
+        // 'payload' => 'array', // Converted to string to preserve exact formatting including MD5/padding
         'response_payload' => 'array',
         'is_returned' => 'boolean',
         'response_at' => 'datetime',
