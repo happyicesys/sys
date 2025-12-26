@@ -85,6 +85,7 @@ use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
 use App\Services\VendDataService;
 use App\Services\VendDispenseService;
+use App\Services\VendJobService;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
@@ -118,6 +119,7 @@ class VendController extends Controller
     protected $runningNumberService;
     protected $vendDataService;
     protected $vendDispenseService;
+    protected $vendJobService;
 
 
     public function __construct(
@@ -127,7 +129,8 @@ class VendController extends Controller
         PaymentGatewayService $paymentGatewayService,
         RunningNumberService $runningNumberService,
         VendDataService $vendDataService,
-        VendDispenseService $vendDispenseService
+        VendDispenseService $vendDispenseService,
+        VendJobService $vendJobService
     ) {
         $this->middleware(['permission:read vend-customers'])->only('indexCustomer');
         $this->middleware(['permission:read machine-view'])->only('index');
@@ -142,6 +145,7 @@ class VendController extends Controller
         $this->runningNumberService = $runningNumberService;
         $this->vendDataService = $vendDataService;
         $this->vendDispenseService = $vendDispenseService;
+        $this->vendJobService = $vendJobService;
     }
 
     public function index(Request $request)
@@ -1021,18 +1025,23 @@ class VendController extends Controller
     public function syncApkSettings($id)
     {
         $vend = Vend::findOrFail($id);
-        $fid = 1;
-        $content = base64_encode(json_encode([
+
+        $payload = [
             'Type' => 'TYPESYNCSETTINGSPARAM',
             'time' => Carbon::now()->timestamp,
             'action' => '',
             'mid' => $vend->code,
-        ]));
-        $contentLength = strlen($content);
-        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+        ];
 
-        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
+        $this->vendJobService->dispatch($vend, 'TYPESYNCSETTINGSPARAM', $payload, function ($payload, $vend) {
+            $fid = 1;
+            $content = base64_encode(json_encode($payload));
+            $contentLength = strlen($content);
+            $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+            $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+
+            return $fid . ',' . $contentLength . ',' . $content . ',' . $md5;
+        });
 
         return redirect()->back();
     }
