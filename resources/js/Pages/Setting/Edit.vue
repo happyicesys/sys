@@ -2002,7 +2002,9 @@ function syncApkSettings(vendID) {
     preserveState: true,
     replace: true,
     onSuccess: () => {
-      emit('modalClose')
+        toast.success('Sync APK Settings command sent successfully', {
+            timeout: 3000
+        });
     }
   })
 }
