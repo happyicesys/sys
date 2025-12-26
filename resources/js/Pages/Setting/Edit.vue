@@ -944,7 +944,7 @@
                     <span class="ml-4 flex min-w-0 flex-col">
                       <span class="text-sm font-medium">
                         <span v-if="customerVendBinding.customer?.virtual_customer_prefix">
-                          ({{ customerVendBinding.customer.id + 20000 }}) {{ customerVendBinding.customer.virtual_customer_code }}
+                          ({{ customerVendBinding.customer.id + 20000 }}{{ vend.vend_prefix_name ? ' - ' + vend.vend_prefix_name : '' }}) {{ customerVendBinding.customer.virtual_customer_code }}
                         </span>
                         {{ customerVendBinding?.customer?.name }}
                       </span>
