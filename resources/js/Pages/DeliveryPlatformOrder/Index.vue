@@ -106,22 +106,6 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Has Complaint?
-            </label>
-            <MultiSelect
-              v-model="filters.has_complaint"
-              :options="booleanOptions"
-              trackBy="id"
-              valueProp="id"
-              label="value"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-            >
-            </MultiSelect>
-          </div>
-          <div>
-            <label for="text" class="block text-sm font-medium text-gray-700">
               Date Filter Type
             </label>
             <MultiSelect

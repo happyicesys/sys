@@ -1261,7 +1261,7 @@ class ReportController extends Controller
     {
         $tz = $this->getUserTimezone();
         $from = now($tz)->startOfMonth()->subMonth()->startOfDay();
-        $to = now($tz)->endOfDay();
+        $to = now($tz)->subDay()->endOfDay();
 
         if ($request->filled('day_date_from'))
             $from = Carbon::parse($request->day_date_from, $tz)->startOfDay();
@@ -1387,7 +1387,7 @@ class ReportController extends Controller
     {
         $tz = $this->getUserTimezone();
         $from = now($tz)->startOfMonth()->subMonth()->startOfDay();
-        $to = now($tz)->endOfDay();
+        $to = now($tz)->subDay()->endOfDay();
 
         if ($request->filled('day_date_from'))
             $from = Carbon::parse($request->day_date_from, $tz)->startOfDay();

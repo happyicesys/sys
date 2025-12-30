@@ -625,7 +625,7 @@
                 text: 'Sales by Days'
             },
             legend: {
-                reverse: true,
+                reverse: false,
             }
         }
     })
@@ -711,7 +711,7 @@
                 text: 'Sales by Months'
             },
             legend: {
-                reverse: true,
+                reverse: false,
             }
         }
     })
@@ -948,6 +948,12 @@
     }
 
     function syncDashboardData () {
+        const sortByMonthYear = (a, b) => {
+            const timeA = moment(a, 'MMMM YYYY').isValid() ? moment(a, 'MMMM YYYY').valueOf() : 0;
+            const timeB = moment(b, 'MMMM YYYY').isValid() ? moment(b, 'MMMM YYYY').valueOf() : 0;
+            return timeA - timeB;
+        }
+
         activeMachineGraphData.value = []
         activeMachineGraphDatasets.value = []
         activeMachineGraphLabels.value = []
@@ -979,25 +985,34 @@
         dayGraphData.value = JSON.parse(JSON.stringify(props.dayGraphData))
         let months = []
         months = _.groupBy(JSON.parse(JSON.stringify(props.dayGraphData)).data, 'month_name')
-        Object.keys(months).forEach((month, monthIndex) => {
+        const monthKeys = Object.keys(months).sort(sortByMonthYear);
+        monthKeys.forEach((month, monthIndex) => {
+            const isCurrent = monthIndex === monthKeys.length - 1;
+            const barColor = isCurrent ? '#ef4444' : '#3b82f6';
+            const lineColor = isCurrent ? '#ff7f7f' : '#3b82f6'; // Lighter Red for current line
+
+            // Push Line First (#) - Legend Order: Nov (#) then Nov ($)
+            // Order: Line on top (lower order number)
             dayGraphDatasets.value.push({
                 label: month + ' (#)',
                 data: months[month].map((data) => {return data.count}),
-                backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex + 2], 0.2) : hexToRGBA(colors[monthIndex + 2], 0.9),
-                borderColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex + 2], 0.2) : hexToRGBA(colors[monthIndex + 2], 0.9),
+                backgroundColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
+                borderColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
                 yAxisID: 'y1',
                 type: 'line',
-                order: 1,
+                order: monthIndex * 2,
             })
+
+            // Push Bar Second ($)
             dayGraphDatasets.value.push({
                 label: month + ' ('+ operatorCountry.currency_symbol + ')',
                 data: months[month].map((data) => {return data.amount}),
-                backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),
-                borderColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),
+                backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
+                borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
                 fill: false,
                 yAxisID: 'y',
                 type: 'bar',
-                order: 2,
+                order: monthIndex * 2 + 1,
             })
         })
         for(let i = 1; i <= 31; i++) {
@@ -1007,25 +1022,33 @@
         monthGraphData.value = JSON.parse(JSON.stringify(props.monthGraphData))
         let years = []
         years = JSON.parse(JSON.stringify(props.monthGraphData))
-        Object.keys(years).forEach((month, monthIndex) => {
+        const yearKeys = Object.keys(years).sort(sortByMonthYear);
+        yearKeys.forEach((month, monthIndex) => {
+            const isCurrent = monthIndex === yearKeys.length - 1;
+            const barColor = isCurrent ? '#ef4444' : '#3b82f6';
+            const lineColor = isCurrent ? '#ff7f7f' : '#3b82f6'; // Lighter Red for current line
+
+            // Push Line First (#)
             monthGraphDatasets.value.push({
                 label: month + ' (#)',
                 data: Object.values(years[month]).map((data) => {return data.count}),
-                backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex + 2], 0.2) : hexToRGBA(colors[monthIndex + 2], 0.9),
-                borderColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex + 2], 0.2) : hexToRGBA(colors[monthIndex + 2], 0.9),
+                backgroundColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
+                borderColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
                 yAxisID: 'y1',
                 type: 'line',
-                order: 1,
+                order: monthIndex * 2,
             })
+
+            // Push Bar Second ($)
             monthGraphDatasets.value.push({
                 label: month + ' ('+ operatorCountry.currency_symbol + ')',
                 data: Object.values(years[month]).map((data) => {return data.amount}),
-                backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),
-                borderColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),
+                backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
+                borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
                 fill: false,
                 yAxisID: 'y',
                 type: 'bar',
-                order: 2,
+                order: monthIndex * 2 + 1,
             })
         })
         for(let i = 1; i <= 12; i++) {
@@ -1047,12 +1070,15 @@
         activeMachineGraphData.value = JSON.parse(JSON.stringify(props.activeMachineGraphData))
         let activeYears = []
         activeYears = JSON.parse(JSON.stringify(props.activeMachineGraphData))
-        Object.keys(activeYears).forEach((activeMonth, activeMonthIndex) => {
+        const activeYearKeys = Object.keys(activeYears).sort(sortByMonthYear);
+        activeYearKeys.forEach((activeMonth, activeMonthIndex) => {
+            const isCurrent = activeMonthIndex === activeYearKeys.length - 1;
+            const color = isCurrent ? '#ef4444' : '#3b82f6';
             activeMachineGraphDatasets.value.push({
                 label: activeMonth + ' (#)',
                 data: Object.values(activeYears[activeMonth]).map((data) => {return data.count}),
-                backgroundColor: activeMonthIndex % 2 == 0 ? hexToRGBA(colors[activeMonthIndex], 0.2) : hexToRGBA(colors[activeMonthIndex], 0.9),
-                borderColor: activeMonthIndex % 2 == 0 ? hexToRGBA(colors[activeMonthIndex], 0.2) : hexToRGBA(colors[activeMonthIndex], 0.9),
+                backgroundColor: hexToRGBA(color, isCurrent ? 0.9 : 0.2),
+                borderColor: hexToRGBA(color, isCurrent ? 0.9 : 0.2),
                 type: 'line',
             })
         })
@@ -1150,12 +1176,27 @@
                 });
             }
 
-            // Dataset 2: Current Month (Green)
+            // Dataset 2: Current Month (Red)
             if (salesComparisonGraphData.value.current_month) {
                 salesComparisonGraphDatasets.value.push({
                     label: salesComparisonGraphData.value.current_month.label,
                     data: currMonthData,
-                    backgroundColor: 'rgba(16, 185, 129, 0.7)', // Green
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)', // Red
+                    borderColor: 'rgba(220, 38, 38, 1)',
+                    borderWidth: 2,
+                    type: 'bar',
+                    order: 2,
+                    barPercentage: 1.0,
+                    categoryPercentage: 1.0
+                });
+            }
+
+            // Dataset 3: Next Month (Green) - Previously Purple, but let's stick to user request "past use other colors". Next is distinct.
+            if (salesComparisonGraphData.value.next_month) {
+                salesComparisonGraphDatasets.value.push({
+                    label: salesComparisonGraphData.value.next_month.label,
+                    data: nextMonthData,
+                    backgroundColor: 'rgba(16, 185, 129, 0.7)', // Green (swapped with prev current color to be "other")
                     borderColor: 'rgba(5, 150, 105, 1)',
                     borderWidth: 2,
                     type: 'bar',
@@ -1165,27 +1206,12 @@
                 });
             }
 
-            // Dataset 3: Next Month (Purple)
-            if (salesComparisonGraphData.value.next_month) {
-                salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.next_month.label,
-                    data: nextMonthData,
-                    backgroundColor: 'rgba(168, 85, 247, 0.6)', // Purple
-                    borderColor: 'rgba(126, 34, 206, 1)',
-                    borderWidth: 2,
-                    type: 'bar',
-                    order: 2,
-                    barPercentage: 1.0,
-                    categoryPercentage: 1.0
-                });
-            }
-
-            // Dataset 4: Last Year (Line)
+            // Dataset 4: Last Year (Gray)
             salesComparisonGraphDatasets.value.push({
                 label: 'Last Year',
                 data: lastYearData,
-                borderColor: 'rgba(239, 68, 68, 1)', // Red
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderColor: 'rgba(107, 114, 128, 1)', // Gray
+                backgroundColor: 'rgba(107, 114, 128, 0.1)',
                 borderWidth: 2,
                 type: 'line',
                 fill: false,

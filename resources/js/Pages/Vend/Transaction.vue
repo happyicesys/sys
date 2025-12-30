@@ -813,12 +813,12 @@
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100" colspan="3">
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
-                            <span v-if="!vendTransactionItem.vendChannelError || (vendTransactionItem.vendChannelError && vendTransactionItem.vendChannelError.code == 0) || (vendTransactionItem.vendChannelError && vendTransactionItem.vendChannelError.code == 6)">
+                            <!-- <span v-if="!vendTransactionItem.vendChannelError || (vendTransactionItem.vendChannelError && vendTransactionItem.vendChannelError.code == 0) || (vendTransactionItem.vendChannelError && vendTransactionItem.vendChannelError.code == 6)">
                                 Successful
                             </span>
                             <span v-else>
                                 Unsuccessful
-                            </span>
+                            </span> -->
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             <span v-if="vendTransactionItem.vendChannelError">
