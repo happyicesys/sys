@@ -29,10 +29,13 @@ class RetryVendJobs extends Command
         $timeout = \App\Models\VendJob::RETRY_TIMEOUT_MINUTES;
         $jobs = \App\Models\VendJob::where('is_returned', false)
             ->whereHas('vend', function ($query) {
-                // BETA TESTING: Only retry for vend 2007
-                $query->where('code', '2007');
+                $query->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(apk_ver_json, '$.apkver')) AS UNSIGNED) >= ?", [\App\Models\VendJob::MIN_APK_VERSION_FOR_RETRY]);
+                if (\App\Models\VendJob::IS_TESTING) {
+                    $query->where('code', '2007');
+                }
             })
             ->where('updated_at', '<', \Carbon\Carbon::now()->subMinutes($timeout))
+            ->where('created_at', '>=', \Carbon\Carbon::now()->subMinutes(\App\Models\VendJob::MAX_RETRY_DURATION_MINUTES))
             ->with('vend')
             ->get();
 
