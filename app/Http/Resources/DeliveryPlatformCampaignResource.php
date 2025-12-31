@@ -26,6 +26,7 @@ class DeliveryPlatformCampaignResource extends JsonResource
             'is_active' => $this->is_active,
             'min_amount' => $this->min_amount,
             'name' => $this->name,
+            'delivery_platform_campaign_item_vends_count' => $this->delivery_platform_campaign_item_vends_count,
         ];
     }
 }

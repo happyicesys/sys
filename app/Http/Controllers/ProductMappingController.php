@@ -41,10 +41,93 @@ class ProductMappingController extends Controller
             'sortKey' => $request->sortKey ? $request->sortKey : 'name'
         ]);
 
+        $query = ProductMapping::query()
+            ->leftJoin('vend_prefixes', function ($join) {
+                $join->on('product_mappings.id', '=', 'vend_prefixes.product_mapping_id')
+                    ->whereIn('vend_prefixes.id', function ($query) {
+                        $query->select(DB::raw('MIN(id)'))
+                            ->from('vend_prefixes as vp')
+                            ->whereColumn('vp.product_mapping_id', 'product_mappings.id')
+                            ->orderBy('vp.name', 'asc')
+                            ->groupBy('vp.product_mapping_id');
+                    });
+            })
+            ->when($request->name, function ($query, $search) {
+                $query->where('product_mappings.name', 'LIKE', "%{$search}%");
+            })
+            ->when($request->product, function ($query, $search) {
+                $query->where(function ($query) use ($search) {
+                    $query->whereHas('productMappingItems.product', function ($query) use ($search) {
+                        $query->where('code', 'LIKE', "%{$search}%")
+                            ->orWhere('name', 'LIKE', "%{$search}%");
+                    });
+                });
+            })
+            ->when($request->vend_code, function ($query, $search) {
+                $query->whereHas('vends', function ($query) use ($search) {
+                    $query->where('code', 'LIKE', "{$search}%");
+                });
+            })
+            ->when($request->vendPrefixes, function ($query, $search) {
+                $query->whereHas('vendPrefixes', function ($query) use ($search) {
+                    if (in_array('single-ud', $search)) {
+                        $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
+                        unset($search[array_search('single-ud', $search)]);
+                    }
+                    $query->whereIn('vend_prefix_id', $search);
+                });
+            })
+            ->when($request->vendStatus, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereHas('vends', function ($query) use ($search) {
+                        switch ($search) {
+                            case 'disposed':
+                                $query->where('is_disposed', true);
+                                break;
+                            case 'factory':
+                                $query->where('is_testing', true);
+                                break;
+                            case 'active':
+                                $query->where('is_active', true);
+                                break;
+                            case 'inactive':
+                                $query->where('is_active', false);
+                                break;
+                        }
+                    });
+                }
+            })
+            ->when($request->is_active, function ($query, $search) use ($request) {
+                $query->where('product_mappings.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            });
+
+        $totalBindedVends = (clone $query)
+            ->join('vends', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->when($request->vendStatus, function ($query, $search) {
+                if ($search != 'all') {
+                    switch ($search) {
+                        case 'disposed':
+                            $query->where('vends.is_disposed', true);
+                            break;
+                        case 'factory':
+                            $query->where('vends.is_testing', true);
+                            break;
+                        case 'active':
+                            $query->where('vends.is_active', true);
+                            break;
+                        case 'inactive':
+                            $query->where('vends.is_active', false);
+                            break;
+                    }
+                }
+            })
+            ->count('vends.id');
+
         return Inertia::render('ProductMapping/Index', [
             'cmsEndpoint' => env('CMS_URL'),
+            'totalBindedVends' => $totalBindedVends,
             'productMappings' => ProductMappingResource::collection(
-                ProductMapping::with([
+                (clone $query)->with([
                     'attachments',
                     'productMappingItems',
                     'productMappingItems.product:id,code,name,is_active',
@@ -73,64 +156,7 @@ class ProductMappingController extends Controller
                     'vends.vendPrefix:id,name',
                     'vendPrefixes'
                 ])
-                    ->leftJoin('vend_prefixes', function ($join) {
-                        $join->on('product_mappings.id', '=', 'vend_prefixes.product_mapping_id')
-                            ->whereIn('vend_prefixes.id', function ($query) {
-                                $query->select(DB::raw('MIN(id)'))
-                                    ->from('vend_prefixes as vp')
-                                    ->whereColumn('vp.product_mapping_id', 'product_mappings.id')
-                                    ->orderBy('vp.name', 'asc')
-                                    ->groupBy('vp.product_mapping_id');
-                            });
-                    })
-                    ->when($request->name, function ($query, $search) {
-                        $query->where('product_mappings.name', 'LIKE', "%{$search}%");
-                    })
-                    ->when($request->product, function ($query, $search) {
-                        $query->where(function ($query) use ($search) {
-                            $query->whereHas('productMappingItems.product', function ($query) use ($search) {
-                                $query->where('code', 'LIKE', "%{$search}%")
-                                    ->orWhere('name', 'LIKE', "%{$search}%");
-                            });
-                        });
-                    })
-                    ->when($request->vend_code, function ($query, $search) {
-                        $query->whereHas('vends', function ($query) use ($search) {
-                            $query->where('code', 'LIKE', "{$search}%");
-                        });
-                    })
-                    ->when($request->vendPrefixes, function ($query, $search) {
-                        $query->whereHas('vendPrefixes', function ($query) use ($search) {
-                            if (in_array('single-ud', $search)) {
-                                $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
-                                unset($search[array_search('single-ud', $search)]);
-                            }
-                            $query->whereIn('vend_prefix_id', $search);
-                        });
-                    })
-                    ->when($request->vendStatus, function ($query, $search) {
-                        if ($search != 'all') {
-                            $query->whereHas('vends', function ($query) use ($search) {
-                                switch ($search) {
-                                    case 'disposed':
-                                        $query->where('is_disposed', true);
-                                        break;
-                                    case 'factory':
-                                        $query->where('is_testing', true);
-                                        break;
-                                    case 'active':
-                                        $query->where('is_active', true);
-                                        break;
-                                    case 'inactive':
-                                        $query->where('is_active', false);
-                                        break;
-                                }
-                            });
-                        }
-                    })
-                    ->when($request->is_active, function ($query, $search) use ($request) {
-                        $query->where('product_mappings.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-                    })
+
                     ->select('product_mappings.*', 'vend_prefixes.name as vend_prefix_name')
                     ->orderBy($request->sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc')
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)

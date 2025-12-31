@@ -202,6 +202,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/batch-item-vend', [DeliveryPlatformCampaignController::class, 'batchCreateItemVend']);
         Route::delete('/item/{deliveryPlatformCampaignItemID}', [DeliveryPlatformCampaignController::class, 'deleteItem']);
         Route::delete('/item-vend/{delPlaCamItemVendID}', [DeliveryPlatformCampaignController::class, 'deleteItemVend']);
+        Route::delete('/{id}', [DeliveryPlatformCampaignController::class, 'destroy']);
     });
     Route::prefix('delivery-platform-orders')->group(function () {
         Route::get('/', [DeliveryPlatformOrderController::class, 'index'])->name('delivery-platform-orders');

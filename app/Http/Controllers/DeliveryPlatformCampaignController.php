@@ -325,6 +325,6 @@ class DeliveryPlatformCampaignController extends Controller
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
         $deliveryPlatformCampaign->delete();
 
-        return redirect()->route('delivery-platform-campaigns.index');
+        return redirect()->route('delivery-platform-campaigns');
     }
 }
