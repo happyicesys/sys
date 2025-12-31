@@ -1091,9 +1091,14 @@
                     @click.prevent="syncApkSettings(vend.id)"
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
-                    <span>
-                      Sync APK Settings
-                    </span>
+                    <div class="flex flex-col text-left">
+                      <span>
+                        Sync APK Settings
+                      </span>
+                      <span class="text-xs" v-if="vend.latest_sync_apk_setting_job && vend.latest_sync_apk_setting_job.response_at">
+                        (last response at: {{ formatDatetime(vend.latest_sync_apk_setting_job.response_at) }})
+                      </span>
+                    </div>
                 </Button>
               </span>
             </div>

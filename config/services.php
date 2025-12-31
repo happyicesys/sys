@@ -31,6 +31,21 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'ai' => [
+        'driver' => env('AI_DRIVER', 'openai'), // 'google' or 'openai'
+    ],
+
+    'google' => [
+        'api_key' => env('GOOGLE_API_KEY'),
+        'base_uri' => env('GOOGLE_BASE_URI', 'https://generativelanguage.googleapis.com/v1beta/models'),
+        'vend_temp' => [
+            'enabled' => env('VEND_TEMP_AI_ENABLED', false),
+            'model' => env('VEND_TEMP_AI_MODEL', 'gemini-1.5-flash'),
+            'window_minutes' => env('VEND_TEMP_AI_WINDOW_MINUTES', 45),
+            'max_samples' => env('VEND_TEMP_AI_MAX_SAMPLES', 30),
+        ],
+    ],
+
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'base_uri' => env('OPENAI_BASE_URI', 'https://api.openai.com/v1'),

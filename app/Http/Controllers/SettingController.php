@@ -67,25 +67,27 @@ class SettingController extends Controller
     public function index(Request $request)
     {
         $request->merge(['numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100]);
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
-            }else {
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'code']);
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
         $className = get_class(new Customer());
-        if(!isset($request->status)) {
-            if(
+        if (!isset($request->status)) {
+            if (
                 auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
@@ -95,7 +97,7 @@ class SettingController extends Controller
                     'status' => 'active',
                 ]);
 
-            }else {
+            } else {
                 $request->merge([
                     'status' => 'all'
                 ]);
@@ -180,7 +182,7 @@ class SettingController extends Controller
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
 
-            // dd($request->all());
+        // dd($request->all());
         return Inertia::render('Setting/Index', [
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()
@@ -264,90 +266,91 @@ class SettingController extends Controller
         $type = $vendInit->customer?->server_price_type ?? SellingPrice::TYPE_1;
 
         $vend = Vend::withoutGlobalScopes()
-        ->with([
-            'cashlessTerminal',
-            'customer',
-            'customer.deliveryAddress',
-            'customer.contact',
-            'customerVendBindings.customer',
-            'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform',
-            'key',
-            'logs',
-            'modemType',
-            'modemUnit',
-            'operator',
-            'productMapping',
-            'simcard',
-            'upcomingProductMapping',
-            'vendConfig',
-            'vendChannels:id,amount,amount2,code,vend_id,product_id',
-            'vendChannels.product:id,name,code,desc',
-            'vendChannels.product.thumbnail',
-            'vendChannels.product.sellingPrices' => function ($query) use ($type) {
-                $query->where('type', $type);
-            },
-            'vendModel',
-            'vendPrefix',
-            'vendSerialNumber',
-        ])
-        ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-        ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-        ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-        ->leftJoin('product_mappings as upcoming_product_mappings', 'product_mappings.id', '=', 'vends.upcoming_product_mapping_id')
-        ->leftJoin('addresses', function($query) {
-            $query->on('addresses.modelable_id', '=', 'customers.id')
+            ->with([
+                'cashlessTerminal',
+                'customer',
+                'customer.deliveryAddress',
+                'customer.contact',
+                'customerVendBindings.customer',
+                'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform',
+                'key',
+                'logs',
+                'modemType',
+                'modemUnit',
+                'operator',
+                'productMapping',
+                'simcard',
+                'latestSyncApkSettingJob',
+                'upcomingProductMapping',
+                'vendConfig',
+                'vendChannels:id,amount,amount2,code,vend_id,product_id',
+                'vendChannels.product:id,name,code,desc',
+                'vendChannels.product.thumbnail',
+                'vendChannels.product.sellingPrices' => function ($query) use ($type) {
+                    $query->where('type', $type);
+                },
+                'vendModel',
+                'vendPrefix',
+                'vendSerialNumber',
+            ])
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('product_mappings as upcoming_product_mappings', 'product_mappings.id', '=', 'vends.upcoming_product_mapping_id')
+            ->leftJoin('addresses', function ($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
                     ->where('addresses.modelable_type', '=', 'App\Models\Customer')
                     ->where('addresses.type', '=', 2)
                     ->limit(1);
-        })
-        ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
-        ->leftJoin('vend_models', 'vend_models.id', '=', 'vends.vend_model_id')
-        ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-        ->where('vends.id', $id)
-        ->select(
-            'vends.id',
-            'vends.code',
-            'customers.id AS customer_id',
-            DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
-            'customers.name AS customer_name',
-            'customers.person_id',
-            'customers.selling_price_type',
-            'product_mappings.name AS product_mapping_name',
-            'upcoming_product_mappings.name AS upcoming_product_mapping_name',
-            'vends.cashless_terminal_id',
-            'vends.claw_machine_board_id',
-            'vends.claw_machine_body_id',
-            'vends.lcd_monitor_id',
-            'vends.led_matrix_panel_id',
-            'vends.customer_movement_history_json',
-            'vends.begin_date',
-            'vends.is_disposed',
-            'vends.is_using_server_price',
-            'vends.simcard_id',
-            'vends.termination_date',
-            'vends.label_name',
-            'vends.menu_frame_id',
-            'vends.modem_type_id',
-            'vends.modem_unit_id',
-            'vends.operator_id',
-            'vends.product_mapping_id',
-            'vends.server_price_type',
-            // 'vends.serial_num',
-            'vends.key_id',
-            'vends.upcoming_product_mapping_id',
-            'vends.vend_config_id',
-            'vends.vend_contract_id',
-            'vends.vend_model_id',
-            'vends.vend_prefix_id',
-            'vends.vend_serial_number_id',
-            'vends.vend_vend_config_version',
-            'vend_configs.name AS vend_config_name',
-            'vend_models.name AS vend_model_name',
-            'vend_prefixes.name AS vend_prefix_name',
-            DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
-            DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
-        )
-        ->first();
+            })
+            ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
+            ->leftJoin('vend_models', 'vend_models.id', '=', 'vends.vend_model_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->where('vends.id', $id)
+            ->select(
+                'vends.id',
+                'vends.code',
+                'customers.id AS customer_id',
+                DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
+                'customers.name AS customer_name',
+                'customers.person_id',
+                'customers.selling_price_type',
+                'product_mappings.name AS product_mapping_name',
+                'upcoming_product_mappings.name AS upcoming_product_mapping_name',
+                'vends.cashless_terminal_id',
+                'vends.claw_machine_board_id',
+                'vends.claw_machine_body_id',
+                'vends.lcd_monitor_id',
+                'vends.led_matrix_panel_id',
+                'vends.customer_movement_history_json',
+                'vends.begin_date',
+                'vends.is_disposed',
+                'vends.is_using_server_price',
+                'vends.simcard_id',
+                'vends.termination_date',
+                'vends.label_name',
+                'vends.menu_frame_id',
+                'vends.modem_type_id',
+                'vends.modem_unit_id',
+                'vends.operator_id',
+                'vends.product_mapping_id',
+                'vends.server_price_type',
+                // 'vends.serial_num',
+                'vends.key_id',
+                'vends.upcoming_product_mapping_id',
+                'vends.vend_config_id',
+                'vends.vend_contract_id',
+                'vends.vend_model_id',
+                'vends.vend_prefix_id',
+                'vends.vend_serial_number_id',
+                'vends.vend_vend_config_version',
+                'vend_configs.name AS vend_config_name',
+                'vend_models.name AS vend_model_name',
+                'vend_prefixes.name AS vend_prefix_name',
+                DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
+                DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
+            )
+            ->first();
 
         $customers = Customer::query()
             ->select(
@@ -412,7 +415,7 @@ class SettingController extends Controller
                     ->orderBy('sequence')
                     ->orderBy('name')
                     ->get()
-                ),
+            ),
             'keyOptions' => KeyResource::collection(
                 Key::orderBy('name')->get()
             ),
@@ -423,11 +426,11 @@ class SettingController extends Controller
             ),
             'modemUnitOptions' => ModemUnitResource::collection(
                 ModemUnit::query()
-                    ->where(function($query) use ($vend) {
+                    ->where(function ($query) use ($vend) {
                         $query->doesntHave('vend')
-                              ->orWhereHas('vend', function($q) use ($vend) {
-                                  $q->where('vends.id', $vend->id);
-                              });
+                            ->orWhereHas('vend', function ($q) use ($vend) {
+                                $q->where('vends.id', $vend->id);
+                            });
                     })
                     ->orderBy('imei')
                     ->get()
@@ -439,9 +442,9 @@ class SettingController extends Controller
             'productMappingOptions' => ProductMappingResource::collection(
                 ProductMapping::query()
                     // ->when($request->vend_prefix_id, function($query) use ($request) {
-                        ->whereHas('vendPrefixes', function($query) use ($request) {
-                            $query->where('vend_prefixes.id', $request->vend_prefix_id);
-                        })
+                    ->whereHas('vendPrefixes', function ($query) use ($request) {
+                        $query->where('vend_prefixes.id', $request->vend_prefix_id);
+                    })
                     // })
                     ->orderBy('name')
                     ->get()
@@ -469,17 +472,17 @@ class SettingController extends Controller
             'vendPrefixOptions' =>
                 VendPrefixResource::collection(
                     VendPrefix::query()
-                        ->when($request->vend_config_id, function($query) use ($request) {
-                            $query->whereHas('vendConfigs', function($query) use ($request) {
+                        ->when($request->vend_config_id, function ($query) use ($request) {
+                            $query->whereHas('vendConfigs', function ($query) use ($request) {
                                 $query->where('vend_configs.id', $request->vend_config_id);
                             });
                         })
                         ->orderBy('name')
                         ->get()
-            ),
+                ),
             'vendSerialNumberOptions' => VendSerialNumberResource::collection(
                 VendSerialNumber::query()
-                    ->whereDoesntHave('vend', function($query) use ($vend) {
+                    ->whereDoesntHave('vend', function ($query) use ($vend) {
                         $query->where('vends.id', '!=', $vend->id);
                     })
                     ->orderBy('code')
@@ -496,16 +499,16 @@ class SettingController extends Controller
     public function parameter(Request $request, $id)
     {
         $vend = Vend::withoutGlobalScopes()
-        ->with([
-            'operator',
-        ])
-        ->where('vends.id', $id)
-        ->select(
-            'vends.id',
-            'vends.code',
-            'vends.settings_parameter_json'
-        )
-        ->first();
+            ->with([
+                'operator',
+            ])
+            ->where('vends.id', $id)
+            ->select(
+                'vends.id',
+                'vends.code',
+                'vends.settings_parameter_json'
+            )
+            ->first();
 
         return Inertia::render('Setting/Parameter', [
             'operatorOptions' => OperatorResource::collection(
@@ -524,7 +527,7 @@ class SettingController extends Controller
 
         $vend = Vend::where('code', $request->code)->first();
 
-        if($vend) {
+        if ($vend) {
             return redirect()->route('settings.edit', [$vend->id])->withErrors([
                 'code' => 'Vend Code already exists.',
             ]);
@@ -543,23 +546,23 @@ class SettingController extends Controller
     {
         $vend = Vend::findOrFail($vendId);
 
-        if($vend->is_active) {
+        if ($vend->is_active) {
             $vend->update([
                 'is_active' => false,
                 'termination_date' => Carbon::now(),
             ]);
-            if($vend->customer()->exists()) {
+            if ($vend->customer()->exists()) {
                 $vend->customer->update([
                     'is_active' => false,
                     'termination_date' => Carbon::now(),
                 ]);
             }
-        }else {
+        } else {
             $vend->update([
                 'is_active' => true,
                 'termination_date' => null,
             ]);
-            if($vend->customer()->exists()) {
+            if ($vend->customer()->exists()) {
                 $vend->customer->update([
                     'is_active' => true,
                     'termination_date' => null,
@@ -587,8 +590,8 @@ class SettingController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
 
-        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
     }
 }

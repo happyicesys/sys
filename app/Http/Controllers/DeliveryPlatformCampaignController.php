@@ -56,9 +56,10 @@ class DeliveryPlatformCampaignController extends Controller
                         'deliveryPlatformOperator.deliveryPlatform',
                         'deliveryProductMapping:id,name',
                     ])
+                    ->withCount('deliveryPlatformCampaignItemVends')
                     ->filterIndex($request)
-                    ->when($request->sortKey, function($query, $search) use ($request) {
-                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($request->sortKey, function ($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     })
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
@@ -76,8 +77,8 @@ class DeliveryPlatformCampaignController extends Controller
             'deliveryPlatformOperatorOptions' => DeliveryPlatformOperatorResource::collection(
                 DeliveryPlatformOperator::query()
                     ->with('deliveryPlatform')
-                    ->when($request->delivery_product_mapping_id, function($query, $search){
-                        $query->whereHas('deliveryProductMappings', function($query) use ($search) {
+                    ->when($request->delivery_product_mapping_id, function ($query, $search) {
+                        $query->whereHas('deliveryProductMappings', function ($query) use ($search) {
                             $query->where('id', $search);
                         });
                     })
@@ -86,7 +87,7 @@ class DeliveryPlatformCampaignController extends Controller
             'deliveryProductMappingOptions' =>
                 DeliveryProductMappingResource::collection(
                     DeliveryProductMapping::all()
-            ),
+                ),
         ]);
     }
 
@@ -111,14 +112,14 @@ class DeliveryPlatformCampaignController extends Controller
     {
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::query()
             ->with([
-                'deliveryPlatformCampaignItems.deliveryPlatformCampaignItemVends' => function($query) {
+                'deliveryPlatformCampaignItems.deliveryPlatformCampaignItemVends' => function ($query) {
                     $query
-                        ->where(function($query) {
+                        ->where(function ($query) {
                             $query->where('datetime_to', '>=', Carbon::now())
                                 ->orWhereNull('datetime_to');
                         })
                         ->where('is_active', true)
-                        ->whereHas('deliveryProductMappingVend', function($query) {
+                        ->whereHas('deliveryProductMappingVend', function ($query) {
                             $query->where('is_active', true);
                         });
                 },
@@ -126,9 +127,9 @@ class DeliveryPlatformCampaignController extends Controller
                 'deliveryProductMapping:id,category_json,name',
                 'deliveryProductMapping.deliveryProductMappingItems.product.thumbnail',
                 'deliveryProductMapping.deliveryProductMappingBulks.deliveryProductMappingBulkItems.deliveryProductMappingItem.product.thumbnail',
-                'deliveryProductMapping.deliveryProductMappingVends' => function($query) {
-                        $query->whereNull('end_date')
-                            ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
+                'deliveryProductMapping.deliveryProductMappingVends' => function ($query) {
+                    $query->whereNull('end_date')
+                        ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
                 'deliveryProductMapping.deliveryProductMappingVends.vend:id,code,name,customer_id',
                 'deliveryProductMapping.deliveryProductMappingVends.vend.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
@@ -137,9 +138,9 @@ class DeliveryPlatformCampaignController extends Controller
 
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
             ->with([
-                'deliveryPlatformCampaignItemVends' => function($query) {
+                'deliveryPlatformCampaignItemVends' => function ($query) {
                     $query
-                        ->where(function($query) {
+                        ->where(function ($query) {
                             $query->where('datetime_to', '>=', Carbon::now())
                                 ->orWhereNull('datetime_to');
                         })
@@ -150,8 +151,8 @@ class DeliveryPlatformCampaignController extends Controller
                 'vend:id,code,name,customer_id',
                 'vend.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
             ])
-            ->when($id, function($query, $search) {
-                $query->whereHas('deliveryProductMapping.deliveryPlatformCampaign', function($query) use ($search) {
+            ->when($id, function ($query, $search) {
+                $query->whereHas('deliveryProductMapping.deliveryPlatformCampaign', function ($query) use ($search) {
                     $query->where('id', $search);
                 });
             })
@@ -188,8 +189,8 @@ class DeliveryPlatformCampaignController extends Controller
                 'cap' => $request->cap ? $request->cap : null,
                 'value' => $request->promo_value,
                 'scope' => $request->delivery_platform_campaign_item_scope,
-                'objectIDs' => $request->delivery_product_mapping_items ? collect($request->delivery_product_mapping_items)->pluck('id')->map(function($id) {
-                    return (string)$id;
+                'objectIDs' => $request->delivery_product_mapping_items ? collect($request->delivery_product_mapping_items)->pluck('id')->map(function ($id) {
+                    return (string) $id;
                 })->toArray() : collect([$request->category])->pluck('id')->toArray(),
             ],
             'settings_label' => $request->settings_label,
@@ -206,13 +207,13 @@ class DeliveryPlatformCampaignController extends Controller
             ->where('delivery_platform_campaign_item_id', $request->delivery_platform_campaign_item_id)
             ->where('delivery_product_mapping_vend_id', $request->delivery_product_mapping_vend_id)
             ->where('is_active', true)
-            ->where(function($query) {
+            ->where(function ($query) {
                 $query->where('datetime_to', '>=', Carbon::now())
                     ->orWhereNull('datetime_to');
             })
             ->first();
 
-        if(!$existedDeliveryPlatformCampaignItemVend) {
+        if (!$existedDeliveryPlatformCampaignItemVend) {
             DeliveryPlatformCampaignItemVend::create([
                 'datetime_from' => $request->datetime_from,
                 'datetime_to' => $request->datetime_to,
@@ -236,20 +237,20 @@ class DeliveryPlatformCampaignController extends Controller
     {
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
 
-        if($deliveryPlatformCampaign->deliveryPlatformCampaignItems()->exists() and $deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->exists()) {
-            foreach($deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->get() as $deliveryProductMappingVend) {
+        if ($deliveryPlatformCampaign->deliveryPlatformCampaignItems()->exists() and $deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->exists()) {
+            foreach ($deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->get() as $deliveryProductMappingVend) {
 
                 $existedDeliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::query()
-                ->where('delivery_platform_campaign_item_id', $request->delivery_platform_campaign_item_id)
-                ->where('delivery_product_mapping_vend_id', $deliveryProductMappingVend->id)
-                ->where('is_active', true)
-                ->where(function($query) {
-                    $query->where('datetime_to', '>=', Carbon::now())
-                        ->orWhereNull('datetime_to');
-                })
-                ->first();
+                    ->where('delivery_platform_campaign_item_id', $request->delivery_platform_campaign_item_id)
+                    ->where('delivery_product_mapping_vend_id', $deliveryProductMappingVend->id)
+                    ->where('is_active', true)
+                    ->where(function ($query) {
+                        $query->where('datetime_to', '>=', Carbon::now())
+                            ->orWhereNull('datetime_to');
+                    })
+                    ->first();
 
-                if(!$existedDeliveryPlatformCampaignItemVend) {
+                if (!$existedDeliveryPlatformCampaignItemVend) {
                     DeliveryPlatformCampaignItemVend::create([
                         'datetime_from' => $request->datetime_from,
                         'datetime_to' => $request->datetime_to,
@@ -274,8 +275,8 @@ class DeliveryPlatformCampaignController extends Controller
     public function deleteItem($deliveryPlatformCampaignItemID)
     {
         $deliveryPlatformCampaignItem = DeliveryPlatformCampaignItem::findOrFail($deliveryPlatformCampaignItemID);
-        if($deliveryPlatformCampaignItem->deliveryPlatformCampaignItemVends()->exists()) {
-            foreach($deliveryPlatformCampaignItem->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
+        if ($deliveryPlatformCampaignItem->deliveryPlatformCampaignItemVends()->exists()) {
+            foreach ($deliveryPlatformCampaignItem->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
                 $deliveryPlatformCampaignItemVend->delete();
                 // if($deliveryPlatformCampaignItemVend->is_active) {
                 //     $deliveryPlatformCampaignItemVend->update([
@@ -295,14 +296,14 @@ class DeliveryPlatformCampaignController extends Controller
         $deliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::findOrFail($delPlaCamItemVendID);
 
         //grab delete campaign
-        if($deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->platform_ref_id) {
+        if ($deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->platform_ref_id) {
             $response = $this->deliveryPlatformCampaignService->deleteCampaign($deliveryPlatformCampaignItemVend);
             $deliveryPlatformCampaignItemVend->update([
                 'datetime_to' => Carbon::now(),
                 'is_active' => false,
                 'submission_response_json' => $response,
             ]);
-        }else {
+        } else {
             $deliveryPlatformCampaignItemVend->delete();
         }
 
@@ -317,5 +318,13 @@ class DeliveryPlatformCampaignController extends Controller
         $this->deliveryPlatformCampaignService->syncCampaigns($deliveryPlatformCampaign);
 
         return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id]);
+    }
+
+    public function destroy($id)
+    {
+        $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
+        $deliveryPlatformCampaign->delete();
+
+        return redirect()->route('delivery-platform-campaigns.index');
     }
 }

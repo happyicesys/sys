@@ -14,14 +14,15 @@ class VendTempAiService
 
     public function isEnabled(): bool
     {
-        $config = config('services.openai');
+        $driver = config('services.ai.driver', 'openai');
+        $config = config("services.{$driver}");
 
         return !empty(data_get($config, 'api_key'))
             && (bool) data_get($config, 'vend_temp.enabled', false);
     }
 
     /**
-     * Analyse recent temperature telemetry with OpenAI.
+     * Analyse recent temperature telemetry.
      */
     public function analyze(Vend $vend, array $snapshot = [], ?VendTemp $latestTemp = null): ?array
     {
@@ -29,6 +30,100 @@ class VendTempAiService
             return null;
         }
 
+        $driver = config('services.ai.driver', 'openai');
+
+        if ($driver === 'google') {
+            return $this->analyzeWithGoogle($vend, $snapshot, $latestTemp);
+        }
+
+        return $this->analyzeWithOpenAi($vend, $snapshot, $latestTemp);
+    }
+
+    private function analyzeWithGoogle(Vend $vend, array $snapshot = [], ?VendTemp $latestTemp = null): ?array
+    {
+        $config = config('services.google.vend_temp', []);
+        $apiKey = config('services.google.api_key');
+        $model = data_get($config, 'model', 'gemini-1.5-flash');
+        $baseUrl = config('services.google.base_uri');
+
+        $temps = $this->recentTemps($vend, (int) data_get($config, 'window_minutes', 45), (int) data_get($config, 'max_samples', 30));
+        if ($temps->isEmpty()) {
+            return null;
+        }
+
+        $stats = $this->buildStats($temps);
+        $payload = [
+            'vend' => [
+                'id' => $vend->id,
+                'code' => $vend->code,
+                'name' => $vend->name ?? null,
+            ],
+            'snapshot' => $this->formatSnapshot($snapshot, $latestTemp),
+            'stats' => $stats,
+            'samples' => $this->formatSamples($temps),
+            'generated_at' => now()->toIso8601String(),
+        ];
+
+        $prompt = "You are an expert monitoring freezer vending machines. Respond with compact JSON (no markdown formatting): {\"status\":\"ok|watch|alert\",\"likely_event\":\"normal_cycle|door_open|compressor_issue|sensor_fault|unknown\",\"message\":\"<=120 chars explanation\"}. Use only the data provided: " . json_encode($payload);
+
+        $response = Http::post("{$baseUrl}/{$model}:generateContent?key={$apiKey}", [
+            'contents' => [
+                [
+                    'parts' => [
+                        ['text' => $prompt]
+                    ]
+                ]
+            ],
+            'generationConfig' => [
+                'responseMimeType' => 'application/json'
+            ]
+        ]);
+
+        if (!$response->successful()) {
+            Log::warning('Vend temperature Google AI request failed', [
+                'vend_id' => $vend->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return null;
+        }
+
+        $content = data_get($response->json(), 'candidates.0.content.parts.0.text');
+
+        if (!$content) {
+            return null;
+        }
+
+        // Clean up markdown code blocks if present (Gemini sometimes adds them despite instructions)
+        $content = str_replace(['```json', '```'], '', $content);
+
+        $decision = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            Log::info('Vend temperature Google AI response not JSON', [
+                'vend_id' => $vend->id,
+                'content' => $content,
+            ]);
+
+            return [
+                'payload' => $payload,
+                'decision' => [
+                    'status' => 'unknown',
+                    'likely_event' => 'unknown',
+                    'message' => trim($content),
+                ],
+            ];
+        }
+
+        return [
+            'payload' => $payload,
+            'decision' => $decision,
+        ];
+    }
+
+    private function analyzeWithOpenAi(Vend $vend, array $snapshot = [], ?VendTemp $latestTemp = null): ?array
+    {
         $config = config('services.openai.vend_temp', []);
 
         $temps = $this->recentTemps($vend, (int) data_get($config, 'window_minutes', 45), (int) data_get($config, 'max_samples', 30));
@@ -67,7 +162,7 @@ class VendTempAiService
         ]);
 
         if (!$response->successful()) {
-            Log::warning('Vend temperature AI request failed', [
+            Log::warning('Vend temperature OpenAI request failed', [
                 'vend_id' => $vend->id,
                 'status' => $response->status(),
                 'body' => $response->body(),
@@ -85,7 +180,7 @@ class VendTempAiService
         $decision = json_decode($content, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            Log::info('Vend temperature AI response not JSON', [
+            Log::info('Vend temperature OpenAI response not JSON', [
                 'vend_id' => $vend->id,
                 'content' => $content,
             ]);

@@ -601,6 +601,16 @@ class Vend extends Model
         return $this->hasMany(VendTransaction::class);
     }
 
+    public function vendJobs()
+    {
+        return $this->hasMany(VendJob::class);
+    }
+
+    public function latestSyncApkSettingJob()
+    {
+        return $this->hasOne(VendJob::class)->where('type', 'TYPESYNCSETTINGSPARAM')->latest();
+    }
+
     public function vendThreeDaysErrorTransactions()
     {
         return $this->daysVendTransactions(2, 0)->isError();

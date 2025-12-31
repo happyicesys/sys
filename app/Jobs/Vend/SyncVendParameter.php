@@ -51,7 +51,7 @@ class SyncVendParameter implements ShouldQueue
 
     private function createVendFan($input, Vend $vend)
     {
-        if(isset($input['fan']) and $input['fan']) {
+        if (isset($input['fan']) and $input['fan']) {
             $vend->vendFans()->create([
                 'value' => $input['fan'],
                 'type' => VendFan::TYPE_MAIN,
@@ -64,59 +64,63 @@ class SyncVendParameter implements ShouldQueue
         // more than 3 minutes only update same machine temp
         // if(!$vend->temp_updated_at or $vend->temp_updated_at->addMinutes(2)->isPast()) {
 
-            if(isset($input['TEMP'])) {
-                $temp = $input['TEMP'];
-                $snapshot = [
-                    't2' => $input['t2'] ?? null,
-                    't3' => $input['t3'] ?? null,
-                    't4' => $input['t4'] ?? null,
-                ];
+        if (isset($input['TEMP'])) {
+            $temp = $input['TEMP'];
+            $snapshot = [
+                't2' => $input['t2'] ?? null,
+                't3' => $input['t3'] ?? null,
+                't4' => $input['t4'] ?? null,
+            ];
 
-                if($temp == VendTemp::TEMPERATURE_ERROR) {
-                    $vend->is_temp_error = true;
-                }else {
-                    $createdTemp = $vend->vendTemps()->create([
-                        'value' => $temp,
-                        'type' => VendTemp::TYPE_CHAMBER,
+            if ($temp == VendTemp::TEMPERATURE_ERROR) {
+                $vend->is_temp_error = true;
+            } else {
+                $createdTemp = $vend->vendTemps()->create([
+                    'value' => $temp,
+                    'type' => VendTemp::TYPE_CHAMBER,
+                ]);
+
+                if (isset($input['t2'])) {
+                    $tempEvaporator = $input['t2'];
+                    $vend->vendTemps()->create([
+                        'value' => $tempEvaporator,
+                        'type' => VendTemp::TYPE_EVAPORATOR,
                     ]);
-
-                    if(isset($input['t2'])) {
-                        $tempEvaporator = $input['t2'];
-                        $vend->vendTemps()->create([
-                            'value' => $tempEvaporator,
-                            'type' => VendTemp::TYPE_EVAPORATOR,
-                        ]);
-                    }
-
-                    if(isset($input['t3'])) {
-                        $temp3 = $input['t3'];
-                        $vend->vendTemps()->create([
-                            'value' => $temp3,
-                            'type' => VendTemp::TYPE_THREE,
-                        ]);
-                    }
-
-                    if(isset($input['t4'])) {
-                        $temp4 = $input['t4'];
-                        $vend->vendTemps()->create([
-                            'value' => $temp4,
-                            'type' => VendTemp::TYPE_FOUR,
-                        ]);
-                    }
-
-                    $vend->temp = $temp;
-                    $vend->is_temp_error = false;
-
-                    if(isset($input['t2'])) {
-                        $this->vendTempService->runVendTempAlert($temp, $input['t2']);
-                    }
-
-                    $this->dispatchAiAnalysis($vend, $createdTemp->id, $snapshot);
                 }
+
+                if (isset($input['t3'])) {
+                    $temp3 = $input['t3'];
+                    $vend->vendTemps()->create([
+                        'value' => $temp3,
+                        'type' => VendTemp::TYPE_THREE,
+                    ]);
+                }
+
+                if (isset($input['t4'])) {
+                    $temp4 = $input['t4'];
+                    $vend->vendTemps()->create([
+                        'value' => $temp4,
+                        'type' => VendTemp::TYPE_FOUR,
+                    ]);
+                }
+
+                $vend->temp = $temp;
+                $vend->is_temp_error = false;
+
+                if (isset($input['t2'])) {
+                    $alert = $this->vendTempService->runVendTempAlert($temp, $input['t2']);
+
+                    if ($alert) {
+                        $this->dispatchAiAnalysis($vend, $createdTemp->id, $snapshot, $alert->id);
+                    }
+                }
+
+                // $this->dispatchAiAnalysis($vend, $createdTemp->id, $snapshot);
             }
-            $vend->temp_updated_at = Carbon::now();
-            $vend->is_temp_active = true;
-            $vend->save();
+        }
+        $vend->temp_updated_at = Carbon::now();
+        $vend->is_temp_active = true;
+        $vend->save();
     }
 
     private function saveParameter($input, Vend $vend)
@@ -125,7 +129,7 @@ class SyncVendParameter implements ShouldQueue
         $vend->save();
     }
 
-    private function dispatchAiAnalysis(Vend $vend, int $latestTempId, array $snapshot = []): void
+    private function dispatchAiAnalysis(Vend $vend, int $latestTempId, array $snapshot = [], ?int $alertId = null): void
     {
         $aiService = app(\App\Services\VendTempAiService::class);
 
@@ -133,6 +137,6 @@ class SyncVendParameter implements ShouldQueue
             return;
         }
 
-        AnalyzeVendTempWithAi::dispatch($vend->id, $latestTempId, $snapshot)->onQueue('default');
+        AnalyzeVendTempWithAi::dispatch($vend->id, $latestTempId, $snapshot, $alertId)->onQueue('default');
     }
 }

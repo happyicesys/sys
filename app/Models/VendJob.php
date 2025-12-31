@@ -9,7 +9,7 @@ class VendJob extends Model
     const RETRY_TIMEOUT_MINUTES = 5;
     const MAX_RETRY_DURATION_MINUTES = 60;
     const MIN_APK_VERSION_FOR_RETRY = 214;
-    const IS_TESTING = true;
+    const IS_TESTING = false;
 
 
     protected $guarded = [];

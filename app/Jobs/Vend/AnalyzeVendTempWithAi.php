@@ -21,7 +21,8 @@ class AnalyzeVendTempWithAi implements ShouldQueue
     public function __construct(
         public int $vendId,
         public ?int $latestTempId = null,
-        public array $snapshot = []
+        public array $snapshot = [],
+        public ?int $alertId = null
     ) {
     }
 
@@ -42,6 +43,15 @@ class AnalyzeVendTempWithAi implements ShouldQueue
 
         if (!$result) {
             return;
+        }
+
+        if ($this->alertId) {
+            $alert = \App\Models\Alert::find($this->alertId);
+            if ($alert) {
+                $alert->update([
+                    'ai_analysis' => $result['decision'],
+                ]);
+            }
         }
 
         Log::info('Vend temperature AI decision', [

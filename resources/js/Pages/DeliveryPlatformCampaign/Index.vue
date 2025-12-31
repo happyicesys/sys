@@ -197,6 +197,21 @@
                             </span>
                           </Button>
                         </Link>
+                        <Button
+                          type="button"
+                          class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1"
+                          :class="[deliveryPlatformCampaign.delivery_platform_campaign_item_vends_count > 0 ? 'opacity-50 cursor-not-allowed' : '']"
+                          :disabled="deliveryPlatformCampaign.delivery_platform_campaign_item_vends_count > 0"
+                          @click="deleteDeliveryPlatformCampaign(deliveryPlatformCampaign)"
+                        >
+                          <span class="flex items-center space-x-1">
+                            <TrashIcon class="w-4 h-4" />
+                            <span>Delete</span>
+                          </span>
+                          <span v-if="deliveryPlatformCampaign.delivery_platform_campaign_item_vends_count > 0">
+                            (Binded)
+                          </span>
+                        </Button>
                       </div>
                     </TableData>
                   </tr>
@@ -224,7 +239,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import moment from 'moment';
 import Complaint from '@/Pages/DeliveryPlatformOrder/Complaint.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -303,6 +318,12 @@ function sortTable(sortKey) {
   filters.value.sortKey = sortKey
   filters.value.sortBy = !filters.value.sortBy
   onSearchFilterUpdated()
+}
+
+function deleteDeliveryPlatformCampaign(deliveryPlatformCampaign) {
+  if (confirm('Are you sure you want to delete this campaign?')) {
+    router.delete('/delivery-platform-campaigns/' + deliveryPlatformCampaign.id)
+  }
 }
 
 </script>

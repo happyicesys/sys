@@ -21,12 +21,12 @@ class VendTempService
   public function compareLast($type)
   {
     $tempArr = $this
-                ->vend
-                ->vendTemps()
-                ->where('type', $type)
-                ->latest()
-                ->take(2)
-                ->get();
+      ->vend
+      ->vendTemps()
+      ->where('type', $type)
+      ->latest()
+      ->take(2)
+      ->get();
 
     if ($tempArr->count() == 2) {
       $diff = $tempArr[0]->value - $tempArr[1]->value;
@@ -41,11 +41,11 @@ class VendTempService
   public function getLatestVendTemp($type)
   {
     return $this
-            ->vend
-            ->vendTemps()
-            ->where('type', $type)
-            ->latest()
-            ->first();
+      ->vend
+      ->vendTemps()
+      ->where('type', $type)
+      ->latest()
+      ->first();
   }
 
   public function getTypeVariance($t1, $t2)
@@ -54,36 +54,40 @@ class VendTempService
 
     // $temp2 = $this->getLatestVendTemp($type2);
 
-    return ($t1 - $t2)/ self::TEMP_DIVISOR;
+    return ($t1 - $t2) / self::TEMP_DIVISOR;
   }
 
   public function initVendTempAlertData()
   {
-    if($this->vend->vend_temp_alert_json == null) {
+    if ($this->vend->vend_temp_alert_json == null) {
       Vend::where('id', $this->vend->id)->update([
         'vend_temp_alert_json' => VendTemp::DEFAULT_ALERTS
       ]);
     }
   }
 
-  public function runVendTempAlert($t1, $t2)
+  public function runVendTempAlert($t1, $t2): ?\App\Models\Alert
   {
     $this->initVendTempAlertData();
 
     $variance = $this->getTypeVariance($t1, $t2);
+    $alert = null;
+    $triggeredAlertName = null;
+    $triggeredAlertDesc = null;
 
-    foreach(VendTemp::DEFAULT_ALERTS as $name => $valueArr) {
+    // Check existing variance alerts
+    foreach (VendTemp::DEFAULT_ALERTS as $name => $valueArr) {
       $vend = $this->vend->fresh();
 
       $dataArr = [
-        'column_name' => 'vend_temp_alert_json->'.$name,
+        'column_name' => 'vend_temp_alert_json->' . $name,
         'current_is_triggered' => false,
         'desc' => $valueArr['desc'],
         'is_alert_action' => false,
         'name' => $name,
-        'previous_is_triggered' => $vend->vend_temp_alert_json[$name]['is_triggered'],
-        't1' => $t1/ self::TEMP_DIVISOR,
-        't2' => $t2/ self::TEMP_DIVISOR,
+        'previous_is_triggered' => $vend->vend_temp_alert_json[$name]['is_triggered'] ?? false,
+        't1' => $t1 / self::TEMP_DIVISOR,
+        't2' => $t2 / self::TEMP_DIVISOR,
         'value' => $valueArr['value'],
         'variance' => $variance,
       ];
@@ -91,9 +95,11 @@ class VendTempService
       if ($dataArr['variance'] >= $dataArr['value'] && !$dataArr['previous_is_triggered']) {
         $dataArr['current_is_triggered'] = true;
         $dataArr['is_alert_action'] = true;
+        $triggeredAlertName = $name;
+        $triggeredAlertDesc = $valueArr['desc'];
       } else if ($dataArr['variance'] < $dataArr['value']) {
-          $dataArr['current_is_triggered'] = false;
-          $dataArr['is_alert_action'] = false;
+        $dataArr['current_is_triggered'] = false;
+        $dataArr['is_alert_action'] = false;
       }
 
 
@@ -104,10 +110,36 @@ class VendTempService
         $dataArr['column_name'] . '->current_variance' => $dataArr['variance'],
       ]);
 
-      if($dataArr['is_alert_action']) {
+      if ($dataArr['is_alert_action']) {
         // SendVendTempAlert::dispatchSync($this->vend, $dataArr);
         // SendVendTempAlert::dispatch($this->vend, $dataArr)->onQueue('default');
       }
     }
+
+    // New Rules (Odd Filter)
+    $t1Celsius = $t1 / self::TEMP_DIVISOR;
+
+    if (!$alert && $triggeredAlertName) {
+      $alert = \App\Models\Alert::create([
+        'vend_id' => $this->vend->id,
+        'type' => 'temperature',
+        'severity' => 'warning',
+        'description' => "Variance Alert: {$triggeredAlertDesc}",
+      ]);
+    }
+
+    // Warning: Temp > -10°C
+    if (!$alert && $t1Celsius > -10) {
+      // Simple check for now. In real implementation we'd check duration.
+      // For this step, we alert immediately if high temp is detected to trigger AI
+      $alert = \App\Models\Alert::create([
+        'vend_id' => $this->vend->id,
+        'type' => 'temperature',
+        'severity' => 'warning',
+        'description' => "High Temperature Detected: {$t1Celsius}°C > -10°C",
+      ]);
+    }
+
+    return $alert;
   }
 }
