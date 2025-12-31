@@ -22,27 +22,27 @@ class VendTransactionGraphResource extends JsonResource
             // ❗ If your new dayGraphData already uses RM values, keep as-is.
             // If you still feed cents elsewhere, division by 100 remains correct.
             'amount' => $this->amount / 100,
-            'count'  => $this->count,
+            'count' => $this->count,
 
             // Only include relationships when it's an Eloquent model with the relation loaded
             'customer' => $this->when(
-                $isModel && $this->resource->relationLoaded('customer'),
-                fn () => CustomerResource::make($this->resource->customer)
+                $this->resource->relationLoaded('customer'),
+                fn() => CustomerResource::make($this->resource->customer)
             ),
             'product' => $this->when(
-                $isModel && $this->resource->relationLoaded('product'),
-                fn () => ProductResource::make($this->resource->product)
+                $this->resource->relationLoaded('product'),
+                fn() => ProductResource::make($this->resource->product)
             ),
             'vend' => $this->when(
                 $isModel && $this->resource->relationLoaded('vend'),
-                fn () => VendResource::make($this->resource->vend)
+                fn() => VendResource::make($this->resource->vend)
             ),
 
-            'date'       => $this->date,
-            'day'        => $this->day,
-            'month'      => $this->month,
+            'date' => $this->date,
+            'day' => $this->day,
+            'month' => $this->month,
             'month_name' => $this->month_name,
-            'year'       => $this->year,
+            'year' => $this->year,
         ];
     }
 }

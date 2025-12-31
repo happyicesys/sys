@@ -1056,12 +1056,15 @@
         }
 
         productGraphData.value = JSON.parse(JSON.stringify(props.productGraphData))
+        // If data is just array, use it. If it was resource, it had data key.
+        const productDataArray = Array.isArray(productGraphData.value) ? productGraphData.value : (productGraphData.value.data || [])
+
         productGraphDatasets.value.push({
             label: 'Sales',
-            data: productGraphData.value.data.map((data) => {return data.count}),
+            data: productDataArray.map((data) => {return data.count}),
             backgroundColor: generalColors,
         })
-        productGraphLabels.value = productGraphData.value.data.map((data) => {return data.product ? data.product.code + ' - ' + data.product.name : null})
+        productGraphLabels.value = productDataArray.map((data) => {return data.product ? data.product.code + ' - ' + data.product.name : 'Unknown Product'})
 
         bestPerformerGraphData.value = JSON.parse(JSON.stringify(props.performerGraphData))
         worstPerformerGraphData.value = JSON.parse(JSON.stringify(props.worstPerformerGraphData))

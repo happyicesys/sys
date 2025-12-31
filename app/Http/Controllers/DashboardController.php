@@ -78,7 +78,7 @@ class DashboardController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'productGraphData' => VendTransactionGraphResource::collection($productGraph),
+            'productGraphData' => $productGraph,
             'performerGraphData' => VendTransactionGraphResource::collection($bestPerformer),
             'performerLimit' => $bestPerformerLimit,
             'worstPerformerGraphData' => VendTransactionGraphResource::collection($worstPerformer),
@@ -97,9 +97,9 @@ class DashboardController extends Controller
     private function getSalesComparisonGraph(Request $request, array $testingVendIds)
     {
         if ($request->month_year) {
-            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year)->setTimezone($this->getUserTimezone());
+            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year)->setTimezone($this->getUserTimezone())->startOfMonth();
         } else {
-            $baseDate = Carbon::today()->setTimezone($this->getUserTimezone());
+            $baseDate = Carbon::today()->setTimezone($this->getUserTimezone())->startOfMonth();
         }
 
         $today = Carbon::today()->setTimezone($this->getUserTimezone());
@@ -256,7 +256,8 @@ class DashboardController extends Controller
                     DB::raw('DAY(transaction_datetime) as day'),
                     DB::raw('SUM(amount) as amount'),
                     DB::raw('SUM(success_qty) as count')
-                );
+                )
+                ->groupBy(DB::raw('DATE(transaction_datetime)'));
 
             $dayGraph = $dayGraph->union($todayGraph);
         }
@@ -328,21 +329,17 @@ class DashboardController extends Controller
             ->keyBy('id');
 
         return $topProducts->map(function ($row) use ($products) {
-            $model = new VendTransaction();
-            $model->setAttribute('amount', (int) $row->total_amount);
-            $model->setAttribute('count', (int) $row->total_count);
-            $model->setAttribute('date', null);
-            $model->setAttribute('day', null);
-            $model->setAttribute('month', null);
-            $model->setAttribute('month_name', null);
-            $model->setAttribute('year', null);
-            $model->setAttribute('product_id', $row->product_id);
+            $product = $products->get($row->product_id);
 
-            if ($product = $products->get($row->product_id)) {
-                $model->setRelation('product', $product);
-            }
-
-            return $model;
+            return [
+                'amount' => (int) $row->total_amount / 100,
+                'count' => (int) $row->total_count,
+                'product' => $product ? [
+                    'id' => $product->id,
+                    'code' => $product->code,
+                    'name' => $product->name,
+                ] : null,
+            ];
         });
     }
 
