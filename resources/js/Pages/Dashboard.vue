@@ -626,6 +626,9 @@
             },
             legend: {
                 reverse: false,
+                labels: {
+                    padding: 20
+                }
             }
         }
     })
@@ -670,6 +673,9 @@
             },
             legend: {
                 reverse: false,
+                labels: {
+                    padding: 20
+                }
             }
         }
     })
@@ -712,6 +718,9 @@
             },
             legend: {
                 reverse: false,
+                labels: {
+                    padding: 20
+                }
             }
         }
     })
@@ -773,6 +782,11 @@
                 display: true,
                 text: 'Number of Active Vending Machine in Market, by Month'
             },
+            legend: {
+                labels: {
+                    padding: 20
+                }
+            }
         }
     })
     const vendModelOptions = ref([])
@@ -948,6 +962,19 @@
     }
 
     function syncDashboardData () {
+        const formatCurrency = (val) => {
+            return val.toLocaleString(undefined, {
+                minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent),
+                maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)
+            })
+        }
+        const formatCount = (val) => {
+             return val.toLocaleString()
+        }
+        const sumData = (arr) => {
+             return arr.reduce((a, b) => a + (Number(b) || 0), 0)
+        }
+
         const sortByMonthYear = (a, b) => {
             const timeA = moment(a, 'MMMM YYYY').isValid() ? moment(a, 'MMMM YYYY').valueOf() : 0;
             const timeB = moment(b, 'MMMM YYYY').isValid() ? moment(b, 'MMMM YYYY').valueOf() : 0;
@@ -990,12 +1017,14 @@
             const isCurrent = monthIndex === monthKeys.length - 1;
             const barColor = isCurrent ? '#ef4444' : '#3b82f6';
             const lineColor = isCurrent ? '#ff7f7f' : '#3b82f6'; // Lighter Red for current line
+            const countData = months[month].map((data) => {return data.count});
+            const amountData = months[month].map((data) => {return data.amount});
 
             // Push Line First (#) - Legend Order: Nov (#) then Nov ($)
             // Order: Line on top (lower order number)
             dayGraphDatasets.value.push({
-                label: month + ' (#)',
-                data: months[month].map((data) => {return data.count}),
+                label: month + ' (#) ' + formatCount(sumData(countData)),
+                data: countData,
                 backgroundColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
                 borderColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
                 yAxisID: 'y1',
@@ -1005,8 +1034,8 @@
 
             // Push Bar Second ($)
             dayGraphDatasets.value.push({
-                label: month + ' ('+ operatorCountry.currency_symbol + ')',
-                data: months[month].map((data) => {return data.amount}),
+                label: month + ' ('+ operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(amountData)),
+                data: amountData,
                 backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
                 borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
                 fill: false,
@@ -1027,11 +1056,13 @@
             const isCurrent = monthIndex === yearKeys.length - 1;
             const barColor = isCurrent ? '#ef4444' : '#3b82f6';
             const lineColor = isCurrent ? '#ff7f7f' : '#3b82f6'; // Lighter Red for current line
+            const countData = Object.values(years[month]).map((data) => {return data.count});
+            const amountData = Object.values(years[month]).map((data) => {return data.amount});
 
             // Push Line First (#)
             monthGraphDatasets.value.push({
-                label: month + ' (#)',
-                data: Object.values(years[month]).map((data) => {return data.count}),
+                label: month + ' (#) ' + formatCount(sumData(countData)),
+                data: countData,
                 backgroundColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
                 borderColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
                 yAxisID: 'y1',
@@ -1041,8 +1072,8 @@
 
             // Push Bar Second ($)
             monthGraphDatasets.value.push({
-                label: month + ' ('+ operatorCountry.currency_symbol + ')',
-                data: Object.values(years[month]).map((data) => {return data.amount}),
+                label: month + ' ('+ operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(amountData)),
+                data: amountData,
                 backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
                 borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
                 fill: false,
@@ -1077,9 +1108,11 @@
         activeYearKeys.forEach((activeMonth, activeMonthIndex) => {
             const isCurrent = activeMonthIndex === activeYearKeys.length - 1;
             const color = isCurrent ? '#ef4444' : '#3b82f6';
+            const countData = Object.values(activeYears[activeMonth]).map((data) => {return data.count});
+
             activeMachineGraphDatasets.value.push({
-                label: activeMonth + ' (#)',
-                data: Object.values(activeYears[activeMonth]).map((data) => {return data.count}),
+                label: activeMonth + ' (#) ' + formatCount(sumData(countData)),
+                data: countData,
                 backgroundColor: hexToRGBA(color, isCurrent ? 0.9 : 0.2),
                 borderColor: hexToRGBA(color, isCurrent ? 0.9 : 0.2),
                 type: 'line',
@@ -1167,7 +1200,7 @@
             // Dataset 1: Prev Month (Blue)
             if (salesComparisonGraphData.value.prev_month) {
                 salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.prev_month.label,
+                    label: salesComparisonGraphData.value.prev_month.label + ' ' + formatCurrency(sumData(prevMonthData)),
                     data: prevMonthData,
                     backgroundColor: 'rgba(59, 130, 246, 0.6)', // Blue
                     borderColor: 'rgba(37, 99, 235, 1)',
@@ -1182,7 +1215,7 @@
             // Dataset 2: Current Month (Red)
             if (salesComparisonGraphData.value.current_month) {
                 salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.current_month.label,
+                    label: salesComparisonGraphData.value.current_month.label + ' ' + formatCurrency(sumData(currMonthData)),
                     data: currMonthData,
                     backgroundColor: 'rgba(239, 68, 68, 0.7)', // Red
                     borderColor: 'rgba(220, 38, 38, 1)',
@@ -1197,7 +1230,7 @@
             // Dataset 3: Next Month (Green) - Previously Purple, but let's stick to user request "past use other colors". Next is distinct.
             if (salesComparisonGraphData.value.next_month) {
                 salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.next_month.label,
+                    label: salesComparisonGraphData.value.next_month.label + ' ' + formatCurrency(sumData(nextMonthData)),
                     data: nextMonthData,
                     backgroundColor: 'rgba(16, 185, 129, 0.7)', // Green (swapped with prev current color to be "other")
                     borderColor: 'rgba(5, 150, 105, 1)',
@@ -1211,7 +1244,7 @@
 
             // Dataset 4: Last Year (Gray)
             salesComparisonGraphDatasets.value.push({
-                label: 'Last Year',
+                label: 'Last Year ' + formatCurrency(sumData(lastYearData)),
                 data: lastYearData,
                 borderColor: 'rgba(107, 114, 128, 1)', // Gray
                 backgroundColor: 'rgba(107, 114, 128, 0.1)',

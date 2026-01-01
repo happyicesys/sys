@@ -608,7 +608,10 @@ class Vend extends Model
 
     public function latestSyncApkSettingJob()
     {
-        return $this->hasOne(VendJob::class)->where('type', 'TYPESYNCSETTINGSPARAM')->latest();
+        return $this->hasOne(VendJob::class)
+            ->where('type', 'TYPESYNCSETTINGSPARAM')
+            ->whereNotNull('response_at')
+            ->orderBy('response_at', 'desc');
     }
 
     public function vendThreeDaysErrorTransactions()
