@@ -1477,7 +1477,10 @@ class ReportController extends Controller
         // Split at the end of the previous month.
         // This ensures that the current month is always calculated live, avoiding missing data issues
         // if the background job is delayed.
-        $endOfLastMonth = $today->copy()->startOfMonth()->subDay();
+        // Split at the end of the month before last.
+        // This includes "last month" in the live calculation to ensure data is present
+        // even if the monthly aggregation job for the last month hasn't completed yet.
+        $endOfLastMonth = $today->copy()->startOfMonth()->subMonth()->subDay();
 
         $factStart = $start->copy();
         $factEndCandidate = $end->copy();

@@ -37,7 +37,7 @@ class ProductMovementController extends Controller
                     ]
                 ]);
             } else {
-                $request->merge(['operators' => auth()->user()->operator_id]);
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
 
@@ -56,6 +56,7 @@ class ProductMovementController extends Controller
                 'thumbnail',
             ])
             ->when($request->operators, function ($query, $search) {
+                $search = is_array($search) ? $search : [$search];
                 if (!in_array('all', $search)) {
                     $query->whereIn('operator_id', $search);
                 }

@@ -190,18 +190,21 @@ class GpMetricsAggregator
         $query = self::buildRawQuery($dayStart, $dayEnd);
         $now = now();
 
-        $query->chunk($chunkSize, function ($rows) use ($now, $dayStart) {
-            $payload = $rows->map(function ($row) use ($now) {
-                $data = get_object_vars($row);
-                $data['created_at'] = $now;
-                $data['updated_at'] = $now;
-                return $data;
-            })->all();
+        $query->orderBy('txn_date')
+            ->orderBy('vend_id')
+            ->orderBy('product_id')
+            ->chunk($chunkSize, function ($rows) use ($now, $dayStart) {
+                $payload = $rows->map(function ($row) use ($now) {
+                    $data = get_object_vars($row);
+                    $data['created_at'] = $now;
+                    $data['updated_at'] = $now;
+                    return $data;
+                })->all();
 
-            if (!empty($payload)) {
-                self::insertWithRetry($payload, $dayStart->toDateString());
-            }
-        });
+                if (!empty($payload)) {
+                    self::insertWithRetry($payload, $dayStart->toDateString());
+                }
+            });
     }
 
     /**
