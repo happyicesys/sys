@@ -1625,7 +1625,7 @@ class VendController extends Controller
         return false;
     }
 
-    public function getVendParameters($vendCode)
+    public function getVendParameters($vendCode, $apkVer = null)
     {
         // Real-time data - no caching (campaign settings need to be current)
         $campaignItems = [];
@@ -1682,7 +1682,11 @@ class VendController extends Controller
             })->values(),
         ];
 
-        if ($vend->apk_ver_json && isset($vend->apk_ver_json['apkver']) && $vend->apk_ver_json['apkver'] >= 213) {
+        if (!$apkVer && $vend->apk_ver_json && isset($vend->apk_ver_json['apkver'])) {
+            $apkVer = $vend->apk_ver_json['apkver'];
+        }
+
+        if ($apkVer && $apkVer >= 213) {
             unset($data['promoLabelItems']);
         }
 
