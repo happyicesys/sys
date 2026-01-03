@@ -33,7 +33,7 @@ class ComputeGpMetrics extends Command
      */
     public function handle(): int
     {
-        $chunkSize = (int)$this->option('chunk');
+        $chunkSize = (int) $this->option('chunk');
         if ($chunkSize <= 0) {
             $this->error('Chunk size must be greater than 0.');
             return self::FAILURE;
@@ -89,9 +89,14 @@ class ComputeGpMetrics extends Command
             return [$from, $to];
         }
 
-        // Default: process yesterday
-        $yesterday = Carbon::yesterday()->startOfDay();
-        return [$yesterday, $yesterday->copy()];
+        // Default: process last 3 days to self-heal any recent misses
+        $today = Carbon::today()->startOfDay();
+        // We want to process yesterday, 2 days ago, and 3 days ago.
+        // E.g. if today is 10th, we process 7th, 8th, 9th.
+        $from = $today->copy()->subDays(3);
+        $to = $today->copy()->subDays(1);
+
+        return [$from, $to];
     }
 
     /**
