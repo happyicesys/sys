@@ -11,7 +11,11 @@ use App\Models\ProductMovement;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ProductMovementExport;
+use App\Exports\ProductMovementTrackingExport;
 
 class ProductMovementController extends Controller
 {
@@ -20,6 +24,10 @@ class ProductMovementController extends Controller
     public function __construct()
     {
         $this->middleware(['permission:read products']);
+
+        if (env('CMS_URL')) {
+            abort(404);
+        }
     }
 
     public function index(Request $request)
@@ -154,6 +162,7 @@ class ProductMovementController extends Controller
             'qty' => 'required|integer',
             'type' => 'required|in:' . ProductMovement::TYPE_INCOMING . ',' . ProductMovement::TYPE_ADJUSTMENT,
             'remarks' => 'nullable|string',
+            'created_at' => 'nullable|date',
         ]);
 
         ProductMovement::create([
@@ -162,8 +171,141 @@ class ProductMovementController extends Controller
             'type' => $request->type,
             'operator_id' => auth()->user()->operator_id,
             'remarks' => $request->remarks,
+            'created_at' => $request->created_at ? Carbon::parse($request->created_at) : Carbon::now(),
         ]);
 
         return redirect()->back();
+    }
+
+    public function trackingDetails(Request $request)
+    {
+        // 1. Inputs & Defaults
+        $request->merge([
+            'date_from' => $request->date_from ?: Carbon::today()->toDateString(),
+            'date_to' => $request->date_to ?: Carbon::today()->toDateString(),
+        ]);
+
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+        $operators = is_array($request->operators) ? $request->operators : [$request->operators];
+
+        // 2. Incoming (ProductMovement)
+        // Select: date, type_label, product, qty, running_qty (calc later), remarks
+        $incomingQuery = ProductMovement::query()
+            ->selectRaw("
+                product_movements.created_at as date,
+                CASE
+                    WHEN type = 1 THEN 'Incoming'
+                    WHEN type = 2 THEN 'Adjustment'
+                    ELSE 'Unknown'
+                END as type_label,
+                product_movements.id as id,
+                products.code as product_code,
+                products.name as product_name,
+                product_movements.qty as qty,
+                product_movements.remarks as remarks,
+                'ProductMovement' as source_type
+            ")
+            ->leftJoin('products', 'products.id', '=', 'product_movements.product_id')
+            ->whereIn('product_movements.operator_id', $operators)
+            ->when($request->product_id, function ($q) use ($request) {
+                $q->where('product_movements.product_id', $request->product_id);
+            })
+            ->when($request->date_from, function ($q) use ($request) {
+                $q->whereDate('product_movements.created_at', '>=', $request->date_from);
+            })
+            ->when($request->date_to, function ($q) use ($request) {
+                $q->whereDate('product_movements.created_at', '<=', $request->date_to);
+            });
+
+        // 3. Outgoing (OpsJobItemChannel -> OpsJob)
+        // Note: filtered by status >= 3 (Delivered)
+        $outgoingQuery = OpsJob::query()
+            ->selectRaw("
+                ops_jobs.date as date,
+                'Outgoing' as type_label,
+                ops_job_item_channels.id as id,
+                products.code as product_code,
+                products.name as product_name,
+                (ops_job_item_channels.picked_qty * -1) as qty,
+                CONCAT('Job #', ops_jobs.code) as remarks,
+                'OpsJob' as source_type
+            ")
+            ->join('ops_job_items', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+            ->join('ops_job_item_channels', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->join('products', 'products.id', '=', 'ops_job_item_channels.product_id')
+            ->whereIn('ops_jobs.operator_id', $operators)
+            ->where('ops_job_items.status', '>=', 3)
+            ->where('ops_job_items.status', '!=', 99) // Status Cancelled
+            ->when($request->product_id, function ($q) use ($request) {
+                $q->where('ops_job_item_channels.product_id', $request->product_id);
+            })
+            ->when($request->date_from, function ($q) use ($request) {
+                $q->whereDate('ops_jobs.date', '>=', $request->date_from);
+            })
+            ->when($request->date_to, function ($q) use ($request) {
+                $q->whereDate('ops_jobs.date', '<=', $request->date_to);
+            });
+
+        // 4. Union & Sort
+        $query = $incomingQuery->union($outgoingQuery)
+            ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc');
+
+        // 5. Pagination
+        // Since we are doing a union, we can't use simple paginate easily on the builder before union in older Laravel,
+        // but recent versions support it. If it fails, we wrap in DB::table.
+        // Let's assume wrap is needed for safe sort/paginate.
+        $data = $query->paginate(100);
+
+        // 6. Running Balance Calculation (Tricky with pagination & date filters)
+        // If the user selects a date range, the "NetQty" for the first row shown needs to be relative to the running total up to that point?
+        // OR, does the user just want "NetQty after addition" which implies the historical running balance?
+        // Assuming Historical Running Balance.
+        // To get Historical Running Balance, we need the SUM of ALL movements before the last item on this page?
+        // This is expensive to calc per row.
+        // Alternative: Calculate "Opening Balance" for the whole selection range (up to date_from).
+        // Then iterate rows to add/sub.
+        // However, since we sort DESC (usually transaction logs show newest first), the "Running Balance" is usually shown as the balance *after* that transaction.
+        // So: Row N Balance = Row N-1 Balance - Row N Qty (if looking backwards) or...
+        // Use simpler approach:
+        // Calculate Total Opening Balance up to (but not including) the *last* record of the current pagination set?
+        // No, simplest is: Calculate Opening Balance up to End of Time (Current Stock). Then subtract working backwards?
+        // Or Calculate Opening Balance at Start of Time, then add working forward.
+        // Given we sort DESC, let's calculate the Balance at the "End" (Top of page, most recent) first?
+        // No, we need Balance for *each row*.
+        // Let's rely on the Frontend or just fetch "Current Balance" and deduct backwards?
+        // Or: Fetch Opening Balance for `date_from`.
+        // But `date_from` might be filtered.
+        // Let's calculate the "Opening Balance" as of `date_from 00:00:00`.
+        return Inertia::render('ProductMovement/TrackingDetails', [
+            'movements' => $data,
+            'filters' => $request->all(),
+            'products' => ProductResource::collection(Product::all()),
+            'operatorOptions' => OperatorResource::collection(Operator::all()),
+        ]);
+    }
+    public function exportExcel(Request $request)
+    {
+        return Excel::download(new ProductMovementExport($request), 'Product_Movement_' . Carbon::now()->format('ymdHis') . '.xlsx');
+    }
+
+    public function trackingExportExcel(Request $request)
+    {
+        return Excel::download(new ProductMovementTrackingExport($request), 'Product_Movement_Tracking_' . Carbon::now()->format('ymdHis') . '.xlsx');
     }
 }

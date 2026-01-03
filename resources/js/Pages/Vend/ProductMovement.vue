@@ -72,6 +72,22 @@
                                             Reset
                                         </span>
                                     </Button>
+                                    <Button class="inline-flex space-x-1 items-center rounded-md border border-indigo-500 bg-indigo-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                        @click="onTrackingDetailsClicked()"
+                                    >
+                                        <ClipboardDocumentListIcon class="h-4 w-4" aria-hidden="true"/>
+                                        <span>
+                                            Details
+                                        </span>
+                                    </Button>
+                                    <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-800 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                        @click="onExcelExportClicked()" v-if="permissions.includes('export products')"
+                                    >
+                                        <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true"/>
+                                        <span>
+                                            Export Excel
+                                        </span>
+                                    </Button>
                                 </div>
                                 <div class="flex flex-row gap-2">
                                     <span class="text-xs text-gray-500 self-center">
@@ -221,6 +237,12 @@
                             <InputError :message="form.errors.qty" class="mt-2" />
                         </div>
                         <div>
+                            <label class="block text-sm font-medium text-gray-700">Date</label>
+                            <DatePicker v-model="form.created_at" class="mt-1" :isPreviousNextButton="false" :clearable="false" :format="'yyyy-MM-dd'" auto-apply>
+                            </DatePicker>
+                            <InputError :message="form.errors.created_at" class="mt-2" />
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium text-gray-700">Remarks</label>
                             <textarea v-model="form.remarks" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"></textarea>
                             <InputError :message="form.errors.remarks" class="mt-2" />
@@ -243,7 +265,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { Head, router, usePage, useForm } from '@inertiajs/vue3'
-import { MagnifyingGlassIcon, XMarkIcon, PlusIcon, CalendarIcon, CheckCircleIcon, XCircleIcon, BackspaceIcon } from '@heroicons/vue/24/solid'
+import { MagnifyingGlassIcon, XMarkIcon, PlusIcon, CalendarIcon, CheckCircleIcon, XCircleIcon, BackspaceIcon, ClipboardDocumentListIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/solid'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import DatePicker from '@/Components/DatePicker.vue'
 import SearchInput from '@/Components/SearchInput.vue'
@@ -281,6 +303,7 @@ const form = useForm({
     type: 1,
     qty: '',
     remarks: '',
+    created_at: moment().format('YYYY-MM-DD'),
 })
 
 onMounted(() => {
@@ -358,6 +381,41 @@ const onResetFilterClicked = () => {
     filters.value.product_code = '';
     filters.value.is_available = booleanOptions.value[0];
     router.get(route('product-movements.index'));
+}
+
+const onTrackingDetailsClicked = () => {
+    let operatorIds = filters.value.operators.map(op => op.id)
+    router.get(route('product-movements.tracking-details'), {
+        operators: operatorIds
+    });
+}
+
+const onExcelExportClicked = () => {
+    let operators = filters.value.operators.map(operator => operator.id)
+    if (operators.includes('all')) {
+        operators = ['all']
+    }
+    axios({
+        method: 'get',
+        url: '/products/movements/export-excel',
+        params: {
+            product_name: filters.value.product_name,
+            product_code: filters.value.product_code,
+            operators: operators,
+            is_available: filters.value.is_available ? filters.value.is_available.id : 'all',
+            productAvailableDate: filters.value.productAvailableDate,
+        },
+        responseType: 'blob',
+    }).then(response => {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'Product_Movement_' + moment().format('YYMMDDHHmmss') + '.xlsx');
+        document.body.appendChild(link);
+        link.click();
+    }).catch(error => {
+        console.log(error)
+    })
 }
 
 const openMovementModal = (product) => {

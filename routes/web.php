@@ -429,6 +429,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Product Movement
         Route::get('/movements', [ProductMovementController::class, 'index'])->name('product-movements.index');
         Route::post('/movements', [ProductMovementController::class, 'store'])->name('product-movements.store');
+        Route::get('/movements/tracking', [ProductMovementController::class, 'trackingDetails'])->name('product-movements.tracking-details');
+        Route::get('/movements/export-excel', [ProductMovementController::class, 'exportExcel'])->name('product-movements.export-excel');
+        Route::get('/movements/tracking-export-excel', [ProductMovementController::class, 'trackingExportExcel'])->name('product-movements.tracking-export-excel');
 
         Route::get('/', [ProductController::class, 'index'])->name('products');
         Route::post('/{id}/toggle-activate-deactivate', [ProductController::class, 'toggleActivateDeactivate']);

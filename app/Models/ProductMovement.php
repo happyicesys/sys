@@ -18,6 +18,7 @@ class ProductMovement extends Model
         'qty',
         'operator_id',
         'remarks',
+        'created_at',
     ];
 
     public function product()
