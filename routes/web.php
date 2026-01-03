@@ -188,7 +188,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
     });
 
     Route::prefix('dashboard')->group(function () {
-        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        Route::redirect('/', '/dashboard/performance');
+        Route::get('/performance', [DashboardController::class, 'index'])->name('dashboard');
     });
 
     Route::prefix('delivery-platform-campaigns')->group(function () {

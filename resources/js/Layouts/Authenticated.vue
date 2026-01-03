@@ -11,13 +11,18 @@ const page = usePage()
 
 const navigation = computed(() => [
     {
-        name: 'Dashboard',
+        name: 'Dashboards',
         icon: ClipboardDocumentListIcon,
         current: false,
         href: 'dashboard',
         permission: 'read dashboard',
         tagline: null,
+        children: [
+            {name: 'Performance', href: '/dashboard/performance', permission: 'read dashboard'},
+            {name: 'Machine Health', href: '/reports/machine-health', permission: 'read reports'},
+        ]
     },
+
     // {
     //     name: 'Vending Machines',
     //     icon: CommandLineIcon,
@@ -52,14 +57,10 @@ const navigation = computed(() => [
         href: 'vends-transactions',
         permission: 'read transactions',
         tagline: null,
-    },
-    {
-        name: 'PaymentGateway Transactions',
-        icon: CreditCardIcon,
-        current: false,
-        href: 'payment-gateway-transactions',
-        permission: 'read payment-gateway-transactions',
-        tagline: null,
+        children: [
+            {name: 'Sales', href: '/vends/transactions', permission: 'read transactions'},
+            {name: 'Payment Gateway', href: '/vends/payment-gateway-transactions', permission: 'read payment-gateway-transactions'},
+        ]
     },
     {
         name: 'Operation Daily Jobs',
@@ -107,7 +108,7 @@ const navigation = computed(() => [
             {name: 'APK Settings', href: '/apk-settings', permission: 'read apk-settings'},
             {name: 'Setting Charts', href: '/vend-configs', permission: 'read vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes', permission: 'read vend-prefixes'},
-            {name: 'Cashless Terminals', href: '/cashless-terminals', permission: 'read cashless-terminals'},
+            // {name: 'Cashless Terminals', href: '/cashless-terminals', permission: 'read cashless-terminals'},
             {name: 'Modem IMEI', href: '/modem-units', permission: 'read modem-imei'},
             // {name: 'Campaigns', href: '/campaigns'},
         ]
@@ -134,7 +135,7 @@ const navigation = computed(() => [
             ...(!page.props.isCmsUrlSet ? [{name: 'Product Movement', href: '/products/movements', permission: 'read products'}] : []),
             {name: 'Categories', href: '/category-groups?classname=App\\Models\\Product', 'permission': 'read product-categories'},
             {name: 'SubCategories', href: '/categories?classname=App\\Models\\Product', 'permission': 'read product-subcategories'},
-            {name: 'Campaign Labels', href: '/tags?classname=App\\Models\\Product', 'permission': 'read product-campaign-labels'},
+            {name: 'Product Labels', href: '/tags?classname=App\\Models\\Product', 'permission': 'read product-campaign-labels'},
             {name: 'Machine Campaigns', href: '/campaigns', 'permission': 'read product-campaign-labels'},
         ]
     },
@@ -210,7 +211,6 @@ const navigation = computed(() => [
         permission: 'read reports',
         tagline: null,
         children: [
-            {name: 'Machine Health Dashboard', href: '/reports/machine-health'},
             {name: 'Stock Count Dashboard', href: '/reports/stock-count-dashboard'},
             {name: 'Daily Stock Count', href: '/reports/stock-count'},
             {name: 'Machine Monthly Snapshot', href: '/reports/snapshot'},

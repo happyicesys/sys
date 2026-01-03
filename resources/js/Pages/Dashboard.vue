@@ -6,7 +6,7 @@
         <template #header>
             <div class="flex flex-col space-y-1">
                 <div class="flex space-x-2 items-center">
-                    Dashboard
+                    Performance Dashboard
                 </div>
             </div>
         </template>
