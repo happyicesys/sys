@@ -18,7 +18,7 @@ class RolePermissionSyncSeeder extends Seeder
         // unbind all the permissions first
         $roles = Role::all();
 
-        foreach($roles as $role) {
+        foreach ($roles as $role) {
             $role->syncPermissions([]);
         }
 
@@ -34,253 +34,413 @@ class RolePermissionSyncSeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
         // Define permissions and link them to roles based on the data from the file
         $permissionsData = [
-            ['dashboard',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer', 'licensee', 'hid_user']],
+            [
+                'dashboard',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'observer', 'operator_admin', 'operator_viewer', 'licensee', 'hid_user']
+            ],
 
-            ['dashboard',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor']],
+            [
+                'dashboard',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin']
+            ],
 
-            ['vends',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee', 'licensee']],
+            [
+                'dashboard-performance',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'observer', 'operator_admin', 'operator_viewer', 'licensee', 'hid_user']
+            ],
 
-            ['vends',
-            ['update'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin']],
+            [
+                'dashboard-machine-health',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['vends',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor']],
+            [
+                'vends',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'franchisee', 'licensee']
+            ],
 
-            ['vend-customers',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee', 'licensee']],
+            [
+                'vends',
+                ['update'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin']
+            ],
 
-            ['vend-contracts',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin']],
+            [
+                'vends',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor']
+            ],
 
-            ['vend-customers',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer']],
+            [
+                'vend-customers',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee', 'licensee']
+            ],
 
-            ['vend-machines',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'vend-contracts',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin']
+            ],
 
-            ['vend-machines',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'vend-customers',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['transactions',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer', 'franchisee', 'licensee', 'hid_user']],
+            [
+                'vend-machines',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
 
-            ['transactions',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'vend-machines',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
 
-            ['payment-gateway-transactions',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'transactions',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer', 'franchisee', 'licensee', 'hid_user']
+            ],
 
-            ['operations',
-            ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl']],
+            [
+                'transactions',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['vend-settings',
-            ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'production_jb']],
+            [
+                'transactions-sales',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
 
-            ['machine-view',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'production_jb']],
+            [
+                'transactions-sales',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['machine-settings',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'transactions-payment-gateway',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
 
-            ['apk-settings',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer']],
+            [
+                'operations',
+                ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl']
+            ],
 
-            ['vend-configs',
-            ['read', 'create', 'update', 'delete', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'vend-settings',
+                ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'production_jb']
+            ],
 
-            ['vend-prefixes',
-            ['read', 'create', 'update', 'delete', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'machine-view',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'production_jb', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['cashless-terminals',
-            ['read', 'create', 'update', 'delete', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'machine-settings',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
 
-            ['customers',
-            ['read', 'export', 'create', 'update', 'delete'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'apk-settings',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['customers',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'vend-configs',
+                ['read', 'create', 'update', 'delete', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
 
-            ['products',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'vend-prefixes',
+                ['read', 'create', 'update', 'delete', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
 
-            ['product-mappings',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'cashless-terminals',
+                ['read', 'create', 'update', 'delete', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
 
-            ['product-availability',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']],
+            [
+                'customers',
+                ['read', 'export', 'create', 'update', 'delete'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['product-categories',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']],
+            [
+                'customers',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['product-subcategories',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']],
+            [
+                'products',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['product-campaign-labels',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']],
+            [
+                'product-mappings',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['data-settings',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'operator_viewer', 'hid_user']],
+            [
+                'product-availability',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['cashless-providers',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'operator_viewer']],
+            [
+                'product-categories',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['location-types',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'opeartor_admin', 'operator_viewer']],
+            [
+                'product-subcategories',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['hid-cards',
-            ['read', 'create', 'update', 'delete', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'hid_user']],
+            [
+                'product-campaign-labels',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['vend-models',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'data-settings',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'operator_viewer', 'hid_user']
+            ],
 
-            ['modem-models',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor']],
+            [
+                'cashless-providers',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'operator_viewer']
+            ],
 
-            ['modem-imei',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor']],
+            [
+                'location-types',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'opeartor_admin', 'operator_viewer']
+            ],
 
-            ['keys',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'hid-cards',
+                ['read', 'create', 'update', 'delete', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'hid_user']
+            ],
 
-            ['serial-numbers',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'vend-models',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['telcos',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'modem-models',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['simcards',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'modem-imei',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['zones',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'opeartor_admin', 'operator_viewer']],
+            [
+                'keys',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['delivery-platforms',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'serial-numbers',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['delivery-platform-orders',
-            ['read', 'export', 'update'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'telcos',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['delivery-platform-orders',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'simcards',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['delivery-platform-vends',
-            ['read', 'export', 'update'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
+            [
+                'zones',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'opeartor_admin', 'operator_viewer']
+            ],
 
-            ['delivery-platform-vends',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'delivery-platforms',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['delivery-platform-product-mappings',
-            ['read', 'export', 'create', 'update', 'delete'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']],
+            [
+                'delivery-platform-orders',
+                ['read', 'export', 'update'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['delivery-platform-product-mappings',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor']],
+            [
+                'delivery-platform-orders',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
 
-            ['delivery-platform-campaigns',
-            ['read', 'export', 'create', 'update', 'delete'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']],
+            [
+                'delivery-platform-vends',
+                ['read', 'export', 'update'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['delivery-platform-campaigns',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor']],
+            [
+                'delivery-platform-vends',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
 
-            ['reports',
-            ['read', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']],
+            [
+                'delivery-platform-product-mappings',
+                ['read', 'export', 'create', 'update', 'delete'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['admins',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'operator_admin']],
+            [
+                'delivery-platform-product-mappings',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor']
+            ],
 
-            ['operators',
-            ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin']],
+            [
+                'delivery-platform-campaigns',
+                ['read', 'export', 'create', 'update', 'delete'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['users',
-            ['read', 'create', 'update', 'delete', 'export'],
-            ['superadmin', 'admin', 'operator_admin']],
+            [
+                'delivery-platform-campaigns',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor']
+            ],
 
-            ['users',
-            ['admin-access'],
-            ['superadmin', 'admin', 'operator_admin']],
+            [
+                'reports',
+                ['read', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
 
-            ['vouchers',
-            ['read', 'create', 'update', 'delete', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin']],
+            [
+                'admins',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'operator_admin']
+            ],
 
-            ['vouchers',
-            ['admin-access'],
-            ['superadmin', 'admin', 'operator_admin']],
+            [
+                'operators',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin']
+            ],
 
-            ['resource-centers',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee']],
+            [
+                'users',
+                ['read', 'create', 'update', 'delete', 'export'],
+                ['superadmin', 'admin', 'operator_admin']
+            ],
 
-            ['resource-center-operators',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee']],
+            [
+                'users',
+                ['admin-access'],
+                ['superadmin', 'admin', 'operator_admin']
+            ],
 
-            ['resource-center-operators',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor']],
+            [
+                'vouchers',
+                ['read', 'create', 'update', 'delete', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin']
+            ],
 
-            ['resource-center-technicians',
-            ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            [
+                'vouchers',
+                ['admin-access'],
+                ['superadmin', 'admin', 'operator_admin']
+            ],
 
-            ['resource-center-technicians',
-            ['admin-access'],
-            ['superadmin', 'admin', 'supervisor']]
+            [
+                'resource-centers',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee']
+            ],
+
+            [
+                'resource-center-operators',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']
+            ],
+
+            [
+                'resource-center-operators',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor']
+            ],
+
+            [
+                'resource-center-technicians',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']
+            ],
+
+            [
+                'resource-center-technicians',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor']
+            ],
+
+            [
+                'resource-center-drivers',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_driver', 'operator_3pl', 'franchisee']
+            ],
+
+            [
+                'resource-center-drivers',
+                ['admin-access'],
+                ['superadmin', 'admin', 'supervisor']
+            ]
         ];
 
         // Create permissions and assign to roles

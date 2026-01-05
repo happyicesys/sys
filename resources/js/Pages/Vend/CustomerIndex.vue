@@ -714,7 +714,7 @@
 							</div>
 						</div>
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_3pl')">
+					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<span>
 								Stock
@@ -739,7 +739,7 @@
 							</SingleSortItem>
 						</div>
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_3pl')">
+					<TableHead v-if="!roles.includes('operator_drive')">
 						Sales(qty)
 						<SingleSortItem modelName="totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->today_amount', false)">
 							Today
@@ -754,7 +754,7 @@
 							Last30d
 						</SingleSortItem>
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_3pl')">
+					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<span>
 								Last 2 Job
@@ -770,7 +770,7 @@
 							</span>
 						</div>
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_3pl')">
+					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<span>
 								Last Job
@@ -786,7 +786,7 @@
 							</span>
 						</div>
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_3pl')">
+					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<span>
 								Upcoming Job
@@ -799,7 +799,7 @@
 							</span>
 						</div>
 					</TableHead>
-					<TableHead v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
+					<TableHead v-if="indexType === 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<SingleSortItem modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
 								Zone
@@ -815,7 +815,7 @@
 							</div>
 						</div>
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_3pl')">
+					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<SingleSortItem modelName="totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_latest', true)">
 								Lifetime Sales
@@ -843,13 +843,13 @@
 							</div>
 						</div>
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_3pl')">
+					<TableHead v-if="!roles.includes('operator_driver')">
 						Machine Status
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_3pl')">
+					<TableHead v-if="!roles.includes('operator_driver')">
 						Payment Device
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_3pl')">
+					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<SingleSortItem modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
 								Operator
@@ -865,7 +865,7 @@
 							</SingleSortItem>
 						</div>
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_3pl')">
+					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<span>
 								VMC Board
@@ -1178,7 +1178,7 @@
 							</span>
 						</div>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<span
 									v-if="vend.vendChannelTotalsJson"
@@ -1203,7 +1203,7 @@
 							</span>
 						</div>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
 						<span
 						v-if="vend.vendTransactionTotalsJson && 'today_amount' in vend.vendTransactionTotalsJson"
 						:class="[
@@ -1246,7 +1246,7 @@
 								{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 						</span>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
 							<div v-if="vend && vend.lastSecondOpsJobItem" class="flex flex-col space-y-1">
 								<a :href="'/ops-jobs/items/' + vend.lastSecondOpsJobItem.id + '/edit'">
@@ -1292,7 +1292,7 @@
 							</div>
 						</div>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
 							<div v-if="vend && vend.lastOpsJobItem" class="flex flex-col space-y-1">
 								<a :href="'/ops-jobs/items/' + vend.lastOpsJobItem.id + '/edit'">
@@ -1338,7 +1338,7 @@
 							</div>
 						</div>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
 							<div v-if="vend && vend.nextOpsJobItem" class="flex flex-col space-y-1">
 								<a :href="'/ops-jobs/items/' + vend.nextOpsJobItem.id + '/edit'">
@@ -1379,7 +1379,7 @@
 							</div>
 						</div>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_driver')">
 						<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
 							<div class="flex flex-col space-y-2">
 								<span>
@@ -1405,7 +1405,7 @@
 							</div>
 						</span>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<span
 							v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_latest' in vend.vendTransactionTotalsJson"
@@ -1439,7 +1439,7 @@
 							</span>
 						</div>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
@@ -1538,7 +1538,7 @@
 							</div>
 						</div>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
@@ -1667,7 +1667,7 @@
 							</div>
 						</div>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_driver')">
 						<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
 							<div class="flex flex-col space-y-2">
 								<span>
@@ -1685,7 +1685,7 @@
 							</div>
 						</span>
 					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_driver')">
 						<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
 							<div class="flex flex-col space-y-2">
 								<span class="flex flex-col space-y-1">

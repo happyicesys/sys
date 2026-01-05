@@ -18,8 +18,8 @@ const navigation = computed(() => [
         permission: 'read dashboard',
         tagline: null,
         children: [
-            {name: 'Performance', href: '/dashboard/performance', permission: 'read dashboard'},
-            {name: 'Machine Health', href: '/reports/machine-health', permission: 'read reports'},
+            {name: 'Performance', href: '/dashboard/performance', permission: 'read dashboard-performance'},
+            {name: 'Machine Health', href: '/reports/machine-health', permission: 'read dashboard-machine-health'},
         ]
     },
 
@@ -58,8 +58,8 @@ const navigation = computed(() => [
         permission: 'read transactions',
         tagline: null,
         children: [
-            {name: 'Sales', href: '/vends/transactions', permission: 'read transactions'},
-            {name: 'Payment Gateway', href: '/vends/payment-gateway-transactions', permission: 'read payment-gateway-transactions'},
+            {name: 'Sales', href: '/vends/transactions', permission: 'read transactions-sales'},
+            {name: 'Payment Gateway', href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
         ]
     },
     {
@@ -486,7 +486,7 @@ const useContainLogo = computed(() => logoUrl.value !== defaultLogoUrl.value)
                                 >
                                     <DisclosureButton
                                         v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
-                                        class="group w-full flex items-center justify-start text-left pl-2 pr-2 py-3 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-50">
+                                        class="group w-full flex items-center justify-start text-left pl-14 pr-2 py-3 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-50">
                                         {{ subItem.name }}
                                     </DisclosureButton>
                                 </Link>

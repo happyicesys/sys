@@ -49,6 +49,7 @@
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
+                @select="onOperatorSelect"
               />
             </div>
 
@@ -211,6 +212,14 @@ onMounted(() => {
   filters.value.vendPrefixes = [vendPrefixOptions.value[0]]
 })
 
+function onOperatorSelect(selectedItem) {
+  if (selectedItem.id === 'all') {
+    filters.value.operators = [selectedItem];
+  } else {
+    filters.value.operators = filters.value.operators.filter(o => o.id !== 'all');
+  }
+}
+
 function onSearchFilterUpdated () {
   router.get('/reports/stock-count-dashboard', {
     ...filters.value,
@@ -219,7 +228,13 @@ function onSearchFilterUpdated () {
     operators: (filters.value.operators ?? []).map(o => o.id),
     vendPrefixes: (filters.value.vendPrefixes ?? []).map(v => v.id),
     products: (filters.value.products ?? []).map(p => p.id),
-  }, { preserveState: true, replace: true })
+  }, {
+    preserveState: true,
+    replace: true,
+    onSuccess: () => {
+      syncData()
+    }
+  })
 }
 
 function resetFilters () {
@@ -279,6 +294,15 @@ function hexToRGBA (hex, a) {
 }
 
 onBeforeMount(() => {
+  syncData()
+})
+
+function syncData() {
+  dayGraphLabels.value = []
+  dayGraphDatasets.value = []
+  qtyLabels.value = []
+  qtyDatasets.value = []
+
   for (let i = 1; i <= 31; i++) dayGraphLabels.value.push(i)
 
   const colors = ['#3e95cd', '#ff7f7f', '#007500', '#808080', '#c45850']
@@ -399,5 +423,5 @@ onBeforeMount(() => {
     })
   })
   qtyKey.value += 1
-})
+}
 </script>
