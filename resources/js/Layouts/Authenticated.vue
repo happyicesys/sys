@@ -168,7 +168,7 @@ const navigation = computed(() => [
             {name: 'Machine Contracts', href: '/vend-contracts', permission: 'read vend-contracts'},
             {name: 'Telco', href: '/telcos', permission: 'read telcos'},
             {name: 'Simcard', href: '/simcards', permission: 'read simcards'},
-            {name: 'Zone', href: '/zones', permission: 'read zones'},
+            {name: 'Refilling Routes', href: '/zones', permission: 'read zones'},
         ],
     },
     {

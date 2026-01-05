@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Zone" />
+  <Head title="Refilling Routes" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Zones
+        Refilling Routes
       </h2>
     </template>
 
@@ -200,7 +200,7 @@ function onDeleteClicked(zone) {
   }
   router.delete('/zones/' + zone.id, {
     onSuccess: () => {
-      toast.success("Zone deleted successfully", { timeout: 3000 })
+      toast.success("Refilling Route deleted successfully", { timeout: 3000 })
     },
     onError: () => {
       toast.error("Failed to delete zone", { timeout: 3000 })

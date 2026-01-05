@@ -321,7 +321,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
-						Zone
+						Refilling Routes
 					</label>
 					<MultiSelect
 						v-model="filters.zones"
@@ -802,7 +802,7 @@
 					<TableHead v-if="indexType === 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<SingleSortItem modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
-								Zone
+								Refilling Routes
 							</SingleSortItem>
 							<div>
 								Preferred Day(s)

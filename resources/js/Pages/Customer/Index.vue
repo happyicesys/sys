@@ -76,7 +76,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Zone
+              Refilling Routes
             </label>
             <MultiSelect
               v-model="filters.zone_id"
@@ -89,21 +89,7 @@
               class="mt-1"
             ></MultiSelect>
           </div>
-          <div>
-            <label for="text" class="block text-sm font-medium text-gray-700">
-              Price Template
-            </label>
-            <MultiSelect
-              v-model="filters.price_template_id"
-              :options="priceTemplateOptions"
-              trackBy="id"
-              valueProp="id"
-              label="name"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-            ></MultiSelect>
-          </div>
+
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Tags
@@ -120,7 +106,7 @@
               class="mt-1"
             ></MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access customers')">
+          <div v-if="permissions.includes('admin-access customers') && cmsEndpoint">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Is From CMS
             </label>
@@ -216,7 +202,7 @@
           </div>
           <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Zone
+              Refilling Routes
             </label>
             <MultiSelect
               v-model="filters.zones"
@@ -364,7 +350,7 @@
                     :sortBy="filters.sortBy"
                     @sort-table="sortTable('zone_name')"
                   >
-                    Zone
+                    Refilling Routes
                   </TableHeadSort>
                   <TableHeadSort
                     modelName="frequency_per_week_status"
@@ -749,7 +735,7 @@ const props = defineProps({
   locationTypeOptions: [Array, Object],
   mapApiKey: String,
   operatorOptions: Object,
-  priceTemplates: Object,
+
   profiles: Object,
   sellingPriceTypeOptions: [Array, Object],
   statuses: Object,
@@ -791,7 +777,7 @@ const locationTypeOptions = ref([]);
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
-const priceTemplateOptions = ref([]);
+
 const profileOptions = ref([]);
 const showMapMarkerModal = ref(false);
 const sellingPriceTypeOptions = ref([]);
@@ -850,9 +836,7 @@ onMounted(() => {
       return { id: data.id, code: data.code, full_name: data.full_name };
     }),
   ];
-  priceTemplateOptions.value = props.priceTemplates.data.map((data) => {
-    return { id: data.id, name: data.name };
-  });
+
   profileOptions.value = props.profiles.data.map((data) => {
     return { id: data.id, name: data.name };
   });

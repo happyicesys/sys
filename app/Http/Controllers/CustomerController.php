@@ -154,7 +154,7 @@ class CustomerController extends Controller
             'locationTypeOptions' => $optionsService->locationTypes(),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'operatorOptions' => $optionsService->operators(),
-            'priceTemplates' => $optionsService->priceTemplates(),
+
             'profiles' => $optionsService->profiles(),
             'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'statuses' => [

@@ -440,7 +440,7 @@
                   </div>
                   <div class="sm:col-span-4">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Zone
+                      Refilling Routes
                     </label>
                     <MultiSelect
                       v-model="form.zone_id"
