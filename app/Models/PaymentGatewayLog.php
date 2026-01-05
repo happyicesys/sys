@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class PaymentGatewayLog extends Model
 {
@@ -65,121 +66,126 @@ class PaymentGatewayLog extends Model
         return $this->hasOne(VendTransaction::class);
     }
 
-        // scopes
+    // scopes
     public function scopeFilterIndex($query, $request)
     {
-        $query = $query->when($request->date_from, function($query, $search) {
+        $query = $query->when($request->date_from, function ($query, $search) {
             $query->where('approved_at', '>=', $search);
         })
-        ->when($request->date_to, function($query, $search) {
-            $query->where('approved_at', '<=', $search);
-        })
-        ->when($request->ref_id, function($query, $search) {
-            $query->where('ref_id', 'LIKE', "%{$search}%");
-        })
-        ->when($request->codes, function($query, $search) {
-            if(strpos($search, ',') !== false) {
-                $search = explode(',', $search);
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->whereIn('code', $search);
-                });
-            }else {
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->where('code', 'LIKE', "%{$search}%");
-                });
-            }
-        })
-        ->when($request->is_dispensed, function($query, $search) {
-            if($search != 'all') {
-                if(filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
-                    $query->where('is_dispensed', true);
-                }else {
-                    $query->where('is_dispensed', false);
+            ->when($request->date_to, function ($query, $search) {
+                $query->where('approved_at', '<=', $search);
+            })
+            ->when($request->ref_id, function ($query, $search) {
+                $query->where('ref_id', 'LIKE', "%{$search}%");
+            })
+            ->when($request->codes, function ($query, $search) {
+                if (strpos($search, ',') !== false) {
+                    $search = explode(',', $search);
+                    $query->whereHas('vend', function ($query) use ($search) {
+                        $query->whereIn('code', $search);
+                    });
+                } else {
+                    $query->whereHas('vend', function ($query) use ($search) {
+                        $query->where('code', 'LIKE', "%{$search}%");
+                    });
                 }
-            }
-        })
-        ->when($request->is_found_in_transaction, function($query, $search) {
-            if($search != 'all') {
-                if(filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
-                    $query->has('vendTransaction');
-                }else {
-                    $query->doesntHave('vendTransaction');
+            })
+            ->when($request->is_dispensed, function ($query, $search) {
+                if ($search != 'all') {
+                    if (filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
+                        $query->where('is_dispensed', true);
+                    } else {
+                        $query->where('is_dispensed', false);
+                    }
                 }
-            }
-        })
-        ->when($request->is_refunded, function($query, $search) {
-            if($search != 'all') {
-                if(filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
-                    $query->where('status', 98);
-                }else {
-                    $query->where('status', '<>', 98);
+            })
+            ->when($request->is_found_in_transaction, function ($query, $search) {
+                if ($search != 'all') {
+                    if (filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
+                        $query->has('vendTransaction');
+                    } else {
+                        $query->doesntHave('vendTransaction');
+                    }
                 }
-            }
-        })
-        ->when($request->order_id, function($query, $search) {
-            $query->where('payment_gateway_logs.order_id', 'LIKE', "{$search}%");
-        })
-        ->when($request->paymentMethod, function($query, $search) {
-            $query->where('payment_method_id', $search);
-        })
-        ->when($request->customer, function($query, $search) {
-            if(strpos($search, "-")) {
-                $searchArray = explode("-", $search);
-                    $query->whereHas('vend.customer', function($query) use ($searchArray) {
+            })
+            ->when($request->is_refunded, function ($query, $search) {
+                if ($search != 'all') {
+                    if (filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
+                        $query->where('status', 98);
+                    } else {
+                        $query->where('status', '<>', 98);
+                    }
+                }
+            })
+            ->when($request->order_id, function ($query, $search) {
+                $query->where('payment_gateway_logs.order_id', 'LIKE', "{$search}%");
+            })
+            ->when($request->paymentMethod, function ($query, $search) {
+                $query->where('payment_method_id', $search);
+            })
+            ->when($request->customer, function ($query, $search) {
+                if (strpos($search, "-")) {
+                    $searchArray = explode("-", $search);
+                    $query->whereHas('vend.customer', function ($query) use ($searchArray) {
                         $query->where('virtual_customer_prefix', $searchArray[0])
                             ->where('virtual_customer_code', $searchArray[1]);
                     });
-            }else {
-                $query->whereHas('vend.customer', function($query) use ($search) {
-                    $query->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                        ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere(DB::raw("lower(name)"), 'LIKE', '%'.strtolower( $search ).'%');
-                });
-            }
-        })
-        ->when($request->operators, function($query, $search) {
-            if(!in_array('all', $search)){
-                $query->whereHas('operatorPaymentGateway', function($query) use ($search) {
-                    $query->whereIn('operator_id', $search);
-                });
-            }
-        })
-        ->when($request->qr_ref_id, function($query, $search) {
-            $query->where('qr_ref_id', 'LIKE', "{$search}%");
-        })
-        // ->when($request->product_code, function($query, $search) {
-        //     $query->where(function($query) use ($search) {
-        //         $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
-        //             $query->select('id')->from('products')->where('code', 'LIKE', "{$search}%");
-        //         });
-        //         $query->orWhereHas('vendTransactionItems', function($query) use ($search) {
-        //             $query->whereIn('product_id', function($query) use ($search) {
-        //                 $query->select('id')->from('products')->where('code', 'LIKE', "{$search}%");
-        //             });
-        //         });
-        //     });
-        // })
-        // ->when($request->product_name, function($query, $search) {
-        //     $query->where(function($query) use ($search) {
-        //         $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
-        //             $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
-        //         });
-        //         $query->orWhereHas('vendTransactionItems', function($query) use ($search) {
-        //             $query->whereIn('product_id', function($query) use ($search) {
-        //                 $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
-        //             });
-        //         });
-        //     });
-        // })
-        ->when($request->sortKey, function($query, $search) use ($request) {
-            if(strpos($search, '->')) {
-                $inputSearch = explode("->", $search);
-                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
-                ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            }else {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            }
-        });
+                } else {
+                    $query->whereHas('vend.customer', function ($query) use ($search) {
+                        $query->where('virtual_customer_prefix', 'LIKE', "{$search}%")
+                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
+                            ->orWhere(DB::raw("lower(name)"), 'LIKE', '%' . strtolower($search) . '%');
+                    });
+                }
+            })
+            ->when($request->operators, function ($query, $search) {
+                if (!in_array('all', $search)) {
+                    $query->whereHas('operatorPaymentGateway', function ($query) use ($search) {
+                        $query->whereIn('operator_id', $search);
+                    });
+                }
+            })
+            ->when($request->payment_gateway_id, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->where('payment_gateway_id', $search);
+                }
+            })
+            ->when($request->qr_ref_id, function ($query, $search) {
+                $query->where('qr_ref_id', 'LIKE', "{$search}%");
+            })
+            // ->when($request->product_code, function($query, $search) {
+            //     $query->where(function($query) use ($search) {
+            //         $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
+            //             $query->select('id')->from('products')->where('code', 'LIKE', "{$search}%");
+            //         });
+            //         $query->orWhereHas('vendTransactionItems', function($query) use ($search) {
+            //             $query->whereIn('product_id', function($query) use ($search) {
+            //                 $query->select('id')->from('products')->where('code', 'LIKE', "{$search}%");
+            //             });
+            //         });
+            //     });
+            // })
+            // ->when($request->product_name, function($query, $search) {
+            //     $query->where(function($query) use ($search) {
+            //         $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
+            //             $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
+            //         });
+            //         $query->orWhereHas('vendTransactionItems', function($query) use ($search) {
+            //             $query->whereIn('product_id', function($query) use ($search) {
+            //                 $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
+            //             });
+            //         });
+            //     });
+            // })
+            ->when($request->sortKey, function ($query, $search) use ($request) {
+                if (strpos($search, '->')) {
+                    $inputSearch = explode("->", $search);
+                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                        ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                } else {
+                    $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                }
+            });
 
         return $query;
     }

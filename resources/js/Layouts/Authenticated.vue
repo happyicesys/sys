@@ -136,7 +136,6 @@ const navigation = computed(() => [
             {name: 'Categories', href: '/category-groups?classname=App\\Models\\Product', 'permission': 'read product-categories'},
             {name: 'SubCategories', href: '/categories?classname=App\\Models\\Product', 'permission': 'read product-subcategories'},
             {name: 'Product Labels', href: '/tags?classname=App\\Models\\Product', 'permission': 'read product-campaign-labels'},
-            {name: 'Machine Campaigns', href: '/campaigns', 'permission': 'read product-campaign-labels'},
         ]
     },
     {
@@ -266,14 +265,15 @@ const navigation = computed(() => [
         ]
     },
     {
-        name: 'Voucher Management',
+        name: 'Campaign Management',
         icon: TicketIcon,
         current: false,
-        href: 'vouchers',
-        permission: 'read vouchers',
+        href: 'campaigns',
+        permission: 'read product-campaign-labels',
         tagline: null,
         children: [
-            {name: 'Vouchers', href: '/vouchers', permission: 'read vouchers'},
+            {name: 'Settings', href: '/campaigns', permission: 'read product-campaign-labels'},
+            {name: 'Voucher', href: '/vouchers', permission: 'read vouchers'},
         ]
     },
     {

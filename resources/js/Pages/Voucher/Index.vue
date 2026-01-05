@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Voucher Management" />
+  <Head title="Campaign Vouchers" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Voucher Management
+        Campaign Vouchers
       </h2>
     </template>
 

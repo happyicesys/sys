@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Campaigns" />
+  <Head title="Campaign Settings" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Campaigns
+        Campaign Settings
       </h2>
     </template>
 

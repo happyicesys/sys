@@ -99,6 +99,22 @@
                 >
                 </MultiSelect>
             </div>
+            <div class="col-span-12 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Payment Gateway
+                </label>
+                <MultiSelect
+                    v-model="filters.payment_gateway_id"
+                    :options="paymentGatewayOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="full_name"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Is Dispense?
@@ -400,6 +416,7 @@ const props = defineProps({
     paymentMethods: Object,
     paymentGatewayLogs: Object,
     totals: [Object, Array],
+    paymentGatewayOptions: Object,
 })
 const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
@@ -445,6 +462,11 @@ onMounted(() => {
         {id: '1', value: '1'},
         {id: '50', value: '50'},
     ]
+    paymentGatewayOptions.value = [
+        {id: 'all', full_name: 'All'},
+        ...props.paymentGatewayOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+    ]
+    filters.value.payment_gateway_id = paymentGatewayOptions.value[0]
     filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
 		...authOperator.code == 'HIPL' ? [
@@ -476,9 +498,11 @@ const filters = ref({
     sortBy: false,
     numberPerPage: 50,
     visited: true,
+    payment_gateway_id: '',
 })
 const loading = ref(false)
 const paymentMethodOptions = ref([])
+const paymentGatewayOptions = ref([])
 const numberPerPageOptions = ref([])
 
 function onExportExcelClicked() {
@@ -496,6 +520,7 @@ function onExportExcelClicked() {
             is_refunded: filters.value.is_refunded.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
+            payment_gateway_id: filters.value.payment_gateway_id.id,
         },
         responseType: 'blob',
     }).then(response => {
@@ -518,6 +543,7 @@ function onSearchFilterUpdated() {
         is_refunded: filters.value.is_refunded.id,
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,
+        payment_gateway_id: filters.value.payment_gateway_id.id,
     }, {
         preserveState: true,
         replace: true,

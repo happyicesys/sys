@@ -17,6 +17,7 @@ use App\Http\Resources\ModemTypeResource;
 use App\Http\Resources\ModemUnitResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentGatewayLogResource;
+use App\Http\Resources\PaymentGatewayResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\TagResource;
@@ -53,6 +54,7 @@ use App\Models\ModemUnit;
 use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\PaymentMethod;
+use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
 use App\Models\Product;
 use App\Models\ProductMapping;
@@ -2457,10 +2459,16 @@ class VendController extends Controller
         $paymentMethods = PaymentMethodResource::collection(
             PaymentMethod::orderBy('name')->get()
         );
+        $paymentGatewayOptions = PaymentGatewayResource::collection(
+            PaymentGateway::with(['country'])
+                ->orderBy('name')
+                ->get()
+        );
 
         return Inertia::render('Vend/PaymentGatewayTransaction', [
             'operatorOptions' => $operatorOptions,
             'paymentMethods' => $paymentMethods,
+            'paymentGatewayOptions' => $paymentGatewayOptions,
             'paymentGatewayLogs' => PaymentGatewayLogResource::collection(
                 $paymentGatewayLogs
             ),
