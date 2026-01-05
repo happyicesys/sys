@@ -10,7 +10,7 @@
             {{ props.zone.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Zone
+            Create New Refilling Route
           </span>
         </div>
       </template>
@@ -88,11 +88,11 @@ function submit() {
     form.value
     .post('/zones/create', {
       onSuccess: () => {
-        toast.success("Zone created successfully", { timeout: 3000 })
+        toast.success("Refilling Route created successfully", { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to create zone", { timeout: 3000 })
+        toast.error("Failed to create Refilling Route", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,
@@ -103,11 +103,11 @@ function submit() {
     form.value
       .post('/zones/' + form.value.id + '/update', {
       onSuccess: () => {
-        toast.success("Zone updated successfully", { timeout: 3000 })
+        toast.success("Refilling Route updated successfully", { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {
-        toast.error("Failed to update zone", { timeout: 3000 })
+        toast.error("Failed to update Refilling Route", { timeout: 3000 })
       },
       preserveState: true,
       replace: true,

@@ -494,9 +494,11 @@
                   >
                     <div class="flex flex-col space-y-1">
                       <span>
-                        {{ customer.deliveryAddress
+                        <!-- {{ customer.deliveryAddress }} -->
+                        {{ customer.deliveryAddress?.full_address }}
+                        <!-- {{ customer.deliveryAddress
                           ? customer.deliveryAddress.full_address
-                          : null }}
+                          // : null }} -->
                       </span>
                       <span class="flex space-x-1 items-center" v-if="customer.deliveryAddress">
                         <span>
