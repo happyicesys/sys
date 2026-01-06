@@ -208,6 +208,7 @@ class CustomerController extends Controller
                 ->where('customer_id', null)
                 ->orderBy('code')
                 ->get(),
+            'cmsEndpoint' => env('CMS_URL'),
             'type' => 'create',
         ]);
     }

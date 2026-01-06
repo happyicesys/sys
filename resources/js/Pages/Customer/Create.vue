@@ -58,7 +58,7 @@
               <fieldset class="sm:col-span-6" v-if="!customer.id">
                 <legend class="sr-only">Plan</legend>
                 <div class="flex space-x-5">
-                  <div class="relative flex items-start">
+                  <div class="relative flex items-start" v-if="cmsEndpoint">
                     <div class="flex h-6 items-center">
                       <input id="isExisting" aria-describedby="is-existing-description" name="isExisting" type="radio" v-model="isExisting" value="1" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                     </div>
@@ -328,6 +328,7 @@ const props = defineProps({
     operatorOptions: Object,
     customer: Object,
     type: String,
+    cmsEndpoint: String,
   })
 
 const form = ref(
@@ -343,7 +344,7 @@ const booleanStrictOptions = ref([
 
 const cmsCustomerOptions = ref([])
 const countryOptions = ref([])
-const isExisting = ref(1)
+const isExisting = ref(props.cmsEndpoint ? 1 : 0)
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const vendOptions = ref([])
