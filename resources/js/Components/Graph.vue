@@ -24,6 +24,7 @@
         values: Object,
         options: Object,
         datasets: [Array, Object],
+        plugins: [Array, Object],
     });
 
     const chartRef = ref(null)
@@ -40,6 +41,6 @@
                     ...props.options,
                 })
     // const plugins = ref([ChartDataLabels])
-    const plugins = ref()
+    const plugins = ref(props.plugins)
 
 </script>

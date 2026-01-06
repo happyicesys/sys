@@ -32,8 +32,11 @@ class DashboardController extends Controller
 {
     use GetUserTimezone;
 
-    public function __construct()
+    protected $weatherService;
+
+    public function __construct(\App\Services\WeatherService $weatherService)
     {
+        $this->weatherService = $weatherService;
         // $this->middleware(['permission:read dashboard'])->only('index');
     }
 
@@ -141,7 +144,13 @@ class DashboardController extends Controller
             }
         });
 
+
         $results = $query->get();
+
+        $operator = auth()->user()->operator;
+        $lat = $operator->address?->latitude ?? 1.3521;
+        $lng = $operator->address?->longitude ?? 103.8198;
+
 
         // Initialize structure
         $data = [];
@@ -152,7 +161,13 @@ class DashboardController extends Controller
                 'data' => [],
                 'year' => $date->year,
                 'month' => $date->month,
+                'weather_icons' => [],
             ];
+
+            $periodStart = $date->copy()->startOfMonth();
+            $periodEnd = $date->copy()->endOfMonth();
+            $weatherData = $this->weatherService->getDailyWeatherForRange($periodStart, $periodEnd, $lat, $lng);
+
 
             // Initialize days based on actual days in month
             for ($day = 1; $day <= $daysInMonth; $day++) {
@@ -166,6 +181,8 @@ class DashboardController extends Controller
                 } else {
                     $data[$key]['data'][$day] = 0;
                 }
+                $data[$key]['weather_icons'][$day] = $weatherData[$checkDate->format('Y-m-d')] ?? null;
+
             }
         }
 
@@ -184,6 +201,7 @@ class DashboardController extends Controller
         // Re-index data to be 0-indexed arrays for Chart.js
         foreach ($data as &$periodData) {
             $periodData['data'] = array_values($periodData['data']);
+            $periodData['weather_icons'] = array_values($periodData['weather_icons']);
         }
 
         return $data;
@@ -265,7 +283,19 @@ class DashboardController extends Controller
         $dayGraph = $dayGraph->orderBy('date', 'asc')
             ->get();
 
-        return $this->fillEmptyDates($dayGraph, $day_date_from->copy()->subMonth(), $day_date_to);
+        $dayGraph = $this->fillEmptyDates($dayGraph, $day_date_from->copy()->subMonth(), $day_date_to);
+
+        $operator = auth()->user()->operator;
+        $lat = $operator->address?->latitude ?? 1.3521;
+        $lng = $operator->address?->longitude ?? 103.8198;
+        $weatherData = $this->weatherService->getDailyWeatherForRange($day_date_from->copy()->subMonth(), $day_date_to, $lat, $lng);
+
+        foreach ($dayGraph as $day) {
+            $d = $day->date instanceof \Carbon\Carbon ? $day->date->format('Y-m-d') : $day->date;
+            $day->weather_icon = $weatherData[$d] ?? null;
+        }
+
+        return $dayGraph;
     }
 
     private function fillEmptyDates($dayGraph, $startDate, $endDate)

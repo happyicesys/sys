@@ -121,7 +121,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'transactions-sales',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer', 'franchisee', 'licensee', 'hid_user']
             ],
 
             [

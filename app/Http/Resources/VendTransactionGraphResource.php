@@ -43,6 +43,7 @@ class VendTransactionGraphResource extends JsonResource
             'month' => $this->month,
             'month_name' => $this->month_name,
             'year' => $this->year,
+            'weather_icon' => $this->weather_icon ?? null,
         ];
     }
 }

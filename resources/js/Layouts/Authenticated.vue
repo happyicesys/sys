@@ -58,8 +58,8 @@ const navigation = computed(() => [
         permission: 'read transactions',
         tagline: null,
         children: [
-            {name: 'Sales', href: '/vends/transactions', permission: 'read transactions-sales'},
-            {name: 'Payment Gateway', href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
+            {name: 'All Transactions', href: '/vends/transactions', permission: 'read transactions-sales'},
+            {name: 'Payment Gateway Txn', href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
         ]
     },
     {

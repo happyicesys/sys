@@ -592,6 +592,147 @@
     const dayGraphData = ref([]);
     const dayGraphDatasets = ref([])
     const dayGraphLabels = ref([])
+    const getOrCreateTooltip = (chart) => {
+        let tooltipEl = chart.canvas.parentNode.querySelector('div.chartjs-tooltip');
+
+        if (!tooltipEl) {
+            tooltipEl = document.createElement('div');
+            tooltipEl.classList.add('chartjs-tooltip');
+            tooltipEl.style.background = 'rgba(0, 0, 0, 0.7)';
+            tooltipEl.style.borderRadius = '3px';
+            tooltipEl.style.color = 'white';
+            tooltipEl.style.opacity = 1;
+            tooltipEl.style.pointerEvents = 'none';
+            tooltipEl.style.position = 'absolute';
+            tooltipEl.style.transform = 'translate(-50%, 0)';
+            tooltipEl.style.transition = 'all .1s ease';
+            tooltipEl.style.zIndex = 100;
+
+            const table = document.createElement('table');
+            table.style.margin = '0px';
+
+            tooltipEl.appendChild(table);
+            chart.canvas.parentNode.appendChild(tooltipEl);
+        }
+
+        return tooltipEl;
+    };
+
+    const externalTooltipHandler = (context) => {
+        // Tooltip Element
+        const { chart, tooltip } = context;
+        // Check if tooltip element needs to be created
+        // We use a safe check to avoid multiple tooltips if graph re-renders
+        const tooltipEl = getOrCreateTooltip(chart);
+
+        // Hide if no tooltip
+        if (tooltip.opacity === 0) {
+            tooltipEl.style.opacity = 0;
+            return;
+        }
+
+        // Set Text
+        if (tooltip.body) {
+            const titleLines = tooltip.title || [];
+            const bodyLines = tooltip.body.map(b => b.lines);
+
+            const tableHead = document.createElement('thead');
+
+            titleLines.forEach(title => {
+                const tr = document.createElement('tr');
+                tr.style.borderWidth = 0;
+
+                const th = document.createElement('th');
+                th.style.borderWidth = 0;
+                const text = document.createTextNode(title);
+
+                th.appendChild(text);
+                tr.appendChild(th);
+                tableHead.appendChild(tr);
+            });
+
+            const tableBody = document.createElement('tbody');
+            bodyLines.forEach((body, i) => {
+                const colors = tooltip.labelColors[i];
+
+                const span = document.createElement('span');
+                span.style.background = colors.backgroundColor;
+                span.style.borderColor = colors.borderColor;
+                span.style.borderWidth = '2px';
+                span.style.marginRight = '10px';
+                span.style.height = '10px';
+                span.style.width = '10px';
+                span.style.display = 'inline-block';
+
+                const tr = document.createElement('tr');
+                tr.style.backgroundColor = 'inherit';
+                tr.style.borderWidth = 0;
+
+                const td = document.createElement('td');
+                td.style.borderWidth = 0;
+
+                const text = document.createTextNode(body);
+
+                td.appendChild(span);
+                td.appendChild(text);
+                tr.appendChild(td);
+                tableBody.appendChild(tr);
+            });
+
+            // Add Weather Icon
+            if (tooltip.dataPoints.length > 0) {
+                const dataPoint = tooltip.dataPoints[0];
+                const dataset = chart.data.datasets[dataPoint.datasetIndex];
+
+                if (dataset.weather_icons && dataset.weather_icons[dataPoint.dataIndex]) {
+                    const iconCode = dataset.weather_icons[dataPoint.dataIndex];
+                    const tr = document.createElement('tr');
+                    const td = document.createElement('td');
+                    td.style.textAlign = 'center';
+                    td.style.paddingTop = '5px';
+                    td.colSpan = 2; // Span full width
+
+                    const img = document.createElement('img');
+                    img.src = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+                    img.style.width = '50px';
+                    img.style.height = '50px';
+                    img.style.display = 'inline-block';
+
+                    // Add blue halo for Rain to distinguish from Cloudy
+                    if (iconCode === '09d') {
+                        img.style.backgroundColor = 'rgba(60, 150, 255, 0.3)';
+                        img.style.borderRadius = '50%';
+                        img.style.boxShadow = '0 0 8px rgba(60, 150, 255, 0.6)';
+                    }
+
+                    td.appendChild(img);
+                    tr.appendChild(td);
+                    tableBody.appendChild(tr);
+                }
+            }
+
+            const tableRoot = tooltipEl.querySelector('table');
+
+            // Remove old children
+            while (tableRoot.firstChild) {
+                tableRoot.firstChild.remove();
+            }
+
+            // Add new children
+            tableRoot.appendChild(tableHead);
+            tableRoot.appendChild(tableBody);
+        }
+
+        const { offsetLeft: positionX, offsetTop: positionY } = chart.canvas;
+
+        // Display, position, and set styles for font
+        tooltipEl.style.opacity = 1;
+        tooltipEl.style.left = positionX + tooltip.caretX + 'px';
+        tooltipEl.style.top = positionY + tooltip.caretY + 'px';
+        tooltipEl.style.font = tooltip.options.bodyFont.string;
+        tooltipEl.style.padding = tooltip.options.padding + 'px ' + tooltip.options.padding + 'px';
+    };
+
     const dayGraphOptions = ref({
         scales: {
             x: {
@@ -629,6 +770,10 @@
                 labels: {
                     padding: 20
                 }
+            },
+            tooltip: {
+                enabled: false,
+                external: externalTooltipHandler
             }
         }
     })
@@ -676,6 +821,10 @@
                 labels: {
                     padding: 20
                 }
+            },
+            tooltip: {
+                enabled: false,
+                external: externalTooltipHandler
             }
         }
     })
@@ -1019,6 +1168,7 @@
             const lineColor = isCurrent ? '#ff7f7f' : '#3b82f6'; // Lighter Red for current line
             const countData = months[month].map((data) => {return data.count});
             const amountData = months[month].map((data) => {return data.amount});
+            const iconData = months[month].map((data) => {return data.weather_icon});
 
             // Push Line First (#) - Legend Order: Nov (#) then Nov ($)
             // Order: Line on top (lower order number)
@@ -1036,6 +1186,7 @@
             dayGraphDatasets.value.push({
                 label: month + ' ('+ operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(amountData)),
                 data: amountData,
+                weather_icons: iconData,
                 backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
                 borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
                 fill: false,
@@ -1132,11 +1283,16 @@
             let nextMonthData = [];
             let lastYearData = [];
 
+            let prevMonthIcons = [];
+            let currMonthIcons = [];
+            let nextMonthIcons = [];
+
             // Helper to process a period
             const processPeriod = (periodKey, lastYearKey, targetDataArray) => {
                 if (!salesComparisonGraphData.value[periodKey]) return;
 
                 const currentData = salesComparisonGraphData.value[periodKey].data;
+                const currentIcons = salesComparisonGraphData.value[periodKey].weather_icons || [];
                 const lastData = salesComparisonGraphData.value[lastYearKey]?.data || [];
                 const monthLabel = salesComparisonGraphData.value[periodKey].label; // e.g., "Dec 2023"
 
@@ -1151,6 +1307,16 @@
                     if (targetDataArray !== prevMonthData) prevMonthData.push(null);
                     if (targetDataArray !== currMonthData) currMonthData.push(null);
                     if (targetDataArray !== nextMonthData) nextMonthData.push(null);
+
+                    // Add icons
+                    if (targetDataArray === prevMonthData) prevMonthIcons.push(currentIcons[i] ?? null);
+                    else prevMonthIcons.push(null);
+
+                    if (targetDataArray === currMonthData) currMonthIcons.push(currentIcons[i] ?? null);
+                    else currMonthIcons.push(null);
+
+                    if (targetDataArray === nextMonthData) nextMonthIcons.push(currentIcons[i] ?? null);
+                    else nextMonthIcons.push(null);
 
                     // 3. Add to Last Year Data (always continuous)
                     lastYearData.push(lastData[i] !== undefined ? lastData[i] : null);
@@ -1171,6 +1337,9 @@
                 currMonthData.push(null);
                 nextMonthData.push(null);
                 lastYearData.push(null);
+                prevMonthIcons.push(null);
+                currMonthIcons.push(null);
+                nextMonthIcons.push(null);
                 labels.push('');
             };
 
@@ -1208,7 +1377,8 @@
                     type: 'bar',
                     order: 2,
                     barPercentage: 1.0,
-                    categoryPercentage: 1.0
+                    categoryPercentage: 1.0,
+
                 });
             }
 
@@ -1223,7 +1393,8 @@
                     type: 'bar',
                     order: 2,
                     barPercentage: 1.0,
-                    categoryPercentage: 1.0
+                    categoryPercentage: 1.0,
+
                 });
             }
 
@@ -1238,7 +1409,8 @@
                     type: 'bar',
                     order: 2,
                     barPercentage: 1.0,
-                    categoryPercentage: 1.0
+                    categoryPercentage: 1.0,
+
                 });
             }
 
@@ -1265,6 +1437,8 @@
         forceRerender3()
         forceRerender4()
         forceRerender5()
+        forceRerender5()
     }
+
 
 </script>
