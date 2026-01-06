@@ -116,6 +116,25 @@
                   </DatePicker>
                 </div>
               </div>
+
+              <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
+                <div class="sm:col-span-5">
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                    Reference Price Type
+                    <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Desired Price to be Set on Vending Machine'"></ExclamationCircleIcon>
+                  </label>
+                  <MultiSelect
+                    v-model="form.selling_price_type"
+                    :options="sellingPriceTypeOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                  ></MultiSelect>
+                </div>
+              </div>
               <!-- <div class="sm:col-span-2">
                 <DatePicker v-model="form.customer.termination_date" :error="form.errors['customer.termination_date']" :minDate="form.customer.begin_date"
                 v-if="permissions.includes('update customers')" disabled="true">
@@ -316,10 +335,11 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
-import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon, ExclamationCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
+import { vTooltip } from 'floating-vue';
 
 const props = defineProps({
     cmsCustomerOptions: Object,
@@ -329,6 +349,7 @@ const props = defineProps({
     customer: Object,
     type: String,
     cmsEndpoint: String,
+    sellingPriceTypeOptions: [Array, Object],
   })
 
 const form = ref(
@@ -348,6 +369,7 @@ const isExisting = ref(props.cmsEndpoint ? 1 : 0)
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const vendOptions = ref([])
+const sellingPriceTypeOptions = ref([])
 
 function getDefaultForm() {
   return {
@@ -380,6 +402,7 @@ function getDefaultForm() {
     vend_id: '',
     cms_customer_id: '',
     is_existing: 1,
+    selling_price_type: '',
   }
 }
 
@@ -390,7 +413,14 @@ onMounted(() => {
 }));
   countryOptions.value = props.countries.data
   operatorOptions.value = props.operatorOptions.data
+  sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, value]) => {
+    return {
+      id: id,
+      value: value,
+    };
+  });
   form.value = useForm(getDefaultForm())
+  form.value.selling_price_type = sellingPriceTypeOptions.value.find(option => option.value === 'RP2')
 
   vendOptions.value = props.vendOptions.map(vend => ({
     id: vend.id,
@@ -449,6 +479,7 @@ function saveCustomer() {
         country_id: data.address.country_id ? data.address.country_id.id : null,
       },
       is_existing: isExisting.value,
+      selling_price_type: data.selling_price_type ? data.selling_price_type.id : null,
     }))
     .post('/customers/store', {
     onSuccess: () => {

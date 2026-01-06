@@ -209,6 +209,7 @@ class CustomerController extends Controller
                 ->orderBy('code')
                 ->get(),
             'cmsEndpoint' => env('CMS_URL'),
+            'sellingPriceTypeOptions' => collect(SellingPrice::TYPE_MAPPINGS),
             'type' => 'create',
         ]);
     }

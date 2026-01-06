@@ -108,7 +108,7 @@ const navigation = computed(() => [
             {name: 'APK Settings', href: '/apk-settings', permission: 'read apk-settings'},
             {name: 'Setting Charts', href: '/vend-configs', permission: 'read vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes', permission: 'read vend-prefixes'},
-            // {name: 'Cashless Terminals', href: '/cashless-terminals', permission: 'read cashless-terminals'},
+            {name: 'Cashless Terminals', href: '/cashless-terminals', permission: 'read cashless-terminals'},
             {name: 'Modem IMEI', href: '/modem-units', permission: 'read modem-imei'},
             // {name: 'Campaigns', href: '/campaigns'},
         ]
