@@ -10,7 +10,7 @@
             {{ props.cashlessProvider.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Cashless Provider
+            Create New Cashless Terminal Modal
           </span>
         </div>
       </template>

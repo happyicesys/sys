@@ -24,7 +24,7 @@
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Cashless Provider
+                Cashless Terminal Modal
                 <span class="text-red-500">
                     *
                 </span>
