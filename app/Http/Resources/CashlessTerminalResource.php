@@ -22,6 +22,8 @@ class CashlessTerminalResource extends JsonResource
             'created_by' => $this->created_by,
             'createdBy' => UserResource::make($this->whenLoaded('createdBy')),
             'is_active' => $this->is_active,
+            'operator_id' => $this->operator_id,
+            'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'termination_date' => $this->termination_date,
             'updated_by' => $this->updated_by,
             'updatedBy' => UserResource::make($this->whenLoaded('updatedBy')),

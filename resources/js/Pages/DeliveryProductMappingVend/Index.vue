@@ -264,7 +264,10 @@
                         <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 1">
                           Binded
                         </span>
-                        <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0">
+                        <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0 && !deliveryProductMappingVend.end_date">
+                          Paused
+                        </span>
+                        <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0 && deliveryProductMappingVend.end_date">
                           Unbinded
                         </span>
                         <span class="text-[10px] text-gray-500 whitespace-nowrap" v-if="deliveryProductMappingVend.is_active == 0 && deliveryProductMappingVend.end_date">
@@ -279,7 +282,7 @@
                       {{ deliveryProductMappingVend.delivery_platform_orders_count }}
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
-                      <div class="flex flex-col space-y-1">
+                      <div class="flex flex-col space-y-1" v-if="!deliveryProductMappingVend.end_date">
                         <Button
                           class="flex space-x-1 w-fit"
                           :class="[deliveryProductMappingVend.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black' : 'bg-green-500 hover:bg-green-600 text-white']"

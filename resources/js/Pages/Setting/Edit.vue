@@ -1342,7 +1342,10 @@ function getDefaultForm() {
 onMounted(() => {
   cashlessTerminalOptions.value = [
     { id: '', name: '--- Clear ---'},
-    ...props.cashlessTerminalOptions.data,
+    ...props.cashlessTerminalOptions.data.map(terminal => ({
+      id: terminal.id,
+      name: terminal.code
+    })),
   ]
   clawMachineBoardOptions.value = [
     { id: '', name: '--- Clear ---'},
@@ -1436,7 +1439,7 @@ onMounted(() => {
 
   form.value = props.vend ? useForm({
     ...props.vend,
-    cashless_terminal_id: props.vend.cashless_terminal_id ? props.vend.cashless_terminal_id : null,
+    cashless_terminal_id: props.vend.cashless_terminal_id ? cashlessTerminalOptions.value.find(t => t.id == props.vend.cashless_terminal_id) : null,
     claw_machine_board_id: props.vend.claw_machine_board_id ? clawMachineBoardOptions.value.find(clawMachineBoard => clawMachineBoard.id == props.vend.claw_machine_board_id) : null,
     claw_machine_body_id: props.vend.claw_machine_body_id ? clawMachineBodyOptions.value.find(clawMachineBody => clawMachineBody.id == props.vend.claw_machine_body_id) : null,
     // is_using_server_price: booleanStrictOptions.value.find(booleanStrict => booleanStrict.id == props.vend.is_using_server_price.toString()),
@@ -1989,16 +1992,7 @@ function saveVend(vendID) {
 }
 
 function submit() {
-  form.value.clearErrors()
-
-  form.value
-    .post('/vends/' + form.value.id + '/update', {
-    onSuccess: () => {
-      emit('modalClose')
-    },
-    preserveState: true,
-    replace: true,
-  })
+  saveVend(form.value.id)
 }
 
 function syncApkSettings(vendID) {

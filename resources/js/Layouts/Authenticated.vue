@@ -179,11 +179,11 @@ const navigation = computed(() => [
         permission: 'read delivery-platforms',
         tagline: null,
         children: [
+            {name: 'Grab Platform ID', href: '/delivery-platform-ref-numbers', permission: 'read delivery-platform-vends'},
             {name: 'Machines', href: '/delivery-product-mapping-vends', permission: 'read delivery-platform-vends'},
-            {name: 'Platform ID', href: '/delivery-platform-ref-numbers', permission: 'read delivery-platform-vends'},
-            {name: 'Orders', href: '/delivery-platform-orders', permission: 'read delivery-platform-orders'},
+            {name: 'Grab Orders', href: '/delivery-platform-orders', permission: 'read delivery-platform-orders'},
             {name: 'Product Mapping', href: '/delivery-product-mappings', permission: 'read delivery-platform-product-mappings'},
-            {name: 'Campaign', href: '/delivery-platform-campaigns', permission: 'read delivery-platform-campaigns'},
+            {name: 'Grab Campaign', href: '/delivery-platform-campaigns', permission: 'read delivery-platform-campaigns'},
         ]
     },
     // {

@@ -38,6 +38,7 @@
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
+                :required="true"
               >
               </MultiSelect>
               <div class="text-sm text-red-600" v-if="form.errors.cashless_provider_id">
@@ -60,6 +61,7 @@
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
+                :required="true"
               >
               </MultiSelect>
               <div class="text-sm text-red-600" v-if="form.errors.operator_id">
@@ -124,13 +126,17 @@ const toast = useToast()
 
 onMounted(() => {
   operatorOptions.value = props.operatorOptions
-  form.value = props.cashlessTerminal ?
-  useForm({
-    ...props.cashlessTerminal,
-    cashless_provider_id: props.cashlessProviderOptions.find(cashlessProvider => cashlessProvider.id === props.cashlessTerminal.cashless_provider_id),
-  })
-   : useForm(getDefaultForm())
-  form.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+
+  if (props.cashlessTerminal) {
+    form.value = useForm({
+      ...props.cashlessTerminal,
+      cashless_provider_id: props.cashlessProviderOptions.find(cashlessProvider => cashlessProvider.id === props.cashlessTerminal.cashless_provider_id),
+      operator_id: operatorOptions.value.find(operator => operator.id === props.cashlessTerminal.operator_id),
+    })
+  } else {
+    form.value = useForm(getDefaultForm())
+    form.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+  }
 })
 
 function getDefaultForm() {
@@ -149,8 +155,8 @@ function submit() {
     .transform((data) => {
       return {
         ...data,
-        operator_id: data.operator_id.id,
-        cashless_provider_id: data.cashless_provider_id.id,
+        operator_id: data.operator_id?.id,
+        cashless_provider_id: data.cashless_provider_id?.id,
       }
     })
     .post('/cashless-terminals/store', {
@@ -171,8 +177,8 @@ function submit() {
     .transform((data) => {
       return {
         ...data,
-        operator_id: data.operator_id.id,
-        cashless_provider_id: data.cashless_provider_id.id,
+        operator_id: data.operator_id?.id,
+        cashless_provider_id: data.cashless_provider_id?.id,
       }
     })
       .post('/cashless-terminals/' + form.value.id + '/update', {
