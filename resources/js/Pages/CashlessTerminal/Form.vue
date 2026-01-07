@@ -19,7 +19,7 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.code" :error="form.errors.code" required="true">
-                Code
+                Terminal ID
               </FormInput>
             </div>
             <div class="sm:col-span-6">

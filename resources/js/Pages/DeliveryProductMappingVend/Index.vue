@@ -260,12 +260,17 @@
 
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
-                      <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 1">
-                        Binded
-                      </span>
-                      <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0">
-                        Unbinded
-                      </span>
+                      <div class="flex flex-col items-center space-y-1">
+                        <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 1">
+                          Binded
+                        </span>
+                        <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0">
+                          Unbinded
+                        </span>
+                        <span class="text-[10px] text-gray-500 whitespace-nowrap" v-if="deliveryProductMappingVend.is_active == 0 && deliveryProductMappingVend.end_date">
+                          {{ deliveryProductMappingVend.end_date }}
+                        </span>
+                      </div>
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-right">
                       {{ (deliveryProductMappingVend.delivery_platform_orders_sum_subtotal_amount - deliveryProductMappingVend.delivery_platform_orders_sum_promo_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -457,7 +462,7 @@ onMounted(() => {
   ]
 
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-  filters.value.is_active = booleanOptions.value[0]
+  filters.value.is_active = booleanOptions.value[1]
   filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
   filters.value.delivery_product_mapping_id = deliveryProductMappingOptions.value[0]
   filters.value.operators = authOperator ? [
