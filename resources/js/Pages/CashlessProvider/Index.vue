@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Cashless Terminal Modal" />
+  <Head title="Cashless Terminal Model" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Management (Cashless Terminal Modal)
+        Data Management (Cashless Terminal Model)
       </h2>
     </template>
 

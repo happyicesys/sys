@@ -139,13 +139,25 @@ const navigation = computed(() => [
         ]
     },
     {
+        name: 'Campaign Management',
+        icon: TicketIcon,
+        current: false,
+        href: 'campaigns',
+        permission: 'read product-campaign-labels',
+        tagline: null,
+        children: [
+            {name: 'Settings', href: '/campaigns', permission: 'read product-campaign-labels'},
+            {name: 'Voucher', href: '/vouchers', permission: 'read vouchers'},
+        ]
+    },
+    {
         name: 'Data Management',
         icon: FolderIcon,
         current: false,
         href: 'data-management',
         permission: 'read data-settings',
         children: [
-            {name: 'Cashless Providers', href: '/cashless-providers', permission: 'read cashless-providers'},
+            {name: 'Cashless Terminal Model', href: '/cashless-providers', permission: 'read cashless-providers'},
             // {name: 'Cashless Terminals', href: '/cashless-terminals'},
             // {name: 'Country & Currency', href: '/countries'},
             // {name: 'Product Categories', href: '/categories?classname=App\\Models\\Product'},
@@ -262,18 +274,6 @@ const navigation = computed(() => [
         children: [
             {name: 'Operators', href: '/operators', permission: 'read operators'},
             {name: 'Users', href: '/users', permission: 'read users'},
-        ]
-    },
-    {
-        name: 'Campaign Management',
-        icon: TicketIcon,
-        current: false,
-        href: 'campaigns',
-        permission: 'read product-campaign-labels',
-        tagline: null,
-        children: [
-            {name: 'Settings', href: '/campaigns', permission: 'read product-campaign-labels'},
-            {name: 'Voucher', href: '/vouchers', permission: 'read vouchers'},
         ]
     },
     {

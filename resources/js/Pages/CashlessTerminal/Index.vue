@@ -1,6 +1,6 @@
 <template>
 
-  <Head title="CashlessTerminal" />
+  <Head title="Cashless Terminal" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
@@ -28,7 +28,7 @@
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Provider
+              Cashless Terminal Model
             </label>
             <MultiSelect
               v-model="filters.cashless_provider_id"
