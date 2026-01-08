@@ -157,7 +157,7 @@ const navigation = computed(() => [
         href: 'data-management',
         permission: 'read data-settings',
         children: [
-            {name: 'Cashless Terminal Model', href: '/cashless-providers', permission: 'read cashless-providers'},
+            {name: 'Cashless Terminal Models', href: '/cashless-providers', permission: 'read cashless-providers'},
             // {name: 'Cashless Terminals', href: '/cashless-terminals'},
             // {name: 'Country & Currency', href: '/countries'},
             // {name: 'Product Categories', href: '/categories?classname=App\\Models\\Product'},
@@ -370,7 +370,7 @@ const useContainLogo = computed(() => logoUrl.value !== defaultLogoUrl.value)
                                     <Link v-for="subItem in item.children" :key="subItem.name" as="a"
                                             :href="subItem.href">
                                         <DisclosureButton
-                                            class="group w-full flex items-center pl-4 pr-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-200"
+                                            class="group w-full flex items-center justify-start text-left pl-4 pr-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-200"
                                             v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
                                             >
                                             {{ subItem.name }}
