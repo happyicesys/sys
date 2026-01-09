@@ -110,7 +110,7 @@ trait HasFilter
             })
             ->when($request->codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
-                    $search = explode(',', $search);
+                    $search = array_map('trim', explode(',', $search));
                     $query->whereIn('vends.code', $search);
                 } else {
                     $query->where('vends.code', 'LIKE', "{$search}%");
@@ -402,7 +402,7 @@ trait HasFilter
             })
             ->when($request->codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
-                    $search = explode(',', $search);
+                    $search = array_map('trim', explode(',', $search));
                     $query->whereIn('vends.code', $search);
                 } else {
                     $query->where('vends.code', 'LIKE', "{$search}%");
@@ -410,7 +410,7 @@ trait HasFilter
             })
             ->when($request->channel_codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
-                    $search = explode(',', $search);
+                    $search = array_map('trim', explode(',', $search));
                 } else {
                     $search = [$search];
                 }
@@ -782,7 +782,7 @@ trait HasFilter
 
         $query = $query->when($request->codes, function ($query, $search) {
             if (strpos($search, ',') !== false) {
-                $search = explode(',', $search);
+                $search = array_map('trim', explode(',', $search));
                 $query->whereIn('vends.code', $search);
             } else {
                 $query->where('vends.code', 'LIKE', "%{$search}%");
@@ -790,7 +790,7 @@ trait HasFilter
         })
             ->when($request->channel_codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
-                    $search = explode(',', $search);
+                    $search = array_map('trim', explode(',', $search));
                 } else {
                     $search = [$search];
                 }

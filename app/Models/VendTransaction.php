@@ -180,7 +180,7 @@ class VendTransaction extends Model
             })
             ->when($request->codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
-                    $search = explode(',', $search);
+                    $search = array_map('trim', explode(',', $search));
                     $query->whereHas('vend', function ($query) use ($search) {
                         $query->whereIn('code', $search);
                     });
@@ -192,7 +192,7 @@ class VendTransaction extends Model
             })
             ->when($request->channel_codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
-                    $search = explode(',', $search);
+                    $search = array_map('trim', explode(',', $search));
                 } else {
                     $search = [$search];
                 }

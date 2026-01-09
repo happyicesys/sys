@@ -537,7 +537,7 @@ class DashboardController extends Controller
             })
             ->when($request->codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
-                    $search = explode(',', $search);
+                    $search = array_map('trim', explode(',', $search));
                     $query->whereIn('vend_records.vend_id', function ($subQuery) use ($search) {
                         $subQuery->select('id')
                             ->from('vends')
