@@ -376,7 +376,7 @@ class DashboardController extends Controller
     private function getBestPerformer(Request $request, int $limit, array $testingVendIds)
     {
         return VendRecord::query()
-            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name'])
+            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name,customer_id,vend_prefix_id', 'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend.vendPrefix:id,name'])
             ->filterIndex($request)
             ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
             ->whereNotIn('vend_id', $testingVendIds)
@@ -396,7 +396,7 @@ class DashboardController extends Controller
     private function getWorstPerformer(Request $request, int $limit, array $testingVendIds)
     {
         return VendRecord::query()
-            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name'])
+            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name,customer_id,vend_prefix_id', 'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend.vendPrefix:id,name'])
             ->filterIndex($request)
             ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
             ->whereNotIn('vend_id', $testingVendIds)

@@ -376,13 +376,16 @@
                                                             <span class="block font-medium text-gray-700">
                                                                 {{ [vend.vend?.code, vend.vend?.name].filter(Boolean).join(' - ') }}
                                                             </span>
-                                                            <span v-if="vend.customer && vend.customer.person_id" class="block text-gray-500">
-                                                                {{ vend.customer.virtual_customer_code }}
+                                                            <span class="block text-xs text-gray-500" v-if="vend.vend?.vendPrefix?.name">
+                                                                {{ vend.vend.vendPrefix.name }}
+                                                            </span>
+                                                            <span v-if="(vend.customer || vend.vend?.customer) && (vend.customer || vend.vend?.customer).person_id" class="block text-gray-500">
+                                                                {{ (vend.customer || vend.vend?.customer).virtual_customer_code }}
                                                                 <br>
-                                                                {{ vend.customer.name }}
+                                                                {{ (vend.customer || vend.vend?.customer).name }}
                                                             </span>
                                                             <span v-else class="block text-gray-500">
-                                                                {{ vend.customer ? vend.customer.name : '' }}
+                                                                {{ (vend.customer || vend.vend?.customer) ? (vend.customer || vend.vend?.customer).name : '' }}
                                                             </span>
                                                         </div>
                                                     </td>
@@ -459,13 +462,16 @@
                                                             <span class="block font-medium text-gray-700">
                                                                 {{ [vend.vend?.code, vend.vend?.name].filter(Boolean).join(' - ') }}
                                                             </span>
-                                                            <span v-if="vend.customer && vend.customer.person_id" class="block text-gray-500">
-                                                                {{ vend.customer.virtual_customer_code }}
+                                                            <span class="block text-xs text-gray-500" v-if="vend.vend?.vendPrefix?.name">
+                                                                {{ vend.vend.vendPrefix.name }}
+                                                            </span>
+                                                            <span v-if="(vend.customer || vend.vend?.customer) && (vend.customer || vend.vend?.customer).person_id" class="block text-gray-500">
+                                                                {{ (vend.customer || vend.vend?.customer).virtual_customer_code }}
                                                                 <br>
-                                                                {{ vend.customer.name }}
+                                                                {{ (vend.customer || vend.vend?.customer).name }}
                                                             </span>
                                                             <span v-else class="block text-gray-500">
-                                                                {{ vend.customer ? vend.customer.name : '' }}
+                                                                {{ (vend.customer || vend.vend?.customer) ? (vend.customer || vend.vend?.customer).name : '' }}
                                                             </span>
                                                         </div>
                                                     </td>
