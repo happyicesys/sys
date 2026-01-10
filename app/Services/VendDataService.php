@@ -287,8 +287,8 @@ class VendDataService
             $timezone = $vend->operator->timezone ?? 'Asia/Singapore';
 
             // Hardcoded maintenance window
-            $start = Carbon::create(2025, 8, 24, 0, 0, 0, $timezone);
-            $end = Carbon::create(2025, 8, 24, 6, 0, 0, $timezone);
+            $start = Carbon::create(2026, 1, 11, 0, 0, 0, $timezone);
+            $end = Carbon::create(2026, 1, 11, 6, 0, 0, $timezone);
 
             $now = Carbon::now($timezone);
 
