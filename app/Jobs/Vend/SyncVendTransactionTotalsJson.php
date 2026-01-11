@@ -4,6 +4,7 @@ namespace App\Jobs\Vend;
 
 use App\Models\Customer;
 use App\Models\Vend;
+use App\Models\VendChannelErrorLog;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -49,7 +50,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
         }
 
         if ($vend) {
-            $todayTxns = $vend->daysVendTransactions(0, 0)->where('amount', '>', 0);
+            $todayTxns = $vend->daysVendTransactions(0, 0);
             $todayAmount = (int) $todayTxns->clone()->isSuccessful()->sum('amount');
             $todayCount = $this->calculateSuccessfulItemCount($todayTxns);
             $todayAllCount = (int) $todayTxns->clone()->sum(DB::raw("
@@ -61,6 +62,16 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
             $todayErrorCount = $todayTxns->clone()->isError()->count();
             $todayRevenue = (int) $todayTxns->clone()->isSuccessful()->sum('revenue');
             $todayGrossProfit = (int) $todayTxns->clone()->isSuccessful()->sum('gross_profit');
+
+            $todayChannelErrors = VendChannelErrorLog::whereHas('vendChannel', function ($q) use ($vend) {
+                $q->where('vend_id', $vend->id);
+            })
+                ->where('created_at', '>=', Carbon::today())
+                ->whereNull('vend_transaction_id')
+                ->count();
+
+            $todayErrorCount += $todayChannelErrors;
+            $todayAllCount += $todayChannelErrors;
 
             $records1 = $vend->daysVendRecords(1, 1)->get();
             $records3 = $vend->daysVendRecords(3, 0)->get();
@@ -113,7 +124,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
         }
 
         if ($customer) {
-            $todayTxns = $customer->daysVendTransactions(0, 0)->where('amount', '>', 0);
+            $todayTxns = $customer->daysVendTransactions(0, 0);
             $todayAmount = (int) $todayTxns->clone()->isSuccessful()->sum('amount');
             $todayCount = $this->calculateSuccessfulItemCount($todayTxns);
             $todayAllCount = (int) $todayTxns->clone()->sum(DB::raw("
@@ -125,6 +136,16 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
             $todayErrorCount = $todayTxns->clone()->isError()->count();
             $todayRevenue = (int) $todayTxns->clone()->isSuccessful()->sum('revenue');
             $todayGrossProfit = (int) $todayTxns->clone()->isSuccessful()->sum('gross_profit');
+
+            $todayChannelErrors = VendChannelErrorLog::whereHas('vendChannel.vend', function ($q) use ($customer) {
+                $q->where('customer_id', $customer->id);
+            })
+                ->where('created_at', '>=', Carbon::today())
+                ->whereNull('vend_transaction_id')
+                ->count();
+
+            $todayErrorCount += $todayChannelErrors;
+            $todayAllCount += $todayChannelErrors;
 
             $records1 = $customer->daysVendRecords(1, 1)->get();
             $records3 = $customer->daysVendRecords(3, 0)->get();
