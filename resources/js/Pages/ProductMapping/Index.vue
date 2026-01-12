@@ -157,6 +157,9 @@
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name', false)"  class="bg-sky-200">
                       Name
                     </TableHeadSort>
+                    <TableHead>
+                      Operator
+                    </TableHead>
                     <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name', false)">
                       Binded Prefix
                     </TableHeadSort>
@@ -195,6 +198,11 @@
                               </div>
                           </div>
                         </div>
+                      </TableData>
+                      <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
+                        <span v-if="productMapping.operator">
+                          {{ productMapping.operator.code }}
+                        </span>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">

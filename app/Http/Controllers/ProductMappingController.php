@@ -8,11 +8,13 @@ use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Models\Product;
+use App\Models\Operator;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
 use App\Models\Vend;
 use App\Models\VendPrefix;
+use App\Http\Resources\OperatorResource;
 use App\Services\ProductMappingService;
 use Carbon\Carbon;
 use DB;
@@ -129,6 +131,7 @@ class ProductMappingController extends Controller
             'productMappings' => ProductMappingResource::collection(
                 (clone $query)->with([
                     'attachments',
+                    'operator',
                     'productMappingItems',
                     'productMappingItems.product:id,code,name,is_active',
                     'productMappingItems.product.thumbnail',
@@ -309,6 +312,7 @@ class ProductMappingController extends Controller
 
         return Inertia::render('ProductMapping/Edit', [
             'priceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
+            'operatorOptions' => OperatorResource::collection(Operator::active()->orderBy('name')->get()),
             'productMapping' => ProductMappingResource::make($productMapping),
             'products' => ProductResource::collection(
                 Product::with(['thumbnail'])

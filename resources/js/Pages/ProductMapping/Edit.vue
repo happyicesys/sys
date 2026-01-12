@@ -43,6 +43,23 @@
                   </FormTextarea>
                 </div>
 
+                <div class="sm:col-span-6">
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                    Operator
+                  </label>
+                  <MultiSelect
+                    v-model="form.operator_id"
+                    :options="operatorOptions.data"
+                    trackBy="id"
+                    valueProp="id"
+                    label="name"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                  >
+                  </MultiSelect>
+                </div>
+
                 <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
                   <div class="relative">
                     <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -335,6 +352,7 @@ const props = defineProps({
   priceTypeOptions: Object,
   products: Object,
   productMapping: Object,
+  operatorOptions: Object,
 })
 
 const emit = defineEmits(['modalClose'])
@@ -361,6 +379,7 @@ onMounted(() => {
   : []
   form.value = props.productMapping ? useForm({
     ...props.productMapping.data,
+    operator_id: props.operatorOptions.data.find(op => op.id === (props.productMapping.data.operator_id || 1)),
     // selling_price_type: priceTypeOptions.value.find((data) => data.id == props.productMapping.data.selling_price_type),
   }) : useForm(getDefaultForm());
 
@@ -379,6 +398,7 @@ function getDefaultForm() {
     product_id: '',
     server_amount: '',
     sequence: '',
+    operator_id: props.operatorOptions?.data?.find(op => op.id === 1),
     sortKey: '',
     sortBy: false,
   }
@@ -439,6 +459,7 @@ function submit() {
         ...item,
       })),
       is_active: data.is_active.id,
+      operator_id: data.operator_id?.id,
     }))
     .post('/product-mappings/' + form.value.id + '/update', {
       onSuccess: () => {

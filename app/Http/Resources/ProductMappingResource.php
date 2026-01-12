@@ -24,6 +24,7 @@ class ProductMappingResource extends JsonResource
             'remarks' => $this->remarks,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
+            'operator_id' => $this->operator_id,
             // 'productMappingItems' => ProductMappingItemResource::collection($this->whenLoaded('productMappingItems')),
             // 'productMappingItemsBySequence' => ProductMappingItemResource::collection($this->whenLoaded('productMappingItemsBySequence')),
             'productMappingItems' => ProductMappingItemResource::collection($this->whenLoaded('productMappingItemsNormalSequence')),
