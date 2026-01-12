@@ -315,11 +315,11 @@ onMounted(() => {
     ...props.user.data,
     operator_id: props.user ? operatorOptions.value.find(operator => operator.id == user.value.operator_id) : '',
   }) : useForm(getDefaultForm())
-  // if(!usePage().props.auth.permissions.includes('admin-access operators')) {
-  //   roleOptions.value = props.roles.data.filter(function(role) {
-  //     return role.name == 'operator' || role.name == 'operator_user'
-  //   })
-  // }
+  if(!usePage().props.auth.permissions.includes('admin-access operators')) {
+    roleOptions.value = props.roles.data.filter(function(role) {
+      return ['operator', 'operator_user', 'operator_admin', 'operator_viewer', 'operator_supervisor', 'operator_driver', 'operator_3pl'].includes(role.name)
+    })
+  }
 })
 
 function bindOperatorVend() {

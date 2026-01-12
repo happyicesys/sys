@@ -271,7 +271,7 @@ onMounted(() => {
   roleOptions.value = props.roles.data
   if(!props.permissions.includes('admin-access operators')) {
     roleOptions.value = props.roles.data.filter(function(role) {
-      return role.name == 'operator' || role.name == 'operator_user'
+      return ['operator', 'operator_user', 'operator_admin', 'operator_viewer', 'operator_supervisor', 'operator_driver', 'operator_3pl'].includes(role.name)
     })
   }
   unbindedVendOptions.value = props.unbindedVends.data
