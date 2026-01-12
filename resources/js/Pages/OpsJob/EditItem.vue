@@ -862,24 +862,24 @@
                     </div>
                     <div
                       class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
-                      :class="[opsJobItem.previous_ops_job_item_id ? 'bg-green-500' : 'bg-red-500']"
+                      :class="[opsJobItem.previous_ops_job_item_id && opsJobItem.previousOpsJobItem ? 'bg-green-500' : 'bg-red-500']"
                     >
                       <div class="flex flex-col font-semibold grow-0">
-                        <span v-if="!opsJobItem.previous_ops_job_item_id">
+                        <span v-if="!opsJobItem.previous_ops_job_item_id || !opsJobItem.previousOpsJobItem">
                           Not Detected
                         </span>
-                        <span v-if="opsJobItem.previous_ops_job_item_id">
+                        <span v-if="opsJobItem.previous_ops_job_item_id && opsJobItem.previousOpsJobItem">
                           #{{ opsJobItem.previousOpsJobItem.ref_id }}
                         </span>
-                        <span class="flex space-x-2 justify-between" v-if="opsJobItem.previous_ops_job_item_id">
+                        <span class="flex space-x-2 justify-between" v-if="opsJobItem.previous_ops_job_item_id && opsJobItem.previousOpsJobItem">
                           <span>
                             from
                           </span>
                           <span>
-                            {{ opsJobItem.previousOpsJobItem ? opsJobItem.previousOpsJobItem.completed_at : '' }}
+                            {{ opsJobItem.previousOpsJobItem.completed_at }}
                           </span>
                         </span>
-                        <span class="flex space-x-2 justify-between" v-if="opsJobItem.previous_ops_job_item_id">
+                        <span class="flex space-x-2 justify-between" v-if="opsJobItem.previous_ops_job_item_id && opsJobItem.previousOpsJobItem">
                           <span>
                             to
                           </span>
