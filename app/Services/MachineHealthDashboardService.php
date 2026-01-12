@@ -77,7 +77,7 @@ class MachineHealthDashboardService
             'customer_ids' => $this->normalizeIdArray($request->input('customer_ids')),
             'machine_codes' => $this->normalizeStringArray($request->input('machine_codes')),
             'channel_sku' => $request->input('channel_sku'),
-            'is_error_cleared' => $request->boolean('is_error_cleared', false),
+            'show_all_errors' => $request->boolean('show_all_errors', true),
         ];
 
     }
@@ -476,7 +476,11 @@ class MachineHealthDashboardService
                 ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
                 ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
                 ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
-                ->where('vend_channel_error_logs.is_error_cleared', $filters['is_error_cleared'])
+                ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
+                ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
+                ->when(!$filters['show_all_errors'], function ($q) {
+                    $q->where('vend_channel_error_logs.is_error_cleared', false);
+                })
                 ->where('vends.is_testing', false);
 
             $this->applyVendFilters($query, $filters, 'vends');
@@ -523,12 +527,17 @@ class MachineHealthDashboardService
                     })
                     ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
                     ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
-                    ->where('vend_channel_error_logs.is_error_cleared', $filters['is_error_cleared'])
+                    ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
+                    ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
+                    ->when(!$filters['show_all_errors'], function ($q) {
+                        $q->where('vend_channel_error_logs.is_error_cleared', false);
+                    })
                     ->select([
                         'vend_channels.vend_id',
                         'vend_channels.code as channel_code',
                         'vend_channel_errors.code as error_code',
                         'vend_channel_error_logs.created_at',
+                        'vend_channel_error_logs.is_error_cleared',
                     ])
                     ->orderByDesc('vend_channel_error_logs.created_at')
                     ->get()
@@ -564,6 +573,7 @@ class MachineHealthDashboardService
                                     'channel_code' => $event->channel_code,
                                     'error_code' => $event->error_code,
                                     'created_at' => $event->created_at->toIso8601String(),
+                                    'is_error_cleared' => (bool) $event->is_error_cleared,
                                 ];
                             })->all()
                             : [],

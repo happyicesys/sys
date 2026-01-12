@@ -5,6 +5,7 @@ import AuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import SearchInput from '@/Components/SearchInput.vue'
+import { CheckCircleIcon } from '@heroicons/vue/24/solid'
 
 const props = defineProps({
   machineHealth: {
@@ -81,7 +82,7 @@ const filters = reactive({
   machine_codes: rawFilters.machine_codes ?? [],
   machine_codes_input: (rawFilters.machine_codes ?? []).join(','),
   channel_sku: rawFilters.channel_sku ?? '',
-  is_error_cleared: rawFilters.is_error_cleared ?? false,
+  show_all_errors: rawFilters.show_all_errors ?? true,
   no_txn_threshold_hours: {
     any: rawFilters.no_txn_threshold_hours?.any ?? 66,
     cash: rawFilters.no_txn_threshold_hours?.cash ?? 72,
@@ -454,7 +455,7 @@ const applyFilters = () => {
       ? filters.machine_codes_input.split(',').map((s) => s.trim()).filter(Boolean)
       : [],
     channel_sku: filters.channel_sku || undefined,
-    is_error_cleared: filters.is_error_cleared,
+    show_all_errors: filters.show_all_errors,
   }
 
   router.get('/reports/machine-health', payload, {
@@ -807,13 +808,13 @@ const formatEventBreakdownSimple = (event) => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Error Cleared?</span>
+                  <span class="font-medium text-gray-700">Show All Error(s)?</span>
                   <select
-                    v-model="filters.is_error_cleared"
+                    v-model="filters.show_all_errors"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   >
-                    <option :value="false">No (Uncleared)</option>
-                    <option :value="true">Yes (Cleared)</option>
+                    <option :value="true">Yes (Include Cleared)</option>
+                    <option :value="false">No (Not yet Clear only)</option>
                   </select>
                 </label>
                 <div>
@@ -896,8 +897,14 @@ const formatEventBreakdownSimple = (event) => {
                           <div
                             v-for="(event, index) in getEventsForCode(row.events, code)"
                             :key="index"
-                            class="whitespace-nowrap"
+                            class="whitespace-nowrap flex items-center gap-1"
+                            :class="{ 'text-red-600': !event.is_error_cleared }"
                           >
+                            <CheckCircleIcon
+                              v-if="event.is_error_cleared"
+                              class="h-4 w-4 text-green-500"
+                            />
+                            <div v-else class="h-4 w-4" />
                             {{ formatEventBreakdownSimple(event) }}
                           </div>
                         </td>
