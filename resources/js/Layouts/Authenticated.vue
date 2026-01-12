@@ -104,7 +104,7 @@ const navigation = computed(() => [
         children: [
             {name: 'Machines View', href: '/vends', permission: 'read machine-view'},
             {name: 'Machines Settings', href: '/settings', permission: 'read machine-settings'},
-            {name: 'Machine Alert Parameters', href: '/machine-alert-parameters', permission: 'read vend-settings'},
+            {name: 'Machine Alert Parameters', href: '/machine-alert-parameters', permission: 'read machine-alert-parameters'},
             {name: 'APK Settings', href: '/apk-settings', permission: 'read apk-settings'},
             {name: 'Setting Charts', href: '/vend-configs', permission: 'read vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes', permission: 'read vend-prefixes'},
