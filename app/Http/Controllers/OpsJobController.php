@@ -753,7 +753,14 @@ class OpsJobController extends Controller
             'opsJob' => new OpsJobResource($opsJob),
             'unbindedVendOptions' => VendResource::collection($unbindedVendOptions),
             'userOptions' => UserResource::collection(
-                User::orderBy('name')->get()
+                User::with('roles')->when(auth()->user()->hasRole('driver'), function ($q) {
+                    $q->where('id', auth()->id());
+                })
+                    ->when(!auth()->user()->hasRole('superadmin') && auth()->user()->operator_id != 1, function ($q) {
+                        $q->where('operator_id', auth()->user()->operator_id);
+                    })
+                    ->orderBy('name')
+                    ->get()
             ),
         ]);
     }

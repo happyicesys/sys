@@ -723,7 +723,7 @@ onMounted(() => {
     }
   })
   userOptions.value = [
-    ...props.userOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ...props.userOptions.data.map((data) => {return {id: data.id, value: data.name + (data.roles && data.roles.length > 0 ? ' (' + data.roles[0].name + ')' : '')}})
   ]
 })
 
