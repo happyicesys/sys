@@ -77,7 +77,9 @@ class MachineHealthDashboardService
             'customer_ids' => $this->normalizeIdArray($request->input('customer_ids')),
             'machine_codes' => $this->normalizeStringArray($request->input('machine_codes')),
             'channel_sku' => $request->input('channel_sku'),
+            'is_error_cleared' => $request->boolean('is_error_cleared', false),
         ];
+
     }
 
     private function shouldCache(array $filters): bool
@@ -474,6 +476,7 @@ class MachineHealthDashboardService
                 ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
                 ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
                 ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
+                ->where('vend_channel_error_logs.is_error_cleared', $filters['is_error_cleared'])
                 ->where('vends.is_testing', false);
 
             $this->applyVendFilters($query, $filters, 'vends');
@@ -520,6 +523,7 @@ class MachineHealthDashboardService
                     })
                     ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
                     ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
+                    ->where('vend_channel_error_logs.is_error_cleared', $filters['is_error_cleared'])
                     ->select([
                         'vend_channels.vend_id',
                         'vend_channels.code as channel_code',

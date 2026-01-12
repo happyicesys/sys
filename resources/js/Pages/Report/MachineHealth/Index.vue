@@ -4,6 +4,7 @@ import { Head, router, usePage } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
+import SearchInput from '@/Components/SearchInput.vue'
 
 const props = defineProps({
   machineHealth: {
@@ -78,7 +79,9 @@ const filters = reactive({
   vend_prefix_ids: normalizeIds(rawFilters.vend_prefix_ids ?? []),
   customer_ids: (rawFilters.customer_ids ?? []).map(String),
   machine_codes: rawFilters.machine_codes ?? [],
+  machine_codes_input: (rawFilters.machine_codes ?? []).join(','),
   channel_sku: rawFilters.channel_sku ?? '',
+  is_error_cleared: rawFilters.is_error_cleared ?? false,
   no_txn_threshold_hours: {
     any: rawFilters.no_txn_threshold_hours?.any ?? 66,
     cash: rawFilters.no_txn_threshold_hours?.cash ?? 72,
@@ -447,7 +450,11 @@ const applyFilters = () => {
     customer_ids: filters.customer_ids
       .map((value) => Number(value))
       .filter((value) => value > 0),
+    machine_codes: filters.machine_codes_input
+      ? filters.machine_codes_input.split(',').map((s) => s.trim()).filter(Boolean)
+      : [],
     channel_sku: filters.channel_sku || undefined,
+    is_error_cleared: filters.is_error_cleared,
   }
 
   router.get('/reports/machine-health', payload, {
@@ -582,6 +589,13 @@ const formatEventBreakdownSimple = (event) => {
                   >
                   </MultiSelect>
                 </label>
+                <SearchInput
+                  v-model="filters.machine_codes_input"
+                  placeholderStr="Machine ID"
+                >
+                  Machine ID
+                  <span class="text-[9px]"> ("," for multiple) </span>
+                </SearchInput>
               </div>
 
               <div class="flex space-x-3">
@@ -791,6 +805,16 @@ const formatEventBreakdownSimple = (event) => {
                     min="1"
                     type="number"
                   />
+                </label>
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Error Cleared?</span>
+                  <select
+                    v-model="filters.is_error_cleared"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  >
+                    <option :value="false">No (Uncleared)</option>
+                    <option :value="true">Yes (Cleared)</option>
+                  </select>
                 </label>
                 <div>
                   <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
