@@ -189,7 +189,7 @@
                         <SingleSortItem modelName="ops_job_items_verified_count_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ops_job_items_verified_count_percentage')">
                           Verified(%)
                         </SingleSortItem>
-                        <SingleSortItem modelName="cms_transaction_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('cms_transaction_percentage')">
+                        <SingleSortItem v-if="isCmsUrlSet" modelName="cms_transaction_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('cms_transaction_percentage')">
                           API Invoices(%)
                         </SingleSortItem>
                       </div>
@@ -346,6 +346,7 @@
                           <div
                             class="inline-flex justify-center items-center rounded px-1.5 text-xs font-medium border min-w-full text-gray-900"
                             :class="[opsJob.cms_transaction_percentage == 100 ? 'text-green-700 bg-green-200' : '']"
+                            v-if="isCmsUrlSet"
                           >
                             <span>
                               {{ opsJob.cms_transaction_count }} ({{ opsJob.cms_transaction_percentage }}%)
@@ -517,6 +518,7 @@ const authOperator = usePage().props.auth.operator
 const authUser = usePage().props.auth.user
 const authRoles = usePage().props.auth.roles || []
 const isDriver = authRoles.includes('driver')
+const isCmsUrlSet = usePage().props.isCmsUrlSet
 const showAddressModal = ref(false)
 const showModal = ref(false)
 const showChangeDriverModal = ref(false)
