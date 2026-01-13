@@ -1444,7 +1444,7 @@
 							<span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
 									{{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
-							<span :class="[vend.last_thirty_days_stock_in_amount < vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent)) ? 'text-green-700' : 'text-red-700']">
+							<span :class="[vend.vendTransactionTotalsJson && vend.last_thirty_days_stock_in_amount < vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent)) ? 'text-green-700' : 'text-red-700']">
 								{{ operatorCountry.currency_symbol }}{{ (vend.last_thirty_days_stock_in_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{(vend.last_thirty_days_stock_in_qty).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}})
 							</span>
 							<span :class="[vend.thirty_days_stock_in_delta_percent < 0 ? 'text-green-700' : 'text-red-700']">

@@ -110,9 +110,17 @@ function getDefaultForm() {
 
 onMounted(() => {
   driverOptions.value = props.driverOptions.data.map(driver => {
+    let roleStr = ''
+    if(driver.roles) {
+      if(driver.roles.length > 0) {
+        roleStr = ' (' + driver.roles.map(role => role.name).join(', ') + ')'
+      }else if(driver.role_id) {
+         roleStr = ' (' + driver.role_id.name + ')'
+      }
+    }
     return {
       id: driver.id,
-      value: driver.name,
+      value: driver.name + roleStr,
     }
   })
 })

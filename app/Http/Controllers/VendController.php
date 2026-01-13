@@ -892,9 +892,7 @@ class VendController extends Controller
 
         // Cache all option queries to reduce database calls
         $driverOptions = UserResource::collection(
-            User::whereHas('roles', function ($query) {
-                $query->whereIn('name', ['admin', 'driver', 'supervisor', 'technician']);
-            })->orderBy('name')->get()
+            User::with('roles')->orderBy('name')->get()
         );
 
         $products = Product::query()

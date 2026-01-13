@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Head, router, usePage } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
@@ -628,6 +628,724 @@ const formatErrorDesc = (code, desc) => {
 
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Connectivity</h3>
+
+            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Offline Threshold (h)</span>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input
+                      v-model.number="filters.offline_threshold_hours"
+                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      min="1"
+                      type="number"
+                    />
+                    <input
+                      v-model.number="filters.offline_secondary_threshold_hours"
+                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      min="1"
+                      type="number"
+                    />
+                  </div>
+                  <span class="text-xs text-gray-500">
+                    Primary vs. escalation thresholds
+                  </span>
+                </label>
+                <div>
+                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </form>
+            <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div class="rounded-lg border border-gray-200 p-4">
+                <h4 class="text-sm font-semibold text-gray-800">
+                  Offline ≥ {{ connectivity.primary_threshold_hours ?? filters.offline_threshold_hours }}h
+                </h4>
+                <p class="text-xs text-gray-500">Sorted from nearest to threshold</p>
+                <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                  <li
+                    v-for="row in offlinePrimaryRows"
+                    :key="row.vend_id"
+                    class="rounded border border-gray-100 p-3"
+                  >
+                    <div class="font-medium text-gray-900">
+                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                        {{ row.vend_code }}
+                      </Link>
+                       · {{ formatHours(row.hours_offline) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      Last contact {{ formatDateTime(row.last_contact_at) }}
+                    </div>
+                  </li>
+                  <li v-if="!(connectivity.primary?.length)">
+                    All machines are within the primary offline threshold.
+                  </li>
+                </ul>
+                <div
+                  v-if="canLoadMoreOfflinePrimary"
+                  class="mt-3 flex justify-center"
+                >
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadRemainingOfflinePrimary"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-gray-200 p-4">
+                <h4 class="text-sm font-semibold text-gray-800">
+                  Escalations ≥
+                  {{ connectivity.secondary_threshold_hours ?? filters.offline_secondary_threshold_hours }}h
+                </h4>
+                <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                  <li
+                    v-for="row in offlineSecondaryRows"
+                    :key="`${row.vend_id}-secondary`"
+                    class="rounded border border-gray-100 p-3"
+                  >
+                    <div class="font-medium text-gray-900">
+                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                        {{ row.vend_code }}
+                      </Link>
+                       · {{ formatHours(row.hours_offline) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      Last contact {{ formatDateTime(row.last_contact_at) }}
+                    </div>
+                  </li>
+                  <li v-if="!(connectivity.secondary?.length)">
+                    No escalations pending.
+                  </li>
+                </ul>
+                <div
+                  v-if="canLoadMoreOfflineSecondary"
+                  class="mt-3 flex justify-center"
+                >
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadRemainingOfflineSecondary"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-white shadow-sm sm:rounded-lg">
+          <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Temperature Alerts</h3>
+            <p class="text-sm text-gray-500">
+              Sensor type {{ filters.temperature_sensor_type }} · Threshold
+              {{ formatNumber(filters.temperature_min_threshold, 1) }}°C
+            </p>
+
+            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-4 items-end">
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Temperature Window</span>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input
+                      v-model.number="filters.temperature_window_days"
+                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      min="3"
+                      type="number"
+                    />
+                    <input
+                      v-model.number="filters.temperature_long_window_days"
+                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      min="7"
+                      type="number"
+                    />
+                  </div>
+                  <span class="text-xs text-gray-500">
+                    Short vs. long lookback (days)
+                  </span>
+                </label>
+
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Temp Delta Threshold</span>
+                  <input
+                    v-model.number="filters.temperature_delta_threshold"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    step="0.5"
+                    type="number"
+                  />
+                </label>
+
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Temp Minimum Threshold (°C)</span>
+                  <input
+                    v-model.number="filters.temperature_min_threshold"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    step="0.5"
+                    type="number"
+                  />
+                </label>
+
+                <div>
+                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </form>
+            <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div class="rounded-lg border border-gray-200 p-4">
+                <h4 class="text-sm font-semibold text-gray-800">
+                  Rising Lowest Temperature
+                </h4>
+                <p class="text-xs text-gray-500">
+                  Δ ≥ {{ formatNumber(filters.temperature_delta_threshold, 1) }}°C over
+                  {{ temperature.rising_lowest?.window_days ?? filters.temperature_window_days }} days
+                </p>
+                <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                  <li
+                    v-for="row in risingRows"
+                    :key="row.vend_id"
+                    class="rounded border border-gray-100 p-3"
+                  >
+                    <div class="font-medium text-gray-900">
+                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                        {{ row.vend_code }}
+                      </Link>
+                       (Δ {{ formatNumber(row.delta, 1) }}°C)
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.first_day }}: {{ row.first_min_temp }}°C → {{ row.latest_day }}:
+                      {{ row.latest_min_temp }}°C
+                    </div>
+                  </li>
+                  <li v-if="!(temperature.rising_lowest?.rows?.length)">
+                    No machines breached the delta threshold.
+                  </li>
+                </ul>
+                <div v-if="canLoadMoreRising" class="mt-3 flex justify-center">
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadRemainingRising"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-gray-200 p-4">
+                <h4 class="text-sm font-semibold text-gray-800">
+                  Highest Minimum ({{ temperature.worst_minima?.window_days ?? filters.temperature_long_window_days }} days)
+                </h4>
+                <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                  <li
+                    v-for="row in worstMinimaRows"
+                    :key="row.vend_id"
+                    class="rounded border border-gray-100 p-3"
+                  >
+                    <div class="font-medium text-gray-900">
+                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                        {{ row.vend_code }}
+                      </Link>
+                       · {{ row.worst_min_temp }}°C
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ formatDateTime(row.last_recorded_at) }}
+                    </div>
+                  </li>
+                  <li v-if="!(temperature.worst_minima?.rows?.length)">
+                    All machines remained below target in the selected window.
+                  </li>
+                </ul>
+                <div v-if="canLoadMoreWorstMinima" class="mt-3 flex justify-center">
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadRemainingWorstMinima"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-gray-200 p-4">
+                <h4 class="text-sm font-semibold text-gray-800">
+                  Did Not Reach {{ formatNumber(filters.temperature_min_threshold, 1) }}°C
+                </h4>
+                <p class="text-xs text-gray-500">Last 12 hours of telemetry</p>
+                <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                  <li
+                    v-for="row in notReachingRows"
+                    :key="row.vend_id"
+                    class="rounded border border-gray-100 p-3"
+                  >
+                    <div class="font-medium text-gray-900">
+                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                        {{ row.vend_code }}
+                      </Link>
+                       · {{ row.min_value }}°C
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ formatDateTime(row.last_recorded_at) }} ({{ row.reading_count }} samples)
+                    </div>
+                  </li>
+                  <li v-if="!(temperature.not_reaching_threshold?.rows?.length)">
+                    Every monitored machine hit the minimum threshold within the last 12
+                    hours.
+                  </li>
+                </ul>
+                <div
+                  v-if="canLoadMoreNotReaching"
+                  class="mt-3 flex justify-center"
+                >
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadRemainingNotReaching"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-white shadow-sm sm:rounded-lg">
+          <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-900">No Transaction Alerts</h3>
+            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-5 items-end">
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">No Sales (>= h)</span>
+                  <input
+                    v-model.number="filters.no_txn_threshold_hours.any"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    min="1"
+                    type="number"
+                  />
+                </label>
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">No Cash (>= h)</span>
+                  <input
+                    v-model.number="filters.no_txn_threshold_hours.cash"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    min="1"
+                    type="number"
+                  />
+                </label>
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">No Card (>= h)</span>
+                  <input
+                    v-model.number="filters.no_txn_threshold_hours.card"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    min="1"
+                    type="number"
+                  />
+                </label>
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">No QR / Cashless (>= h)</span>
+                  <input
+                    v-model.number="filters.no_txn_threshold_hours.cashless"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    min="1"
+                    type="number"
+                  />
+                </label>
+                <div>
+                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </form>
+            <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <div class="rounded-lg border border-gray-200 p-4">
+                <h4 class="text-sm font-semibold text-gray-800">
+                  Any Sales ({{ noTransactions.thresholds?.any ?? filters.no_txn_threshold_hours.any }}h)
+                </h4>
+                <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                  <li
+                    v-for="row in noTxnAnyRows"
+                    :key="row.vend_id"
+                    class="rounded border border-gray-100 p-3"
+                  >
+                    <div class="font-medium text-gray-900">
+                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                        {{ row.vend_code }}
+                      </Link>
+                       · {{ formatHours(row.hours_since) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      Last sale {{ formatDateTime(row.last_transaction_at) }}
+                    </div>
+                  </li>
+                  <li v-if="!(noTransactions.any_sales?.length)">
+                    All machines recorded recent transactions.
+                  </li>
+                </ul>
+                <div
+                  v-if="canLoadMoreNoTxnAny"
+                  class="mt-3 flex justify-center"
+                >
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadRemainingNoTxnAny"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-gray-200 p-4">
+                <h4 class="text-sm font-semibold text-gray-800">
+                  Cash ({{ noTransactions.thresholds?.cash ?? filters.no_txn_threshold_hours.cash }}h)
+                </h4>
+                <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                  <li
+                    v-for="row in noTxnCashRows"
+                    :key="`${row.vend_id}-cash`"
+                    class="rounded border border-gray-100 p-3"
+                  >
+                    <div class="font-medium text-gray-900">
+                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                        {{ row.vend_code }}
+                      </Link>
+                       · {{ formatHours(row.hours_since) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ formatDateTime(row.last_transaction_at) }}
+                    </div>
+                  </li>
+                  <li v-if="!(noTransactions.cash_sales?.length)">
+                    No cash-specific gaps detected.
+                  </li>
+                </ul>
+                <div
+                  v-if="canLoadMoreNoTxnCash"
+                  class="mt-3 flex justify-center"
+                >
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadRemainingNoTxnCash"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-gray-200 p-4">
+                <h4 class="text-sm font-semibold text-gray-800">
+                  Card ({{ noTransactions.thresholds?.card ?? filters.no_txn_threshold_hours.card }}h)
+                </h4>
+                <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                  <li
+                    v-for="row in noTxnCardRows"
+                    :key="`${row.vend_id}-card`"
+                    class="rounded border border-gray-100 p-3"
+                  >
+                    <div class="font-medium text-gray-900">
+                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                        {{ row.vend_code }}
+                      </Link>
+                       · {{ formatHours(row.hours_since) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ formatDateTime(row.last_transaction_at) }}
+                    </div>
+                  </li>
+                  <li v-if="!(noTransactions.card_sales?.length)">
+                    No credit card gaps detected.
+                  </li>
+                </ul>
+                <div
+                  v-if="canLoadMoreNoTxnCard"
+                  class="mt-3 flex justify-center"
+                >
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadRemainingNoTxnCard"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-gray-200 p-4">
+                <h4 class="text-sm font-semibold text-gray-800">
+                  QR / Cashless ({{ noTransactions.thresholds?.cashless ?? filters.no_txn_threshold_hours.cashless }}h)
+                </h4>
+                <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                  <li
+                    v-for="row in noTxnQrRows"
+                    :key="`${row.vend_id}-qr`"
+                    class="rounded border border-gray-100 p-3"
+                  >
+                    <div class="font-medium text-gray-900">
+                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                        {{ row.vend_code }}
+                      </Link>
+                       · {{ formatHours(row.hours_since) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ formatDateTime(row.last_transaction_at) }}
+                    </div>
+                  </li>
+                  <li v-if="!(noTransactions.qr_sales?.length)">
+                    No QR/cashless gaps detected.
+                  </li>
+                </ul>
+                <div
+                  v-if="canLoadMoreNoTxnQr"
+                  class="mt-3 flex justify-center"
+                >
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadRemainingNoTxnQr"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-white shadow-sm sm:rounded-lg">
+          <div class="p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900">Channel Error Hotspots</h3>
+              <p class="text-sm text-gray-500">
+                Grouped by dispense stability vs. mechanical codes.
+              </p>
+            </div>
+
+            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Error Window (days)</span>
+                  <input
+                    v-model.number="filters.error_window_days"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    max="90"
+                    min="1"
+                    type="number"
+                  />
+                </label>
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">Show All Error(s)?</span>
+                  <select
+                    v-model="filters.show_all_errors"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  >
+                    <option :value="true">Yes (Include Cleared)</option>
+                    <option :value="false">No (Not yet Cleared only)</option>
+                  </select>
+                </label>
+                <div>
+                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </form>
+
+            <div class="mt-4 space-y-6">
+              <div
+                v-for="bucket in errorBuckets"
+                :key="bucket.key"
+                class="rounded-lg border border-gray-200"
+              >
+                <div class="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3">
+                  <div>
+                    <h4 class="text-sm font-semibold text-gray-800">
+                      {{ bucket.label }}
+                    </h4>
+                    <p class="text-xs text-gray-500">
+                      Window: {{ bucket.window_days }} days · Limit:
+                      {{ bucket.limit }} machines
+                    </p>
+                  </div>
+                  <div class="text-xs text-gray-500 flex flex-col items-end space-y-1">
+                    <div>
+                      Errors: {{ bucket.codes?.map((code) => `E${code}`).join(', ') }}
+                    </div>
+                    <div class="flex items-center space-x-1">
+                      <CheckCircleIcon class="h-4 w-4 text-green-500" />
+                      <span>= Cleared</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-white">
+                      <tr>
+                        <th class="px-4 py-2 text-left font-medium text-gray-500">
+                          <div class="flex flex-col space-y-1">
+                            <span>Machine</span>
+                            <span>Vend Prefix</span>
+                            <span>Customer</span>
+                          </div>
+                        </th>
+
+                        <th class="px-4 py-2 text-left font-medium text-gray-500">
+                          Counts of Error
+                        </th>
+                        <th
+                          v-for="code in bucket.codes"
+                          :key="code"
+                          class="px-4 py-2 text-left font-medium text-gray-500 align-top"
+                        >
+                          <div class="whitespace-nowrap">Error {{ code }}</div>
+                          <div class="text-xs font-normal text-gray-600 break-words w-24">
+                            {{ formatErrorDesc(code, errorDefinitions[code]) }}
+                          </div>
+                        </th>
+
+                      </tr>
+                    </thead>
+                    <tbody v-if="bucket.rows?.length" class="divide-y divide-gray-200 bg-white">
+                      <tr v-for="row in visibleBucketRows(bucket)" :key="row.vend_id">
+                        <td class="px-4 py-2">
+                          <div class="flex flex-col space-y-1">
+                            <div class="font-medium text-gray-900">
+                              <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                                {{ row.vend_code }}
+                              </Link>
+                            </div>
+                            <div class="text-xs text-gray-700">
+                              {{ row.vend_prefix_name ?? '—' }}
+                            </div>
+                            <div class="text-xs text-gray-500">
+                              {{ row.customer_name ?? '—' }}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td class="px-4 py-2 text-gray-700">
+                          {{ row.total_events }}
+                        </td>
+                        <td
+                          v-for="code in bucket.codes"
+                          :key="code"
+                          class="px-4 py-2 text-gray-700 text-xs"
+                        >
+                          <div class="font-bold mb-1 border-b border-gray-100 pb-1">
+                            Count = {{ getEventsForCode(row.events, code).length }}
+                          </div>
+                          <div
+                            v-for="(event, index) in getEventsForCode(row.events, code)"
+                            :key="index"
+                            class="whitespace-nowrap flex items-center gap-1"
+                            :class="{ 'text-red-600': !event.is_error_cleared }"
+                          >
+                            <CheckCircleIcon
+                              v-if="event.is_error_cleared"
+                              class="h-4 w-4 text-green-500"
+                            />
+                            <div v-else class="h-4 w-4" />
+                            {{ formatEventBreakdownSimple(event) }}
+                          </div>
+                        </td>
+
+                      </tr>
+                    </tbody>
+                    <tbody v-else>
+                      <tr>
+                        <td
+                          class="px-4 py-6 text-center text-sm text-gray-500"
+                          :colspan="4 + (bucket.codes?.length ?? 0)"
+                        >
+                          No events detected for this grouping.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div
+                  v-if="canExpandBucket(bucket)"
+                  class="border-t border-gray-200 px-4 py-3 flex justify-center"
+                >
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="expandBucketRows(bucket.key)"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-white shadow-sm sm:rounded-lg">
+          <div class="p-6">
             <h3 class="text-lg font-semibold text-gray-900">
               Stockout KPI Overview
             </h3>
@@ -740,7 +1458,10 @@ const formatErrorDesc = (code, desc) => {
                     >
                       <td class="px-4 py-2">
                         <div class="font-medium text-gray-900">
-                          {{ row.vend_code }} · {{ row.channel_code ?? '—' }}
+                          <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                            {{ row.vend_code }}
+                          </Link>
+                           · {{ row.channel_code ?? '—' }}
                         </div>
                         <div class="text-xs text-gray-500">
                           {{ row.vend_prefix_name ?? '—' }}
@@ -792,651 +1513,6 @@ const formatErrorDesc = (code, desc) => {
                 >
                   Load remaining
                 </Button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="bg-white shadow-sm sm:rounded-lg">
-          <div class="p-6">
-            <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-900">Channel Error Hotspots</h3>
-              <p class="text-sm text-gray-500">
-                Grouped by dispense stability vs. mechanical codes.
-              </p>
-            </div>
-
-            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Error Window (days)</span>
-                  <input
-                    v-model.number="filters.error_window_days"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    max="90"
-                    min="1"
-                    type="number"
-                  />
-                </label>
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Show All Error(s)?</span>
-                  <select
-                    v-model="filters.show_all_errors"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  >
-                    <option :value="true">Yes (Include Cleared)</option>
-                    <option :value="false">No (Not yet Cleared only)</option>
-                  </select>
-                </label>
-                <div>
-                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
-                    Apply
-                  </Button>
-                </div>
-              </div>
-            </form>
-
-            <div class="mt-4 space-y-6">
-              <div
-                v-for="bucket in errorBuckets"
-                :key="bucket.key"
-                class="rounded-lg border border-gray-200"
-              >
-                <div class="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3">
-                  <div>
-                    <h4 class="text-sm font-semibold text-gray-800">
-                      {{ bucket.label }}
-                    </h4>
-                    <p class="text-xs text-gray-500">
-                      Window: {{ bucket.window_days }} days · Limit:
-                      {{ bucket.limit }} machines
-                    </p>
-                  </div>
-                  <div class="text-xs text-gray-500 flex flex-col items-end space-y-1">
-                    <div>
-                      Errors: {{ bucket.codes?.map((code) => `E${code}`).join(', ') }}
-                    </div>
-                    <div class="flex items-center space-x-1">
-                      <CheckCircleIcon class="h-4 w-4 text-green-500" />
-                      <span>= Cleared</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="overflow-x-auto">
-                  <table class="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead class="bg-white">
-                      <tr>
-                        <th class="px-4 py-2 text-left font-medium text-gray-500">
-                          <div class="flex flex-col space-y-1">
-                            <span>Machine</span>
-                            <span>Vend Prefix</span>
-                            <span>Customer</span>
-                          </div>
-                        </th>
-
-                        <th class="px-4 py-2 text-left font-medium text-gray-500">
-                          Counts of Error
-                        </th>
-                        <th
-                          v-for="code in bucket.codes"
-                          :key="code"
-                          class="px-4 py-2 text-left font-medium text-gray-500 align-top"
-                        >
-                          <div class="whitespace-nowrap">Error {{ code }}</div>
-                          <div class="text-xs font-normal text-gray-600 break-words w-24">
-                            {{ formatErrorDesc(code, errorDefinitions[code]) }}
-                          </div>
-                        </th>
-
-                      </tr>
-                    </thead>
-                    <tbody v-if="bucket.rows?.length" class="divide-y divide-gray-200 bg-white">
-                      <tr v-for="row in visibleBucketRows(bucket)" :key="row.vend_id">
-                        <td class="px-4 py-2">
-                          <div class="flex flex-col space-y-1">
-                            <div class="font-medium text-gray-900">{{ row.vend_code }}</div>
-                            <div class="text-xs text-gray-700">
-                              {{ row.vend_prefix_name ?? '—' }}
-                            </div>
-                            <div class="text-xs text-gray-500">
-                              {{ row.customer_name ?? '—' }}
-                            </div>
-                          </div>
-                        </td>
-
-                        <td class="px-4 py-2 text-gray-700">
-                          {{ row.total_events }}
-                        </td>
-                        <td
-                          v-for="code in bucket.codes"
-                          :key="code"
-                          class="px-4 py-2 text-gray-700 text-xs"
-                        >
-                          <div class="font-bold mb-1 border-b border-gray-100 pb-1">
-                            Count = {{ getEventsForCode(row.events, code).length }}
-                          </div>
-                          <div
-                            v-for="(event, index) in getEventsForCode(row.events, code)"
-                            :key="index"
-                            class="whitespace-nowrap flex items-center gap-1"
-                            :class="{ 'text-red-600': !event.is_error_cleared }"
-                          >
-                            <CheckCircleIcon
-                              v-if="event.is_error_cleared"
-                              class="h-4 w-4 text-green-500"
-                            />
-                            <div v-else class="h-4 w-4" />
-                            {{ formatEventBreakdownSimple(event) }}
-                          </div>
-                        </td>
-
-                      </tr>
-                    </tbody>
-                    <tbody v-else>
-                      <tr>
-                        <td
-                          class="px-4 py-6 text-center text-sm text-gray-500"
-                          :colspan="4 + (bucket.codes?.length ?? 0)"
-                        >
-                          No events detected for this grouping.
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div
-                  v-if="canExpandBucket(bucket)"
-                  class="border-t border-gray-200 px-4 py-3 flex justify-center"
-                >
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="expandBucketRows(bucket.key)"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="bg-white shadow-sm sm:rounded-lg">
-          <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900">Temperature Alerts</h3>
-            <p class="text-sm text-gray-500">
-              Sensor type {{ filters.temperature_sensor_type }} · Threshold
-              {{ formatNumber(filters.temperature_min_threshold, 1) }}°C
-            </p>
-
-            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-4 items-end">
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Temperature Window</span>
-                  <div class="grid grid-cols-2 gap-2">
-                    <input
-                      v-model.number="filters.temperature_window_days"
-                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      min="3"
-                      type="number"
-                    />
-                    <input
-                      v-model.number="filters.temperature_long_window_days"
-                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      min="7"
-                      type="number"
-                    />
-                  </div>
-                  <span class="text-xs text-gray-500">
-                    Short vs. long lookback (days)
-                  </span>
-                </label>
-
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Temp Delta Threshold</span>
-                  <input
-                    v-model.number="filters.temperature_delta_threshold"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    step="0.5"
-                    type="number"
-                  />
-                </label>
-
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Temp Minimum Threshold (°C)</span>
-                  <input
-                    v-model.number="filters.temperature_min_threshold"
-                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    step="0.5"
-                    type="number"
-                  />
-                </label>
-
-                <div>
-                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
-                    Apply
-                  </Button>
-                </div>
-              </div>
-            </form>
-            <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-3">
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  Rising Lowest Temperature
-                </h4>
-                <p class="text-xs text-gray-500">
-                  Δ ≥ {{ formatNumber(filters.temperature_delta_threshold, 1) }}°C over
-                  {{ temperature.rising_lowest?.window_days ?? filters.temperature_window_days }} days
-                </p>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in risingRows"
-                    :key="row.vend_id"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      {{ row.vend_code }} (Δ {{ formatNumber(row.delta, 1) }}°C)
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.first_day }}: {{ row.first_min_temp }}°C → {{ row.latest_day }}:
-                      {{ row.latest_min_temp }}°C
-                    </div>
-                  </li>
-                  <li v-if="!(temperature.rising_lowest?.rows?.length)">
-                    No machines breached the delta threshold.
-                  </li>
-                </ul>
-                <div v-if="canLoadMoreRising" class="mt-3 flex justify-center">
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingRising"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
-              </div>
-
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  Highest Minimum ({{ temperature.worst_minima?.window_days ?? filters.temperature_long_window_days }} days)
-                </h4>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in worstMinimaRows"
-                    :key="row.vend_id"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      {{ row.vend_code }} · {{ row.worst_min_temp }}°C
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ formatDateTime(row.last_recorded_at) }}
-                    </div>
-                  </li>
-                  <li v-if="!(temperature.worst_minima?.rows?.length)">
-                    All machines remained below target in the selected window.
-                  </li>
-                </ul>
-                <div v-if="canLoadMoreWorstMinima" class="mt-3 flex justify-center">
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingWorstMinima"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
-              </div>
-
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  Did Not Reach {{ formatNumber(filters.temperature_min_threshold, 1) }}°C
-                </h4>
-                <p class="text-xs text-gray-500">Last 12 hours of telemetry</p>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in notReachingRows"
-                    :key="row.vend_id"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      {{ row.vend_code }} · {{ row.min_value }}°C
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ formatDateTime(row.last_recorded_at) }} ({{ row.reading_count }} samples)
-                    </div>
-                  </li>
-                  <li v-if="!(temperature.not_reaching_threshold?.rows?.length)">
-                    Every monitored machine hit the minimum threshold within the last 12
-                    hours.
-                  </li>
-                </ul>
-                <div
-                  v-if="canLoadMoreNotReaching"
-                  class="mt-3 flex justify-center"
-                >
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingNotReaching"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="bg-white shadow-sm sm:rounded-lg">
-          <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900">Connectivity</h3>
-
-            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Offline Threshold (h)</span>
-                  <div class="grid grid-cols-2 gap-2">
-                    <input
-                      v-model.number="filters.offline_threshold_hours"
-                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      min="1"
-                      type="number"
-                    />
-                    <input
-                      v-model.number="filters.offline_secondary_threshold_hours"
-                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      min="1"
-                      type="number"
-                    />
-                  </div>
-                  <span class="text-xs text-gray-500">
-                    Primary vs. escalation thresholds
-                  </span>
-                </label>
-                <div>
-                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
-                    Apply
-                  </Button>
-                </div>
-              </div>
-            </form>
-            <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  Offline ≥ {{ connectivity.primary_threshold_hours ?? filters.offline_threshold_hours }}h
-                </h4>
-                <p class="text-xs text-gray-500">Sorted from nearest to threshold</p>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in offlinePrimaryRows"
-                    :key="row.vend_id"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      {{ row.vend_code }} · {{ formatHours(row.hours_offline) }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      Last contact {{ formatDateTime(row.last_contact_at) }}
-                    </div>
-                  </li>
-                  <li v-if="!(connectivity.primary?.length)">
-                    All machines are within the primary offline threshold.
-                  </li>
-                </ul>
-                <div
-                  v-if="canLoadMoreOfflinePrimary"
-                  class="mt-3 flex justify-center"
-                >
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingOfflinePrimary"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
-              </div>
-
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  Escalations ≥
-                  {{ connectivity.secondary_threshold_hours ?? filters.offline_secondary_threshold_hours }}h
-                </h4>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in offlineSecondaryRows"
-                    :key="`${row.vend_id}-secondary`"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      {{ row.vend_code }} · {{ formatHours(row.hours_offline) }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      Last contact {{ formatDateTime(row.last_contact_at) }}
-                    </div>
-                  </li>
-                  <li v-if="!(connectivity.secondary?.length)">
-                    No escalations pending.
-                  </li>
-                </ul>
-                <div
-                  v-if="canLoadMoreOfflineSecondary"
-                  class="mt-3 flex justify-center"
-                >
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingOfflineSecondary"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="bg-white shadow-sm sm:rounded-lg">
-          <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900">No Transaction Alerts</h3>
-            <p class="text-sm text-gray-500">
-              Thresholds apply per payment rail; adjust in the filter panel.
-            </p>
-            <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  Any Sales ({{ noTransactions.thresholds?.any ?? filters.no_txn_threshold_hours.any }}h)
-                </h4>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in noTxnAnyRows"
-                    :key="row.vend_id"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      Last sale {{ formatDateTime(row.last_transaction_at) }}
-                    </div>
-                  </li>
-                  <li v-if="!(noTransactions.any_sales?.length)">
-                    All machines recorded recent transactions.
-                  </li>
-                </ul>
-                <div
-                  v-if="canLoadMoreNoTxnAny"
-                  class="mt-3 flex justify-center"
-                >
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingNoTxnAny"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
-              </div>
-
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  Cash ({{ noTransactions.thresholds?.cash ?? filters.no_txn_threshold_hours.cash }}h)
-                </h4>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in noTxnCashRows"
-                    :key="`${row.vend_id}-cash`"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ formatDateTime(row.last_transaction_at) }}
-                    </div>
-                  </li>
-                  <li v-if="!(noTransactions.cash_sales?.length)">
-                    No cash-specific gaps detected.
-                  </li>
-                </ul>
-                <div
-                  v-if="canLoadMoreNoTxnCash"
-                  class="mt-3 flex justify-center"
-                >
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingNoTxnCash"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
-              </div>
-
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  Card ({{ noTransactions.thresholds?.card ?? filters.no_txn_threshold_hours.card }}h)
-                </h4>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in noTxnCardRows"
-                    :key="`${row.vend_id}-card`"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ formatDateTime(row.last_transaction_at) }}
-                    </div>
-                  </li>
-                  <li v-if="!(noTransactions.card_sales?.length)">
-                    No credit card gaps detected.
-                  </li>
-                </ul>
-                <div
-                  v-if="canLoadMoreNoTxnCard"
-                  class="mt-3 flex justify-center"
-                >
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingNoTxnCard"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
-              </div>
-
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  QR / Cashless ({{ noTransactions.thresholds?.cashless ?? filters.no_txn_threshold_hours.cashless }}h)
-                </h4>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in noTxnQrRows"
-                    :key="`${row.vend_id}-qr`"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      {{ row.vend_code }} · {{ formatHours(row.hours_since) }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ formatDateTime(row.last_transaction_at) }}
-                    </div>
-                  </li>
-                  <li v-if="!(noTransactions.qr_sales?.length)">
-                    No QR/cashless gaps detected.
-                  </li>
-                </ul>
-                <div
-                  v-if="canLoadMoreNoTxnQr"
-                  class="mt-3 flex justify-center"
-                >
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingNoTxnQr"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
               </div>
             </div>
           </div>
