@@ -10,6 +10,7 @@ use App\Models\VendChannelErrorLog;
 use App\Models\VendChannelStockEvent;
 use App\Models\VendTemp;
 use App\Models\VendTempMetric;
+use App\Models\VendTransaction;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Http\Request;
@@ -55,7 +56,7 @@ class MachineHealthDashboardService
     private function hydrateFilters(Request $request): array
     {
         return [
-            'machine_limit' => $this->clamp((int) $request->input('machine_limit', 10), 10, 50),
+            'machine_limit' => $this->clamp((int) $request->input('machine_limit', 15), 10, 50),
             'channel_limit' => $this->clamp((int) $request->input('channel_limit', 10), 10, 50),
             'error_window_days' => $this->clamp((int) $request->input('error_window_days', 7), 1, 90),
             'temperature_window_days' => $this->clamp((int) $request->input('temperature_window_days', 7), 3, 90),
@@ -64,10 +65,10 @@ class MachineHealthDashboardService
             'temperature_sensor_type' => (int) $request->input('temperature_sensor_type', VendTemp::TYPE_CHAMBER),
             'temperature_long_window_days' => $this->clamp((int) $request->input('temperature_long_window_days', 30), 7, 120),
             'no_txn_threshold_hours' => [
-                'any' => (int) $request->input('no_txn_threshold_hours.any', 66),
-                'cash' => (int) $request->input('no_txn_threshold_hours.cash', 72),
-                'card' => (int) $request->input('no_txn_threshold_hours.card', 72),
-                'cashless' => (int) $request->input('no_txn_threshold_hours.cashless', 72),
+                'any' => (int) $request->input('no_txn_threshold_hours.any', 48),
+                'cash' => (int) $request->input('no_txn_threshold_hours.cash', 48),
+                'card' => (int) $request->input('no_txn_threshold_hours.card', 48),
+                'cashless' => (int) $request->input('no_txn_threshold_hours.cashless', 48),
             ],
             'offline_threshold_hours' => (int) $request->input('offline_threshold_hours', 12),
             'offline_secondary_threshold_hours' => (int) $request->input('offline_secondary_threshold_hours', 24),
@@ -891,12 +892,45 @@ class MachineHealthDashboardService
         $now = Carbon::now();
         $limit = $filters['machine_limit'];
 
+        $anySales = $this->buildNoTxnList('last_vend_transaction_at', $thresholds['any'], $filters, $now, $limit);
+        $cashSales = $this->buildNoTxnList('last_cash_vend_transaction_at', $thresholds['cash'], $filters, $now, $limit, 'cash');
+        $cardSales = $this->buildNoTxnList('last_card_vend_transaction_at', $thresholds['card'], $filters, $now, $limit, 'card');
+        $qrSales = $this->buildNoTxnList('last_cashless_vend_transaction_at', $thresholds['cashless'], $filters, $now, $limit, 'cashless');
+
+        $allVendIds = collect()
+            ->merge($anySales->pluck('vend_id'))
+            ->merge($cashSales->pluck('vend_id'))
+            ->merge($cardSales->pluck('vend_id'))
+            ->merge($qrSales->pluck('vend_id'))
+            ->unique()
+            ->values()
+            ->all();
+
+        $l30dSales = [];
+        if (!empty($allVendIds)) {
+            $l30dStart = Carbon::now()->subDays(30);
+            $l30dSales = VendTransaction::query()
+                ->whereIn('vend_id', $allVendIds)
+                ->where('transaction_datetime', '>=', $l30dStart)
+                ->groupBy('vend_id')
+                ->selectRaw('vend_id, SUM(amount) as total_sales')
+                ->pluck('total_sales', 'vend_id')
+                ->all();
+        }
+
+        $injectSales = function (Collection $items) use ($l30dSales) {
+            return $items->map(function ($item) use ($l30dSales) {
+                $item['l30d_sales'] = (int) ($l30dSales[$item['vend_id']] ?? 0);
+                return $item;
+            })->all();
+        };
+
         return [
             'thresholds' => $thresholds,
-            'any_sales' => $this->buildNoTxnList('last_vend_transaction_at', $thresholds['any'], $filters, $now, $limit)->all(),
-            'cash_sales' => $this->buildNoTxnList('last_cash_vend_transaction_at', $thresholds['cash'], $filters, $now, $limit, 'cash')->all(),
-            'card_sales' => $this->buildNoTxnList('last_card_vend_transaction_at', $thresholds['card'], $filters, $now, $limit, 'card')->all(),
-            'qr_sales' => $this->buildNoTxnList('last_cashless_vend_transaction_at', $thresholds['cashless'], $filters, $now, $limit, 'cashless')->all(),
+            'any_sales' => $injectSales($anySales),
+            'cash_sales' => $injectSales($cashSales),
+            'card_sales' => $injectSales($cardSales),
+            'qr_sales' => $injectSales($qrSales),
         ];
     }
 
@@ -913,6 +947,7 @@ class MachineHealthDashboardService
                 'operator_id',
                 'vend_prefix_id',
                 'customer_id',
+                'acb_vmc_pa_json',
                 DB::raw("{$column} as last_transaction_at"),
                 DB::raw("{$hoursExpr} as hours_since"),
             ])
@@ -939,6 +974,7 @@ class MachineHealthDashboardService
                         'hours_since' => (float) $vend->hours_since,
                         'last_transaction_at' => $lastTransaction?->toIso8601String(),
                         'threshold_hours' => $threshold,
+                        'acb_vmc_pa_json' => $vend->acb_vmc_pa_json,
                     ]
                 );
             });

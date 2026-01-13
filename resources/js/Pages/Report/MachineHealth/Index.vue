@@ -64,7 +64,7 @@ const normalizeIds = (values) => {
 
 const rawFilters = props.machineHealth?.filters ?? {}
 const filters = reactive({
-  machine_limit: rawFilters.machine_limit ?? 10,
+  machine_limit: rawFilters.machine_limit ?? 15,
   channel_limit: rawFilters.channel_limit ?? 10,
   error_window_days: rawFilters.error_window_days ?? 7,
   temperature_window_days: rawFilters.temperature_window_days ?? 7,
@@ -83,10 +83,10 @@ const filters = reactive({
   channel_sku: rawFilters.channel_sku ?? '',
   show_all_errors: rawFilters.show_all_errors ?? true,
   no_txn_threshold_hours: {
-    any: rawFilters.no_txn_threshold_hours?.any ?? 66,
-    cash: rawFilters.no_txn_threshold_hours?.cash ?? 72,
-    card: rawFilters.no_txn_threshold_hours?.card ?? 72,
-    cashless: rawFilters.no_txn_threshold_hours?.cashless ?? 72,
+    any: rawFilters.no_txn_threshold_hours?.any ?? 48,
+    cash: rawFilters.no_txn_threshold_hours?.cash ?? 48,
+    card: rawFilters.no_txn_threshold_hours?.card ?? 48,
+    cashless: rawFilters.no_txn_threshold_hours?.cashless ?? 48,
   },
 })
 
@@ -359,7 +359,7 @@ const formatHours = (value) => {
     return '—'
   }
 
-  return `${formatNumber(value)} h`
+  return `${formatNumber(value)} hr`
 }
 
 const formatDays = (value) => {
@@ -402,6 +402,32 @@ const formatDateTime = (value) => {
   }
 
   return `${twoDigitYear}-${month}-${day} ${pad(hours)}:${minutes} ${suffix}`
+}
+
+const formatDateTimeComma = (value) => {
+  if (!value) {
+    return '—'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return '—'
+  }
+
+  const pad = (num) => String(num).padStart(2, '0')
+  const twoDigitYear = String(date.getFullYear()).slice(-2)
+  const month = pad(date.getMonth() + 1)
+  const day = pad(date.getDate())
+  const minutes = pad(date.getMinutes())
+
+  let hours = date.getHours()
+  const suffix = hours >= 12 ? 'pm' : 'am'
+  hours %= 12
+  if (hours === 0) {
+    hours = 12
+  }
+
+  return `${twoDigitYear}-${month}-${day}, ${pad(hours)}:${minutes} ${suffix}`
 }
 
 const applyFilters = () => {
@@ -613,7 +639,7 @@ const formatErrorDesc = (code, desc) => {
                 <h3 class="text-lg font-semibold text-gray-900">Connectivity</h3>
                 <p class="text-sm text-gray-500">Offline hour(s)</p>
               </div>
-              <span class="text-sm text-gray-500">Max 60h</span>
+              <span class="text-sm text-gray-500">Max 60hr</span>
             </div>
 
             <div class="pb-4">
@@ -870,7 +896,7 @@ const formatErrorDesc = (code, desc) => {
             <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
               <div class="grid grid-cols-1 gap-4 md:grid-cols-5 items-end">
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">No Sales (>= h)</span>
+                  <span class="font-medium text-gray-700">No any Sales (>= hr)</span>
                   <input
                     v-model.number="filters.no_txn_threshold_hours.any"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -879,7 +905,7 @@ const formatErrorDesc = (code, desc) => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">No Cash (>= h)</span>
+                  <span class="font-medium text-gray-700">No Cash Sales (>= hr)</span>
                   <input
                     v-model.number="filters.no_txn_threshold_hours.cash"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -888,7 +914,7 @@ const formatErrorDesc = (code, desc) => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">No Card (>= h)</span>
+                  <span class="font-medium text-gray-700">No Sales via Card Terminal (>= hr)</span>
                   <input
                     v-model.number="filters.no_txn_threshold_hours.card"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -897,7 +923,7 @@ const formatErrorDesc = (code, desc) => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">No QR / Cashless (>= h)</span>
+                  <span class="font-medium text-gray-700">No Sales via QR / digital screen (>= hr)</span>
                   <input
                     v-model.number="filters.no_txn_threshold_hours.cashless"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -915,7 +941,7 @@ const formatErrorDesc = (code, desc) => {
             <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  Any Sales ({{ noTransactions.thresholds?.any ?? filters.no_txn_threshold_hours.any }}h)
+                  No any Sales ({{ noTransactions.thresholds?.any ?? filters.no_txn_threshold_hours.any }}hr)
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -936,7 +962,10 @@ const formatErrorDesc = (code, desc) => {
                       {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
-                      Last sale {{ formatDateTime(row.last_transaction_at) }}
+                      L30d: ${{ formatNumber((row.l30d_sales || 0) / 100) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
                     </div>
                   </li>
                   <li v-if="!(noTransactions.any_sales?.length)">
@@ -959,7 +988,7 @@ const formatErrorDesc = (code, desc) => {
 
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  Cash ({{ noTransactions.thresholds?.cash ?? filters.no_txn_threshold_hours.cash }}h)
+                  No Cash Sales ({{ noTransactions.thresholds?.cash ?? filters.no_txn_threshold_hours.cash }}hr)
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -980,7 +1009,10 @@ const formatErrorDesc = (code, desc) => {
                       {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
-                      {{ formatDateTime(row.last_transaction_at) }}
+                      L30d: ${{ formatNumber((row.l30d_sales || 0) / 100) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
                     </div>
                   </li>
                   <li v-if="!(noTransactions.cash_sales?.length)">
@@ -1003,7 +1035,7 @@ const formatErrorDesc = (code, desc) => {
 
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  Card ({{ noTransactions.thresholds?.card ?? filters.no_txn_threshold_hours.card }}h)
+                  No Sales via Card Terminal ({{ noTransactions.thresholds?.card ?? filters.no_txn_threshold_hours.card }}hr)
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -1024,7 +1056,24 @@ const formatErrorDesc = (code, desc) => {
                       {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
-                      {{ formatDateTime(row.last_transaction_at) }}
+                      L30d: ${{ formatNumber((row.l30d_sales || 0) / 100) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
+                    </div>
+                    <div
+                       class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
+                       :class="[row.acb_vmc_pa_json && row.acb_vmc_pa_json['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
+                       v-if="row.acb_vmc_pa_json && 'CSHL_MFG' in row.acb_vmc_pa_json"
+                    >
+                       <div class="flex flex-col items-center text-center">
+                           <span class="font-bold">
+                               Cashless Mfg
+                           </span>
+                           <span>
+                               {{row.acb_vmc_pa_json['CSHL_MFG'] ? row.acb_vmc_pa_json['CSHL_MFG'] : 'NA' }}
+                           </span>
+                       </div>
                     </div>
                   </li>
                   <li v-if="!(noTransactions.card_sales?.length)">
@@ -1047,7 +1096,7 @@ const formatErrorDesc = (code, desc) => {
 
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  QR / Cashless ({{ noTransactions.thresholds?.cashless ?? filters.no_txn_threshold_hours.cashless }}h)
+                  No Sales via QR / digital screen ({{ noTransactions.thresholds?.cashless ?? filters.no_txn_threshold_hours.cashless }}hr)
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
@@ -1068,7 +1117,10 @@ const formatErrorDesc = (code, desc) => {
                       {{ row.customer_name ?? '—' }}
                     </div>
                     <div class="text-xs text-gray-500">
-                      {{ formatDateTime(row.last_transaction_at) }}
+                      L30d: ${{ formatNumber((row.l30d_sales || 0) / 100) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
                     </div>
                   </li>
                   <li v-if="!(noTransactions.qr_sales?.length)">
