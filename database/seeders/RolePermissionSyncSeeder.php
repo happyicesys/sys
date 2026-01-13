@@ -241,25 +241,25 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'data-settings',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'operator_supervisor', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'hid_user']
             ],
 
             [
                 'cashless-providers',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
             ],
 
             [
                 'location-types',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'opeartor_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
             ],
 
             [
                 'hid-cards',
                 ['read', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'hid_user']
             ],
 
             [
@@ -307,7 +307,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'zones',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'opeartor_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
             ],
 
             [
