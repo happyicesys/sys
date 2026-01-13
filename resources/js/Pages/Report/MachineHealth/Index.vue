@@ -104,6 +104,7 @@ const errorBuckets = computed(() => {
 const temperature = computed(() => props.machineHealth?.temperature ?? {})
 const connectivity = computed(() => props.machineHealth?.connectivity ?? {})
 const noTransactions = computed(() => props.machineHealth?.no_transactions ?? {})
+const errorDefinitions = computed(() => props.machineHealth?.error_definitions ?? {})
 const operatorOptions = computed(() => normalizeCollection(props.operatorOptions))
 const vendPrefixOptions = computed(() => normalizeCollection(props.vendPrefixOptions))
 const authOperator = computed(() => page.props.auth?.operator ?? null)
@@ -814,7 +815,7 @@ const formatEventBreakdownSimple = (event) => {
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   >
                     <option :value="true">Yes (Include Cleared)</option>
-                    <option :value="false">No (Not yet Clear only)</option>
+                    <option :value="false">No (Not yet Cleared only)</option>
                   </select>
                 </label>
                 <div>
@@ -849,24 +850,22 @@ const formatEventBreakdownSimple = (event) => {
                     <thead class="bg-white">
                       <tr>
                         <th class="px-4 py-2 text-left font-medium text-gray-500">
-                          Machine
-                        </th>
-                        <th class="px-4 py-2 text-left font-medium text-gray-500">
-                          Vend Prefix
-                        </th>
-                        <th class="px-4 py-2 text-left font-medium text-gray-500">
-                          Customer
+                          <div class="flex flex-col space-y-1">
+                            <span>Machine</span>
+                            <span>Vend Prefix</span>
+                            <span>Customer</span>
+                          </div>
                         </th>
 
                         <th class="px-4 py-2 text-left font-medium text-gray-500">
-                          Events
+                          Counts of Error
                         </th>
                         <th
                           v-for="code in bucket.codes"
                           :key="code"
                           class="px-4 py-2 text-left font-medium text-gray-500"
                         >
-                          Error {{ code }}
+                          {{ errorDefinitions[code] ?? `Error ${code}` }}
                         </th>
 
                       </tr>
@@ -874,13 +873,15 @@ const formatEventBreakdownSimple = (event) => {
                     <tbody v-if="bucket.rows?.length" class="divide-y divide-gray-200 bg-white">
                       <tr v-for="row in visibleBucketRows(bucket)" :key="row.vend_id">
                         <td class="px-4 py-2">
-                          <div class="font-medium text-gray-900">{{ row.vend_code }}</div>
-                        </td>
-                        <td class="px-4 py-2 text-gray-700">
-                          {{ row.vend_prefix_name ?? '—' }}
-                        </td>
-                        <td class="px-4 py-2 text-gray-700">
-                          {{ row.customer_name ?? '—' }}
+                          <div class="flex flex-col space-y-1">
+                            <div class="font-medium text-gray-900">{{ row.vend_code }}</div>
+                            <div class="text-xs text-gray-700">
+                              {{ row.vend_prefix_name ?? '—' }}
+                            </div>
+                            <div class="text-xs text-gray-500">
+                              {{ row.customer_name ?? '—' }}
+                            </div>
+                          </div>
                         </td>
 
                         <td class="px-4 py-2 text-gray-700">

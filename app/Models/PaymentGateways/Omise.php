@@ -3,7 +3,7 @@
 namespace App\Models\PaymentGateways;
 
 use App\Models\PaymentGateway;
-use App\Interfaces\PaymentGateway AS PaymentGatewayInterface;
+use App\Interfaces\PaymentGateway as PaymentGatewayInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
@@ -62,6 +62,11 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     public function createPayment($params = [])
     {
         $sourceResponse = $this->createSource($params);
+
+        if ($sourceResponse->failed()) {
+            return $sourceResponse;
+        }
+
         $sourceResponseObj = $sourceResponse->json();
         $chargeResponse = $this->createCharge($params, $sourceResponseObj['id']);
         $chargeResponseObj = $chargeResponse->json();
@@ -83,7 +88,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'currency' => $params['currency'],
             ]);
         // if ($response->successful()) {
-            return $response;
+        return $response;
         // }
         // throw new \Exception('Source creation failed: ' . $response->body());
     }
@@ -99,27 +104,27 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'metadata' => $params['metadata'],
                 'return_uri' => $params['return_uri'],
             ]);
-            // dd($response->json());
-    // $client = new Client();
-    // $crawler = $client->request('GET', $response->json()['authorize_uri'], [
-    //     'allow_redirects' => true
-    // ]);
-    // while ($client->getResponse() instanceof RedirectResponse ) {
-    //     $crawler = $client->followRedirect();
-    // }
-    // $form = $crawler->filter('form[name="paymentForm"]')->form();
-    // dd($client->submit($form));
-    // dd($crawler->filter('form[name="paymentForm"]')->form());
+        // dd($response->json());
+        // $client = new Client();
+        // $crawler = $client->request('GET', $response->json()['authorize_uri'], [
+        //     'allow_redirects' => true
+        // ]);
+        // while ($client->getResponse() instanceof RedirectResponse ) {
+        //     $crawler = $client->followRedirect();
+        // }
+        // $form = $crawler->filter('form[name="paymentForm"]')->form();
+        // dd($client->submit($form));
+        // dd($crawler->filter('form[name="paymentForm"]')->form());
 
         // if($response->successful()) {
-            return $response;
+        return $response;
         // }
         // throw new \Exception('Charge creation failed: ' . $response->body());
     }
 
     public function getOperatorPaymentGateway()
     {
-       return $this->operatorPaymentGateway;
+        return $this->operatorPaymentGateway;
     }
 
     public function getOrderId()
@@ -141,7 +146,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
             ]);
 
         // if ($response->successful()) {
-            return $response;
+        return $response;
         // }
         // throw new \Exception('Refund creation failed: ' . $response->body());
     }
@@ -154,7 +159,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     private function getHeaders($apiKey)
     {
         $headers = array(
-            'Authorization' => 'Basic '.base64_encode($apiKey.':'),
+            'Authorization' => 'Basic ' . base64_encode($apiKey . ':'),
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         );

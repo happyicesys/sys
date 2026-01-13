@@ -48,6 +48,7 @@ class MachineHealthDashboardService
             'connectivity' => $this->getConnectivityMetrics($filters),
             'no_transactions' => $this->getNoTransactionMetrics($filters),
             'stockouts' => $stockoutMetrics,
+            'error_definitions' => VendChannelError::pluck('desc', 'code')->all(),
         ];
     }
 
