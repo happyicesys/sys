@@ -836,6 +836,7 @@ class MachineHealthDashboardService
                 'operator_id',
                 'vend_prefix_id',
                 'customer_id',
+                'acb_vmc_pa_json',
                 DB::raw("{$lastContactExpr} as last_contact_at"),
                 DB::raw("{$hoursOfflineExpr} as hours_offline"),
             ])
@@ -861,6 +862,7 @@ class MachineHealthDashboardService
                 [
                     'hours_offline' => $hours,
                     'last_contact_at' => $vend->last_contact_at ? Carbon::parse($vend->last_contact_at)->toIso8601String() : null,
+                    'acb_vmc_pa_json' => $vend->acb_vmc_pa_json,
                 ]
             );
 

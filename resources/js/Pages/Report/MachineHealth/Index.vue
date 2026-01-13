@@ -430,6 +430,18 @@ const formatDateTimeComma = (value) => {
   return `${twoDigitYear}-${month}-${day}, ${pad(hours)}:${minutes} ${suffix}`
 }
 
+const getBucketBgClass = (label) => {
+  switch (label) {
+    case '< 1hr': return 'bg-white'
+    case '< 2hr': return 'bg-red-50'
+    case '< 4hr': return 'bg-red-100'
+    case '< 8hr': return 'bg-red-200'
+    case '< 12hr': return 'bg-red-300'
+    case '> 12hr': return 'bg-red-400'
+    default: return 'bg-gray-50'
+  }
+}
+
 const applyFilters = () => {
   const payload = {
     machine_limit: Number(filters.machine_limit),
@@ -636,8 +648,8 @@ const formatErrorDesc = (code, desc) => {
           <div class="p-6">
             <div class="flex items-center justify-between mb-4">
               <div>
-                <h3 class="text-lg font-semibold text-gray-900">Connectivity</h3>
-                <p class="text-sm text-gray-500">Offline hour(s)</p>
+                <h3 class="text-lg font-semibold text-gray-900">Alert on Lost of Connectivity or Electricity</h3>
+                <p class="text-sm text-gray-500">Offline hours</p>
               </div>
               <span class="text-sm text-gray-500">Max 60hr</span>
             </div>
@@ -647,9 +659,10 @@ const formatErrorDesc = (code, desc) => {
                 <div
                   v-for="bucket in connectivity.buckets"
                   :key="bucket.label"
-                  class="flex flex-col rounded-lg border border-gray-200 bg-gray-50"
+                  class="flex flex-col rounded-lg border border-gray-200"
+                  :class="getBucketBgClass(bucket.label)"
                 >
-                  <div class="p-3 border-b border-gray-200 bg-gray-100 rounded-t-lg">
+                  <div class="p-3 border-b border-gray-200 bg-opacity-50 rounded-t-lg">
                     <h4 class="text-sm font-semibold text-gray-800">
                       {{ bucket.label }}
                       <span class="ml-1 text-xs font-normal text-gray-500">
@@ -671,13 +684,26 @@ const formatErrorDesc = (code, desc) => {
                           >
                             {{ row.vend_code }}
                           </Link>
-                          <span class="text-gray-500"> · {{ formatHours(row.hours_offline) }}</span>
+                           · {{ (row.hours_offline).toFixed(2) }}
                         </div>
                         <div class="mt-1 text-xs text-gray-500 grid gap-0.5">
                           <div>{{ row.vend_prefix_name ?? '—' }}</div>
                           <div>{{ row.customer_name ?? '—' }}</div>
                           <div class="text-gray-400">
-                             Last contact: {{ formatDateTime(row.last_contact_at) }}
+                            Last connect: {{ formatDateTimeComma(row.last_contact_at) }}
+                          </div>
+                          <div
+                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
+                              :class="[row.acb_vmc_pa_json && row.acb_vmc_pa_json['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
+                          >
+                              <div class="flex flex-col items-center text-center">
+                                  <span class="font-bold">
+                                      Cashless Mfg
+                                  </span>
+                                  <span>
+                                      {{row.acb_vmc_pa_json && row.acb_vmc_pa_json['CSHL_MFG'] ? row.acb_vmc_pa_json['CSHL_MFG'] : 'NA' }}
+                                  </span>
+                              </div>
                           </div>
                         </div>
                       </li>
