@@ -59,6 +59,11 @@ class VendSerialNumberController extends Controller
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),
+            'permissions' => [
+                'create' => auth()->user()->can('create serial-numbers'),
+                'update' => auth()->user()->can('update serial-numbers'),
+                'export' => auth()->user()->can('export serial-numbers'),
+            ],
         ]);
     }
 

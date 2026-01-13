@@ -156,7 +156,13 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 'machine-settings',
-                ['read', 'export'],
+                ['read'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+            ],
+
+            [
+                'machine-settings',
+                ['export', 'create', 'update', 'delete', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
@@ -288,8 +294,14 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 'serial-numbers',
-                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['read'],
                 ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+            ],
+
+            [
+                'serial-numbers',
+                ['create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [

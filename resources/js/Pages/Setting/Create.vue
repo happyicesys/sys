@@ -22,7 +22,7 @@
               </div>
               <div class="sm:col-span-3">
                 <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
-                v-if="permissions.includes('update vends')">
+                v-if="permissions.includes('update machine-settings')">
                   Begin Date
                 </DatePicker>
               </div>
@@ -42,7 +42,7 @@
                 <Button
                   type="submit"
                   class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                  v-if="permissions.includes('create vend-settings')"
+                  v-if="permissions.includes('create machine-settings')"
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>

@@ -60,7 +60,7 @@ class SettingController extends Controller
 
     public function __construct()
     {
-        $this->middleware(['permission:read vend-settings']);
+        $this->middleware(['permission:read machine-settings']);
         $this->vendParameterService = new VendParameterService();
     }
 

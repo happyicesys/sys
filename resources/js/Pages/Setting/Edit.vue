@@ -74,13 +74,13 @@
 
             <div class="sm:col-span-2">
               <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
-              v-if="permissions.includes('update vend-settings')">
+              v-if="permissions.includes('update machine-settings')">
                 Begin Date
               </DatePicker>
             </div>
             <div class="sm:col-span-2">
               <DatePicker v-model="form.termination_date" :error="form.errors.termination_date" :minDate="form.begin_date"
-              v-if="permissions.includes('update vend-settings')">
+              v-if="permissions.includes('update machine-settings')">
                 Retired Date
               </DatePicker>
             </div>
@@ -719,7 +719,7 @@
                 <Button
                   type="button"
                   class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                  v-if="permissions.includes('update vend-settings')"
+                  v-if="permissions.includes('update machine-settings')"
                   @click.prevent="saveVend(vend.id)"
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
@@ -730,7 +730,7 @@
                 <Button
                   type="button"
                   class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1"
-                  v-if="permissions.includes('update vend-settings') && form.upcoming_product_mapping_id"
+                  v-if="permissions.includes('update machine-settings') && form.upcoming_product_mapping_id"
                   @click.prevent="replaceProductMapping(vend.id)"
                 >
                   <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>

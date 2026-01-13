@@ -616,12 +616,12 @@ const formatErrorDesc = (code, desc) => {
               <span class="text-sm text-gray-500">Max 60h</span>
             </div>
 
-            <div class="overflow-x-auto pb-4">
-              <div class="flex gap-4 min-w-max">
+            <div class="pb-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
                 <div
                   v-for="bucket in connectivity.buckets"
                   :key="bucket.label"
-                  class="w-72 flex-shrink-0 flex flex-col rounded-lg border border-gray-200 bg-gray-50"
+                  class="flex flex-col rounded-lg border border-gray-200 bg-gray-50"
                 >
                   <div class="p-3 border-b border-gray-200 bg-gray-100 rounded-t-lg">
                     <h4 class="text-sm font-semibold text-gray-800">
@@ -640,7 +640,7 @@ const formatErrorDesc = (code, desc) => {
                       >
                         <div class="font-medium text-gray-900">
                           <Link
-                            :href="'/settings/vend/' + row.vend_id + '/update'"
+                            :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'"
                             class="text-indigo-600 hover:text-indigo-900 hover:underline"
                           >
                             {{ row.vend_code }}
@@ -743,7 +743,7 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
                       </Link>
                        (Δ {{ formatNumber(row.delta, 1) }}°C)
@@ -785,7 +785,7 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
                       </Link>
                        · {{ row.worst_min_temp }}°C
@@ -827,7 +827,7 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
                       </Link>
                        · {{ row.min_value }}°C
@@ -924,7 +924,7 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
                       </Link>
                        · {{ formatHours(row.hours_since) }}
@@ -968,7 +968,7 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
                       </Link>
                        · {{ formatHours(row.hours_since) }}
@@ -1012,7 +1012,7 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
                       </Link>
                        · {{ formatHours(row.hours_since) }}
@@ -1056,7 +1056,7 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
                       </Link>
                        · {{ formatHours(row.hours_since) }}
@@ -1190,7 +1190,7 @@ const formatErrorDesc = (code, desc) => {
                         <td class="px-4 py-2">
                           <div class="flex flex-col space-y-1">
                             <div class="font-medium text-gray-900">
-                              <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                              <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                                 {{ row.vend_code }}
                               </Link>
                             </div>
@@ -1374,7 +1374,7 @@ const formatErrorDesc = (code, desc) => {
                     >
                       <td class="px-4 py-2">
                         <div class="font-medium text-gray-900">
-                          <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                          <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                             {{ row.vend_code }}
                           </Link>
                            · {{ row.channel_code ?? '—' }}

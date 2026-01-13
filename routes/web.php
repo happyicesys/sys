@@ -483,13 +483,20 @@ Route::middleware(['auth', 'cors'])->group(function () {
     });
 
     Route::prefix('settings')->group(function () {
-        Route::get('/', [SettingController::class, 'index'])->name('settings');
-        Route::get('/vend/create', [SettingController::class, 'create']);
-        Route::get('/vend/{id}/update', [SettingController::class, 'edit'])->name('settings.edit');
-        Route::get('/vend/{id}/parameter', [SettingController::class, 'parameter'])->name('settings.parameter');
-        Route::post('/vend/{id}/parameter', [SettingController::class, 'updateParameter']);
-        Route::post('/vend/store', [SettingController::class, 'store']);
-        Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation']);
+        Route::get('/', [SettingController::class, 'index'])->name('settings')
+            ->middleware('can:read machine-settings');
+        Route::get('/vend/create', [SettingController::class, 'create'])
+            ->middleware('can:create machine-settings');
+        Route::get('/vend/{id}/update', [SettingController::class, 'edit'])->name('settings.edit')
+            ->middleware('can:update machine-settings,read machine-settings');
+        Route::get('/vend/{id}/parameter', [SettingController::class, 'parameter'])->name('settings.parameter')
+            ->middleware('can:update machine-settings,read machine-settings');
+        Route::post('/vend/{id}/parameter', [SettingController::class, 'updateParameter'])
+            ->middleware('can:update machine-settings');
+        Route::post('/vend/store', [SettingController::class, 'store'])
+            ->middleware('can:create machine-settings');
+        Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation'])
+            ->middleware('can:update machine-settings');
     });
 
     Route::prefix('machine-alert-parameters')->group(function () {
@@ -638,11 +645,16 @@ Route::middleware(['auth', 'cors'])->group(function () {
     });
 
     Route::prefix('vend-serial-numbers')->group(function () {
-        Route::get('/', [VendSerialNumberController::class, 'index'])->name('vend-serial-numbers');
-        Route::post('/store', [VendSerialNumberController::class, 'store']);
-        Route::post('/{id}/update', [VendSerialNumberController::class, 'update']);
-        Route::delete('/{id}', [VendSerialNumberController::class, 'delete']);
-        Route::get('/excel', [VendSerialNumberController::class, 'exportExcel']);
+        Route::get('/', [VendSerialNumberController::class, 'index'])->name('vend-serial-numbers')
+            ->middleware('can:read serial-numbers');
+        Route::post('/store', [VendSerialNumberController::class, 'store'])
+            ->middleware('can:create serial-numbers');
+        Route::post('/{id}/update', [VendSerialNumberController::class, 'update'])
+            ->middleware('can:update serial-numbers');
+        Route::delete('/{id}', [VendSerialNumberController::class, 'delete'])
+            ->middleware('can:delete serial-numbers');
+        Route::get('/excel', [VendSerialNumberController::class, 'exportExcel'])
+            ->middleware('can:export serial-numbers');
     });
 
     Route::prefix('vouchers')->group(function () {

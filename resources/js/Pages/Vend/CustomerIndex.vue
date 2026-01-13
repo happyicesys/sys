@@ -2154,6 +2154,14 @@ filters.value.operators = authOperator ? [
 filters.value.status = statusOptions.value[2]
 	// filters.value.vend_prefix_id = vendPrefixOptions.value[0]
 // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
+
+const urlParams = new URLSearchParams(window.location.search);
+if(urlParams.has('codes')) {
+    filters.value.codes = urlParams.get('codes');
+}
+if(urlParams.has('channel_codes')) {
+    filters.value.channel_codes = urlParams.get('channel_codes');
+}
 })
 
 function compareRefPrice(vend, channel) {

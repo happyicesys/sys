@@ -13,7 +13,7 @@
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end">
           <Link href="/settings/vend/create">
-            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            <Button v-if="permissions.includes('create machine-settings')" class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
               <PlusIcon class="h-4 w-4" aria-hidden="true"/>
               <span>
@@ -36,10 +36,10 @@
           <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
             Cust Name
           </SearchInput> -->
-          <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access machine-settings')" @keyup.enter="onSearchFilterUpdated()">
             Customer
           </SearchInput>
-          <div v-if="permissions.includes('admin-access vend-settings')">
+          <div v-if="permissions.includes('admin-access machine-settings')">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Category
             </label>
@@ -56,7 +56,7 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vend-settings')">
+          <div v-if="permissions.includes('admin-access machine-settings')">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Group
             </label>
@@ -73,7 +73,7 @@
             >
             </MultiSelect>
           </div>
-          <!-- <div v-if="permissions.includes('admin-access vend-settings')">
+          <!-- <div v-if="permissions.includes('admin-access machine-settings')">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Customer Binded?
             </label>
@@ -89,7 +89,7 @@
             >
             </MultiSelect>
           </div> -->
-          <!-- <div v-if="permissions.includes('admin-access vend-settings')">
+          <!-- <div v-if="permissions.includes('admin-access machine-settings')">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Is Active?
             </label>
@@ -105,7 +105,7 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vend-settings')">
+          <div v-if="permissions.includes('admin-access machine-settings')">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Is Factory?
             </label>
@@ -350,7 +350,7 @@
             >
             </MultiSelect>
           </div>
-          <SearchInput placeholderStr="Serial Num" v-model="filters.vend_serial_number_code" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput placeholderStr="Serial Num" v-model="filters.vend_serial_number_code" v-if="permissions.includes('admin-access machine-settings')" @keyup.enter="onSearchFilterUpdated()">
             Serial Num
           </SearchInput>
           <div>

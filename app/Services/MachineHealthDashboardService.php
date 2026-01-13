@@ -845,12 +845,12 @@ class MachineHealthDashboardService
             ->get();
 
         $buckets = [
-            '> 12hr' => [],
-            '< 12hr' => [],
-            '< 8hr' => [],
-            '< 4hr' => [],
-            '< 2hr' => [],
             '< 1hr' => [],
+            '< 2hr' => [],
+            '< 4hr' => [],
+            '< 8hr' => [],
+            '< 12hr' => [],
+            '> 12hr' => [],
         ];
 
         foreach ($vends as $vend) {
