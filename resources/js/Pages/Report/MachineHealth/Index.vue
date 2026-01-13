@@ -524,6 +524,16 @@ const formatEventBreakdownSimple = (event) => {
 
   return `${event.channel_code} - ${yymmdd} ${time}`
 }
+
+const formatErrorDesc = (code, desc) => {
+  if (!desc) return ''
+  // Remove " (code)" from the end if it exists, assuming format "Description (code)"
+  const suffix = ` (${code})`
+  if (desc.endsWith(suffix)) {
+    return desc.slice(0, -suffix.length)
+  }
+  return desc
+}
 </script>
 
 <template>
@@ -825,6 +835,7 @@ const formatEventBreakdownSimple = (event) => {
                 </div>
               </div>
             </form>
+
             <div class="mt-4 space-y-6">
               <div
                 v-for="bucket in errorBuckets"
@@ -841,8 +852,14 @@ const formatEventBreakdownSimple = (event) => {
                       {{ bucket.limit }} machines
                     </p>
                   </div>
-                  <div class="text-xs text-gray-500">
-                    Errors: {{ bucket.codes?.map((code) => `E${code}`).join(', ') }}
+                  <div class="text-xs text-gray-500 flex flex-col items-end space-y-1">
+                    <div>
+                      Errors: {{ bucket.codes?.map((code) => `E${code}`).join(', ') }}
+                    </div>
+                    <div class="flex items-center space-x-1">
+                      <CheckCircleIcon class="h-4 w-4 text-green-500" />
+                      <span>= Cleared</span>
+                    </div>
                   </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -863,9 +880,12 @@ const formatEventBreakdownSimple = (event) => {
                         <th
                           v-for="code in bucket.codes"
                           :key="code"
-                          class="px-4 py-2 text-left font-medium text-gray-500"
+                          class="px-4 py-2 text-left font-medium text-gray-500 align-top"
                         >
-                          {{ errorDefinitions[code] ?? `Error ${code}` }}
+                          <div class="whitespace-nowrap">Error {{ code }}</div>
+                          <div class="text-xs font-normal text-gray-600 break-words w-24">
+                            {{ formatErrorDesc(code, errorDefinitions[code]) }}
+                          </div>
                         </th>
 
                       </tr>
@@ -893,7 +913,7 @@ const formatEventBreakdownSimple = (event) => {
                           class="px-4 py-2 text-gray-700 text-xs"
                         >
                           <div class="font-bold mb-1 border-b border-gray-100 pb-1">
-                            {{ getEventsForCode(row.events, code).length }}
+                            Count = {{ getEventsForCode(row.events, code).length }}
                           </div>
                           <div
                             v-for="(event, index) in getEventsForCode(row.events, code)"

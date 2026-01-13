@@ -133,7 +133,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'transactions-payment-gateway',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
             ],
 
             [
