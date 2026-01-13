@@ -74,8 +74,7 @@ const filters = reactive({
   temperature_sensor_type: rawFilters.temperature_sensor_type ?? 1,
   stockout_target_hours: rawFilters.stockout_target_hours ?? 72,
   stockout_lookback_days: rawFilters.stockout_lookback_days ?? 30,
-  offline_threshold_hours: rawFilters.offline_threshold_hours ?? 12,
-  offline_secondary_threshold_hours: rawFilters.offline_secondary_threshold_hours ?? 24,
+
   operator_ids: normalizeIds(rawFilters.operator_ids ?? []),
   vend_prefix_ids: normalizeIds(rawFilters.vend_prefix_ids ?? []),
   customer_ids: (rawFilters.customer_ids ?? []).map(String),
@@ -309,23 +308,7 @@ const {
   () => filters.machine_limit,
 )
 
-const {
-  rows: offlinePrimaryRows,
-  hasMore: canLoadMoreOfflinePrimary,
-  showAll: loadRemainingOfflinePrimary,
-} = createRowLimiter(
-  computed(() => connectivity.value.primary ?? []),
-  () => filters.machine_limit,
-)
 
-const {
-  rows: offlineSecondaryRows,
-  hasMore: canLoadMoreOfflineSecondary,
-  showAll: loadRemainingOfflineSecondary,
-} = createRowLimiter(
-  computed(() => connectivity.value.secondary ?? []),
-  () => filters.machine_limit,
-)
 
 const {
   rows: noTxnAnyRows,
@@ -433,10 +416,7 @@ const applyFilters = () => {
     temperature_sensor_type: Number(filters.temperature_sensor_type),
     stockout_target_hours: Number(filters.stockout_target_hours),
     stockout_lookback_days: Number(filters.stockout_lookback_days),
-    offline_threshold_hours: Number(filters.offline_threshold_hours),
-    offline_secondary_threshold_hours: Number(
-      filters.offline_secondary_threshold_hours,
-    ),
+
     no_txn_threshold_hours: {
       any: Number(filters.no_txn_threshold_hours.any),
       cash: Number(filters.no_txn_threshold_hours.cash),
@@ -628,125 +608,61 @@ const formatErrorDesc = (code, desc) => {
 
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900">Connectivity</h3>
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Connectivity</h3>
+                <p class="text-sm text-gray-500">Offline hour(s)</p>
+              </div>
+              <span class="text-sm text-gray-500">Max 60h</span>
+            </div>
 
-            <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
-                <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">Offline Threshold (h)</span>
-                  <div class="grid grid-cols-2 gap-2">
-                    <input
-                      v-model.number="filters.offline_threshold_hours"
-                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      min="1"
-                      type="number"
-                    />
-                    <input
-                      v-model.number="filters.offline_secondary_threshold_hours"
-                      class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      min="1"
-                      type="number"
-                    />
+            <div class="overflow-x-auto pb-4">
+              <div class="flex gap-4 min-w-max">
+                <div
+                  v-for="bucket in connectivity.buckets"
+                  :key="bucket.label"
+                  class="w-72 flex-shrink-0 flex flex-col rounded-lg border border-gray-200 bg-gray-50"
+                >
+                  <div class="p-3 border-b border-gray-200 bg-gray-100 rounded-t-lg">
+                    <h4 class="text-sm font-semibold text-gray-800">
+                      {{ bucket.label }}
+                      <span class="ml-1 text-xs font-normal text-gray-500">
+                        ({{ bucket.rows.length }})
+                      </span>
+                    </h4>
                   </div>
-                  <span class="text-xs text-gray-500">
-                    Primary vs. escalation thresholds
-                  </span>
-                </label>
-                <div>
-                  <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
-                    Apply
-                  </Button>
-                </div>
-              </div>
-            </form>
-            <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  Offline ≥ {{ connectivity.primary_threshold_hours ?? filters.offline_threshold_hours }}h
-                </h4>
-                <p class="text-xs text-gray-500">Sorted from nearest to threshold</p>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in offlinePrimaryRows"
-                    :key="row.vend_id"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                        {{ row.vend_code }}
-                      </Link>
-                       · {{ formatHours(row.hours_offline) }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      Last contact {{ formatDateTime(row.last_contact_at) }}
-                    </div>
-                  </li>
-                  <li v-if="!(connectivity.primary?.length)">
-                    All machines are within the primary offline threshold.
-                  </li>
-                </ul>
-                <div
-                  v-if="canLoadMoreOfflinePrimary"
-                  class="mt-3 flex justify-center"
-                >
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingOfflinePrimary"
-                  >
-                    Load remaining
-                  </Button>
-                </div>
-              </div>
-
-              <div class="rounded-lg border border-gray-200 p-4">
-                <h4 class="text-sm font-semibold text-gray-800">
-                  Escalations ≥
-                  {{ connectivity.secondary_threshold_hours ?? filters.offline_secondary_threshold_hours }}h
-                </h4>
-                <ul class="mt-3 space-y-3 text-sm text-gray-700">
-                  <li
-                    v-for="row in offlineSecondaryRows"
-                    :key="`${row.vend_id}-secondary`"
-                    class="rounded border border-gray-100 p-3"
-                  >
-                    <div class="font-medium text-gray-900">
-                      <Link :href="'/settings/vend/' + row.vend_id + '/update'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                        {{ row.vend_code }}
-                      </Link>
-                       · {{ formatHours(row.hours_offline) }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.vend_prefix_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ row.customer_name ?? '—' }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      Last contact {{ formatDateTime(row.last_contact_at) }}
-                    </div>
-                  </li>
-                  <li v-if="!(connectivity.secondary?.length)">
-                    No escalations pending.
-                  </li>
-                </ul>
-                <div
-                  v-if="canLoadMoreOfflineSecondary"
-                  class="mt-3 flex justify-center"
-                >
-                  <Button
-                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    type="button"
-                    @click="loadRemainingOfflineSecondary"
-                  >
-                    Load remaining
-                  </Button>
+                  <div class="p-3 overflow-y-auto max-h-[800px]">
+                    <ul class="space-y-3">
+                      <li
+                        v-for="row in bucket.rows"
+                        :key="row.vend_id"
+                        class="rounded border border-gray-200 bg-white p-3 shadow-sm"
+                      >
+                        <div class="font-medium text-gray-900">
+                          <Link
+                            :href="'/settings/vend/' + row.vend_id + '/update'"
+                            class="text-indigo-600 hover:text-indigo-900 hover:underline"
+                          >
+                            {{ row.vend_code }}
+                          </Link>
+                          <span class="text-gray-500"> · {{ formatHours(row.hours_offline) }}</span>
+                        </div>
+                        <div class="mt-1 text-xs text-gray-500 grid gap-0.5">
+                          <div>{{ row.vend_prefix_name ?? '—' }}</div>
+                          <div>{{ row.customer_name ?? '—' }}</div>
+                          <div class="text-gray-400">
+                             Last contact: {{ formatDateTime(row.last_contact_at) }}
+                          </div>
+                        </div>
+                      </li>
+                      <li
+                        v-if="!bucket.rows.length"
+                        class="text-xs text-gray-400 italic text-center py-4"
+                      >
+                        No machines
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>

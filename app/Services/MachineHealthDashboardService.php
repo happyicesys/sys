@@ -812,11 +812,10 @@ class MachineHealthDashboardService
 
     private function getConnectivityMetrics(array $filters): array
     {
-        $primaryThreshold = max(1, $filters['offline_threshold_hours']);
-        $secondaryThreshold = max($primaryThreshold, $filters['offline_secondary_threshold_hours']);
         $now = Carbon::now();
         $nowSql = $now->toDateTimeString();
-        $limit = max($filters['machine_limit'] * 2, $filters['machine_limit']);
+        // Increase limit to accommodate all potential offline machines across buckets
+        $limit = 500;
         $fallbackDate = '1970-01-01 00:00:00';
         $greatestParts = implode(', ', [
             "COALESCE(mqtt_last_updated_at, '{$fallbackDate}')",
@@ -840,34 +839,49 @@ class MachineHealthDashboardService
                 DB::raw("{$hoursOfflineExpr} as hours_offline"),
             ])
             ->havingRaw('last_contact_at IS NOT NULL')
-            ->having('hours_offline', '>=', $primaryThreshold)
+            ->having('hours_offline', '<', 60)
             ->orderBy('hours_offline')
             ->limit($limit)
             ->get();
 
-        $primaryList = $vends
-            ->map(function (Vend $vend) {
-                $lastContact = $vend->last_contact_at ? Carbon::parse($vend->last_contact_at) : null;
+        $buckets = [
+            '> 12hr' => [],
+            '< 12hr' => [],
+            '< 8hr' => [],
+            '< 4hr' => [],
+            '< 2hr' => [],
+            '< 1hr' => [],
+        ];
 
-                return array_merge(
-                    $this->baseVendInfo($vend),
-                    [
-                        'hours_offline' => (float) $vend->hours_offline,
-                        'last_contact_at' => $lastContact?->toIso8601String(),
-                    ]
-                );
-            })
-            ->values();
+        foreach ($vends as $vend) {
+            $hours = (float) $vend->hours_offline;
+            $row = array_merge(
+                $this->baseVendInfo($vend),
+                [
+                    'hours_offline' => $hours,
+                    'last_contact_at' => $vend->last_contact_at ? Carbon::parse($vend->last_contact_at)->toIso8601String() : null,
+                ]
+            );
 
-        $secondaryList = $primaryList
-            ->filter(fn($entry) => $entry['hours_offline'] >= $secondaryThreshold)
-            ->values();
+            if ($hours < 1) {
+                $buckets['< 1hr'][] = $row;
+            } elseif ($hours < 2) {
+                $buckets['< 2hr'][] = $row;
+            } elseif ($hours < 4) {
+                $buckets['< 4hr'][] = $row;
+            } elseif ($hours < 8) {
+                $buckets['< 8hr'][] = $row;
+            } elseif ($hours < 12) {
+                $buckets['< 12hr'][] = $row;
+            } else {
+                $buckets['> 12hr'][] = $row;
+            }
+        }
 
         return [
-            'primary_threshold_hours' => $primaryThreshold,
-            'secondary_threshold_hours' => $secondaryThreshold,
-            'primary' => $primaryList->take($filters['machine_limit'])->all(),
-            'secondary' => $secondaryList->take($filters['machine_limit'])->all(),
+            'buckets' => array_map(function ($label, $rows) {
+                return ['label' => $label, 'rows' => $rows];
+            }, array_keys($buckets), array_values($buckets)),
         ];
     }
 
