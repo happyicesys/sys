@@ -432,6 +432,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/movements/tracking', [ProductMovementController::class, 'trackingDetails'])->name('product-movements.tracking-details');
         Route::get('/movements/export-excel', [ProductMovementController::class, 'exportExcel'])->name('product-movements.export-excel');
         Route::get('/movements/tracking-export-excel', [ProductMovementController::class, 'trackingExportExcel'])->name('product-movements.tracking-export-excel');
+        Route::get('/movements/batch-incoming', [ProductMovementController::class, 'batchIncoming'])->name('product-movements.batch-incoming');
+        Route::post('/movements/batch-incoming', [ProductMovementController::class, 'batchStore'])->name('product-movements.batch-store');
+        Route::get('/movements/incoming-history', [ProductMovementController::class, 'incomingHistory'])->name('product-movements.incoming-history');
+        Route::get('/movements/incoming-history/{batch_number}', [ProductMovementController::class, 'incomingBatchDetail'])->name('product-movements.incoming-batch-detail');
 
         Route::get('/', [ProductController::class, 'index'])->name('products');
         Route::post('/{id}/toggle-activate-deactivate', [ProductController::class, 'toggleActivateDeactivate']);

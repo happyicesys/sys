@@ -55,14 +55,14 @@ class ProductMovementController extends Controller
 
         $products = Product::query()
             ->with([
-                'isAvailableUpdatedBy',
-                'latestUnitCost',
-                'productLimits' => function ($query) use ($request) {
-                    $query->whereDate('date', $request->productAvailableDate);
-                },
-                'productLimits.createdBy',
-                'thumbnail',
-            ])
+                    'isAvailableUpdatedBy',
+                    'latestUnitCost',
+                    'productLimits' => function ($query) use ($request) {
+                        $query->whereDate('date', $request->productAvailableDate);
+                    },
+                    'productLimits.createdBy',
+                    'thumbnail',
+                ])
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
                 if (!in_array('all', $search)) {
@@ -81,15 +81,15 @@ class ProductMovementController extends Controller
                 }
             })
             ->select([
-                'products.id',
-                'products.avg_seven_days_count',
-                'products.code',
-                'products.desc',
-                'products.name',
-                'products.is_available',
-                'products.is_available_updated_at',
-                'products.is_available_updated_by',
-            ])
+                    'products.id',
+                    'products.avg_seven_days_count',
+                    'products.code',
+                    'products.desc',
+                    'products.name',
+                    'products.is_available',
+                    'products.is_available_updated_at',
+                    'products.is_available_updated_by',
+                ])
             ->where('is_active', true)
             ->where('is_inventory', true)
             ->orderBy('code')
@@ -175,6 +175,56 @@ class ProductMovementController extends Controller
         ]);
 
         return redirect()->back();
+    }
+
+    public function batchIncoming(Request $request)
+    {
+        $products = Product::where('is_inventory', true)
+            ->where('is_active', true)
+            ->with(['thumbnail'])
+            ->orderBy('code')
+            ->get();
+
+        return Inertia::render('ProductMovement/BatchIncoming', [
+            'products' => ProductResource::collection($products),
+        ]);
+    }
+
+    public function batchStore(Request $request)
+    {
+        $request->validate([
+            'batch_number' => 'required|string',
+            'created_at' => 'required|date',
+            'products' => 'required|array',
+            'products.*.id' => 'required|exists:products,id',
+            'products.*.qty' => 'required|integer', // Can be 0 if not selected, but maybe we filter out 0s
+            'remarks' => 'nullable|string',
+        ]);
+
+        $batchNumber = $request->batch_number;
+        $createdAt = Carbon::parse($request->created_at);
+        $operatorId = auth()->user()->operator_id;
+
+        $userId = auth()->id();
+
+        DB::transaction(function () use ($request, $batchNumber, $createdAt, $operatorId, $userId) {
+            foreach ($request->products as $item) {
+                if ($item['qty'] != 0) {
+                    ProductMovement::create([
+                        'product_id' => $item['id'],
+                        'qty' => $item['qty'],
+                        'type' => ProductMovement::TYPE_INCOMING,
+                        'operator_id' => $operatorId,
+                        'user_id' => $userId,
+                        'remarks' => $request->remarks ? $request->remarks : null,
+                        'batch_number' => $batchNumber,
+                        'created_at' => $createdAt,
+                    ]);
+                }
+            }
+        });
+
+        return redirect()->route('product-movements.index');
     }
 
     public function trackingDetails(Request $request)
@@ -307,5 +357,64 @@ class ProductMovementController extends Controller
     public function trackingExportExcel(Request $request)
     {
         return Excel::download(new ProductMovementTrackingExport($request), 'Product_Movement_Tracking_' . Carbon::now()->format('ymdHis') . '.xlsx');
+    }
+
+    public function incomingHistory(Request $request)
+    {
+        $query = ProductMovement::query();
+
+        $query->where('type', ProductMovement::TYPE_INCOMING)
+            ->whereNotNull('batch_number');
+
+        if ($request->has('date') && $request->date) {
+            $query->whereDate('created_at', $request->date);
+        }
+
+        $history = $query->select('batch_number')
+            ->selectRaw('MAX(created_at) as created_at')
+            ->selectRaw('MAX(operator_id) as operator_id')
+            ->selectRaw('MAX(user_id) as user_id')
+            ->selectRaw('MAX(remarks) as remarks')
+            ->groupBy('batch_number')
+            ->orderByRaw('MAX(created_at) DESC')
+            ->paginate(20)
+            ->withQueryString();
+
+        $history->getCollection()->transform(function ($item) {
+            $item->operator = Operator::find($item->operator_id);
+            $item->user = \App\Models\User::find($item->user_id);
+            return $item;
+        });
+
+        return Inertia::render('ProductMovement/IncomingHistory', [
+            'history' => $history,
+            'filters' => $request->only(['date']),
+        ]);
+    }
+
+    public function incomingBatchDetail($batch_number)
+    {
+        $movements = ProductMovement::with(['product', 'product.thumbnail', 'operator', 'user'])
+            ->where('batch_number', $batch_number)
+            ->where('type', ProductMovement::TYPE_INCOMING)
+            ->get();
+
+        if ($movements->isEmpty()) {
+            abort(404);
+        }
+
+        $first = $movements->first();
+        $metadata = [
+            'batch_number' => $first->batch_number,
+            'created_at' => $first->created_at,
+            'operator' => $first->operator,
+            'user' => $first->user,
+            'remarks' => $first->remarks,
+        ];
+
+        return Inertia::render('ProductMovement/IncomingBatchDetail', [
+            'movements' => $movements,
+            'metadata' => $metadata,
+        ]);
     }
 }

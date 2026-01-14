@@ -17,7 +17,9 @@ class ProductMovement extends Model
         'type',
         'qty',
         'operator_id',
+        'user_id',
         'remarks',
+        'batch_number',
         'created_at',
     ];
 
@@ -29,5 +31,10 @@ class ProductMovement extends Model
     public function operator()
     {
         return $this->belongsTo(Operator::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

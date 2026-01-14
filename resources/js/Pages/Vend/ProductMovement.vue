@@ -1,10 +1,10 @@
 <template>
-    <Head title="Product Movement" />
+    <Head title="Product Availability (Warehouse)" />
 
     <BreezeAuthenticatedLayout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Product Movement Tracking
+                Product Availability (Warehouse)
             </h2>
         </template>
 
@@ -13,6 +13,22 @@
                 <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                     <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                         <div class="py-4">
+                            <div class="flex justify-end mb-3">
+                                <div class="flex space-x-2">
+                                    <Link :href="route('product-movements.incoming-history')" class="inline-flex space-x-1 items-center rounded-md border border-purple-500 bg-purple-500 px-4 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                        <ClockIcon class="h-4 w-4" aria-hidden="true"/>
+                                        <span>
+                                            History
+                                        </span>
+                                    </Link>
+                                    <Link :href="route('product-movements.batch-incoming')" class="inline-flex space-x-1 items-center rounded-md border border-green-600 bg-green-600 px-4 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                        <PlusIcon class="h-4 w-4" aria-hidden="true"/>
+                                        <span>
+                                            Stock Incoming to Warehouse
+                                        </span>
+                                    </Link>
+                                </div>
+                            </div>
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
                                 <SearchInput placeholderStr="Product ID/ Code" v-model="filters.product_code">
                                     Product ID
@@ -72,14 +88,14 @@
                                             Reset
                                         </span>
                                     </Button>
-                                    <Button class="inline-flex space-x-1 items-center rounded-md border border-indigo-500 bg-indigo-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                    <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-indigo-500 bg-indigo-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                                         @click="onTrackingDetailsClicked()"
                                     >
                                         <ClipboardDocumentListIcon class="h-4 w-4" aria-hidden="true"/>
                                         <span>
                                             Details
                                         </span>
-                                    </Button>
+                                    </Button> -->
                                     <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-800 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                                         @click="onExcelExportClicked()" v-if="permissions.includes('export products')"
                                     >
@@ -101,16 +117,27 @@
                             <table class="min-w-full divide-y divide-gray-300">
                                 <thead class="bg-gray-100 sticky top-0 z-10">
                                     <tr>
-                                        <th rowspan="2" class="th-header w-[2%] p-3 text-xs font-semibold text-center text-gray-900 border-b">#</th>
-                                        <th rowspan="2" class="th-header w-[5%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Image</th>
-                                        <th rowspan="2" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Product</th>
-                                        <th colspan="2" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b bg-gray-50">Calculated Warehouse Qty</th>
-                                        <th rowspan="2" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Action</th>
-
-                                        <th rowspan="2" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
-                                            Net Available Qty
+                                        <th  scope="col" class="th-header w-[2%] p-3 text-xs font-semibold text-center text-gray-900 border-b">#</th>
+                                        <th  scope="col" class="th-header w-[5%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Image</th>
+                                        <th  scope="col" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Product</th>
+                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                            Last7d sold qty<br>
+                                            (avg last 28d)
                                         </th>
-                                        <th rowspan="2" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                        <th  scope="col" class="th-header w-[5%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                            Available?
+                                        </th>
+                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                            Warehouse Qty<br>
+                                        </th>
+                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                            >= Picked (Jobs)<br>
+                                        </th>
+
+                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                            Net Available Qty<br>
+                                        </th>
+                                        <th  scope="col" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                                             Needed Qty<br>
                                             <div class="flex flex-row justify-center items-center gap-2 mt-1">
                                                 <DatePicker v-model="filters.productAvailableDate" class="py-1 text-xs" :isPreviousNextButton="false" :clearable="false" :format="'yyyy-MM-dd'" auto-apply @update:model-value="onSearchFilterUpdated">
@@ -123,20 +150,16 @@
                                                 </DatePicker>
                                             </div>
                                         </th>
-                                        <th rowspan="2" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty Limit<br>
                                             <span class="font-normal text-xs text-gray-600">(per Job, on selected date)</span>
                                         </th>
-                                    </tr>
-                                    <tr>
-                                        <th class="p-2 text-xs font-semibold text-center text-blue-900 bg-blue-100 border-b">Total Incoming</th>
-                                        <th class="p-2 text-xs font-semibold text-center text-red-900 bg-red-100 border-b">Total Delivered</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-200 bg-white">
                                     <tr v-for="(product, index) in products.data" :key="product.id" class="hover:bg-gray-50">
                                         <td class="p-3 text-sm text-center text-gray-900">{{ index + 1 }}</td>
-                                        <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
+                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-900">
                                             <div class="flex justify-center items-center">
                                                 <img class="h-16 w-16 rounded-full" :class="[product.is_available ? '' : 'opacity-50']" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail" />
                                             </div>
@@ -145,41 +168,40 @@
                                             <div class="flex flex-col">
                                                 <span class="font-bold">{{ product.code }}</span>
                                                 <span class="text-gray-600">{{ product.name }}</span>
-                                                <div class="flex flex-row items-center gap-1 mt-1">
-                                                    <span class="text-xs font-bold" :class="product.is_available ? 'text-green-600' : 'text-red-600'">
-                                                        Available?
-                                                    </span>
-                                                    <span v-if="product.is_available">
-                                                        <CheckCircleIcon class="h-5 w-5 text-green-500 hover:cursor-pointer hover:text-green-600" @click.prevent="onIsAvailableClicked(product)" />
-                                                    </span>
-                                                    <span v-else>
-                                                        <XCircleIcon class="h-5 w-5 text-red-500 hover:cursor-pointer hover:text-red-600" @click.prevent="onIsAvailableClicked(product)" />
-                                                    </span>
-                                                </div>
                                                 <span class="text-[10px] text-gray-500" v-if="product.isAvailableUpdatedBy">
                                                     {{ product.isAvailableUpdatedBy.name }} ({{ product.is_available_updated_at }})
                                                 </span>
                                             </div>
                                         </td>
-                                        <td class="p-3 text-center text-lg font-bold text-blue-700 bg-blue-50">
+                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                                          {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                                        </td>
+                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
+                                          <div class="flex flex-col justify-center items-center">
+                                            <span v-if="product.is_available">
+                                              <CheckCircleIcon class="h-6 w-6 text-green-500 hover:cursor-pointer hover:text-green-600" @click.prevent="onIsAvailableClicked(product)" />
+                                            </span>
+                                            <span v-else>
+                                              <XCircleIcon class="h-6 w-6 text-red-500 hover:cursor-pointer hover:text-red-600" @click.prevent="onIsAvailableClicked(product)" />
+                                            </span>
+                                            <span class="text-xs text-gray-500">
+                                              {{ product.isAvailableUpdatedBy ? product.isAvailableUpdatedBy.name : '' }}
+                                            </span>
+                                            <span class="text-xs text-gray-500">
+                                              {{ product.is_available_updated_at }}
+                                            </span>
+                                          </div>
+                                        </td>
+                                        <td class="p-3 text-center text-lg font-bold text-blue-600 cursor-pointer hover:bg-blue-50" @click="openMovementModal(product)">
                                             {{ product.total_movements_qty ? Number(product.total_movements_qty).toLocaleString() : 0 }}
                                         </td>
-                                        <td class="p-3 text-center text-lg font-bold text-red-700 bg-red-50">
+                                        <td class="p-3 text-center text-lg font-bold text-gray-800">
                                             {{ product.total_delivered_qty ? Number(product.total_delivered_qty).toLocaleString() : 0 }}
                                         </td>
-                                        <td class="p-3 text-center">
-                                            <button type="button" @click="openMovementModal(product)" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-xs shadow-sm transition-colors duration-150 inline-flex items-center gap-1">
-                                                <PlusIcon class="w-3 h-3"/> Incoming
-                                            </button>
-                                            <div class="mt-2 text-xs font-bold text-gray-800">
-                                                Calculated: <br>
-                                                <span :class="product.calculated_warehouse_qty < 0 ? 'text-red-600' : 'text-gray-900'" class="text-sm">
-                                                    {{ isNaN(Number(product.calculated_warehouse_qty)) ? 0 : Number(product.calculated_warehouse_qty).toLocaleString() }}
-                                                </span>
-                                            </div>
-                                        </td>
                                         <td class="p-3 text-center text-lg font-bold text-gray-900">
-                                            {{ !isNaN(Number(product.calculated_warehouse_qty)) ? Number(product.calculated_warehouse_qty).toLocaleString() : 0 }}
+                                            <span :class="product.is_available ? (product.calculated_warehouse_qty < product.needed_qty ? 'text-red-800 bg-red-200 rounded px-1 py-1' : '') : 'text-gray-400'">
+                                                {{ !isNaN(Number(product.calculated_warehouse_qty)) ? Number(product.calculated_warehouse_qty).toLocaleString() : 0 }}
+                                            </span>
                                         </td>
                                         <td class="p-3 text-center text-lg font-bold text-orange-600">
                                             {{ product.needed_qty ? Number(product.needed_qty).toLocaleString() : 0 }}
@@ -264,8 +286,8 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { Head, router, usePage, useForm } from '@inertiajs/vue3'
-import { MagnifyingGlassIcon, XMarkIcon, PlusIcon, CalendarIcon, CheckCircleIcon, XCircleIcon, BackspaceIcon, ClipboardDocumentListIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/solid'
+import { Head, router, usePage, useForm, Link } from '@inertiajs/vue3'
+import { MagnifyingGlassIcon, XMarkIcon, PlusIcon, CalendarIcon, CheckCircleIcon, XCircleIcon, BackspaceIcon, ClipboardDocumentListIcon, ArrowDownTrayIcon, ClockIcon } from '@heroicons/vue/24/solid'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import DatePicker from '@/Components/DatePicker.vue'
 import SearchInput from '@/Components/SearchInput.vue'
