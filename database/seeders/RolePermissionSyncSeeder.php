@@ -283,7 +283,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'modem-imei',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
