@@ -14,15 +14,22 @@
 
             <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
                 <!-- Filter Section -->
-                <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                <!-- Filter Section -->
+                <div class="p-4 border-b border-gray-200 bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                      <h3 class="text-lg leading-6 font-medium text-gray-900">
                         History Records
                     </h3>
-                    <div class="flex space-x-2">
-                         <div class="w-48">
+                    <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-3 items-center">
+                         <div class="w-full md:w-64">
                             <DatePicker v-model="filters.date" :enableTimePicker="false" auto-apply placeholder="Filter by Date" :format="'yyyy-MM-dd'" clearable />
                         </div>
-                        <Button class="bg-gray-600 hover:bg-gray-700" @click="resetFilter">Reset</Button>
+                        <div class="flex space-x-2">
+                            <Button class="bg-gray-600 hover:bg-gray-700" @click="resetFilter">Reset</Button>
+                            <a :href="exportUrl" target="_blank" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150">
+                                <ArrowDownTrayIcon class="w-4 h-4 mr-2" />
+                                Export Excel
+                            </a>
+                        </div>
                     </div>
                 </div>
 
@@ -78,8 +85,9 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import DatePicker from '@/Components/DatePicker.vue'
 import Button from '@/Components/Button.vue'
 import Paginator from '@/Components/Paginator.vue'
-import { ArrowLeftIcon } from '@heroicons/vue/24/solid'
+import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/solid'
 import moment from 'moment'
+import { computed } from 'vue'
 
 const props = defineProps({
     history: Object,
@@ -104,4 +112,12 @@ const resetFilter = () => {
 const formatDate = (date) => {
     return moment(date).format('YYYY-MM-DD')
 }
+
+const exportUrl = computed(() => {
+    const params = new URLSearchParams()
+    if (filters.value.date) {
+        params.append('date', moment(filters.value.date).format('YYYY-MM-DD'))
+    }
+    return route('product-movements.incoming-history-export') + '?' + params.toString()
+})
 </script>

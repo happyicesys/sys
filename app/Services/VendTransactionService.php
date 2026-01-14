@@ -102,7 +102,8 @@ class VendTransactionService
                         $transaction->transaction_datetime instanceof Carbon
                         ? $transaction->transaction_datetime->copy()
                         : Carbon::parse($transaction->transaction_datetime),
-                        $processedInput['paymentClassification'] ?? null
+                        $processedInput['paymentClassification'] ?? null,
+                        $processedInput['interfaceType'] ?? null
                     );
                 }
 
@@ -241,7 +242,7 @@ class VendTransactionService
         return $vendTransaction;
     }
 
-    private function updateVendPaymentTimestamps(Vend $vend, Carbon $transactionTime, ?string $paymentClassification): void
+    private function updateVendPaymentTimestamps(Vend $vend, Carbon $transactionTime, ?string $paymentClassification, $interfaceType = null): void
     {
         $attributes = [];
 
@@ -265,6 +266,13 @@ class VendTransactionService
                     $attributes['last_cashless_vend_transaction_at'] = $transactionTime;
                 }
                 break;
+        }
+
+        if ($interfaceType == 1) {
+            $attributes['is_txn_src'] = true;
+            if ($this->shouldUpdateVendTimestamp($vend->last_txn_src_at, $transactionTime)) {
+                $attributes['last_txn_src_at'] = $transactionTime;
+            }
         }
 
         if (!empty($attributes)) {

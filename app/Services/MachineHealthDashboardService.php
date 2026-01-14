@@ -897,7 +897,7 @@ class MachineHealthDashboardService
         $anySales = $this->buildNoTxnList('last_vend_transaction_at', $thresholds['any'], $filters, $now, $limit);
         $cashSales = $this->buildNoTxnList('last_cash_vend_transaction_at', $thresholds['cash'], $filters, $now, $limit, 'cash');
         $cardSales = $this->buildNoTxnList('last_card_vend_transaction_at', $thresholds['card'], $filters, $now, $limit, 'card');
-        $qrSales = $this->buildNoTxnList('last_cashless_vend_transaction_at', $thresholds['cashless'], $filters, $now, $limit, 'cashless');
+        $qrSales = $this->buildNoTxnList('last_txn_src_at', $thresholds['cashless'], $filters, $now, $limit, 'cashless');
 
         $allVendIds = collect()
             ->merge($anySales->pluck('vend_id'))
@@ -964,7 +964,7 @@ class MachineHealthDashboardService
         } elseif ($type === 'card') {
             $query->where('parameter_json->CSHLStat', 3);
         } elseif ($type === 'cashless') {
-            $query->where('acb_vmc_pa_json->QRCode', 1);
+            $query->where('is_txn_src', true);
         }
 
         return $query->get()

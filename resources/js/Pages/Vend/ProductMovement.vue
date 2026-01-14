@@ -88,14 +88,14 @@
                                             Reset
                                         </span>
                                     </Button>
-                                    <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-indigo-500 bg-indigo-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                    <Button class="inline-flex space-x-1 items-center rounded-md border border-indigo-500 bg-indigo-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                                         @click="onTrackingDetailsClicked()"
                                     >
                                         <ClipboardDocumentListIcon class="h-4 w-4" aria-hidden="true"/>
                                         <span>
                                             Details
                                         </span>
-                                    </Button> -->
+                                    </Button>
                                     <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-800 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                                         @click="onExcelExportClicked()" v-if="permissions.includes('export products')"
                                     >
@@ -152,7 +152,7 @@
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty Limit<br>
-                                            <span class="font-normal text-xs text-gray-600">(per Job, on selected date)</span>
+                                            <span class="font-normal text-xs text-gray-600">(per Channel, on selected date)</span>
                                         </th>
                                     </tr>
                                 </thead>

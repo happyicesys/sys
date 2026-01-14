@@ -16,6 +16,7 @@ use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProductMovementExport;
 use App\Exports\ProductMovementTrackingExport;
+use App\Exports\IncomingStockHistoryExport;
 
 class ProductMovementController extends Controller
 {
@@ -32,111 +33,7 @@ class ProductMovementController extends Controller
 
     public function index(Request $request)
     {
-        if ($request->operators == null) {
-            if (auth()->user()->operator->code == 'HIPL') {
-                $request->merge([
-                    'operators' => [
-                        auth()->user()->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
-                    ]
-                ]);
-            } else {
-                $request->merge(['operators' => [auth()->user()->operator_id]]);
-            }
-        }
-
-        $request->merge([
-            'productAvailableDate' => $request->productAvailableDate ? $request->productAvailableDate : Carbon::today()->addDay()->toDateString(),
-        ]);
-
-        $products = Product::query()
-            ->with([
-                    'isAvailableUpdatedBy',
-                    'latestUnitCost',
-                    'productLimits' => function ($query) use ($request) {
-                        $query->whereDate('date', $request->productAvailableDate);
-                    },
-                    'productLimits.createdBy',
-                    'thumbnail',
-                ])
-            ->when($request->operators, function ($query, $search) {
-                $search = is_array($search) ? $search : [$search];
-                if (!in_array('all', $search)) {
-                    $query->whereIn('operator_id', $search);
-                }
-            })
-            ->when($request->product_code, function ($query, $search) {
-                $query->where('code', 'LIKE', "%{$search}%");
-            })
-            ->when($request->product_name, function ($query, $search) {
-                $query->where('name', 'LIKE', "%{$search}%");
-            })
-            ->when($request->is_available !== null, function ($query) use ($request) {
-                if ($request->is_available !== 'all') {
-                    $query->where('is_available', filter_var($request->is_available, FILTER_VALIDATE_BOOLEAN));
-                }
-            })
-            ->select([
-                    'products.id',
-                    'products.avg_seven_days_count',
-                    'products.code',
-                    'products.desc',
-                    'products.name',
-                    'products.is_available',
-                    'products.is_available_updated_at',
-                    'products.is_available_updated_by',
-                ])
-            ->where('is_active', true)
-            ->where('is_inventory', true)
-            ->orderBy('code')
-            // Calculate needed_qty (same as existing)
-            ->selectSub(function ($sub) use ($request) {
-                $sub->from('ops_job_item_channels')
-                    ->selectRaw('SUM(vend_channels.capacity - vend_channels.qty)')
-                    ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_item_channels.ops_job_id')
-                    ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
-                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
-                    ->whereDate('ops_jobs.date', $request->productAvailableDate)
-                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString());
-            }, 'needed_qty')
-            // Calculate max_ops_job_pick_limit (same as existing)
-            ->selectSub(function ($sub) use ($request) {
-                $sub->from('product_limits')
-                    ->select('qty')
-                    ->whereColumn('product_limits.product_id', 'products.id')
-                    ->whereDate('product_limits.date', $request->productAvailableDate)
-                    ->limit(1);
-            }, 'max_ops_job_pick_limit')
-            // Calculate limit_is_created_by_system (same as existing)
-            ->selectSub(function ($sub) use ($request) {
-                $sub->from('product_limits')
-                    ->select('is_created_by_system')
-                    ->whereColumn('product_limits.product_id', 'products.id')
-                    ->whereDate('product_limits.date', $request->productAvailableDate)
-                    ->limit(1);
-            }, 'limit_is_created_by_system')
-            // Sum of Product Movements (Incoming + Adjustments)
-            ->selectSub(function ($sub) {
-                $sub->from('product_movements')
-                    ->selectRaw('COALESCE(SUM(qty), 0)')
-                    ->whereColumn('product_movements.product_id', 'products.id');
-            }, 'total_movements_qty')
-            // Sum of OpsJob Delivered Qty (Out)
-            ->selectSub(function ($sub) {
-                $sub->from('ops_job_item_channels')
-                    ->selectRaw('COALESCE(SUM(ops_job_item_channels.picked_qty), 0)')
-                    ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-                    ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
-                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
-                    ->where('ops_job_items.status', '>=', 3) // OpsJob::STATUS_DELIVERED
-                    ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
-                    ->whereDate('ops_jobs.date', '>=', '2025-12-06');
-            }, 'total_delivered_qty')
-            ->get();
+        $products = $this->getProductQuery($request)->get();
 
         foreach ($products as $product) {
             $product->calculated_warehouse_qty = $product->total_movements_qty - $product->total_delivered_qty;
@@ -268,9 +165,11 @@ class ProductMovementController extends Controller
                 products.name as product_name,
                 product_movements.qty as qty,
                 product_movements.remarks as remarks,
+                users.name as by_user,
                 'ProductMovement' as source_type
             ")
             ->leftJoin('products', 'products.id', '=', 'product_movements.product_id')
+            ->leftJoin('users', 'product_movements.user_id', '=', 'users.id')
             ->whereIn('product_movements.operator_id', $operators)
             ->when($request->product_id, function ($q) use ($request) {
                 $q->where('product_movements.product_id', $request->product_id);
@@ -293,11 +192,13 @@ class ProductMovementController extends Controller
                 products.name as product_name,
                 (ops_job_item_channels.picked_qty * -1) as qty,
                 CONCAT('Job #', ops_jobs.code) as remarks,
+                users.name as by_user,
                 'OpsJob' as source_type
             ")
             ->join('ops_job_items', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
             ->join('ops_job_item_channels', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
             ->join('products', 'products.id', '=', 'ops_job_item_channels.product_id')
+            ->leftJoin('users', 'ops_jobs.delivered_by', '=', 'users.id')
             ->whereIn('ops_jobs.operator_id', $operators)
             ->where('ops_job_items.status', '>=', 3)
             ->where('ops_job_items.status', '!=', 99) // Status Cancelled
@@ -351,12 +252,18 @@ class ProductMovementController extends Controller
     }
     public function exportExcel(Request $request)
     {
-        return Excel::download(new ProductMovementExport($request), 'Product_Movement_' . Carbon::now()->format('ymdHis') . '.xlsx');
+        $products = $this->getProductQuery($request)->get();
+        return Excel::download(new ProductMovementExport($products), 'Product_Movement_' . Carbon::now()->format('ymdHis') . '.xlsx');
     }
 
     public function trackingExportExcel(Request $request)
     {
         return Excel::download(new ProductMovementTrackingExport($request), 'Product_Movement_Tracking_' . Carbon::now()->format('ymdHis') . '.xlsx');
+    }
+
+    public function incomingHistoryExport(Request $request)
+    {
+        return Excel::download(new IncomingStockHistoryExport($request), 'Incoming_Stock_History_' . Carbon::now()->format('ymdHis') . '.xlsx');
     }
 
     public function incomingHistory(Request $request)
@@ -416,5 +323,112 @@ class ProductMovementController extends Controller
             'movements' => $movements,
             'metadata' => $metadata,
         ]);
+    }
+    private function getProductQuery(Request $request)
+    {
+        if ($request->operators == null) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+
+        $request->merge([
+            'productAvailableDate' => $request->productAvailableDate ? $request->productAvailableDate : Carbon::today()->addDay()->toDateString(),
+        ]);
+
+        return Product::query()
+            ->with([
+                    'isAvailableUpdatedBy',
+                    'latestUnitCost',
+                    'productLimits' => function ($query) use ($request) {
+                        $query->whereDate('date', $request->productAvailableDate);
+                    },
+                    'productLimits.createdBy',
+                    'thumbnail',
+                ])
+            ->when($request->operators, function ($query, $search) {
+                $search = is_array($search) ? $search : [$search];
+                if (!in_array('all', $search)) {
+                    $query->whereIn('operator_id', $search);
+                }
+            })
+            ->when($request->product_code, function ($query, $search) {
+                $query->where('code', 'LIKE', "%{$search}%");
+            })
+            ->when($request->product_name, function ($query, $search) {
+                $query->where('name', 'LIKE', "%{$search}%");
+            })
+            ->when($request->is_available !== null, function ($query) use ($request) {
+                if ($request->is_available !== 'all') {
+                    $query->where('is_available', filter_var($request->is_available, FILTER_VALIDATE_BOOLEAN));
+                }
+            })
+            ->select([
+                    'products.id',
+                    'products.avg_seven_days_count',
+                    'products.code',
+                    'products.desc',
+                    'products.name',
+                    'products.is_available',
+                    'products.is_available_updated_at',
+                    'products.is_available_updated_by',
+                ])
+            ->where('is_active', true)
+            ->where('is_inventory', true)
+            ->orderBy('code')
+            // Calculate needed_qty (same as existing)
+            ->selectSub(function ($sub) use ($request) {
+                $sub->from('ops_job_item_channels')
+                    ->selectRaw('SUM(vend_channels.capacity - vend_channels.qty)')
+                    ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_item_channels.ops_job_id')
+                    ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
+                    ->whereDate('ops_jobs.date', $request->productAvailableDate)
+                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString());
+            }, 'needed_qty')
+            // Calculate max_ops_job_pick_limit (same as existing)
+            ->selectSub(function ($sub) use ($request) {
+                $sub->from('product_limits')
+                    ->select('qty')
+                    ->whereColumn('product_limits.product_id', 'products.id')
+                    ->whereDate('product_limits.date', $request->productAvailableDate)
+                    ->limit(1);
+            }, 'max_ops_job_pick_limit')
+            // Calculate limit_is_created_by_system (same as existing)
+            ->selectSub(function ($sub) use ($request) {
+                $sub->from('product_limits')
+                    ->select('is_created_by_system')
+                    ->whereColumn('product_limits.product_id', 'products.id')
+                    ->whereDate('product_limits.date', $request->productAvailableDate)
+                    ->limit(1);
+            }, 'limit_is_created_by_system')
+            // Sum of Product Movements (Incoming + Adjustments)
+            ->selectSub(function ($sub) {
+                $sub->from('product_movements')
+                    ->selectRaw('COALESCE(SUM(qty), 0)')
+                    ->whereColumn('product_movements.product_id', 'products.id');
+            }, 'total_movements_qty')
+            // Sum of OpsJob Delivered Qty (Out)
+            ->selectSub(function ($sub) {
+                $sub->from('ops_job_item_channels')
+                    ->selectRaw('COALESCE(SUM(ops_job_item_channels.picked_qty), 0)')
+                    ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+                    ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
+                    ->where('ops_job_items.status', '>=', 3) // OpsJob::STATUS_DELIVERED
+                    ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
+                    ->whereDate('ops_jobs.date', '>=', '2025-12-06');
+            }, 'total_delivered_qty');
     }
 }

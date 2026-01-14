@@ -435,6 +435,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/movements/batch-incoming', [ProductMovementController::class, 'batchIncoming'])->name('product-movements.batch-incoming');
         Route::post('/movements/batch-incoming', [ProductMovementController::class, 'batchStore'])->name('product-movements.batch-store');
         Route::get('/movements/incoming-history', [ProductMovementController::class, 'incomingHistory'])->name('product-movements.incoming-history');
+        Route::get('/movements/incoming-history/export', [ProductMovementController::class, 'incomingHistoryExport'])->name('product-movements.incoming-history-export');
         Route::get('/movements/incoming-history/{batch_number}', [ProductMovementController::class, 'incomingBatchDetail'])->name('product-movements.incoming-batch-detail');
 
         Route::get('/', [ProductController::class, 'index'])->name('products');

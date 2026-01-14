@@ -278,6 +278,8 @@ class VendDataService
               ]);
             }
             break;
+          case 'FEATUREAPKSETTING':
+            break;
           case 'PWRON':
             UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
             break;

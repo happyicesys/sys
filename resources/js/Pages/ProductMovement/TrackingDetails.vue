@@ -237,6 +237,7 @@ const onExcelExportClicked = () => {
                                     <TableHead>Product Name</TableHead>
                                     <TableHead>Qty</TableHead>
                                     <TableHead>Remarks</TableHead>
+                                    <TableHead>By</TableHead>
                                 </tr>
                             </thead>
                             <tbody class="bg-white">
@@ -269,6 +270,9 @@ const onExcelExportClicked = () => {
                                     </TableData>
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
                                         {{ movement.remarks }}
+                                    </TableData>
+                                    <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
+                                        {{ movement.by_user }}
                                     </TableData>
                                 </tr>
                                 <tr v-if="movements.data.length === 0">

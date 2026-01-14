@@ -67,9 +67,11 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                 products.name as product_name,
                 product_movements.qty as qty,
                 product_movements.remarks as remarks,
+                users.name as by_user,
                 'ProductMovement' as source_type
             ")
             ->leftJoin('products', 'products.id', '=', 'product_movements.product_id')
+            ->leftJoin('users', 'product_movements.user_id', '=', 'users.id')
             ->whereIn('product_movements.operator_id', $operators)
             ->when($request->product_id, function ($q) use ($request) {
                 $q->where('product_movements.product_id', $request->product_id);
@@ -91,11 +93,13 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                 products.name as product_name,
                 (ops_job_item_channels.picked_qty * -1) as qty,
                 CONCAT('Job #', ops_jobs.code) as remarks,
+                users.name as by_user,
                 'OpsJob' as source_type
             ")
             ->join('ops_job_items', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
             ->join('ops_job_item_channels', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
             ->join('products', 'products.id', '=', 'ops_job_item_channels.product_id')
+            ->leftJoin('users', 'ops_jobs.delivered_by', '=', 'users.id')
             ->whereIn('ops_jobs.operator_id', $operators)
             ->where('ops_job_items.status', '>=', 3)
             ->where('ops_job_items.status', '!=', 99)
@@ -125,6 +129,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
             'Product Name',
             'Qty',
             'Remarks',
+            'By',
         ];
     }
 
@@ -137,6 +142,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
             $row->product_name,
             $row->qty,
             $row->remarks,
+            $row->by_user,
         ];
     }
 
@@ -149,6 +155,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
             'D' => 30,
             'E' => 10,
             'F' => 30,
+            'G' => 15,
         ];
     }
 
