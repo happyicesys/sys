@@ -63,15 +63,15 @@ class User extends Authenticatable
     protected function password(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value,
-            set: fn ($value) => bcrypt($value),
+            get: fn($value) => $value,
+            set: fn($value) => bcrypt($value),
         );
     }
 
     protected function profileId(): Attribute
     {
         return Attribute::make(
-            set: fn ($value) => $value ? $value : 1,
+            set: fn($value) => $value ? $value : 1,
             // set: fn ($value) => $value ? $value : 1,
         );
     }
@@ -80,14 +80,14 @@ class User extends Authenticatable
     {
         // dd($this->toArray(), $this->roles()->first()->toArray());
         // return '/vends/customers';
-        $currentRole = (int)$this->roles()->first()->id;
+        $currentRole = (int) $this->roles()->first()->id;
 
         // if($currentRole == 19 or $currentRole == 21) {
         //     return '/dashboard';
         // }else {
         //     return '/vends/customers';
         // }
-        return match((int)$this->roles()->first()->id) {
+        return match ((int) $this->roles()->first()->id) {
             1 => '/vends/customers',
             2 => '/vends/customers',
             3 => '/vends/customers',
@@ -110,6 +110,7 @@ class User extends Authenticatable
             20 => '/vends/customers',
             21 => '/dashboard',
             22 => '/vends',
+            default => '/vends/customers',
         };
     }
 
