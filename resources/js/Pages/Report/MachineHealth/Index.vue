@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { Head, router, usePage } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
@@ -648,7 +648,7 @@ const formatErrorDesc = (code, desc) => {
           <div class="p-6">
             <div class="flex items-center justify-between mb-4">
               <div>
-                <h3 class="text-lg font-semibold text-gray-900">Alert on Lost of Connectivity or Electricity</h3>
+                <h3 class="text-lg font-semibold text-gray-900">(1) Alert on Lost of Connectivity or Electricity</h3>
                 <p class="text-sm text-gray-500">Offline hours</p>
               </div>
               <span class="text-sm text-gray-500">Max 60hr</span>
@@ -678,12 +678,13 @@ const formatErrorDesc = (code, desc) => {
                         class="rounded border border-gray-200 bg-white p-3 shadow-sm"
                       >
                         <div class="font-medium text-gray-900">
-                          <Link
+                          <a
                             :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'"
+                            target="_blank"
                             class="text-indigo-600 hover:text-indigo-900 hover:underline"
                           >
                             {{ row.vend_code }}
-                          </Link>
+                          </a>
                            · {{ (row.hours_offline).toFixed(2) }}
                         </div>
                         <div class="mt-1 text-xs text-gray-500 grid gap-0.5">
@@ -723,7 +724,7 @@ const formatErrorDesc = (code, desc) => {
 
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900">Temperature Alerts</h3>
+            <h3 class="text-lg font-semibold text-gray-900">(2) Alert on Temperature trending</h3>
             <p class="text-sm text-gray-500">
               Sensor type {{ filters.temperature_sensor_type }} · Threshold
               {{ formatNumber(filters.temperature_min_threshold, 1) }}°C
@@ -795,9 +796,9 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
-                      </Link>
+                      </a>
                        (Δ {{ formatNumber(row.delta, 1) }}°C)
                     </div>
                     <div class="text-xs text-gray-500">
@@ -837,9 +838,9 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
-                      </Link>
+                      </a>
                        · {{ row.worst_min_temp }}°C
                     </div>
                     <div class="text-xs text-gray-500">
@@ -879,9 +880,9 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
-                      </Link>
+                      </a>
                        · {{ row.min_value }}°C
                     </div>
                     <div class="text-xs text-gray-500">
@@ -918,7 +919,7 @@ const formatErrorDesc = (code, desc) => {
 
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900">No Transaction Alerts</h3>
+            <h3 class="text-lg font-semibold text-gray-900">(3) Alert on Lost of Transaction/Sales</h3>
             <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
               <div class="grid grid-cols-1 gap-4 md:grid-cols-5 items-end">
                 <label class="flex flex-col space-y-1 text-sm">
@@ -976,9 +977,9 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
-                      </Link>
+                      </a>
                        · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1023,9 +1024,9 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
-                      </Link>
+                      </a>
                        · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1070,9 +1071,9 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
-                      </Link>
+                      </a>
                        · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1131,9 +1132,9 @@ const formatErrorDesc = (code, desc) => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                         {{ row.vend_code }}
-                      </Link>
+                      </a>
                        · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1173,7 +1174,7 @@ const formatErrorDesc = (code, desc) => {
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-900">Channel Error Hotspots</h3>
+              <h3 class="text-lg font-semibold text-gray-900">(4) Channel Errors</h3>
               <p class="text-sm text-gray-500">
                 Grouped by dispense stability vs. mechanical codes.
               </p>
@@ -1268,9 +1269,9 @@ const formatErrorDesc = (code, desc) => {
                         <td class="px-4 py-2">
                           <div class="flex flex-col space-y-1">
                             <div class="font-medium text-gray-900">
-                              <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                              <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                                 {{ row.vend_code }}
-                              </Link>
+                              </a>
                             </div>
                             <div class="text-xs text-gray-700">
                               {{ row.vend_prefix_name ?? '—' }}
@@ -1341,7 +1342,7 @@ const formatErrorDesc = (code, desc) => {
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
             <h3 class="text-lg font-semibold text-gray-900">
-              Stockout KPI Overview
+              (5) Stockout KPI Overview
             </h3>
             <p class="text-sm text-gray-500">
               Rolling {{ stockouts.metadata?.lookback_days ?? 30 }}-day window based on
@@ -1452,9 +1453,9 @@ const formatErrorDesc = (code, desc) => {
                     >
                       <td class="px-4 py-2">
                         <div class="font-medium text-gray-900">
-                          <Link :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                             {{ row.vend_code }}
-                          </Link>
+                          </a>
                            · {{ row.channel_code ?? '—' }}
                         </div>
                         <div class="text-xs text-gray-500">
