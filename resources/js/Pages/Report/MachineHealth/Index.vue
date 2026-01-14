@@ -354,6 +354,17 @@ const formatNumber = (value, decimals = 2) => {
   return Number(value).toFixed(decimals)
 }
 
+const operatorCountry = computed(() => page.props.operatorCountry ?? {})
+
+const getCoinFloat = (row) => {
+  if (!row.parameter_json || !row.parameter_json['CoinCnt']) return null
+  const exponent = operatorCountry.value?.currency_exponent ?? 2
+  const value = row.parameter_json['CoinCnt'] / Math.pow(10, exponent)
+  return value.toFixed(2)
+}
+
+
+
 const formatHours = (value) => {
   if (value === null || value === undefined) {
     return '—'
@@ -1041,6 +1052,20 @@ const formatErrorDesc = (code, desc) => {
                     <div class="text-xs text-gray-500">
                       Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
                     </div>
+                    <div
+                       class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
+                       :class="[row.parameter_json && row.parameter_json['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200']"
+                       v-if="getCoinFloat(row) !== null"
+                    >
+                       <div class="flex flex-col items-center text-center">
+                           <span class="font-bold">
+                               Coin Float
+                           </span>
+                           <span>
+                               {{ getCoinFloat(row) }}
+                           </span>
+                       </div>
+                    </div>
                   </li>
                   <li v-if="!(noTransactions.cash_sales?.length)">
                     No cash-specific gaps detected.
@@ -1148,6 +1173,36 @@ const formatErrorDesc = (code, desc) => {
                     </div>
                     <div class="text-xs text-gray-500">
                       Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                      <div
+                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
+                         :class="[row.parameter_json && row.parameter_json['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200']"
+                         v-if="getCoinFloat(row) !== null"
+                      >
+                         <div class="flex flex-col items-center text-center">
+                             <span class="font-bold">
+                                 Coin Float
+                             </span>
+                             <span>
+                                 {{ getCoinFloat(row) }}
+                             </span>
+                         </div>
+                      </div>
+                      <div
+                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
+                         :class="[row.acb_vmc_pa_json && row.acb_vmc_pa_json['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
+                         v-if="row.acb_vmc_pa_json && 'CSHL_MFG' in row.acb_vmc_pa_json"
+                      >
+                         <div class="flex flex-col items-center text-center">
+                             <span class="font-bold">
+                                 Cashless Mfg
+                             </span>
+                             <span>
+                                 {{row.acb_vmc_pa_json['CSHL_MFG'] ? row.acb_vmc_pa_json['CSHL_MFG'] : 'NA' }}
+                             </span>
+                         </div>
+                      </div>
                     </div>
                   </li>
                   <li v-if="!(noTransactions.qr_sales?.length)">

@@ -950,6 +950,7 @@ class MachineHealthDashboardService
                     'vend_prefix_id',
                     'customer_id',
                     'acb_vmc_pa_json',
+                    'parameter_json',
                     DB::raw("{$column} as last_transaction_at"),
                     DB::raw("{$hoursExpr} as hours_since"),
                 ])
@@ -977,6 +978,7 @@ class MachineHealthDashboardService
                         'last_transaction_at' => $lastTransaction?->toIso8601String(),
                         'threshold_hours' => $threshold,
                         'acb_vmc_pa_json' => $vend->acb_vmc_pa_json,
+                        'parameter_json' => $vend->parameter_json,
                     ]
                 );
             });

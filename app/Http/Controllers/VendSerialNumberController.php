@@ -163,6 +163,8 @@ class VendSerialNumberController extends Controller
                     WHEN vends.lcd_monitor_id = 1 THEN "WaveShare 7 inch 1024x600"
                     WHEN vends.lcd_monitor_id = 2 THEN "WaveShare 10.1 inch 1920x1200"
                     WHEN vends.lcd_monitor_id = 3 THEN "WaveShare 10.1HP-CAPLCD (Type-C) 1280x800"
+                    WHEN vends.lcd_monitor_id = 4 THEN "Inhand InPad3101 10.1 inch 1280x800"
+                    WHEN vends.lcd_monitor_id = 99 THEN "N/A"
                     ELSE ""
                     END as vend_lcd_monitor'),
                 DB::raw('
