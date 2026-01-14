@@ -159,11 +159,11 @@
                                 <tbody class="divide-y divide-gray-200 bg-white">
                                     <tr v-for="(product, index) in products.data" :key="product.id" class="hover:bg-gray-50">
                                         <td class="p-3 text-sm text-center text-gray-900">{{ index + 1 }}</td>
-                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-900">
-                                            <div class="flex justify-center items-center">
-                                                <img class="h-16 w-16 rounded-full" :class="[product.is_available ? '' : 'opacity-50']" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail" />
-                                            </div>
-                                        </td>
+                    <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
+                      <div class="flex justify-center items-center">
+                        <img class="h-16 w-16 rounded-full" :class="[product.is_available ? '' : 'opacity-50']" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail" />
+                      </div>
+                    </td>
                                         <td class="p-3 text-sm text-gray-900">
                                             <div class="flex flex-col">
                                                 <span class="font-bold">{{ product.code }}</span>
