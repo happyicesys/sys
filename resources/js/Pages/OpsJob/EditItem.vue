@@ -234,7 +234,7 @@
               <span class="flex space-x-1 items-center">
                 <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
                 <span>
-                  Bypass Qty Limit
+                  Bypass Capped Qty
                 </span>
               </span>
             </Button>
@@ -247,7 +247,7 @@
               <span class="flex space-x-1 items-center">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
-                  Abide Qty Limit
+                  Abide Capped Qty
                 </span>
               </span>
             </Button>
@@ -399,7 +399,7 @@
                                   {{ channel.picked }}
                                 </span>
                                 <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
-                                  limited ({{ channel.picked_limit }})
+                                  capped ({{ channel.picked_limit }})
                                 </span>
                               </span>
 
@@ -409,7 +409,7 @@
                                 <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                               </select>
                               <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
-                                limited ({{ channel.picked_limit }})
+                                capped ({{ channel.picked_limit }})
                               </span>
                             </div>
                             <div class="flex space-x-2 items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
@@ -666,7 +666,7 @@
                               {{ channel.picked }}
                             </span>
                             <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
-                              limited ({{ channel.picked_limit }})
+                              capped ({{ channel.picked_limit }})
                             </span>
                           </div>
                         </td>
@@ -676,7 +676,7 @@
                               <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                             </select>
                             <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
-                              limited ({{ channel.picked_limit }})
+                              capped ({{ channel.picked_limit }})
                             </span>
                           </div>
                         </td>

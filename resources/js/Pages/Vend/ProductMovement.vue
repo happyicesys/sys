@@ -15,10 +15,18 @@
                         <div class="py-4">
                             <div class="flex justify-end mb-3">
                                 <div class="flex space-x-2">
+                                    <Button class="inline-flex space-x-1 items-center rounded-md border border-indigo-500 bg-indigo-500 px-4 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                        @click="onTrackingDetailsClicked()"
+                                    >
+                                        <ClipboardDocumentListIcon class="h-4 w-4" aria-hidden="true"/>
+                                        <span>
+                                            Warehouse Log
+                                        </span>
+                                    </Button>
                                     <Link :href="route('product-movements.incoming-history')" class="inline-flex space-x-1 items-center rounded-md border border-purple-500 bg-purple-500 px-4 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                                         <ClockIcon class="h-4 w-4" aria-hidden="true"/>
                                         <span>
-                                            History
+                                            Incoming History
                                         </span>
                                     </Link>
                                     <Link :href="route('product-movements.batch-incoming')" class="inline-flex space-x-1 items-center rounded-md border border-green-600 bg-green-600 px-4 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
@@ -88,27 +96,31 @@
                                             Reset
                                         </span>
                                     </Button>
-                                    <Button class="inline-flex space-x-1 items-center rounded-md border border-indigo-500 bg-indigo-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                                        @click="onTrackingDetailsClicked()"
-                                    >
-                                        <ClipboardDocumentListIcon class="h-4 w-4" aria-hidden="true"/>
-                                        <span>
-                                            Details
-                                        </span>
-                                    </Button>
-                                    <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-800 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+
+                                    <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-800 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                                         @click="onExcelExportClicked()" v-if="permissions.includes('export products')"
                                     >
                                         <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true"/>
                                         <span>
                                             Export Excel
                                         </span>
-                                    </Button>
+                                    </Button> -->
                                 </div>
-                                <div class="flex flex-row gap-2">
+                                <div class="flex flex-col gap-2 items-end">
                                     <span class="text-xs text-gray-500 self-center">
                                         {{ products.data.length }} products found
                                     </span>
+                                    <div class="flex flex-row items-center gap-2">
+                                      <label class="text-xs font-semibold text-gray-700">Date</label>
+                                      <DatePicker v-model="filters.productAvailableDate" class="py-1 text-xs" :isPreviousNextButton="false" :clearable="false" :format="'yyyy-MM-dd'" auto-apply @update:model-value="onSearchFilterUpdated" :minDate="today">
+                                          <template #trigger>
+                                              <span class="p-1 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-100 flex flex-row gap-2 justify-center items-center h-full text-xs">
+                                                  <CalendarIcon class="w-3 h-3" />
+                                                  {{ moment(filters.productAvailableDate).format('YYYY-MM-DD') }}
+                                              </span>
+                                          </template>
+                                      </DatePicker>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -119,40 +131,31 @@
                                     <tr>
                                         <th  scope="col" class="th-header w-[2%] p-3 text-xs font-semibold text-center text-gray-900 border-b">#</th>
                                         <th  scope="col" class="th-header w-[5%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Image</th>
-                                        <th  scope="col" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Product</th>
+                                        <th  scope="col" class="th-header w-[20%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Product</th>
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                                             Last7d sold qty<br>
                                             (avg last 28d)
                                         </th>
-                                        <th  scope="col" class="th-header w-[5%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
-                                            Available?
+
+                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                            Qty in Warehouse<br>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
-                                            Warehouse Qty<br>
-                                        </th>
-                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
-                                            >= Picked (Jobs)<br>
+                                            Picked Qty<br>
+                                            (as Job on Date)
                                         </th>
 
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
-                                            Net Available Qty<br>
+                                            Remaining Qty<br>
+                                            (after Picked)
                                         </th>
                                         <th  scope="col" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
-                                            Needed Qty<br>
-                                            <div class="flex flex-row justify-center items-center gap-2 mt-1">
-                                                <DatePicker v-model="filters.productAvailableDate" class="py-1 text-xs" :isPreviousNextButton="false" :clearable="false" :format="'yyyy-MM-dd'" auto-apply @update:model-value="onSearchFilterUpdated">
-                                                    <template #trigger>
-                                                        <span class="p-1 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-100 flex flex-row gap-2 justify-center items-center h-full text-xs">
-                                                            <CalendarIcon class="w-3 h-3" />
-                                                            {{ moment(filters.productAvailableDate).format('YYYY-MM-DD') }}
-                                                        </span>
-                                                    </template>
-                                                </DatePicker>
-                                            </div>
+                                            Qty Needed<br>
+                                            (Planning for Jobs on Date)
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
-                                            Qty Limit<br>
-                                            <span class="font-normal text-xs text-gray-600">(per Channel, on selected date)</span>
+                                            Capped Qty<br>
+                                            <span class="font-normal text-xs text-gray-600">(per Channel, on date & onwards)</span>
                                         </th>
                                     </tr>
                                 </thead>
@@ -165,10 +168,19 @@
                       </div>
                     </td>
                                         <td class="p-3 text-sm text-gray-900">
-                                            <div class="flex flex-col">
+                                            <div class="flex flex-col text-left">
                                                 <span class="font-bold">{{ product.code }}</span>
-                                                <span class="text-gray-600">{{ product.name }}</span>
-                                                <span class="text-[10px] text-gray-500" v-if="product.isAvailableUpdatedBy">
+                                                <span class="text-gray-600 mb-1">{{ product.name }}</span>
+                                                <div class="flex items-center gap-1">
+                                                    <span class="text-green-700 font-bold text-xs">Available?</span>
+                                                    <span v-if="product.is_available">
+                                                        <CheckCircleIcon class="h-5 w-5 text-green-500 hover:cursor-pointer hover:text-green-600" @click.prevent="onIsAvailableClicked(product)" />
+                                                    </span>
+                                                    <span v-else>
+                                                        <XCircleIcon class="h-5 w-5 text-red-500 hover:cursor-pointer hover:text-red-600" @click.prevent="onIsAvailableClicked(product)" />
+                                                    </span>
+                                                </div>
+                                                <span class="text-[10px] text-gray-500 mt-1" v-if="product.isAvailableUpdatedBy">
                                                     {{ product.isAvailableUpdatedBy.name }} ({{ product.is_available_updated_at }})
                                                 </span>
                                             </div>
@@ -176,22 +188,7 @@
                                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
                                           {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                                         </td>
-                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
-                                          <div class="flex flex-col justify-center items-center">
-                                            <span v-if="product.is_available">
-                                              <CheckCircleIcon class="h-6 w-6 text-green-500 hover:cursor-pointer hover:text-green-600" @click.prevent="onIsAvailableClicked(product)" />
-                                            </span>
-                                            <span v-else>
-                                              <XCircleIcon class="h-6 w-6 text-red-500 hover:cursor-pointer hover:text-red-600" @click.prevent="onIsAvailableClicked(product)" />
-                                            </span>
-                                            <span class="text-xs text-gray-500">
-                                              {{ product.isAvailableUpdatedBy ? product.isAvailableUpdatedBy.name : '' }}
-                                            </span>
-                                            <span class="text-xs text-gray-500">
-                                              {{ product.is_available_updated_at }}
-                                            </span>
-                                          </div>
-                                        </td>
+
                                         <td class="p-3 text-center text-lg font-bold text-blue-600 cursor-pointer hover:bg-blue-50" @click="openMovementModal(product)">
                                             {{ product.total_movements_qty ? Number(product.total_movements_qty).toLocaleString() : 0 }}
                                         </td>
@@ -315,6 +312,7 @@ const filters = ref({
     is_available: '',
     productAvailableDate: moment().add(1, 'days').format('YYYY-MM-DD'),
 });
+const today = moment().format('YYYY-MM-DD');
 const booleanOptions = ref([])
 
 const showMovementModal = ref(false)

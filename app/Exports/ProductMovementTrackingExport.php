@@ -66,7 +66,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                 products.code as product_code,
                 products.name as product_name,
                 product_movements.qty as qty,
-                product_movements.remarks as remarks,
+                product_movements.batch_number as remarks,
                 users.name as by_user,
                 'ProductMovement' as source_type
             ")
@@ -92,7 +92,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                 products.code as product_code,
                 products.name as product_name,
                 (ops_job_item_channels.picked_qty * -1) as qty,
-                CONCAT('Job #', ops_jobs.code) as remarks,
+                (ops_job_items.id + 25000) as remarks,
                 users.name as by_user,
                 'OpsJob' as source_type
             ")
@@ -128,7 +128,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
             'Product Code',
             'Product Name',
             'Qty',
-            'Remarks',
+            'Job Number',
             'By',
         ];
     }
@@ -136,7 +136,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
     public function map($row): array
     {
         return [
-            $row->date,
+            Carbon::parse($row->date)->toDateString(),
             $row->type_label,
             $row->product_code,
             $row->product_name,

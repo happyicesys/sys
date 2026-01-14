@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { Head, router, usePage } from '@inertiajs/vue3'
-import { MagnifyingGlassIcon, BackspaceIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/solid'
+import { Head, router, usePage, Link } from '@inertiajs/vue3'
+import { MagnifyingGlassIcon, BackspaceIcon, ArrowDownTrayIcon, ArrowLeftIcon } from '@heroicons/vue/24/solid'
 import axios from 'axios'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import DatePicker from '@/Components/DatePicker.vue'
@@ -137,13 +137,19 @@ const onExcelExportClicked = () => {
 </script>
 
 <template>
-    <Head title="Product Movement Tracking Details" />
+    <Head title="Movements Log" />
 
     <BreezeAuthenticatedLayout>
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Product Movement Tracking Details
-            </h2>
+            <div class="flex items-center">
+                <Link :href="route('product-movements.index')" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mr-4">
+                    <ArrowLeftIcon class="-ml-1 mr-2 h-4 w-4 text-gray-500" aria-hidden="true" />
+                    Back
+                </Link>
+                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                    Movements Log
+                </h2>
+            </div>
         </template>
 
         <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
@@ -236,7 +242,7 @@ const onExcelExportClicked = () => {
                                     <TableHead>Product Code</TableHead>
                                     <TableHead>Product Name</TableHead>
                                     <TableHead>Qty</TableHead>
-                                    <TableHead>Remarks</TableHead>
+                                    <TableHead>Job Number</TableHead>
                                     <TableHead>By</TableHead>
                                 </tr>
                             </thead>
@@ -246,7 +252,7 @@ const onExcelExportClicked = () => {
                                         {{ (movements.from ?? 1) + index }}
                                     </TableData>
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
-                                        {{ movement.date }}
+                                        {{ moment(movement.date).format('YYYY-MM-DD') }}
                                     </TableData>
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
                                          <span :class="{
@@ -269,7 +275,7 @@ const onExcelExportClicked = () => {
                                         </span>
                                     </TableData>
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
-                                        {{ movement.remarks }}
+                                        {{ movement.remarks ? '#' + movement.remarks : '' }}
                                     </TableData>
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
                                         {{ movement.by_user }}
