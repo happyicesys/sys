@@ -163,7 +163,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'machine-settings',
                 ['export', 'create', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
             ],
 
             [

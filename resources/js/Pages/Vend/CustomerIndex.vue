@@ -916,10 +916,10 @@
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 						<div class="flex flex-col space-y-1">
-							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left" v-if="permissions.includes('admin-access vend-customers')">
+							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left" v-if="permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings')">
 								{{ vend.code }}
 							</Link>
-							<span v-if="!permissions.includes('admin-access vend-customers')">
+							<span v-if="!(permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings'))">
 								{{ vend.code }}
 							</span>
 							<div class="text-left">
