@@ -116,8 +116,9 @@ class PaymentGatewayService
         // dd($qrCodeUrl, $isCreateInput, $isRequiredDecode, $isResizeImage);
         $img = false;
         if ($isRequiredDecode) {
-            if ($isResizeImage) {
+            $tempFile = tempnam(sys_get_temp_dir(), 'qr_');
 
+            if ($isResizeImage) {
                 $content = $qrCodeUrl;
                 if ($this->isDataUri($qrCodeUrl)) {
                     $content = $this->decodeDataUri($qrCodeUrl);
@@ -127,34 +128,30 @@ class PaymentGatewayService
 
                 $image = Image::read($content);
                 $image->resize(150, 150);
-                $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', $image->toPng(), 'public');
-
-
-                // $imagick = new Imagick();
-                // $imagick->setBackgroundColor(new ImagickPixel('transparent'));
-                // $imagick->readImageBlob(file_get_contents($qrCodeUrl));
-                // $imagick->setImageFormat('png24');
-                // $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
-// dd($image->toPng());
+                file_put_contents($tempFile, $image->toPng());
             } else {
                 if ($this->isDataUri($qrCodeUrl)) {
                     $binary = $this->decodeDataUri($qrCodeUrl);
-                    $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', $binary, 'public');
-                } elseif (isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
-                    $image = Image::read(file_get_contents($qrCodeUrl));
-                    $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', $image->toPng(), 'public');
+                    file_put_contents($tempFile, $binary);
                 } else {
-                    $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', file_get_contents($qrCodeUrl), 'public');
+                    file_put_contents($tempFile, file_get_contents($qrCodeUrl));
                 }
             }
-            $url = Storage::url('/qr-code/' . $params['metadata']['order_id'] . '.png');
 
-            $qrCodeReader = new QrReader($url);
-            $qrCodeText = $qrCodeReader->text([
-                'POSSIBLE_FORMATS' => 'QR_CODE',
-                'TRY_HARDER' => true,
-            ]);
-            Storage::disk('public')->delete('/qr-code/' . $params['metadata']['order_id'] . '.png');
+            try {
+                $qrCodeReader = new QrReader($tempFile);
+                $qrCodeText = $qrCodeReader->text([
+                    'POSSIBLE_FORMATS' => 'QR_CODE',
+                    'TRY_HARDER' => true,
+                ]);
+            } catch (\Exception $e) {
+                // Log error or handle it if necessary, but keep flow going
+                // For now, we just leave qrCodeText as empty string if it fails
+            }
+
+            if (file_exists($tempFile)) {
+                @unlink($tempFile);
+            }
         } else {
             switch ($operatorPaymentGateway->paymentGateway->name) {
                 case 'omise':
