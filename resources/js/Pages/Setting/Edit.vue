@@ -1746,6 +1746,19 @@ watch(
   { deep: true }
 );
 
+watch(
+  () => props.adminCustomerOptions,
+  (newVal) => {
+    if (newVal && newVal.data) {
+      adminCustomerOptions.value = newVal.data.map(customer => ({
+        id: customer.id,
+        full_name: customer.person_id && customer.virtual_customer_code ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name + ' [cms]'  : customer.name,
+      }))
+    }
+  },
+  { deep: true }
+);
+
 function onVendConfigSelected() {
   form.value.vend_prefix_id = ''
   form.value.product_mapping_id = ''
