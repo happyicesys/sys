@@ -81,7 +81,7 @@ const filters = reactive({
   machine_codes: rawFilters.machine_codes ?? [],
   machine_codes_input: (rawFilters.machine_codes ?? []).join(','),
   channel_sku: rawFilters.channel_sku ?? '',
-  show_all_errors: rawFilters.show_all_errors ?? true,
+  show_all_errors: rawFilters.show_all_errors ?? false,
   no_txn_threshold_hours: {
     any: rawFilters.no_txn_threshold_hours?.any ?? 48,
     cash: rawFilters.no_txn_threshold_hours?.cash ?? 48,

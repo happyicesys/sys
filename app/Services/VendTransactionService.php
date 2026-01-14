@@ -221,7 +221,7 @@ class VendTransactionService
             'product_id' => $input['productID'],
             'customer_id' => $customer?->id ?? null,
             'location_type_id' => $customer?->locationType?->id ?? null,
-            'operator_id' => $customer?->operator?->id ?? 1,
+            'operator_id' => $customer?->operator?->id ?? $vend->operator_id ?? 1,
             'unit_cost_id' => $input['unitCostID'],
             'gst_vat_rate' => $input['gstVatRate'],
             'label_json' => isset($input['label']) ? $input['label'] : null,

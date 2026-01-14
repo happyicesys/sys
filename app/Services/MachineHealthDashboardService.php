@@ -79,7 +79,7 @@ class MachineHealthDashboardService
             'customer_ids' => $this->normalizeIdArray($request->input('customer_ids')),
             'machine_codes' => $this->normalizeStringArray($request->input('machine_codes')),
             'channel_sku' => $request->input('channel_sku'),
-            'show_all_errors' => $request->boolean('show_all_errors', true),
+            'show_all_errors' => $request->boolean('show_all_errors', false),
         ];
 
     }
@@ -133,13 +133,13 @@ class MachineHealthDashboardService
 
         $eventsQuery = VendChannelStockEvent::query()
             ->select([
-                'id',
-                'vend_channel_id',
-                'vend_id',
-                'product_id',
-                'event_type',
-                'occurred_at',
-            ])
+                    'id',
+                    'vend_channel_id',
+                    'vend_id',
+                    'product_id',
+                    'event_type',
+                    'occurred_at',
+                ])
             ->where('occurred_at', '>=', $lookbackStart)
             ->whereHas('vend', function (EloquentBuilder $query) use ($filters) {
                 $this->applyVendFilters($query, $filters);
@@ -356,10 +356,10 @@ class MachineHealthDashboardService
             : Vend::query()
                 ->select('id', 'code', 'name', 'customer_id', 'operator_id', 'vend_prefix_id')
                 ->with([
-                    'customer:id,name',
-                    'operator:id,name',
-                    'vendPrefix:id,name',
-                ])
+                        'customer:id,name',
+                        'operator:id,name',
+                        'vendPrefix:id,name',
+                    ])
                 ->whereIn('id', array_keys($vendIds))
                 ->get()
                 ->keyBy('id');
@@ -502,12 +502,12 @@ class MachineHealthDashboardService
                 'customers.name as customer_name',
                 'operators.name as operator_name',
                 'vend_prefixes.name as vend_prefix_name',
-                DB::raw('COUNT(*) as total_events'),
+                DB::raw('COUNT(DISTINCT vend_channel_error_logs.vend_transaction_id) + COUNT(CASE WHEN vend_channel_error_logs.vend_transaction_id IS NULL THEN 1 END) as total_events'),
                 DB::raw('MAX(vend_channel_error_logs.created_at) as last_event_at'),
             ];
 
             foreach ($definition['codes'] as $code) {
-                $selects[] = DB::raw("SUM(CASE WHEN vend_channel_errors.code = {$code} THEN 1 ELSE 0 END) as code_{$code}_count");
+                $selects[] = DB::raw("COUNT(DISTINCT CASE WHEN vend_channel_errors.code = {$code} THEN vend_channel_error_logs.vend_transaction_id END) + COUNT(CASE WHEN vend_channel_errors.code = {$code} AND vend_channel_error_logs.vend_transaction_id IS NULL THEN 1 END) as code_{$code}_count");
             }
 
             $rows = $query
@@ -535,12 +535,12 @@ class MachineHealthDashboardService
                         $q->where('vend_channel_error_logs.is_error_cleared', false);
                     })
                     ->select([
-                        'vend_channels.vend_id',
-                        'vend_channels.code as channel_code',
-                        'vend_channel_errors.code as error_code',
-                        'vend_channel_error_logs.created_at',
-                        'vend_channel_error_logs.is_error_cleared',
-                    ])
+                            'vend_channels.vend_id',
+                            'vend_channels.code as channel_code',
+                            'vend_channel_errors.code as error_code',
+                            'vend_channel_error_logs.created_at',
+                            'vend_channel_error_logs.is_error_cleared',
+                        ])
                     ->orderByDesc('vend_channel_error_logs.created_at')
                     ->get()
                     ->groupBy('vend_id');
@@ -605,11 +605,11 @@ class MachineHealthDashboardService
 
         $dailyMetrics = VendTempMetric::query()
             ->with([
-                'vend:id,code,name,operator_id,vend_prefix_id,customer_id,is_testing',
-                'vend.customer:id,name,code',
-                'vend.operator:id,name,code',
-                'vend.vendPrefix:id,name',
-            ])
+                    'vend:id,code,name,operator_id,vend_prefix_id,customer_id,is_testing',
+                    'vend.customer:id,name,code',
+                    'vend.operator:id,name,code',
+                    'vend.vendPrefix:id,name',
+                ])
             ->where('period_type', VendTempMetric::PERIOD_DAILY)
             ->where('temp_type', $sensorType)
             ->whereBetween('period_start', [$shortStart, $now])
@@ -685,16 +685,16 @@ class MachineHealthDashboardService
 
         $worstMinimaRows = $worstMinimaQuery
             ->select([
-                'vend_temp_metrics.vend_id',
-                'vends.code as vend_code',
-                'vends.name as vend_name',
-                'customers.name as customer_name',
-                'operators.name as operator_name',
-                'vend_prefixes.name as vend_prefix_name',
-                DB::raw('MAX(vend_temp_metrics.min_temp_value) as worst_min_temp'),
-                DB::raw('MIN(vend_temp_metrics.min_temp_value) as best_min_temp'),
-                DB::raw('MAX(vend_temp_metrics.min_temp_recorded_at) as last_recorded_at'),
-            ])
+                    'vend_temp_metrics.vend_id',
+                    'vends.code as vend_code',
+                    'vends.name as vend_name',
+                    'customers.name as customer_name',
+                    'operators.name as operator_name',
+                    'vend_prefixes.name as vend_prefix_name',
+                    DB::raw('MAX(vend_temp_metrics.min_temp_value) as worst_min_temp'),
+                    DB::raw('MIN(vend_temp_metrics.min_temp_value) as best_min_temp'),
+                    DB::raw('MAX(vend_temp_metrics.min_temp_recorded_at) as last_recorded_at'),
+                ])
             ->groupBy('vend_temp_metrics.vend_id', 'vends.code', 'vends.name', 'customers.name', 'operators.name', 'vend_prefixes.name')
             ->havingRaw('MAX(vend_temp_metrics.min_temp_value) IS NOT NULL')
             ->orderByDesc(DB::raw('MAX(vend_temp_metrics.min_temp_value)'))
@@ -719,11 +719,11 @@ class MachineHealthDashboardService
 
         $recentTempsSubquery = DB::table('vend_temps as vt')
             ->select([
-                'vt.vend_id',
-                DB::raw('MIN(vt.value) as min_value'),
-                DB::raw('MAX(vt.created_at) as last_recorded_at'),
-                DB::raw('COUNT(*) as reading_count'),
-            ])
+                    'vt.vend_id',
+                    DB::raw('MIN(vt.value) as min_value'),
+                    DB::raw('MAX(vt.created_at) as last_recorded_at'),
+                    DB::raw('COUNT(*) as reading_count'),
+                ])
             ->where('vt.type', $sensorType)
             ->where('vt.value', '!=', VendTemp::TEMPERATURE_ERROR)
             ->where('vt.created_at', '>=', $recentWindowStart)
@@ -764,16 +764,16 @@ class MachineHealthDashboardService
 
         $notReaching = $noReachQuery
             ->select([
-                'vends.id as vend_id',
-                'vends.code as vend_code',
-                'vends.name as vend_name',
-                'customers.name as customer_name',
-                'operators.name as operator_name',
-                'vend_prefixes.name as vend_prefix_name',
-                DB::raw('recent_temps.min_value as min_value'),
-                DB::raw('recent_temps.last_recorded_at as last_recorded_at'),
-                DB::raw('recent_temps.reading_count as reading_count'),
-            ])
+                    'vends.id as vend_id',
+                    'vends.code as vend_code',
+                    'vends.name as vend_name',
+                    'customers.name as customer_name',
+                    'operators.name as operator_name',
+                    'vend_prefixes.name as vend_prefix_name',
+                    DB::raw('recent_temps.min_value as min_value'),
+                    DB::raw('recent_temps.last_recorded_at as last_recorded_at'),
+                    DB::raw('recent_temps.reading_count as reading_count'),
+                ])
             ->where('recent_temps.min_value', '>', $minThresholdScaled)
             ->orderByDesc(DB::raw('recent_temps.min_value'))
             ->limit($filters['machine_limit'])
@@ -830,16 +830,16 @@ class MachineHealthDashboardService
         $vends = $this->baseVendQuery($filters)
             ->where('is_online', false)
             ->select([
-                'id',
-                'code',
-                'name',
-                'operator_id',
-                'vend_prefix_id',
-                'customer_id',
-                'acb_vmc_pa_json',
-                DB::raw("{$lastContactExpr} as last_contact_at"),
-                DB::raw("{$hoursOfflineExpr} as hours_offline"),
-            ])
+                    'id',
+                    'code',
+                    'name',
+                    'operator_id',
+                    'vend_prefix_id',
+                    'customer_id',
+                    'acb_vmc_pa_json',
+                    DB::raw("{$lastContactExpr} as last_contact_at"),
+                    DB::raw("{$hoursOfflineExpr} as hours_offline"),
+                ])
             ->havingRaw('last_contact_at IS NOT NULL')
             ->having('hours_offline', '<', 60)
             ->orderBy('hours_offline')
@@ -943,16 +943,16 @@ class MachineHealthDashboardService
 
         $query = $this->baseVendQuery($filters)
             ->select([
-                'id',
-                'code',
-                'name',
-                'operator_id',
-                'vend_prefix_id',
-                'customer_id',
-                'acb_vmc_pa_json',
-                DB::raw("{$column} as last_transaction_at"),
-                DB::raw("{$hoursExpr} as hours_since"),
-            ])
+                    'id',
+                    'code',
+                    'name',
+                    'operator_id',
+                    'vend_prefix_id',
+                    'customer_id',
+                    'acb_vmc_pa_json',
+                    DB::raw("{$column} as last_transaction_at"),
+                    DB::raw("{$hoursExpr} as hours_since"),
+                ])
             ->whereNotNull($column)
             ->having('hours_since', '>=', $threshold)
             ->orderByDesc('hours_since')
@@ -986,10 +986,10 @@ class MachineHealthDashboardService
     {
         $query = Vend::query()
             ->with([
-                'customer:id,name,code',
-                'operator:id,name,code',
-                'vendPrefix:id,name',
-            ])
+                    'customer:id,name,code',
+                    'operator:id,name,code',
+                    'vendPrefix:id,name',
+                ])
             ->where('is_testing', false);
 
         $this->applyVendFilters($query, $filters);
