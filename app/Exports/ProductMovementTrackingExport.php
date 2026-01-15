@@ -147,7 +147,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
             $row->qty,
             $row->remarks,
             $row->by_user,
-            $row->created_at ? Carbon::parse($row->created_at)->format('d-m-Y h:i a') : '-',
+            $row->created_at ? Carbon::parse($row->created_at)->format('ymd h:i a') : '-',
         ];
     }
 

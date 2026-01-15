@@ -129,6 +129,12 @@
                             <table class="min-w-full divide-y divide-gray-300">
                                 <thead class="bg-gray-100 sticky top-0 z-10">
                                     <tr>
+                                        <th colspan="7" class="bg-gray-100"></th>
+                                        <th colspan="2" class="p-2 text-center text-sm font-bold text-gray-900 border-b border-gray-300 bg-gray-200">
+                                            Planning
+                                        </th>
+                                    </tr>
+                                    <tr>
                                         <th  scope="col" class="th-header w-[2%] p-3 text-xs font-semibold text-center text-gray-900 border-b">#</th>
                                         <th  scope="col" class="th-header w-[5%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Image</th>
                                         <th  scope="col" class="th-header w-[20%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Product</th>

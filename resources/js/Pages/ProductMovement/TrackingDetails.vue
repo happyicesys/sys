@@ -284,7 +284,7 @@ const onExcelExportClicked = () => {
                                         {{ movement.by_user }}
                                     </TableData>
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
-                                        {{ movement.created_at ? moment(movement.created_at).format('DDMMYY hh:mm a') : '-' }}
+                                        {{ movement.created_at ? moment(movement.created_at).format('YYMMDD hh:mm a') : '-' }}
                                     </TableData>
                                 </tr>
                                 <tr v-if="movements.data.length === 0">
