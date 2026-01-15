@@ -11,6 +11,8 @@ class ProductMovement extends Model
 
     const TYPE_INCOMING = 1;
     const TYPE_ADJUSTMENT = 2;
+    const TYPE_PICKED = 3;
+    const TYPE_UNDO_PICKED = 4;
 
     protected $fillable = [
         'product_id',

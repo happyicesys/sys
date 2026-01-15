@@ -15,6 +15,7 @@ use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\OpsJobItem;
 use App\Models\OpsJobItemChannel;
+use App\Models\ProductMovement;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
@@ -296,6 +297,20 @@ class OpsJobController extends Controller
                             'qty' => $channel['qty'],
                             'saved_picked_qty' => $channel['picked'],
                         ]);
+
+                        if ($channel['picked'] > 0) {
+                            ProductMovement::create([
+                                'product_id' => $opsJobItemChannel->product_id,
+                                'type' => ProductMovement::TYPE_PICKED,
+                                'qty' => -1 * $channel['picked'],
+                                'operator_id' => $opsJobItem->opsJob->operator_id,
+                                'user_id' => auth()->id(),
+                                // 'remarks' => $opsJobItem->id + 25000,
+                                'batch_number' => $opsJobItem->id + 25000,
+                                'created_at' => Carbon::now(),
+                                'updated_at' => Carbon::now(),
+                            ]);
+                        }
                     }
                 }
                 break;
@@ -1145,6 +1160,7 @@ class OpsJobController extends Controller
         switch ($opsJobItem->status) {
             case OpsJob::STATUS_PICKED:
                 $opsJobItem->status = OpsJob::STATUS_PENDING;
+                $opsJobItem->last_picked_at = $opsJobItem->picked_at; // Save last picked date
                 $opsJobItem->picked_at = null;
                 $opsJobItem->picked_by = null;
                 $opsJobItem->undo_picked_at = Carbon::now();
@@ -1157,6 +1173,19 @@ class OpsJobController extends Controller
                         'qty' => $channel->picked_before_qty,
                         'picked_qty' => 0, // optionally reset picked_qty too
                     ]);
+
+                    if ($channel->saved_picked_qty > 0) {
+                        ProductMovement::create([
+                            'product_id' => $channel->product_id,
+                            'type' => ProductMovement::TYPE_UNDO_PICKED,
+                            'qty' => $channel->saved_picked_qty,
+                            'operator_id' => $opsJobItem->opsJob->operator_id,
+                            'user_id' => auth()->id(),
+                            'batch_number' => $opsJobItem->id + 25000,
+                            'created_at' => Carbon::now(),
+                            'updated_at' => Carbon::now(),
+                        ]);
+                    }
                 }
                 break;
             case OpsJob::STATUS_DELIVERED:

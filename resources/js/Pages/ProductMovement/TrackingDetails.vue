@@ -238,14 +238,16 @@ const onExcelExportClicked = () => {
                                 <tr class="divide-x bg-gray-400">
                                     <TableHead>#</TableHead>
                                     <TableHead>Date</TableHead>
+                                    <TableHead>Time</TableHead>
 
-                                    <TableHead>Type</TableHead>
+                                    <TableHead>Movement</TableHead>
                                     <TableHead>Product Code</TableHead>
                                     <TableHead>Product Name</TableHead>
                                     <TableHead>Qty</TableHead>
-                                    <TableHead>Job Number</TableHead>
                                     <TableHead>By</TableHead>
-                                    <TableHead>Created At</TableHead>
+                                    <TableHead>Job Number</TableHead>
+                                    <TableHead>Job Delivery Date</TableHead>
+
                                 </tr>
                             </thead>
                             <tbody class="bg-white">
@@ -256,12 +258,16 @@ const onExcelExportClicked = () => {
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
                                         {{ moment(movement.date).format('YYYY-MM-DD') }}
                                     </TableData>
+                                    <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
+                                        {{ moment(movement.date).format('hh:mm a') }}
+                                    </TableData>
 
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
                                          <span :class="{
                                             'text-green-600 font-bold': movement.type_label === 'Incoming',
                                             'text-blue-600 font-bold': movement.type_label === 'Adjustment', // Assuming Adjustment is blue
-                                            'text-red-600 font-bold': movement.type_label === 'Outgoing',
+                                            'text-red-600 font-bold': movement.type_label === 'Picked',
+                                            'text-blue-600 font-bold': movement.type_label === 'Unpicked',
                                          }">
                                             {{ movement.type_label }}
                                         </span>
@@ -278,14 +284,15 @@ const onExcelExportClicked = () => {
                                         </span>
                                     </TableData>
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
-                                        {{ movement.remarks ? '#' + movement.remarks : '' }}
-                                    </TableData>
-                                    <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
                                         {{ movement.by_user }}
                                     </TableData>
-                                    <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
-                                        {{ movement.created_at ? moment(movement.created_at).format('YYMMDD hh:mm a') : '-' }}
+                                    <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
+                                        {{ movement.remarks ? '#' + movement.remarks : '' }}
                                     </TableData>
+                                    <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
+                                        {{ movement.job_delivery_date ? moment(movement.job_delivery_date).format('YYYY-MM-DD') : '' }}
+                                    </TableData>
+
                                 </tr>
                                 <tr v-if="movements.data.length === 0">
                                     <td colspan="9" class="p-3 text-center text-gray-500">
