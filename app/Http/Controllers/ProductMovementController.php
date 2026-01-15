@@ -494,6 +494,7 @@ class ProductMovementController extends Controller
             ->selectSub(function ($sub) {
                 $sub->from('product_movements')
                     ->selectRaw('COALESCE(SUM(qty), 0)')
+                    ->whereIn('type', [ProductMovement::TYPE_INCOMING, ProductMovement::TYPE_ADJUSTMENT])
                     ->whereColumn('product_movements.product_id', 'products.id');
             }, 'total_movements_qty')
             // Sum of OpsJob Delivered Qty (Out)

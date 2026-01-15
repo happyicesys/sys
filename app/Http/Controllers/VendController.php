@@ -566,7 +566,7 @@ class VendController extends Controller
                 ) AS vc_cost
             '), 'vc_cost.vend_id', '=', 'vends.id');
                 })
-                ->when($needsVcStock, function ($query) {
+                ->when($needsVcStock, function ($query) use ($request) {
                     $query->leftJoin(DB::raw('
                 (
                     SELECT
@@ -604,7 +604,7 @@ class VendController extends Controller
                                 SELECT id, product_id, qty, date,
                                     ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY id DESC) as rn
                                 FROM product_limits
-                                WHERE date = CURDATE()
+                                WHERE date = "' . $request->productAvailableDate . '"
                             ) pl_inner
                             WHERE rn = 1
                         ) AS product_limits ON products.id = product_limits.product_id
