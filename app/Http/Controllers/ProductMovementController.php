@@ -426,7 +426,7 @@ class ProductMovementController extends Controller
                     ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
                     ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
                     ->whereColumn('ops_job_item_channels.product_id', 'products.id')
-                    ->where('ops_job_items.status', '>=', 3) // OpsJob::STATUS_DELIVERED
+                    ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
                     ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
                     ->whereDate('ops_jobs.date', '>=', '2025-12-06');
             }, 'total_delivered_qty');
