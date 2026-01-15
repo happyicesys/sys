@@ -421,44 +421,50 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'resource-centers',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_3pl', 'franchisee']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver']
             ],
 
             [
                 'resource-center-operators',
-                ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
-            ],
-
-            [
-                'resource-center-operators',
-                ['admin-access'],
+                ['read', 'export', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor']
             ],
 
             [
                 'resource-center-technicians',
-                ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
-            ],
-
-            [
-                'resource-center-technicians',
-                ['admin-access'],
-                ['superadmin', 'admin', 'supervisor']
+                ['read', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
                 'resource-center-drivers',
+                ['read', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver']
+            ],
+
+            [
+                'tutorials',
                 ['read', 'export'],
                 ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee']
             ],
 
             [
-                'resource-center-drivers',
-                ['admin-access'],
-                ['superadmin', 'admin', 'supervisor']
-            ]
+                'tutorials-operators',
+                ['read', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+            ],
+
+            [
+                'tutorials-technicians',
+                ['read', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+            ],
+
+            [
+                'tutorials-drivers',
+                ['read', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee']
+            ],
         ];
 
         // Create permissions and assign to roles

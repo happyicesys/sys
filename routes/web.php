@@ -42,6 +42,7 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TelcoController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendController;
@@ -394,6 +395,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/create', [ResourceCenterController::class, 'create']);
         Route::post('/{id}/update', [ResourceCenterController::class, 'update']);
         Route::delete('/{id}', [ResourceCenterController::class, 'delete']);
+    });
+
+    Route::prefix('tutorials')->group(function () {
+        Route::get('/', [TutorialController::class, 'index'])->name('tutorials');
     });
 
     Route::prefix('location-types')->group(function () {

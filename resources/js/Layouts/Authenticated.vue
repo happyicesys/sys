@@ -264,11 +264,20 @@ const navigation = computed(() => [
         ]
     },
     {
-        name: 'Resource Center (Tutorial)',
+        name: 'Tutorial (with CMS)',
         icon: BookOpenIcon,
         current: false,
         href: 'resource-centers',
         permission: 'read resource-centers',
+        tagline: null,
+    },
+
+    {
+        name: 'Tutorial',
+        icon: BookOpenIcon,
+        current: false,
+        href: 'tutorials',
+        permission: 'read tutorials',
         tagline: null,
     },
 

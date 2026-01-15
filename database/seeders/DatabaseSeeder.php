@@ -107,19 +107,19 @@ class DatabaseSeeder extends Seeder
                 // DeliveryPlatformDispensingSeeder::class,
                 // VendContractSeeder::class,
 
-                // RolePermissionSyncSeeder::class,
-                // BackfillCustomerVendBindingsSeeder::class
+            RolePermissionSyncSeeder::class,
+            // BackfillCustomerVendBindingsSeeder::class
 
-                // FixYesterdayStockCostSeeder::class,
-                // RolePermissionSyncSeeder::class,
-                // SyncCustomerVendBindingsFromVendsSeeder::class
-                // BindAdminSuperusersToAllOperatorsSeeder::class,
-                // DeliveryPlatformRefNumberSeeder::class,
-                // OperatorPaymentGatewaySeeder::class,
-                // CampaignSeeder::class,
-                // VendTempMetricsBackfillSeeder::class,
+            // FixYesterdayStockCostSeeder::class,
+            // RolePermissionSyncSeeder::class,
+            // SyncCustomerVendBindingsFromVendsSeeder::class
+            // BindAdminSuperusersToAllOperatorsSeeder::class,
+            // DeliveryPlatformRefNumberSeeder::class,
+            // OperatorPaymentGatewaySeeder::class,
+            // CampaignSeeder::class,
+            // VendTempMetricsBackfillSeeder::class,
 
-            CleanOpsJobAndIncomingSeeder::class,
+            // CleanOpsJobAndIncomingSeeder::class,
 
         ]);
     }
