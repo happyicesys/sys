@@ -132,12 +132,12 @@
                                         <th  scope="col" class="th-header w-[2%] p-3 text-xs font-semibold text-center text-gray-900 border-b">#</th>
                                         <th  scope="col" class="th-header w-[5%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Image</th>
                                         <th  scope="col" class="th-header w-[20%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Product</th>
-                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
                                             Last7d sold qty<br>
                                             <span class="font-normal text-gray-600">(avg last 28d)</span>
                                         </th>
 
-                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
+                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty in Warehouse<br>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
@@ -185,11 +185,11 @@
                                                 </span>
                                             </div>
                                         </td>
-                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
                                           {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                                         </td>
 
-                                        <td class="p-3 text-center text-lg font-bold text-blue-600 cursor-pointer hover:bg-blue-50 border-r border-gray-300" @click="openMovementModal(product)">
+                                        <td class="p-3 text-center text-lg font-bold text-blue-600 cursor-pointer hover:bg-blue-50" @click="openMovementModal(product)">
                                             {{ product.total_movements_qty ? Number(product.total_movements_qty).toLocaleString() : 0 }}
                                         </td>
                                         <td class="p-3 text-center text-lg font-bold text-gray-800">
@@ -225,13 +225,13 @@
                                     </tbody>
                                     <tfoot>
                                         <tr class="bg-gray-50 font-bold">
-                                            <td colspan="4" class="p-3 text-right text-gray-900">
+                                            <td colspan="4" class="p-3 text-right text-gray-900 border-r border-gray-300">
                                                 <div class="flex flex-col space-y-1 items-end">
                                                     <span>Total Pcs</span>
                                                     <span>Total Cost$</span>
                                                 </div>
                                             </td>
-                                            <td class="p-3 text-center text-blue-600 border-r border-gray-300">
+                                            <td class="p-3 text-center text-blue-600">
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getTotalMovementsQty().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getTotalMovementsCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
