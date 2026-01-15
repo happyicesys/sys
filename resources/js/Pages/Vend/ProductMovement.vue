@@ -195,7 +195,7 @@
                                           {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                                         </td>
 
-                                        <td class="p-3 text-center text-lg font-bold text-blue-600 cursor-pointer hover:bg-blue-50" @click="openMovementModal(product)">
+                                        <td class="p-3 text-center text-lg font-bold text-blue-600">
                                             {{ product.total_movements_qty ? Number(product.total_movements_qty).toLocaleString() : 0 }}
                                         </td>
                                         <td class="p-3 text-center text-lg font-bold text-gray-800">
