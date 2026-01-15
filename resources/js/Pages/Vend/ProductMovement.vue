@@ -157,11 +157,11 @@
                                         </th>
                                         <th  scope="col" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty Needed<br>
-                                            <span class="font-normal text-gray-600">(Planning for Jobs on Date)</span>
+                                            <span class="font-normal text-gray-600">(Live Update, for Jobs on Date)</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
-                                            Capped Qty<br>
-                                            <span class="font-normal text-xs text-gray-600">(per Channel, on Date & onwards)</span>
+                                            Capped Qty per Channel<br>
+                                            <span class="font-normal text-xs text-gray-600">(max Qty after Refilling on Date & onwards)</span>
                                         </th>
                                     </tr>
                                 </thead>
