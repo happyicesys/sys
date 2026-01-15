@@ -68,6 +68,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                 product_movements.qty as qty,
                 product_movements.batch_number as remarks,
                 users.name as by_user,
+                product_movements.created_at as created_at,
                 'ProductMovement' as source_type
             ")
             ->leftJoin('products', 'products.id', '=', 'product_movements.product_id')
@@ -94,6 +95,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
                 (ops_job_item_channels.picked_qty * -1) as qty,
                 (ops_job_items.id + 25000) as remarks,
                 users.name as by_user,
+                ops_job_items.picked_at as created_at,
                 'OpsJob' as source_type
             ")
             ->join('ops_job_items', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
@@ -101,8 +103,9 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
             ->join('products', 'products.id', '=', 'ops_job_item_channels.product_id')
             ->leftJoin('users', 'ops_jobs.delivered_by', '=', 'users.id')
             ->whereIn('ops_jobs.operator_id', $operators)
-            ->where('ops_job_items.status', '>=', 3)
+            ->where('ops_job_items.status', '>=', 2)
             ->where('ops_job_items.status', '!=', 99)
+            ->where('ops_job_item_channels.picked_qty', '>', 0)
             ->when($request->product_id, function ($q) use ($request) {
                 $q->where('ops_job_item_channels.product_id', $request->product_id);
             })
@@ -130,6 +133,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
             'Qty',
             'Job Number',
             'By',
+            'Created At',
         ];
     }
 
@@ -143,6 +147,7 @@ class ProductMovementTrackingExport implements FromCollection, WithHeadings, Wit
             $row->qty,
             $row->remarks,
             $row->by_user,
+            $row->created_at ? Carbon::parse($row->created_at)->format('d-m-Y h:i a') : '-',
         ];
     }
 

@@ -134,28 +134,28 @@
                                         <th  scope="col" class="th-header w-[20%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Product</th>
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                                             Last7d sold qty<br>
-                                            (avg last 28d)
+                                            <span class="font-normal text-gray-600">(avg last 28d)</span>
                                         </th>
 
-                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
                                             Qty in Warehouse<br>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                                             Picked Qty<br>
-                                            (as Job on Date)
+                                            <span class="font-normal text-gray-600">(as Job on Date)</span>
                                         </th>
 
-                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
                                             Remaining Qty<br>
-                                            (after Picked)
+                                            <span class="font-normal text-gray-600">(after Picked)</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty Needed<br>
-                                            (Planning for Jobs on Date)
+                                            <span class="font-normal text-gray-600">(Planning for Jobs on Date)</span>
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                                             Capped Qty<br>
-                                            <span class="font-normal text-xs text-gray-600">(per Channel, on date & onwards)</span>
+                                            <span class="font-normal text-xs text-gray-600">(per Channel, on Date & onwards)</span>
                                         </th>
                                     </tr>
                                 </thead>
@@ -189,13 +189,13 @@
                                           {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                                         </td>
 
-                                        <td class="p-3 text-center text-lg font-bold text-blue-600 cursor-pointer hover:bg-blue-50" @click="openMovementModal(product)">
+                                        <td class="p-3 text-center text-lg font-bold text-blue-600 cursor-pointer hover:bg-blue-50 border-r border-gray-300" @click="openMovementModal(product)">
                                             {{ product.total_movements_qty ? Number(product.total_movements_qty).toLocaleString() : 0 }}
                                         </td>
                                         <td class="p-3 text-center text-lg font-bold text-gray-800">
-                                            {{ product.total_delivered_qty ? Number(product.total_delivered_qty).toLocaleString() : 0 }}
+                                            {{ product.picked_qty_on_date ? Number(product.picked_qty_on_date).toLocaleString() : 0 }}
                                         </td>
-                                        <td class="p-3 text-center text-lg font-bold text-gray-900">
+                                        <td class="p-3 text-center text-lg font-bold text-gray-900 border-r border-gray-300">
                                             <span :class="product.is_available ? (product.calculated_warehouse_qty < product.needed_qty ? 'text-red-800 bg-red-200 rounded px-1 py-1' : '') : 'text-gray-400'">
                                                 {{ !isNaN(Number(product.calculated_warehouse_qty)) ? Number(product.calculated_warehouse_qty).toLocaleString() : 0 }}
                                             </span>
@@ -222,7 +222,42 @@
                                         </div>
                                     </td>
                                 </tr>
-                            </tbody>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="bg-gray-50 font-bold">
+                                            <td colspan="4" class="p-3 text-right text-gray-900">
+                                                <div class="flex flex-col space-y-1 items-end">
+                                                    <span>Total Pcs</span>
+                                                    <span>Total Cost$</span>
+                                                </div>
+                                            </td>
+                                            <td class="p-3 text-center text-blue-600 border-r border-gray-300">
+                                                <div class="flex flex-col space-y-1">
+                                                    <span>{{ getTotalMovementsQty().toLocaleString() }}</span>
+                                                    <span>{{ operatorCountry.currency_symbol }}{{ getTotalMovementsCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                                                </div>
+                                            </td>
+                                            <td class="p-3 text-center text-gray-800">
+                                                <div class="flex flex-col space-y-1">
+                                                    <span>{{ getPickedQtyTotal().toLocaleString() }}</span>
+                                                    <span>{{ operatorCountry.currency_symbol }}{{ getPickedQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                                                </div>
+                                            </td>
+                                            <td class="p-3 text-center text-gray-900 border-r border-gray-300">
+                                                <div class="flex flex-col space-y-1">
+                                                    <span>{{ getCalculatedWarehouseQtyTotal().toLocaleString() }}</span>
+                                                    <span>{{ operatorCountry.currency_symbol }}{{ getCalculatedWarehouseQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                                                </div>
+                                            </td>
+                                            <td class="p-3 text-center text-orange-600">
+                                                <div class="flex flex-col space-y-1">
+                                                    <span>{{ getNeededQtyTotal().toLocaleString() }}</span>
+                                                    <span>{{ operatorCountry.currency_symbol }}{{ getNeededQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                                                </div>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
                         </table>
                     </div>
                 </div>
@@ -303,6 +338,7 @@ const props = defineProps({
 
 const permissions = usePage().props.auth.permissions
 const authOperator = usePage().props.auth.operator
+const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([])
 
 const filters = ref({
@@ -509,6 +545,54 @@ const onMaxOpsJobPickLimitSelected = (id, max_ops_job_pick_limit) => {
   .catch(error => {
     console.error('Error updating max_ops_job_pick_limit:', error);
   });
+}
+
+function getTotalMovementsQty() {
+  return props.products.data.reduce((acc, product) => acc + (Number(product.total_movements_qty) || 0), 0);
+}
+
+function getTotalMovementsCost() {
+  return props.products.data.reduce((acc, product) => {
+    const qty = Number(product.total_movements_qty) || 0;
+    const cost = Number(product.latestUnitCost?.cost) || 0;
+    return acc + (qty * cost);
+  }, 0);
+}
+
+function getPickedQtyTotal() {
+  return props.products.data.reduce((acc, product) => acc + (Number(product.picked_qty_on_date) || 0), 0);
+}
+
+function getPickedQtyTotalCost() {
+  return props.products.data.reduce((acc, product) => {
+    const qty = Number(product.picked_qty_on_date) || 0;
+    const cost = Number(product.latestUnitCost?.cost) || 0;
+    return acc + (qty * cost);
+  }, 0);
+}
+
+function getCalculatedWarehouseQtyTotal() {
+  return props.products.data.reduce((acc, product) => acc + (Number(product.calculated_warehouse_qty) || 0), 0);
+}
+
+function getCalculatedWarehouseQtyTotalCost() {
+  return props.products.data.reduce((acc, product) => {
+    const qty = Number(product.calculated_warehouse_qty) || 0;
+    const cost = Number(product.latestUnitCost?.cost) || 0;
+    return acc + (qty * cost);
+  }, 0);
+}
+
+function getNeededQtyTotal() {
+  return props.products.data.reduce((acc, product) => acc + (Number(product.needed_qty) || 0), 0);
+}
+
+function getNeededQtyTotalCost() {
+  return props.products.data.reduce((acc, product) => {
+    const qty = Number(product.needed_qty) || 0;
+    const cost = Number(product.latestUnitCost?.cost) || 0;
+    return acc + (qty * cost);
+  }, 0);
 }
 </script>
 

@@ -38,6 +38,7 @@ class IncomingStockHistoryExport implements FromQuery, WithHeadings, WithMapping
         return [
             'Batch Number',
             'Date',
+            'Time',
             'Input By',
             'Product Code',
             'Product Name',
@@ -53,6 +54,7 @@ class IncomingStockHistoryExport implements FromQuery, WithHeadings, WithMapping
         return [
             $movement->batch_number,
             $movement->created_at->format('Y-m-d'),
+            $movement->created_at->format('h:i A'),
             $inputBy,
             $movement->product ? $movement->product->code : '-',
             $movement->product ? $movement->product->name : '-',
@@ -66,11 +68,12 @@ class IncomingStockHistoryExport implements FromQuery, WithHeadings, WithMapping
         return [
             'A' => 20,
             'B' => 15,
-            'C' => 20,
-            'D' => 15,
-            'E' => 30,
-            'F' => 10,
-            'G' => 30,
+            'C' => 15,
+            'D' => 20,
+            'E' => 15,
+            'F' => 30,
+            'G' => 10,
+            'H' => 30,
         ];
     }
 

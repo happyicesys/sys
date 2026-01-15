@@ -99,7 +99,7 @@ class ProductMovementController extends Controller
         ]);
 
         $batchNumber = $request->batch_number;
-        $createdAt = Carbon::parse($request->created_at);
+        $createdAt = Carbon::parse($request->created_at . ' ' . Carbon::now()->toTimeString());
         $operatorId = auth()->user()->operator_id;
 
         $userId = auth()->id();
@@ -166,6 +166,7 @@ class ProductMovementController extends Controller
                 product_movements.qty as qty,
                 product_movements.batch_number as remarks,
                 users.name as by_user,
+                product_movements.created_at as created_at,
                 'ProductMovement' as source_type
             ")
             ->leftJoin('products', 'products.id', '=', 'product_movements.product_id')
@@ -193,6 +194,7 @@ class ProductMovementController extends Controller
                 (ops_job_item_channels.picked_qty * -1) as qty,
                 (ops_job_items.id + 25000) as remarks,
                 users.name as by_user,
+                ops_job_items.picked_at as created_at,
                 'OpsJob' as source_type
             ")
             ->join('ops_job_items', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
@@ -200,8 +202,9 @@ class ProductMovementController extends Controller
             ->join('products', 'products.id', '=', 'ops_job_item_channels.product_id')
             ->leftJoin('users', 'ops_jobs.delivered_by', '=', 'users.id')
             ->whereIn('ops_jobs.operator_id', $operators)
-            ->where('ops_job_items.status', '>=', 3)
+            ->where('ops_job_items.status', '>=', 2)
             ->where('ops_job_items.status', '!=', 99) // Status Cancelled
+            ->where('ops_job_item_channels.picked_qty', '>', 0)
             ->when($request->product_id, function ($q) use ($request) {
                 $q->where('ops_job_item_channels.product_id', $request->product_id);
             })
@@ -283,7 +286,7 @@ class ProductMovementController extends Controller
             ->selectRaw('MAX(user_id) as user_id')
             ->selectRaw('MAX(remarks) as remarks')
             ->groupBy('batch_number')
-            ->orderByRaw('MAX(created_at) DESC')
+            ->orderByRaw('MAX(created_at) DESC, MAX(id) DESC')
             ->paginate(20)
             ->withQueryString();
 
@@ -429,6 +432,17 @@ class ProductMovementController extends Controller
                     ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
                     ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
                     ->whereDate('ops_jobs.date', '>=', '2025-12-06');
-            }, 'total_delivered_qty');
+            }, 'total_delivered_qty')
+            // Calculate Picked Qty (on specific Date)
+            ->selectSub(function ($sub) use ($request) {
+                $sub->from('ops_job_item_channels')
+                    ->selectRaw('COALESCE(SUM(ops_job_item_channels.picked_qty), 0)')
+                    ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+                    ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
+                    ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
+                    ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
+                    ->whereDate('ops_jobs.date', $request->productAvailableDate);
+            }, 'picked_qty_on_date');
     }
 }

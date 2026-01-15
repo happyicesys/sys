@@ -29,6 +29,10 @@
                             <dd class="mt-1 text-sm text-gray-900">{{ formatDate(metadata.created_at) }}</dd>
                         </div>
                         <div class="sm:col-span-1">
+                            <dt class="text-sm font-medium text-gray-500">Input Time</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ formatTime(metadata.created_at) }}</dd>
+                        </div>
+                        <div class="sm:col-span-1">
                             <dt class="text-sm font-medium text-gray-500">Input By</dt>
                              <dd class="mt-1 text-sm text-gray-900">{{ metadata.user ? metadata.user.name : (metadata.operator ? metadata.operator.name : '-') }}</dd>
                         </div>
@@ -90,5 +94,9 @@ const props = defineProps({
 
 const formatDate = (date) => {
     return moment(date).format('YYYY-MM-DD')
+}
+
+const formatTime = (date) => {
+    return moment(date).format('hh:mm A')
 }
 </script>

@@ -238,12 +238,14 @@ const onExcelExportClicked = () => {
                                 <tr class="divide-x bg-gray-400">
                                     <TableHead>#</TableHead>
                                     <TableHead>Date</TableHead>
+
                                     <TableHead>Type</TableHead>
                                     <TableHead>Product Code</TableHead>
                                     <TableHead>Product Name</TableHead>
                                     <TableHead>Qty</TableHead>
                                     <TableHead>Job Number</TableHead>
                                     <TableHead>By</TableHead>
+                                    <TableHead>Created At</TableHead>
                                 </tr>
                             </thead>
                             <tbody class="bg-white">
@@ -254,6 +256,7 @@ const onExcelExportClicked = () => {
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
                                         {{ moment(movement.date).format('YYYY-MM-DD') }}
                                     </TableData>
+
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
                                          <span :class="{
                                             'text-green-600 font-bold': movement.type_label === 'Incoming',
@@ -280,9 +283,12 @@ const onExcelExportClicked = () => {
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
                                         {{ movement.by_user }}
                                     </TableData>
+                                    <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
+                                        {{ movement.created_at ? moment(movement.created_at).format('DDMMYY hh:mm a') : '-' }}
+                                    </TableData>
                                 </tr>
                                 <tr v-if="movements.data.length === 0">
-                                    <td colspan="8" class="p-3 text-center text-gray-500">
+                                    <td colspan="9" class="p-3 text-center text-gray-500">
                                         No tracking data found for the selected criteria.
                                     </td>
                                 </tr>

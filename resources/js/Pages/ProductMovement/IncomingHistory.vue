@@ -24,7 +24,10 @@
                             <DatePicker v-model="filters.date" :enableTimePicker="false" auto-apply placeholder="Filter by Date" :format="'yyyy-MM-dd'" clearable />
                         </div>
                         <div class="flex space-x-2">
-                            <Button class="bg-gray-600 hover:bg-gray-700" @click="resetFilter">Reset</Button>
+                            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" @click="resetFilter">
+                                <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                                <span>Reset</span>
+                            </Button>
                             <a :href="exportUrl" target="_blank" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150">
                                 <ArrowDownTrayIcon class="w-4 h-4 mr-2" />
                                 Export Excel
@@ -40,6 +43,7 @@
                                 <th scope="col" class="py-3.5 pl-4 pr-3 text-center text-xs font-medium uppercase tracking-wide text-gray-500 sm:pl-6">#</th>
                                 <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Batch Number</th>
                                 <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Date</th>
+                                <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Time</th>
                                 <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Input By</th>
                                 <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Remarks</th>
                                 <th scope="col" class="px-3 py-3.5 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Action</th>
@@ -52,6 +56,7 @@
                                 </td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900 text-center font-bold">{{ batch.batch_number }}</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">{{ formatDate(batch.created_at) }}</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">{{ formatTime(batch.created_at) }}</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">{{ batch.user ? batch.user.name : (batch.operator ? batch.operator.name : '-') }}</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center max-w-xs truncate" :title="batch.remarks">{{ batch.remarks || '-' }}</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-center">
@@ -61,7 +66,7 @@
                                 </td>
                             </tr>
                             <tr v-if="history.data.length === 0">
-                                <td colspan="6" class="px-3 py-4 text-sm text-gray-500 text-center">No history records found.</td>
+                                <td colspan="7" class="px-3 py-4 text-sm text-gray-500 text-center">No history records found.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -85,7 +90,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import DatePicker from '@/Components/DatePicker.vue'
 import Button from '@/Components/Button.vue'
 import Paginator from '@/Components/Paginator.vue'
-import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/solid'
+import { ArrowLeftIcon, ArrowDownTrayIcon, BackspaceIcon } from '@heroicons/vue/24/solid'
 import moment from 'moment'
 import { computed } from 'vue'
 
@@ -111,6 +116,10 @@ const resetFilter = () => {
 
 const formatDate = (date) => {
     return moment(date).format('YYYY-MM-DD')
+}
+
+const formatTime = (date) => {
+    return moment(date).format('hh:mm A')
 }
 
 const exportUrl = computed(() => {
