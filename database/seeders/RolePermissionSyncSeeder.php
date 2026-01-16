@@ -228,14 +228,26 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 'product-categories',
-                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['read'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+            ],
+
+            [
+                'product-categories',
+                ['create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor']
+            ],
+
+            [
+                'product-subcategories',
+                ['read'],
                 ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
             ],
 
             [
                 'product-subcategories',
-                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                ['create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
@@ -354,26 +366,14 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 'delivery-platform-product-mappings',
-                ['read', 'export', 'create', 'update', 'delete'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
-            ],
-
-            [
-                'delivery-platform-product-mappings',
-                ['admin-access'],
-                ['superadmin', 'admin', 'supervisor']
-            ],
-
-            [
-                'delivery-platform-campaigns',
-                ['read', 'export', 'create', 'update', 'delete'],
+                ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
             ],
 
             [
                 'delivery-platform-campaigns',
-                ['admin-access'],
-                ['superadmin', 'admin', 'supervisor']
+                ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
             ],
 
             [
@@ -409,7 +409,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'vouchers',
                 ['read', 'create', 'update', 'delete', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin']
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
             ],
 
             [
