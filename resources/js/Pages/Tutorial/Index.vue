@@ -24,7 +24,7 @@
                       <li v-for="(sub, subIndex) in item.subtitles" :key="subIndex">{{ sub }}</li>
                     </ul>
                   </div>
-                  <a :href="item.link" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
+                  <a v-if="item.link" :href="item.link" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
                     Watch Video
                     <ArrowTopRightOnSquareIcon class="w-4 h-4 ml-1" />
                   </a>
@@ -133,6 +133,27 @@ const managementItems = [
             'Qty in Warehouse - Picked Qty = Remaining Qty',
             'Planning: Qty needed and Capped Qty per Channel'
         ]
+    },
+    {
+        title: 'Job assignment and stock planning',
+        link: 'https://youtu.be/YJvXJQYcxgE',
+        subtitles: [
+            'Assign Job to Driver',
+            'Check Qty needed (planning for Jobs on Date)',
+            'Order Incoming if Qty not enough',
+            'Set capped qty if certain sku not enough/phase-out soon',
+            'Route optimization'
+        ]
+    },
+    {
+        title: 'Machine Health Dashboard',
+        link: '',
+        subtitles: []
+    },
+    {
+        title: 'Find Menu (fr Customer); Find Setting Chart (fr Machine)',
+        link: '',
+        subtitles: []
     }
 ];
 
