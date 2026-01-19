@@ -263,15 +263,14 @@ class ProductController extends Controller
                     ->whereDate('product_limits.date', $request->productAvailableDate)
                     ->limit(1);
             }, 'limit_is_created_by_system')
-            ->selectSub(function ($sub) use ($request) {
-                $sub->from('ops_job_item_channels')
-                    ->selectRaw('SUM(vend_channels.capacity - vend_channels.qty)')
-                    ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_item_channels.ops_job_id')
-                    ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
-                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
-                    ->whereDate('ops_jobs.date', $request->productAvailableDate)
-                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString());
-            }, 'needed_qty')
+            ->with([
+                'opsJobItemChannelsDirect' => function ($query) use ($request) {
+                    $query->whereHas('opsJob', function ($query) use ($request) {
+                        $query->whereDate('date', $request->productAvailableDate)
+                            ->whereDate('date', '>=', Carbon::today()->toDateString());
+                    })->with(['vendChannel']);
+                }
+            ])
             ->selectSub(function ($sub) {
                 $sub->from('ops_job_item_channels')
                     ->selectRaw('SUM(ops_job_item_channels.picked_qty)')
@@ -287,6 +286,24 @@ class ProductController extends Controller
         $cmsQtyAvailableProducts = $this->cmsService->getCMSQtyAvailableApi();
 
         foreach ($products as $product) {
+            $product->needed_qty = 0;
+            if ($product->opsJobItemChannelsDirect) {
+                $opsJobs = $product->opsJobItemChannelsDirect->groupBy('ops_job_id');
+                foreach ($opsJobs as $opsJobId => $channels) {
+                    $jobNeededQty = 0;
+                    foreach ($channels as $channel) {
+                        if ($channel->vendChannel) {
+                            $jobNeededQty += max(0, $channel->vendChannel->capacity - $channel->vendChannel->qty);
+                        }
+                    }
+
+                    if ($product->max_ops_job_pick_limit !== null) {
+                        $jobNeededQty = min($jobNeededQty, $product->max_ops_job_pick_limit);
+                    }
+                    $product->needed_qty += $jobNeededQty;
+                }
+            }
+
             if ($cmsQtyAvailableProducts) {
                 foreach ($cmsQtyAvailableProducts as $cmsQtyAvailableProduct) {
                     if ($product->code == $cmsQtyAvailableProduct['code']) {

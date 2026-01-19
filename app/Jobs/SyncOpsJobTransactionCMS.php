@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class SyncOpsJobTransactionCMS implements ShouldQueue
 {
@@ -95,7 +96,17 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
             ]);
         }
 
+        Log::info('SyncOpsJobTransactionCMS Request:', [
+            'endpoint' => $this->endpoint,
+            'data' => $data
+        ]);
+
         $response = Http::post($this->endpoint, $data);
+
+        Log::info('SyncOpsJobTransactionCMS Response:', [
+            'status' => $response->status(),
+            'body' => $response->json(),
+        ]);
 
         if ($response->successful()) {
             $this->opsJobService->updateJobItemCMSTransactionID($response->json());

@@ -198,6 +198,11 @@ class Product extends Model
         );
     }
 
+    public function opsJobItemChannelsDirect()
+    {
+        return $this->hasMany(OpsJobItemChannel::class);
+    }
+
     // scopes
     public function scopeFilterIndex($query, $request)
     {
