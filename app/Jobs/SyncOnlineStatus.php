@@ -42,7 +42,7 @@ class SyncOnlineStatus implements ShouldQueue
                     $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes($now) < 15;
                     $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes($now) < 15;
 
-                    $isHttpOffline   = !$vend->last_updated_at || $vend->last_updated_at->diffInMinutes($now) >= 50;
+                    $isHttpOffline = !$vend->last_updated_at || $vend->last_updated_at->diffInMinutes($now) >= 50;
                     $isHttpRecovered = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes($now) < 15;
 
                     // MQTT flags
@@ -51,7 +51,7 @@ class SyncOnlineStatus implements ShouldQueue
 
                     if ($vend->is_mqtt) {
                         $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes($now) < 15;
-                        $isMqttOffline   = !$vend->mqtt_last_updated_at || $vend->mqtt_last_updated_at->diffInMinutes($now) > 30;
+                        $isMqttOffline = !$vend->mqtt_last_updated_at || $vend->mqtt_last_updated_at->diffInMinutes($now) > 30;
                         $isMqttRecovered = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes($now) < 15;
 
                         if ($isMqttOffline && !$vend->is_mqtt_offline_notified) {
@@ -61,13 +61,25 @@ class SyncOnlineStatus implements ShouldQueue
                     }
 
                     // OFFLINE: per-vend mail via service (no hardcoded recipients)
-                    if (($isHttpOffline || $isMqttOffline) && !$vend->is_offline_notification_sent) {
+                    // Logic update: Ensure that if a vend is flagged as MQTT, we don't alert if HTTP is offline but MQTT is online (or vice versa).
+                    // We only alert if it appears to be truly offline on all expected channels.
+                    $isOffline = $isHttpOffline;
+                    if ($vend->is_mqtt) {
+                        $isOffline = $isHttpOffline && $isMqttOffline;
+                    }
+
+                    if ($isOffline && !$vend->is_offline_notification_sent) {
                         $this->alertEmailService->sendVendOfflineNotificationMail($vend);
                         $vend->is_offline_notification_sent = true;
                     }
 
                     // RESTORED: per-vend mail via service (no hardcoded recipients)
-                    if ($isHttpRecovered && ($isMqttRecovered || !$vend->is_mqtt) && $vend->is_offline_notification_sent) {
+                    $isRecovered = $isHttpRecovered;
+                    if ($vend->is_mqtt) {
+                        $isRecovered = $isHttpRecovered || $isMqttRecovered;
+                    }
+
+                    if ($isRecovered && $vend->is_offline_notification_sent) {
                         $this->alertEmailService->sendVendPowerRestoredNotificationMail($vend);
                         $vend->is_offline_notification_sent = false;
                         $vend->is_mqtt_offline_notified = false;

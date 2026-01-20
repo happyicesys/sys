@@ -37,9 +37,24 @@ class ProductMovementController extends Controller
 
         foreach ($products as $product) {
             $product->calculated_warehouse_qty = $product->total_movements_qty - $product->total_delivered_qty;
-            // Also need to get needed_qty (from ops_job_item_channels for status picking etc? or just needed?)
-            // The existig logic for 'needed_needed' is OpsJobItemChannels capacity - qty for future dates.
-            // warehouse Qty from API is missing here, replaced by calculated.
+
+            $product->needed_qty = 0;
+            if ($product->opsJobItemChannelsDirect) {
+                $opsJobs = $product->opsJobItemChannelsDirect->groupBy('ops_job_id');
+                foreach ($opsJobs as $opsJobId => $channels) {
+                    $jobNeededQty = 0;
+                    foreach ($channels as $channel) {
+                        if ($channel->vendChannel) {
+                            $jobNeededQty += max(0, $channel->vendChannel->capacity - $channel->vendChannel->qty);
+                        }
+                    }
+
+                    if ($product->max_ops_job_pick_limit !== null) {
+                        $jobNeededQty = min($jobNeededQty, $product->max_ops_job_pick_limit);
+                    }
+                    $product->needed_qty += $jobNeededQty;
+                }
+            }
         }
 
         return Inertia::render('Vend/ProductMovement', [
@@ -413,6 +428,12 @@ class ProductMovementController extends Controller
                 },
                 'productLimits.createdBy',
                 'thumbnail',
+                'opsJobItemChannelsDirect' => function ($query) use ($request) {
+                    $query->whereHas('opsJob', function ($query) use ($request) {
+                        $query->whereDate('date', $request->productAvailableDate)
+                            ->whereDate('date', '>=', Carbon::today()->toDateString());
+                    })->with(['vendChannel']);
+                }
             ])
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
@@ -444,36 +465,6 @@ class ProductMovementController extends Controller
             ->where('is_active', true)
             ->where('is_inventory', true)
             ->orderBy('code')
-            // Calculate needed_qty (same as existing)
-            ->selectSub(function ($sub) use ($request) {
-                $sub->from('ops_job_item_channels')
-                    ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_item_channels.ops_job_id')
-                    ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-                    ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
-                    ->leftJoin('product_limits', function ($join) use ($request) {
-                        $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
-                            ->whereDate('product_limits.date', '=', $request->productAvailableDate);
-                    })
-                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
-                    ->whereDate('ops_jobs.date', $request->productAvailableDate)
-                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
-                    ->selectRaw('COALESCE(SUM(
-                        CASE
-                            WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
-                            WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
-                            WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
-                                CASE
-                                    WHEN product_limits.qty > vend_channels.capacity AND product_limits.qty >= vend_channels.qty THEN
-                                        vend_channels.capacity - vend_channels.qty
-                                    WHEN product_limits.qty <= vend_channels.capacity AND product_limits.qty >= vend_channels.qty THEN
-                                        product_limits.qty - vend_channels.qty
-                                    ELSE 0
-                                END
-                            ELSE
-                                vend_channels.capacity - vend_channels.qty
-                        END
-                    ), 0)');
-            }, 'needed_qty')
             // Calculate max_ops_job_pick_limit (same as existing)
             ->selectSub(function ($sub) use ($request) {
                 $sub->from('product_limits')
