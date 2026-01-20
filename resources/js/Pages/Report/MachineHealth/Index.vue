@@ -86,7 +86,8 @@ const filters = reactive({
     any: rawFilters.no_txn_threshold_hours?.any ?? 48,
     cash: rawFilters.no_txn_threshold_hours?.cash ?? 48,
     card: rawFilters.no_txn_threshold_hours?.card ?? 48,
-    cashless: rawFilters.no_txn_threshold_hours?.cashless ?? 48,
+    qr: rawFilters.no_txn_threshold_hours?.qr ?? 48,
+    digitalscreen: rawFilters.no_txn_threshold_hours?.digitalscreen ?? 48,
   },
 })
 
@@ -338,11 +339,20 @@ const {
 )
 
 const {
-  rows: noTxnQrRows,
-  hasMore: canLoadMoreNoTxnQr,
-  showAll: loadRemainingNoTxnQr,
+  rows: noTxnQrRealRows,
+  hasMore: canLoadMoreNoTxnQrReal,
+  showAll: loadRemainingNoTxnQrReal,
 } = createRowLimiter(
   computed(() => noTransactions.value.qr_sales ?? []),
+  () => filters.machine_limit,
+)
+
+const {
+  rows: noTxnDigitalScreenRows,
+  hasMore: canLoadMoreNoTxnDigitalScreen,
+  showAll: loadRemainingNoTxnDigitalScreen,
+} = createRowLimiter(
+  computed(() => noTransactions.value.digitalscreen_sales ?? []),
   () => filters.machine_limit,
 )
 
@@ -470,7 +480,8 @@ const applyFilters = () => {
       any: Number(filters.no_txn_threshold_hours.any),
       cash: Number(filters.no_txn_threshold_hours.cash),
       card: Number(filters.no_txn_threshold_hours.card),
-      cashless: Number(filters.no_txn_threshold_hours.cashless),
+      qr: Number(filters.no_txn_threshold_hours.qr),
+      digitalscreen: Number(filters.no_txn_threshold_hours.digitalscreen),
     },
     operator_ids: filters.operator_ids
       .map((value) => Number(value))
@@ -961,9 +972,18 @@ const formatErrorDesc = (code, desc) => {
                   />
                 </label>
                 <label class="flex flex-col space-y-1 text-sm">
-                  <span class="font-medium text-gray-700">No Sales via QR / digital screen (>= hr)</span>
+                  <span class="font-medium text-gray-700">No Sales via QR (>= hr)</span>
                   <input
-                    v-model.number="filters.no_txn_threshold_hours.cashless"
+                    v-model.number="filters.no_txn_threshold_hours.qr"
+                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    min="1"
+                    type="number"
+                  />
+                </label>
+                <label class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium text-gray-700">No Digital Screen Activity (>= hr)</span>
+                  <input
+                    v-model.number="filters.no_txn_threshold_hours.digitalscreen"
                     class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     min="1"
                     type="number"
@@ -976,7 +996,7 @@ const formatErrorDesc = (code, desc) => {
                 </div>
               </div>
             </form>
-            <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
                   No any Sales ({{ noTransactions.thresholds?.any ?? filters.no_txn_threshold_hours.any }}hr)
@@ -1148,12 +1168,60 @@ const formatErrorDesc = (code, desc) => {
 
               <div class="rounded-lg border border-gray-200 p-4">
                 <h4 class="text-sm font-semibold text-gray-800">
-                  No Sales via QR / digital screen ({{ noTransactions.thresholds?.cashless ?? filters.no_txn_threshold_hours.cashless }}hr)
+                  No Sales via QR ({{ noTransactions.thresholds?.qr ?? filters.no_txn_threshold_hours.qr }}hr)
                 </h4>
                 <ul class="mt-3 space-y-3 text-sm text-gray-700">
                   <li
-                    v-for="row in noTxnQrRows"
-                    :key="`${row.vend_id}-qr`"
+                    v-for="row in noTxnQrRealRows"
+                    :key="`${row.vend_id}-qr-real`"
+                    class="rounded border border-gray-100 p-3"
+                  >
+                    <div class="font-medium text-gray-900">
+                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                        {{ row.vend_code }}
+                      </a>
+                       · {{ formatHours(row.hours_since) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.vend_prefix_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      {{ row.customer_name ?? '—' }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      L30d: ${{ formatNumber((row.l30d_sales || 0) / 100) }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                      Last on: {{ formatDateTimeComma(row.last_transaction_at) }}
+                    </div>
+
+                  </li>
+                  <li v-if="!(noTransactions.qr_sales?.length)">
+                    No QR sales gaps detected.
+                  </li>
+                </ul>
+                <div
+                  v-if="canLoadMoreNoTxnQrReal"
+                  class="mt-3 flex justify-center"
+                >
+                  <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadRemainingNoTxnQrReal"
+                  >
+                    Load remaining
+                  </Button>
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-gray-200 p-4">
+                <h4 class="text-sm font-semibold text-gray-800">
+                  No Digital Screen Activity ({{ noTransactions.thresholds?.digitalscreen ?? filters.no_txn_threshold_hours.digitalscreen }}hr)
+                </h4>
+                <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                  <li
+                    v-for="row in noTxnDigitalScreenRows"
+                    :key="`${row.vend_id}-digitalscreen`"
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
@@ -1205,18 +1273,18 @@ const formatErrorDesc = (code, desc) => {
                       </div>
                     </div>
                   </li>
-                  <li v-if="!(noTransactions.qr_sales?.length)">
-                    No QR/cashless gaps detected.
+                  <li v-if="!(noTransactions.digitalscreen_sales?.length)">
+                    No digital screen gaps detected.
                   </li>
                 </ul>
                 <div
-                  v-if="canLoadMoreNoTxnQr"
+                  v-if="canLoadMoreNoTxnDigitalScreen"
                   class="mt-3 flex justify-center"
                 >
                   <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     type="button"
-                    @click="loadRemainingNoTxnQr"
+                    @click="loadRemainingNoTxnDigitalScreen"
                   >
                     Load remaining
                   </Button>

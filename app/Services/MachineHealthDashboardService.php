@@ -68,7 +68,8 @@ class MachineHealthDashboardService
                 'any' => (int) $request->input('no_txn_threshold_hours.any', 48),
                 'cash' => (int) $request->input('no_txn_threshold_hours.cash', 48),
                 'card' => (int) $request->input('no_txn_threshold_hours.card', 48),
-                'cashless' => (int) $request->input('no_txn_threshold_hours.cashless', 48),
+                'digitalscreen' => (int) $request->input('no_txn_threshold_hours.digitalscreen', 48),
+                'qr' => (int) $request->input('no_txn_threshold_hours.qr', 48),
             ],
             'offline_threshold_hours' => (int) $request->input('offline_threshold_hours', 12),
             'offline_secondary_threshold_hours' => (int) $request->input('offline_secondary_threshold_hours', 24),
@@ -133,13 +134,13 @@ class MachineHealthDashboardService
 
         $eventsQuery = VendChannelStockEvent::query()
             ->select([
-                    'id',
-                    'vend_channel_id',
-                    'vend_id',
-                    'product_id',
-                    'event_type',
-                    'occurred_at',
-                ])
+                'id',
+                'vend_channel_id',
+                'vend_id',
+                'product_id',
+                'event_type',
+                'occurred_at',
+            ])
             ->where('occurred_at', '>=', $lookbackStart)
             ->whereHas('vend', function (EloquentBuilder $query) use ($filters) {
                 $this->applyVendFilters($query, $filters);
@@ -356,10 +357,10 @@ class MachineHealthDashboardService
             : Vend::query()
                 ->select('id', 'code', 'name', 'customer_id', 'operator_id', 'vend_prefix_id')
                 ->with([
-                        'customer:id,name',
-                        'operator:id,name',
-                        'vendPrefix:id,name',
-                    ])
+                    'customer:id,name',
+                    'operator:id,name',
+                    'vendPrefix:id,name',
+                ])
                 ->whereIn('id', array_keys($vendIds))
                 ->get()
                 ->keyBy('id');
@@ -535,12 +536,12 @@ class MachineHealthDashboardService
                         $q->where('vend_channel_error_logs.is_error_cleared', false);
                     })
                     ->select([
-                            'vend_channels.vend_id',
-                            'vend_channels.code as channel_code',
-                            'vend_channel_errors.code as error_code',
-                            'vend_channel_error_logs.created_at',
-                            'vend_channel_error_logs.is_error_cleared',
-                        ])
+                        'vend_channels.vend_id',
+                        'vend_channels.code as channel_code',
+                        'vend_channel_errors.code as error_code',
+                        'vend_channel_error_logs.created_at',
+                        'vend_channel_error_logs.is_error_cleared',
+                    ])
                     ->orderByDesc('vend_channel_error_logs.created_at')
                     ->get()
                     ->groupBy('vend_id');
@@ -605,11 +606,11 @@ class MachineHealthDashboardService
 
         $dailyMetrics = VendTempMetric::query()
             ->with([
-                    'vend:id,code,name,operator_id,vend_prefix_id,customer_id,is_testing',
-                    'vend.customer:id,name,code',
-                    'vend.operator:id,name,code',
-                    'vend.vendPrefix:id,name',
-                ])
+                'vend:id,code,name,operator_id,vend_prefix_id,customer_id,is_testing',
+                'vend.customer:id,name,code',
+                'vend.operator:id,name,code',
+                'vend.vendPrefix:id,name',
+            ])
             ->where('period_type', VendTempMetric::PERIOD_DAILY)
             ->where('temp_type', $sensorType)
             ->whereBetween('period_start', [$shortStart, $now])
@@ -685,16 +686,16 @@ class MachineHealthDashboardService
 
         $worstMinimaRows = $worstMinimaQuery
             ->select([
-                    'vend_temp_metrics.vend_id',
-                    'vends.code as vend_code',
-                    'vends.name as vend_name',
-                    'customers.name as customer_name',
-                    'operators.name as operator_name',
-                    'vend_prefixes.name as vend_prefix_name',
-                    DB::raw('MAX(vend_temp_metrics.min_temp_value) as worst_min_temp'),
-                    DB::raw('MIN(vend_temp_metrics.min_temp_value) as best_min_temp'),
-                    DB::raw('MAX(vend_temp_metrics.min_temp_recorded_at) as last_recorded_at'),
-                ])
+                'vend_temp_metrics.vend_id',
+                'vends.code as vend_code',
+                'vends.name as vend_name',
+                'customers.name as customer_name',
+                'operators.name as operator_name',
+                'vend_prefixes.name as vend_prefix_name',
+                DB::raw('MAX(vend_temp_metrics.min_temp_value) as worst_min_temp'),
+                DB::raw('MIN(vend_temp_metrics.min_temp_value) as best_min_temp'),
+                DB::raw('MAX(vend_temp_metrics.min_temp_recorded_at) as last_recorded_at'),
+            ])
             ->groupBy('vend_temp_metrics.vend_id', 'vends.code', 'vends.name', 'customers.name', 'operators.name', 'vend_prefixes.name')
             ->havingRaw('MAX(vend_temp_metrics.min_temp_value) IS NOT NULL')
             ->orderByDesc(DB::raw('MAX(vend_temp_metrics.min_temp_value)'))
@@ -719,11 +720,11 @@ class MachineHealthDashboardService
 
         $recentTempsSubquery = DB::table('vend_temps as vt')
             ->select([
-                    'vt.vend_id',
-                    DB::raw('MIN(vt.value) as min_value'),
-                    DB::raw('MAX(vt.created_at) as last_recorded_at'),
-                    DB::raw('COUNT(*) as reading_count'),
-                ])
+                'vt.vend_id',
+                DB::raw('MIN(vt.value) as min_value'),
+                DB::raw('MAX(vt.created_at) as last_recorded_at'),
+                DB::raw('COUNT(*) as reading_count'),
+            ])
             ->where('vt.type', $sensorType)
             ->where('vt.value', '!=', VendTemp::TEMPERATURE_ERROR)
             ->where('vt.created_at', '>=', $recentWindowStart)
@@ -764,16 +765,16 @@ class MachineHealthDashboardService
 
         $notReaching = $noReachQuery
             ->select([
-                    'vends.id as vend_id',
-                    'vends.code as vend_code',
-                    'vends.name as vend_name',
-                    'customers.name as customer_name',
-                    'operators.name as operator_name',
-                    'vend_prefixes.name as vend_prefix_name',
-                    DB::raw('recent_temps.min_value as min_value'),
-                    DB::raw('recent_temps.last_recorded_at as last_recorded_at'),
-                    DB::raw('recent_temps.reading_count as reading_count'),
-                ])
+                'vends.id as vend_id',
+                'vends.code as vend_code',
+                'vends.name as vend_name',
+                'customers.name as customer_name',
+                'operators.name as operator_name',
+                'vend_prefixes.name as vend_prefix_name',
+                DB::raw('recent_temps.min_value as min_value'),
+                DB::raw('recent_temps.last_recorded_at as last_recorded_at'),
+                DB::raw('recent_temps.reading_count as reading_count'),
+            ])
             ->where('recent_temps.min_value', '>', $minThresholdScaled)
             ->orderByDesc(DB::raw('recent_temps.min_value'))
             ->limit($filters['machine_limit'])
@@ -830,16 +831,16 @@ class MachineHealthDashboardService
         $vends = $this->baseVendQuery($filters)
             ->where('is_online', false)
             ->select([
-                    'id',
-                    'code',
-                    'name',
-                    'operator_id',
-                    'vend_prefix_id',
-                    'customer_id',
-                    'acb_vmc_pa_json',
-                    DB::raw("{$lastContactExpr} as last_contact_at"),
-                    DB::raw("{$hoursOfflineExpr} as hours_offline"),
-                ])
+                'id',
+                'code',
+                'name',
+                'operator_id',
+                'vend_prefix_id',
+                'customer_id',
+                'acb_vmc_pa_json',
+                DB::raw("{$lastContactExpr} as last_contact_at"),
+                DB::raw("{$hoursOfflineExpr} as hours_offline"),
+            ])
             ->havingRaw('last_contact_at IS NOT NULL')
             ->having('hours_offline', '<', 60)
             ->orderBy('hours_offline')
@@ -897,13 +898,15 @@ class MachineHealthDashboardService
         $anySales = $this->buildNoTxnList('last_vend_transaction_at', $thresholds['any'], $filters, $now, $limit);
         $cashSales = $this->buildNoTxnList('last_cash_vend_transaction_at', $thresholds['cash'], $filters, $now, $limit, 'cash');
         $cardSales = $this->buildNoTxnList('last_card_vend_transaction_at', $thresholds['card'], $filters, $now, $limit, 'card');
-        $qrSales = $this->buildNoTxnList('last_txn_src_at', $thresholds['cashless'], $filters, $now, $limit, 'cashless');
+        $qrSales = $this->buildNoTxnList('last_txn_src_at', $thresholds['qr'], $filters, $now, $limit, 'qr');
+        $digitalScreenSales = $this->buildNoTxnList('last_txn_src_at', $thresholds['digitalscreen'], $filters, $now, $limit, 'digitalscreen');
 
         $allVendIds = collect()
             ->merge($anySales->pluck('vend_id'))
             ->merge($cashSales->pluck('vend_id'))
             ->merge($cardSales->pluck('vend_id'))
             ->merge($qrSales->pluck('vend_id'))
+            ->merge($digitalScreenSales->pluck('vend_id'))
             ->unique()
             ->values()
             ->all();
@@ -933,6 +936,7 @@ class MachineHealthDashboardService
             'cash_sales' => $injectSales($cashSales),
             'card_sales' => $injectSales($cardSales),
             'qr_sales' => $injectSales($qrSales),
+            'digitalscreen_sales' => $injectSales($digitalScreenSales),
         ];
     }
 
@@ -943,17 +947,17 @@ class MachineHealthDashboardService
 
         $query = $this->baseVendQuery($filters)
             ->select([
-                    'id',
-                    'code',
-                    'name',
-                    'operator_id',
-                    'vend_prefix_id',
-                    'customer_id',
-                    'acb_vmc_pa_json',
-                    'parameter_json',
-                    DB::raw("{$column} as last_transaction_at"),
-                    DB::raw("{$hoursExpr} as hours_since"),
-                ])
+                'id',
+                'code',
+                'name',
+                'operator_id',
+                'vend_prefix_id',
+                'customer_id',
+                'acb_vmc_pa_json',
+                'parameter_json',
+                DB::raw("{$column} as last_transaction_at"),
+                DB::raw("{$hoursExpr} as hours_since"),
+            ])
             ->whereNotNull($column)
             ->having('hours_since', '>=', $threshold)
             ->orderByDesc('hours_since')
@@ -963,8 +967,11 @@ class MachineHealthDashboardService
             $query->where('parameter_json->BILLStat', 3);
         } elseif ($type === 'card') {
             $query->where('parameter_json->CSHLStat', 3);
-        } elseif ($type === 'cashless') {
+        } elseif ($type === 'digitalscreen') {
             $query->where('is_txn_src', true);
+        } elseif ($type === 'qr') {
+            $query->where('is_txn_src', true)
+                ->where('acb_vmc_pa_json->QRCode', 1);
         }
 
         return $query->get()
@@ -988,10 +995,10 @@ class MachineHealthDashboardService
     {
         $query = Vend::query()
             ->with([
-                    'customer:id,name,code',
-                    'operator:id,name,code',
-                    'vendPrefix:id,name',
-                ])
+                'customer:id,name,code',
+                'operator:id,name,code',
+                'vendPrefix:id,name',
+            ])
             ->where('is_testing', false);
 
         $this->applyVendFilters($query, $filters);
