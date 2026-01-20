@@ -352,7 +352,7 @@ class OpsJobController extends Controller
                         ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
                         ->where('vend_transactions.created_at', '>=', $previousOpsJobItem->completed_at)
                         ->where('vend_transactions.created_at', '<=', $opsJobItem->completed_at)
-                        ->where('vend_transactions.customer_id', $opsJobItem->customer_id)
+                        ->where('vend_transactions.vend_id', $opsJobItem->vend_id)
                         ->isSuccessful()
                         ->selectRaw('SUM(vend_transactions.amount) as total_amount')
                         ->selectRaw('COUNT(*) as total_count')
