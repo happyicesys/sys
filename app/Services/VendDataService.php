@@ -28,6 +28,8 @@ use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Jobs\Vend\UpdateApkVersion;
 use App\Jobs\Vend\UpdateMqttLastUpdated;
 use App\Jobs\Vend\UpdateVendStatistics;
+use App\Jobs\Vend\SyncFeatureApkSetting;
+use App\Jobs\Vend\SyncJobApkSetting;
 use Carbon\Carbon;
 use PhpMqtt\Client\Facades\MQTT;
 
@@ -256,29 +258,10 @@ class VendDataService
             }
             break;
           case 'JOBAPKSETTING':
-            $vendJob = null;
-            if (isset($processedInput['vend_job_id'])) {
-              $vendJob = VendJob::find($processedInput['vend_job_id']);
-            } else {
-              // Fallback: Find the latest unreturned job for this vend and type
-              // Ensure we only match jobs that are within the current active retry window
-              $vendJob = VendJob::where('vend_id', $vend->id)
-                ->where('type', 'TYPESYNCSETTINGSPARAM') // Mapping JOBAPKSETTING response to original request type
-                ->where('is_returned', false)
-                ->where('updated_at', '>=', Carbon::now()->subMinutes(VendJob::RETRY_TIMEOUT_MINUTES))
-                ->latest()
-                ->first();
-            }
-
-            if ($vendJob) {
-              $vendJob->update([
-                'is_returned' => true,
-                'response_at' => Carbon::now(),
-                'response_payload' => $processedInput
-              ]);
-            }
+            SyncJobApkSetting::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'FEATUREAPKSETTING':
+            SyncFeatureApkSetting::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'PWRON':
             UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
