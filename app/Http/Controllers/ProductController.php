@@ -265,12 +265,32 @@ class ProductController extends Controller
             }, 'limit_is_created_by_system')
             ->selectSub(function ($sub) use ($request) {
                 $sub->from('ops_job_item_channels')
-                    ->selectRaw('SUM(vend_channels.capacity - vend_channels.qty)')
                     ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_item_channels.ops_job_id')
+                    ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
                     ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+                    ->leftJoin('product_limits', function ($join) use ($request) {
+                        $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
+                            ->whereDate('product_limits.date', '=', $request->productAvailableDate);
+                    })
                     ->whereColumn('ops_job_item_channels.product_id', 'products.id')
                     ->whereDate('ops_jobs.date', $request->productAvailableDate)
-                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString());
+                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+                    ->selectRaw('COALESCE(SUM(
+                        CASE
+                            WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
+                            WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
+                            WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
+                                CASE
+                                    WHEN product_limits.qty > vend_channels.capacity AND product_limits.qty >= vend_channels.qty THEN
+                                        vend_channels.capacity - vend_channels.qty
+                                    WHEN product_limits.qty <= vend_channels.capacity AND product_limits.qty >= vend_channels.qty THEN
+                                        product_limits.qty - vend_channels.qty
+                                    ELSE 0
+                                END
+                            ELSE
+                                vend_channels.capacity - vend_channels.qty
+                        END
+                    ), 0)');
             }, 'needed_qty')
             ->selectSub(function ($sub) {
                 $sub->from('ops_job_item_channels')
