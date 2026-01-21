@@ -1258,6 +1258,10 @@ class OpsJobController extends Controller
                     'updated_at' => Carbon::now(),
                     'updated_by' => auth()->id(),
                 ]);
+
+                $opsJobItem->opsJobItemChannels()->update([
+                    'ops_job_id' => $opsJob->id,
+                ]);
             }
         }
 

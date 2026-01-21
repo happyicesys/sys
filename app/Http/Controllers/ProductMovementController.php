@@ -446,8 +446,8 @@ class ProductMovementController extends Controller
             // Calculate needed_qty (same as existing)
             ->selectSub(function ($sub) use ($request) {
                 $sub->from('ops_job_item_channels')
-                    ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_item_channels.ops_job_id')
                     ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+                    ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
                     ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
                     ->leftJoin('product_limits', function ($join) use ($request) {
                         $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
@@ -462,14 +462,14 @@ class ProductMovementController extends Controller
                             WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
                             WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
                                 CASE
-                                    WHEN product_limits.qty > vend_channels.capacity AND product_limits.qty >= vend_channels.qty THEN
-                                        vend_channels.capacity - vend_channels.qty
-                                    WHEN product_limits.qty <= vend_channels.capacity AND product_limits.qty >= vend_channels.qty THEN
-                                        product_limits.qty - vend_channels.qty
+                                    WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                                        COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+                                    WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                                        product_limits.qty - COALESCE(vend_channels.qty, 0)
                                     ELSE 0
                                 END
                             ELSE
-                                vend_channels.capacity - vend_channels.qty
+                                COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
                         END
                     ), 0)');
             }, 'needed_qty')
