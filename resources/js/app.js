@@ -13,6 +13,8 @@ import Toast, { POSITION } from 'vue-toastification';  // Import vue-toastificat
 
 const appName = window.document.getElementsByTagName('title')[0]?.innerText || 'Laravel';
 
+import FloatingVue from 'floating-vue'
+
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
@@ -20,6 +22,7 @@ createInertiaApp({
         return createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue, Ziggy)
+            .use(FloatingVue)
             .use(Toast, {  // Set up vue-toastification with options
                 position: POSITION.TOP_RIGHT,
                 timeout: 5000,

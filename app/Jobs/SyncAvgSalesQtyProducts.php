@@ -32,7 +32,7 @@ class SyncAvgSalesQtyProducts implements ShouldQueue
     public function handle(): void
     {
         try {
-            $startDate = Carbon::parse($this->date)->subDays(28)->startOfDay();
+            $startDate = Carbon::parse($this->date)->subDays(27)->startOfDay();
             $endDate = Carbon::parse($this->date)->endOfDay();
 
             $counts = VendTransactionSalesAggregator::productTotals($startDate, $endDate)

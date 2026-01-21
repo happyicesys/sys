@@ -1,10 +1,10 @@
 <template>
-    <Head title="Product Availability (Warehouse)" />
+    <Head title="Warehouse Qty & Planning" />
 
     <BreezeAuthenticatedLayout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Product Availability (Warehouse)
+                Warehouse Qty & Planning
             </h2>
         </template>
 
@@ -135,9 +135,9 @@
                                         </th>
                                     </tr>
                                     <tr>
-                                        <th  scope="col" class="th-header w-[2%] p-3 text-xs font-semibold text-center text-gray-900 border-b">#</th>
-                                        <th  scope="col" class="th-header w-[5%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Image</th>
-                                        <th  scope="col" class="th-header w-[20%] p-3 text-xs font-semibold text-center text-gray-900 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('code')">
+                                        <th  scope="col" class="th-header w-[2%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">#</th>
+                                        <th  scope="col" class="th-header w-[5%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">Image</th>
+                                        <th  scope="col" class="th-header w-[20%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('code')">
                                             <div class="flex items-center justify-center gap-1">
                                                 Product
                                                 <span v-if="filters.sortKey === 'code'">
@@ -150,28 +150,41 @@
                                                 </span>
                                             </div>
                                         </th>
-                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
-                                            Last7d sold qty<br>
+                                        <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b border-r border-gray-300 cursor-pointer hover:bg-gray-200" @click="sortTable('avg_seven_days_count')">
+                                            <div class="flex items-center justify-center gap-1">
+                                                <span>Last7d sold qty</span>
+                                                <span v-if="filters.sortKey === 'avg_seven_days_count'">
+                                                    <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                                                    </svg>
+                                                    <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </span>
+                                            </div>
                                             <span class="font-normal text-gray-600">(avg last 28d)</span>
                                         </th>
 
-                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                        <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Qty in Warehouse<br>
                                         </th>
-                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                        <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Picked Qty<br>
                                             <span class="font-normal text-gray-600">(as Job on Date)</span>
                                         </th>
 
-                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
-                                            Remaining Qty<br>
+                                        <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
+                                            <div class="flex items-center justify-center gap-1">
+                                                <span>Remaining Qty</span>
+                                                <ExclamationCircleIcon class="min-w-4 w-4 h-4 text-sky-500 cursor-help" v-tooltip="{ content: 'Red = Remaining Qty not enough to cover \'To Pick Qty\' as in Planning Date', html: true }"></ExclamationCircleIcon>
+                                            </div>
                                             <span class="font-normal text-gray-600">(after Picked)</span>
                                         </th>
-                                        <th  scope="col" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
-                                            Qty Needed<br>
+                                        <th  scope="col" class="th-header w-[15%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
+                                            To Pick Qty<br>
                                             <span class="font-normal text-gray-600">(Live Update, for Jobs on Date)</span>
                                         </th>
-                                        <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                                        <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Capped Qty per Channel<br>
                                             <span class="font-normal text-xs text-gray-600">(max Qty after Refilling on Date & onwards)</span>
                                         </th>
@@ -179,13 +192,13 @@
                                 </thead>
                                 <tbody class="divide-y divide-gray-200 bg-white">
                                     <tr v-for="(product, index) in products.data" :key="product.id" class="hover:bg-gray-50">
-                                        <td class="p-3 text-sm text-center text-gray-900">{{ index + 1 }}</td>
+                                        <td class="p-1 sm:p-3 text-xs sm:text-sm text-center text-gray-900">{{ index + 1 }}</td>
                     <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
                       <div class="flex justify-center items-center">
-                        <img class="h-16 w-16 rounded-full" :class="[product.is_available ? '' : 'opacity-50']" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail" />
+                        <img class="h-8 w-8 sm:h-16 sm:w-16 rounded-full" :class="[product.is_available ? '' : 'opacity-50']" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail" />
                       </div>
                     </td>
-                                        <td class="p-3 text-sm text-gray-900">
+                                        <td class="p-1 sm:p-3 text-xs sm:text-sm text-gray-900">
                                             <div class="flex flex-col text-left">
                                                 <span class="font-bold">{{ product.code }}</span>
                                                 <span class="text-gray-600 mb-1">{{ product.name }}</span>
@@ -203,25 +216,25 @@
                                                 </span>
                                             </div>
                                         </td>
-                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                                        <td class="whitespace-nowrap py-1 pl-1 pr-1 text-xs font-medium sm:py-4 sm:pl-6 sm:pr-3 sm:text-sm text-center border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
                                           {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                                         </td>
 
-                                        <td class="p-3 text-center text-lg font-bold text-blue-600">
+                                        <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-blue-600">
                                             {{ product.total_movements_qty ? Number(product.total_movements_qty).toLocaleString() : 0 }}
                                         </td>
-                                        <td class="p-3 text-center text-lg font-bold text-gray-800">
+                                        <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-gray-800">
                                             {{ product.picked_qty_on_date ? Number(product.picked_qty_on_date).toLocaleString() : 0 }}
                                         </td>
-                                        <td class="p-3 text-center text-lg font-bold text-gray-900 border-r border-gray-300">
+                                        <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-gray-900 border-r border-gray-300">
                                             <span :class="product.is_available ? (product.calculated_warehouse_qty < product.needed_qty ? 'text-red-800 bg-red-200 rounded px-1 py-1' : '') : 'text-gray-400'">
                                                 {{ !isNaN(Number(product.calculated_warehouse_qty)) ? Number(product.calculated_warehouse_qty).toLocaleString() : 0 }}
                                             </span>
                                         </td>
-                                        <td class="p-3 text-center text-lg font-bold text-orange-600">
+                                        <td class="p-1 sm:p-3 text-center text-sm sm:text-lg font-bold text-orange-600">
                                             {{ product.needed_qty ? Number(product.needed_qty).toLocaleString() : 0 }}
                                         </td>
-                                        <td class="p-3 text-center">
+                                        <td class="p-1 sm:p-3 text-center">
                                         <!-- Reusing limit logic if needed, or keeping it readonly -->
                                         <div class="flex flex-col items-center gap-1">
                                             <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-xs py-1" :class="[product.max_ops_job_pick_limit >= 0 && product.max_ops_job_pick_limit != null ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
@@ -249,25 +262,25 @@
                                                     <span>Total Cost$</span>
                                                 </div>
                                             </td>
-                                            <td class="p-3 text-center text-blue-600">
+                                            <td class="p-1 sm:p-3 text-center text-blue-600">
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getTotalMovementsQty().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getTotalMovementsCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                                                 </div>
                                             </td>
-                                            <td class="p-3 text-center text-gray-800">
+                                            <td class="p-1 sm:p-3 text-center text-gray-800">
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getPickedQtyTotal().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getPickedQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                                                 </div>
                                             </td>
-                                            <td class="p-3 text-center text-gray-900 border-r border-gray-300">
+                                            <td class="p-1 sm:p-3 text-center text-gray-900 border-r border-gray-300">
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getCalculatedWarehouseQtyTotal().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getCalculatedWarehouseQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                                                 </div>
                                             </td>
-                                            <td class="p-3 text-center text-orange-600">
+                                            <td class="p-1 sm:p-3 text-center text-orange-600">
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getNeededQtyTotal().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getNeededQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
@@ -337,7 +350,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { Head, router, usePage, useForm, Link } from '@inertiajs/vue3'
-import { MagnifyingGlassIcon, XMarkIcon, PlusIcon, CalendarIcon, CheckCircleIcon, XCircleIcon, BackspaceIcon, ClipboardDocumentListIcon, ArrowDownTrayIcon, ClockIcon } from '@heroicons/vue/24/solid'
+import { MagnifyingGlassIcon, XMarkIcon, PlusIcon, CalendarIcon, CheckCircleIcon, XCircleIcon, BackspaceIcon, ClipboardDocumentListIcon, ArrowDownTrayIcon, ClockIcon, ExclamationCircleIcon } from '@heroicons/vue/24/solid'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import DatePicker from '@/Components/DatePicker.vue'
 import SearchInput from '@/Components/SearchInput.vue'
