@@ -1392,6 +1392,9 @@
 										{{ vend.next_ops_job_count ? vend.next_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</span>
 								</span>
+								<div class="max-w-32 text-left bg-gray-100 px-1 py-1 rounded break-words shadow text-xs mt-1" v-if="vend.nextOpsJobItem.remarks">
+									{{ vend.nextOpsJobItem.remarks }}
+								</div>
 							</div>
 						</div>
 					</TableData>

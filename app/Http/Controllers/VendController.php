@@ -499,7 +499,7 @@ class VendController extends Controller
                     'lastSecondOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
                     'lastSecondOpsJobItem.opsJob:id,code,date,delivered_by',
                     'lastSecondOpsJobItem.opsJob.deliveredBy:id,name,username',
-                    'nextOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
+                    'nextOpsJobItem:id,ops_job_id,status,vend_id,customer_id,remarks',
                     'nextOpsJobItem.opsJob:id,code,date,delivered_by',
                     'nextOpsJobItem.opsJob.deliveredBy:id,name,username',
                     'nextOpsJobItem.opsJobItemChannels.vendChannel' => function ($query) {

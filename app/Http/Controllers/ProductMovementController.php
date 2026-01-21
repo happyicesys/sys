@@ -442,7 +442,11 @@ class ProductMovementController extends Controller
             ])
             ->where('is_active', true)
             ->where('is_inventory', true)
-            ->orderBy('code')
+            ->when($request->sortKey, function ($query, $sortKey) use ($request) {
+                $query->orderBy($sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+            }, function ($query) {
+                $query->orderBy('code', 'desc');
+            })
             // Calculate needed_qty (same as existing)
             ->selectSub(function ($sub) use ($request) {
                 $sub->from('ops_job_item_channels')

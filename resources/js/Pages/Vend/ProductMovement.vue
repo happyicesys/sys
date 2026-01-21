@@ -137,7 +137,19 @@
                                     <tr>
                                         <th  scope="col" class="th-header w-[2%] p-3 text-xs font-semibold text-center text-gray-900 border-b">#</th>
                                         <th  scope="col" class="th-header w-[5%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Image</th>
-                                        <th  scope="col" class="th-header w-[20%] p-3 text-xs font-semibold text-center text-gray-900 border-b">Product</th>
+                                        <th  scope="col" class="th-header w-[20%] p-3 text-xs font-semibold text-center text-gray-900 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('code')">
+                                            <div class="flex items-center justify-center gap-1">
+                                                Product
+                                                <span v-if="filters.sortKey === 'code'">
+                                                  <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                                                  </svg>
+                                                  <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                                  </svg>
+                                                </span>
+                                            </div>
+                                        </th>
                                         <th  scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
                                             Last7d sold qty<br>
                                             <span class="font-normal text-gray-600">(avg last 28d)</span>
@@ -214,7 +226,7 @@
                                         <div class="flex flex-col items-center gap-1">
                                             <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-xs py-1" :class="[product.max_ops_job_pick_limit >= 0 && product.max_ops_job_pick_limit != null ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
                                                 <option :value="null">No</option>
-                                                <option v-for="n in 15 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                                                <option v-for="n in 20 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                                             </select>
                                             <span class="text-[10px] text-red-700" v-if="product.max_ops_job_pick_limit != null && product.limit_is_created_by_system">
                                                 from Yesterday
@@ -353,6 +365,8 @@ const filters = ref({
     operators: [],
     is_available: '',
     productAvailableDate: moment().add(1, 'days').format('YYYY-MM-DD'),
+    sortKey: 'code',
+    sortBy: false,
 });
 const today = moment().format('YYYY-MM-DD');
 const booleanOptions = ref([])
@@ -420,6 +434,8 @@ const onSearchFilterUpdated = () => {
         operators: operators,
         is_available: filters.value.is_available ? filters.value.is_available.id : 'all',
         productAvailableDate: filters.value.productAvailableDate,
+        sortKey: filters.value.sortKey,
+        sortBy: filters.value.sortBy,
     }, {
         preserveState: true,
         replace: true,

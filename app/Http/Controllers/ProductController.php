@@ -248,7 +248,11 @@ class ProductController extends Controller
             ])
             ->where('is_active', true)
             ->where('is_inventory', true)
-            ->orderBy('code')
+            ->when($request->sortKey, function ($query, $sortKey) use ($request) {
+                $query->orderBy($sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+            }, function ($query) {
+                $query->orderBy('code', 'desc');
+            })
             ->selectSub(function ($sub) use ($request) {
                 $sub->from('product_limits')
                     ->select('qty')

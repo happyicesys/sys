@@ -4,7 +4,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Set Product Availability
+        Product Availability (with API)
       </h2>
     </template>
 
@@ -74,158 +74,186 @@
                           </span>
                       </Button>
                   </div>
+                  <div class="flex flex-col gap-2 items-end">
+                      <span class="text-xs text-gray-500 self-center">
+                          {{ products.data.length }} products found
+                      </span>
+                      <div class="flex flex-row items-center gap-2">
+                        <label class="text-xs font-semibold text-gray-700">Date</label>
+                        <DatePicker v-model="filters.productAvailableDate" class="py-1 text-xs" :isPreviousNextButton="false" :clearable="false" :format="'yyyy-MM-dd'" auto-apply @update:model-value="onSearchFilterUpdated" :minDate="today">
+                            <template #trigger>
+                                <span class="p-1 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-100 flex flex-row gap-2 justify-center items-center h-full text-xs">
+                                    <CalendarIcon class="w-3 h-3" />
+                                    {{ moment(filters.productAvailableDate).format('YYYY-MM-DD') }}
+                                </span>
+                            </template>
+                        </DatePicker>
+                      </div>
+                  </div>
               </div>
               </div>
             <div class="overflow-scroll max-h-[900px] md:max-h-[1500px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               <table class="min-w-full divide-y divide-gray-300">
                 <thead class="bg-gray-100 sticky top-0 z-10">
                   <tr>
-                    <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                    <th colspan="7" class="bg-gray-100"></th>
+                    <th colspan="2" class="p-2 text-center text-sm font-bold text-gray-900 border-b border-gray-300 bg-gray-200">
+                      Planning
+                    </th>
+                  </tr>
+                  <tr>
+                    <th scope="col" class="th-header w-[2%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                       #
                     </th>
-                    <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                    <th scope="col" class="th-header w-[5%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                       Image
                     </th>
-                    <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                      Product
+                    <th scope="col" class="th-header w-[20%] p-3 text-xs font-semibold text-center text-gray-900 border-b cursor-pointer hover:bg-gray-200" @click="sortTable('code')">
+                      <div class="flex items-center justify-center gap-1">
+                        Product
+                        <span v-if="filters.sortKey === 'code'">
+                          <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                          </svg>
+                          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </span>
+                      </div>
                     </th>
-                    <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                    <th scope="col" class="th-header w-[8%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                       Last7d sold qty <br>
-                      (avg last 28d)
+                      <span class="font-normal text-gray-600">(avg last 28d)</span>
                     </th>
-                    <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                      Available?
+
+                    <th scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                      Qty in Warehouse <br>
+                      <span class="font-normal text-gray-600">(from API)</span>
                     </th>
-                    <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                      Warehouse Qty <br>
-                      (from API)
+                    <th scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                      Picked Qty <br>
+                      <span class="font-normal text-gray-600">(not yet sync API)</span>
                     </th>
-                    <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                      >= Picked (Jobs) <br>
-                      (not yet sync API)
+                    <th scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b border-r border-gray-300">
+                      Remaining Qty <br>
+                      <span class="font-normal text-gray-600">(based on API)</span>
                     </th>
-                    <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                      Net Available Qty <br>
-                      (based on API)
-                    </th>
-                    <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                    <th scope="col" class="th-header w-[15%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
                       Needed Qty <br>
-                      <DatePicker
-                        v-model="filters.productAvailableDate"
-                        :isPreviousNextButton="false"
-                        :clearable="false"
-                        @update:modelValue="onSearchFilterUpdated"
-                        :minDate="today"
-                      />
+                      <!-- Live Update note similar to ProductMovement if desired, or just keep header simple -->
+                      <span class="font-normal text-xs text-gray-600">(Live Update)</span>
                     </th>
-                    <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                      Qty Limit <br>
-                      (per Job, on selected date)
+                    <th scope="col" class="th-header w-[10%] p-3 text-xs font-semibold text-center text-gray-900 border-b">
+                      Capped Qty per Channel <br>
+                      <span class="font-normal text-xs text-gray-600">(max Qty after Refilling on Date & onwards)</span>
                     </th>
                   </tr>
                 </thead>
-                <tbody class="bg-white">
-                  <tr v-for="(product, productIndex) in products.data" :key="product.id" :class="productIndex % 2 === 0 ? undefined : 'bg-gray-50'">
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-900">
+                <tbody class="divide-y divide-gray-200 bg-white">
+                  <tr v-for="(product, productIndex) in products.data" :key="product.id" class="hover:bg-gray-50">
+                    <td class="p-3 text-sm text-center text-gray-900">
                       {{ productIndex + 1 }}
                     </td>
-                    <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
+                    <td class="whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
                       <div class="flex justify-center items-center">
                         <img class="h-16 w-16 rounded-full" :class="[product.is_available ? '' : 'opacity-50']" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail" />
                       </div>
                     </td>
-                    <td class="py-4 text-sm font-semibold text-left" :class="[product.is_available ? 'text-gray-800' : 'text-gray-400']">
-                      <span v-if="product.code">
-                        {{ product.code }}
-                      </span>
-                      <span class="break-normal text-xs" v-if="product.name">
-                        <br> {{ product.name }}
-                      </span>
-                    </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
-                      {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
-                    </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
-                      <div class="flex flex-col justify-center items-center">
-                        <span v-if="product.is_available">
-                          <CheckCircleIcon class="h-6 w-6 text-green-500 hover:cursor-pointer hover:text-green-600" @click.prevent="onIsAvailableClicked(product)" />
-                        </span>
-                        <span v-else>
-                          <XCircleIcon class="h-6 w-6 text-red-500 hover:cursor-pointer hover:text-red-600" @click.prevent="onIsAvailableClicked(product)" />
-                        </span>
-                        <span class="text-xs text-gray-500">
-                          {{ product.isAvailableUpdatedBy ? product.isAvailableUpdatedBy.name : '' }}
-                        </span>
-                        <span class="text-xs text-gray-500">
-                          {{ product.is_available_updated_at }}
+                    <td class="p-3 text-sm text-gray-900" :class="[product.is_available ? 'text-gray-800' : 'text-gray-400']">
+                      <div class="flex flex-col text-left">
+                        <span class="font-bold" v-if="product.code">{{ product.code }}</span>
+                        <span class="text-xs mb-1" v-if="product.name">{{ product.name }}</span>
+                        <div class="flex items-center gap-1">
+                          <span class="text-green-700 font-bold text-xs">Available?</span>
+                          <span v-if="product.is_available">
+                            <CheckCircleIcon class="h-5 w-5 text-green-500 hover:cursor-pointer hover:text-green-600" @click.prevent="onIsAvailableClicked(product)" />
+                          </span>
+                          <span v-else>
+                            <XCircleIcon class="h-5 w-5 text-red-500 hover:cursor-pointer hover:text-red-600" @click.prevent="onIsAvailableClicked(product)" />
+                          </span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 mt-1" v-if="product.isAvailableUpdatedBy">
+                          {{ product.isAvailableUpdatedBy.name }} ({{ product.is_available_updated_at }})
                         </span>
                       </div>
                     </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-blue-600' : 'text-gray-400']">
+                    <td class="p-3 text-center text-sm font-medium" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                      {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                    </td>
+
+                    <!-- Qty in Warehouse (Blue) -->
+                    <td class="p-3 text-center text-lg font-bold text-blue-600">
                       {{ Number(product.qty_available_pcs_api)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                     </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-800' : 'text-gray-400']">
+                    <!-- Picked Qty (Gray) -->
+                    <td class="p-3 text-center text-lg font-bold text-gray-800">
                       {{ Number(product.not_yet_sync_api_qty)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                     </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-800' : 'text-gray-400']">
+                    <!-- Remaining/Net (Border-r) -->
+                    <td class="p-3 text-center text-lg font-bold text-gray-900 border-r border-gray-300">
                       <span :class="product.is_available ? (product.net_available_qty_pcs_api < product.needed_qty ? 'text-red-800 bg-red-200 rounded px-1 py-1' : '') : 'text-gray-400'">
                         {{ Number(product.net_available_qty_pcs_api)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </span>
                     </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-800' : 'text-gray-400']">
+                    <!-- Needed Qty (Orange) -->
+                    <td class="p-3 text-center text-lg font-bold text-orange-600">
                       {{ Number(product.needed_qty)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                     </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
-                      <div class="flex flex-col space-y-1">
-                        <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded" :class="[product.max_ops_job_pick_limit >= 0 && product.max_ops_job_pick_limit != null ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available || !permissions.includes('admin-access product-availability')" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
+                    <!-- Capped Qty / Limit (Select Input) -->
+                    <td class="p-3 text-center">
+                      <div class="flex flex-col items-center gap-1">
+                        <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-xs py-1" :class="[product.max_ops_job_pick_limit >= 0 && product.max_ops_job_pick_limit != null ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available || !permissions.includes('admin-access product-availability')" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
                           <option :value="null">No</option>
-                          <option v-for="n in 15 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                          <option v-for="n in 20 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                         </select>
-                        <span class="text-xs text-red-700" v-if="product.max_ops_job_pick_limit != null && product.limit_is_created_by_system">
+                        <span class="text-[10px] text-red-700" v-if="product.max_ops_job_pick_limit != null && product.limit_is_created_by_system">
                           from Yesterday
                         </span>
-                        <span class="text-xs text-gray-800" v-if="product.max_ops_job_pick_limit != null && product.productLimits[0] && product.productLimits[0].createdBy">
+                        <span class="text-[10px] text-gray-800" v-if="product.max_ops_job_pick_limit != null && product.productLimits[0] && product.productLimits[0].createdBy">
                           {{ product.productLimits[0].createdBy.name }}
                         </span>
-                        <span class="text-xs text-gray-800" v-if="product.max_ops_job_pick_limit != null && product.productLimits[0] && product.productLimits[0].createdBy">
+                        <span class="text-[10px] text-gray-800" v-if="product.max_ops_job_pick_limit != null && product.productLimits[0] && product.productLimits[0].setupDate">
                           {{ product.productLimits[0].setupDate }}
                         </span>
                       </div>
                     </td>
                   </tr>
-                  <tr>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800" colspan="5">
-                      <div class="flex flex-col space-y-1">
+                </tbody>
+                <tfoot>
+                  <tr class="bg-gray-50 font-bold">
+                    <td colspan="4" class="p-3 text-right text-gray-900 border-r border-gray-300">
+                      <div class="flex flex-col space-y-1 items-end">
                         <span>Total Pcs</span>
                         <span>Total Cost$</span>
                       </div>
                     </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
+                    <td class="p-3 text-center text-blue-600">
                       <div class="flex flex-col space-y-1">
                         <span>{{ getProductAvailablePcsApiTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
                         <span>{{ operatorCountry.currency_symbol }}{{ getProductAvailablePcsApiTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                       </div>
                     </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
+                    <td class="p-3 text-center text-gray-800">
                       <div class="flex flex-col space-y-1">
                         <span>{{ getProductNotYetSyncApiQtyTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
                         <span>{{ operatorCountry.currency_symbol }}{{ getProductNotYetSyncApiQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                       </div>
                     </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
+                    <td class="p-3 text-center text-gray-900 border-r border-gray-300">
                       <div class="flex flex-col space-y-1">
                         <span>{{ getProductNetAvailableQtyPcsApiTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
                         <span>{{ operatorCountry.currency_symbol }}{{ getProductNetAvailableQtyPcsApiTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                       </div>
                     </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
-                      <div class="flex flex-col space-y-1">
+                    <td class="p-3 text-center text-orange-600">
+                       <div class="flex flex-col space-y-1">
                         <span>{{ getProductNeededQtyTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
                         <span>{{ operatorCountry.currency_symbol }}{{ getProductNeededQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                       </div>
                     </td>
+                    <td></td>
                   </tr>
-                </tbody>
+                </tfoot>
               </table>
             </div>
           </div>
@@ -237,7 +265,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon, CalendarIcon } from '@heroicons/vue/20/solid';
 import DatePicker from '@/Components/DatePicker.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import { onBeforeMount, onMounted, ref, watch } from 'vue';
@@ -260,6 +288,8 @@ const filters = ref({
   is_available: '',
   operators: [],
   productAvailableDate: moment().add(1, 'days').format('YYYY-MM-DD'),
+  sortKey: 'code',
+  sortBy: false,
 });
 const today = moment().format('YYYY-MM-DD');
 
@@ -403,6 +433,12 @@ function onSearchFilterUpdated() {
     preserveState: true,
     preserveScroll: true,
   })
+}
+
+function sortTable(key) {
+  filters.value.sortKey = key
+  filters.value.sortBy = !filters.value.sortBy
+  onSearchFilterUpdated()
 }
 
 function resetFilters() {
