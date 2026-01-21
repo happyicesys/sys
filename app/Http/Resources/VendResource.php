@@ -25,7 +25,7 @@ class VendResource extends JsonResource
         return [
             'id' => $this->id,
             'account_manager_name' => isset($this->account_manager_name) ? $this->account_manager_name : null,
-            'actual_stock_in_value' => isset($this->actual_stock_in_value) ? $this->actual_stock_in_value/100 : null,
+            'actual_stock_in_value' => isset($this->actual_stock_in_value) ? $this->actual_stock_in_value / 100 : null,
             'actual_stock_in_qty' => isset($this->actual_stock_in_qty) ? $this->actual_stock_in_qty : null,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'balance_percent' => isset($this->balance_percent) ? $this->balance_percent : null,
@@ -37,7 +37,7 @@ class VendResource extends JsonResource
             'deliveryAddress' => AddressResource::make($this->whenLoaded('deliveryAddress')),
             'delivery_platform_slug' => isset($this->delivery_platform_slug) ? $this->delivery_platform_slug : null,
             'acbVmcPaJson' => isset($this->acb_vmc_pa_json) ? $this->acb_vmc_pa_json : null,
-            'amount_average_day' => isset($this->amount_average_day) ? $this->amount_average_day/100 : null,
+            'amount_average_day' => isset($this->amount_average_day) ? $this->amount_average_day / 100 : null,
             'apkVerJson' => isset($this->apk_ver_json) ? $this->apk_ver_json : null,
             'begin_date' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
@@ -48,17 +48,17 @@ class VendResource extends JsonResource
             'server_price_type' => isset($this->server_price_type) ? $this->server_price_type : null,
             // compare last_updated_at and mqtt_last_updated_at which time is nearer to current time, then show the shortRelativeDiffForHumans
             'label_name' => isset($this->label_name) ? $this->label_name : null,
-            'last_ops_job_acc_total_amount' => isset($this->last_ops_job_acc_total_amount) ? $this->last_ops_job_acc_total_amount/100 : 0,
+            'last_ops_job_acc_total_amount' => isset($this->last_ops_job_acc_total_amount) ? $this->last_ops_job_acc_total_amount / 100 : 0,
             'last_ops_job_acc_total_count' => isset($this->last_ops_job_acc_total_count) ? $this->last_ops_job_acc_total_count : 0,
-            'last_second_ops_job_acc_total_amount' => isset($this->last_second_ops_job_acc_total_amount) ? $this->last_second_ops_job_acc_total_amount/100 : 0,
+            'last_second_ops_job_acc_total_amount' => isset($this->last_second_ops_job_acc_total_amount) ? $this->last_second_ops_job_acc_total_amount / 100 : 0,
             'last_second_ops_job_acc_total_count' => isset($this->last_second_ops_job_acc_total_count) ? $this->last_second_ops_job_acc_total_count : 0,
             // 'last_online_at' => isset($this->last_updated_at) || isset($this->mqtt_last_updated_at)
             // ? $this->getNearestTime($this->last_updated_at, $this->mqtt_last_updated_at)->shortRelativeDiffForHumans()
             // : null,
             'last_online_at' => isset($this->last_updated_at)
-            ? $this->last_updated_at->shortRelativeDiffForHumans()
-            : null,
-            'last_thirty_days_stock_in_amount' => isset($this->last_thirty_days_stock_in_amount) ? $this->last_thirty_days_stock_in_amount/100 : 0,
+                ? $this->last_updated_at->shortRelativeDiffForHumans()
+                : null,
+            'last_thirty_days_stock_in_amount' => isset($this->last_thirty_days_stock_in_amount) ? $this->last_thirty_days_stock_in_amount / 100 : 0,
             'last_thirty_days_stock_in_qty' => isset($this->last_thirty_days_stock_in_qty) ? $this->last_thirty_days_stock_in_qty : 0,
             'thirty_days_stock_in_delta_amount' => isset($this->thirty_days_stock_in_delta_amount) ? $this->thirty_days_stock_in_delta_amount : 0,
             'thirty_days_stock_in_delta_percent' => isset($this->thirty_days_stock_in_delta_percent) ? $this->thirty_days_stock_in_delta_percent : 0,
@@ -85,32 +85,37 @@ class VendResource extends JsonResource
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
             'frequency_per_week_status' => isset($this->frequency_per_week_status) ? $this->frequency_per_week_status : null,
             'frequency_per_week_status_name' => isset($this->frequency_per_week_status) ? Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING[$this->frequency_per_week_status] : null,
-            'full_name' => $this->when($this->relationLoaded('customer'), function() {
-                if($this->customer && $this->customer->person_id) {
-                    return '('. $this->code . ') ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
-                }else if($this->customer && !$this->customer->person_id) {
-                    return '('. $this->code . ') ' . $this->customer->id + 20000 . ' - ' . $this->customer->name;
-                }else {
+            'full_name' => $this->when($this->relationLoaded('customer'), function () {
+                if ($this->customer && $this->customer->person_id) {
+                    return '(' . $this->code . ') ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
+                } else if ($this->customer && !$this->customer->person_id) {
+                    return '(' . $this->code . ') ' . $this->customer->id + 20000 . ' - ' . $this->customer->name;
+                } else {
                     return $this->code;
                 }
             }),
-            'cust_full_name' => $this->when($this->relationLoaded('customer'), function() {
-                if($this->customer && $this->customer->person_id) {
-                    return '('. $this->code . ')  - ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
-                }else if($this->customer && !$this->customer->person_id) {
-                    return '('. $this->code . ') ' . $this->customer->code . ' - ' . $this->customer->name;
-                }else {
+            'cust_full_name' => $this->when($this->relationLoaded('customer'), function () {
+                if ($this->customer && $this->customer->person_id) {
+                    return '(' . $this->code . ')  - ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
+                } else if ($this->customer && !$this->customer->person_id) {
+                    return '(' . $this->code . ') ' . $this->customer->code . ' - ' . $this->customer->name;
+                } else {
                     return '(' . $this->code . ')' . ' - ' . $this->label_name;
                 }
             }),
             'key' => KeyResource::make($this->whenLoaded('key')),
             'key_name' => isset($this->key_name) ? $this->key_name : null,
             'person_id' => isset($this->person_id) ? $this->person_id : null,
-            'temp' => isset($this->temp) ? ((int)$this->temp)/ 10 : null,
+            'temp' => isset($this->temp) ? ((int) $this->temp) / 10 : null,
             'temp_updated_at' => isset($this->temp_updated_at) ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->diffForHumans() : null,
             'termination_date' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'termination_date_short' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
-            'coin_amount' => isset($this->coin_amount) ? $this->coin_amount/ 100 : null,
+            'is_enable_grab_collection' => $this->is_enable_grab_collection,
+            'is_enable_soft_keyboard_qr_pay' => $this->is_enable_soft_keyboard_qr_pay,
+            'is_enable_soft_keyboard_cash_pay' => $this->is_enable_soft_keyboard_cash_pay,
+            'is_enable_soft_keyboard_credit_card_pay' => $this->is_enable_soft_keyboard_credit_card_pay,
+            'has_display_screen' => $this->has_display_screen,
+            'coin_amount' => isset($this->coin_amount) ? $this->coin_amount / 100 : null,
             'firmware_ver' => isset($this->firmware_ver) && $this->firmware_ver ? dechex($this->firmware_ver) : null,
             'is_active' => isset($this->is_active) && $this->is_active ? true : false,
             'vend_is_active' => isset($this->vend_is_active) && $this->vend_is_active ? true : false,
@@ -133,39 +138,39 @@ class VendResource extends JsonResource
             'out_of_stock_sku_percent' => isset($this->out_of_stock_sku_percent) ? $this->out_of_stock_sku_percent : null,
             'next_invoice_date' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'next_invoice_diff' => isset($this->next_invoice_date)
-            ? (
-                (
-                    Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() > 0
-                    && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 1
-                )
-                ? 'today'
-                : (
+                ? (
                     (
-                        Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() > -1
-                        && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 0
+                        Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() > 0
+                        && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 1
                     )
-                    ? 'tomorrow'
-                    : (Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next ' . ceil(abs(Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days') : ((Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() > 1 && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 2) ? 'yesterday' : ('Last ' . ceil(abs(Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays())) - 1 . ' days')))
+                    ? 'today'
+                    : (
+                        (
+                            Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() > -1
+                            && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 0
+                        )
+                        ? 'tomorrow'
+                        : (Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next ' . ceil(abs(Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days') : ((Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() > 1 && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 2) ? 'yesterday' : ('Last ' . ceil(abs(Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays())) - 1 . ' days')))
+                    )
                 )
-            )
-            : null,
+                : null,
             'next_invoice_diff_count' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() : null,
             'next_invoice_driver_id' => isset($this->next_invoice_driver_id) ? $this->next_invoice_driver_id : null,
             'lastOpsJobItem' => OpsJobItemResource::make($this->whenLoaded('lastOpsJobItem')),
             'lastSecondOpsJobItem' => OpsJobItemResource::make($this->whenLoaded('lastSecondOpsJobItem')),
-            'last_ops_job_amount' => isset($this->last_ops_job_amount) ? $this->last_ops_job_amount/100 : null,
-            'last_ops_job_cash_amount' => isset($this->last_ops_job_cash_amount) ? $this->last_ops_job_cash_amount/100 : null,
+            'last_ops_job_amount' => isset($this->last_ops_job_amount) ? $this->last_ops_job_amount / 100 : null,
+            'last_ops_job_cash_amount' => isset($this->last_ops_job_cash_amount) ? $this->last_ops_job_cash_amount / 100 : null,
             'last_ops_job_count' => isset($this->last_ops_job_count) ? $this->last_ops_job_count : null,
-            'last_second_ops_job_amount' => isset($this->last_second_ops_job_amount) ? $this->last_second_ops_job_amount/100 : null,
-            'last_second_ops_job_cash_amount' => isset($this->last_second_ops_job_cash_amount) ? $this->last_second_ops_job_cash_amount/100 : null,
+            'last_second_ops_job_amount' => isset($this->last_second_ops_job_amount) ? $this->last_second_ops_job_amount / 100 : null,
+            'last_second_ops_job_cash_amount' => isset($this->last_second_ops_job_cash_amount) ? $this->last_second_ops_job_cash_amount / 100 : null,
             'last_second_ops_job_count' => isset($this->last_second_ops_job_count) ? $this->last_second_ops_job_count : null,
             'location_type_id' => isset($this->location_type_id) ? $this->location_type_id : null,
             'location_type_name' => isset($this->location_type_name) ? $this->location_type_name : null,
             'log_created_at' => isset($this->log_created_at) ? Carbon::parse($this->log_created_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'log_url' => isset($this->log_url) ? $this->log_url : null,
             'nextOpsJobItem' => OpsJobItemResource::make($this->whenLoaded('nextOpsJobItem')),
-            'next_ops_job_amount' => isset($this->next_ops_job_amount) ? $this->next_ops_job_amount/100 : null,
-            'next_ops_job_cash_amount' => isset($this->next_ops_job_cash_amount) ? $this->next_ops_job_cash_amount/100 : null,
+            'next_ops_job_amount' => isset($this->next_ops_job_amount) ? $this->next_ops_job_amount / 100 : null,
+            'next_ops_job_cash_amount' => isset($this->next_ops_job_cash_amount) ? $this->next_ops_job_cash_amount / 100 : null,
             'next_ops_job_count' => isset($this->next_ops_job_count) ? $this->next_ops_job_count : null,
             'operator_id' => isset($this->operator_id) ? $this->operator_id : null,
             'operator_code' => isset($this->operator_code) ? $this->operator_code : null,
@@ -184,12 +189,12 @@ class VendResource extends JsonResource
             'selling_price_type' => isset($this->selling_price_type) ? $this->selling_price_type : null,
             'settings_parameter_json' => isset($this->settings_parameter_json) ? $this->settings_parameter_json : null,
             'thirty_days_over_full_load_ratio' => isset($this->thirty_days_over_full_load_ratio) ? $this->thirty_days_over_full_load_ratio : 0,
-            'total_full_load_amount' => isset($this->total_full_load_amount) ? $this->total_full_load_amount/100 : null,
-            'total_ops_job_stock_amount' => isset($this->total_ops_job_stock_amount) ? $this->total_ops_job_stock_amount/100 : null,
-            'total_ops_job_stock_cost' => isset($this->total_ops_job_stock_cost) ? $this->total_ops_job_stock_cost/100 : null,
+            'total_full_load_amount' => isset($this->total_full_load_amount) ? $this->total_full_load_amount / 100 : null,
+            'total_ops_job_stock_amount' => isset($this->total_ops_job_stock_amount) ? $this->total_ops_job_stock_amount / 100 : null,
+            'total_ops_job_stock_cost' => isset($this->total_ops_job_stock_cost) ? $this->total_ops_job_stock_cost / 100 : null,
 
-            'total_stock_cost' => isset($this->total_stock_cost) ? $this->total_stock_cost/100 : null,
-            'total_stock_amount' => isset($this->total_stock_amount) ? $this->total_stock_amount/100 : null,
+            'total_stock_cost' => isset($this->total_stock_cost) ? $this->total_stock_cost / 100 : null,
+            'total_stock_amount' => isset($this->total_stock_amount) ? $this->total_stock_amount / 100 : null,
             'upcomingProductMapping' => ProductMappingResource::make($this->whenLoaded('upcomingProductMapping')),
             'upcoming_product_mapping_id' => isset($this->upcoming_product_mapping_id) ? $this->upcoming_product_mapping_id : null,
             'vend' => VendResource::make($this->whenLoaded('vend')),
@@ -211,23 +216,23 @@ class VendResource extends JsonResource
             'vendThreeDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendThreeDaysErrorTransactions')),
             'vendTransactionTotalsJson' => isset($this->vend_transaction_totals_json) ? $this->vend_transaction_totals_json : null,
             'vendSevenDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendSevenDaysErrorTransactions')),
-            'vend_id' =>isset($this->vend_id) ? $this->vend_id : null,
+            'vend_id' => isset($this->vend_id) ? $this->vend_id : null,
             'virtual_customer_code' => isset($this->virtual_customer_code) ? $this->virtual_customer_code : null,
             'virtual_customer_prefix' => isset($this->virtual_customer_prefix) ? $this->virtual_customer_prefix : null,
-            'virtual_vend_records_thirty_days_amount_average' => isset($this->virtual_vend_records_thirty_days_amount_average) ? $this->virtual_vend_records_thirty_days_amount_average/100 : 0,
+            'virtual_vend_records_thirty_days_amount_average' => isset($this->virtual_vend_records_thirty_days_amount_average) ? $this->virtual_vend_records_thirty_days_amount_average / 100 : 0,
             'zone_name' => isset($this->zone_name) ? $this->zone_name : null,
             'zone_id' => isset($this->zone_id) ? $this->zone_id : null,
             'this_month_count' => isset($this->this_month_count) ? $this->this_month_count : 0,
-            'this_month_revenue' => isset($this->this_month_revenue) ? $this->this_month_revenue/100 : 0,
-            'this_month_gross_profit' => isset($this->this_month_gross_profit) ? $this->this_month_gross_profit/100 : 0,
+            'this_month_revenue' => isset($this->this_month_revenue) ? $this->this_month_revenue / 100 : 0,
+            'this_month_gross_profit' => isset($this->this_month_gross_profit) ? $this->this_month_gross_profit / 100 : 0,
             'this_month_gross_profit_margin' => isset($this->this_month_gross_profit_margin) ? $this->this_month_gross_profit_margin : 0,
             'last_month_count' => isset($this->last_month_count) ? $this->last_month_count : 0,
-            'last_month_revenue' => isset($this->last_month_revenue) ? $this->last_month_revenue/100 : 0,
-            'last_month_gross_profit' => isset($this->last_month_gross_profit) ? $this->last_month_gross_profit/100 : 0,
+            'last_month_revenue' => isset($this->last_month_revenue) ? $this->last_month_revenue / 100 : 0,
+            'last_month_gross_profit' => isset($this->last_month_gross_profit) ? $this->last_month_gross_profit / 100 : 0,
             'last_month_gross_profit_margin' => isset($this->last_month_gross_profit_margin) ? $this->last_month_gross_profit_margin : 0,
             'last_two_month_count' => isset($this->last_two_month_count) ? $this->last_two_month_count : 0,
-            'last_two_month_revenue' => isset($this->last_two_month_revenue) ? $this->last_two_month_revenue/100 : 0,
-            'last_two_month_gross_profit' => isset($this->last_two_month_gross_profit) ? $this->last_two_month_gross_profit/100 : 0,
+            'last_two_month_revenue' => isset($this->last_two_month_revenue) ? $this->last_two_month_revenue / 100 : 0,
+            'last_two_month_gross_profit' => isset($this->last_two_month_gross_profit) ? $this->last_two_month_gross_profit / 100 : 0,
             'last_two_month_gross_profit_margin' => isset($this->last_two_month_gross_profit_margin) ? $this->last_two_month_gross_profit_margin : 0,
         ];
     }

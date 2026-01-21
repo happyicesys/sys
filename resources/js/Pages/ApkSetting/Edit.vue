@@ -1175,6 +1175,21 @@
                           Apk Version
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Has Display Screen
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Enable Grab Collection
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Enable Soft Keyboard Cash Pay
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Enable Soft Keyboard Credit Card Pay
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Enable Soft Keyboard Qr Pay
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                           Action
                         </th>
                       </tr>
@@ -1205,6 +1220,36 @@
                           <span v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
                             {{ vend.apkVerJson['apkver'] }}
                           </span>
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          <div v-if="vend.has_display_screen !== null">
+                            <CheckCircleIcon v-if="vend.has_display_screen" class="w-5 h-5 text-green-500 mx-auto" aria-hidden="true"/>
+                            <XCircleIcon v-else class="w-5 h-5 text-red-500 mx-auto" aria-hidden="true"/>
+                          </div>
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          <div v-if="vend.is_enable_grab_collection !== null">
+                            <CheckCircleIcon v-if="vend.is_enable_grab_collection" class="w-5 h-5 text-green-500 mx-auto" aria-hidden="true"/>
+                            <XCircleIcon v-else class="w-5 h-5 text-red-500 mx-auto" aria-hidden="true"/>
+                          </div>
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          <div v-if="vend.is_enable_soft_keyboard_cash_pay !== null">
+                            <CheckCircleIcon v-if="vend.is_enable_soft_keyboard_cash_pay" class="w-5 h-5 text-green-500 mx-auto" aria-hidden="true"/>
+                            <XCircleIcon v-else class="w-5 h-5 text-red-500 mx-auto" aria-hidden="true"/>
+                          </div>
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          <div v-if="vend.is_enable_soft_keyboard_credit_card_pay !== null">
+                            <CheckCircleIcon v-if="vend.is_enable_soft_keyboard_credit_card_pay" class="w-5 h-5 text-green-500 mx-auto" aria-hidden="true"/>
+                            <XCircleIcon v-else class="w-5 h-5 text-red-500 mx-auto" aria-hidden="true"/>
+                          </div>
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          <div v-if="vend.is_enable_soft_keyboard_qr_pay !== null">
+                            <CheckCircleIcon v-if="vend.is_enable_soft_keyboard_qr_pay" class="w-5 h-5 text-green-500 mx-auto" aria-hidden="true"/>
+                            <XCircleIcon v-else class="w-5 h-5 text-red-500 mx-auto" aria-hidden="true"/>
+                          </div>
                         </td>
                         <td class="whitespace-nowrap py-4 text-sm text-center">
                           <Button
@@ -1259,7 +1304,7 @@ import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownCircleIcon, ArrowPathIcon, ArrowUpCircleIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownCircleIcon, ArrowPathIcon, ArrowUpCircleIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, computed } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
