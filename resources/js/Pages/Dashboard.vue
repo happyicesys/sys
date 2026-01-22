@@ -774,7 +774,8 @@
             legend: {
                 reverse: false,
                 labels: {
-                    padding: 20
+                    padding: 20,
+                    sort: (a, b) => a.datasetIndex - b.datasetIndex
                 }
             },
             tooltip: {
@@ -874,7 +875,8 @@
             legend: {
                 reverse: false,
                 labels: {
-                    padding: 20
+                    padding: 20,
+                    sort: (a, b) => a.datasetIndex - b.datasetIndex
                 }
             }
         }
@@ -1171,24 +1173,12 @@
         monthKeys.forEach((month, monthIndex) => {
             const isCurrent = monthIndex === monthKeys.length - 1;
             const barColor = isCurrent ? '#ef4444' : '#3b82f6';
-            const lineColor = isCurrent ? '#ff7f7f' : '#3b82f6'; // Lighter Red for current line
+            const lineColor = isCurrent ? '#ff7f7f' : '#9ca3af'; // Red for current, Lighter Grey for others
             const countData = months[month].map((data) => {return data.count});
             const amountData = months[month].map((data) => {return data.amount});
             const iconData = months[month].map((data) => {return data.weather_icon});
 
-            // Push Line First (#) - Legend Order: Nov (#) then Nov ($)
-            // Order: Line on top (lower order number)
-            dayGraphDatasets.value.push({
-                label: month + ' (#) ' + formatCount(sumData(countData)),
-                data: countData,
-                backgroundColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
-                borderColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
-                yAxisID: 'y1',
-                type: 'line',
-                order: monthIndex * 2,
-            })
-
-            // Push Bar Second ($)
+            // Push Bar First ($)
             dayGraphDatasets.value.push({
                 label: month + ' ('+ operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(amountData)),
                 data: amountData,
@@ -1198,7 +1188,18 @@
                 fill: false,
                 yAxisID: 'y',
                 type: 'bar',
-                order: monthIndex * 2 + 1,
+                order: (monthKeys.length - 1 - monthIndex) * 2 + 1,
+            })
+
+            // Push Line Second (#)
+            dayGraphDatasets.value.push({
+                label: month + ' (#) ' + formatCount(sumData(countData)),
+                data: countData,
+                backgroundColor: hexToRGBA(lineColor, 1),
+                borderColor: hexToRGBA(lineColor, 1),
+                yAxisID: 'y1',
+                type: 'line',
+                order: (monthKeys.length - 1 - monthIndex) * 2,
             })
         })
         for(let i = 1; i <= 31; i++) {
@@ -1212,22 +1213,11 @@
         yearKeys.forEach((month, monthIndex) => {
             const isCurrent = monthIndex === yearKeys.length - 1;
             const barColor = isCurrent ? '#ef4444' : '#3b82f6';
-            const lineColor = isCurrent ? '#ff7f7f' : '#3b82f6'; // Lighter Red for current line
+            const lineColor = isCurrent ? '#ff7f7f' : '#9ca3af'; // Red for current, Lighter Grey for others
             const countData = Object.values(years[month]).map((data) => {return data.count});
             const amountData = Object.values(years[month]).map((data) => {return data.amount});
 
-            // Push Line First (#)
-            monthGraphDatasets.value.push({
-                label: month + ' (#) ' + formatCount(sumData(countData)),
-                data: countData,
-                backgroundColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
-                borderColor: hexToRGBA(lineColor, isCurrent ? 0.9 : 0.2),
-                yAxisID: 'y1',
-                type: 'line',
-                order: monthIndex * 2,
-            })
-
-            // Push Bar Second ($)
+            // Push Bar First ($)
             monthGraphDatasets.value.push({
                 label: month + ' ('+ operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(amountData)),
                 data: amountData,
@@ -1236,7 +1226,18 @@
                 fill: false,
                 yAxisID: 'y',
                 type: 'bar',
-                order: monthIndex * 2 + 1,
+                order: (yearKeys.length - 1 - monthIndex) * 2 + 1,
+            })
+
+            // Push Line Second (#)
+            monthGraphDatasets.value.push({
+                label: month + ' (#) ' + formatCount(sumData(countData)),
+                data: countData,
+                backgroundColor: hexToRGBA(lineColor, 1),
+                borderColor: hexToRGBA(lineColor, 1),
+                yAxisID: 'y1',
+                type: 'line',
+                order: (yearKeys.length - 1 - monthIndex) * 2,
             })
         })
         for(let i = 1; i <= 12; i++) {

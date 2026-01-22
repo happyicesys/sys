@@ -277,6 +277,7 @@ class ProductController extends Controller
                             ->whereDate('product_limits.date', '=', $request->productAvailableDate);
                     })
                     ->whereColumn('ops_job_item_channels.product_id', 'products.id')
+                    ->whereRaw('products.is_available = 1')
                     ->whereDate('ops_jobs.date', $request->productAvailableDate)
                     ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
                     ->selectRaw('COALESCE(SUM(

@@ -1195,7 +1195,7 @@ class ReportController extends Controller
                         ->whereNotNull('vr.vend_id')
                         ->selectRaw('vr.vend_id as id')
                         ->selectRaw('MAX(vends.code) as code')
-                        ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (", customers.virtual_customer_prefix,") - ", customers.name) ELSE vends.name END) as name')
+                        ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (", current_vend_prefixes.name,") - ", customers.name) ELSE vends.name END) as name')
                         ->selectRaw('MAX(vend_models.name) as vend_model_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
                     break;
@@ -1227,6 +1227,7 @@ class ReportController extends Controller
             ->leftJoin('operators', 'vr.operator_id', '=', 'operators.id')
             ->leftJoin('location_types', 'vr.location_type_id', '=', 'location_types.id')
             ->leftJoin('vend_prefixes', 'vr.vend_prefix_id', '=', 'vend_prefixes.id')
+            ->leftJoin('vend_prefixes as current_vend_prefixes', 'vends.vend_prefix_id', '=', 'current_vend_prefixes.id')
             ->leftJoin('vend_models', 'vr.vend_model_id', '=', 'vend_models.id')
             ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
             ->whereBetween('vr.date', [$start, $end]);
