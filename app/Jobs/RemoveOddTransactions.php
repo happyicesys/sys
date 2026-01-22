@@ -32,20 +32,23 @@ class RemoveOddTransactions implements ShouldQueue
      */
     public function handle(): void
     {
+        if (!filter_var(env('DELETE_ODD_TRANSACTIONS', false), FILTER_VALIDATE_BOOLEAN)) {
+            return;
+        }
+
         $retainPaymentMethod = PaymentMethod::where(function ($query) {
             $query->where('code', 10)
                 ->orWhere('code', 11);
         })->pluck('id')->toArray();
 
-        $retainOperator = Operator::where('code', 'TEST')->pluck('id')->toArray();
+        $testOperator = Operator::where('code', 'TEST')->pluck('id')->toArray();
 
         VendTransaction::query()
-            ->where(function ($query) {
-                $query->where('amount', '=', 20000)
-                    ->orWhere('amount', '=', 10);
-            })
             ->whereNotIn('payment_method_id', $retainPaymentMethod)
-            ->whereNotIn('operator_id', $retainOperator)
+            ->where(function ($query) use ($testOperator) {
+                $query->whereIn('amount', [0, 10, 20, 20000])
+                    ->orWhereIn('operator_id', $testOperator);
+            })
             ->where('vend_transactions.created_at', '>=', Carbon::parse($this->from)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($this->to)->endOfDay())
             ->chunkById(500, function ($transactions) {

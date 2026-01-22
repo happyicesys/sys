@@ -20,15 +20,15 @@ class RemoveYesterdayOddTransactions extends Command
      *
      * @var string
      */
-    protected $description = 'Remove yesterday transactions where has amount 0, 0.10, 200';
+    protected $description = 'Remove transactions with amounts 0, 0.10, 0.20, 200.00 or with TEST operator';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        $from = Carbon::yesterday()->toDateString();
-        $to = Carbon::yesterday()->toDateString();
+        $from = Carbon::today()->toDateString();
+        $to = Carbon::today()->toDateString();
 
         RemoveOddTransactions::dispatch($from, $to);
     }
