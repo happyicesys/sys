@@ -209,6 +209,10 @@ class ProductController extends Controller
             'productAvailableDate' => $request->productAvailableDate ? $request->productAvailableDate : Carbon::today()->addDay()->toDateString(),
         ]);
 
+        $userTimezone = $this->getUserTimezone();
+        $productAvailableDateStart = Carbon::parse($request->productAvailableDate, $userTimezone)->startOfDay()->setTimezone('UTC');
+        $productAvailableDateEnd = Carbon::parse($request->productAvailableDate, $userTimezone)->endOfDay()->setTimezone('UTC');
+
         $products = Product::query()
             ->with([
                 'isAvailableUpdatedBy',
@@ -267,7 +271,7 @@ class ProductController extends Controller
                     ->whereDate('product_limits.date', $request->productAvailableDate)
                     ->limit(1);
             }, 'limit_is_created_by_system')
-            ->selectSub(function ($sub) use ($request) {
+            ->selectSub(function ($sub) use ($request, $productAvailableDateStart, $productAvailableDateEnd) {
                 $sub->from('ops_job_item_channels')
                     ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
                     ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
@@ -278,7 +282,7 @@ class ProductController extends Controller
                     })
                     ->whereColumn('ops_job_item_channels.product_id', 'products.id')
                     ->whereRaw('products.is_available = 1')
-                    ->whereDate('ops_jobs.date', $request->productAvailableDate)
+                    ->whereBetween('ops_jobs.date', [$productAvailableDateStart, $productAvailableDateEnd])
                     ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
                     ->selectRaw('COALESCE(SUM(
                         CASE
@@ -291,7 +295,7 @@ class ProductController extends Controller
                                     WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
                                         product_limits.qty - COALESCE(vend_channels.qty, 0)
                                     ELSE 0
-                                END
+                                End
                             ELSE
                                 COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
                         END

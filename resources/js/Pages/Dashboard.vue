@@ -1188,7 +1188,7 @@
                 fill: false,
                 yAxisID: 'y',
                 type: 'bar',
-                order: (monthKeys.length - 1 - monthIndex) * 2 + 1,
+                order: monthIndex * 2 + 1,
             })
 
             // Push Line Second (#)
@@ -1199,7 +1199,7 @@
                 borderColor: hexToRGBA(lineColor, 1),
                 yAxisID: 'y1',
                 type: 'line',
-                order: (monthKeys.length - 1 - monthIndex) * 2,
+                order: monthIndex * 2,
             })
         })
         for(let i = 1; i <= 31; i++) {
@@ -1226,7 +1226,7 @@
                 fill: false,
                 yAxisID: 'y',
                 type: 'bar',
-                order: (yearKeys.length - 1 - monthIndex) * 2 + 1,
+                order: monthIndex * 2 + 1,
             })
 
             // Push Line Second (#)
@@ -1237,7 +1237,7 @@
                 borderColor: hexToRGBA(lineColor, 1),
                 yAxisID: 'y1',
                 type: 'line',
-                order: (yearKeys.length - 1 - monthIndex) * 2,
+                order: monthIndex * 2,
             })
         })
         for(let i = 1; i <= 12; i++) {
