@@ -60,6 +60,7 @@ class ProductResource extends JsonResource
             'total_movements_qty' => isset($this->total_movements_qty) ? $this->total_movements_qty : 0,
             'total_delivered_qty' => isset($this->total_delivered_qty) ? $this->total_delivered_qty : 0,
             'picked_qty_on_date' => isset($this->picked_qty_on_date) ? $this->picked_qty_on_date : 0,
+            'picked_value_on_date' => isset($this->picked_value_on_date) ? $this->picked_value_on_date / 100 : 0,
             'calculated_warehouse_qty' => isset($this->calculated_warehouse_qty) ? $this->calculated_warehouse_qty : null,
             'qty_available_pcs_api' => isset($this->qty_available_pcs_api) ? $this->qty_available_pcs_api : null,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),

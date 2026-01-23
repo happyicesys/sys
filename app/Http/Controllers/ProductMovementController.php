@@ -522,6 +522,18 @@ class ProductMovementController extends Controller
                     ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
                     ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
                     ->whereDate('ops_jobs.date', $request->productAvailableDate);
-            }, 'picked_qty_on_date');
+            }, 'picked_qty_on_date')
+            // Calculate Picked Value (on specific Date)
+            ->selectSub(function ($sub) use ($request) {
+                $sub->from('ops_job_item_channels')
+                    ->selectRaw('COALESCE(SUM(ops_job_item_channels.picked_qty * vend_channels.amount), 0)')
+                    ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+                    ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+                    ->join('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
+                    ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
+                    ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
+                    ->whereDate('ops_jobs.date', $request->productAvailableDate);
+            }, 'picked_value_on_date');
     }
 }

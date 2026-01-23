@@ -260,30 +260,35 @@
                                                 <div class="flex flex-col space-y-1 items-end">
                                                     <span>Total Pcs</span>
                                                     <span>Total Cost$</span>
+                                                    <span class="text-gray-900">Stock Value</span>
                                                 </div>
                                             </td>
                                             <td class="p-1 sm:p-3 text-center text-blue-600">
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getTotalMovementsQty().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getTotalMovementsCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                                                    <span>&nbsp;</span>
                                                 </div>
                                             </td>
                                             <td class="p-1 sm:p-3 text-center text-gray-800">
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getPickedQtyTotal().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getPickedQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                                                    <span>&nbsp;</span>
                                                 </div>
                                             </td>
                                             <td class="p-1 sm:p-3 text-center text-gray-900 border-r border-gray-300">
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getCalculatedWarehouseQtyTotal().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getCalculatedWarehouseQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                                                    <span>&nbsp;</span>
                                                 </div>
                                             </td>
                                             <td class="p-1 sm:p-3 text-center text-orange-600">
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getNeededQtyTotal().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getNeededQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                                                    <span class="text-orange-600 font-bold">{{ operatorCountry.currency_symbol }}{{ getPickedValueTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                                                 </div>
                                             </td>
                                             <td></td>
@@ -604,6 +609,10 @@ function getPickedQtyTotalCost() {
     const cost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qty * cost);
   }, 0);
+}
+
+function getPickedValueTotal() {
+  return props.products.data.reduce((acc, product) => acc + (Number(product.picked_value_on_date) || 0), 0);
 }
 
 function getCalculatedWarehouseQtyTotal() {
