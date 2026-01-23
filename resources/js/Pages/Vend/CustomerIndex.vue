@@ -2161,9 +2161,19 @@ filters.value.status = statusOptions.value[2]
 const urlParams = new URLSearchParams(window.location.search);
 if(urlParams.has('codes')) {
     filters.value.codes = urlParams.get('codes');
+    filters.value.is_active = booleanOptions.value[0];
+    filters.value.status = statusOptions.value[0];
+    filters.value.operators = [operatorOptions.value[0]];
 }
 if(urlParams.has('channel_codes')) {
     filters.value.channel_codes = urlParams.get('channel_codes');
+    filters.value.is_active = booleanOptions.value[0];
+    filters.value.status = statusOptions.value[0];
+    filters.value.operators = [operatorOptions.value[0]];
+}
+
+if(urlParams.has('codes') || urlParams.has('channel_codes')) {
+    onSearchFilterUpdated();
 }
 })
 
