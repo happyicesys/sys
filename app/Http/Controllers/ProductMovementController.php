@@ -478,6 +478,37 @@ class ProductMovementController extends Controller
                         END
                     ), 0)');
             }, 'needed_qty')
+            // Calculate needed_value (same as needed_qty but * amount)
+            ->selectSub(function ($sub) use ($request) {
+                $sub->from('ops_job_item_channels')
+                    ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+                    ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+                    ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+                    ->leftJoin('product_limits', function ($join) use ($request) {
+                        $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
+                            ->whereDate('product_limits.date', '=', $request->productAvailableDate);
+                    })
+                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
+                    ->whereRaw('products.is_available = 1')
+                    ->whereDate('ops_jobs.date', $request->productAvailableDate)
+                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+                    ->selectRaw('COALESCE(SUM(
+                        (CASE
+                            WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
+                            WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
+                            WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
+                                CASE
+                                    WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                                        COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+                                    WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                                        product_limits.qty - COALESCE(vend_channels.qty, 0)
+                                    ELSE 0
+                                END
+                            ELSE
+                                COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+                        END) * vend_channels.amount
+                    ), 0)');
+            }, 'needed_value')
             // Calculate max_ops_job_pick_limit (same as existing)
             ->selectSub(function ($sub) use ($request) {
                 $sub->from('product_limits')

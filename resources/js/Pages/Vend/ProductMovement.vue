@@ -274,7 +274,7 @@
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getPickedQtyTotal().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getPickedQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                                                    <span>&nbsp;</span>
+                                                    <span class="text-gray-900 font-bold">{{ operatorCountry.currency_symbol }}{{ getPickedValueTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                                                 </div>
                                             </td>
                                             <td class="p-1 sm:p-3 text-center text-gray-900 border-r border-gray-300">
@@ -288,7 +288,7 @@
                                                 <div class="flex flex-col space-y-1">
                                                     <span>{{ getNeededQtyTotal().toLocaleString() }}</span>
                                                     <span>{{ operatorCountry.currency_symbol }}{{ getNeededQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                                                    <span class="text-orange-600 font-bold">{{ operatorCountry.currency_symbol }}{{ getPickedValueTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                                                    <span class="text-orange-600 font-bold capitalize">{{ operatorCountry.currency_symbol }}{{ getNeededValueTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                                                 </div>
                                             </td>
                                             <td></td>
@@ -613,6 +613,10 @@ function getPickedQtyTotalCost() {
 
 function getPickedValueTotal() {
   return props.products.data.reduce((acc, product) => acc + (Number(product.picked_value_on_date) || 0), 0);
+}
+
+function getNeededValueTotal() {
+  return props.products.data.reduce((acc, product) => acc + (Number(product.needed_value) || 0), 0);
 }
 
 function getCalculatedWarehouseQtyTotal() {

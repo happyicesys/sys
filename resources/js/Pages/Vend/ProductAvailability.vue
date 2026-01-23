@@ -252,7 +252,7 @@
                       <div class="flex flex-col space-y-1">
                         <span>{{ getProductNotYetSyncApiQtyTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
                         <span>{{ operatorCountry.currency_symbol }}{{ getProductNotYetSyncApiQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                        <span>&nbsp;</span>
+                        <span class="text-gray-900 font-bold">{{ operatorCountry.currency_symbol }}{{ getProductPickedValueTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                       </div>
                     </td>
                     <td class="p-1 sm:p-3 text-center text-gray-900 border-r border-gray-300">
@@ -266,7 +266,7 @@
                        <div class="flex flex-col space-y-1">
                         <span>{{ getProductNeededQtyTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
                         <span>{{ operatorCountry.currency_symbol }}{{ getProductNeededQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                        <span class="text-orange-600 font-bold">{{ operatorCountry.currency_symbol }}{{ getProductPickedValueTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                        <span class="text-orange-600 font-bold capitalize">{{ operatorCountry.currency_symbol }}{{ getProductNeededValueTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                       </div>
                     </td>
                     <td></td>
@@ -380,6 +380,13 @@ function getProductPickedValueTotal() {
   return props.products.data.reduce((acc, product) => {
     const pickedValue = Number(product.picked_value_on_date) || 0;
     return acc + pickedValue;
+  }, 0);
+}
+
+function getProductNeededValueTotal() {
+  return props.products.data.reduce((acc, product) => {
+    const neededValue = Number(product.needed_value) || 0;
+    return acc + neededValue;
   }, 0);
 }
 

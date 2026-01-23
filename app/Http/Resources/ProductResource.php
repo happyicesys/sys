@@ -54,6 +54,7 @@ class ProductResource extends JsonResource
             'latestUnitCost' => UnitCostResource::make($this->whenLoaded('latestUnitCost')),
             'limit_is_created_by_system' => isset($this->limit_is_created_by_system) ? $this->limit_is_created_by_system : null,
             'needed_qty' => isset($this->needed_qty) ? $this->needed_qty : null,
+            'needed_value' => isset($this->needed_value) ? $this->needed_value / 100 : 0,
             'unitCosts' => UnitCostResource::collection($this->whenLoaded('unitCosts')),
             'productLimits' => ProductLimitResource::collection($this->whenLoaded('productLimits')),
             'productUoms' => ProductUomResource::collection($this->whenLoaded('productUoms')),
