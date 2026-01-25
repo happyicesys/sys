@@ -1138,13 +1138,20 @@ class ReportController extends Controller
         })
             ->get();
 
-        return (new FastExcel($this->yieldOneByOne($items)))->download('SalesReport_' . $type . '_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($item) {
-            return [
+        return (new FastExcel($this->yieldOneByOne($items)))->download('SalesReport_' . $type . '_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($item) use ($type) {
+            $data = [
                 'ID' => isset($item->code) ? $item->code : null,
                 'Name' => $item->name,
                 'Count' => $item->count,
                 'Amount' => $item->amount / 100,
             ];
+
+            if ($type === 'vend' || $type === 'customer') {
+                $data['Machine Model'] = $item->vend_model_name;
+                $data['Location Type'] = $item->location_type_name;
+            }
+
+            return $data;
         });
     }
 
@@ -1192,20 +1199,22 @@ class ReportController extends Controller
                     break;
                 case 'vends':
                     $transactionsQuery
+                        ->leftJoin('vend_models as current_vend_models', 'vends.vend_model_id', '=', 'current_vend_models.id')
                         ->whereNotNull('vr.vend_id')
                         ->selectRaw('vr.vend_id as id')
                         ->selectRaw('MAX(vends.code) as code')
                         ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (", current_vend_prefixes.name,") - ", customers.name) ELSE vends.name END) as name')
-                        ->selectRaw('MAX(vend_models.name) as vend_model_name')
+                        ->selectRaw('COALESCE(MAX(vend_models.name), MAX(current_vend_models.name)) as vend_model_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
                     break;
                 case 'customers':
                     $transactionsQuery
+                        ->leftJoin('vend_models as current_vend_models', 'vends.vend_model_id', '=', 'current_vend_models.id')
                         ->whereNotNull('vr.customer_id')
                         ->selectRaw('vr.customer_id as id')
                         ->selectRaw('MAX(vr.customer_id + 20000) as code')
                         ->selectRaw('MAX(CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code, " - ", customers.name) ELSE customers.name END) as name')
-                        ->selectRaw('MAX(vend_models.name) as vend_model_name')
+                        ->selectRaw('COALESCE(MAX(vend_models.name), MAX(current_vend_models.name)) as vend_model_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
                     break;
             }

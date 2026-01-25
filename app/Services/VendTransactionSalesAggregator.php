@@ -25,8 +25,7 @@ class VendTransactionSalesAggregator
         $end = $end->copy()->endOfDay();
 
         $singleQuery = VendTransaction::query()
-            ->whereBetween('vend_transactions.transaction_datetime', [$start, $end])
-            ->where('vend_transactions.amount', '>', 0);
+            ->whereBetween('vend_transactions.transaction_datetime', [$start, $end]);
 
         if ($applyFilter) {
             $applyFilter($singleQuery);
@@ -45,15 +44,15 @@ class VendTransactionSalesAggregator
                     ->orWhereIn('vend_transactions.error_code_normalized', [0, 6]);
             })
             ->selectRaw('COALESCE(vend_transactions.product_id, single_vc.product_id) as product_id')
-            ->selectRaw('SUM(CASE WHEN COALESCE(vend_transactions.success_qty, 0) > 0 THEN vend_transactions.success_qty ELSE 0 END) as total_count')
-            ->selectRaw('SUM(CASE WHEN COALESCE(vend_transactions.success_qty, 0) > 0 THEN vend_transactions.amount ELSE 0 END) as total_amount')
+            ->selectRaw('COUNT(*) as total_count')
+            ->selectRaw('SUM(vend_transactions.amount) as total_amount')
             ->groupBy('product_id');
 
         $single = $singleQuery->toBase();
 
         $multiQuery = VendTransaction::query()
             ->whereBetween('vend_transactions.transaction_datetime', [$start, $end])
-            ->where('vend_transactions.amount', '>', 0)
+            // ->where('vend_transactions.amount', '>', 0)
             ->where('vend_transactions.is_multiple', true);
 
         if ($applyFilter) {

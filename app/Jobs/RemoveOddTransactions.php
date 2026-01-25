@@ -60,5 +60,14 @@ class RemoveOddTransactions implements ShouldQueue
                     VendTransaction::whereIn('id', $transactionIds)->delete();
                 }
             });
+
+        if (!empty($testOperator)) {
+            \App\Models\VendRecord::whereIn('operator_id', $testOperator)
+                ->whereBetween('date', [
+                    Carbon::parse($this->from)->startOfDay(),
+                    Carbon::parse($this->to)->endOfDay()
+                ])
+                ->delete();
+        }
     }
 }

@@ -56,7 +56,7 @@ SQL;
             ->where('vend_transactions.transaction_datetime', '>', Carbon::parse($this->from)->setTimezone('Asia/Singapore')->startOfDay())
             ->where('vend_transactions.transaction_datetime', '<', Carbon::parse($this->to)->setTimezone('Asia/Singapore')->endOfDay())
             ->where('vend_transactions.amount', '>', 0)
-            ->groupBy('date', 'vends.id')
+            ->groupBy('date', 'vends.id', 'customers.id')
             ->select(
                 'vends.id AS vend_id',
                 'vends.code',
@@ -183,9 +183,9 @@ SQL;
             VendRecord::updateOrCreate([
                 'date' => $vend->date,
                 'vend_id' => $vend->vend_id,
+                'customer_id' => isset($vend->customer_id) ? $vend->customer_id : null,
             ], [
                 'all_total_count' => $vend->all_total_count,
-                'customer_id' => isset($vend->customer_id) ? $vend->customer_id : null,
                 'day' => $vend->day,
                 'error_count' => $vend->error_count,
                 'failure_amount' => $vend->failure_amount,
@@ -233,8 +233,8 @@ SQL;
                     VendRecord::updateOrCreate([
                         'vend_id' => $vend->id,
                         'date' => Carbon::parse($date)->toDateString(),
-                    ], [
                         'customer_id' => $vend->customer_id,
+                    ], [
                         'day' => Carbon::parse($date)->day,
                         'location_type_id' => $vend->location_type_id ?? null,
                         'month' => Carbon::parse($date)->month,
