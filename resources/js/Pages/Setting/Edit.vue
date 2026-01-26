@@ -1451,7 +1451,7 @@ onMounted(() => {
     modem_unit_id: props.vend.modem_unit_id ? modemUnitOptions.value.find(modemUnit => modemUnit.id == props.vend.modem_unit_id) : null,
     product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id == props.vend.product_mapping_id) : null,
     server_price_type: props.vend.server_price_type ? serverPriceTypeOptions.value.find(serverPriceType => serverPriceType.id == props.vend.server_price_type) : null,
-    simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
+    simcard_id: props.vend.simcard_id ? simcardOptions.value.find(simcard => simcard.id == props.vend.simcard_id) : null,
     status: statusOptions.value.find(status => status.id == (props.vend.is_disposed == 1 ? 'disposed' : (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive'))),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id == props.vend.operator_id) : null : null,
     trigger_log_date: moment().format('YYYY-MM-DD'),

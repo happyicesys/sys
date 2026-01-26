@@ -104,7 +104,7 @@ const managementItems = [
     },
     {
         title: 'Data Management Tab',
-        link: 'https://www.youtube.com/watch?v=Xdd8GOEed0M',
+        link: 'https://www.youtube.com/watch?v=XdD8GOEed0M',
         subtitles: [
             'Machine Serial Number',
             'Cashless Terminal',
