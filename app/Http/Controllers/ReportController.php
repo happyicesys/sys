@@ -1230,7 +1230,43 @@ class ReportController extends Controller
 
     private function baseVendRecordsQuery($request, Carbon $start, Carbon $end): Builder
     {
-        $query = DB::table('vend_records as vr')
+        $today = Carbon::today()->setTimezone($this->getUserTimezone());
+
+        // If the end date is before today, we only need historical data from vend_records
+        if ($end->lt($today)) {
+            $query = DB::table('vend_records as vr')
+                ->whereBetween('vr.date', [$start, $end]);
+        } else {
+            // We need to handle today's data or mix of history and today
+            $historical = DB::table('vend_records as vr')
+                ->select(
+                    'vr.vend_id',
+                    'vr.customer_id',
+                    'vr.operator_id',
+                    'vr.location_type_id',
+                    'vr.vend_prefix_id',
+                    'vr.vend_model_id',
+                    'vr.date',
+                    'vr.total_count',
+                    'vr.total_amount'
+                )
+                ->whereBetween('vr.date', [$start, $end])
+                ->where('vr.date', '<', $today->toDateString());
+
+            $live = $this->getLiveVendRecordsQuery(
+                $start->lt($today) ? $today : $start,
+                $end
+            );
+
+            // If start is today or future, historical is empty (filtered by date < today)
+            if ($start->gte($today)) {
+                $query = DB::query()->fromSub($live, 'vr');
+            } else {
+                $query = DB::query()->fromSub($historical->unionAll($live), 'vr');
+            }
+        }
+
+        $query
             ->leftJoin('vends', 'vr.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'vr.customer_id', '=', 'customers.id')
             ->leftJoin('operators', 'vr.operator_id', '=', 'operators.id')
@@ -1238,12 +1274,60 @@ class ReportController extends Controller
             ->leftJoin('vend_prefixes', 'vr.vend_prefix_id', '=', 'vend_prefixes.id')
             ->leftJoin('vend_prefixes as current_vend_prefixes', 'vends.vend_prefix_id', '=', 'current_vend_prefixes.id')
             ->leftJoin('vend_models', 'vr.vend_model_id', '=', 'vend_models.id')
-            ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
-            ->whereBetween('vr.date', [$start, $end]);
+            ->leftJoin('categories', 'customers.category_id', '=', 'categories.id');
 
         $query = $this->filterVendRecordsReport($query, $request);
 
         return $this->filterOperatorVendTransactionDB($query);
+    }
+
+    private function getLiveVendRecordsQuery(Carbon $from, Carbon $to)
+    {
+        $successfulItemsExpression = <<<SQL
+CASE
+    WHEN vend_transactions.success_qty IS NOT NULL AND vend_transactions.success_qty > 0 THEN vend_transactions.success_qty
+    WHEN (vend_transactions.success_qty IS NULL OR vend_transactions.success_qty = 0)
+         AND (
+             vend_transactions.vend_channel_error_id IS NULL
+             OR vend_channel_errors.code IN (0, 6)
+             OR vend_transactions.is_multiple = 1
+         )
+    THEN COALESCE(vend_transactions.qty, 0)
+    ELSE 0
+END
+SQL;
+
+        return VendTransaction::query()
+            ->join('vends', 'vend_transactions.vend_id', '=', 'vends.id')
+            ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
+            ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
+            ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
+            ->whereBetween('vend_transactions.transaction_datetime', [$from, $to])
+            ->where('vend_transactions.amount', '>', 0)
+            ->groupBy('date', 'vends.id', 'customers.id')
+            ->select(
+                'vends.id AS vend_id',
+                'customers.id AS customer_id',
+                'vend_transactions.operator_id',
+                'location_types.id AS location_type_id',
+                'vends.vend_prefix_id',
+                'vends.vend_model_id',
+                DB::raw('DATE(vend_transactions.transaction_datetime) as date'),
+                DB::raw(
+                    "SUM({$successfulItemsExpression}) as total_count"
+                ),
+                DB::raw(
+                    'COALESCE(SUM(
+                        CASE
+                            WHEN vend_channel_error_id IS NULL THEN amount
+                            WHEN vend_channel_errors.code = 0 THEN amount
+                            WHEN vend_channel_errors.code = 6 THEN amount
+                            WHEN is_multiple = 1 THEN amount
+                            ELSE 0
+                        END
+                    ),0) as total_amount'
+                )
+            );
     }
 
     private function baseVendTransactionMetricsQuery($request, Carbon $start, Carbon $end, ?string $locationTypeColumn = null): Builder
