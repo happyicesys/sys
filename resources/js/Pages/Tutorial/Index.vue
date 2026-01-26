@@ -50,7 +50,7 @@
                   </div>
                   <a :href="item.link" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
                     Watch Video
-                    <ExternalLinkIcon class="w-4 h-4 ml-1" />
+                    <ArrowTopRightOnSquareIcon class="w-4 h-4 ml-1" />
                   </a>
                 </div>
               </div>
@@ -78,7 +78,7 @@ function hasPermission(permission) {
 const managementItems = [
     {
         title: 'VendingMachine (CustomerView) Tab',
-        link: 'https://youtu.be/GiloQqqvAcA',
+        link: 'https://www.youtube.com/watch?v=GiloQqqvAcA',
         subtitles: [
             'Machine status in a glance',
             'Active machines that currently in operation',
@@ -87,7 +87,7 @@ const managementItems = [
     },
     {
         title: 'Customer Management Tab',
-        link: 'https://youtu.be/LieUqAR9V-A',
+        link: 'https://www.youtube.com/watch?v=LieUqAR9V-A',
         subtitles: [
             'Create new customer profile',
             'Bind Machine to Customer'
@@ -95,7 +95,7 @@ const managementItems = [
     },
     {
         title: 'Machine Management Tab',
-        link: 'https://youtu.be/4mg3jn_aXi4',
+        link: 'https://www.youtube.com/watch?v=4mg3jn_aXi4',
         subtitles: [
             'Machine View',
             'Machine Setting',
@@ -104,7 +104,7 @@ const managementItems = [
     },
     {
         title: 'Data Management Tab',
-        link: 'https://youtu.be/Xdd8GOEed0M',
+        link: 'https://www.youtube.com/watch?v=Xdd8GOEed0M',
         subtitles: [
             'Machine Serial Number',
             'Cashless Terminal',
@@ -125,7 +125,7 @@ const managementItems = [
     },
     {
         title: 'Product Availability (Warehouse)',
-        link: 'https://youtu.be/sfQRlfmhCqA',
+        link: 'https://www.youtube.com/watch?v=sfQRlfmhCqA',
         subtitles: [
             'Stock Incoming & Incoming History',
             'Warehouse Log',
@@ -136,7 +136,7 @@ const managementItems = [
     },
     {
         title: 'Job assignment and stock planning',
-        link: 'https://youtu.be/YJvXJQYcxgE',
+        link: 'https://www.youtube.com/watch?v=YJvXJQYcxgE',
         subtitles: [
             'Assign Job to Driver',
             'Check Qty needed (planning for Jobs on Date)',
