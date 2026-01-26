@@ -152,7 +152,7 @@
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-blue-600 border-b border-r border-gray-300 cursor-pointer hover:bg-gray-200" @click="sortTable('avg_seven_days_count')">
                                             <div class="flex items-center justify-center gap-1">
-                                                <span>Last7d sold qty</span>
+                                                <span>Daily Sold Qty</span>
                                                 <span v-if="filters.sortKey === 'avg_seven_days_count'">
                                                     <svg v-if="filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
@@ -162,7 +162,7 @@
                                                     </svg>
                                                 </span>
                                             </div>
-                                            <span class="font-normal text-gray-600">(avg last 28d)</span>
+                                            <span class="font-normal text-gray-600">(average last 7days)</span>
                                         </th>
 
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
