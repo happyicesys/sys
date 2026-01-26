@@ -42,7 +42,7 @@ class SyncAvgSalesQtyProducts implements ShouldQueue
             Product::chunk(50, function ($products) use ($counts) {
                 foreach ($products as $product) {
                     $count = $counts[$product->id] ?? 0;
-                    $avg = $count / 4;
+                    $avg = $count / 28;
 
                     $product->update([
                         'avg_seven_days_count' => $avg
