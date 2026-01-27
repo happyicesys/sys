@@ -46,6 +46,7 @@ use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\DeliveryPlatform;
+use App\Models\DeliveryPlatformOperator;
 use App\Models\ExportJob;
 use App\Models\ExportJobChunk;
 use App\Models\LocationType;
@@ -1645,6 +1646,13 @@ class VendController extends Controller
             ], 400));
         }
 
+        $isGrabEnabled = $vend->operator ? $vend->operator->deliveryPlatformOperators()
+            ->whereHas('deliveryPlatform', function ($query) {
+                $query->where('slug', 'grab');
+            })
+            ->where('type', DeliveryPlatformOperator::TYPE_PRODUCTION)
+            ->exists() : false;
+
         if ($apkSetting->campaignItems) {
             $campaignItems = $apkSetting->campaignItems;
         }
@@ -1654,6 +1662,7 @@ class VendController extends Controller
         });
 
         $data = [
+            'isGrabEnabled' => $isGrabEnabled ? "true" : "false",
             ...$apkSetting->settings_parameter_json,
             'promoLabelItems' => $campaignItems->map(function ($campaignItem) {
                 return [
