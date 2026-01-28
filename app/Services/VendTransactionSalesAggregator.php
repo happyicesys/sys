@@ -44,7 +44,7 @@ class VendTransactionSalesAggregator
                     ->orWhereIn('vend_transactions.error_code_normalized', [0, 6]);
             })
             ->selectRaw('COALESCE(vend_transactions.product_id, single_vc.product_id) as product_id')
-            ->selectRaw('COUNT(*) as total_count')
+            ->selectRaw('SUM(COALESCE(vend_transactions.qty, 1)) as total_count')
             ->selectRaw('SUM(vend_transactions.amount) as total_amount')
             ->groupBy('product_id');
 

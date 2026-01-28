@@ -1052,6 +1052,68 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> APK Parameter </span>
+                </div>
+              </div>
+            </div>
+
+             <div class="sm:col-span-2">
+                <label class="flex justify-start text-sm font-medium text-gray-700">
+                  Grab Enabled?
+                </label>
+                <div class="mt-2 block sm:text-sm flex items-center">
+                   <CheckIcon v-if="isApkParamTrue(vend.is_enable_grab_collection)" class="w-5 h-5 text-green-500" />
+                   <XMarkIcon v-else-if="isApkParamFalse(vend.is_enable_grab_collection)" class="w-5 h-5 text-red-500" />
+                   <span v-else>Not Detected</span>
+                </div>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="flex justify-start text-sm font-medium text-gray-700">
+                  Has Screen?
+                </label>
+                <div class="mt-2 block sm:text-sm flex items-center">
+                   <CheckIcon v-if="isApkParamTrue(vend.has_display_screen)" class="w-5 h-5 text-green-500" />
+                   <XMarkIcon v-else-if="isApkParamFalse(vend.has_display_screen)" class="w-5 h-5 text-red-500" />
+                   <span v-else>Not Detected</span>
+                </div>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="flex justify-start text-sm font-medium text-gray-700">
+                  Soft Keyboard (QR Pay)?
+                </label>
+                <div class="mt-2 block sm:text-sm flex items-center">
+                   <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_qr_pay)" class="w-5 h-5 text-green-500" />
+                   <XMarkIcon v-else-if="isApkParamFalse(vend.is_enable_soft_keyboard_qr_pay)" class="w-5 h-5 text-red-500" />
+                   <span v-else>Not Detected</span>
+                </div>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="flex justify-start text-sm font-medium text-gray-700">
+                  Soft Keyboard (Cash Pay)?
+                </label>
+                <div class="mt-2 block sm:text-sm flex items-center">
+                   <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_cash_pay)" class="w-5 h-5 text-green-500" />
+                   <XMarkIcon v-else-if="isApkParamFalse(vend.is_enable_soft_keyboard_cash_pay)" class="w-5 h-5 text-red-500" />
+                   <span v-else>Not Detected</span>
+                </div>
+            </div>
+             <div class="sm:col-span-2">
+                <label class="flex justify-start text-sm font-medium text-gray-700">
+                  Soft Keyboard (Card Pay)?
+                </label>
+                <div class="mt-2 block sm:text-sm flex items-center">
+                   <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_credit_card_pay)" class="w-5 h-5 text-green-500" />
+                   <XMarkIcon v-else-if="isApkParamFalse(vend.is_enable_soft_keyboard_credit_card_pay)" class="w-5 h-5 text-red-500" />
+                   <span v-else>Not Detected</span>
+                </div>
+            </div>
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-start">
                   <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Advance Control </span>
                 </div>
               </div>
@@ -1181,7 +1243,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
-import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, computed, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
@@ -1542,6 +1604,23 @@ function formatCurrency(amount) {
 
 function formatDatetime(datetime) {
   return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
+}
+
+function isApkParamTrue(value) {
+    return value === true || value === 1 || value === '1';
+}
+
+function isApkParamFalse(value) {
+    return value === false || value === 0 || value === '0';
+}
+
+function formatApkParameter(value) {
+  if (value === true || value === 1 || value === '1') {
+    return 'Yes'
+  } else if (value === false || value === 0 || value === '0') {
+    return 'No'
+  }
+  return 'Not Detected'
 }
 
 function computeUpcomingSelection(existingId = null) {

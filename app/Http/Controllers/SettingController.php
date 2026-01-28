@@ -349,6 +349,11 @@ class SettingController extends Controller
                 'vend_prefixes.name AS vend_prefix_name',
                 DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
                 DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
+                'vends.is_enable_grab_collection',
+                'vends.has_display_screen',
+                'vends.is_enable_soft_keyboard_qr_pay',
+                'vends.is_enable_soft_keyboard_cash_pay',
+                'vends.is_enable_soft_keyboard_credit_card_pay',
             )
             ->first();
 
