@@ -1655,9 +1655,17 @@ class VendController extends Controller
             return (bool) ($campaign->is_active ?? false);
         });
 
+        $settingsParams = $apkSetting->settings_parameter_json ?? [];
+        if (!is_array($settingsParams)) {
+            $settingsParams = (array) $settingsParams;
+        }
+
         $data = [
             'isGrabEnabled' => $isGrabEnabled ? "true" : "false",
-            ...$apkSetting->settings_parameter_json,
+            ...$settingsParams,
+            'companyUrl' => $settingsParams['company_url'] ?? null,
+            'companyAddress' => $settingsParams['company_address'] ?? null,
+            'refundUrl' => $settingsParams['refund_url'] ?? null,
             'promoLabelItems' => $campaignItems->map(function ($campaignItem) {
                 return [
                     'id' => isset($campaignItem->tagBindings[0]) ? $campaignItem->tagBindings[0]->tag->id : null,

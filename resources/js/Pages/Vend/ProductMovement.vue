@@ -256,11 +256,18 @@
                                     </tbody>
                                     <tfoot>
                                         <tr class="bg-gray-50 font-bold">
-                                            <td colspan="4" class="p-3 text-right text-gray-900 border-r border-gray-300">
-                                                <div class="flex flex-col space-y-1 items-end">
+                                            <td colspan="3" class="p-3 text-left text-gray-900">
+                                                <div class="flex flex-col space-y-1 items-start">
                                                     <span>Total Pcs</span>
                                                     <span>Total Cost$</span>
                                                     <span class="text-gray-900">Stock Value</span>
+                                                </div>
+                                            </td>
+                                            <td class="p-1 sm:p-3 text-center text-gray-900 border-r border-gray-300">
+                                                <div class="flex flex-col space-y-1">
+                                                    <span>{{ getDailySoldQtyTotal().toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
+                                                    <span>{{ operatorCountry.currency_symbol }}{{ getDailySoldQtyTotalCost().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                                                    <span>&nbsp;</span>
                                                 </div>
                                             </td>
                                             <td class="p-1 sm:p-3 text-center text-blue-600">
@@ -638,6 +645,21 @@ function getNeededQtyTotal() {
 function getNeededQtyTotalCost() {
   return props.products.data.reduce((acc, product) => {
     const qty = Number(product.needed_qty) || 0;
+    const cost = Number(product.latestUnitCost?.cost) || 0;
+    return acc + (qty * cost);
+  }, 0);
+}
+
+function getDailySoldQtyTotal() {
+  return props.products.data.reduce((acc, product) => {
+    const qty = Number(product.avg_seven_days_count) || 0;
+    return acc + qty;
+  }, 0);
+}
+
+function getDailySoldQtyTotalCost() {
+  return props.products.data.reduce((acc, product) => {
+    const qty = Number(product.avg_seven_days_count) || 0;
     const cost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qty * cost);
   }, 0);

@@ -60,6 +60,10 @@ class VendParameterService
             "dcvendFreePlanPromoValue" => 15,
             "dcvendGoldPlanPromoValue" => 30,
             "dcvendPlatinumPlanPromoValue" => 30,
+
+            'company_url' => null,
+            'company_address' => null,
+            'refund_url' => null,
         ];
 
         return $parameters;
@@ -116,6 +120,10 @@ class VendParameterService
             "dcvendFreePlanPromoValue" => $parameters['dcvendFreePlanPromoValue'],
             "dcvendGoldPlanPromoValue" => $parameters['dcvendGoldPlanPromoValue'],
             "dcvendPlatinumPlanPromoValue" => $parameters['dcvendPlatinumPlanPromoValue'],
+
+            'company_url' => $parameters['company_url'] ?? null,
+            'company_address' => $parameters['company_address'] ?? null,
+            'refund_url' => $parameters['refund_url'] ?? null,
         ];
 
         return $settings;

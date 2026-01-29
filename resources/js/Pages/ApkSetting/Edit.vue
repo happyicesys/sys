@@ -118,6 +118,47 @@
                 </div>
                 <div class="relative flex justify-center ">
                   <div class="flex flex-col items-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Company Details </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-5">
+              <FormInput v-model="form.company_url">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-base">
+                    Company URL
+                  </span>
+                </div>
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-5">
+              <FormTextarea v-model="form.company_address" :rows="3">
+                <div class="text-base">
+                  Company Address
+                </div>
+              </FormTextarea>
+            </div>
+
+            <div class="sm:col-span-5">
+              <FormInput v-model="form.refund_url">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-base">
+                    Refund URL
+                  </span>
+                </div>
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <div class="flex flex-col items-center">
                     <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> DCVend </span>
                   </div>
                 </div>
@@ -215,6 +256,8 @@
             </div>
 
             <hr class="sm:col-span-6">
+
+
 
             <div class="sm:col-span-6 py-2">
               <span class="flex space-x-1">
@@ -1426,6 +1469,9 @@ onMounted(() => {
     enableDebugMode: booleanStrictOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.enableDebugMode.toString()
     ),
+    company_url: props.apkSetting.data.settings_parameter_json.company_url,
+    company_address: props.apkSetting.data.settings_parameter_json.company_address,
+    refund_url: props.apkSetting.data.settings_parameter_json.refund_url,
 
   }) : useForm(getDefaultForm())
 
@@ -1503,6 +1549,10 @@ function getDefaultForm() {
     dcvendFreePlanPromoValue: '',
     dcvendGoldPlanPromoValue: '',
     dcvendPlatinumPlanPromoValue: '',
+
+    company_url: '',
+    company_address: '',
+    refund_url: '',
   }
 }
 
@@ -1538,6 +1588,9 @@ function submit() {
             bundleEndDate: form.value.bundleEndDate != 'Invalid date' ? form.value.bundleEndDate : null,
             labelPromoStartDate: form.value.labelPromoStartDate != 'Invalid date' ? form.value.labelPromoStartDate : null,
             labelPromoEndDate: form.value.labelPromoEndDate != 'Invalid date' ? form.value.labelPromoEndDate : null,
+            company_url: form.value.company_url,
+            company_address: form.value.company_address,
+            refund_url: form.value.refund_url,
             vends: vends.value.map(vend => vend.id),
           }
       }).then(response => {

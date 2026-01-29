@@ -2172,9 +2172,63 @@ if(urlParams.has('channel_codes')) {
     filters.value.operators = [operatorOptions.value[0]];
 }
 
-if(urlParams.has('codes') || urlParams.has('channel_codes')) {
-    onSearchFilterUpdated();
-}
+	// Hydrate filters from URL
+	for(const [key, value] of urlParams.entries()) {
+		let cleanKey = key.replace(/\[\d*\]$/, '');
+
+		// string fields
+		if([
+			'account_manager_name', 'apk_ver', 'codes', 'coinLessThan', 'channel_codes',
+			'serialNum', 'customer', 'firmware_ver', 'tempHigherThan', 't2HigherThan',
+			'tempDeltaHigherThan', 'lastVisitedGreaterThan', 'fanSpeedLowerThan',
+			'balanceStockLessThan', 'remainingSkuLessThan', 'vendRecordsThirtyDaysAmountAverageLessThan',
+			'sortKey', 'next_planned_date'
+		].includes(cleanKey)) {
+				filters.value[cleanKey] = value;
+		}
+
+		if(key === 'sortBy') filters.value.sortBy = (value === 'true');
+
+		if(cleanKey === 'delivery_platform_id') filters.value.delivery_platform_id = deliveryPlatformOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.delivery_platform_id;
+		if(cleanKey === 'deviceType') filters.value.deviceType = deviceTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.deviceType;
+		if(cleanKey === 'location_type_id') filters.value.locationType = locationTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.locationType;
+		if(cleanKey === 'next_planned_driver') filters.value.next_planned_driver = nextDeliveryDriverOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.next_planned_driver;
+		if(cleanKey === 'is_active') filters.value.is_active = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_active;
+		if(cleanKey === 'is_binded_customer') filters.value.is_binded_customer = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_binded_customer;
+		if(cleanKey === 'is_door_open') filters.value.is_door_open = doorOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_door_open;
+		if(cleanKey === 'is_mqtt') filters.value.is_mqtt = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_mqtt;
+		if(cleanKey === 'is_mqtt_active') filters.value.is_mqtt_active = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_mqtt_active;
+		if(cleanKey === 'is_online') filters.value.is_online = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_online;
+		if(cleanKey === 'is_sensor') filters.value.is_sensor = enableOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_sensor;
+		if(cleanKey === 'status') filters.value.status = statusOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.status;
+		if(cleanKey === 'numberPerPage') filters.value.numberPerPage = numberPerPageOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.numberPerPage;
+		if(cleanKey === 'selling_price_type') filters.value.selling_price_type = sellingPriceTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.selling_price_type;
+	}
+
+	const hydrateMulti = (paramKey, options, filterKey) => {
+		let values = [];
+		for (const [pKey, pValue] of urlParams.entries()) {
+				if (pKey === paramKey || pKey.startsWith(paramKey + '[') ) {
+					values.push(pValue);
+				}
+		}
+		if (values.length > 0) {
+				filters.value[filterKey] = options.filter(opt => values.includes(String(opt.id)));
+		}
+	}
+
+	hydrateMulti('errors', vendChannelErrorsOptions.value, 'errors');
+	hydrateMulti('frequency_per_week_status', frequencyPerWeekOptions.value, 'frequency_per_week_status');
+	hydrateMulti('operators', operatorOptions.value, 'operators');
+	hydrateMulti('preferredDays', dayOptions.value, 'preferredDays');
+	hydrateMulti('vendContracts', vendContractOptions.value, 'vendContracts');
+	hydrateMulti('vendModels', vendModelOptions.value, 'vendModels');
+	hydrateMulti('vendPrefixes', vendPrefixOptions.value, 'vendPrefixes');
+	hydrateMulti('zones', zoneOptions.value, 'zones');
+
+	if(urlParams.has('codes') || urlParams.has('channel_codes')) {
+		onSearchFilterUpdated();
+	}
 })
 
 function compareRefPrice(vend, channel) {
