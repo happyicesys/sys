@@ -874,17 +874,24 @@ class OpsJobController extends Controller
         $driverID = $request->driver_id;
         $date = $request->date;
 
-        $code = $this->generateUniqueOpsJobCode('driver_id');
+        $opsJob = OpsJob::where('date', $date)
+            ->where('delivered_by', $driverID)
+            ->where('operator_id', auth()->user()->operator_id)
+            ->first();
 
-        $opsJob = OpsJob::create([
-            'code' => $code,
-            'created_by' => auth()->id(),
-            'date' => $date,
-            'delivered_by' => $driverID,
-            'operator_id' => auth()->user()->operator_id,
-            'updated_by' => null,
-            'updated_at' => null,
-        ]);
+        if (!$opsJob) {
+            $code = $this->generateUniqueOpsJobCode('driver_id');
+
+            $opsJob = OpsJob::create([
+                'code' => $code,
+                'created_by' => auth()->id(),
+                'date' => $date,
+                'delivered_by' => $driverID,
+                'operator_id' => auth()->user()->operator_id,
+                'updated_by' => null,
+                'updated_at' => null,
+            ]);
+        }
 
         foreach ($vendsID as $vendID) {
             $this->createOpsJobItem($opsJob->id, $vendID);
