@@ -13,7 +13,7 @@ class SyncAvgSalesQtyProducts extends Command
      *
      * @var string
      */
-    protected $signature = 'sync:avg-sales-qty-products';
+    protected $signature = 'sync:avg-sales-qty-products {date?}';
 
     /**
      * The console command description.
@@ -27,6 +27,7 @@ class SyncAvgSalesQtyProducts extends Command
      */
     public function handle()
     {
-        SyncAvgSalesQtyProductsJob::dispatch(Carbon::yesterday()->toDateString());
+        $date = $this->argument('date') ?: Carbon::yesterday()->toDateString();
+        SyncAvgSalesQtyProductsJob::dispatchSync($date);
     }
 }

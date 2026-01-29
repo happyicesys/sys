@@ -32,7 +32,7 @@ class SyncAvgSalesQtyProducts implements ShouldQueue
     public function handle(): void
     {
         try {
-            $startDate = Carbon::parse($this->date)->subDays(27)->startOfDay();
+            $startDate = Carbon::parse($this->date)->subDays(6)->startOfDay();
             $endDate = Carbon::parse($this->date)->endOfDay();
 
             $counts = VendTransactionSalesAggregator::productTotals($startDate, $endDate)
@@ -42,7 +42,7 @@ class SyncAvgSalesQtyProducts implements ShouldQueue
             Product::chunk(50, function ($products) use ($counts) {
                 foreach ($products as $product) {
                     $count = $counts[$product->id] ?? 0;
-                    $avg = $count / 28;
+                    $avg = $count / 7;
 
                     $product->update([
                         'avg_seven_days_count' => $avg

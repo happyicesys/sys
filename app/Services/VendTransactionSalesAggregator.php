@@ -21,8 +21,9 @@ class VendTransactionSalesAggregator
      */
     public static function productTotals(Carbon $start, Carbon $end, ?Closure $applyFilter = null): Builder
     {
-        $start = $start->copy()->startOfDay();
-        $end = $end->copy()->endOfDay();
+        // Use application timezone (usually SG/UTC+8) for "Day" boundaries, then convert to UTC for DB query
+        $start = $start->copy()->setTimezone(config('app.timezone'))->startOfDay()->setTimezone('UTC');
+        $end = $end->copy()->setTimezone(config('app.timezone'))->endOfDay()->setTimezone('UTC');
 
         $singleQuery = VendTransaction::query()
             ->whereBetween('vend_transactions.transaction_datetime', [$start, $end]);
