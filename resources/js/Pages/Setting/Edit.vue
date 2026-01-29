@@ -1069,7 +1069,7 @@
             </div>
             <div class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  Has Screen?
+                  Display Screen Available?
                 </label>
                 <div class="mt-2 block sm:text-sm flex items-center">
                    <CheckIcon v-if="isApkParamTrue(vend.has_display_screen)" class="w-5 h-5 text-green-500" />
@@ -1079,7 +1079,7 @@
             </div>
             <div class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  Soft Keyboard (QR Pay)?
+                  QR Payment Method
                 </label>
                 <div class="mt-2 block sm:text-sm flex items-center">
                    <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_qr_pay)" class="w-5 h-5 text-green-500" />
@@ -1089,7 +1089,7 @@
             </div>
             <div class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  Soft Keyboard (Cash Pay)?
+                  Cash Payment Method
                 </label>
                 <div class="mt-2 block sm:text-sm flex items-center">
                    <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_cash_pay)" class="w-5 h-5 text-green-500" />
@@ -1099,7 +1099,7 @@
             </div>
              <div class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
-                  Soft Keyboard (Card Pay)?
+                  Credit Card Payment Method
                 </label>
                 <div class="mt-2 block sm:text-sm flex items-center">
                    <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_credit_card_pay)" class="w-5 h-5 text-green-500" />
