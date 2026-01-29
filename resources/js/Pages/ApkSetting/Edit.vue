@@ -135,11 +135,20 @@
             </div>
 
             <div class="sm:col-span-5">
-              <FormTextarea v-model="form.company_address" :rows="3">
-                <div class="text-base">
-                  Company Address
+              <label class="flex justify-start text-base font-medium text-gray-700">
+                Company Address
+              </label>
+              <div class="mt-1 space-y-2">
+                <input type="text" v-model="addressLine1" placeholder="Address Line 1"
+                      class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" />
+                <input type="text" v-model="addressLine2" placeholder="Address Line 2"
+                      class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" />
+                <input type="text" v-model="addressLine3" placeholder="Address Line 3"
+                      class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" />
+                <div class="text-sm text-red-600" v-if="form.errors.company_address">
+                   {{ form.errors.company_address }}
                 </div>
-              </FormTextarea>
+              </div>
             </div>
 
             <div class="sm:col-span-5">
@@ -1410,6 +1419,9 @@ const canAddCampaignItem = computed(() => {
 const apkSetting = ref([])
 const unbindedVendOptions = ref([])
 const vends = ref([])
+const addressLine1 = ref('')
+const addressLine2 = ref('')
+const addressLine3 = ref('')
 
 onMounted(() => {
   apkSetting.value = props.apkSetting.data
@@ -1487,6 +1499,11 @@ onMounted(() => {
   if (form.value.value === undefined) {
     form.value.value = ''
   }
+
+  const addressParts = (form.value.company_address || '').split('\n');
+  addressLine1.value = addressParts[0] || '';
+  addressLine2.value = addressParts[1] || '';
+  addressLine3.value = addressParts[2] || '';
 })
 
 function getDefaultForm() {
@@ -1589,7 +1606,7 @@ function submit() {
             labelPromoStartDate: form.value.labelPromoStartDate != 'Invalid date' ? form.value.labelPromoStartDate : null,
             labelPromoEndDate: form.value.labelPromoEndDate != 'Invalid date' ? form.value.labelPromoEndDate : null,
             company_url: form.value.company_url,
-            company_address: form.value.company_address,
+            company_address: [addressLine1.value, addressLine2.value, addressLine3.value].join('\n'),
             refund_url: form.value.refund_url,
             vends: vends.value.map(vend => vend.id),
           }
