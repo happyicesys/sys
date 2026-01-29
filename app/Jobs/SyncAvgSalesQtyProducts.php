@@ -35,7 +35,8 @@ class SyncAvgSalesQtyProducts implements ShouldQueue
             $startDate = Carbon::parse($this->date)->subDays(6)->startOfDay();
             $endDate = Carbon::parse($this->date)->endOfDay();
 
-            $counts = VendTransactionSalesAggregator::productTotals($startDate, $endDate)
+            // detailed product count (not basket total), including attempted (failed) sales for demand planning
+            $counts = VendTransactionSalesAggregator::productTotals($startDate, $endDate, null, true)
                 ->pluck('total_count', 'product_id');
 
             // Step 2: Loop through products in chunks
