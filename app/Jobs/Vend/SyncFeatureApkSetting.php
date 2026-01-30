@@ -39,6 +39,7 @@ class SyncFeatureApkSetting implements ShouldQueue
             'is_enable_soft_keyboard_qr_pay' => $this->input['isEnableSoftKeyboardQrPay'] ?? null,
             'is_enable_soft_keyboard_cash_pay' => $this->input['isEnableSoftKeyboardCashPay'] ?? null,
             'is_enable_soft_keyboard_credit_card_pay' => $this->input['isEnableSoftKeyboardCreditCardPay'] ?? null,
+            'is_enable_soft_keyboard_hid_pay' => $this->input['isEnableSoftKeyboardHidPay'] ?? null,
             'has_display_screen' => $this->input['hasDisplayScreen'] ?? null,
         ]);
     }

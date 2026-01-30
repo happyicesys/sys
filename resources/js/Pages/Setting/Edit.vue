@@ -1107,6 +1107,16 @@
                    <span v-else>Not Detected</span>
                 </div>
             </div>
+            <div class="sm:col-span-2">
+                <label class="flex justify-start text-sm font-medium text-gray-700">
+                  HID Payment Method
+                </label>
+                <div class="mt-2 block sm:text-sm flex items-center">
+                   <CheckIcon v-if="isApkParamTrue(vend.is_enable_soft_keyboard_hid_pay)" class="w-5 h-5 text-green-500" />
+                   <XMarkIcon v-else-if="isApkParamFalse(vend.is_enable_soft_keyboard_hid_pay)" class="w-5 h-5 text-red-500" />
+                   <span v-else>Not Detected</span>
+                </div>
+            </div>
 
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
