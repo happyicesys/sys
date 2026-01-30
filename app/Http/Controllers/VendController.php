@@ -1665,6 +1665,7 @@ class VendController extends Controller
             ...$settingsParams,
             'companyUrl' => $settingsParams['company_url'] ?? null,
             'companyAddress' => $settingsParams['company_address'] ?? null,
+            'companyName' => $settingsParams['companyName'] ?? null,
             'refundUrl' => $settingsParams['refund_url'] ?? null,
             'promoLabelItems' => $campaignItems->map(function ($campaignItem) {
                 return [
