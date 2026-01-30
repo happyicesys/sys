@@ -81,7 +81,7 @@
                       </span>
                     </Button>
                   </Link>
-                  <Button type="submit" v-if="permissions.includes('update operators')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+                  <Button type="submit" v-if="permissions.includes('update delivery-platform-campaigns')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
                       Save

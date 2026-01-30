@@ -486,6 +486,10 @@
                                 <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-left">
                                   {{ deliveryProductMappingVend.vend.code }}
                                   <br>
+                                  <span v-if="deliveryProductMappingVend.vend.vendPrefix">
+                                    {{ deliveryProductMappingVend.vend.vendPrefix.name }}
+                                    <br>
+                                  </span>
                                   {{ deliveryProductMappingVend.vend.cust_full_name }}
                                 </TableData>
                                 <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-center">

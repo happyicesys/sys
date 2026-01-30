@@ -131,7 +131,8 @@ class DeliveryPlatformCampaignController extends Controller
                     $query->whereNull('end_date')
                         ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
-                'deliveryProductMapping.deliveryProductMappingVends.vend:id,code,name,customer_id',
+                'deliveryProductMapping.deliveryProductMappingVends.vend:id,code,name,customer_id,vend_prefix_id',
+                'deliveryProductMapping.deliveryProductMappingVends.vend.vendPrefix:id,name',
                 'deliveryProductMapping.deliveryProductMappingVends.vend.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
             ])
             ->findOrFail($id);
@@ -148,7 +149,8 @@ class DeliveryPlatformCampaignController extends Controller
                 },
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaign',
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
-                'vend:id,code,name,customer_id',
+                'vend:id,code,name,customer_id,vend_prefix_id',
+                'vend.vendPrefix:id,name',
                 'vend.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
             ])
             ->when($id, function ($query, $search) {
