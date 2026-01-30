@@ -67,15 +67,6 @@
               </FormInput>
             </div>
 
-            <div class="sm:col-span-3">
-              <FormInput v-model="form.supportContactNum">
-                <div class="flex flex-col space-y-1">
-                  <span class="text-base">
-                    Support contact num
-                  </span>
-                </div>
-              </FormInput>
-            </div>
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-base font-medium text-gray-700">
@@ -118,10 +109,20 @@
                 </div>
                 <div class="relative flex justify-center ">
                   <div class="flex flex-col items-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Company Details </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Contact Details </span>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div class="sm:col-span-5">
+              <FormInput v-model="form.companyName">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-base">
+                    Company Name
+                  </span>
+                </div>
+              </FormInput>
             </div>
 
             <div class="sm:col-span-5">
@@ -156,6 +157,16 @@
                 <div class="flex flex-col space-y-1">
                   <span class="text-base">
                     Refund URL
+                  </span>
+                </div>
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-5">
+              <FormInput v-model="form.supportContactNum">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-base">
+                    Support contact num
                   </span>
                 </div>
               </FormInput>
@@ -1481,6 +1492,7 @@ onMounted(() => {
     enableDebugMode: booleanStrictOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.enableDebugMode.toString()
     ),
+    companyName: props.apkSetting.data.settings_parameter_json.companyName,
     company_url: props.apkSetting.data.settings_parameter_json.company_url,
     company_address: props.apkSetting.data.settings_parameter_json.company_address,
     refund_url: props.apkSetting.data.settings_parameter_json.refund_url,
@@ -1567,6 +1579,7 @@ function getDefaultForm() {
     dcvendGoldPlanPromoValue: '',
     dcvendPlatinumPlanPromoValue: '',
 
+    companyName: '',
     company_url: '',
     company_address: '',
     refund_url: '',
@@ -1605,6 +1618,7 @@ function submit() {
             bundleEndDate: form.value.bundleEndDate != 'Invalid date' ? form.value.bundleEndDate : null,
             labelPromoStartDate: form.value.labelPromoStartDate != 'Invalid date' ? form.value.labelPromoStartDate : null,
             labelPromoEndDate: form.value.labelPromoEndDate != 'Invalid date' ? form.value.labelPromoEndDate : null,
+            companyName: form.value.companyName,
             company_url: form.value.company_url,
             company_address: [addressLine1.value, addressLine2.value, addressLine3.value].join('\n'),
             refund_url: form.value.refund_url,

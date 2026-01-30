@@ -2119,7 +2119,7 @@ class VendController extends Controller
         $request->merge(['sortKey' => $request->sortKey ?? 'transaction_datetime']);
         $request->merge(['sortBy' => $request->sortBy ?? false]);
 
-        $timezone = $this->getUserTimezone();
+        $timezone = config('app.timezone');
         $request->date_from = $request->date_from
             ? Carbon::parse($request->date_from)->setTimezone($timezone)->startOfDay()
             : Carbon::today()->setTimezone($timezone)->startOfDay();

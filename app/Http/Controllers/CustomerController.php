@@ -376,6 +376,7 @@ class CustomerController extends Controller
             if ($request->operator_id) {
                 $customer->update([
                     'operator_id' => $request->operator_id,
+                    'selling_price_type' => $request->selling_price_type,
                 ]);
             }
         } else {

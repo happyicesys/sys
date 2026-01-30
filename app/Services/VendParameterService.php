@@ -64,6 +64,7 @@ class VendParameterService
             'company_url' => null,
             'company_address' => null,
             'refund_url' => null,
+            'companyName' => null,
         ];
 
         return $parameters;
@@ -124,6 +125,7 @@ class VendParameterService
             'company_url' => $parameters['company_url'] ?? null,
             'company_address' => $parameters['company_address'] ?? null,
             'refund_url' => $parameters['refund_url'] ?? null,
+            'companyName' => $parameters['companyName'] ?? null,
         ];
 
         return $settings;
