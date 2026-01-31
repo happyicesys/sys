@@ -274,6 +274,221 @@ class OpsJobController extends Controller
         ]);
     }
 
+    public function summary(Request $request)
+    {
+        $isDriver = auth()->user()->hasRole('driver');
+
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                    ]
+                ]);
+            } else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+
+        $request->merge([
+            'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->subDays(3)->setTimezone($this->getUserTimezone())->startOfDay(),
+            'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->addWeek()->setTimezone($this->getUserTimezone())->endOfDay(),
+        ]);
+
+        if ($isDriver) {
+            $request->merge([
+                'delivered_by' => auth()->id(),
+            ]);
+        }
+
+        // Base query for filtering
+        $query = OpsJob::query();
+
+        // Apply filters
+        $query->when($request->date_from, function ($query, $search) {
+            $query->where('date', '>=', $search);
+        })
+            ->when($request->date_to, function ($query, $search) {
+                $query->where('date', '<=', $search);
+            })
+            ->when($request->delivered_by, function ($query, $search) {
+                if (is_array($search)) {
+                    $query->whereIn('delivered_by', $search);
+                } else {
+                    $query->where('delivered_by', $search);
+                }
+            })
+            ->whereHas('deliveredBy', function ($query) use ($request) {
+                $query->whereIn('operator_id', $request->operators);
+            });
+
+        $opsJobIds = $query->pluck('id')->toArray();
+
+        // Retrieve raw ops jobs to group by delivered_by
+        $opsJobsAll = $query->with('deliveredBy')->get();
+        $groupedOpsJobs = $opsJobsAll->groupBy('delivered_by');
+
+        $summaries = collect();
+
+        if (!empty($opsJobIds)) {
+            // 1. Item Stats Aggregation
+            $itemStats = DB::table('ops_job_items')
+                ->whereIn('ops_job_id', $opsJobIds)
+                ->selectRaw('
+                    ops_job_id,
+                    COUNT(*) as ops_job_items_count,
+                    SUM(CASE WHEN status >= ? AND status <> ? THEN 1 ELSE 0 END) as ops_job_items_delivered_count,
+                    SUM(CASE WHEN picked_at IS NOT NULL THEN 1 ELSE 0 END) as ops_job_items_picked_count,
+                    SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as ops_job_items_verified_count,
+                    SUM(cash_amount) as total_cash_amount,
+                    SUM(temp_cash_amount_from_vmc) as total_cash_amount_from_vmc,
+                    SUM(cash_amount) - SUM(temp_cash_amount_from_vmc) as delta_cash_amount,
+                    SUM(acc_total_amount) as acc_vend_transactions_amount,
+                    SUM(acc_total_cash_amount) as acc_vend_transactions_cash_amount,
+                    SUM(acc_total_cashless_amount) as acc_vend_transactions_cashless_amount,
+                    SUM(acc_total_promo_amount) as acc_vend_transactions_promo_amount,
+                    SUM(acc_total_count) as acc_vend_transactions_count,
+                    SUM(CASE WHEN cms_transaction_id IS NOT NULL THEN 1 ELSE 0 END) as cms_transaction_count
+                ', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED, OpsJob::STATUS_VERIFIED])
+                ->groupBy('ops_job_id')
+                ->get()
+                ->keyBy('ops_job_id');
+
+            // 2. Channel Stats Aggregation
+            $channelStats = DB::table('ops_job_item_channels as ojic')
+                ->join('ops_job_items as oji', 'ojic.ops_job_item_id', '=', 'oji.id')
+                ->join('vend_channels as vc', 'ojic.vend_channel_id', '=', 'vc.id')
+                ->leftJoin('products as p', 'vc.product_id', '=', 'p.id')
+                ->leftJoin('unit_costs as uc', function ($join) {
+                    $join->on('p.id', '=', 'uc.product_id')
+                        ->where('uc.is_current', '=', true);
+                })
+                ->whereIn('oji.ops_job_id', $opsJobIds)
+                ->selectRaw('
+                    oji.ops_job_id,
+                    SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty * vc.amount ELSE 0 END) as picked_amount,
+                    SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty ELSE 0 END) as picked_count,
+                    SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty * COALESCE(uc.cost, 0) ELSE 0 END) as picked_cost,
+                    SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * vc.amount ELSE 0 END) as stock_in_amount,
+                    SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty ELSE 0 END) as stock_in_count,
+                    SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * COALESCE(uc.cost, 0) ELSE 0 END) as stock_in_cost
+                ', [
+                    OpsJob::STATUS_PICKED,
+                    OpsJob::STATUS_PICKED,
+                    OpsJob::STATUS_PICKED,
+                    OpsJob::STATUS_DELIVERED,
+                    OpsJob::STATUS_CANCELLED,
+                    OpsJob::STATUS_DELIVERED,
+                    OpsJob::STATUS_CANCELLED,
+                    OpsJob::STATUS_DELIVERED,
+                    OpsJob::STATUS_CANCELLED
+                ])
+                ->groupBy('oji.ops_job_id')
+                ->get()
+                ->keyBy('ops_job_id');
+
+            foreach ($groupedOpsJobs as $deliveryById => $jobs) {
+                $summary = [
+                    'id' => $deliveryById, // Use delivery_by ID as referencing key
+                    'delivered_by' => $jobs->first()->deliveredBy,
+                    'job_count' => $jobs->count(),
+                    'ops_job_items_count' => 0,
+                    'ops_job_items_delivered_count' => 0,
+                    'ops_job_items_picked_count' => 0,
+                    'ops_job_items_verified_count' => 0,
+                    'total_cash_amount' => 0,
+                    'total_cash_amount_from_vmc' => 0,
+                    'delta_cash_amount' => 0,
+                    'acc_vend_transactions_amount' => 0,
+                    'acc_vend_transactions_cash_amount' => 0,
+                    'acc_vend_transactions_count' => 0,
+                    'cms_transaction_count' => 0,
+                    'picked_amount' => 0,
+                    'picked_count' => 0,
+                    'picked_cost' => 0,
+                    'stock_in_amount' => 0,
+                    'stock_in_count' => 0,
+                    'stock_in_cost' => 0,
+                ];
+
+                foreach ($jobs as $job) {
+                    $iStat = $itemStats->get($job->id);
+                    $cStat = $channelStats->get($job->id);
+
+                    // Accumulate stats
+                    $summary['ops_job_items_count'] += $iStat?->ops_job_items_count ?? 0;
+                    $summary['ops_job_items_delivered_count'] += $iStat?->ops_job_items_delivered_count ?? 0;
+                    $summary['ops_job_items_picked_count'] += $iStat?->ops_job_items_picked_count ?? 0;
+                    $summary['ops_job_items_verified_count'] += $iStat?->ops_job_items_verified_count ?? 0;
+                    $summary['total_cash_amount'] += $iStat?->total_cash_amount ?? 0;
+                    $summary['total_cash_amount_from_vmc'] += $iStat?->total_cash_amount_from_vmc ?? 0;
+                    $summary['delta_cash_amount'] += $iStat?->delta_cash_amount ?? 0;
+                    $summary['acc_vend_transactions_amount'] += $iStat?->acc_vend_transactions_amount ?? 0;
+                    $summary['acc_vend_transactions_cash_amount'] += $iStat?->acc_vend_transactions_cash_amount ?? 0;
+                    $summary['acc_vend_transactions_count'] += $iStat?->acc_vend_transactions_count ?? 0;
+                    $summary['cms_transaction_count'] += $iStat?->cms_transaction_count ?? 0;
+
+                    $summary['picked_amount'] += $cStat?->picked_amount ?? 0;
+                    $summary['picked_count'] += $cStat?->picked_count ?? 0;
+                    $summary['picked_cost'] += $cStat?->picked_cost ?? 0;
+                    $summary['stock_in_amount'] += $cStat?->stock_in_amount ?? 0;
+                    $summary['stock_in_count'] += $cStat?->stock_in_count ?? 0;
+                    $summary['stock_in_cost'] += $cStat?->stock_in_cost ?? 0;
+                }
+
+                // Calculate percentages
+                $summary['ops_job_items_picked_count_percentage'] = $summary['ops_job_items_count'] > 0
+                    ? ($summary['ops_job_items_picked_count'] / $summary['ops_job_items_count']) * 100
+                    : 0;
+                $summary['ops_job_items_delivered_count_percentage'] = $summary['ops_job_items_count'] > 0
+                    ? ($summary['ops_job_items_delivered_count'] / $summary['ops_job_items_count']) * 100
+                    : 0;
+                $summary['ops_job_items_verified_count_percentage'] = $summary['ops_job_items_count'] > 0
+                    ? ($summary['ops_job_items_verified_count'] / $summary['ops_job_items_count']) * 100
+                    : 0;
+                $summary['cms_transaction_percentage'] = $summary['ops_job_items_delivered_count'] > 0
+                    ? ($summary['cms_transaction_count'] / $summary['ops_job_items_delivered_count']) * 100
+                    : 0;
+
+                // Conversion from cents to dollars (or base currency)
+                $summary['total_cash_amount'] /= 100;
+                $summary['total_cash_amount_from_vmc'] /= 100;
+                $summary['delta_cash_amount'] /= 100;
+                $summary['acc_vend_transactions_amount'] /= 100;
+                $summary['acc_vend_transactions_cash_amount'] /= 100;
+                $summary['picked_amount'] /= 100;
+                $summary['picked_cost'] /= 100;
+                $summary['stock_in_amount'] /= 100;
+                $summary['stock_in_cost'] /= 100;
+
+                $summaries->push($summary);
+            }
+        }
+
+        $summaries = $summaries->sortBy(function ($summary) {
+            return $summary['delivered_by'] ? $summary['delivered_by']->name : 'Unassigned';
+        });
+
+        return Inertia::render('OpsJob/Summary', [
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'summaries' => $summaries->values(),
+            'userOptions' => UserResource::collection(
+                User::when($isDriver, function ($q) {
+                    $q->where('id', auth()->id());
+                })
+                    ->orderBy('name')
+                    ->get()
+            ),
+        ]);
+    }
+
     public function confirmItem(Request $request, $id)
     {
         $opsJobItem = OpsJobItem::findOrFail($id);

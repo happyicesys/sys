@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Daily Jobs" />
+  <Head title="Daily Operation Jobs" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Operation Daily Jobs
+        Daily Operation Jobs
       </h2>
     </template>
 

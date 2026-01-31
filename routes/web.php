@@ -331,6 +331,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
     });
 
     Route::prefix('ops-jobs')->group(function () {
+        Route::get('/summary', [OpsJobController::class, 'summary'])->name('ops-jobs.summary');
         Route::get('/', [OpsJobController::class, 'index'])->name('ops-jobs');
         Route::get('/create', [OpsJobController::class, 'create']);
         Route::get('/{id}/edit', [OpsJobController::class, 'edit'])->name('ops-jobs.edit');

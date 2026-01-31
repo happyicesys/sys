@@ -143,6 +143,18 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                'operation-jobs',
+                ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl']
+            ],
+
+            [
+                'operation-job-summaries',
+                ['read', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl']
+            ],
+
+            [
                 'vend-settings',
                 ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'production_jb']

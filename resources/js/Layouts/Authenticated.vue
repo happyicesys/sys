@@ -63,12 +63,16 @@ const navigation = computed(() => [
         ]
     },
     {
-        name: 'Operation Daily Jobs',
+        name: 'Daily Operations',
         icon: ArrowsPointingInIcon,
         current: false,
         href: 'ops-jobs',
         permission: 'read operations',
         tagline: null,
+        children: [
+            {name: 'Jobs', href: '/ops-jobs', permission: 'read operation-jobs'},
+            {name: 'Summary', href: '/ops-jobs/summary', permission: 'read operation-job-summaries'}, // Changed permission to match seeder
+        ]
     },
     // {
     //     name: 'Operations',
