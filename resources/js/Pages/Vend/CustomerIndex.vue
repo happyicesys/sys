@@ -1357,6 +1357,9 @@
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
 							<div v-if="vend && vend.nextOpsJobItem" class="flex flex-col space-y-1">
+								<span v-if="vend.nextOpsJobItem.sequence && vend.nextOpsJobItem.status < 3 && vend.nextOpsJobItem.opsJob.date_diff_human == 'today'" class="font-semibold">
+									({{ vend.nextOpsJobItem.sequence }})
+								</span>
 								<a :href="'/ops-jobs/items/' + vend.nextOpsJobItem.id + '/edit'">
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"

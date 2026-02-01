@@ -102,7 +102,7 @@
                           Deliver By
                         </span>
                         <span>
-                          # of Job
+                          # of Days
                         </span>
                       </div>
                     </TableHead>
@@ -203,7 +203,7 @@
                             {{ summary.delivered_by ? summary.delivered_by.name : 'Unassigned' }}
                           </span>
                           <span>
-                            {{ summary.job_count }} Jobs
+                            {{ summary.job_count }} Days
                           </span>
                         </div>
                       </TableData>
@@ -330,8 +330,8 @@ const props = defineProps({
 })
 
 const filters = ref({
-  date_from: moment().subtract(3, 'days').format('YYYY-MM-DD'),
-  date_to: moment().add(1, 'week').format('YYYY-MM-DD'),
+  date_from: moment().subtract(7, 'days').format('YYYY-MM-DD'),
+  date_to: moment().subtract(1, 'days').format('YYYY-MM-DD'),
   delivered_by: '',
   operators: [],
 })

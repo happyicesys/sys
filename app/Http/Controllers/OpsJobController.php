@@ -296,8 +296,8 @@ class OpsJobController extends Controller
         }
 
         $request->merge([
-            'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->subDays(3)->setTimezone($this->getUserTimezone())->startOfDay(),
-            'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->addWeek()->setTimezone($this->getUserTimezone())->endOfDay(),
+            'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->subDays(7)->setTimezone($this->getUserTimezone())->startOfDay(),
+            'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->subDays(1)->setTimezone($this->getUserTimezone())->endOfDay(),
         ]);
 
         if ($isDriver) {
