@@ -254,9 +254,15 @@ class DashboardController extends Controller
                 DB::raw('SUM(total_count) as count')
             );
 
+        $dayGraph = $dayGraph->orderBy('date', 'asc')->get();
+
         $today = Carbon::today()->setTimezone($this->getUserTimezone());
         if ($today->between($day_date_from->copy()->subMonth()->startOfDay(), $day_date_to->copy()->endOfDay())) {
-            $todayGraph = VendTransaction::query()
+            $userTimezone = $this->getUserTimezone();
+            $startOfTodayUTC = Carbon::now($userTimezone)->startOfDay()->setTimezone('UTC');
+            $endOfTodayUTC = Carbon::now($userTimezone)->endOfDay()->setTimezone('UTC');
+
+            $todayTransactions = VendTransaction::query()
                 ->filterTransactionIndex($request)
                 ->where(function ($query) {
                     $query->where('error_code_normalized', 0)
@@ -264,24 +270,40 @@ class DashboardController extends Controller
                         ->orWhereNull('error_code_normalized')
                         ->orWhere('is_multiple', true);
                 })
-                ->whereBetween('transaction_datetime', [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()])
+                ->whereBetween('transaction_datetime', [$startOfTodayUTC, $endOfTodayUTC])
                 ->where('amount', '>', 0)
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->select(
-                    DB::raw('MONTH(transaction_datetime) as month'),
-                    DB::raw('DATE_FORMAT(transaction_datetime, "%M %Y") as month_name'),
-                    DB::raw('DATE(transaction_datetime) as date'),
-                    DB::raw('DAY(transaction_datetime) as day'),
                     DB::raw('SUM(amount) as amount'),
                     DB::raw('SUM(success_qty) as count')
                 )
-                ->groupBy(DB::raw('DATE(transaction_datetime)'));
+                ->first();
 
-            $dayGraph = $dayGraph->union($todayGraph);
+            if ($todayTransactions && $todayTransactions->amount > 0) {
+                // Check if today already exists in dayGraph (unlikely from VendRecord but good to check)
+                $existingTodayIndex = $dayGraph->search(function ($item) use ($today) {
+                    return $item->day == $today->day && $item->month == $today->month;
+                });
+
+                if ($existingTodayIndex !== false) {
+                    // If exists (maybe partial VendRecord?), replace or add? Usually VendsRecords are T-1.
+                    // Let's assume real-time takes precedence or we sum?
+                    // For safety, let's override with real-time if VendRecord is empty, or sum if partial.
+                    // But simpler is to assume VendRecord doesn't have Today yet.
+                    $dayGraph[$existingTodayIndex]->amount += $todayTransactions->amount;
+                    $dayGraph[$existingTodayIndex]->count += $todayTransactions->count;
+                } else {
+                    $newEntry = new VendRecord();
+                    $newEntry->month = $today->month;
+                    $newEntry->month_name = $today->format('F Y'); // "January 2026"
+                    $newEntry->date = $today->copy(); // Keep as Carbon object or string matching others
+                    $newEntry->day = $today->day;
+                    $newEntry->amount = $todayTransactions->amount;
+                    $newEntry->count = $todayTransactions->count;
+                    $dayGraph->push($newEntry);
+                }
+            }
         }
-
-        $dayGraph = $dayGraph->orderBy('date', 'asc')
-            ->get();
 
         $dayGraph = $this->fillEmptyDates($dayGraph, $day_date_from->copy()->subMonth(), $day_date_to);
 
