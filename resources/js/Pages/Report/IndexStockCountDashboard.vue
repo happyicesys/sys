@@ -266,7 +266,7 @@ const dayGraphOptions = ref({
   },
   plugins: {
     title: { display: true, text: 'Stock Value, Stock Cost & Coin Float by Day (' + operatorCountry.currency_symbol + ')' },
-    legend: { reverse: true },
+    legend: { reverse: false },
   }
 })
 
@@ -305,12 +305,13 @@ function syncData() {
 
   for (let i = 1; i <= 31; i++) dayGraphLabels.value.push(i)
 
-  const colors = ['#3e95cd', '#ff7f7f', '#007500', '#808080', '#c45850']
+  const colors = ['#3e95cd', '#ff7f7f', '#007500', '#4b5563', '#c45850']
   const rows = JSON.parse(JSON.stringify(props.dayGraphData?.data ?? []))
 
   const byMonth = rows.reduce((m, r) => ((m[r.month_name] ??= []).push(r), m), {})
+  const sortedMonths = Object.keys(byMonth).sort((a, b) => new Date(a) - new Date(b))
 
-  Object.keys(byMonth).forEach((month, idx) => {
+  sortedMonths.forEach((month, idx) => {
     const monthRows = byMonth[month]
     const amount = Array.from({ length: 31 }, (_, d) => {
       const found = monthRows.find(r => Number(r.day) === d + 1)
@@ -325,14 +326,28 @@ function syncData() {
       return found ? Number(found.coin_float) : null
     })
 
+    const isCurrent = idx === sortedMonths.length - 1;
+    const barColor = isCurrent ? '#ef4444' : '#3b82f6';
+    const lineColor = isCurrent ? '#4b5563' : '#15803d';
+
+    dayGraphDatasets.value.push({
+      label: `${month} Stock Value in Machines (${operatorCountry.currency_symbol})`,
+      data: amount,
+      backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.4),
+      borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.4),
+      fill: false,
+      yAxisID: 'y',
+      type: 'bar',
+      spanGaps: false
+    })
+
     dayGraphDatasets.value.push({
       label: `${month} Stock Cost (${operatorCountry.currency_symbol})`,
       data: count,
-      backgroundColor: idx % 2 === 0 ? hexToRGBA(colors[idx + 2] || '#808080', 0.2) : hexToRGBA(colors[idx + 2] || '#808080', 0.9),
-      borderColor: idx % 2 === 0 ? hexToRGBA(colors[idx + 2] || '#808080', 0.2) : hexToRGBA(colors[idx + 2] || '#808080', 0.9),
+      backgroundColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
+      borderColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
       yAxisID: 'y1',
       type: 'line',
-      order: 1,
       spanGaps: false
     })
 
@@ -358,7 +373,6 @@ function syncData() {
         data: coin,
         yAxisID: 'y1',
         type: 'line',
-        order: 1,
         backgroundColor: coinFloatBg,
         borderColor: coinFloatColor,
         borderDash: coinFloatDash,
@@ -368,18 +382,6 @@ function syncData() {
         pointHitRadius: 20,
         spanGaps: false
       })
-
-    dayGraphDatasets.value.push({
-      label: `${month} Stock Value in Machines (${operatorCountry.currency_symbol})`,
-      data: amount,
-      backgroundColor: idx % 2 === 0 ? hexToRGBA(colors[idx] || '#3e95cd', 0.2) : hexToRGBA(colors[idx] || '#3e95cd', 1),
-      borderColor: idx % 2 === 0 ? hexToRGBA(colors[idx] || '#3e95cd', 0.2) : hexToRGBA(colors[idx] || '#3e95cd', 1),
-      fill: false,
-      yAxisID: 'y',
-      type: 'bar',
-      order: 2,
-      spanGaps: false
-    })
   })
 
   componentKey.value += 1
@@ -389,8 +391,9 @@ function syncData() {
 
   const qtyRows = JSON.parse(JSON.stringify(props.qtyGraphData?.data ?? []))
   const qtyByMonth = qtyRows.reduce((m, r) => ((m[r.month_name] ??= []).push(r), m), {})
+  const sortedQtyMonths = Object.keys(qtyByMonth).sort((a, b) => new Date(a) - new Date(b))
 
-  Object.keys(qtyByMonth).forEach((month, idx) => {
+  sortedQtyMonths.forEach((month, idx) => {
     const monthRows = qtyByMonth[month]
     const machine = Array.from({ length: 31 }, (_, d) =>
       monthRows.find(r => +r.day === d + 1)?.machine_qty ?? null
@@ -399,13 +402,18 @@ function syncData() {
       monthRows.find(r => +r.day === d + 1)?.warehouse_qty ?? null
     ).map(v => v == null ? null : Number(v))
 
-    const base = monthColors[idx % monthColors.length]
+    const isCurrent = idx === sortedQtyMonths.length - 1;
+    // Machine Qty (Normal Line): Current (Red), Previous (Blue - restored)
+    const machineColor = isCurrent ? '#ef4444' : '#3b82f6';
+    // Warehouse Qty (Dotted Line): Current (Grey - was Red), Previous (Green - was Blue)
+    const warehouseColor = isCurrent ? '#4b5563' : '#15803d';
+
     qtyDatasets.value.push({
       label: `${month} Qty in Machine`,
       data: machine,
       type: 'line',
-      borderColor: base,
-      backgroundColor: hexToRGBA(base, 0.1),
+      borderColor: machineColor,
+      backgroundColor: hexToRGBA(machineColor, 0.1),
       borderWidth: 3,
       tension: 0.25,
       spanGaps: false,
@@ -414,8 +422,8 @@ function syncData() {
       label: `${month} Qty in Warehouse`,
       data: wh,
       type: 'line',
-      borderColor: base,
-      backgroundColor: hexToRGBA(base, 0.1),
+      borderColor: warehouseColor,
+      backgroundColor: hexToRGBA(warehouseColor, 0.1),
       borderDash: [6, 4],
       borderWidth: 2,
       tension: 0.25,

@@ -1173,7 +1173,7 @@
         monthKeys.forEach((month, monthIndex) => {
             const isCurrent = monthIndex === monthKeys.length - 1;
             const barColor = isCurrent ? '#ef4444' : '#3b82f6';
-            const lineColor = isCurrent ? '#ff7f7f' : '#9ca3af'; // Red for current, Lighter Grey for others
+            const lineColor = isCurrent ? '#4b5563' : '#15803d'; // Dark Grey for current, Darker Green for others
             const countData = months[month].map((data) => {return data.count});
             const amountData = months[month].map((data) => {return data.amount});
             const iconData = months[month].map((data) => {return data.weather_icon});
@@ -1183,23 +1183,23 @@
                 label: month + ' ('+ operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(amountData)),
                 data: amountData,
                 weather_icons: iconData,
-                backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
-                borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
+                backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.4),
+                borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.4),
                 fill: false,
                 yAxisID: 'y',
                 type: 'bar',
-                order: monthIndex * 2 + 1,
+                order: (monthKeys.length - 1 - monthIndex) * 2 + 1,
             })
 
             // Push Line Second (#)
             dayGraphDatasets.value.push({
                 label: month + ' (#) ' + formatCount(sumData(countData)),
                 data: countData,
-                backgroundColor: hexToRGBA(lineColor, 1),
-                borderColor: hexToRGBA(lineColor, 1),
+                backgroundColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
+                borderColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
                 yAxisID: 'y1',
                 type: 'line',
-                order: monthIndex * 2,
+                order: (monthKeys.length - 1 - monthIndex) * 2,
             })
         })
         for(let i = 1; i <= 31; i++) {
@@ -1213,7 +1213,7 @@
         yearKeys.forEach((month, monthIndex) => {
             const isCurrent = monthIndex === yearKeys.length - 1;
             const barColor = isCurrent ? '#ef4444' : '#3b82f6';
-            const lineColor = isCurrent ? '#ff7f7f' : '#9ca3af'; // Red for current, Lighter Grey for others
+            const lineColor = isCurrent ? '#4b5563' : '#15803d'; // Dark Grey for current, Darker Green for others
             const countData = Object.values(years[month]).map((data) => {return data.count});
             const amountData = Object.values(years[month]).map((data) => {return data.amount});
 
@@ -1221,23 +1221,23 @@
             monthGraphDatasets.value.push({
                 label: month + ' ('+ operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(amountData)),
                 data: amountData,
-                backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
-                borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.2),
+                backgroundColor: hexToRGBA(barColor, isCurrent ? 1 : 0.4),
+                borderColor: hexToRGBA(barColor, isCurrent ? 1 : 0.4),
                 fill: false,
                 yAxisID: 'y',
                 type: 'bar',
-                order: monthIndex * 2 + 1,
+                order: (yearKeys.length - 1 - monthIndex) * 2 + 1,
             })
 
             // Push Line Second (#)
             monthGraphDatasets.value.push({
                 label: month + ' (#) ' + formatCount(sumData(countData)),
                 data: countData,
-                backgroundColor: hexToRGBA(lineColor, 1),
-                borderColor: hexToRGBA(lineColor, 1),
+                backgroundColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
+                borderColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
                 yAxisID: 'y1',
                 type: 'line',
-                order: monthIndex * 2,
+                order: (yearKeys.length - 1 - monthIndex) * 2,
             })
         })
         for(let i = 1; i <= 12; i++) {
@@ -1271,8 +1271,8 @@
             activeMachineGraphDatasets.value.push({
                 label: activeMonth + ' (#) ' + formatCount(sumData(countData)),
                 data: countData,
-                backgroundColor: hexToRGBA(color, isCurrent ? 0.9 : 0.2),
-                borderColor: hexToRGBA(color, isCurrent ? 0.9 : 0.2),
+                backgroundColor: hexToRGBA(color, isCurrent ? 0.9 : 0.4),
+                borderColor: hexToRGBA(color, isCurrent ? 0.9 : 0.4),
                 type: 'line',
             })
         })
