@@ -160,7 +160,7 @@ const managementItems = [
 const driverItems = [
     {
         title: 'Stock refill instruction for Model E/F/EG',
-        link: 'https://www.youtube.com/watch?v=VvYThUxUdlQ',
+        link: 'https://www.youtube.com/watch?v=rMF1coC9zZ4',
         subtitles: [
             'Take goods from Truck',
             'Open machine\'s lock',

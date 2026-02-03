@@ -161,7 +161,7 @@
                                 </div>
                             </div>
 
-                            <h4 class="text-gray-900 font-medium mb-2">Sales Comparison (Current vs Last Year)</h4>
+                            <h4 class="text-gray-900 font-medium mb-2">Sales Comparison (Last Year vs Chosen Month Year)</h4>
                             <Graph
                                 :key="componentKey5"
                                 type="bar"
@@ -171,10 +171,10 @@
                             >
                             </Graph>
 
-                            <h4 class="text-gray-900 font-medium mb-2 mt-5">Chosen month vs last month</h4>
+                            <h4 class="text-gray-900 font-medium mb-2 mt-5">Last Month vs Chosen Month</h4>
                             <Graph
                                 :key="componentKey1"
-                                type="scatter"
+                                type="bar"
                                 :labels="dayGraphLabels"
                                 :datasets="dayGraphDatasets"
                                 :options="dayGraphOptions"
@@ -184,7 +184,7 @@
                             <div class="pt-5">
                                 <Graph
                                     :key="componentKey3"
-                                    type="scatter"
+                                    type="bar"
                                     :labels="monthGraphLabels"
                                     :datasets="monthGraphDatasets"
                                     :options="monthGraphOptions"
@@ -742,11 +742,6 @@
     const dayGraphOptions = ref({
         scales: {
             x: {
-                ticks: {
-                    min: 1,  // Minimum value on the x-axis
-                    max: 31, // Maximum value on the x-axis
-                    stepSize: 1 // Increment between ticks
-                }
             },
             y: {
                 position: 'left',
@@ -843,11 +838,6 @@
     const monthGraphOptions = ref({
         scales: {
             x: {
-                ticks: {
-                    min: 1,  // Minimum value on the x-axis
-                    max: 12, // Maximum value on the x-axis
-                    stepSize: 1 // Increment between ticks
-                }
             },
             y: {
                 position: 'left',
@@ -1174,8 +1164,18 @@
             const isCurrent = monthIndex === monthKeys.length - 1;
             const barColor = isCurrent ? '#ef4444' : '#3b82f6';
             const lineColor = isCurrent ? '#4b5563' : '#15803d'; // Dark Grey for current, Darker Green for others
-            const countData = months[month].map((data) => {return data.count});
-            const amountData = months[month].map((data) => {return data.amount});
+            const countData = months[month].map((data, index) => {
+                if (moment(month, 'MMMM YYYY').date(index + 1).isSameOrAfter(moment(), 'day')) {
+                    return null
+                }
+                return data.count
+            });
+            const amountData = months[month].map((data, index) => {
+                if (moment(month, 'MMMM YYYY').date(index + 1).isSameOrAfter(moment(), 'day')) {
+                    return null
+                }
+                return data.amount
+            });
             const iconData = months[month].map((data) => {return data.weather_icon});
 
             // Push Bar First ($)
@@ -1188,7 +1188,7 @@
                 fill: false,
                 yAxisID: 'y',
                 type: 'bar',
-                order: (monthKeys.length - 1 - monthIndex) * 2 + 1,
+                order: 2,
             })
 
             // Push Line Second (#)
@@ -1199,7 +1199,7 @@
                 borderColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
                 yAxisID: 'y1',
                 type: 'line',
-                order: (monthKeys.length - 1 - monthIndex) * 2,
+                order: 1,
             })
         })
         for(let i = 1; i <= 31; i++) {
@@ -1214,8 +1214,18 @@
             const isCurrent = monthIndex === yearKeys.length - 1;
             const barColor = isCurrent ? '#ef4444' : '#3b82f6';
             const lineColor = isCurrent ? '#4b5563' : '#15803d'; // Dark Grey for current, Darker Green for others
-            const countData = Object.values(years[month]).map((data) => {return data.count});
-            const amountData = Object.values(years[month]).map((data) => {return data.amount});
+            const countData = Object.values(years[month]).map((data, index) => {
+                if (moment(month, 'YYYY').month(index).endOf('month').isAfter(moment(), 'month')) {
+                    return null
+                }
+                return data.count
+            });
+            const amountData = Object.values(years[month]).map((data, index) => {
+                if (moment(month, 'YYYY').month(index).endOf('month').isAfter(moment(), 'month')) {
+                    return null
+                }
+                return data.amount
+            });
 
             // Push Bar First ($)
             monthGraphDatasets.value.push({
@@ -1226,7 +1236,7 @@
                 fill: false,
                 yAxisID: 'y',
                 type: 'bar',
-                order: (yearKeys.length - 1 - monthIndex) * 2 + 1,
+                order: 2,
             })
 
             // Push Line Second (#)
@@ -1237,7 +1247,7 @@
                 borderColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
                 yAxisID: 'y1',
                 type: 'line',
-                order: (yearKeys.length - 1 - monthIndex) * 2,
+                order: 1,
             })
         })
         for(let i = 1; i <= 12; i++) {
@@ -1376,7 +1386,7 @@
             // Dataset 1: Prev Month (Blue)
             if (salesComparisonGraphData.value.prev_month) {
                 salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.prev_month.label + ' ' + formatCurrency(sumData(prevMonthData)),
+                    label: salesComparisonGraphData.value.prev_month.label + ' (' + operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(prevMonthData)),
                     data: prevMonthData,
                     backgroundColor: 'rgba(59, 130, 246, 0.6)', // Blue
                     borderColor: 'rgba(37, 99, 235, 1)',
@@ -1392,7 +1402,7 @@
             // Dataset 2: Current Month (Red)
             if (salesComparisonGraphData.value.current_month) {
                 salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.current_month.label + ' ' + formatCurrency(sumData(currMonthData)),
+                    label: salesComparisonGraphData.value.current_month.label + ' (' + operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(currMonthData)),
                     data: currMonthData,
                     backgroundColor: 'rgba(239, 68, 68, 0.7)', // Red
                     borderColor: 'rgba(220, 38, 38, 1)',
@@ -1408,7 +1418,7 @@
             // Dataset 3: Next Month (Green) - Previously Purple, but let's stick to user request "past use other colors". Next is distinct.
             if (salesComparisonGraphData.value.next_month) {
                 salesComparisonGraphDatasets.value.push({
-                    label: salesComparisonGraphData.value.next_month.label + ' ' + formatCurrency(sumData(nextMonthData)),
+                    label: salesComparisonGraphData.value.next_month.label + ' (' + operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(nextMonthData)),
                     data: nextMonthData,
                     backgroundColor: 'rgba(16, 185, 129, 0.7)', // Green (swapped with prev current color to be "other")
                     borderColor: 'rgba(5, 150, 105, 1)',
@@ -1423,7 +1433,7 @@
 
             // Dataset 4: Last Year (Gray)
             salesComparisonGraphDatasets.value.push({
-                label: 'Last Year ' + formatCurrency(sumData(lastYearData)),
+                label: 'Last Year (' + operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(lastYearData)),
                 data: lastYearData,
                 borderColor: 'rgba(107, 114, 128, 1)', // Gray
                 backgroundColor: 'rgba(107, 114, 128, 0.1)',

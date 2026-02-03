@@ -193,7 +193,98 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(summary, index) in summaries" :key="summary.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
+                    <tr v-if="summaries.length" class="bg-gray-100 font-bold border-b-2 border-gray-300">
+                      <td colspan="2" class="whitespace-nowrap py-2 pl-1 pr-1 text-[13px] text-gray-800 sm:pl-1 lg:pl-1 bg-gray-200 text-center border-r border-gray-300">
+                        Total
+                      </td>
+                      <TableData :inputClass="'text-center align-top bg-gray-200'">
+                        <div class="flex flex-col space-y-2">
+                          <div class="inline-flex justify-center items-center rounded px-1.5 text-xs font-bold border min-w-full text-gray-900 border-gray-400"
+                            :class="[totalSummary.ops_job_items_count > 0 && totalSummary.ops_job_items_picked_count_percentage == 100 ? 'text-green-700 bg-green-200 border-green-300' : '']"
+                          >
+                            <span>
+                              {{ totalSummary.ops_job_items_picked_count }} ({{ totalSummary.ops_job_items_count > 0 ? totalSummary.ops_job_items_picked_count_percentage.toFixed(0) : 0 }}%)
+                            </span>
+                          </div>
+                          <div class="inline-flex justify-center items-center rounded px-1.5 text-xs font-bold border min-w-full text-gray-900 border-gray-400"
+                            :class="[totalSummary.ops_job_items_count > 0 && totalSummary.ops_job_items_delivered_count_percentage == 100 ? 'text-green-700 bg-green-200 border-green-300' : '']"
+                          >
+                            <span>
+                              {{ totalSummary.ops_job_items_delivered_count }} ({{ totalSummary.ops_job_items_count > 0 ? totalSummary.ops_job_items_delivered_count_percentage.toFixed(0) : 0 }}%)
+                            </span>
+                          </div>
+                          <div class="inline-flex justify-center items-center rounded px-1.5 text-xs font-bold border min-w-full text-gray-900 border-gray-400"
+                            :class="[totalSummary.ops_job_items_count > 0 && totalSummary.ops_job_items_verified_count_percentage == 100 ? 'text-green-700 bg-green-200 border-green-300' : '']"
+                          >
+                            <span>
+                              {{ totalSummary.ops_job_items_verified_count }} ({{ totalSummary.ops_job_items_count > 0 ? totalSummary.ops_job_items_verified_count_percentage.toFixed(0) : 0 }}%)
+                            </span>
+                          </div>
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1.5 text-xs font-bold border min-w-full text-gray-900 border-gray-400"
+                            v-if="isCmsUrlSet"
+                            :class="[totalSummary.ops_job_items_delivered_count > 0 && totalSummary.cms_transaction_percentage == 100 ? 'text-green-700 bg-green-200 border-green-300' : '']"
+                          >
+                            <span>
+                              {{ totalSummary.cms_transaction_count }} ({{ totalSummary.ops_job_items_delivered_count > 0 ? totalSummary.cms_transaction_percentage.toFixed(0) : 0 }}%)
+                            </span>
+                          </div>
+                        </div>
+                      </TableData>
+                      <TableData :inputClass="'text-center align-top bg-gray-200'">
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ totalSummary.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                          <span>
+                            {{ totalSummary.picked_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                          </span>
+                          <span>
+                             {{ operatorCountry.currency_symbol }}{{ totalSummary.picked_cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                        </div>
+                      </TableData>
+                      <TableData :inputClass="'text-center align-top bg-gray-200'">
+                         <div class="flex flex-col space-y-2 min-w-24">
+                          <span :class="[totalSummary.stock_in_amount < totalSummary.picked_amount ? 'text-red-700' : 'text-green-700']">
+                            {{ operatorCountry.currency_symbol }}{{ totalSummary.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                          <span>
+                            {{ totalSummary.stock_in_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                          </span>
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ totalSummary.stock_in_cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                        </div>
+                      </TableData>
+                      <TableData :inputClass="'text-center align-top bg-gray-200'">
+                         <div class="flex flex-col space-y-2 min-w-24">
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ totalSummary.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                          <span>
+                            {{ totalSummary.acc_vend_transactions_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                          </span>
+                        </div>
+                      </TableData>
+                      <TableData :inputClass="'text-center align-top bg-gray-200'">
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ totalSummary.total_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ totalSummary.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                          <span>
+                            {{ (totalSummary.total_cash_amount/(totalSummary.total_cash_amount_from_vmc > 0 ? totalSummary.total_cash_amount_from_vmc : 1) * 100).toFixed(2) }}%
+                          </span>
+                          <span :class="[totalSummary.delta_cash_amount > 0 ? 'text-green-600' : (totalSummary.delta_cash_amount < 0 ? 'text-red-600' : '')]">
+                            {{ operatorCountry.currency_symbol }}{{ totalSummary.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                        </div>
+                      </TableData>
+                    </tr>
+                    <tr v-for="(summary, index) in summaries" :key="summary.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white bg-white">
                       <TableData :currentIndex="index" :totalLength="summaries.length" inputClass="text-center">
                         {{ index + 1 }}
                       </TableData>
@@ -319,7 +410,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
 
@@ -343,6 +434,62 @@ const isCmsUrlSet = usePage().props.isCmsUrlSet
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
 const userOptions = ref([])
+
+const totalSummary = computed(() => {
+  const total = {
+    ops_job_items_count: 0,
+    ops_job_items_picked_count: 0,
+    ops_job_items_delivered_count: 0,
+    ops_job_items_verified_count: 0,
+    cms_transaction_count: 0,
+    picked_amount: 0,
+    picked_count: 0,
+    picked_cost: 0,
+    stock_in_amount: 0,
+    stock_in_count: 0,
+    stock_in_cost: 0,
+    acc_vend_transactions_amount: 0,
+    acc_vend_transactions_count: 0,
+    total_cash_amount: 0,
+    total_cash_amount_from_vmc: 0,
+    delta_cash_amount: 0,
+    ops_job_items_picked_count_percentage: 0,
+    ops_job_items_delivered_count_percentage: 0,
+    ops_job_items_verified_count_percentage: 0,
+    cms_transaction_percentage: 0,
+  }
+
+  if (props.summaries) {
+    props.summaries.forEach(summary => {
+      total.ops_job_items_count += summary.ops_job_items_count || 0
+      total.ops_job_items_picked_count += summary.ops_job_items_picked_count || 0
+      total.ops_job_items_delivered_count += summary.ops_job_items_delivered_count || 0
+      total.ops_job_items_verified_count += summary.ops_job_items_verified_count || 0
+      total.cms_transaction_count += summary.cms_transaction_count || 0
+      total.picked_amount += parseFloat(summary.picked_amount || 0)
+      total.picked_count += parseFloat(summary.picked_count || 0)
+      total.picked_cost += parseFloat(summary.picked_cost || 0)
+      total.stock_in_amount += parseFloat(summary.stock_in_amount || 0)
+      total.stock_in_count += parseFloat(summary.stock_in_count || 0)
+      total.stock_in_cost += parseFloat(summary.stock_in_cost || 0)
+      total.acc_vend_transactions_amount += parseFloat(summary.acc_vend_transactions_amount || 0)
+      total.acc_vend_transactions_count += parseFloat(summary.acc_vend_transactions_count || 0)
+      total.total_cash_amount += parseFloat(summary.total_cash_amount || 0)
+      total.total_cash_amount_from_vmc += parseFloat(summary.total_cash_amount_from_vmc || 0)
+      total.delta_cash_amount += parseFloat(summary.delta_cash_amount || 0)
+    })
+
+    if (total.ops_job_items_count > 0) {
+      total.ops_job_items_picked_count_percentage = (total.ops_job_items_picked_count / total.ops_job_items_count) * 100
+      total.ops_job_items_delivered_count_percentage = (total.ops_job_items_delivered_count / total.ops_job_items_count) * 100
+      total.ops_job_items_verified_count_percentage = (total.ops_job_items_verified_count / total.ops_job_items_count) * 100
+    }
+    if (total.ops_job_items_delivered_count > 0) {
+      total.cms_transaction_percentage = (total.cms_transaction_count / total.ops_job_items_delivered_count) * 100
+    }
+  }
+  return total
+})
 
 
 onMounted(() => {

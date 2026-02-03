@@ -1661,8 +1661,8 @@ class VendController extends Controller
         }
 
         $data = [
-            'isGrabEnabled' => $isGrabEnabled ? "true" : "false",
             ...$settingsParams,
+            'isGrabEnabled' => $isGrabEnabled ? "true" : "false",
             'companyUrl' => $settingsParams['company_url'] ?? null,
             'companyAddress' => $settingsParams['company_address'] ?? null,
             'companyName' => $settingsParams['companyName'] ?? null,
