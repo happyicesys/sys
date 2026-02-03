@@ -342,7 +342,7 @@ function syncData() {
     })
 
     dayGraphDatasets.value.push({
-      label: `${month} Stock Cost (${operatorCountry.currency_symbol})`,
+      label: `${month} Total Stock Cost (${operatorCountry.currency_symbol})`,
       data: count,
       backgroundColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
       borderColor: hexToRGBA(lineColor, isCurrent ? 1 : 0.4),
@@ -403,29 +403,27 @@ function syncData() {
     ).map(v => v == null ? null : Number(v))
 
     const isCurrent = idx === sortedQtyMonths.length - 1;
-    // Machine Qty (Normal Line): Current (Red), Previous (Blue - restored)
-    const machineColor = isCurrent ? '#ef4444' : '#3b82f6';
-    // Warehouse Qty (Dotted Line): Current (Grey - was Red), Previous (Green - was Blue)
-    const warehouseColor = isCurrent ? '#4b5563' : '#15803d';
+    // Machine Qty (Normal Line): Current (Grey), Previous (Green)
+    const machineColor = isCurrent ? '#4b5563' : '#15803d';
+    // Warehouse Qty (Dotted Line): Current (Red), Previous (Blue)
+    const warehouseColor = isCurrent ? '#ef4444' : '#3b82f6';
+
+    qtyDatasets.value.push({
+      label: `${month} Qty in Warehouse`,
+      data: wh,
+      type: 'bar',
+      borderColor: hexToRGBA(warehouseColor, isCurrent ? 1 : 0.4),
+      backgroundColor: hexToRGBA(warehouseColor, isCurrent ? 1 : 0.4),
+      spanGaps: false,
+    })
 
     qtyDatasets.value.push({
       label: `${month} Qty in Machine`,
       data: machine,
       type: 'line',
-      borderColor: machineColor,
-      backgroundColor: hexToRGBA(machineColor, 0.1),
+      borderColor: hexToRGBA(machineColor, isCurrent ? 1 : 0.4),
+      backgroundColor: hexToRGBA(machineColor, isCurrent ? 1 : 0.4),
       borderWidth: 3,
-      tension: 0.25,
-      spanGaps: false,
-    })
-    qtyDatasets.value.push({
-      label: `${month} Qty in Warehouse`,
-      data: wh,
-      type: 'line',
-      borderColor: warehouseColor,
-      backgroundColor: hexToRGBA(warehouseColor, 0.1),
-      borderDash: [6, 4],
-      borderWidth: 2,
       tension: 0.25,
       spanGaps: false,
     })
