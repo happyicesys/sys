@@ -209,7 +209,7 @@ class DashboardController extends Controller
 
     private function setDefaultOperators(Request $request)
     {
-        if (!$request->operators) {
+        if (!$request->operators || (is_array($request->operators) && in_array('all', $request->operators))) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -258,28 +258,29 @@ class DashboardController extends Controller
 
         $today = Carbon::today()->setTimezone($this->getUserTimezone());
         if ($today->between($day_date_from->copy()->subMonth()->startOfDay(), $day_date_to->copy()->endOfDay())) {
-            $userTimezone = $this->getUserTimezone();
-            $startOfTodayUTC = Carbon::now($userTimezone)->startOfDay()->setTimezone('UTC');
-            $endOfTodayUTC = Carbon::now($userTimezone)->endOfDay()->setTimezone('UTC');
+            // Ensure we use UTC day boundaries to match VendRecord aggregation and Transaction Page logic
+            // Use the date from $today (User/SG Time) to ensure we query the corresponding UTC date, avoiding shifts
+            $startOfTodayUTC = Carbon::parse($today->format('Y-m-d'), 'UTC')->startOfDay();
+            $endOfTodayUTC = Carbon::parse($today->format('Y-m-d'), 'UTC')->endOfDay();
 
             $todayTransactions = VendTransaction::query()
                 ->filterTransactionIndex($request)
+                ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
                 ->where(function ($query) {
-                    $query->where('error_code_normalized', 0)
-                        ->orWhere('error_code_normalized', 6)
-                        ->orWhereNull('error_code_normalized')
-                        ->orWhere('is_multiple', true);
+                    $query->where('vend_channel_errors.code', 0)
+                        ->orWhere('vend_channel_errors.code', 6)
+                        ->orWhereNull('vend_channel_errors.code');
                 })
                 ->whereBetween('transaction_datetime', [$startOfTodayUTC, $endOfTodayUTC])
                 ->where('amount', '>', 0)
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->select(
-                    DB::raw('SUM(amount) as amount'),
+                    DB::raw('ROUND(SUM(amount), 2) as amount'),
                     DB::raw('SUM(success_qty) as count')
                 )
                 ->first();
 
-            if ($todayTransactions && $todayTransactions->amount > 0) {
+            if ($todayTransactions) {
                 // Check if today already exists in dayGraph (unlikely from VendRecord but good to check)
                 $existingTodayIndex = $dayGraph->search(function ($item) use ($today) {
                     return $item->day == $today->day && $item->month == $today->month;
@@ -290,16 +291,16 @@ class DashboardController extends Controller
                     // Let's assume real-time takes precedence or we sum?
                     // For safety, let's override with real-time if VendRecord is empty, or sum if partial.
                     // But simpler is to assume VendRecord doesn't have Today yet.
-                    $dayGraph[$existingTodayIndex]->amount += $todayTransactions->amount;
-                    $dayGraph[$existingTodayIndex]->count += $todayTransactions->count;
+                    $dayGraph[$existingTodayIndex]->amount = $todayTransactions->amount ?? 0;
+                    $dayGraph[$existingTodayIndex]->count = $todayTransactions->count ?? 0;
                 } else {
                     $newEntry = new VendRecord();
                     $newEntry->month = $today->month;
                     $newEntry->month_name = $today->format('F Y'); // "January 2026"
                     $newEntry->date = $today->copy(); // Keep as Carbon object or string matching others
                     $newEntry->day = $today->day;
-                    $newEntry->amount = $todayTransactions->amount;
-                    $newEntry->count = $todayTransactions->count;
+                    $newEntry->amount = $todayTransactions->amount ?? 0;
+                    $newEntry->count = $todayTransactions->count ?? 0;
                     $dayGraph->push($newEntry);
                 }
             }

@@ -1165,13 +1165,13 @@
             const barColor = isCurrent ? '#ef4444' : '#3b82f6';
             const lineColor = isCurrent ? '#4b5563' : '#15803d'; // Dark Grey for current, Darker Green for others
             const countData = months[month].map((data, index) => {
-                if (moment(month, 'MMMM YYYY').date(index + 1).isSameOrAfter(moment(), 'day')) {
+                if (moment(month, 'MMMM YYYY').date(index + 1).isAfter(moment(), 'day')) {
                     return null
                 }
                 return data.count
             });
             const amountData = months[month].map((data, index) => {
-                if (moment(month, 'MMMM YYYY').date(index + 1).isSameOrAfter(moment(), 'day')) {
+                if (moment(month, 'MMMM YYYY').date(index + 1).isAfter(moment(), 'day')) {
                     return null
                 }
                 return data.amount
