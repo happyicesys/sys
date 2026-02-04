@@ -86,8 +86,8 @@ const filters = reactive({
     any: rawFilters.no_txn_threshold_hours?.any ?? 48,
     cash: rawFilters.no_txn_threshold_hours?.cash ?? 48,
     card: rawFilters.no_txn_threshold_hours?.card ?? 48,
-    qr: rawFilters.no_txn_threshold_hours?.qr ?? 48,
-    digitalscreen: rawFilters.no_txn_threshold_hours?.digitalscreen ?? 48,
+    qr: rawFilters.no_txn_threshold_hours?.qr ?? 72,
+    digitalscreen: rawFilters.no_txn_threshold_hours?.digitalscreen ?? 72,
   },
 })
 

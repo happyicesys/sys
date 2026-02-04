@@ -39,6 +39,8 @@ class OperatorController extends Controller
     public function __construct()
     {
         $this->middleware(['permission:read operators']);
+        $this->middleware(['permission:create operators'])->only(['create', 'store']);
+        $this->middleware(['permission:delete operators'])->only(['delete']);
     }
 
     public function index(Request $request)
@@ -47,6 +49,10 @@ class OperatorController extends Controller
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $sortKey = $request->sortKey ? $request->sortKey : 'name';
         $sortBy = $request->sortBy ? $request->sortBy : true;
+
+        $authUser = auth()->user();
+        $authOperatorId = $authUser->operator_id;
+        $isOperatorRestricted = $authOperatorId && $authOperatorId != 1;
 
         return Inertia::render('Operator/Index', [
             // 'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
@@ -64,6 +70,9 @@ class OperatorController extends Controller
                 ])
                     ->when($request->name, function ($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->when($isOperatorRestricted, function ($query) use ($authOperatorId) {
+                        $query->where('id', $authOperatorId);
                     })
                     ->when($sortKey, function ($query, $search) use ($sortBy) {
                         $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
@@ -147,6 +156,11 @@ class OperatorController extends Controller
 
     public function edit(Request $request, $id)
     {
+        $authUser = auth()->user();
+        if ($authUser->operator_id && $authUser->operator_id != 1 && $authUser->operator_id != $id) {
+            abort(403);
+        }
+
         $request->merge(['is_active_vend' => isset($request->is_active_vend) ? $request->is_active_vend : 'true']);
 
         $operator = Operator::query()
@@ -353,6 +367,11 @@ class OperatorController extends Controller
 
     public function update(Request $request, $operatorId)
     {
+        $authUser = auth()->user();
+        if ($authUser->operator_id && $authUser->operator_id != 1 && $authUser->operator_id != $operatorId) {
+            abort(403);
+        }
+
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email_user_ids' => ['nullable', 'array'],

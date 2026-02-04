@@ -402,8 +402,14 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 'operators',
-                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['create', 'delete', 'export', 'admin-access'],
                 ['superadmin', 'admin']
+            ],
+
+            [
+                'operators',
+                ['read', 'update'],
+                ['superadmin', 'admin', 'operator_admin']
             ],
 
             [

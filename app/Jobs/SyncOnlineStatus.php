@@ -13,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class SyncOnlineStatus implements ShouldQueue
 {
@@ -69,7 +70,11 @@ class SyncOnlineStatus implements ShouldQueue
                     }
 
                     if ($isOffline && !$vend->is_offline_notification_sent) {
-                        $this->alertEmailService->sendVendOfflineNotificationMail($vend);
+                        try {
+                            $this->alertEmailService->sendVendOfflineNotificationMail($vend);
+                        } catch (\Throwable $e) {
+                            Log::error('SyncVendOnlineStatus: Failed to send offline mail for ' . $vend->code, ['error' => $e->getMessage()]);
+                        }
                         $vend->is_offline_notification_sent = true;
                     }
 
@@ -80,7 +85,11 @@ class SyncOnlineStatus implements ShouldQueue
                     }
 
                     if ($isRecovered && $vend->is_offline_notification_sent) {
-                        $this->alertEmailService->sendVendPowerRestoredNotificationMail($vend);
+                        try {
+                            $this->alertEmailService->sendVendPowerRestoredNotificationMail($vend);
+                        } catch (\Throwable $e) {
+                            Log::error('SyncVendOnlineStatus: Failed to send restored mail for ' . $vend->code, ['error' => $e->getMessage()]);
+                        }
                         $vend->is_offline_notification_sent = false;
                         $vend->is_mqtt_offline_notified = false;
                     }
@@ -93,16 +102,20 @@ class SyncOnlineStatus implements ShouldQueue
                         $vend->modem_unit_id &&
                         $vend->modem_unit_id != 65
                     ) {
-                        $modemUnit = ModemUnit::find($vend->modem_unit_id);
-                        if ($modemUnit) {
-                            $content = ['action' => 'RESET', 'time' => $now->timestamp];
-                            $processed = $this->mqttService->publishModemParamMapping($modemUnit, 2, $content);
-                            PublishMqtt::dispatch(
-                                $processed['topic'],
-                                $processed['message'],
-                                $processed['qos'],
-                                $processed['connection']
-                            )->onQueue('high');
+                        try {
+                            $modemUnit = ModemUnit::find($vend->modem_unit_id);
+                            if ($modemUnit) {
+                                $content = ['action' => 'RESET', 'time' => $now->timestamp];
+                                $processed = $this->mqttService->publishModemParamMapping($modemUnit, 2, $content);
+                                PublishMqtt::dispatch(
+                                    $processed['topic'],
+                                    $processed['message'],
+                                    $processed['qos'],
+                                    $processed['connection']
+                                )->onQueue('high');
+                            }
+                        } catch (\Throwable $e) {
+                            Log::error('SyncVendOnlineStatus: Failed to reset modem for ' . $vend->code, ['error' => $e->getMessage()]);
                         }
                     }
 
