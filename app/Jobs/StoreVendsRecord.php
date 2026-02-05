@@ -33,6 +33,9 @@ class StoreVendsRecord implements ShouldQueue
 
     public function handle(): void
     {
+        $timezone = config('app.timezone');
+        $offset = Carbon::now($timezone)->offsetHours;
+
         $successfulItemsExpression = <<<SQL
 CASE
     WHEN vend_transactions.success_qty IS NOT NULL AND vend_transactions.success_qty > 0 THEN vend_transactions.success_qty
@@ -53,8 +56,8 @@ SQL;
             ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
             ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
             ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
-            ->where('vend_transactions.transaction_datetime', '>', Carbon::parse($this->from)->setTimezone('Asia/Singapore')->startOfDay())
-            ->where('vend_transactions.transaction_datetime', '<', Carbon::parse($this->to)->setTimezone('Asia/Singapore')->endOfDay())
+            ->where('vend_transactions.transaction_datetime', '>', Carbon::parse($this->from)->setTimezone($timezone)->startOfDay())
+            ->where('vend_transactions.transaction_datetime', '<', Carbon::parse($this->to)->setTimezone($timezone)->endOfDay())
             ->where('vend_transactions.amount', '>', 0)
             ->groupBy('date', 'vends.id', 'customers.id')
             ->select(
@@ -65,13 +68,13 @@ SQL;
                 'vend_transactions.id',
                 'customers.id AS customer_id',
                 'location_types.id AS location_type_id',
-                DB::raw('DATE(vend_transactions.transaction_datetime) as date'),
-                DB::raw('DAY(vend_transactions.transaction_datetime) as day'),
-                DB::raw('MONTH(vend_transactions.transaction_datetime) as month'),
-                DB::raw('MONTHNAME(vend_transactions.transaction_datetime) AS month_name'),
+                DB::raw("DATE(DATE_ADD(vend_transactions.transaction_datetime, INTERVAL {$offset} HOUR)) as date"),
+                DB::raw("DAY(DATE_ADD(vend_transactions.transaction_datetime, INTERVAL {$offset} HOUR)) as day"),
+                DB::raw("MONTH(DATE_ADD(vend_transactions.transaction_datetime, INTERVAL {$offset} HOUR)) as month"),
+                DB::raw("MONTHNAME(DATE_ADD(vend_transactions.transaction_datetime, INTERVAL {$offset} HOUR)) AS month_name"),
                 'vend_transactions.operator_id',
                 'vend_id',
-                DB::raw('YEAR(vend_transactions.transaction_datetime) as year'),
+                DB::raw("YEAR(DATE_ADD(vend_transactions.transaction_datetime, INTERVAL {$offset} HOUR)) as year"),
                 DB::raw(
                     'COALESCE(SUM(
                         CASE

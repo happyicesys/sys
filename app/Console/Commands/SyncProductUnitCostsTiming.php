@@ -29,13 +29,13 @@ class SyncProductUnitCostsTiming extends Command
     {
         $products = Product::has('unitCosts')->get();
 
-        foreach($products as $product) {
-            if($product->unitCosts()->exists()) {
+        foreach ($products as $product) {
+            if ($product->unitCosts()->exists()) {
                 $product->unitCosts()->update([
                     'is_current' => false,
                 ]);
             }
-            $currentUnitCost = $product->unitCosts()->whereDate('date_from', '<=', Carbon::today()->setTimezone($product->operator ? $product->operator->timezone : 'Asia/Singapore')->toDateString())->latest('created_at')->first();
+            $currentUnitCost = $product->unitCosts()->whereDate('date_from', '<=', Carbon::today()->setTimezone($product->operator ? $product->operator->timezone : config('app.timezone'))->toDateString())->latest('created_at')->first();
             $currentUnitCost->is_current = true;
             $currentUnitCost->save();
         }

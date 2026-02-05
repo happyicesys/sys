@@ -1021,7 +1021,7 @@
 									>
 											<div class="flex items-center justify-between w-full">
 												<span>{{ vend.is_temp_error ? 'Error' : vend.temp }}</span>
-												<ChartBarSquareIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+												<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
 											</div>
 									</button>
 							</a>
@@ -1043,7 +1043,7 @@
 									>
 											<div class="flex items-center justify-between w-full">
 													<span>{{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)</span>
-													<ChartBarSquareIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+													<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
 											</div>
 									</button>
 							</a>
@@ -1056,7 +1056,7 @@
 									>
 											<div class="flex items-center justify-between w-full">
 													<span>{{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)</span>
-													<ChartBarSquareIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+													<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
 											</div>
 									</button>
 							</a>
@@ -1069,7 +1069,7 @@
 									>
 											<div class="flex items-center justify-between w-full">
 													<span>{{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)</span>
-													<ChartBarSquareIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+													<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
 											</div>
 									</button>
 							</a>
@@ -1899,7 +1899,7 @@ font-size:13px;
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
-	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, ChartBarSquareIcon, TableCellsIcon } from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';

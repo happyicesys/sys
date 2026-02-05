@@ -269,7 +269,7 @@ class VendDataService
           case 'REFILL':
             break;
           case 'REQQR':
-            $timezone = $vend->operator->timezone ?? 'Asia/Singapore';
+            $timezone = $vend->operator->timezone ?? config('app.timezone');
 
             // Hardcoded maintenance window
             $start = Carbon::create(2026, 1, 11, 0, 0, 0, $timezone);
@@ -288,7 +288,7 @@ class VendDataService
             UpdateVendStatistics::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'TIME':
-            $operatorTimezone = 'Asia/Singapore';
+            $operatorTimezone = config('app.timezone');
             if ($vend->operator) {
               $operatorTimezone = $vend->operator->timezone;
             }

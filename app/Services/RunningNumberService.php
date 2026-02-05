@@ -9,26 +9,26 @@ class RunningNumberService
 {
   public function getVendOrderID(Vend $vend)
   {
-    $operatorTimezone = 'Asia/Singapore';
-    if($vend->operator) {
-        $operatorTimezone = $vend->operator->timezone;
+    $operatorTimezone = config('app.timezone');
+    if ($vend->operator) {
+      $operatorTimezone = $vend->operator->timezone;
     }
-    return Carbon::now()->setTimeZone($operatorTimezone)->format('ymdHis').sprintf('%05d', $vend->code);
+    return Carbon::now()->setTimeZone($operatorTimezone)->format('ymdHis') . sprintf('%05d', $vend->code);
   }
 
   public function getVendOrderIDBasedOnDate(Vend $vend, $date)
   {
-    $operatorTimezone = 'Asia/Singapore';
-    if($vend->operator) {
-        $operatorTimezone = $vend->operator->timezone;
+    $operatorTimezone = config('app.timezone');
+    if ($vend->operator) {
+      $operatorTimezone = $vend->operator->timezone;
     }
-    return Carbon::parse($date)->setTimeZone($operatorTimezone)->format('ymdHis').sprintf('%05d', $vend->code);
+    return Carbon::parse($date)->setTimeZone($operatorTimezone)->format('ymdHis') . sprintf('%05d', $vend->code);
   }
 
   public function getCustomerRunningCode($operatorID = null)
   {
-    if(!$operatorID) {
-        $operatorID = auth()->user()->operator_id;
+    if (!$operatorID) {
+      $operatorID = auth()->user()->operator_id;
     }
 
     $previousRunningNumber = Customer::where('operator_id', $operatorID)->max('code');
@@ -38,7 +38,7 @@ class RunningNumberService
 
   public function getRunningCode($model, $operatorID = null)
   {
-    if(!$operatorID) {
+    if (!$operatorID) {
       $operatorID = auth()->user()->operator_id;
     }
 

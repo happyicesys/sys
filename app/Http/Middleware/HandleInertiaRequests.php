@@ -77,7 +77,7 @@ class HandleInertiaRequests extends Middleware
                 'operatorRole' => $user ? $user->hasRole('operator') : null,
                 'profile' => $user ? $user->profile : null,
                 // 'profile.baseCurrency' => $request->user() ? $request->user()->profile->baseCurrency : null,
-                'timezone' => $operator ? $operator->timezone : 'Asia/Singapore',
+                'timezone' => $operator ? $operator->timezone : config('app.timezone'),
                 'canOverrideOperatorLogo' => $canOverrideLogo,
                 'operatorLogoUrl' => $operator?->logo?->full_url,
             ],
