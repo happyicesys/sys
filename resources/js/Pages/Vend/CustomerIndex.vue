@@ -1015,11 +1015,14 @@
 							<a :href="'/vends/' + vend.vend_id + '/temp/' + 1 " target="_blank" class="w-full">
 									<button
 									type="button"
-									class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+									class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
 									:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 									v-if="vend.temp_updated_at"
 									>
-											{{ vend.is_temp_error ? 'Error' : vend.temp }}
+											<div class="flex items-center justify-between w-full">
+												<span>{{ vend.is_temp_error ? 'Error' : vend.temp }}</span>
+												<ChartBarSquareIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+											</div>
 									</button>
 							</a>
 							<!-- <button
@@ -1034,32 +1037,40 @@
 							<a :href="'/vends/' + vend.vend_id + '/temp/' + 2 " target="_blank" class="w-full">
 									<button
 											type="button"
-											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && 't2' in vend.parameterJson"
 									>
-									<!-- @click="onVendTempClicked(vend.id, 2)" -->
-											{{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)
+											<div class="flex items-center justify-between w-full">
+													<span>{{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)</span>
+													<ChartBarSquareIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+											</div>
 									</button>
 							</a>
 							<a :href="'/vends/' + vend.vend_id + '/temp/' + 3 " target="_blank" class="w-full">
 									<button
 											type="button"
-											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t3'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && vend.parameterJson['t3'] && vend.parameterJson['t3'] != constTempError"
 									>
-											{{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)
+											<div class="flex items-center justify-between w-full">
+													<span>{{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)</span>
+													<ChartBarSquareIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+											</div>
 									</button>
 							</a>
 							<a :href="'/vends/' + vend.vend_id + '/temp/' + 4 " target="_blank" class="w-full">
 									<button
 											type="button"
-											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t4'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && vend.parameterJson['t4'] && vend.parameterJson['t4'] != constTempError"
 									>
-											{{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)
+											<div class="flex items-center justify-between w-full">
+													<span>{{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)</span>
+													<ChartBarSquareIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+											</div>
 									</button>
 							</a>
 							<span class="mt-1">
@@ -1076,11 +1087,14 @@
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-						<div class="flex flex-col space-y-2">
+						<div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="onChannelOverviewClicked(vend)">
+							<div class="flex items-center space-x-1 text-xs text-gray-500 mb-1">
+								<TableCellsIcon class="w-4 h-4 text-blue-500" />
+								<span class="font-semibold text-blue-600">View Channel Status</span>
+							</div>
 							<ul
-							class="sm:grid sm:grid-cols-[1fr_1fr] hover:cursor-pointer"
+							class="sm:grid sm:grid-cols-[1fr_1fr]"
 							v-if="vend && vend.vendChannelsJson"
-							@click="onChannelOverviewClicked(vend)"
 							>
 								<li v-for="(channel, channelIndex) in vend.vendChannelsJson"
 										class="quick-look"
@@ -1885,7 +1899,7 @@ font-size:13px;
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
-	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon} from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, ChartBarSquareIcon, TableCellsIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
