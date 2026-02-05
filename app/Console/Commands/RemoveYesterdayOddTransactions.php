@@ -27,8 +27,8 @@ class RemoveYesterdayOddTransactions extends Command
      */
     public function handle()
     {
-        $from = Carbon::today()->toDateString();
-        $to = Carbon::today()->toDateString();
+        $from = Carbon::yesterday()->toDateString();
+        $to = Carbon::yesterday()->toDateString();
 
         RemoveOddTransactions::dispatch($from, $to);
     }
