@@ -37,7 +37,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('vend:retry-jobs')->everyMinute();
         $schedule->command('vend:cleanup-jobs')->dailyAt('02:00');
         $schedule->command('remove:today-odd-transactions')->dailyAt('23:59');
-        $schedule->job(new \App\Jobs\DetectTempTrends)->hourly();
+        // $schedule->job(new \App\Jobs\DetectTempTrends)->hourly();
         // $schedule->command('clean:ops-job-and-incoming-data')->daily();
         // $schedule->command('release:voucher-lock-every-2-mins')->everyMinute();
     }
