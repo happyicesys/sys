@@ -21,9 +21,10 @@ class VendTransactionSalesAggregator
      */
     public static function productTotals(Carbon $start, Carbon $end, ?Closure $applyFilter = null, bool $includeAll = false): Builder
     {
-        // Use application timezone (usually SG/UTC+8) for "Day" boundaries, then convert to UTC for DB query
-        $start = $start->copy()->setTimezone(config('app.timezone'))->startOfDay()->setTimezone('UTC');
-        $end = $end->copy()->setTimezone(config('app.timezone'))->endOfDay()->setTimezone('UTC');
+        // Use application timezone (usually SG/UTC+8) for "Day" boundaries.
+        // The database stores transaction_datetime in the application timezone, so we should NOT convert to UTC.
+        $start = $start->copy()->setTimezone(config('app.timezone'))->startOfDay();
+        $end = $end->copy()->setTimezone(config('app.timezone'))->endOfDay();
 
         $singleQuery = VendTransaction::query()
             ->whereBetween('vend_transactions.transaction_datetime', [$start, $end]);
@@ -116,9 +117,10 @@ class VendTransactionSalesAggregator
      */
     public static function productBasketTotals(Carbon $start, Carbon $end): Builder
     {
-        // Use application timezone (usually SG/UTC+8) for "Day" boundaries, then convert to UTC for DB query
-        $start = $start->copy()->setTimezone(config('app.timezone'))->startOfDay()->setTimezone('UTC');
-        $end = $end->copy()->setTimezone(config('app.timezone'))->endOfDay()->setTimezone('UTC');
+        // Use application timezone (usually SG/UTC+8) for "Day" boundaries.
+        // The database stores transaction_datetime in the application timezone, so we should NOT convert to UTC.
+        $start = $start->copy()->setTimezone(config('app.timezone'))->startOfDay();
+        $end = $end->copy()->setTimezone(config('app.timezone'))->endOfDay();
 
         // 1. Strings (Single Transactions)
         // For Single transactions, Bundle/Basket Size is simply 'qty'.

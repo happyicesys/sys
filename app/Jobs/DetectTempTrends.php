@@ -5,12 +5,21 @@ namespace App\Jobs;
 use App\Models\VendSmartAlert;
 use App\Models\VendTemp;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 
-class DetectTempTrends implements ShouldQueue
+class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 {
     use Queueable;
+
+    // Prevent duplicate jobs for same vend for 10 minutes
+    public $uniqueFor = 600;
+
+    public function uniqueId()
+    {
+        return $this->targetVendId ?? 'global';
+    }
 
     public ?int $targetVendId;
 

@@ -34,7 +34,7 @@ class StoreVendsRecord implements ShouldQueue
     public function handle(): void
     {
         $timezone = config('app.timezone');
-        $offset = Carbon::now($timezone)->offsetHours;
+
 
         $successfulItemsExpression = <<<SQL
 CASE
@@ -68,13 +68,13 @@ SQL;
                 'vend_transactions.id',
                 'customers.id AS customer_id',
                 'location_types.id AS location_type_id',
-                DB::raw("DATE(DATE_ADD(vend_transactions.transaction_datetime, INTERVAL {$offset} HOUR)) as date"),
-                DB::raw("DAY(DATE_ADD(vend_transactions.transaction_datetime, INTERVAL {$offset} HOUR)) as day"),
-                DB::raw("MONTH(DATE_ADD(vend_transactions.transaction_datetime, INTERVAL {$offset} HOUR)) as month"),
-                DB::raw("MONTHNAME(DATE_ADD(vend_transactions.transaction_datetime, INTERVAL {$offset} HOUR)) AS month_name"),
+                DB::raw("DATE(vend_transactions.transaction_datetime) as date"),
+                DB::raw("DAY(vend_transactions.transaction_datetime) as day"),
+                DB::raw("MONTH(vend_transactions.transaction_datetime) as month"),
+                DB::raw("MONTHNAME(vend_transactions.transaction_datetime) AS month_name"),
                 'vend_transactions.operator_id',
                 'vend_id',
-                DB::raw("YEAR(DATE_ADD(vend_transactions.transaction_datetime, INTERVAL {$offset} HOUR)) as year"),
+                DB::raw("YEAR(vend_transactions.transaction_datetime) as year"),
                 DB::raw(
                     'COALESCE(SUM(
                         CASE

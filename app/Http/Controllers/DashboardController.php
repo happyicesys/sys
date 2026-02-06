@@ -258,10 +258,9 @@ class DashboardController extends Controller
 
         $today = Carbon::today()->setTimezone($this->getUserTimezone());
         if ($today->between($day_date_from->copy()->subMonth()->startOfDay(), $day_date_to->copy()->endOfDay())) {
-            // Ensure we use UTC day boundaries to match VendRecord aggregation and Transaction Page logic
-            // Use the date from $today (User/SG Time) to ensure we query the corresponding UTC date, avoiding shifts
-            $startOfTodayUTC = Carbon::parse($today->format('Y-m-d'), 'UTC')->startOfDay();
-            $endOfTodayUTC = Carbon::parse($today->format('Y-m-d'), 'UTC')->endOfDay();
+            // Ensure we use application timezone boundaries to match DB storage
+            $startOfTodayUTC = $today->copy()->setTimezone(config('app.timezone'))->startOfDay();
+            $endOfTodayUTC = $today->copy()->setTimezone(config('app.timezone'))->endOfDay();
 
             $todayTransactions = VendTransaction::query()
                 ->filterTransactionIndex($request)

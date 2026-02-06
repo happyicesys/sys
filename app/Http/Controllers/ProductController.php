@@ -210,8 +210,8 @@ class ProductController extends Controller
         ]);
 
         $userTimezone = $this->getUserTimezone();
-        $productAvailableDateStart = Carbon::parse($request->productAvailableDate, $userTimezone)->startOfDay()->setTimezone('UTC');
-        $productAvailableDateEnd = Carbon::parse($request->productAvailableDate, $userTimezone)->endOfDay()->setTimezone('UTC');
+        $productAvailableDateStart = Carbon::parse($request->productAvailableDate, $userTimezone)->startOfDay();
+        $productAvailableDateEnd = Carbon::parse($request->productAvailableDate, $userTimezone)->endOfDay();
 
         $products = Product::query()
             ->with([
