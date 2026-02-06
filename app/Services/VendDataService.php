@@ -32,6 +32,7 @@ use App\Jobs\Vend\SyncFeatureApkSetting;
 use App\Jobs\Vend\SyncJobApkSetting;
 use Carbon\Carbon;
 use PhpMqtt\Client\Facades\MQTT;
+use Illuminate\Support\Facades\Cache;
 
 class VendDataService
 {
@@ -323,9 +324,11 @@ class VendDataService
         }
       }
 
-      // Trigger smart alert check for this specific vend
-      // Trigger smart alert check for this specific vend
-      // \App\Jobs\DetectTempTrends::dispatch($vend->id)->onQueue('low');
+      // Trigger smart alert check for this specific vend (Debounced: Run max once every 3 mins)
+      if (!Cache::has('detect_temp_trends_' . $vend->id)) {
+        \App\Jobs\DetectTempTrends::dispatch($vend->id)->onQueue('low');
+        Cache::put('detect_temp_trends_' . $vend->id, true, now()->addMinutes(3));
+      }
 
     }
 
