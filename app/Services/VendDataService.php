@@ -325,7 +325,7 @@ class VendDataService
 
       // Trigger smart alert check for this specific vend
       // Trigger smart alert check for this specific vend
-      // \App\Jobs\DetectTempTrends::dispatch($vend->id)->onQueue('low');
+      \App\Jobs\DetectTempTrends::dispatch($vend->id)->onQueue('low');
 
     }
 
