@@ -36,6 +36,13 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
      */
     public function handle(): void
     {
+        // 1. If triggered by a specific Vend (Real-time), run lightweight stateful check
+        if ($this->targetVendId) {
+            $this->analyzeStateful($this->targetVendId);
+            return;
+        }
+
+        // 2. Heavy Analysis (Scheduled Hourly)
         // 2.2: Rising Trends
         $this->analyzeTrend(VendTemp::TYPE_CHAMBER, VendSmartAlert::TYPE_RISING_T1);
         $this->analyzeTrend(VendTemp::TYPE_EVAPORATOR, VendSmartAlert::TYPE_RISING_T2);
@@ -434,6 +441,177 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     ->where('alert_type', $alertType)
                     ->update(['is_active' => false]);
             }
+        }
+    }
+
+    private function analyzeStateful(int $vendId): void
+    {
+        $vend = \App\Models\Vend::find($vendId);
+        if (!$vend || !$vend->is_active || $vend->is_testing) {
+            return;
+        }
+
+        // Get latest temps (O(1) with index)
+        $t1 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_CHAMBER)
+            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)->latest()->first();
+        $t2 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_EVAPORATOR)
+            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)->latest()->first();
+
+        // If no recent data skip.
+        if (!$t1 || !$t2)
+            return;
+
+        $t1Val = $t1->value / 10;
+        $t2Val = $t2->value / 10;
+        $now = now();
+
+        $state = $vend->temp_monitoring_state ?? [];
+        $newState = $state;
+
+        // --- Logic: T2 < -25C (Frozen?) ---
+        if ($t2Val < -25) {
+            if (!isset($state['t2_lt_minus_25_start'])) {
+                $newState['t2_lt_minus_25_start'] = $now->toIso8601String();
+            }
+        } else {
+            unset($newState['t2_lt_minus_25_start']);
+            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_T2_BELOW_MINUS_25)->update(['is_active' => false]);
+        }
+
+        // --- Logic: T1 & T2 > 0 (Warm) ---
+        if ($t1Val > 0) {
+            if (!isset($state['t1_gt_0_start']))
+                $newState['t1_gt_0_start'] = $now->toIso8601String();
+        } else {
+            unset($newState['t1_gt_0_start']);
+        }
+        if ($t2Val > 0) {
+            if (!isset($state['t2_gt_0_start']))
+                $newState['t2_gt_0_start'] = $now->toIso8601String();
+        } else {
+            unset($newState['t2_gt_0_start']);
+        }
+
+        // --- Logic: T1 & T2 > -8 (Semi-Warm) ---
+        if ($t1Val > -8) {
+            if (!isset($state['t1_gt_minus_8_start']))
+                $newState['t1_gt_minus_8_start'] = $now->toIso8601String();
+        } else {
+            unset($newState['t1_gt_minus_8_start']);
+        }
+        if ($t2Val > -8) {
+            if (!isset($state['t2_gt_minus_8_start']))
+                $newState['t2_gt_minus_8_start'] = $now->toIso8601String();
+        } else {
+            unset($newState['t2_gt_minus_8_start']);
+        }
+
+        // --- Logic: Not Reached -18 (Both > -18) ---
+        if ($t1Val > -18) {
+            if (!isset($state['t1_gt_minus_18_start']))
+                $newState['t1_gt_minus_18_start'] = $now->toIso8601String();
+        } else {
+            unset($newState['t1_gt_minus_18_start']);
+        }
+        if ($t2Val > -18) {
+            if (!isset($state['t2_gt_minus_18_start']))
+                $newState['t2_gt_minus_18_start'] = $now->toIso8601String();
+        } else {
+            unset($newState['t2_gt_minus_18_start']);
+        }
+
+        // Save State
+        if ($state !== $newState) {
+            $vend->temp_monitoring_state = $newState;
+            $vend->save();
+        }
+
+        // --- Evaluate Alerts ---
+
+        // 1. T2 < -25
+        if (isset($newState['t2_lt_minus_25_start'])) {
+            $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['t2_lt_minus_25_start']));
+            $severity = 0;
+            if ($diffMinutes >= 30)
+                $severity = 2;
+            elseif ($diffMinutes >= 10)
+                $severity = 1;
+
+            if ($severity > 0) {
+                VendSmartAlert::updateOrCreate(
+                    ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_T2_BELOW_MINUS_25],
+                    ['severity' => $severity, 'is_active' => true, 'meta_data' => ['val' => $t2Val, 'duration' => $diffMinutes]]
+                );
+            }
+        }
+
+        // 2. T1 & T2 > 0
+        if (isset($newState['t1_gt_0_start']) && isset($newState['t2_gt_0_start'])) {
+            $s1 = \Carbon\Carbon::parse($newState['t1_gt_0_start']);
+            $s2 = \Carbon\Carbon::parse($newState['t2_gt_0_start']);
+            $effectiveStart = $s1->max($s2);
+            $diffMinutes = $now->diffInMinutes($effectiveStart);
+
+            $severity = 0;
+            if ($diffMinutes >= 60)
+                $severity = 2;
+            elseif ($diffMinutes >= 30)
+                $severity = 1;
+
+            if ($severity > 0) {
+                VendSmartAlert::updateOrCreate(
+                    ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_TEMPS_ABOVE_0],
+                    ['severity' => $severity, 'is_active' => true, 'meta_data' => ['v1' => $t1Val, 'v2' => $t2Val]]
+                );
+            }
+        } else {
+            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_0)->update(['is_active' => false]);
+        }
+
+        // 3. T1 & T2 > -8
+        if (isset($newState['t1_gt_minus_8_start']) && isset($newState['t2_gt_minus_8_start'])) {
+            $s1 = \Carbon\Carbon::parse($newState['t1_gt_minus_8_start']);
+            $s2 = \Carbon\Carbon::parse($newState['t2_gt_minus_8_start']);
+            $effectiveStart = $s1->max($s2);
+            $diffMinutes = $now->diffInMinutes($effectiveStart);
+
+            $severity = 0;
+            if ($diffMinutes >= 90)
+                $severity = 2;
+            elseif ($diffMinutes >= 60)
+                $severity = 1;
+
+            if ($severity > 0) {
+                VendSmartAlert::updateOrCreate(
+                    ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8],
+                    ['severity' => $severity, 'is_active' => true, 'meta_data' => ['v1' => $t1Val, 'v2' => $t2Val]]
+                );
+            }
+        } else {
+            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8)->update(['is_active' => false]);
+        }
+
+        // 4. Not Reach -18 (Both > -18)
+        if (isset($newState['t1_gt_minus_18_start']) && isset($newState['t2_gt_minus_18_start'])) {
+            $s1 = \Carbon\Carbon::parse($newState['t1_gt_minus_18_start']);
+            $s2 = \Carbon\Carbon::parse($newState['t2_gt_minus_18_start']);
+            $effectiveStart = $s1->max($s2);
+            $diffHours = $now->diffInHours($effectiveStart);
+
+            $severity = 0;
+            if ($diffHours >= 12)
+                $severity = 2;
+            elseif ($diffHours >= 8)
+                $severity = 1;
+
+            if ($severity > 0) {
+                VendSmartAlert::updateOrCreate(
+                    ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_NOT_REACH_MINUS_18],
+                    ['severity' => $severity, 'is_active' => true, 'meta_data' => ['v1' => $t1Val]]
+                );
+            }
+        } else {
+            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_NOT_REACH_MINUS_18)->update(['is_active' => false]);
         }
     }
 }

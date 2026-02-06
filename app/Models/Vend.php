@@ -288,6 +288,7 @@ class Vend extends Model
         'vend_criteria_weightage_json' => 'json',
         'vend_temp_alert_json' => 'json',
         'vend_transaction_totals_json' => 'json',
+        'temp_monitoring_state' => 'json',
     ];
 
     protected $fillable = [
@@ -313,6 +314,7 @@ class Vend extends Model
         'offline_restart_count_datetime',
         'temp',
         'temp_updated_at',
+        'temp_monitoring_state',
         'coin_amount',
         'firmware_ver',
         'is_active',

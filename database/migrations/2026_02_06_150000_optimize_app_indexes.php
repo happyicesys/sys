@@ -10,56 +10,33 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        // 1. vend_transaction_items - vital for deletes and reports
-        // Schema::table('vend_transaction_items', function (Blueprint $table) {
-        //     $table->index('vend_transaction_id', 'idx_vti_transaction_id');
-        // });
+        $indexes = [
+            ['vend_transaction_items', 'idx_vti_transaction_id', 'vend_transaction_id'],
+            ['vend_channel_error_logs', 'idx_vcel_transaction_id', 'vend_transaction_id'],
+            ['vend_channel_error_logs', 'idx_vcel_created_at', 'created_at'],
+            ['vend_channels', 'idx_vc_vid_active_cap', ['vend_id', 'is_active', 'capacity']],
+            ['vend_channels', 'idx_vc_sku_code', 'sku_code'],
+            ['ops_job_items', 'idx_oji_cust_created', ['customer_id', 'created_at']],
+            ['ops_job_items', 'idx_oji_status_cust', ['status', 'customer_id']],
+            ['ops_job_item_channels', 'idx_ojic_item_id', 'ops_job_item_id'],
+            ['ops_job_item_channels', 'idx_ojic_channel_id', 'vend_channel_id'],
+            ['ops_jobs', 'idx_oj_date', 'date'],
+            ['vend_records', 'idx_vr_op_date', ['operator_id', 'date']],
+            ['vend_channel_stock_events', 'idx_vcse_occurred_type', ['occurred_at', 'event_type']],
+            ['vend_channel_stock_events', 'idx_vcse_channel_id', 'vend_channel_id'],
+        ];
 
-        // // 2. vend_channel_error_logs - vital for deletes and health reports
-        // Schema::table('vend_channel_error_logs', function (Blueprint $table) {
-        //     $table->index('vend_transaction_id', 'idx_vcel_transaction_id');
-        //     // Adding created_at index for range queries in various health checks
-        //     $table->index('created_at', 'idx_vcel_created_at');
-        // });
+        foreach ($indexes as $idx) {
+            $tableName = $idx[0];
+            $indexName = $idx[1];
+            $columns = $idx[2];
 
-        // // 3. vend_channels - vital for calculated columns in Customer/Vend Index
-        // Schema::table('vend_channels', function (Blueprint $table) {
-        //     // Supports: WHERE is_active = true AND capacity > 0 GROUP BY vend_id
-        //     $table->index(['vend_id', 'is_active', 'capacity'], 'idx_vc_vid_active_cap');
-        //     // Supports: where('sku_code', $sku)
-        //     $table->index('sku_code', 'idx_vc_sku_code');
-        // });
-
-        // // 4. ops_job_items - vital for lastOpsJobItem relationships
-        // Schema::table('ops_job_items', function (Blueprint $table) {
-        //     // Supports: WHERE customer_id = ? ORDER BY created_at DESC
-        //     $table->index(['customer_id', 'created_at'], 'idx_oji_cust_created');
-        //     // Supports: WHERE status >= 3 ... GROUP BY customer_id
-        //     $table->index(['status', 'customer_id'], 'idx_oji_status_cust');
-        // });
-
-        // // 5. ops_job_item_channels - vital for joins
-        // Schema::table('ops_job_item_channels', function (Blueprint $table) {
-        //     $table->index('ops_job_item_id', 'idx_ojic_item_id');
-        //     $table->index('vend_channel_id', 'idx_ojic_channel_id');
-        // });
-
-        // // 6. ops_jobs - vital for date filtering in subqueries
-        // Schema::table('ops_jobs', function (Blueprint $table) {
-        //     $table->index('date', 'idx_oj_date');
-        // });
-
-        // // 7. vend_records - vital for historical data queries
-        // Schema::table('vend_records', function (Blueprint $table) {
-        //     // Often queried by opertor inside range
-        //     $table->index(['operator_id', 'date'], 'idx_vr_op_date');
-        // });
-
-        // // 8. vend_channel_stock_events - vital for stockout metrics
-        // Schema::table('vend_channel_stock_events', function (Blueprint $table) {
-        //     $table->index(['occurred_at', 'event_type'], 'idx_vcse_occurred_type');
-        //     $table->index('vend_channel_id', 'idx_vcse_channel_id');
-        // });
+            if (!Schema::hasIndex($tableName, $indexName)) {
+                Schema::table($tableName, function (Blueprint $table) use ($columns, $indexName) {
+                    $table->index($columns, $indexName);
+                });
+            }
+        }
     }
 
     /**
