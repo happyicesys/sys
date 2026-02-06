@@ -116,6 +116,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     'severity' => $severity,
                     'is_active' => true,
                     'meta_data' => [
+                        'val' => $metaMax / $scale,
                         'max_temp' => $metaMax / $scale,
                         'duration_label' => $durationLabel,
                         'calculated_at' => $now->toIso8601String(),
