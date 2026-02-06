@@ -8,6 +8,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendChannelStockEvent;
+use App\Models\VendSmartAlert;
 use App\Models\VendTemp;
 use App\Models\VendTempMetric;
 use App\Models\VendTransaction;
@@ -590,225 +591,168 @@ class MachineHealthDashboardService
 
     private function getTemperatureMetrics(array $filters): array
     {
-        $sensorType = $filters['temperature_sensor_type'];
-        $shortWindow = $filters['temperature_window_days'];
-        $longWindow = $filters['temperature_long_window_days'];
-        $deltaThresholdRaw = $filters['temperature_delta_threshold'];
-        $minThresholdRaw = (float) $filters['temperature_min_threshold'];
-
+        $minThreshold = $filters['temperature_min_threshold'];
+        $minThresholdRaw = (int) ($minThreshold * 10);
+        $delta = $filters['temperature_delta_threshold'];
         $scale = 10;
-        $deltaThresholdScaled = (int) round($deltaThresholdRaw * $scale);
-        $minThresholdScaled = (int) round($minThresholdRaw * $scale);
+        $longWindow = $filters['temperature_long_window_days'];
+        $sensorType = $filters['temperature_sensor_type'];
 
-        $now = Carbon::now();
-        $shortStart = $now->copy()->subDays($shortWindow - 1)->startOfDay();
-        $longStart = $now->copy()->subDays($longWindow - 1)->startOfDay();
-
-        $dailyMetrics = VendTempMetric::query()
-            ->with([
-                'vend:id,code,name,operator_id,vend_prefix_id,customer_id,is_testing',
-                'vend.customer:id,name,code',
-                'vend.operator:id,name,code',
-                'vend.vendPrefix:id,name',
-            ])
-            ->where('period_type', VendTempMetric::PERIOD_DAILY)
-            ->where('temp_type', $sensorType)
-            ->whereBetween('period_start', [$shortStart, $now])
-            ->whereHas('vend', function (EloquentBuilder $query) use ($filters) {
-                $this->applyVendFilters($query, $filters);
-
-                if (!empty($filters['channel_sku'])) {
-                    $sku = $filters['channel_sku'];
-                    $query->whereHas('vendChannels', function ($q) use ($sku) {
-                        $q->where('sku_code', $sku)
-                            ->orWhere('sku_code', 'LIKE', "{$sku}%");
-                    });
-                }
-
-                $query->where('is_testing', false);
+        // Reconstruct Worst Minima Logic
+        $worstMinimaRows = $this->baseVendModelQuery($filters)
+            ->join('vend_temp_metrics', function ($join) use ($longWindow, $sensorType) {
+                $join->on('vends.id', '=', 'vend_temp_metrics.vend_id')
+                    ->where('vend_temp_metrics.period_type', VendTempMetric::PERIOD_DAILY)
+                    ->where('vend_temp_metrics.temp_type', $sensorType)
+                    ->where('vend_temp_metrics.period_start', '>=', Carbon::today()->subDays($longWindow));
             })
-            ->orderBy('vend_id')
-            ->orderBy('period_start')
-            ->get();
-
-        $rising = $dailyMetrics->groupBy('vend_id')->map(function (Collection $metrics) use ($deltaThresholdScaled, $scale) {
-            $usable = $metrics->filter(fn($metric) => $metric->min_temp_value !== null)->sortBy('period_start')->values();
-
-            if ($usable->count() < 2) {
-                return null;
-            }
-
-            $first = $usable->first();
-            $last = $usable->last();
-            $delta = (int) $last->min_temp_value - (int) $first->min_temp_value;
-
-            if ($delta < $deltaThresholdScaled || $last->min_temp_value <= $first->min_temp_value) {
-                return null;
-            }
-
-            $vend = $first->vend;
-
-            return [
-                'vend_id' => $vend?->id,
-                'vend_code' => $vend?->code,
-                'vend_name' => $vend?->name,
-                'customer_name' => $vend?->customer?->name,
-                'operator_name' => $vend?->operator?->name,
-                'vend_prefix_name' => $vend?->vendPrefix?->name,
-                'first_min_temp' => round(((int) $first->min_temp_value) / $scale, 1),
-                'first_day' => optional($first->period_start)->toDateString(),
-                'latest_min_temp' => round(((int) $last->min_temp_value) / $scale, 1),
-                'latest_day' => optional($last->period_start)->toDateString(),
-                'delta' => round($delta / $scale, 2),
-            ];
-        })->filter()->sortByDesc('delta')->take($filters['machine_limit'])->values()->all();
-
-        $worstMinimaQuery = VendTempMetric::query()
-            ->from('vend_temp_metrics')
-            ->join('vends', 'vend_temp_metrics.vend_id', '=', 'vends.id')
-            ->join('customers', 'vends.customer_id', '=', 'customers.id')
-            ->leftJoin('operators', 'vends.operator_id', '=', 'operators.id')
-            ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
-            ->where('vend_temp_metrics.period_type', VendTempMetric::PERIOD_DAILY)
-            ->where('vend_temp_metrics.temp_type', $sensorType)
-            ->whereBetween('vend_temp_metrics.period_start', [$longStart, $now])
-            ->where('vends.is_testing', false);
-
-        $this->applyVendFilters($worstMinimaQuery, $filters, 'vends');
-
-        if (!empty($filters['channel_sku'])) {
-            $sku = $filters['channel_sku'];
-            $worstMinimaQuery->whereHas('vend.vendChannels', function ($q) use ($sku) {
-                $q->where('sku_code', $sku)
-                    ->orWhere('sku_code', 'LIKE', "{$sku}%");
-            });
-        }
-
-        $worstMinimaRows = $worstMinimaQuery
-            ->select([
-                'vend_temp_metrics.vend_id',
-                'vends.code as vend_code',
-                'vends.name as vend_name',
-                'customers.name as customer_name',
-                'operators.name as operator_name',
-                'vend_prefixes.name as vend_prefix_name',
-                DB::raw('MAX(vend_temp_metrics.min_temp_value) as worst_min_temp'),
-                DB::raw('MIN(vend_temp_metrics.min_temp_value) as best_min_temp'),
-                DB::raw('MAX(vend_temp_metrics.min_temp_recorded_at) as last_recorded_at'),
-            ])
-            ->groupBy('vend_temp_metrics.vend_id', 'vends.code', 'vends.name', 'customers.name', 'operators.name', 'vend_prefixes.name')
-            ->havingRaw('MAX(vend_temp_metrics.min_temp_value) IS NOT NULL')
-            ->orderByDesc(DB::raw('MAX(vend_temp_metrics.min_temp_value)'))
-            ->limit($filters['machine_limit'])
-            ->get()
-            ->map(function ($row) use ($scale) {
-                return [
-                    'vend_id' => (int) $row->vend_id,
-                    'vend_code' => $row->vend_code,
-                    'vend_name' => $row->vend_name,
-                    'customer_name' => $row->customer_name,
-                    'operator_name' => $row->operator_name,
-                    'vend_prefix_name' => $row->vend_prefix_name,
-                    'worst_min_temp' => $row->worst_min_temp !== null ? round(((int) $row->worst_min_temp) / $scale, 1) : null,
-                    'best_min_temp' => $row->best_min_temp !== null ? round(((int) $row->best_min_temp) / $scale, 1) : null,
-                    'last_recorded_at' => $row->last_recorded_at ? Carbon::parse($row->last_recorded_at)->toIso8601String() : null,
-                ];
-            })
-            ->all();
-
-        $recentWindowStart = $now->copy()->subHours(12);
-
-        $recentTempsSubquery = DB::table('vend_temps as vt')
-            ->select([
-                'vt.vend_id',
-                DB::raw('MIN(vt.value) as min_value'),
-                DB::raw('MAX(vt.created_at) as last_recorded_at'),
-                DB::raw('COUNT(*) as reading_count'),
-            ])
-            ->where('vt.type', $sensorType)
-            ->where('vt.value', '!=', VendTemp::TEMPERATURE_ERROR)
-            ->where('vt.created_at', '>=', $recentWindowStart)
-            ->whereExists(function ($sub) use ($filters) {
-                $sub->select(DB::raw(1))
-                    ->from('vends')
-                    ->whereColumn('vends.id', 'vt.vend_id')
-                    ->where('vends.is_temp_active', true)
-                    ->where('vends.is_testing', false);
-
-                $this->applyVendFilters($sub, $filters, 'vends');
-
-                if (!empty($filters['channel_sku'])) {
-                    $sku = $filters['channel_sku'];
-                    $sub->whereExists(function ($q) use ($sku) {
-                        $q->select(DB::raw(1))
-                            ->from('vend_channels')
-                            ->whereColumn('vend_channels.vend_id', 'vends.id')
-                            ->where(function ($q2) use ($sku) {
-                                $q2->where('sku_code', $sku)
-                                    ->orWhere('sku_code', 'LIKE', "{$sku}%");
-                            });
-                    });
-                }
-            })
-            ->groupBy('vt.vend_id');
-
-        $noReachQuery = DB::query()
-            ->fromSub($recentTempsSubquery, 'recent_temps')
-            ->join('vends', 'recent_temps.vend_id', '=', 'vends.id')
-            ->join('customers', 'vends.customer_id', '=', 'customers.id')
-            ->leftJoin('operators', 'vends.operator_id', '=', 'operators.id')
-            ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
-            ->where('vends.is_temp_active', true)
-            ->where('vends.is_testing', false);
-
-        $this->applyVendFilters($noReachQuery, $filters, 'vends');
-
-        $notReaching = $noReachQuery
             ->select([
                 'vends.id as vend_id',
                 'vends.code as vend_code',
                 'vends.name as vend_name',
-                'customers.name as customer_name',
-                'operators.name as operator_name',
-                'vend_prefixes.name as vend_prefix_name',
-                DB::raw('recent_temps.min_value as min_value'),
-                DB::raw('recent_temps.last_recorded_at as last_recorded_at'),
-                DB::raw('recent_temps.reading_count as reading_count'),
+                'vends.customer_id',
+                'vends.operator_id',
+                'vends.vend_prefix_id',
+                DB::raw('MAX(vend_temp_metrics.min_temp_value) as worst_min_val'),
+                DB::raw('MIN(vend_temp_metrics.min_temp_value) as best_min_val'),
+                DB::raw('MAX(vend_temp_metrics.min_temp_recorded_at) as last_recorded_at'),
             ])
-            ->where('recent_temps.min_value', '>', $minThresholdScaled)
-            ->orderByDesc(DB::raw('recent_temps.min_value'))
+            ->groupBy('vends.id', 'vends.code', 'vends.name', 'vends.customer_id', 'vends.operator_id', 'vends.vend_prefix_id')
+            ->having('worst_min_val', '>', $minThresholdRaw)
+            ->orderByDesc('worst_min_val')
             ->limit($filters['machine_limit'])
+            ->with(['customer:id,name', 'operator:id,name', 'vendPrefix:id,name'])
             ->get()
             ->map(function ($row) use ($scale) {
                 return [
-                    'vend_id' => (int) $row->vend_id,
+                    'vend_id' => $row->vend_id,
                     'vend_code' => $row->vend_code,
                     'vend_name' => $row->vend_name,
-                    'customer_name' => $row->customer_name,
-                    'operator_name' => $row->operator_name,
-                    'vend_prefix_name' => $row->vend_prefix_name,
-                    'min_value' => $row->min_value !== null ? round(((int) $row->min_value) / $scale, 1) : null,
-                    'last_recorded_at' => $row->last_recorded_at ? Carbon::parse($row->last_recorded_at)->toIso8601String() : null,
-                    'reading_count' => (int) $row->reading_count,
+                    'customer_name' => $row->customer->name ?? null,
+                    'operator_name' => $row->operator->name ?? null,
+                    'vend_prefix_name' => $row->vendPrefix->name ?? null,
+                    'worst_min_temp' => $row->worst_min_val / $scale,
+                    'best_min_temp' => ($row->best_min_val ?? 0) / $scale,
+                    'last_recorded_at' => $row->last_recorded_at,
                 ];
             })
             ->all();
 
+        // Not Reaching Threshold Logic
+        $recentWindowStart = Carbon::now()->subHours(12);
+
+        $notReaching = $this->baseVendQuery($filters)
+            ->join('vend_temps as recent_temps', function ($join) use ($recentWindowStart, $sensorType) {
+                $join->on('vends.id', '=', 'recent_temps.vend_id')
+                    ->where('recent_temps.created_at', '>=', $recentWindowStart)
+                    ->where('recent_temps.type', $sensorType)
+                    ->where('recent_temps.value', '!=', VendTemp::TEMPERATURE_ERROR);
+            })
+            ->select([
+                'vends.id',
+                'vends.code',
+                'vends.name',
+                'vends.operator_id',
+                'vends.customer_id',
+                'vends.vend_prefix_id',
+                DB::raw('MIN(recent_temps.value) as min_value'),
+                DB::raw('MAX(recent_temps.created_at) as last_recorded_at'),
+                DB::raw('COUNT(recent_temps.id) as reading_count'),
+            ])
+            ->groupBy('vends.id', 'vends.code', 'vends.name', 'vends.operator_id', 'vends.customer_id', 'vends.vend_prefix_id')
+            ->having('min_value', '>', $minThresholdRaw)
+            ->orderByDesc('min_value')
+            ->limit($filters['machine_limit'])
+            ->get()
+            ->map(function ($row) use ($scale) {
+                return array_merge($this->baseVendInfo($row), [
+                    'min_value' => $row->min_value / $scale,
+                    'last_recorded_at' => $row->last_recorded_at ? Carbon::parse($row->last_recorded_at)->toIso8601String() : null,
+                    'reading_count' => $row->reading_count,
+                ]);
+            })
+            ->all();
+
         return [
-            'rising_lowest' => [
-                'window_days' => $shortWindow,
-                'delta_threshold' => $deltaThresholdRaw,
-                'rows' => $rising,
-            ],
+            'rising_lowest' => $this->getRisingLowestResults($filters),
+            'rising_lowest_t1_smart' => $this->getSmartAlerts($filters, [VendSmartAlert::TYPE_RISING_T1]),
+            'rising_lowest_t2_smart' => $this->getSmartAlerts($filters, [VendSmartAlert::TYPE_RISING_T2]),
+            't2_frozen_smart' => $this->getSmartAlerts($filters, [VendSmartAlert::TYPE_T2_FROZEN]),
+            'operation_errors_smart' => $this->getSmartAlerts($filters, [
+                VendSmartAlert::TYPE_T2_BELOW_MINUS_25,
+                VendSmartAlert::TYPE_TEMPS_ABOVE_0,
+                VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8,
+                VendSmartAlert::TYPE_NOT_REACH_MINUS_18
+            ]),
+            'preventive_maintenance_smart' => $this->getSmartAlerts($filters, [
+                VendSmartAlert::TYPE_LOWEST_24H_ABOVE,
+                VendSmartAlert::TYPE_LOWEST_72H_ABOVE,
+                VendSmartAlert::TYPE_RISING_T1,
+                VendSmartAlert::TYPE_RISING_T2
+            ]),
             'worst_minima' => [
                 'window_days' => $longWindow,
                 'rows' => $worstMinimaRows,
             ],
             'not_reaching_threshold' => [
-                'threshold' => $minThresholdRaw,
+                'threshold' => $minThreshold,
                 'hours' => 12,
                 'rows' => $notReaching,
             ],
+        ];
+    }
+
+    private function getRisingLowestResults(array $filters): array
+    {
+        $window = $filters['temperature_window_days'];
+        $delta = $filters['temperature_delta_threshold'];
+        $limit = $filters['machine_limit'];
+        $scale = 10;
+        $sensorType = $filters['temperature_sensor_type'];
+
+        $startA = Carbon::today()->subDays($window);
+        $endA = Carbon::today();
+        $startB = Carbon::today()->subDays($window * 2);
+        $endB = Carbon::today()->subDays($window);
+
+        // Subquery A
+        $metricsA = DB::table('vend_temp_metrics')
+            ->select('vend_id', DB::raw('MIN(min_temp_value) as min_a'))
+            ->where('period_type', VendTempMetric::PERIOD_DAILY)
+            ->whereBetween('period_start', [$startA, $endA])
+            ->where('temp_type', $sensorType)
+            ->groupBy('vend_id');
+
+        // Subquery B
+        $metricsB = DB::table('vend_temp_metrics')
+            ->select('vend_id', DB::raw('MIN(min_temp_value) as min_b'))
+            ->where('period_type', VendTempMetric::PERIOD_DAILY)
+            ->whereBetween('period_start', [$startB, $endB])
+            ->where('temp_type', $sensorType)
+            ->groupBy('vend_id');
+
+        $rows = $this->baseVendQuery($filters)
+            ->joinSub($metricsA, 'metrics_a', 'vends.id', '=', 'metrics_a.vend_id')
+            ->joinSub($metricsB, 'metrics_b', 'vends.id', '=', 'metrics_b.vend_id')
+            ->select('vends.*', 'metrics_a.min_a', 'metrics_b.min_b')
+            ->whereRaw('(metrics_a.min_a - metrics_b.min_b) >= ?', [$delta * $scale])
+            ->orderByDesc(DB::raw('metrics_a.min_a - metrics_b.min_b'))
+            ->limit($limit)
+            ->get();
+
+        return [
+            'window_days' => $window,
+            'rows' => $rows->map(function ($row) use ($scale, $startA, $endA, $startB, $endB) {
+                $minA = $row->min_a / $scale;
+                $minB = $row->min_b / $scale;
+                return array_merge($this->baseVendInfo($row), [
+                    'first_day' => 'Prev Period',
+                    'latest_day' => 'Curr Period',
+                    'first_min_temp' => $minB,
+                    'latest_min_temp' => $minA,
+                    'delta' => $minA - $minB,
+                ]);
+            })->all()
         ];
     }
 
@@ -1054,6 +998,64 @@ class MachineHealthDashboardService
     private function clamp(int $value, int $min, int $max): int
     {
         return max($min, min($max, $value));
+    }
+
+    private function baseVendModelQuery(array $filters)
+    {
+        $query = Vend::query()->where('is_testing', false);
+        $this->applyVendFilters($query, $filters);
+        return $query;
+    }
+
+    private function getSmartAlerts(array $filters, array $types): array
+    {
+        $limit = $filters['machine_limit'];
+        $alertsQuery = VendSmartAlert::query()
+            ->with([
+                'vend:id,code,name,operator_id,vend_prefix_id,customer_id',
+                'vend.customer:id,name',
+                'vend.operator:id,name',
+                'vend.vendPrefix:id,name',
+            ])
+            ->whereIn('alert_type', $types)
+            ->where('is_active', true)
+            ->whereHas('vend', function ($query) use ($filters) {
+                $this->applyVendFilters($query, $filters);
+                $query->where('is_testing', false);
+            })
+            ->orderByDesc('severity')
+            ->orderByDesc('updated_at')
+            ->limit($limit);
+
+        $alerts = $alertsQuery->get();
+
+        return [
+            'rows' => $alerts->map(function ($alert) {
+                $vend = $alert->vend;
+                $meta = $alert->meta_data;
+                $scale = 10;
+
+                return [
+                    'vend_id' => $vend?->id,
+                    'vend_code' => $vend?->code,
+                    'vend_name' => $vend?->name,
+                    'customer_name' => $vend?->customer?->name,
+                    'operator_name' => $vend?->operator?->name,
+                    'vend_prefix_name' => $vend?->vendPrefix?->name,
+                    'first_min_temp' => $meta['prev_min'] ?? null,
+                    'latest_min_temp' => $meta['current_min'] ?? null,
+                    'delta' => $meta['delta'] ?? null,
+                    'meta_max_temp' => $meta['max_temp'] ?? null,
+                    'meta_duration' => $meta['duration_label'] ?? $meta['duration'] ?? null,
+                    'meta_val' => $meta['val'] ?? null,
+                    'meta_min_t1' => $meta['min_t1'] ?? $meta['v1'] ?? null,
+                    'meta_min_t2' => $meta['min_t2'] ?? $meta['v2'] ?? null,
+                    'severity' => $alert->severity,
+                    'alert_type' => $alert->alert_type,
+                    'updated_at' => $alert->updated_at->toIso8601String(),
+                ];
+            })->all(),
+        ];
     }
 
     private function normalizeIdArray($input): array
