@@ -599,82 +599,83 @@ class MachineHealthDashboardService
         $sensorType = $filters['temperature_sensor_type'];
 
         // Reconstruct Worst Minima Logic
-        $worstMinimaRows = $this->baseVendModelQuery($filters)
-            ->join('vend_temp_metrics', function ($join) use ($longWindow, $sensorType) {
-                $join->on('vends.id', '=', 'vend_temp_metrics.vend_id')
-                    ->where('vend_temp_metrics.period_type', VendTempMetric::PERIOD_DAILY)
-                    ->where('vend_temp_metrics.temp_type', $sensorType)
-                    ->where('vend_temp_metrics.period_start', '>=', Carbon::today()->subDays($longWindow));
-            })
-            ->select([
-                'vends.id as vend_id',
-                'vends.code as vend_code',
-                'vends.name as vend_name',
-                'vends.customer_id',
-                'vends.operator_id',
-                'vends.vend_prefix_id',
-                DB::raw('MAX(vend_temp_metrics.min_temp_value) as worst_min_val'),
-                DB::raw('MIN(vend_temp_metrics.min_temp_value) as best_min_val'),
-                DB::raw('MAX(vend_temp_metrics.min_temp_recorded_at) as last_recorded_at'),
-            ])
-            ->groupBy('vends.id', 'vends.code', 'vends.name', 'vends.customer_id', 'vends.operator_id', 'vends.vend_prefix_id')
-            ->having('worst_min_val', '>', $minThresholdRaw)
-            ->orderByDesc('worst_min_val')
-            ->limit($filters['machine_limit'])
-            ->with(['customer:id,name', 'operator:id,name', 'vendPrefix:id,name'])
-            ->get()
-            ->map(function ($row) use ($scale) {
-                return [
-                    'vend_id' => $row->vend_id,
-                    'vend_code' => $row->vend_code,
-                    'vend_name' => $row->vend_name,
-                    'customer_name' => $row->customer->name ?? null,
-                    'operator_name' => $row->operator->name ?? null,
-                    'vend_prefix_name' => $row->vendPrefix->name ?? null,
-                    'worst_min_temp' => $row->worst_min_val / $scale,
-                    'best_min_temp' => ($row->best_min_val ?? 0) / $scale,
-                    'last_recorded_at' => $row->last_recorded_at,
-                ];
-            })
-            ->all();
+        // $worstMinimaRows = $this->baseVendModelQuery($filters)
+        //     ->join('vend_temp_metrics', function ($join) use ($longWindow, $sensorType) {
+        //         $join->on('vends.id', '=', 'vend_temp_metrics.vend_id')
+        //             ->where('vend_temp_metrics.period_type', VendTempMetric::PERIOD_DAILY)
+        //             ->where('vend_temp_metrics.temp_type', $sensorType)
+        //             ->where('vend_temp_metrics.period_start', '>=', Carbon::today()->subDays($longWindow));
+        //     })
+        //     ->select([
+        //         'vends.id as vend_id',
+        //         'vends.code as vend_code',
+        //         'vends.name as vend_name',
+        //         'vends.customer_id',
+        //         'vends.operator_id',
+        //         'vends.vend_prefix_id',
+        //         DB::raw('MAX(vend_temp_metrics.min_temp_value) as worst_min_val'),
+        //         DB::raw('MIN(vend_temp_metrics.min_temp_value) as best_min_val'),
+        //         DB::raw('MAX(vend_temp_metrics.min_temp_recorded_at) as last_recorded_at'),
+        //     ])
+        //     ->groupBy('vends.id', 'vends.code', 'vends.name', 'vends.customer_id', 'vends.operator_id', 'vends.vend_prefix_id')
+        //     ->having('worst_min_val', '>', $minThresholdRaw)
+        //     ->orderByDesc('worst_min_val')
+        //     ->limit($filters['machine_limit'])
+        //     ->with(['customer:id,name', 'operator:id,name', 'vendPrefix:id,name'])
+        //     ->get()
+        //     ->map(function ($row) use ($scale) {
+        //         return [
+        //             'vend_id' => $row->vend_id,
+        //             'vend_code' => $row->vend_code,
+        //             'vend_name' => $row->vend_name,
+        //             'customer_name' => $row->customer->name ?? null,
+        //             'operator_name' => $row->operator->name ?? null,
+        //             'vend_prefix_name' => $row->vendPrefix->name ?? null,
+        //             'worst_min_temp' => $row->worst_min_val / $scale,
+        //             'best_min_temp' => ($row->best_min_val ?? 0) / $scale,
+        //             'last_recorded_at' => $row->last_recorded_at,
+        //         ];
+        //     })
+        //     ->all();
 
         // Not Reaching Threshold Logic
-        $recentWindowStart = Carbon::now()->subHours(12);
+        // $recentWindowStart = Carbon::now()->subHours(12);
 
-        $notReaching = $this->baseVendQuery($filters)
-            ->join('vend_temps as recent_temps', function ($join) use ($recentWindowStart, $sensorType) {
-                $join->on('vends.id', '=', 'recent_temps.vend_id')
-                    ->where('recent_temps.created_at', '>=', $recentWindowStart)
-                    ->where('recent_temps.type', $sensorType)
-                    ->where('recent_temps.value', '!=', VendTemp::TEMPERATURE_ERROR);
-            })
-            ->select([
-                'vends.id',
-                'vends.code',
-                'vends.name',
-                'vends.operator_id',
-                'vends.customer_id',
-                'vends.vend_prefix_id',
-                DB::raw('MIN(recent_temps.value) as min_value'),
-                DB::raw('MAX(recent_temps.created_at) as last_recorded_at'),
-                DB::raw('COUNT(recent_temps.id) as reading_count'),
-            ])
-            ->groupBy('vends.id', 'vends.code', 'vends.name', 'vends.operator_id', 'vends.customer_id', 'vends.vend_prefix_id')
-            ->having('min_value', '>', $minThresholdRaw)
-            ->orderByDesc('min_value')
-            ->limit($filters['machine_limit'])
-            ->get()
-            ->map(function ($row) use ($scale) {
-                return array_merge($this->baseVendInfo($row), [
-                    'min_value' => $row->min_value / $scale,
-                    'last_recorded_at' => $row->last_recorded_at ? Carbon::parse($row->last_recorded_at)->toIso8601String() : null,
-                    'reading_count' => $row->reading_count,
-                ]);
-            })
-            ->all();
+        // $notReaching = $this->baseVendQuery($filters)
+        //     ->join('vend_temps as recent_temps', function ($join) use ($recentWindowStart, $sensorType) {
+        //         $join->on('vends.id', '=', 'recent_temps.vend_id')
+        //             ->where('recent_temps.created_at', '>=', $recentWindowStart)
+        //             ->where('recent_temps.type', $sensorType)
+        //             ->where('recent_temps.value', '!=', VendTemp::TEMPERATURE_ERROR);
+        //     })
+        //     ->select([
+        //         'vends.id',
+        //         'vends.code',
+        //         'vends.name',
+        //         'vends.operator_id',
+        //         'vends.customer_id',
+        //         'vends.vend_prefix_id',
+        //         DB::raw('MIN(recent_temps.value) as min_value'),
+        //         DB::raw('MAX(recent_temps.created_at) as last_recorded_at'),
+        //         DB::raw('COUNT(recent_temps.id) as reading_count'),
+        //     ])
+        //     ->groupBy('vends.id', 'vends.code', 'vends.name', 'vends.operator_id', 'vends.customer_id', 'vends.vend_prefix_id')
+        //     ->having('min_value', '>', $minThresholdRaw)
+        //     ->orderByDesc('min_value')
+        //     ->limit($filters['machine_limit'])
+        //     ->get()
+        //     ->map(function ($row) use ($scale) {
+        //         return array_merge($this->baseVendInfo($row), [
+        //             'min_value' => $row->min_value / $scale,
+        //             'last_recorded_at' => $row->last_recorded_at ? Carbon::parse($row->last_recorded_at)->toIso8601String() : null,
+        //             'reading_count' => $row->reading_count,
+        //         ]);
+        //     })
+        //     ->all();
 
         return [
-            'rising_lowest' => $this->getRisingLowestResults($filters),
+            // 'rising_lowest' => $this->getRisingLowestResults($filters), // Disable backend loading
+            'rising_lowest' => [],
             'rising_lowest_t1_smart' => $this->getSmartAlerts($filters, [VendSmartAlert::TYPE_RISING_T1]),
             'rising_lowest_t2_smart' => $this->getSmartAlerts($filters, [VendSmartAlert::TYPE_RISING_T2]),
             't2_frozen_smart' => $this->getSmartAlerts($filters, [VendSmartAlert::TYPE_T2_FROZEN]),
@@ -692,12 +693,12 @@ class MachineHealthDashboardService
             ]),
             'worst_minima' => [
                 'window_days' => $longWindow,
-                'rows' => $worstMinimaRows,
+                'rows' => [], // $worstMinimaRows,
             ],
             'not_reaching_threshold' => [
                 'threshold' => $minThreshold,
                 'hours' => 12,
-                'rows' => $notReaching,
+                'rows' => [], // $notReaching,
             ],
         ];
     }
@@ -811,8 +812,11 @@ class MachineHealthDashboardService
                 ]
             );
 
-            if ($hours < 1) {
+            if ($hours >= 0.25 && $hours < 1) {
                 $buckets['< 1hr'][] = $row;
+            } elseif ($hours < 0.25) {
+                // Skip machines offline for less than 15 minutes
+                continue;
             } elseif ($hours < 2) {
                 $buckets['< 2hr'][] = $row;
             } elseif ($hours < 4) {
@@ -902,6 +906,8 @@ class MachineHealthDashboardService
                 DB::raw("{$column} as last_transaction_at"),
                 DB::raw("{$hoursExpr} as hours_since"),
             ])
+            ->whereNotNull('customer_id')
+            ->has('customer')
             ->whereNotNull($column)
             ->having('hours_since', '>=', $threshold)
             ->orderByDesc('hours_since')
@@ -1012,7 +1018,7 @@ class MachineHealthDashboardService
         $limit = $filters['machine_limit'];
         $alertsQuery = VendSmartAlert::query()
             ->with([
-                'vend:id,code,name,operator_id,vend_prefix_id,customer_id',
+                'vend:id,code,name,operator_id,vend_prefix_id,customer_id,temp,parameter_json',
                 'vend.customer:id,name',
                 'vend.operator:id,name',
                 'vend.vendPrefix:id,name',
@@ -1021,7 +1027,8 @@ class MachineHealthDashboardService
             ->where('is_active', true)
             ->whereHas('vend', function ($query) use ($filters) {
                 $this->applyVendFilters($query, $filters);
-                $query->where('is_testing', false);
+                $query->where('is_testing', false)
+                    ->where('is_online', true);
             })
             ->orderByDesc('severity')
             ->orderByDesc('updated_at')
@@ -1035,6 +1042,41 @@ class MachineHealthDashboardService
                 $meta = $alert->meta_data;
                 $scale = 10;
 
+                $duration = $meta['duration_label'] ?? $meta['duration'] ?? null;
+
+                if (is_numeric($duration)) {
+                    // Convert Minutes to Hours for types that store Minutes
+                    if (
+                        in_array($alert->alert_type, [
+                            VendSmartAlert::TYPE_T2_BELOW_MINUS_25,
+                            VendSmartAlert::TYPE_TEMPS_ABOVE_0,
+                            VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8,
+                            VendSmartAlert::TYPE_LOWEST_24H_ABOVE,
+                            VendSmartAlert::TYPE_LOWEST_72H_ABOVE,
+                            VendSmartAlert::TYPE_NOT_REACH_MINUS_18,
+                            VendSmartAlert::TYPE_RISING_T1,
+                            VendSmartAlert::TYPE_RISING_T2
+                        ])
+                    ) {
+                        $duration = $duration / 60;
+                    }
+                } elseif ($duration === null) {
+                    // Default durations for types that don't satisfy explicit duration
+                    switch ($alert->alert_type) {
+                        case VendSmartAlert::TYPE_LOWEST_24H_ABOVE:
+                        case VendSmartAlert::TYPE_RISING_T1:
+                        case VendSmartAlert::TYPE_RISING_T2:
+                            $duration = 24;
+                            break;
+                        case VendSmartAlert::TYPE_LOWEST_72H_ABOVE:
+                            $duration = 72;
+                            break;
+                        case VendSmartAlert::TYPE_NOT_REACH_MINUS_18:
+                            $duration = ($alert->severity == 2) ? 12 : 8;
+                            break;
+                    }
+                }
+
                 return [
                     'vend_id' => $vend?->id,
                     'vend_code' => $vend?->code,
@@ -1042,11 +1084,13 @@ class MachineHealthDashboardService
                     'customer_name' => $vend?->customer?->name,
                     'operator_name' => $vend?->operator?->name,
                     'vend_prefix_name' => $vend?->vendPrefix?->name,
+                    'temp' => $vend?->temp,
+                    'parameter_json' => $vend?->parameter_json,
                     'first_min_temp' => $meta['prev_min'] ?? null,
                     'latest_min_temp' => $meta['current_min'] ?? null,
                     'delta' => $meta['delta'] ?? null,
                     'meta_max_temp' => $meta['max_temp'] ?? null,
-                    'meta_duration' => $meta['duration_label'] ?? $meta['duration'] ?? null,
+                    'meta_duration' => $duration,
                     'meta_val' => $meta['val'] ?? null,
                     'meta_min_t1' => $meta['min_t1'] ?? $meta['v1'] ?? null,
                     'meta_min_t2' => $meta['min_t2'] ?? $meta['v2'] ?? null,

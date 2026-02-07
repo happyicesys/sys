@@ -322,46 +322,38 @@ const matrix21 = computed(() => {
   const meta = [
       {
           id: 't2_below_minus_25',
-          label: 'T2, below -25°C',
-          sub: 'Fan not function\nTemp probe malfunction',
+          label: 'A) T2, below -25°C',
+          sub: 'Possible caused by:\ni) Fan not function\nii) Temp probe malfunction',
           types: ['t2_below_minus_25'],
           headers: { 1: '> 10 mins', 2: '> 30 mins' }
       },
       {
           id: 'temps_above_0',
-          label: 'T1 & or T2, above 0°C',
-          sub: 'Freezer door not close tight\nOpen freezer door >15mins\nFan not function',
+          label: 'B) T1 & or T2, above 0°C',
+          sub: 'Possible caused by:\ni) Freezer door not close tight\nii) Open freezer door >15mins\nFan not function',
           note: 'Alert dismissed once temp below 0c',
           types: ['temps_above_0'],
           headers: { 1: '> 30 mins', 2: '> 60 mins' }
       },
       {
           id: 'temps_above_minus_8',
-          label: 'T1 & or T2, above -8°C',
-          sub: 'Freezer door not close tight\nOpen freezer door >15mins\nComp not function',
+          label: 'C) T1 & or T2, above -8°C',
+          sub: 'Possible caused by:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Comp not function',
           note: 'Alert dismissed once temp below -8c',
           types: ['temps_above_minus_8'],
           headers: { 1: '> 60 mins', 2: '> 90 mins' }
       },
       {
           id: 'not_reach_minus_18',
-          label: 'T1 & or T2, did not reach -18°C',
-          sub: 'Freezer door not close tight\nOpen freezer door >15mins\nMany purchases occur',
+          label: 'D) T1 & or T2, did not reach -18°C',
+          sub: 'Possible caused by:\ni) Freezer door not close tight\nii) Open freezer door >15mins\nMany purchases occur',
           note: 'Alert dismissed once temp below -18c',
           types: ['not_reach_minus_18'],
-          headers: { 1: 'Within last 8 hours', 2: 'Within last 12 hours' }
-      },
-      {
-          id: 't2_frozen',
-          label: 'T2, never above 2°C',
-          sub: 'Defrost fail\nDefrost not clean/ enough',
-          types: ['t2_frozen'],
-          headers: { 1: '> 24 hr', 2: '> 48 hr', 3: '> 72 hr' }
+          headers: { 1: 'Within last 8 hours', 2: '> 8 hours' }
       },
   ]
   const rows = [
       ...(temperature.value.operation_errors_smart?.rows ?? []),
-      ...(temperature.value.t2_frozen_smart?.rows ?? [])
   ]
   return groupAlertsMatrix(rows, meta)
 })
@@ -370,33 +362,42 @@ const matrix22 = computed(() => {
     const meta = [
         {
             id: 'lowest_24h',
-            label: 'T1 & T2 lowest (last 24hrs)',
-            sub: 'Door\'s seal air leak\nDispensing Door not close tight',
-            note: 'means check T1 and T2 separately. Compare L24hr lowest T1 with L48hr lowest T1. Same for T2',
+            label: 'A) T1 & T2 lowest (last 24hrs)',
+            sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Dispensing Door not close tight',
+            note: 'Check and show lowest Temp in last 24hrs',
             types: ['lowest_24h_above'],
             headers: { 1: 'Above -21c', 2: 'Above -20c', 3: 'Above -19c' }
         },
         {
             id: 'lowest_72h',
-            label: 'T1 & T2 lowest (last 72hrs)',
-            sub: 'Door\'s seal air leak\nFan/Comp ageing',
-            note: 'means check T1 and T2 separately. Compare L24hr lowest T1 with L48hr lowest T1. Same for T2',
+            label: 'B) T1 & T2 lowest (last 72hrs)',
+            sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Fan/Comp ageing',
+            note: 'Check and show lowest Temp in last 72hrs',
             types: ['lowest_72h_above'],
             headers: { 1: 'Above -21c', 2: 'Above -20c', 3: 'Above -19c' }
         },
         {
             id: 'rising_lowest',
-            label: 'Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
-            sub: 'Defrost not clean/ enough\nDoor\'s seal air leak\nDefrost drain hole',
-            note: 'means check T1 and T2 separately. Compare L24hr lowest T1 with L48hr lowest T1. Same for T2',
+            label: 'C) Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
+            sub: 'Possible caused by:\ni) Defrost not clean/enough\nii) Door\'s seal air leak\niii) Defrost drain hole',
+            note: null,
             types: ['rising_t1_trend', 'rising_t2_trend'],
             headers: { 1: 'Δ ≥ 1c', 2: 'Δ ≥ 2c', 3: 'Δ ≥ 3c' }
+        },
+        {
+            id: 't2_frozen',
+            label: 'D) T2, never above 2°C',
+            sub: 'Possible caused by:\ni) Defrost fail\nii) Defrost not clean/enough',
+            note: 'only for E/F/EG\nexclude UDD',
+            types: ['t2_frozen'],
+            headers: { 1: '> 24 hr', 2: '> 48 hr', 3: '> 72 hr' }
         },
     ]
     const rows = [
         ...(temperature.value.preventive_maintenance_smart?.rows ?? []),
         ...(temperature.value.rising_lowest_t1_smart?.rows ?? []),
         ...(temperature.value.rising_lowest_t2_smart?.rows ?? []),
+        ...(temperature.value.t2_frozen_smart?.rows ?? [])
     ]
     return groupAlertsMatrix(rows, meta)
 })
@@ -467,11 +468,12 @@ const {
 )
 
 const formatNumber = (value, decimals = 2) => {
-  if (value === null || value === undefined || Number.isNaN(value)) {
+  const num = Number(value)
+  if (value === null || value === undefined || Number.isNaN(num)) {
     return '—'
   }
 
-  return Number(value).toFixed(decimals)
+  return num.toFixed(decimals)
 }
 
 const operatorCountry = computed(() => page.props.operatorCountry ?? {})
@@ -570,6 +572,25 @@ const getBucketBgClass = (label) => {
     case '< 12hr': return 'bg-red-300'
     case '> 12hr': return 'bg-red-400'
     default: return 'bg-gray-50'
+  }
+}
+
+const getMatrixHeaderClass = (sev) => {
+  switch (Number(sev)) {
+    case 1: return 'bg-red-300'
+    case 2: return 'bg-red-400'
+    case 3: return 'bg-red-500'
+    default: return 'bg-red-400'
+  }
+}
+
+const getMatrixHeaderClassGray = (sev) => {
+  switch (Number(sev)) {
+    case 0: return 'bg-gray-600' // Some groups might use 0-index? Check loop.
+    case 1: return 'bg-gray-600'
+    case 2: return 'bg-gray-700'
+    case 3: return 'bg-gray-800'
+    default: return 'bg-gray-800'
   }
 }
 
@@ -856,12 +877,14 @@ const formatErrorDesc = (code, desc) => {
 
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900">(2) Alert on Temperature trending</h3>
-            <p class="text-sm text-gray-500">
-              Sensor type {{ filters.temperature_sensor_type }} · Threshold
-              {{ formatNumber(filters.temperature_min_threshold, 1) }}°C
-            </p>
+            <h3 class="text-lg font-semibold text-gray-900">(2) Temperature Alert</h3>
+            <div class="text-sm text-gray-500">
+              <div>T1 = Machine's freezer temp</div>
+              <div>T2 = Evaporator Temp</div>
+              <div class="mt-1 text-xs italic">Note: Temperature alert, not able to monitor machines with 'offline' status</div>
+            </div>
 
+            <div v-if="false">
             <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
               <div class="grid grid-cols-1 gap-4 md:grid-cols-4 items-end">
                 <label class="flex flex-col space-y-1 text-sm">
@@ -1046,6 +1069,7 @@ const formatErrorDesc = (code, desc) => {
                 </div>
               </div>
             </div>
+            </div>
 
               <!-- (2.1) Operation Error / Critical Parts Failure -->
               <div class="mt-8">
@@ -1067,33 +1091,54 @@ const formatErrorDesc = (code, desc) => {
                       <!-- Data Columns -->
                       <div class="md:col-span-3 grid" :style="`grid-template-columns: repeat(${Object.keys(group.headers).length}, minmax(0, 1fr))`">
                         <div v-for="(header, sev) in group.headers" :key="sev" class="border-r border-gray-100 last:border-r-0 flex flex-col">
-                            <div class="bg-gray-800 border-b border-gray-600 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide">
+                            <div class="border-b border-red-800 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide shadow-sm" :class="getMatrixHeaderClass(sev)">
                               {{ header }}
                             </div>
                             <div class="p-3 flex-1 space-y-3">
                                 <template v-if="group.cells[sev] && group.cells[sev].length">
-                                    <div v-for="row in group.cells[sev]" :key="row.vend_id" class="text-sm">
-                                        <div class="flex flex-wrap items-baseline gap-1">
-                                            <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank"
-                                               class="font-medium text-indigo-600 hover:underline">
-                                                {{ row.vend_code }}
-                                            </a>
-                                            <span class="text-xs text-gray-500" v-if="row.meta_duration">
-                                                ({{ formatNumber(row.meta_duration, 0) }}{{ (''+row.meta_duration).match(/[a-zA-Z]/) ? '' : 'm' }})
-                                            </span>
+                                    <div v-for="row in group.cells[sev]" :key="row.vend_id" class="text-sm border border-gray-100 p-2 rounded bg-gray-50/50 mb-2 last:mb-0">
+                                        <div class="font-medium text-gray-900 mb-1">
+                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank"
+                                             class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                                            {{ row.vend_code }}
+                                          </a>
+                                          <span class="text-xs text-gray-500 ml-1" v-if="row.meta_duration">
+                                              ({{ !Number.isNaN(Number(row.meta_duration)) ? (Math.abs(Number(row.meta_duration)) < 1 ? Math.round(Math.abs(Number(row.meta_duration)) * 60) + ' min' : formatNumber(Math.abs(Number(row.meta_duration)), 2) + ' hr') : row.meta_duration }})
+                                          </span>
                                         </div>
-                                        <div class="text-xs text-gray-500">{{ row.vend_prefix_name }}</div>
-                                        <div class="text-xs text-gray-400 mt-0.5" v-if="row.customer_name">{{ row.customer_name }}</div>
+                                        <div class="text-xs text-gray-500 mb-0.5">{{ row.vend_prefix_name ?? '-' }}</div>
+                                        <div class="text-xs text-gray-500 mb-2">{{ row.customer_name ?? '-' }}</div>
 
-                                        <!-- specific values -->
-                                        <div class="text-xs mt-1 text-gray-700 bg-gray-50 p-1 rounded border border-gray-100">
-                                            <div v-if="row.meta_max_temp">Max T2: <strong>{{ formatNumber(row.meta_max_temp, 1) }}°C</strong></div>
-                                            <div v-if="row.meta_min_t1 || row.meta_min_t2">
-                                                <span v-if="row.meta_min_t1">T1:{{formatNumber(row.meta_min_t1,1)}}</span>
-                                                <span v-if="row.meta_min_t2" class="ml-1">T2:{{formatNumber(row.meta_min_t2,1)}}</span>
-                                            </div>
-                                            <div class="text-[10px] text-gray-400 mt-0.5">{{ formatDateTime(row.updated_at) }}</div>
+                                        <!-- Value Display -->
+                                        <div class="text-xs text-gray-700 mb-2">
+                                          <span v-if="row.meta_min_t1">
+                                              Last lowest T1: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t1, 1) }}°C</span>
+                                          </span>
+                                          <span v-if="row.meta_max_temp">
+                                              Last highest T2: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_max_temp, 1) }}°C</span>
+                                          </span>
+                                          <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.updated_at) }}</div>
                                         </div>
+
+                                        <!-- T1/T2 Buttons (Mimicking CustomerIndex) -->
+                                        <div class="flex flex-col space-y-1 w-full max-w-[120px]">
+
+                                          <!-- T1 -->
+                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="w-full">
+                                            <div class="inline-flex items-center px-4 py-1.5 border border-transparent rounded-md font-semibold text-xs text-black w-full justify-center shadow-sm"
+                                                 :class="[row.temp !== null ? (row.temp/10 > -15 ? 'bg-red-400' : 'bg-green-400') : 'bg-gray-300']">
+                                              {{ row.temp !== null ? formatNumber(row.temp / 10, 1) : '-' }}
+                                            </div>
+                                          </a>
+                                          <!-- T2 -->
+                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="w-full">
+                                            <div class="inline-flex items-center px-4 py-1.5 border border-transparent rounded-md font-semibold text-xs text-black w-full justify-center shadow-sm"
+                                                 :class="[row.parameter_json?.t2 !== undefined ? (row.parameter_json.t2/10 > -15 ? 'bg-red-400' : 'bg-green-400') : 'bg-gray-300']">
+                                              {{ row.parameter_json?.t2 !== undefined ? formatNumber(row.parameter_json.t2/10, 1) : '-' }}(t2)
+                                            </div>
+                                          </a>
+                                        </div>
+
                                     </div>
                                 </template>
                                 <div v-else class="text-xs text-gray-300 italic p-2 text-center">
@@ -1127,24 +1172,61 @@ const formatErrorDesc = (code, desc) => {
                        <!-- Data Columns -->
                       <div class="md:col-span-3 grid" :style="`grid-template-columns: repeat(${Object.keys(group.headers).length}, minmax(0, 1fr))`">
                         <div v-for="(header, sev) in group.headers" :key="sev" class="border-r border-gray-100 last:border-r-0 flex flex-col">
-                            <div class="bg-gray-800 border-b border-gray-600 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide">
+                            <div :class="getMatrixHeaderClassGray(sev)" class="border-b border-gray-600 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide">
                               {{ header }}
                             </div>
                             <div class="p-3 flex-1 space-y-3">
                                 <template v-if="group.cells[sev] && group.cells[sev].length">
-                                    <div v-for="row in group.cells[sev]" :key="row.vend_id">
-                                        <div class="font-medium text-indigo-600 block">
-                                            <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="hover:underline">{{ row.vend_code }}</a>
+                                    <div v-for="row in group.cells[sev]" :key="row.vend_id" class="text-sm border border-gray-100 p-2 rounded bg-gray-50/50 mb-2 last:mb-0">
+                                      <div class="font-medium text-gray-900 mb-1">
+                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank"
+                                             class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                                            {{ row.vend_code }}
+                                          </a>
+                                          <span class="text-xs text-gray-500 ml-1" v-if="row.meta_duration">
+                                              ({{ !Number.isNaN(Number(row.meta_duration)) ? (Math.abs(Number(row.meta_duration)) < 1 ? Math.round(Math.abs(Number(row.meta_duration)) * 60) + ' min' : formatNumber(Math.abs(Number(row.meta_duration)), 2) + ' hr') : row.meta_duration }})
+                                          </span>
                                         </div>
-                                        <div class="text-xs text-gray-500">{{ row.vend_prefix_name }}</div>
-                                        <div class="text-xs mt-1 bg-gray-50 p-1 rounded border border-gray-100">
-                                           <div v-if="row.alert_type.includes('rising')">Δ {{formatNumber(row.delta,1)}}°C</div>
-                                           <div v-else>
-                                             <span v-if="row.meta_min_t1">T1:{{formatNumber(row.meta_min_t1,1)}}</span>
-                                             <span v-if="row.meta_min_t2">T2:{{formatNumber(row.meta_min_t2,1)}}</span>
+                                        <div class="text-xs text-gray-500 mb-0.5">{{ row.vend_prefix_name ?? '-' }}</div>
+                                        <div class="text-xs text-gray-500 mb-2">{{ row.customer_name ?? '-' }}</div>
+
+                                        <!-- Value Display -->
+                                        <div class="text-xs text-gray-700 mb-2">
+                                           <div v-if="row.alert_type.includes('rising')">
+                                              Last 24hrs lowest T1: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.latest_min_temp, 1) }}°C</span>
+                                              <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.updated_at) }}</div>
+                                              <div class="mt-1 text-xs">Delta: {{ formatNumber(row.delta, 1) }}°C</div>
                                            </div>
-                                           <div class="text-[10px] text-gray-400 mt-0.5">{{ formatDateTime(row.updated_at) }}</div>
+                                           <div v-else>
+                                              <span v-if="row.meta_min_t1">
+                                                  Last lowest T1: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t1, 1) }}°C</span>
+                                              </span>
+                                              <span v-if="row.meta_max_temp">
+                                                  Last highest T2: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_max_temp, 1) }}°C</span>
+                                              </span>
+                                              <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.updated_at) }}</div>
+                                           </div>
                                         </div>
+
+                                        <!-- T1/T2 Buttons (Mimicking CustomerIndex) -->
+                                        <div class="flex flex-col space-y-1 w-full max-w-[120px]">
+
+                                          <!-- T1 -->
+                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="w-full">
+                                            <div class="inline-flex items-center px-4 py-1.5 border border-transparent rounded-md font-semibold text-xs text-black w-full justify-center shadow-sm"
+                                                 :class="[row.temp !== null ? (row.temp/10 > -15 ? 'bg-red-400' : 'bg-green-400') : 'bg-gray-300']">
+                                              {{ row.temp !== null ? formatNumber(row.temp / 10, 1) : '-' }}
+                                            </div>
+                                          </a>
+                                          <!-- T2 -->
+                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="w-full">
+                                            <div class="inline-flex items-center px-4 py-1.5 border border-transparent rounded-md font-semibold text-xs text-black w-full justify-center shadow-sm"
+                                                 :class="[row.parameter_json?.t2 !== undefined ? (row.parameter_json.t2/10 > -15 ? 'bg-red-400' : 'bg-green-400') : 'bg-gray-300']">
+                                              {{ row.parameter_json?.t2 !== undefined ? formatNumber(row.parameter_json.t2/10, 1) : '-' }}(t2)
+                                            </div>
+                                          </a>
+                                        </div>
+
                                     </div>
                                  </template>
                                  <div v-else class="text-xs text-gray-300 italic p-2 text-center">

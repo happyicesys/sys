@@ -192,9 +192,22 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $severity = 1;
 
         if ($severity > 0) {
+            // Compute true duration (Last Good)
+            $threshRaw = $tempC * $scale;
+            // Operator < means Bad is < Thresh. Good is >= Thresh.
+            // Operator > means Bad is > Thresh. Good is <= Thresh.
+            $op = ($operator === '<') ? '>=' : '<=';
+
+            $lastGood = VendTemp::where('vend_id', $vendId)->where('type', $type)
+                ->where('value', $op, $threshRaw)
+                ->latest('created_at')
+                ->first();
+
+            $trueDuration = $lastGood ? now()->diffInMinutes($lastGood->created_at) : ($minutes[1] + 15);
+
             VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $severity, 'is_active' => true, 'meta_data' => ['val' => $val, 'duration' => $duration]]
+                ['severity' => $severity, 'is_active' => true, 'meta_data' => ['val' => $val, 'duration' => $trueDuration]]
             );
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
@@ -233,9 +246,24 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $sev = 1; // Short window
 
         if ($sev > 0) {
+            // Calc true duration (Last Good = Either <= tempC)
+            // Operator > means Bad is > Thresh. Good is <= Thresh.
+            // Operator < means Bad is < Thresh. Good is >= Thresh.
+            // Dual check usually uses > (Warm). So Good is <=.
+            $threshRaw = $tempC * $scale;
+            $op = ($operator === '>') ? '<=' : '>=';
+
+            $lastGood = VendTemp::where('vend_id', $vendId)
+                ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
+                ->where('value', $op, $threshRaw)
+                ->latest('created_at')
+                ->first();
+
+            $duration = $lastGood ? now()->diffInMinutes($lastGood->created_at) : $minutes[1];
+
             VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['v1' => $v1, 'v2' => $v2]]
+                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['v1' => $v1, 'v2' => $v2, 'duration' => $duration]]
             );
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
@@ -308,9 +336,36 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
 
         if ($sev > 0) {
+            // Find last time EITHER T1 or T2 reached target (<= tempC)
+            // tempC is typically -18. So we want <= -18 (good).
+            $threshRaw = $tempC * $scale;
+
+            $lastGood = VendTemp::where('vend_id', $vendId)
+                ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
+                ->where('value', '<=', $threshRaw)
+                ->latest('created_at')
+                ->first();
+
+            $duration = 0;
+            if ($lastGood) {
+                $duration = now()->diffInMinutes($lastGood->created_at);
+            } else {
+                // Determine max window checked
+                // If sev=2, we checked 12h. If sev=1, we checked 8h.
+                // Fallback to window duration.
+                $windowHours = ($sev == 2) ? $hours[1] : $hours[0];
+                $duration = $windowHours * 60;
+            }
+
+            // Promote to Severity 2 if duration > first threshold (e.g. 8h)
+            // This aligns with "> 8 HOURS" column
+            if ($duration > ($hours[0] * 60)) {
+                $sev = 2;
+            }
+
             VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['v1' => ($minT1_12 ?? $minT1_8) / $scale]]
+                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['v1' => ($minT1_12 ?? $minT1_8) / $scale, 'duration' => $duration]]
             );
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
@@ -336,13 +391,36 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $sev = 3;
         elseif ($v1 > $thresholds[1] && $v2 > $thresholds[1])
             $sev = 2;
-        elseif ($v1 > $thresholds[0] && $v2 > $thresholds[0])
-            $sev = 1;
+        $sev = 1;
 
+        $duration = 0;
         if ($sev > 0) {
+            // Calculate duration: Time since last "Good" reading (<= threshold)
+            // Determine the threshold for the current severity
+            // severity 3 uses thresholds[2], severity 2 uses thresholds[1], severity 1 uses thresholds[0]
+            $activeThreshold = $thresholds[$sev - 1];
+            $threshRaw = $activeThreshold * $scale;
+
+            // Find last time EITHER T1 or T2 was <= activeThreshold
+            $lastGood = VendTemp::where('vend_id', $vendId)
+                ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
+                ->where('value', '<=', $threshRaw)
+                ->latest('created_at')
+                ->first();
+
+            if ($lastGood) {
+                $duration = now()->diffInMinutes($lastGood->created_at);
+            } else {
+                // If no good reading found, use the window plus some buffer or just the window?
+                // Using the window (hours) converted to minutes as a fallback minimum.
+                // Or maybe search deeper? For performance, let's limit to looking back a reasonable amount,
+                // but here we just fallback to the window if nothing found (which implies at least window duration).
+                $duration = $hours * 60;
+            }
+
             VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['min_t1' => $v1, 'min_t2' => $v2]]
+                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['min_t1' => $v1, 'min_t2' => $v2, 'duration' => $duration]]
             );
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
@@ -421,6 +499,18 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 elseif ($deltaC >= 2.0)
                     $severity = 2;
 
+                $existingAlert = VendSmartAlert::where('vend_id', $vendId)
+                    ->where('alert_type', $alertType)
+                    ->first();
+
+                $startedAt = $now->toIso8601String();
+                if ($existingAlert && $existingAlert->is_active && isset($existingAlert->meta_data['started_at'])) {
+                    $startedAt = $existingAlert->meta_data['started_at'];
+                }
+
+                $elapsedMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($startedAt));
+                $duration = (24 * 60) + $elapsedMinutes;
+
                 VendSmartAlert::updateOrCreate(
                     [
                         'vend_id' => $vendId,
@@ -434,6 +524,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                             'prev_min' => $prev / $scale,
                             'delta' => $deltaC,
                             'calculated_at' => $now->toIso8601String(),
+                            'started_at' => $startedAt,
+                            'duration' => $duration,
                         ],
                     ]
                 );
