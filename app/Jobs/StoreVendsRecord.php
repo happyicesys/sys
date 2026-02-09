@@ -227,6 +227,8 @@ SQL;
                         'location_types.id as location_type_id'
                     )
                     ->where('customers.is_active', true)
+                    ->where('vends.is_active', true)
+                    ->whereNotNull('vends.customer_id')
                     ->whereNotIn('vends.id', $vendIDs)
                     ->where('vends.id', '!=', 0)
                     ->where('vends.code', '!=', null)

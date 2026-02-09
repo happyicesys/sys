@@ -687,9 +687,7 @@ class MachineHealthDashboardService
             ]),
             'preventive_maintenance_smart' => $this->getSmartAlerts($filters, [
                 VendSmartAlert::TYPE_LOWEST_24H_ABOVE,
-                VendSmartAlert::TYPE_LOWEST_72H_ABOVE,
-                VendSmartAlert::TYPE_RISING_T1,
-                VendSmartAlert::TYPE_RISING_T2
+                VendSmartAlert::TYPE_LOWEST_72H_ABOVE
             ]),
             'worst_minima' => [
                 'window_days' => $longWindow,
@@ -1034,7 +1032,7 @@ class MachineHealthDashboardService
             ->orderByDesc('updated_at')
             ->limit($limit);
 
-        $alerts = $alertsQuery->get();
+        $alerts = $alertsQuery->get()->unique('vend_id')->values();
 
         return [
             'rows' => $alerts->map(function ($alert) {
@@ -1096,7 +1094,7 @@ class MachineHealthDashboardService
                     'meta_min_t2' => $meta['min_t2'] ?? $meta['v2'] ?? null,
                     'severity' => $alert->severity,
                     'alert_type' => $alert->alert_type,
-                    'updated_at' => $alert->updated_at->toIso8601String(),
+                    'updated_at' => $meta['min_timestamp'] ?? $meta['calculated_at'] ?? $alert->updated_at->toIso8601String(),
                 ];
             })->all(),
         ];

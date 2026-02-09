@@ -13,13 +13,21 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class SaveVendChannelsJson implements ShouldQueue
+class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
 {
     //
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 1;
-    public $timeout = 10;
+    public $tries = 2;
+    public $timeout = 30;
+
+    // Prevent duplicate jobs for same vend for 3 minutes
+    public $uniqueFor = 180;
+
+    public function uniqueId()
+    {
+        return 'vend_' . $this->vendId;
+    }
 
     protected $originalVendChannelData;
     protected $vendId;

@@ -56,6 +56,7 @@ class Vend extends Model
     ];
 
     const MENU_FRAME_MAPPINGS = [
+        99 => 'N/A',
         1 => 'Square (A) 方',
         2 => 'Rectangle (L) 长',
         3 => 'Left Square (A) + Right Square (A) 左方右方',

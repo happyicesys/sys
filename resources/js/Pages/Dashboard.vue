@@ -927,7 +927,7 @@
         plugins: {
             title: {
                 display: true,
-                text: 'Number of Active Vending Machine in Market, by Month'
+                text: 'Average Number of Vending Machines (Customer) in operation, by Month'
             },
             legend: {
                 labels: {

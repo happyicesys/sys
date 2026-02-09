@@ -14,12 +14,25 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 
-class SyncVendTransactionTotalsJson implements ShouldQueue
+class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 1;
-    public $timeout = 30;
+    public $tries = 2;
+    public $timeout = 90;
+
+    // Prevent duplicate jobs for same model for 3 minutes
+    public $uniqueFor = 180;
+
+    public function uniqueId()
+    {
+        if ($this->model instanceof Vend) {
+            return 'vend_' . $this->model->id;
+        } elseif ($this->model instanceof Customer) {
+            return 'customer_' . $this->model->id;
+        }
+        return 'unknown';
+    }
 
     protected $model;
     /**
@@ -200,32 +213,31 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
 
     private function calculateSuccessfulItemCount($transactionQuery): int
     {
-        return (int) $transactionQuery
+        // Use SQL aggregation instead of loading all records
+        // This is much faster and uses less memory
+
+        // Case 1: success_qty is not null and > 0 -> use success_qty
+        // Case 2: is_multiple = 1 OR error_code in (0, 6) OR vend_channel_error_id is null -> use qty
+        // Case 3: otherwise -> 0
+
+        $result = $transactionQuery
             ->clone()
-            ->with('vendChannelError:id,code')
-            ->get([
-                'id',
-                'qty',
-                'success_qty',
-                'is_multiple',
-                'vend_channel_error_id',
-            ])
-            ->sum(function ($transaction) {
-                if ($transaction->success_qty !== null && (int) $transaction->success_qty > 0) {
-                    return (int) $transaction->success_qty;
-                }
+            ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
+            ->selectRaw('
+                SUM(
+                    CASE
+                        WHEN vend_transactions.success_qty IS NOT NULL AND vend_transactions.success_qty > 0
+                            THEN vend_transactions.success_qty
+                        WHEN vend_transactions.vend_channel_error_id IS NULL
+                            OR vend_channel_errors.code IN (0, 6)
+                            OR vend_transactions.is_multiple = 1
+                            THEN COALESCE(vend_transactions.qty, 0)
+                        ELSE 0
+                    END
+                ) as total_count
+            ')
+            ->value('total_count');
 
-                $errorCode = optional($transaction->vendChannelError)->code;
-
-                if (
-                    is_null($transaction->vend_channel_error_id) ||
-                    in_array((int) $errorCode, [0, 6], true) ||
-                    (bool) $transaction->is_multiple
-                ) {
-                    return (int) ($transaction->qty ?? 0);
-                }
-
-                return 0;
-            });
+        return (int) ($result ?? 0);
     }
 }

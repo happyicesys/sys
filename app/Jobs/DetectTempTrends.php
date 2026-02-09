@@ -86,7 +86,13 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         foreach ($vends as $vend) {
             $max24 = $this->getMaxTemp($vend->id, VendTemp::TYPE_EVAPORATOR, 24);
-            if ($max24 === null || $max24 > $thresholdRaw) {
+            $min24 = $this->getMinTemp($vend->id, VendTemp::TYPE_EVAPORATOR, 24);
+
+            // Dismiss if:
+            // 1. T2 > 2C (Defrosted/Working)
+            // 2. T2 <= -23.5C (Reached very cold temp, so likely fine/not stuck)
+            $dismissThresholdRaw = -23.5 * $scale;
+            if ($max24 === null || $max24 > $thresholdRaw || ($min24 !== null && $min24 <= $dismissThresholdRaw)) {
                 VendSmartAlert::where('vend_id', $vend->id)
                     ->where('alert_type', VendSmartAlert::TYPE_T2_FROZEN)
                     ->update(['is_active' => false]);
@@ -104,11 +110,24 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $durationLabel = '> 72 hr';
                 $severity = 3;
                 $metaMax = $max72;
+                $windowHr = 72;
             } elseif ($max48 !== null && $max48 <= $thresholdRaw) {
                 $durationLabel = '> 48 hr';
                 $severity = 2;
                 $metaMax = $max48;
+                $windowHr = 48;
+            } else {
+                $windowHr = 24;
             }
+
+            // Get latest timestamp in window
+            $latestFrozen = VendTemp::where('vend_id', $vend->id)
+                ->where('type', VendTemp::TYPE_EVAPORATOR)
+                ->where('created_at', '>=', now()->subHours($windowHr))
+                ->latest('created_at')
+                ->first();
+
+            $minTimestamp = $latestFrozen ? $latestFrozen->created_at->toIso8601String() : $now->toIso8601String();
 
             VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vend->id, 'alert_type' => VendSmartAlert::TYPE_T2_FROZEN],
@@ -120,6 +139,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                         'max_temp' => $metaMax / $scale,
                         'duration_label' => $durationLabel,
                         'calculated_at' => $now->toIso8601String(),
+                        'min_timestamp' => $minTimestamp,
                     ],
                 ]
             );
@@ -207,7 +227,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
             VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $severity, 'is_active' => true, 'meta_data' => ['val' => $val, 'duration' => $trueDuration]]
+                ['severity' => $severity, 'is_active' => true, 'meta_data' => ['val' => $val, 'duration' => $trueDuration, 'min_timestamp' => $latest->created_at->toIso8601String()]]
             );
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
@@ -225,6 +245,15 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $v2 = $t2->value / $scale;
         $m1 = ($operator === '>') ? ($v1 > $tempC) : ($v1 < $tempC);
         $m2 = ($operator === '>') ? ($v2 > $tempC) : ($v2 < $tempC);
+
+        // Explicitly ignore 3276.7 (Sensor Error) for "Above -X" alerts
+        // 32767 raw value / 10 = 3276.7
+        if ($alertType === VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8) {
+            if (abs($v1 - 3276.7) < 0.01)
+                $m1 = false;
+            if (abs($v2 - 3276.7) < 0.01)
+                $m2 = false;
+        }
 
         if (!($m1 && $m2)) {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
@@ -261,9 +290,11 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
             $duration = $lastGood ? now()->diffInMinutes($lastGood->created_at) : $minutes[1];
 
+            $latestTimestamp = $t1->created_at->max($t2->created_at);
+
             VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['v1' => $v1, 'v2' => $v2, 'duration' => $duration]]
+                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['v1' => $v1, 'v2' => $v2, 'duration' => $duration, 'min_timestamp' => $latestTimestamp->toIso8601String()]]
             );
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
@@ -300,11 +331,27 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         // "Did not reach -18" -> Means (MIN(T1) > -18 AND MIN(T2) > -18).
         // If EITHER reached -18 (<= -18), then condition NOT met (Good).
 
-        // Check 12h (Sev 2)
-        $minT1_12 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_CHAMBER)
-            ->where('created_at', '>=', now()->subHours($hours[1]))->min('value');
-        $minT2_12 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_EVAPORATOR)
-            ->where('created_at', '>=', now()->subHours($hours[1]))->min('value');
+        // Optimized: Get all min values in one query
+        $now = now();
+        $time12h = $now->copy()->subHours($hours[1]);
+        $time8h = $now->copy()->subHours($hours[0]);
+
+        $temps = VendTemp::where('vend_id', $vendId)
+            ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
+            ->where('created_at', '>=', $time12h)
+            ->selectRaw('
+                type,
+                MIN(value) as min_12h,
+                MIN(CASE WHEN created_at >= ? THEN value END) as min_8h
+            ', [$time8h])
+            ->groupBy('type')
+            ->get()
+            ->keyBy('type');
+
+        $minT1_12 = $temps->get(VendTemp::TYPE_CHAMBER)?->min_12h;
+        $minT2_12 = $temps->get(VendTemp::TYPE_EVAPORATOR)?->min_12h;
+        $minT1_8 = $temps->get(VendTemp::TYPE_CHAMBER)?->min_8h;
+        $minT2_8 = $temps->get(VendTemp::TYPE_EVAPORATOR)?->min_8h;
 
         // If either is <= tempC, we are good for 12h.
         // Actually, if it reached in last 12h, does it mean it reached in last 8h? Not necessarily.
@@ -323,11 +370,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         if (!$failed12) {
             // Check 8h
-            $minT1_8 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_CHAMBER)
-                ->where('created_at', '>=', now()->subHours($hours[0]))->min('value');
-            $minT2_8 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_EVAPORATOR)
-                ->where('created_at', '>=', now()->subHours($hours[0]))->min('value');
-
             if ($minT1_8 !== null && $minT2_8 !== null) {
                 if ($minT1_8 / $scale > $tempC && $minT2_8 / $scale > $tempC) {
                     $sev = 1;
@@ -363,9 +405,22 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $sev = 2;
             }
 
+            // Find latest timestamp of bad reading (T1 or T2 > tempC)
+            $checkWindow = ($sev == 2) ? $time12h : $time8h;
+            $threshRaw = $tempC * $scale;
+
+            $latestBad = VendTemp::where('vend_id', $vendId)
+                ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
+                ->where('created_at', '>=', $checkWindow)
+                ->where('value', '>', $threshRaw)
+                ->latest('created_at')
+                ->first();
+
+            $minTimestamp = $latestBad ? $latestBad->created_at->toIso8601String() : $now->toIso8601String();
+
             VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['v1' => ($minT1_12 ?? $minT1_8) / $scale, 'duration' => $duration]]
+                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['v1' => ($minT1_12 ?? $minT1_8) / $scale, 'duration' => $duration, 'min_timestamp' => $minTimestamp]]
             );
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
@@ -374,10 +429,17 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
     private function checkLowestAbove($vendId, $hours, $thresholds, $alertType, $scale)
     {
-        $minT1 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_CHAMBER)
-            ->where('created_at', '>=', now()->subHours($hours))->min('value');
-        $minT2 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_EVAPORATOR)
-            ->where('created_at', '>=', now()->subHours($hours))->min('value');
+        // Optimized: Get both min values in one query
+        $temps = VendTemp::where('vend_id', $vendId)
+            ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
+            ->where('created_at', '>=', now()->subHours($hours))
+            ->selectRaw('type, MIN(value) as min_value')
+            ->groupBy('type')
+            ->get()
+            ->keyBy('type');
+
+        $minT1 = $temps->get(VendTemp::TYPE_CHAMBER)?->min_value;
+        $minT2 = $temps->get(VendTemp::TYPE_EVAPORATOR)?->min_value;
 
         if ($minT1 === null || $minT2 === null)
             return;
@@ -391,7 +453,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $sev = 3;
         elseif ($v1 > $thresholds[1] && $v2 > $thresholds[1])
             $sev = 2;
-        $sev = 1;
+        elseif ($v1 > $thresholds[0] && $v2 > $thresholds[0])
+            $sev = 1;
 
         $duration = 0;
         if ($sev > 0) {
@@ -418,9 +481,18 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $duration = $hours * 60;
             }
 
+            // Find valid timestamp for min T1
+            $minT1Record = VendTemp::where('vend_id', $vendId)
+                ->where('type', VendTemp::TYPE_CHAMBER)
+                ->where('created_at', '>=', now()->subHours($hours))
+                ->orderBy('value', 'asc')
+                ->first();
+
+            $minTimestamp = $minT1Record ? $minT1Record->created_at->toIso8601String() : now()->toIso8601String();
+
             VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['min_t1' => $v1, 'min_t2' => $v2, 'duration' => $duration]]
+                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['min_t1' => $v1, 'min_t2' => $v2, 'duration' => $duration, 'min_timestamp' => $minTimestamp]]
             );
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
@@ -434,6 +506,15 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             ->where('created_at', '>=', now()->subHours($hoursAgo))
             ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
             ->max('value');
+    }
+
+    private function getMinTemp(int $vendId, int $type, int $hoursAgo): ?int
+    {
+        return VendTemp::where('vend_id', $vendId)
+            ->where('type', $type)
+            ->where('created_at', '>=', now()->subHours($hoursAgo))
+            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+            ->min('value');
     }
 
     private function analyzeTrend(int $tempType, string $alertType): void
@@ -487,6 +568,15 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 continue;
             }
 
+            // Exclude Sensor Error (3276.7C -> 32767 raw)
+            // If either value is the error code, skip and clear alert
+            if (abs($curr - 32767) < 1 || abs($prev - 32767) < 1) {
+                VendSmartAlert::where('vend_id', $vendId)
+                    ->where('alert_type', $alertType)
+                    ->update(['is_active' => false]);
+                continue;
+            }
+
             // Values are stored as integers (e.g. 150 = 15.0C), scale is 10
             $deltaRaw = $curr - $prev;
             $scale = 10;
@@ -511,6 +601,16 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $elapsedMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($startedAt));
                 $duration = (24 * 60) + $elapsedMinutes;
 
+                // Find valid timestamp for current min temp
+                $minTempRecord = VendTemp::where('vend_id', $vendId)
+                    ->where('type', $tempType)
+                    ->whereBetween('created_at', [$windowCurrentStart, $now])
+                    ->where('value', $curr)
+                    ->orderBy('created_at', 'desc') // Get the latest occurrence if multiple match
+                    ->first();
+
+                $minTimestamp = $minTempRecord ? $minTempRecord->created_at->toIso8601String() : $now->toIso8601String();
+
                 VendSmartAlert::updateOrCreate(
                     [
                         'vend_id' => $vendId,
@@ -526,6 +626,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                             'calculated_at' => $now->toIso8601String(),
                             'started_at' => $startedAt,
                             'duration' => $duration,
+                            'min_timestamp' => $minTimestamp,
                         ],
                     ]
                 );

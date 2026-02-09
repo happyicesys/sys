@@ -1820,21 +1820,11 @@ class VendController extends Controller
             ]
         );
 
-        $itemStats = DB::table('vend_transaction_items')
-            ->select([
-                'vend_transaction_id',
-                DB::raw('COUNT(*) as total_items'),
-                DB::raw('COUNT(CASE WHEN vend_channel_error_code IN (0,6) OR vend_channel_error_code IS NULL THEN 1 END) as success_items'),
-            ])
-            ->groupBy('vend_transaction_id');
-
+        // Optimize: Split totals calculation into two queries to avoid expensive subquery join
         $totals = VendTransaction::query()
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-            ->leftJoinSub($itemStats, 'item_stats', function ($join) {
-                $join->on('vend_transactions.id', '=', 'item_stats.vend_transaction_id');
-            })
             ->filterTransactionIndex($request)
             ->where(function ($query) {
                 $query->whereNull('vends.is_testing')
@@ -1845,7 +1835,6 @@ class VendController extends Controller
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
                     THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
 
-                // Start of New Logic for Success Payment Count (0 or 6 only)
                 DB::raw('CAST(COUNT(CASE
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL
                     THEN 1 ELSE NULL END) AS SIGNED) AS success_payment_count'),
@@ -1855,7 +1844,6 @@ class VendController extends Controller
                 DB::raw('ROUND(COUNT(CASE
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL
                     THEN 1 ELSE NULL END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS success_payment_rate'),
-                // End of New Logic
 
                 DB::raw('ROUND(COALESCE(SUM(CASE
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
@@ -1863,24 +1851,12 @@ class VendController extends Controller
 
                 DB::raw('COUNT(*) AS total_count'),
 
-                // total_qty: COALESCE to 1 when no item rows
-                DB::raw('SUM(COALESCE(item_stats.total_items, 1)) AS total_qty'),
-
-                // success_total_qty: use item_stats OR 1 for single transaction success
+                // Count of single items (where is_multiple = 0)
+                DB::raw('CAST(SUM(CASE WHEN is_multiple = 0 THEN 1 ELSE 0 END) AS SIGNED) as single_qty'),
+                // Count of successful single items
                 DB::raw('CAST(SUM(CASE
-                    WHEN item_stats.success_items IS NOT NULL THEN item_stats.success_items
-                    WHEN item_stats.success_items IS NULL AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
-                            AND is_multiple = 0 THEN 1
-                    ELSE 0
-                END) AS SIGNED) AS success_total_qty'),
-
-                // success_total_qty_rate: percent of success qty out of total qty
-                DB::raw('ROUND(SUM(CASE
-                    WHEN item_stats.success_items IS NOT NULL THEN item_stats.success_items
-                    WHEN item_stats.success_items IS NULL AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
-                            AND is_multiple = 0 THEN 1
-                    ELSE 0
-                END) * 100.0 / NULLIF(SUM(COALESCE(item_stats.total_items, 1)), 0), 2) AS success_total_qty_rate'),
+                    WHEN is_multiple = 0 AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+                    THEN 1 ELSE 0 END) AS SIGNED) as success_single_qty'),
 
                 DB::raw('ROUND(COUNT(CASE
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
@@ -1905,6 +1881,27 @@ class VendController extends Controller
 
             ])
             ->first();
+
+        // Calculate item totals for multiple transactions
+        $itemTotals = VendTransaction::query()
+            ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+            ->filterTransactionIndex($request)
+            ->where('is_multiple', true)
+            ->where(function ($query) {
+                $query->whereNull('vends.is_testing')
+                    ->orWhere('vends.is_testing', false);
+            })
+            ->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
+            ->select([
+                DB::raw('COUNT(*) as total_items'),
+                DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IN (0,6) OR vend_transaction_items.vend_channel_error_code IS NULL) THEN 1 END) as success_items')
+            ])
+            ->first();
+
+        // Merge results
+        $totals->total_qty = $totals->single_qty + $itemTotals->total_items;
+        $totals->success_total_qty = $totals->success_single_qty + $itemTotals->success_items;
+        $totals->success_total_qty_rate = $totals->total_qty > 0 ? round($totals->success_total_qty * 100 / $totals->total_qty, 2) : 0;
 
 
         $latestExports = ExportJob::with('attachment')

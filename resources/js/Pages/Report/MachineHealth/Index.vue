@@ -388,15 +388,32 @@ const matrix22 = computed(() => {
             id: 't2_frozen',
             label: 'D) T2, never above 2°C',
             sub: 'Possible caused by:\ni) Defrost fail\nii) Defrost not clean/enough',
-            note: 'only for E/F/EG\nexclude UDD',
+            note: 'only for E/F/EG\nexclude UDD\n(Alert dismissed once temp below -23.5c)',
             types: ['t2_frozen'],
             headers: { 1: '> 24 hr', 2: '> 48 hr', 3: '> 72 hr' }
         },
     ]
+    const risingT1 = temperature.value.rising_lowest_t1_smart?.rows ?? []
+    const risingT2 = temperature.value.rising_lowest_t2_smart?.rows ?? []
+    const mergedRising = [...risingT1, ...risingT2]
+
+    // Deduplicate by vend_id, keeping the one with higher severity
+    const uniqueRisingMap = new Map();
+    mergedRising.forEach(row => {
+        if (!uniqueRisingMap.has(row.vend_id)) {
+            uniqueRisingMap.set(row.vend_id, row);
+        } else {
+            const existing = uniqueRisingMap.get(row.vend_id);
+            if (row.severity > existing.severity) {
+                uniqueRisingMap.set(row.vend_id, row);
+            }
+        }
+    });
+    const uniqueRising = Array.from(uniqueRisingMap.values());
+
     const rows = [
         ...(temperature.value.preventive_maintenance_smart?.rows ?? []),
-        ...(temperature.value.rising_lowest_t1_smart?.rows ?? []),
-        ...(temperature.value.rising_lowest_t2_smart?.rows ?? []),
+        ...uniqueRising,
         ...(temperature.value.t2_frozen_smart?.rows ?? [])
     ]
     return groupAlertsMatrix(rows, meta)
@@ -1080,7 +1097,7 @@ const formatErrorDesc = (code, desc) => {
                   <div v-for="(group, idx) in matrix21" :key="group.id" class="border-b border-gray-200 last:border-b-0">
                     <div class="grid grid-cols-1 md:grid-cols-4 min-h-[100px]">
                       <!-- Label Column -->
-                      <div class="p-4 bg-gray-50 border-r border-gray-100 md:col-span-1 flex flex-col justify-center">
+                      <div class="p-4 bg-gray-50 border-r border-gray-100 md:col-span-1 flex flex-col">
                         <div class="font-bold text-sm text-gray-900">{{ group.label }}</div>
                         <div class="text-xs text-gray-500 whitespace-pre-line mt-1">{{ group.sub }}</div>
                         <div v-if="group.note" class="mt-2 text-[10px] text-gray-500 bg-gray-200/50 p-1.5 rounded inline-block">
@@ -1124,14 +1141,14 @@ const formatErrorDesc = (code, desc) => {
                                         <div class="flex flex-col space-y-1 w-full max-w-[120px]">
 
                                           <!-- T1 -->
-                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="w-full">
+                                          <a :href="'/vends/' + row.vend_id + '/temp/1'" target="_blank" class="w-full">
                                             <div class="inline-flex items-center px-4 py-1.5 border border-transparent rounded-md font-semibold text-xs text-black w-full justify-center shadow-sm"
                                                  :class="[row.temp !== null ? (row.temp/10 > -15 ? 'bg-red-400' : 'bg-green-400') : 'bg-gray-300']">
                                               {{ row.temp !== null ? formatNumber(row.temp / 10, 1) : '-' }}
                                             </div>
                                           </a>
                                           <!-- T2 -->
-                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="w-full">
+                                          <a :href="'/vends/' + row.vend_id + '/temp/2'" target="_blank" class="w-full">
                                             <div class="inline-flex items-center px-4 py-1.5 border border-transparent rounded-md font-semibold text-xs text-black w-full justify-center shadow-sm"
                                                  :class="[row.parameter_json?.t2 !== undefined ? (row.parameter_json.t2/10 > -15 ? 'bg-red-400' : 'bg-green-400') : 'bg-gray-300']">
                                               {{ row.parameter_json?.t2 !== undefined ? formatNumber(row.parameter_json.t2/10, 1) : '-' }}(t2)
@@ -1161,7 +1178,7 @@ const formatErrorDesc = (code, desc) => {
                   <div v-for="(group, idx) in matrix22" :key="group.id" class="border-b border-gray-200 last:border-b-0">
                     <div class="grid grid-cols-1 md:grid-cols-4 min-h-[100px]">
                       <!-- Label -->
-                      <div class="p-4 bg-gray-50 border-r border-gray-100 md:col-span-1 flex flex-col justify-center">
+                      <div class="p-4 bg-gray-50 border-r border-gray-100 md:col-span-1 flex flex-col">
                         <div class="font-bold text-sm text-gray-900">{{ group.label }}</div>
                         <div class="text-xs text-gray-500 whitespace-pre-line mt-1">{{ group.sub }}</div>
                          <div v-if="group.note" class="mt-2 text-[10px] text-gray-500 bg-gray-200/50 p-1.5 rounded inline-block">
@@ -1212,14 +1229,14 @@ const formatErrorDesc = (code, desc) => {
                                         <div class="flex flex-col space-y-1 w-full max-w-[120px]">
 
                                           <!-- T1 -->
-                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="w-full">
+                                          <a :href="'/vends/' + row.vend_id + '/temp/1'" target="_blank" class="w-full">
                                             <div class="inline-flex items-center px-4 py-1.5 border border-transparent rounded-md font-semibold text-xs text-black w-full justify-center shadow-sm"
                                                  :class="[row.temp !== null ? (row.temp/10 > -15 ? 'bg-red-400' : 'bg-green-400') : 'bg-gray-300']">
                                               {{ row.temp !== null ? formatNumber(row.temp / 10, 1) : '-' }}
                                             </div>
                                           </a>
                                           <!-- T2 -->
-                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="w-full">
+                                          <a :href="'/vends/' + row.vend_id + '/temp/2'" target="_blank" class="w-full">
                                             <div class="inline-flex items-center px-4 py-1.5 border border-transparent rounded-md font-semibold text-xs text-black w-full justify-center shadow-sm"
                                                  :class="[row.parameter_json?.t2 !== undefined ? (row.parameter_json.t2/10 > -15 ? 'bg-red-400' : 'bg-green-400') : 'bg-gray-300']">
                                               {{ row.parameter_json?.t2 !== undefined ? formatNumber(row.parameter_json.t2/10, 1) : '-' }}(t2)

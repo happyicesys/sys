@@ -197,7 +197,7 @@ class VendTransaction extends Model
                     $search = [$search];
                 }
                 $query->where(function ($query) use ($search) {
-                    $query->whereIn('vend_channel_code', $search)
+                    $query->whereIn('vend_transactions.vend_channel_code', $search)
                         ->orWhereHas('vendTransactionItems', function ($query) use ($search) {
                             $query->whereIn('vend_channel_code', $search);
                         });
@@ -232,7 +232,7 @@ class VendTransaction extends Model
             })
             ->when($request->has('interface_type'), function ($query, $search) use ($request) {
                 if ($request->interface_type != 'all') {
-                    $query->where('interface_type', $request->interface_type);
+                    $query->where('vend_transactions.interface_type', $request->interface_type);
                 }
             })
             // ->where(function($query) use ($request) {
@@ -252,9 +252,9 @@ class VendTransaction extends Model
             ->when($request->is_multiple, function ($query, $search) {
                 if ($search != 'all') {
                     if ($search == 'true') {
-                        $query->where('is_multiple', true);
+                        $query->where('vend_transactions.is_multiple', true);
                     } else {
-                        $query->where('is_multiple', false);
+                        $query->where('vend_transactions.is_multiple', false);
                     }
                 }
             })
@@ -273,9 +273,9 @@ class VendTransaction extends Model
             ->when($request->is_refunded, function ($query, $search) {
                 if ($search != 'all') {
                     if ($search == 'true') {
-                        $query->where('is_refunded', true);
+                        $query->where('vend_transactions.is_refunded', true);
                     } else {
-                        $query->where('is_refunded', false);
+                        $query->where('vend_transactions.is_refunded', false);
                     }
                 }
             })
@@ -292,7 +292,7 @@ class VendTransaction extends Model
                 if ($search != 'all') {
                     if ($search == 'true') {
                         $query->where(function ($query) {
-                            $query->where('is_payment_received', true)
+                            $query->where('vend_transactions.is_payment_received', true)
                                 ->orWhereHas('vendTransactionItems.vendChannelError', function ($query) {
                                     $query->whereIn('code', [0, 6]);
                                 });
@@ -300,7 +300,7 @@ class VendTransaction extends Model
                         // $query->where('is_payment_received', true);
                     } else {
                         $query->where(function ($query) {
-                            $query->where('is_payment_received', false)
+                            $query->where('vend_transactions.is_payment_received', false)
                                 ->orWhereHas('vendTransactionItems.vendChannelError', function ($query) {
                                     $query->whereNotIn('code', [0, 6]);
                                 });
@@ -539,9 +539,9 @@ class VendTransaction extends Model
             ->when($request->is_refunded, function ($query, $search) {
                 if ($search != 'all') {
                     if ($search == 'true') {
-                        $query->where('is_refunded', true);
+                        $query->where('vend_transactions.is_refunded', true);
                     } else {
-                        $query->where('is_refunded', false);
+                        $query->where('vend_transactions.is_refunded', false);
                     }
                 }
             })

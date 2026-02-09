@@ -41,9 +41,11 @@ class InitTodayVendRecords implements ShouldQueue
                 'customers.id as customer_id'
             )
             ->where('customers.is_active', true)
+            ->where('vends.is_active', true)
+            ->whereNotNull('vends.customer_id')
             ->get();
 
-        foreach($vends as $vend) {
+        foreach ($vends as $vend) {
             VendRecord::updateOrCreate([
                 'vend_id' => $vend->id,
                 'date' => Carbon::yesterday()->toDateString(),

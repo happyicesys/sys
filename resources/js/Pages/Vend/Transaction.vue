@@ -509,7 +509,7 @@
                     <div class="flex flex-col space-y-1">
                         <div class="flex justify-between items-center space-x-2">
                              <span class="truncate text-xs font-medium text-gray-600">
-                                Successful Payment Cnt:
+                                Successful Payment Transaction:
                             </span>
                              <span class="text-lg">
                                 {{(totals['success_payment_count'] ? totals['success_payment_count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
@@ -538,23 +538,43 @@
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-base font-bold text-gray-800">Multiple Purchases Count</dt>
+                <dt class="truncate text-base font-bold text-gray-800">Multiple Purchases Transaction Count</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    <div class="flex justify-between items-center">
-                        <span class="truncate text-xs font-medium text-gray-600">
-                            From Machine:
-                        </span>
-                        <span>
-                            {{(totals['multiple_count_machine'] ? totals['multiple_count_machine'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="truncate text-xs font-medium text-gray-600">
-                            From Delivery Platform (Grab):
-                        </span>
-                        <span>
-                            {{(totals['multiple_count_delivery_platform'] ? totals['multiple_count_delivery_platform'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
-                        </span>
+                    <div class="flex flex-col space-y-1">
+                        <div class="flex justify-between items-center space-x-2">
+                            <span class="truncate text-xs font-medium text-gray-600">
+                                From Machine:
+                            </span>
+                            <div class="flex items-center space-x-1">
+                                <span class="text-lg">
+                                    {{(totals['multiple_count_machine'] ? totals['multiple_count_machine'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                                </span>
+                                <span class="text-xs text-gray-500">
+                                    ({{ totals['total_transaction_count'] > 0 ? ((totals['multiple_count_machine'] / totals['total_transaction_count']) * 100).toFixed(2) : '0.00' }}%)
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center space-x-2">
+                            <span class="truncate text-xs font-medium text-gray-600">
+                                From Delivery Platform (Grab):
+                            </span>
+                            <div class="flex items-center space-x-1">
+                                <span class="text-lg">
+                                    {{(totals['multiple_count_delivery_platform'] ? totals['multiple_count_delivery_platform'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                                </span>
+                                <span class="text-xs text-gray-500">
+                                    ({{ totals['total_transaction_count'] > 0 ? ((totals['multiple_count_delivery_platform'] / totals['total_transaction_count']) * 100).toFixed(2) : '0.00' }}%)
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center space-x-2 mt-1">
+                            <span class="truncate text-xs font-medium text-gray-600">
+                                Total Transaction:
+                            </span>
+                            <span class="text-lg">
+                                {{(totals['total_transaction_count'] ? totals['total_transaction_count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                            </span>
+                        </div>
                     </div>
                 </dd>
             </div>
