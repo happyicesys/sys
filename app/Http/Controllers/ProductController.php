@@ -17,6 +17,7 @@ use App\Models\ProductUom;
 use App\Models\SellingPrice;
 use App\Models\Tag;
 use App\Models\Uom;
+use App\Models\OpsJobItemChannel;
 use App\Traits\GetUserTimezone;
 use App\Services\CmsService;
 use App\Services\TagBindingService;
@@ -26,6 +27,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ProductController extends Controller
@@ -253,108 +255,97 @@ class ProductController extends Controller
             ->where('is_active', true)
             ->where('is_inventory', true)
             ->when($request->sortKey, function ($query, $sortKey) use ($request) {
-                $query->orderBy($sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                // If sorting by calculated fields, keep simple sorts here and handle complex sorts if needed in JS or dedicated query
+                if (!in_array($sortKey, ['needed_qty', 'needed_value', 'not_yet_sync_api_qty', 'picked_value_on_date'])) {
+                    $query->orderBy($sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                }
             }, function ($query) {
                 $query->orderBy('code', 'desc');
             })
-            ->selectSub(function ($sub) use ($request) {
-                $sub->from('product_limits')
-                    ->select('qty')
-                    ->whereColumn('product_limits.product_id', 'products.id')
-                    ->whereDate('product_limits.date', $request->productAvailableDate)
-                    ->limit(1);
-            }, 'max_ops_job_pick_limit')
-            ->selectSub(function ($sub) use ($request) {
-                $sub->from('product_limits')
-                    ->select('is_created_by_system')
-                    ->whereColumn('product_limits.product_id', 'products.id')
-                    ->whereDate('product_limits.date', $request->productAvailableDate)
-                    ->limit(1);
-            }, 'limit_is_created_by_system')
-            ->selectSub(function ($sub) use ($request, $productAvailableDateStart, $productAvailableDateEnd) {
-                $sub->from('ops_job_item_channels')
-                    ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-                    ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
-                    ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
-                    ->leftJoin('product_limits', function ($join) use ($request) {
-                        $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
-                            ->whereDate('product_limits.date', '=', $request->productAvailableDate);
-                    })
-                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
-                    ->whereRaw('products.is_available = 1')
-                    ->whereBetween('ops_jobs.date', [$productAvailableDateStart, $productAvailableDateEnd])
-                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
-                    ->selectRaw('COALESCE(SUM(
-                        CASE
-                            WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
-                            WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
-                            WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
-                                CASE
-                                    WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
-                                        COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
-                                    WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
-                                        product_limits.qty - COALESCE(vend_channels.qty, 0)
-                                    ELSE 0
-                                End
-                            ELSE
-                                COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
-                        END
-                    ), 0)');
-            }, 'needed_qty')
-            // Calculate needed_value matches needed_qty logic * amount
-            ->selectSub(function ($sub) use ($request, $productAvailableDateStart, $productAvailableDateEnd) {
-                $sub->from('ops_job_item_channels')
-                    ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-                    ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
-                    ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
-                    ->leftJoin('product_limits', function ($join) use ($request) {
-                        $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
-                            ->whereDate('product_limits.date', '=', $request->productAvailableDate);
-                    })
-                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
-                    ->whereRaw('products.is_available = 1')
-                    ->whereBetween('ops_jobs.date', [$productAvailableDateStart, $productAvailableDateEnd])
-                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
-                    ->selectRaw('COALESCE(SUM(
-                        (CASE
-                            WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
-                            WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
-                            WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
-                                CASE
-                                    WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
-                                        COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
-                                    WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
-                                        product_limits.qty - COALESCE(vend_channels.qty, 0)
-                                    ELSE 0
-                                END
-                            ELSE
-                                COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
-                        END) * vend_channels.amount
-                    ), 0)');
-            }, 'needed_value')
-            ->selectSub(function ($sub) {
-                $sub->from('ops_job_item_channels')
-                    ->selectRaw('SUM(ops_job_item_channels.picked_qty)')
-                    ->join('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
-                    ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-                    ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
-                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
-                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
-                    ->whereNull('ops_job_items.cms_transaction_id');
-            }, 'not_yet_sync_api_qty')
-            // Calculate Picked Value (on specific Date)
-            ->selectSub(function ($sub) use ($request) {
-                $sub->from('ops_job_item_channels')
-                    ->selectRaw('COALESCE(SUM(ops_job_item_channels.picked_qty * vend_channels.amount), 0)')
-                    ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-                    ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
-                    ->join('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
-                    ->whereColumn('ops_job_item_channels.product_id', 'products.id')
-                    ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
-                    ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
-                    ->whereDate('ops_jobs.date', $request->productAvailableDate);
-            }, 'picked_value_on_date')
             ->get();
+
+        $productIds = $products->pluck('id')->toArray();
+
+        // 1. Calculate needed_qty and needed_value
+        $neededData = OpsJobItemChannel::query()
+            ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+            ->leftJoin('product_limits', function ($join) use ($request) {
+                $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
+                    ->whereDate('product_limits.date', '=', $request->productAvailableDate);
+            })
+            ->whereIn('ops_job_item_channels.product_id', $productIds)
+            // Note: products.is_available = 1 check is implicit effectively since we only have IDs from the filtered product list
+            // but strictly speaking we are aggregating channels for these products.
+            // The original subquery filtered by products.is_available = 1. Since $productIds comes from queries with that check (or not), we are good.
+            ->whereBetween('ops_jobs.date', [$productAvailableDateStart, $productAvailableDateEnd])
+            ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+            ->groupBy('ops_job_item_channels.product_id')
+            ->selectRaw('ops_job_item_channels.product_id,
+                COALESCE(SUM(
+                    CASE
+                        WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
+                        WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
+                        WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
+                            CASE
+                                WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                                    COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+                                WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                                    product_limits.qty - COALESCE(vend_channels.qty, 0)
+                                ELSE 0
+                            End
+                        ELSE
+                            COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+                    END
+                ), 0) as needed_qty,
+                COALESCE(SUM(
+                    (CASE
+                        WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
+                        WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
+                        WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
+                            CASE
+                                WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                                    COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+                                WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                                    product_limits.qty - COALESCE(vend_channels.qty, 0)
+                                ELSE 0
+                            END
+                        ELSE
+                            COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+                    END) * vend_channels.amount
+                ), 0) as needed_value
+            ')
+            ->get()
+            ->keyBy('product_id');
+
+        // 2. Calculate not_yet_sync_api_qty
+        $notYetSyncData = OpsJobItemChannel::query()
+            ->join('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+            ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+            ->whereIn('ops_job_item_channels.product_id', $productIds)
+            ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+            ->whereNull('ops_job_items.cms_transaction_id')
+            ->groupBy('ops_job_item_channels.product_id')
+            ->selectRaw('ops_job_item_channels.product_id, SUM(ops_job_item_channels.picked_qty) as qty')
+            ->get()
+            ->keyBy('product_id');
+
+        // 3. Calculate picked_value_on_date
+        $pickedValueData = OpsJobItemChannel::query()
+            ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+            ->join('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+            ->whereIn('ops_job_item_channels.product_id', $productIds)
+            ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
+            ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
+            ->whereDate('ops_jobs.date', $request->productAvailableDate)
+            ->groupBy('ops_job_item_channels.product_id')
+            ->selectRaw('ops_job_item_channels.product_id, COALESCE(SUM(ops_job_item_channels.picked_qty * vend_channels.amount), 0) as value')
+            ->get()
+            ->keyBy('product_id');
+
 
         $cmsQtyAvailableProducts = $this->cmsService->getCMSQtyAvailableApi();
 
@@ -370,10 +361,25 @@ class ProductController extends Controller
         }
 
         foreach ($products as $product) {
+            // Map calculated values
+            $product->needed_qty = $neededData->get($product->id)?->needed_qty ?? 0;
+            $product->needed_value = $neededData->get($product->id)?->needed_value ?? 0;
+            $product->not_yet_sync_api_qty = $notYetSyncData->get($product->id)?->qty ?? 0;
+            $product->picked_value_on_date = $pickedValueData->get($product->id)?->value ?? 0;
+
+            // Map Max Ops Job Pick Limit & Created By System from eager loaded relation
+            $limit = $product->productLimits->first();
+            $product->max_ops_job_pick_limit = $limit ? $limit->qty : null;
+            $product->limit_is_created_by_system = $limit ? $limit->is_created_by_system : null;
+
             if (isset($cmsQtyMap[$product->code])) {
                 $cmsQtyAvailableProduct = $cmsQtyMap[$product->code];
                 $product->qty_available_pcs_api = $cmsQtyAvailableProduct['qty'] ?? 0;
                 $product->net_available_qty_pcs_api = ($cmsQtyAvailableProduct['qty'] ?? 0) - $product->not_yet_sync_api_qty;
+            } else {
+                // Ensure defaults
+                $product->qty_available_pcs_api = 0;
+                $product->net_available_qty_pcs_api = 0 - $product->not_yet_sync_api_qty;
             }
         }
 
