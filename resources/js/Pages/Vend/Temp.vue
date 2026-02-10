@@ -508,8 +508,8 @@ function onVendSelected(option) {
 
 function getVendTempsData() {
 let colors = ['#E6676B', '#36a2eb', '#cc65fe', '#ffce56']
-let vendTempsAllArr = JSON.parse(JSON.stringify(props.vendTempsObj.data))
-let vendFansAllArr = JSON.parse(JSON.stringify(props.vendFansObj.data))
+let vendTempsAllArr = props.vendTempsObj.data
+let vendFansAllArr = props.vendFansObj.data
 let vendTempsArr = []
 let vendFansArr = []
 let lastTempValue = []

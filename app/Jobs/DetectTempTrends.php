@@ -85,6 +85,20 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             ->get();
 
         foreach ($vends as $vend) {
+            // Check latest T2 for error
+            $latestT2 = VendTemp::where('vend_id', $vend->id)
+                ->where('type', VendTemp::TYPE_EVAPORATOR)
+                ->latest()
+                ->first();
+
+            // If current T2 is Error (3276.7), dismiss Frozen Alert
+            if ($latestT2 && $latestT2->value == VendTemp::TEMPERATURE_ERROR) {
+                VendSmartAlert::where('vend_id', $vend->id)
+                    ->where('alert_type', VendSmartAlert::TYPE_T2_FROZEN)
+                    ->update(['is_active' => false]);
+                continue;
+            }
+
             $max24 = $this->getMaxTemp($vend->id, VendTemp::TYPE_EVAPORATOR, 24);
             $min24 = $this->getMinTemp($vend->id, VendTemp::TYPE_EVAPORATOR, 24);
 
@@ -248,7 +262,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         // Explicitly ignore 3276.7 (Sensor Error) for "Above -X" alerts
         // 32767 raw value / 10 = 3276.7
-        if ($alertType === VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8) {
+        if ($alertType === VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8 || $alertType === VendSmartAlert::TYPE_TEMPS_ABOVE_0) {
             if (abs($v1 - 3276.7) < 0.01)
                 $m1 = false;
             if (abs($v2 - 3276.7) < 0.01)

@@ -1139,6 +1139,7 @@ const formatErrorDesc = (code, desc) => {
 
                                         <!-- T1/T2 Buttons (Mimicking CustomerIndex) -->
                                         <div class="flex flex-col space-y-1 w-full max-w-[120px]">
+                                          <span class="text-xs font-bold text-gray-900">Current Temp:</span>
 
                                           <!-- T1 -->
                                           <a :href="'/vends/' + row.vend_id + '/temp/1'" target="_blank" class="w-full">
@@ -1210,7 +1211,7 @@ const formatErrorDesc = (code, desc) => {
                                         <!-- Value Display -->
                                         <div class="text-xs text-gray-700 mb-2">
                                            <div v-if="row.alert_type.includes('rising')">
-                                              Last 24hrs lowest T1: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.latest_min_temp, 1) }}°C</span>
+                                              Last 24hrs lowest {{ row.alert_type.includes('t2') ? 'T2' : 'T1' }}: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.latest_min_temp, 1) }}°C</span>
                                               <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.updated_at) }}</div>
                                               <div class="mt-1 text-xs">Delta: {{ formatNumber(row.delta, 1) }}°C</div>
                                            </div>
@@ -1227,6 +1228,7 @@ const formatErrorDesc = (code, desc) => {
 
                                         <!-- T1/T2 Buttons (Mimicking CustomerIndex) -->
                                         <div class="flex flex-col space-y-1 w-full max-w-[120px]">
+                                          <span class="text-xs font-bold text-gray-900">Current Temp:</span>
 
                                           <!-- T1 -->
                                           <a :href="'/vends/' + row.vend_id + '/temp/1'" target="_blank" class="w-full">

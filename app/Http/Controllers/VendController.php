@@ -1107,7 +1107,7 @@ class VendController extends Controller
             $endDate = Carbon::parse($request->datetime_to)->setTimezone($this->getUserTimezone());
         }
 
-        $request->merge(['types' => empty($request->types) ? [1] : $request->types]);
+        $request->merge(['types' => empty($request->types) ? [1, 2] : $request->types]);
         // $request->types = empty($request->types) ? [1, 2] : $request->types;
 
         // dd($request->types);
@@ -1142,7 +1142,7 @@ class VendController extends Controller
 
         $vendTemps = DB::table('vend_temps')
             ->where('vend_id', $vendId)
-            // ->whereIn('type', $request->types)
+            ->whereIn('type', $request->types)
             ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
             ->where('vend_temps.created_at', '>=', $startDate)
             ->where('vend_temps.created_at', '<=', $endDate)
@@ -1172,28 +1172,30 @@ class VendController extends Controller
             )
             ->get();
 
-        $vendOptions = DB::table('vends')
-            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-            ->select(
-                'vends.id',
-                'vends.code',
-                'customers.name as customer_name',
-                'customers.virtual_customer_prefix',
-                'customers.virtual_customer_code',
-                DB::raw('CASE WHEN customers.id IS NOT NULL THEN customers.id + ' . Customer::RUNNING_NUMBER_INIT . ' END AS customer_ref_id')
-            )
-            ->orderBy('vends.code')
-            ->get()
-            ->map(function ($vendOption) {
-                return [
-                    'id' => $vendOption->id,
-                    'code' => $vendOption->code,
-                    'customer_name' => $vendOption->customer_name,
-                    'customer_ref_id' => $vendOption->customer_ref_id,
-                    'virtual_customer_prefix' => $vendOption->virtual_customer_prefix,
-                    'virtual_customer_code' => $vendOption->virtual_customer_code,
-                ];
-            });
+        $vendOptions = Cache::remember('vend_options_temp_index', 3600, function () {
+            return DB::table('vends')
+                ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+                ->select(
+                    'vends.id',
+                    'vends.code',
+                    'customers.name as customer_name',
+                    'customers.virtual_customer_prefix',
+                    'customers.virtual_customer_code',
+                    DB::raw('CASE WHEN customers.id IS NOT NULL THEN customers.id + ' . Customer::RUNNING_NUMBER_INIT . ' END AS customer_ref_id')
+                )
+                ->orderBy('vends.code')
+                ->get()
+                ->map(function ($vendOption) {
+                    return [
+                        'id' => $vendOption->id,
+                        'code' => $vendOption->code,
+                        'customer_name' => $vendOption->customer_name,
+                        'customer_ref_id' => $vendOption->customer_ref_id,
+                        'virtual_customer_prefix' => $vendOption->virtual_customer_prefix,
+                        'virtual_customer_code' => $vendOption->virtual_customer_code,
+                    ];
+                });
+        });
 
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
