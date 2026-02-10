@@ -15,11 +15,15 @@ class VendSmartAlert extends Model
         'severity',
         'meta_data',
         'is_active',
+        'is_email_alert_sent',
+        'email_alert_sent_at',
     ];
 
     protected $casts = [
         'meta_data' => 'array',
         'is_active' => 'boolean',
+        'is_email_alert_sent' => 'boolean',
+        'email_alert_sent_at' => 'datetime',
     ];
 
     // Constants for Alert Types

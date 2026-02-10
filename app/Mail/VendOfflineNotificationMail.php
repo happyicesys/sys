@@ -16,6 +16,7 @@ class VendOfflineNotificationMail extends Mailable implements ShouldQueue
     public $now;
     public int $vendId;
     public int $thresholdMinutes;
+    public ?string $label = null;
     public $vend; // populated in build()
     public $vendPrefixName;
 
@@ -24,12 +25,13 @@ class VendOfflineNotificationMail extends Mailable implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(int $vendId, int $thresholdMinutes)
+    public function __construct(int $vendId, int $thresholdMinutes, ?string $label = null)
     {
         $this->baseUrl = env('APP_URL');
         $this->now = Carbon::now();
         $this->vendId = $vendId;
         $this->thresholdMinutes = $thresholdMinutes;
+        $this->label = $label;
     }
 
     // public function envelope()
@@ -49,8 +51,15 @@ class VendOfflineNotificationMail extends Mailable implements ShouldQueue
         $vend = Vend::withoutGlobalScopes()->with('vendPrefix', 'customer')->findOrFail($this->vendId);
         $this->vend = $vend;
         $this->vendPrefixName = $vend->vendPrefix ? $vend->vendPrefix->name : '';
+
+        $subject = 'ID: ' . $vend->code . ' Machine Offline Alert >= ' . $this->thresholdMinutes . ' mins (' . $this->now->format('y-m-d') . ')';
+
+        if ($this->label) {
+            $subject = $vend->code . ': Alert on Lost of Connectivity or Electricity (' . $this->label . ')';
+        }
+
         return $this
-            ->subject('ID: '.$vend->code.' Machine Offline Alert >= '.$this->thresholdMinutes.' mins ('.$this->now->format('y-m-d').')')
+            ->subject($subject)
             ->view('emails.vend-offline-notification');
     }
 }

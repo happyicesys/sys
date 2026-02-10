@@ -371,7 +371,7 @@ const matrix22 = computed(() => {
         {
             id: 'lowest_72h',
             label: 'B) T1 & T2 lowest (last 72hrs)',
-            sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Fan/Comp ageing',
+            sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Fan/Comp ageing\niii) Temperature probe malfunction',
             note: 'Check and show lowest Temp in last 72hrs',
             types: ['lowest_72h_above'],
             headers: { 1: 'Above -21c', 2: 'Above -20c', 3: 'Above -19c' }
@@ -387,7 +387,7 @@ const matrix22 = computed(() => {
         {
             id: 't2_frozen',
             label: 'D) T2, never above 2°C',
-            sub: 'Possible caused by:\ni) Defrost fail\nii) Defrost not clean/enough',
+            sub: 'Possible caused by:\ni) Defrost fail\nii) Defrost not clean/enough\niii) Temperature probe malfunction',
             note: 'only for E/F/EG\nexclude UDD\n(Alert dismissed once temp below -23.5c)',
             types: ['t2_frozen'],
             headers: { 1: '> 24 hr', 2: '> 48 hr', 3: '> 72 hr' }
@@ -1213,6 +1213,12 @@ const formatErrorDesc = (code, desc) => {
                                            <div v-if="row.alert_type.includes('rising')">
                                               Last 24hrs lowest {{ row.alert_type.includes('t2') ? 'T2' : 'T1' }}: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.latest_min_temp, 1) }}°C</span>
                                               <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.updated_at) }}</div>
+
+                                              <div class="mt-2" v-if="row.first_min_temp !== null">
+                                                  Last 48hrs lowest {{ row.alert_type.includes('t2') ? 'T2' : 'T1' }}: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.first_min_temp, 1) }}°C</span>
+                                                  <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.first_min_temp_at) }}</div>
+                                              </div>
+
                                               <div class="mt-1 text-xs">Delta: {{ formatNumber(row.delta, 1) }}°C</div>
                                            </div>
                                            <div v-else>

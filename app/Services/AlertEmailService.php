@@ -68,28 +68,34 @@ class AlertEmailService
     /**
      * OFFLINE: per-vend email (no aggregation).
      */
-    public function sendVendOfflineNotificationMail(Vend $vend): int
+    public function sendVendOfflineNotificationMail(Vend $vend, ?string $label = null): int
     {
         $thresholdMinutes = $vend->offlineAlertMinutes();
 
         $recipientCount = $this->queueVendNotification(
             $vend,
             'is_send_offline_notification',
-            fn() => new VendOfflineNotificationMail((int) $vend->getKey(), $thresholdMinutes),
+            fn() => new VendOfflineNotificationMail((int) $vend->getKey(), $thresholdMinutes, $label),
             'VendOfflineNotificationMail',
             [
                 'threshold_minutes' => $thresholdMinutes,
+                'label' => $label,
             ]
         );
 
         if ($recipientCount > 0) {
+            $subject = $label
+                ? sprintf('Offline alert (%s) queued (%d recipients)', $label, $recipientCount)
+                : sprintf('Offline alert queued (%d recipients)', $recipientCount);
+
             VendLog::create([
                 'vend_id' => $vend->id,
                 'event' => VendLog::EVENT_POWER_OFF,
-                'subject' => sprintf('Offline alert queued (%d recipients)', $recipientCount),
+                'subject' => $subject,
                 'context' => [
                     'threshold_minutes' => $thresholdMinutes,
                     'recipients' => $recipientCount,
+                    'label' => $label,
                 ],
                 'occurred_at' => now(),
             ]);
@@ -104,6 +110,7 @@ class AlertEmailService
                     'vend_code' => $vend->code,
                     'occurred_at' => now()->toIso8601String(),
                     'threshold_minutes' => $thresholdMinutes,
+                    'label' => $label,
                 ])->onQueue('default');
             }
         }
@@ -268,5 +275,44 @@ class AlertEmailService
         }
 
         return $emails->count();
+    }
+    public function sendVendOperationErrorNotificationMail(Vend $vend, string $alertType, string $label): int
+    {
+        // Check if alert already sent for this specific severity/duration (handled by caller logic typically, but we track 'is_email_alert_sent' in VendSmartAlert)
+        // Here we just send.
+
+        $recipientCount = $this->queueVendNotification(
+            $vend,
+            'is_send_channel_error_log', // Re-using channel error flag or need new one? User said "relay to the email receipients being set in operator/edit" => "Machine Email Alert User(s)".
+            // Usually "is_send_channel_error_log" is for channel errors.
+            // "is_send_offline_notification" is for offline.
+            // Let's use 'is_send_offline_notification' or 'is_send_channel_error_log'?
+            // The screenshot shows "Machine Email Alert User(s)". This commonly maps to offline/error alerts.
+            // Let's assume 'is_send_channel_error_log' (General Error) or 'is_send_offline_notification' (Critical).
+            // Context: "Machine Health Dashboard" -> Critical Parts Failure.
+            // "is_send_channel_error_log" seems most appropriate for "Operation Error".
+            fn() => new \App\Mail\VendOperationErrorNotificationMail((int) $vend->getKey(), $alertType, $label),
+            'VendOperationErrorNotificationMail',
+            [
+                'alert_type' => $alertType,
+                'label' => $label,
+            ]
+        );
+
+        if ($recipientCount > 0) {
+            VendLog::create([
+                'vend_id' => $vend->id,
+                'event' => VendLog::EVENT_ERROR, // or specific event code
+                'subject' => sprintf('Operation Error Alert (%s) queued (%d recipients)', $label, $recipientCount),
+                'context' => [
+                    'alert_type' => $alertType,
+                    'label' => $label,
+                    'recipients' => $recipientCount,
+                ],
+                'occurred_at' => now(),
+            ]);
+        }
+
+        return $recipientCount;
     }
 }

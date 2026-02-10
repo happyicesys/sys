@@ -1085,6 +1085,7 @@ class MachineHealthDashboardService
                     'temp' => $vend?->temp,
                     'parameter_json' => $vend?->parameter_json,
                     'first_min_temp' => $meta['prev_min'] ?? null,
+                    'first_min_temp_at' => $meta['prev_min_timestamp'] ?? null,
                     'latest_min_temp' => $meta['current_min'] ?? null,
                     'delta' => $meta['delta'] ?? null,
                     'meta_max_temp' => $meta['max_temp'] ?? null,

@@ -12,6 +12,7 @@ class VendLog extends Model
     public const EVENT_POWER_OFF = 'power_off';
     public const EVENT_POWER_RESTORED = 'power_restored';
     public const EVENT_NO_TRANSACTION = 'no_transaction';
+    public const EVENT_ERROR = 'error';
 
     protected $fillable = [
         'vend_id',

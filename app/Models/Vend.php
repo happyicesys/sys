@@ -290,6 +290,7 @@ class Vend extends Model
         'vend_temp_alert_json' => 'json',
         'vend_transaction_totals_json' => 'json',
         'temp_monitoring_state' => 'json',
+        'offline_notification_level' => 'integer',
     ];
 
     protected $fillable = [
@@ -313,6 +314,7 @@ class Vend extends Model
         'name',
         'offline_restart_count',
         'offline_restart_count_datetime',
+        'offline_notification_level',
         'temp',
         'temp_updated_at',
         'temp_monitoring_state',

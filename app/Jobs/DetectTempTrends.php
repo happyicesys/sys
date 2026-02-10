@@ -168,13 +168,13 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         foreach ($vends as $vendId) {
             // T2 < -25C
-            $this->checkThresholdDuration($vendId, VendTemp::TYPE_EVAPORATOR, -25, '<', [10, 30], VendSmartAlert::TYPE_T2_BELOW_MINUS_25, $scale);
+            $this->checkThresholdDuration($vendId, VendTemp::TYPE_EVAPORATOR, -25, '<', [10, 30], VendSmartAlert::TYPE_T2_BELOW_MINUS_25, $scale, ['> 10 mins', '> 30 mins']);
             // T1 & T2 > 0C
-            $this->checkDualThresholdDuration($vendId, 0, '>', [30, 60], VendSmartAlert::TYPE_TEMPS_ABOVE_0, $scale);
+            $this->checkDualThresholdDuration($vendId, 0, '>', [30, 60], VendSmartAlert::TYPE_TEMPS_ABOVE_0, $scale, ['> 30 mins', '> 60 mins']);
             // T1 & T2 > -8C
-            $this->checkDualThresholdDuration($vendId, -8, '>', [60, 90], VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8, $scale);
+            $this->checkDualThresholdDuration($vendId, -8, '>', [60, 90], VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8, $scale, ['> 60 mins', '> 90 mins']);
             // T1 & T2 did not reach -18C in 8h / 12h
-            $this->checkNotReached($vendId, -18, [8, 12], VendSmartAlert::TYPE_NOT_REACH_MINUS_18, $scale);
+            $this->checkNotReached($vendId, -18, [8, 12], VendSmartAlert::TYPE_NOT_REACH_MINUS_18, $scale, ['> 8 hours', '> 12 hours']);
         }
     }
 
@@ -190,7 +190,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
     }
 
-    private function checkThresholdDuration($vendId, $type, $tempC, $operator, $minutes, $alertType, $scale)
+    private function checkThresholdDuration($vendId, $type, $tempC, $operator, $minutes, $alertType, $scale, $labels = [])
     {
         $latest = VendTemp::where('vend_id', $vendId)->where('type', $type)->latest()->first();
         if (!$latest)
@@ -239,16 +239,25 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
             $trueDuration = $lastGood ? now()->diffInMinutes($lastGood->created_at) : ($minutes[1] + 15);
 
-            VendSmartAlert::updateOrCreate(
+            // PRESERVE METADATA
+            $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->first();
+            $metaData = ['val' => $val, 'duration' => $trueDuration, 'min_timestamp' => $latest->created_at->toIso8601String()];
+            if ($existing && $existing->is_active && isset($existing->meta_data['last_sent_severity'])) {
+                $metaData['last_sent_severity'] = $existing->meta_data['last_sent_severity'];
+            }
+
+            $alert = VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $severity, 'is_active' => true, 'meta_data' => ['val' => $val, 'duration' => $trueDuration, 'min_timestamp' => $latest->created_at->toIso8601String()]]
+                ['severity' => $severity, 'is_active' => true, 'meta_data' => $metaData]
             );
+
+            $this->handleEmailAlert($vendId, $alert, $labels);
         } else {
-            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
+            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false, 'is_email_alert_sent' => false]);
         }
     }
 
-    private function checkDualThresholdDuration($vendId, $tempC, $operator, $minutes, $alertType, $scale)
+    private function checkDualThresholdDuration($vendId, $tempC, $operator, $minutes, $alertType, $scale, $labels = [])
     {
         $t1 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_CHAMBER)->latest()->first();
         $t2 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_EVAPORATOR)->latest()->first();
@@ -306,12 +315,21 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
             $latestTimestamp = $t1->created_at->max($t2->created_at);
 
-            VendSmartAlert::updateOrCreate(
+            // PRESERVE METADATA
+            $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->first();
+            $metaData = ['v1' => $v1, 'v2' => $v2, 'duration' => $duration, 'min_timestamp' => $latestTimestamp->toIso8601String()];
+            if ($existing && $existing->is_active && isset($existing->meta_data['last_sent_severity'])) {
+                $metaData['last_sent_severity'] = $existing->meta_data['last_sent_severity'];
+            }
+
+            $alert = VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['v1' => $v1, 'v2' => $v2, 'duration' => $duration, 'min_timestamp' => $latestTimestamp->toIso8601String()]]
+                ['severity' => $sev, 'is_active' => true, 'meta_data' => $metaData]
             );
+
+            $this->handleEmailAlert($vendId, $alert, $labels);
         } else {
-            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
+            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false, 'is_email_alert_sent' => false]);
         }
     }
 
@@ -340,7 +358,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
     }
 
-    private function checkNotReached($vendId, $tempC, $hours, $alertType, $scale)
+    private function checkNotReached($vendId, $tempC, $hours, $alertType, $scale, $labels = [])
     {
         // "Did not reach -18" -> Means (MIN(T1) > -18 AND MIN(T2) > -18).
         // If EITHER reached -18 (<= -18), then condition NOT met (Good).
@@ -432,12 +450,21 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
             $minTimestamp = $latestBad ? $latestBad->created_at->toIso8601String() : $now->toIso8601String();
 
-            VendSmartAlert::updateOrCreate(
+            // PRESERVE METADATA
+            $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->first();
+            $metaData = ['v1' => ($minT1_12 ?? $minT1_8) / $scale, 'duration' => $duration, 'min_timestamp' => $minTimestamp];
+            if ($existing && $existing->is_active && isset($existing->meta_data['last_sent_severity'])) {
+                $metaData['last_sent_severity'] = $existing->meta_data['last_sent_severity'];
+            }
+
+            $alert = VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['v1' => ($minT1_12 ?? $minT1_8) / $scale, 'duration' => $duration, 'min_timestamp' => $minTimestamp]]
+                ['severity' => $sev, 'is_active' => true, 'meta_data' => $metaData]
             );
+
+            $this->handleEmailAlert($vendId, $alert, $labels);
         } else {
-            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
+            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false, 'is_email_alert_sent' => false]);
         }
     }
 
@@ -615,15 +642,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $elapsedMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($startedAt));
                 $duration = (24 * 60) + $elapsedMinutes;
 
-                // Find valid timestamp for current min temp
-                $minTempRecord = VendTemp::where('vend_id', $vendId)
-                    ->where('type', $tempType)
-                    ->whereBetween('created_at', [$windowCurrentStart, $now])
-                    ->where('value', $curr)
-                    ->orderBy('created_at', 'desc') // Get the latest occurrence if multiple match
-                    ->first();
-
-                $minTimestamp = $minTempRecord ? $minTempRecord->created_at->toIso8601String() : $now->toIso8601String();
+                $minTimestamp = $this->findMinTimestamp($vendId, $tempType, $windowCurrentStart, $now, $curr);
 
                 VendSmartAlert::updateOrCreate(
                     [
@@ -641,6 +660,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                             'started_at' => $startedAt,
                             'duration' => $duration,
                             'min_timestamp' => $minTimestamp,
+                            'prev_min_timestamp' => $this->findMinTimestamp($vendId, $tempType, $windowPrevStart, $windowCurrentStart, $prev),
                         ],
                     ]
                 );
@@ -796,8 +816,12 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 );
             }
         } else {
-            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8)->update(['is_active' => false]);
+            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
         }
+    }
+
+
+
 
         // 4. Not Reach -18 (Both > -18)
         if (isset($newState['t1_gt_minus_18_start']) && isset($newState['t2_gt_minus_18_start'])) {
@@ -813,6 +837,17 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
+                // Determine label if we want to support stateful alerts email (optional, user said 2.1 which is mainly analyzeOperationErrors)
+                // If analyzeStateful is also "2.1 Operation Error" but real-time, we should alert too?
+                // The user request map "2.1 Operation Error" which corresponds to analyzeOperationErrors() logic primarily.
+                // analyzeStateful() is for real-time checking, often parallel to analyzeOperationErrors().
+                // To avoid spam, let's keep email logic primarily in analyzeOperationErrors() which is the main "Trend" check.
+                // analyzeStateful provides quicker updates but less "historical" context.
+                // However, the User Objective mentions: "for temp, only 2.1 needed, 2.2 no need".
+                // 2.1 is implemented in analyzeOperationErrors().
+                // analyzeStateful() also implements the same logic but statefully.
+                // Let's assume strict 2.1 in analyzeOperationErrors() is sufficient for "Email Alerts" as it covers the "Trends".
+
                 VendSmartAlert::updateOrCreate(
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_NOT_REACH_MINUS_18],
                     ['severity' => $severity, 'is_active' => true, 'meta_data' => ['v1' => $t1Val]]
@@ -821,5 +856,44 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_NOT_REACH_MINUS_18)->update(['is_active' => false]);
         }
+    }
+
+    private function handleEmailAlert($vendId, $alert, $labels)
+    {
+        // $alert->severity maps to index in $labels (Severity 1 = labels[0], Sev 2 = labels[1])
+        // Indices are 0-based, severity is 1,2,3...
+        $labelIndex = $alert->severity - 1;
+        $label = $labels[$labelIndex] ?? 'Unknown';
+
+        // Check if email already sent for THIS severity level
+        $meta = $alert->meta_data;
+        $lastSentSeverity = $meta['last_sent_severity'] ?? 0;
+
+        if ($alert->severity > $lastSentSeverity) {
+             // Send Email
+             $vend = \App\Models\Vend::find($vendId);
+             if ($vend) {
+                 $alertService = app(\App\Services\AlertEmailService::class);
+                 $alertService->sendVendOperationErrorNotificationMail($vend, $alert->alert_type, $label);
+
+                 // Update state
+                 $meta['last_sent_severity'] = $alert->severity;
+                 $alert->meta_data = $meta;
+                 $alert->is_email_alert_sent = true;
+                 $alert->email_alert_sent_at = now();
+                 $alert->save();
+             }
+        }
+    }
+    private function findMinTimestamp($vendId, $type, $start, $end, $value): string
+    {
+        $record = VendTemp::where('vend_id', $vendId)
+            ->where('type', $type)
+            ->whereBetween('created_at', [$start, $end])
+            ->where('value', $value)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        return $record ? $record->created_at->toIso8601String() : $end->toIso8601String();
     }
 }

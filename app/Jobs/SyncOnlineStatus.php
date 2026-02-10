@@ -61,36 +61,70 @@ class SyncOnlineStatus implements ShouldQueue
                         }
                     }
 
-                    // OFFLINE: per-vend mail via service (no hardcoded recipients)
-                    // Logic update: Ensure that if a vend is flagged as MQTT, we don't alert if HTTP is offline but MQTT is online (or vice versa).
-                    // We only alert if it appears to be truly offline on all expected channels.
-                    $isOffline = $isHttpOffline;
+                    // OFFLINE & RESTORED Check (Tiered Alerts)
+                    // Calculate effective last contact time
+                    $dates = [
+                        $vend->last_updated_at,
+                        $vend->last_vend_transaction_at,
+                        $vend->offline_restart_count_datetime
+                    ];
                     if ($vend->is_mqtt) {
-                        $isOffline = $isHttpOffline && $isMqttOffline;
+                        $dates[] = $vend->mqtt_last_updated_at;
                     }
 
-                    if ($isOffline && !$vend->is_offline_notification_sent) {
+                    $lastContact = null;
+                    foreach ($dates as $date) {
+                        if ($date && ($lastContact === null || $date->gt($lastContact))) {
+                            $lastContact = $date;
+                        }
+                    }
+
+                    $duration = $lastContact ? $now->diffInMinutes($lastContact) : 999999;
+
+                    // Determine current level
+                    $level = 0;
+                    $label = null;
+
+                    if ($duration >= 720) {
+                        $level = 6;
+                        $label = '> 12hr';
+                    } elseif ($duration >= 480) {
+                        $level = 5;
+                        $label = '< 12hr';
+                    } elseif ($duration >= 240) {
+                        $level = 4;
+                        $label = '< 8hr';
+                    } elseif ($duration >= 120) {
+                        $level = 3;
+                        $label = '< 4hr';
+                    } elseif ($duration >= 60) {
+                        $level = 2;
+                        $label = '< 2hr';
+                    } elseif ($duration >= 50) {
+                        $level = 1;
+                        $label = '< 1hr';
+                    }
+
+                    // Send Alert if Level Increased
+                    if ($level > $vend->offline_notification_level) {
                         try {
-                            $this->alertEmailService->sendVendOfflineNotificationMail($vend);
+                            $this->alertEmailService->sendVendOfflineNotificationMail($vend, $label);
                         } catch (\Throwable $e) {
                             Log::error('SyncVendOnlineStatus: Failed to send offline mail for ' . $vend->code, ['error' => $e->getMessage()]);
                         }
-                        $vend->is_offline_notification_sent = true;
+                        $vend->offline_notification_level = $level;
+                        $vend->is_offline_notification_sent = true; // Sync legacy flag
                     }
 
-                    // RESTORED: per-vend mail via service (no hardcoded recipients)
-                    $isRecovered = $isHttpRecovered;
-                    if ($vend->is_mqtt) {
-                        $isRecovered = $isHttpRecovered || $isMqttRecovered;
-                    }
-
-                    if ($isRecovered && $vend->is_offline_notification_sent) {
+                    // Restoration Check (if duration < 15 mins and was previously alerted)
+                    if ($duration < 15 && ($vend->offline_notification_level > 0 || $vend->is_offline_notification_sent)) {
                         try {
                             $this->alertEmailService->sendVendPowerRestoredNotificationMail($vend);
                         } catch (\Throwable $e) {
                             Log::error('SyncVendOnlineStatus: Failed to send restored mail for ' . $vend->code, ['error' => $e->getMessage()]);
                         }
-                        $vend->is_offline_notification_sent = false;
+                        $vend->offline_notification_level = 0;
+                        $vend->is_offline_notification_sent = false; // Sync legacy flag
                         $vend->is_mqtt_offline_notified = false;
                     }
 
