@@ -816,12 +816,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 );
             }
         } else {
-            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
+            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8)->update(['is_active' => false]);
         }
-    }
-
-
-
 
         // 4. Not Reach -18 (Both > -18)
         if (isset($newState['t1_gt_minus_18_start']) && isset($newState['t2_gt_minus_18_start'])) {
@@ -870,19 +866,19 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $lastSentSeverity = $meta['last_sent_severity'] ?? 0;
 
         if ($alert->severity > $lastSentSeverity) {
-             // Send Email
-             $vend = \App\Models\Vend::find($vendId);
-             if ($vend) {
-                 $alertService = app(\App\Services\AlertEmailService::class);
-                 $alertService->sendVendOperationErrorNotificationMail($vend, $alert->alert_type, $label);
+            // Send Email
+            $vend = \App\Models\Vend::find($vendId);
+            if ($vend) {
+                $alertService = app(\App\Services\AlertEmailService::class);
+                $alertService->sendVendOperationErrorNotificationMail($vend, $alert->alert_type, $label);
 
-                 // Update state
-                 $meta['last_sent_severity'] = $alert->severity;
-                 $alert->meta_data = $meta;
-                 $alert->is_email_alert_sent = true;
-                 $alert->email_alert_sent_at = now();
-                 $alert->save();
-             }
+                // Update state
+                $meta['last_sent_severity'] = $alert->severity;
+                $alert->meta_data = $meta;
+                $alert->is_email_alert_sent = true;
+                $alert->email_alert_sent_at = now();
+                $alert->save();
+            }
         }
     }
     private function findMinTimestamp($vendId, $type, $start, $end, $value): string
