@@ -20,6 +20,8 @@ use Log;
 
 class VendDataController extends Controller
 {
+    private $vendDataService;
+
     public function __construct(VendDataService $vendDataService)
     {
         $this->vendDataService = $vendDataService;
@@ -49,7 +51,6 @@ class VendDataController extends Controller
             'name',
             'operator_id',
             'customer_id',
-            'location_type_id',
             'vend_prefix_id',
         ];
 
