@@ -210,8 +210,8 @@ class ProductController extends Controller
         ]);
 
         $userTimezone = $this->getUserTimezone();
-        $productAvailableDateStart = Carbon::parse($request->productAvailableDate, $userTimezone)->startOfDay();
-        $productAvailableDateEnd = Carbon::parse($request->productAvailableDate, $userTimezone)->endOfDay();
+        $productAvailableDateStart = Carbon::parse($request->productAvailableDate, $userTimezone)->startOfDay()->setTimezone('UTC');
+        $productAvailableDateEnd = Carbon::parse($request->productAvailableDate, $userTimezone)->endOfDay()->setTimezone('UTC');
 
         $products = Product::query()
             ->with([
@@ -358,16 +358,22 @@ class ProductController extends Controller
 
         $cmsQtyAvailableProducts = $this->cmsService->getCMSQtyAvailableApi();
 
-        foreach ($products as $product) {
-
-
-            if ($cmsQtyAvailableProducts) {
-                foreach ($cmsQtyAvailableProducts as $cmsQtyAvailableProduct) {
-                    if ($product->code == $cmsQtyAvailableProduct['code']) {
-                        $product->qty_available_pcs_api = $cmsQtyAvailableProduct['qty'];
-                        $product->net_available_qty_pcs_api = $cmsQtyAvailableProduct['qty'] - $product->not_yet_sync_api_qty;
-                    }
+        // Create a lookup map for CMS products for O(1) access
+        $cmsQtyMap = [];
+        if ($cmsQtyAvailableProducts) {
+            foreach ($cmsQtyAvailableProducts as $item) {
+                // Ensure 'code' key exists to avoid undefined index errors
+                if (isset($item['code'])) {
+                    $cmsQtyMap[$item['code']] = $item;
                 }
+            }
+        }
+
+        foreach ($products as $product) {
+            if (isset($cmsQtyMap[$product->code])) {
+                $cmsQtyAvailableProduct = $cmsQtyMap[$product->code];
+                $product->qty_available_pcs_api = $cmsQtyAvailableProduct['qty'] ?? 0;
+                $product->net_available_qty_pcs_api = ($cmsQtyAvailableProduct['qty'] ?? 0) - $product->not_yet_sync_api_qty;
             }
         }
 
