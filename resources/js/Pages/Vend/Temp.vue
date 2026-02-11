@@ -185,12 +185,12 @@
                                           <label class="pl-2">T4</label>
                                       </span>
                                   </span>
-                                  <!-- <span class="inline-flex rounded-md shadow-sm " v-if="'fan' in vend.parameterJson">
+                                  <span class="inline-flex rounded-md shadow-sm " v-if="'fan' in vend.parameterJson">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" value="1" v-model="fans" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                           <label class="pl-2">Fan</label>
                                       </span>
-                                  </span> -->
+                                  </span>
                               </div>
                               <div class="flex space-x-2 px-2">
                                 <div
@@ -318,7 +318,7 @@ const vendSelectionOptions = computed(() => {
 const vendTemps = ref()
 const vendFans = ref()
 const types = ref([1, 2]) // Default to [1, 2]
-const fans = ref([props.fans])
+const fans = ref(props.fans ? props.fans : [])
 const componentKey = ref(0);
 const loading = ref(false)
 const graphOptions = ref({
@@ -342,6 +342,14 @@ scales: {
       }
     }
   },
+  y1: {
+    type: 'linear',
+    display: true,
+    position: 'right',
+    grid: {
+      drawOnChartArea: false,
+    },
+  },
 },
 plugins: {
   title: {
@@ -356,7 +364,8 @@ plugins: {
           label += ': ';
         }
         if (context.parsed.y !== null) {
-          label += context.parsed.y + '°C';
+            console.log(context)
+          label += context.parsed.y + (context.dataset.yAxisID == 'y' ? '°C' : ' RPM');
         }
         return label;
       }
@@ -715,19 +724,23 @@ if (types.value.length > 0 || fans.value.length > 0) {
     })
   }
   if (vendFans.value.length > 0) {
-    let allTimings = []
-    datasets.value = []
+    let fanColors = ['#808080']
     vendFans.value.forEach((vendFan, vendFanIndex) => {
       datasets.value.push({
-        label: 'Fan' + vendFanIndex,
-        data: vendFan.map((fan) => { return { x: fan.created_at, y: fan.value } }),
-        borderColor: colors[vendFanIndex - 1],
-        backgroundColor: colors[vendFanIndex - 1],
+        label: 'Fan' + (vend.value.parameterJson['fan'] ? (' (' + vend.value.parameterJson['fan'] + ')' ) : ''),
+        data: vendFan.map((fan) => {
+          let yVal = parseFloat(fan.value)
+          if(isNaN(yVal)) {
+            yVal = null
+          }
+          return { x: fan.created_at, y: yVal }
+        }),
+        borderColor: fanColors[0],
+        backgroundColor: fanColors[0],
         tension: 0.1,
-        spanGaps: true,
+        spanGaps: false,
         yAxisID: 'y1',
       })
-      allTimings.push(vendFans)
     })
   }
 
