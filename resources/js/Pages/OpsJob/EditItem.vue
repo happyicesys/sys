@@ -984,7 +984,7 @@
                   type="button"
                   class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white w-full md:w-fit"
                   @click="onStatusClicked(99)"
-                  v-if="(opsJobItem.status < 3 && opsJobItem.status != 99) && permissions.includes('delete operations')"
+                  v-if="(opsJobItem.status < 2 && opsJobItem.status != 99) && permissions.includes('delete operations')"
               >
                 <span class="flex space-x-1 items-center">
                   <XCircleIcon class="w-4 h-4"></XCircleIcon>
