@@ -332,7 +332,7 @@ const matrix21 = computed(() => {
       {
           id: 'temps_above_0',
           label: 'B) T1 & or T2, above 0°C',
-          sub: 'Possible caused by:\ni) Freezer door not close tight\nii) Open freezer door >15mins\nFan not function',
+          sub: 'Possible caused by:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Fan not function',
           note: 'Alert dismissed once temp below 0c',
           types: ['temps_above_0'],
           headers: { 1: '> 30 mins', 2: '> 60 mins' }
@@ -348,7 +348,7 @@ const matrix21 = computed(() => {
       {
           id: 'not_reach_minus_18',
           label: 'D) T1 & or T2, did not reach -18°C',
-          sub: 'Possible caused by:\ni) Freezer door not close tight\nii) Open freezer door >15mins\nMany purchases occur',
+          sub: 'Possible caused by:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Many purchases occur',
           note: 'Alert dismissed once temp below -18c',
           types: ['not_reach_minus_18'],
           headers: { 1: 'Within last 8 hours', 2: '> 8 hours' }
@@ -883,14 +883,14 @@ const loadMoreHistory = () => {
             <div class="flex items-center justify-between mb-4">
               <div>
                 <h3 class="text-lg font-semibold text-gray-900">(1) Alert on Lost of Connectivity or Electricity</h3>
-                <p class="text-sm text-gray-500">Offline hours</p>
+                <p class="text-sm text-gray-500">Handling Method:</p>
                 <div class="mt-2 text-xs text-gray-500 space-y-1">
                   <div>i) Cross-check with other source of connectivity device (eg: cashless device; cctv)</div>
                   <div>ii) Contact location personnel to confirm is power-trip happen on machine</div>
                   <div>iii) If after > 8hrs, still lost connectivity/electricity,  arrange technician to go onsite check</div>
                 </div>
+                <p class="pt-2 text-sm text-gray-500">Offline hours</p>
               </div>
-              <span class="text-sm text-gray-500">Max 60hr</span>
             </div>
 
             <div class="pb-4">
@@ -907,6 +907,9 @@ const loadMoreHistory = () => {
                         {{ bucket.label }}
                         <span class="ml-1 text-xs font-normal text-gray-500">
                           ({{ bucket.rows.length }})
+                        </span>
+                        <span v-if="bucket.label === '> 12hr'" class="ml-2 text-xs font-normal text-gray-700">
+                          Max 60hr
                         </span>
                       </span>
                       <button @click="fetchHistory('connectivity', bucket.label, 'Offline History (' + bucket.label + ')')" class="text-gray-500 hover:text-indigo-600">
@@ -2045,26 +2048,51 @@ const loadMoreHistory = () => {
 
       </div>
     </div>
-    <Modal :show="showHistoryModal" @close="showHistoryModal = false">
+    <Modal :show="showHistoryModal" @modalClose="showHistoryModal = false">
         <div class="p-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">{{ historyTitle }}</h3>
             <div v-if="historyLoading" class="text-center py-4">Loading...</div>
             <div v-else-if="historyLogs.length === 0" class="text-center py-4 text-gray-500">No history found.</div>
-            <ul v-else class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                <li v-for="log in historyLogs" :key="log.id" class="border-b pb-2">
-                    <div class="font-bold flex justify-between">
-                        <span>
+            <div v-else class="overflow-x-auto max-h-[60vh]">
+              <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    <th class="px-4 py-2 text-left font-medium text-gray-500">Machine</th>
+                    <th class="px-4 py-2 text-left font-bold text-red-600">Triggered at</th>
+                    <th class="px-4 py-2 text-left font-bold text-red-600">Dismissed at</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                  <tr v-for="log in historyLogs" :key="log.id">
+                    <td class="px-4 py-2">
+                        <div class="font-bold text-gray-900">
                             <a :href="'/vends/customers?codes=' + log.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                                 {{ log.vend_code }}
                             </a>
-                             - {{ log.vend_prefix_name }} {{ log.vend_name }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            {{ log.vend_prefix_name }}
+                            <span v-if="log.vend_name">
+                                {{ log.vend_name }}
+                            </span>
+                        </div>
+                        <div class="text-xs text-gray-500">{{ log.customer_name }}</div>
+                        <div class="text-xs text-gray-400 mt-0.5">{{ log.operator_name }}</div>
+                    </td>
+                    <td class="px-4 py-2 text-gray-700">
+                        <span v-if="log.event === 'machine_health_alert'">
+                            {{ formatDateTimeComma(log.occurred_at) }}
                         </span>
-                        <span class="text-xs font-normal text-gray-500">{{ formatDateTimeComma(log.occurred_at) }}</span>
-                    </div>
-                    <div class="text-sm text-gray-600">{{ log.customer_name }}</div>
-                    <div class="text-xs text-gray-400 mt-0.5">{{ log.operator_name }}</div>
-                </li>
-            </ul>
+                    </td>
+                    <td class="px-4 py-2 text-gray-700">
+                        <span v-if="log.event === 'machine_health_alert_dismissed'">
+                            {{ formatDateTimeComma(log.occurred_at) }}
+                        </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
              <div v-if="historyHasMore" class="mt-3 flex justify-center">
                 <Button
                     class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"

@@ -235,7 +235,7 @@ class ReportController extends Controller
 
         $query = \App\Models\VendLog::query()
             ->with(['vend', 'vend.customer', 'vend.operator', 'vend.vendPrefix'])
-            ->where('event', 'machine_health_alert')
+            ->whereIn('event', ['machine_health_alert', 'machine_health_alert_dismissed'])
             ->where('context->bucket', $bucket);
 
         // Filter by Vend properties
@@ -284,6 +284,7 @@ class ReportController extends Controller
                     'vend_prefix_name' => $log->vend->vendPrefix ? $log->vend->vendPrefix->name : '',
                     'customer_name' => $log->vend->customer ? $log->vend->customer->name : '',
                     'operator_name' => $log->vend->operator ? $log->vend->operator->name : '',
+                    'event' => $log->event,
                 ];
             }),
             'has_more' => $hasMore,
