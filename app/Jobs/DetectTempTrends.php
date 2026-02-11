@@ -420,10 +420,16 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
 
         // Get latest temps (O(1) with index)
-        $t1 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_CHAMBER)
-            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)->latest()->first();
-        $t2 = VendTemp::where('vend_id', $vendId)->where('type', VendTemp::TYPE_EVAPORATOR)
-            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)->latest()->first();
+        // Optimized: Single query to get both latest temps
+        $latestTemps = VendTemp::where('vend_id', $vendId)
+            ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
+            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+            ->orderBy('created_at', 'desc')
+            ->take(10) // Small buffer to ensure we get both types
+            ->get();
+
+        $t1 = $latestTemps->where('type', VendTemp::TYPE_CHAMBER)->first();
+        $t2 = $latestTemps->where('type', VendTemp::TYPE_EVAPORATOR)->first();
 
         // If no recent data skip.
         if (!$t1 || !$t2)
@@ -517,7 +523,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 );
                 $thresholdMinutes = $severity === 2 ? 30 : 10;
                 $occurredAt = \Carbon\Carbon::parse($newState['t2_lt_minus_25_start'])->addMinutes($thresholdMinutes);
-                $this->handleEmailAlert($vendId, $alert, ['> 10 mins', '> 30 mins'], $occurredAt);
+                $this->handleEmailAlert($vend, $alert, ['> 10 mins', '> 30 mins'], $occurredAt);
             }
         }
 
@@ -546,7 +552,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 );
                 $thresholdMinutes = $severity === 2 ? 60 : 30;
                 $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
-                $this->handleEmailAlert($vendId, $alert, ['> 30 mins', '> 60 mins'], $occurredAt);
+                $this->handleEmailAlert($vend, $alert, ['> 30 mins', '> 60 mins'], $occurredAt);
             }
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_0)->update(['is_active' => false]);
@@ -577,7 +583,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 );
                 $thresholdMinutes = $severity === 2 ? 90 : 60;
                 $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
-                $this->handleEmailAlert($vendId, $alert, ['> 60 mins', '> 90 mins'], $occurredAt);
+                $this->handleEmailAlert($vend, $alert, ['> 60 mins', '> 90 mins'], $occurredAt);
             }
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8)->update(['is_active' => false]);
@@ -607,7 +613,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 );
                 $thresholdHours = $severity === 2 ? 12 : 8;
                 $occurredAt = $effectiveStart->copy()->addHours($thresholdHours);
-                $this->handleEmailAlert($vendId, $alert, ['Within last 8 hours', '> 8 hours'], $occurredAt);
+                $this->handleEmailAlert($vend, $alert, ['Within last 8 hours', '> 8 hours'], $occurredAt);
             }
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_NOT_REACH_MINUS_18)->update(['is_active' => false]);
@@ -616,7 +622,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
 
 
-    private function handleEmailAlert($vendId, $alert, $labels, $occurredAt = null)
+    private function handleEmailAlert($vend, $alert, $labels, $occurredAt = null)
     {
         // $alert->severity maps to index in $labels (Severity 1 = labels[0], Sev 2 = labels[1])
         // Indices are 0-based, severity is 1,2,3...
@@ -628,7 +634,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $lastSentSeverity = $meta['last_sent_severity'] ?? 0;
 
         if ($alert->severity > $lastSentSeverity) {
-            $vend = \App\Models\Vend::find($vendId);
+            // $vend is passed directly, no need to find()
             if ($vend) {
                 // 1. Send Email
                 $alertService = app(\App\Services\AlertEmailService::class);
