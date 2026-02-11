@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class TestEmail extends Command
 {
@@ -40,6 +41,9 @@ class TestEmail extends Command
             $this->info('Test email sent successfully!');
             return self::SUCCESS;
         } catch (\Exception $e) {
+            Log::error("Test email failed to send to {$to}: " . $e->getMessage(), [
+                'exception' => $e
+            ]);
             $this->error('Failed to send email: ' . $e->getMessage());
             return self::FAILURE;
         }
