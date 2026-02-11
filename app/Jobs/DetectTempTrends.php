@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\VendSmartAlert;
 use App\Models\VendTemp;
+use App\Models\VendLog;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Queue\Queueable;
@@ -61,6 +62,9 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         // 2. Individual Run
         // Always run stateful (Real-time 2.1 Operation Errors)
         $this->analyzeStateful($this->targetVendId);
+
+        // Check Connectivity (1)
+        $this->checkConnectivity($this->targetVendId);
 
         // 2. heavy trends (Hourly)
         if ($this->isFullScan) {
@@ -583,6 +587,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
     }
 
+
+
     private function handleEmailAlert($vendId, $alert, $labels)
     {
         // $alert->severity maps to index in $labels (Severity 1 = labels[0], Sev 2 = labels[1])
@@ -590,16 +596,30 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $labelIndex = $alert->severity - 1;
         $label = $labels[$labelIndex] ?? 'Unknown';
 
-        // Check if email already sent for THIS severity level
+        // Check if email/log already sent for THIS severity level
         $meta = $alert->meta_data;
         $lastSentSeverity = $meta['last_sent_severity'] ?? 0;
 
         if ($alert->severity > $lastSentSeverity) {
-            // Send Email
             $vend = \App\Models\Vend::find($vendId);
             if ($vend) {
+                // 1. Send Email
                 $alertService = app(\App\Services\AlertEmailService::class);
                 $alertService->sendVendOperationErrorNotificationMail($vend, $alert->alert_type, $label);
+
+                // 2. Log to Machine Log
+                VendLog::create([
+                    'vend_id' => $vend->id,
+                    'event' => 'machine_health_alert', // Generic event
+                    'subject' => $this->getHumanReadableAlertType($alert->alert_type) . " ({$label})",
+                    'context' => [
+                        'bucket' => $label,
+                        'alert_type' => $alert->alert_type,
+                        'severity' => $alert->severity,
+                        'meta' => $meta,
+                    ],
+                    'occurred_at' => now(),
+                ]);
 
                 // Update state
                 $meta['last_sent_severity'] = $alert->severity;
@@ -608,6 +628,96 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $alert->email_alert_sent_at = now();
                 $alert->save();
             }
+        }
+    }
+
+    private function getHumanReadableAlertType($type)
+    {
+        return match ($type) {
+            VendSmartAlert::TYPE_T2_BELOW_MINUS_25 => 'T2 below -25°C',
+            VendSmartAlert::TYPE_TEMPS_ABOVE_0 => 'T1 & T2 above 0°C',
+            VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8 => 'T1 & T2 above -8°C',
+            VendSmartAlert::TYPE_NOT_REACH_MINUS_18 => 'T1 & T2 not reach -18°C',
+            default => $type,
+        };
+    }
+
+    private function checkConnectivity($vendId): void
+    {
+        $vend = \App\Models\Vend::find($vendId);
+        if (!$vend) {
+            \Log::info("Vend $vendId not found in checkConnectivity");
+            return;
+        }
+
+        // Calculate hours offline
+        $now = now();
+        $limit = 500;
+        $fallbackDate = '1970-01-01 00:00:00';
+
+        $dates = [
+            $vend->mqtt_last_updated_at,
+            $vend->last_updated_at,
+            $vend->last_vend_transaction_at,
+            $vend->offline_restart_count_datetime,
+        ];
+
+        $lastContact = null;
+        foreach ($dates as $date) {
+            if ($date) {
+                $d = \Carbon\Carbon::parse($date);
+                if (!$lastContact || $d->gt($lastContact)) {
+                    $lastContact = $d;
+                }
+            }
+        }
+
+        if (!$lastContact)
+            return; // Never contacted?
+
+        $hoursOffline = abs($now->diffInMinutes($lastContact)) / 60;
+
+        // Determine Bucket
+        $bucket = null;
+        if ($hoursOffline >= 0.25 && $hoursOffline < 1) {
+            $bucket = '< 1hr';
+        } elseif ($hoursOffline >= 1 && $hoursOffline < 2) {
+            $bucket = '< 2hr';
+        } elseif ($hoursOffline >= 2 && $hoursOffline < 4) {
+            $bucket = '< 4hr';
+        } elseif ($hoursOffline >= 4 && $hoursOffline < 8) {
+            $bucket = '< 8hr';
+        } elseif ($hoursOffline >= 8 && $hoursOffline < 12) {
+            $bucket = '< 12hr';
+        } elseif ($hoursOffline >= 12) {
+            $bucket = '> 12hr';
+        }
+
+        if (!$bucket)
+            return;
+
+        // Check state to avoid duplicate logs for the same bucket
+        $state = $vend->temp_monitoring_state ?? [];
+        $lastBucket = $state['connectivity_last_bucket'] ?? null;
+
+        if ($bucket !== $lastBucket) {
+            // Log it
+            VendLog::create([
+                'vend_id' => $vend->id,
+                'event' => 'machine_health_alert',
+                'subject' => "Offline ({$bucket})",
+                'context' => [
+                    'bucket' => $bucket,
+                    'type' => 'connectivity',
+                    'hours_offline' => $hoursOffline,
+                ],
+                'occurred_at' => $now,
+            ]);
+
+            // Update state
+            $state['connectivity_last_bucket'] = $bucket;
+            $vend->temp_monitoring_state = $state;
+            $vend->save();
         }
     }
     private function findMinTimestamp($vendId, $type, $start, $end, $value): string

@@ -6,6 +6,8 @@ import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import SearchInput from '@/Components/SearchInput.vue'
 import { CheckCircleIcon } from '@heroicons/vue/24/solid'
+import { ClockIcon } from '@heroicons/vue/24/outline'
+import Modal from '@/Components/Modal.vue'
 
 const props = defineProps({
   machineHealth: {
@@ -720,8 +722,70 @@ const formatErrorDesc = (code, desc) => {
   if (desc.endsWith(suffix)) {
     return desc.slice(0, -suffix.length)
   }
+  if (desc.endsWith(suffix)) {
+    return desc.slice(0, -suffix.length)
+  }
   return desc
 }
+
+// History Modal Logic
+const showHistoryModal = ref(false)
+const historyLogs = ref([])
+const historyLoading = ref(false)
+const historyTitle = ref('')
+const historyHasMore = ref(false)
+const historyNextCursor = ref(null)
+const historyParams = reactive({ type: null, bucket: null, filters: {} })
+
+const fetchHistory = async (type, bucket, title, cursor = null) => {
+    if (!cursor) {
+        historyTitle.value = title
+        historyLogs.value = []
+        historyNextCursor.value = null
+        historyHasMore.value = false
+        historyParams.type = type
+        historyParams.bucket = bucket
+        // Snapshot filters
+        historyParams.filters = {
+            operator_ids: filters.operator_ids,
+            vend_prefix_ids: filters.vend_prefix_ids,
+            customer_ids: filters.customer_ids,
+            machine_codes: filters.machine_codes_input ? String(filters.machine_codes_input).split(',').map(s => s.trim()).filter(Boolean) : []
+        }
+        showHistoryModal.value = true
+    }
+
+    historyLoading.value = true
+
+    try {
+        const response = await axios.get('/reports/machine-health/history', {
+            params: {
+                type: historyParams.type,
+                bucket: historyParams.bucket,
+                cursor: cursor,
+                ...historyParams.filters
+            }
+        })
+        if (cursor) {
+            historyLogs.value.push(...response.data.data)
+        } else {
+            historyLogs.value = response.data.data
+        }
+        historyHasMore.value = response.data.has_more
+        historyNextCursor.value = response.data.next_cursor
+    } catch (error) {
+        console.error(error)
+    } finally {
+        historyLoading.value = false
+    }
+}
+
+const loadMoreHistory = () => {
+    if (historyHasMore.value && historyNextCursor.value) {
+        fetchHistory(historyParams.type, historyParams.bucket, historyTitle.value, historyNextCursor.value)
+    }
+}
+
 </script>
 
 <template>
@@ -833,11 +897,16 @@ const formatErrorDesc = (code, desc) => {
                   :class="getBucketBgClass(bucket.label)"
                 >
                   <div class="p-3 border-b border-gray-200 bg-opacity-50 rounded-t-lg">
-                    <h4 class="text-sm font-semibold text-gray-800">
-                      {{ bucket.label }}
-                      <span class="ml-1 text-xs font-normal text-gray-500">
-                        ({{ bucket.rows.length }})
+                    <h4 class="text-sm font-semibold text-gray-800 flex items-center justify-between">
+                      <span>
+                        {{ bucket.label }}
+                        <span class="ml-1 text-xs font-normal text-gray-500">
+                          ({{ bucket.rows.length }})
+                        </span>
                       </span>
+                      <button @click="fetchHistory('connectivity', bucket.label, 'Offline History (' + bucket.label + ')')" class="text-gray-500 hover:text-indigo-600">
+                          <ClockIcon class="w-4 h-4" />
+                      </button>
                     </h4>
                   </div>
                   <div class="p-3 overflow-y-auto max-h-[800px]">
@@ -1108,8 +1177,11 @@ const formatErrorDesc = (code, desc) => {
                       <!-- Data Columns -->
                       <div class="md:col-span-3 grid" :style="`grid-template-columns: repeat(${Object.keys(group.headers).length}, minmax(0, 1fr))`">
                         <div v-for="(header, sev) in group.headers" :key="sev" class="border-r border-gray-100 last:border-r-0 flex flex-col">
-                            <div class="border-b border-red-800 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide shadow-sm" :class="getMatrixHeaderClass(sev)">
-                              {{ header }}
+                            <div class="border-b border-red-800 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide shadow-sm flex justify-between items-center" :class="getMatrixHeaderClass(sev)">
+                              <span>{{ header }}</span>
+                              <button @click="fetchHistory(group.types[0], header, group.label + ' - ' + header)" class="text-white hover:text-gray-200">
+                                  <ClockIcon class="w-4 h-4" />
+                              </button>
                             </div>
                             <div class="p-3 flex-1 space-y-3">
                                 <template v-if="group.cells[sev] && group.cells[sev].length">
@@ -1968,5 +2040,40 @@ const formatErrorDesc = (code, desc) => {
 
       </div>
     </div>
+    <Modal :show="showHistoryModal" @close="showHistoryModal = false">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">{{ historyTitle }}</h3>
+            <div v-if="historyLoading" class="text-center py-4">Loading...</div>
+            <div v-else-if="historyLogs.length === 0" class="text-center py-4 text-gray-500">No history found.</div>
+            <ul v-else class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                <li v-for="log in historyLogs" :key="log.id" class="border-b pb-2">
+                    <div class="font-bold flex justify-between">
+                        <span>
+                            <a :href="'/vends/customers?codes=' + log.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                                {{ log.vend_code }}
+                            </a>
+                             - {{ log.vend_name }}
+                        </span>
+                        <span class="text-xs font-normal text-gray-500">{{ formatDateTimeComma(log.occurred_at) }}</span>
+                    </div>
+                    <div class="text-sm text-gray-600">{{ log.customer_name }}</div>
+                    <div class="text-xs text-gray-400 mt-0.5">{{ log.operator_name }}</div>
+                </li>
+            </ul>
+             <div v-if="historyHasMore" class="mt-3 flex justify-center">
+                <Button
+                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    @click="loadMoreHistory"
+                    :disabled="historyLoading"
+                >
+                    {{ historyLoading ? 'Loading...' : 'Show More' }}
+                </Button>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <Button @click="showHistoryModal = false" class="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 border">Close</Button>
+            </div>
+        </div>
+    </Modal>
   </AuthenticatedLayout>
 </template>

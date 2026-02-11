@@ -217,6 +217,79 @@ class ReportController extends Controller
         ]);
     }
 
+    public function historyMachineHealth(Request $request)
+    {
+        $request->validate([
+            'bucket' => 'required|string',
+            'type' => 'required|string',
+            'cursor' => 'nullable|string',
+            'operator_ids' => 'nullable|array',
+            'vend_prefix_ids' => 'nullable|array',
+            'customer_ids' => 'nullable|array',
+            'machine_codes' => 'nullable|array',
+        ]);
+
+        $bucket = $request->input('bucket');
+        $type = $request->input('type');
+        $cursor = $request->input('cursor');
+
+        $query = \App\Models\VendLog::query()
+            ->with(['vend:id,code,name,customer_id,operator_id', 'vend.customer:id,name,code', 'vend.operator:id,name'])
+            ->where('event', 'machine_health_alert')
+            ->where('context->bucket', $bucket);
+
+        // Filter by Vend properties
+        $query->whereHas('vend', function ($q) use ($request) {
+            $q->where('is_testing', false);
+
+            if ($request->filled('operator_ids')) {
+                $q->whereIn('operator_id', $request->input('operator_ids'));
+            }
+            if ($request->filled('vend_prefix_ids')) {
+                $q->whereIn('vend_prefix_id', $request->input('vend_prefix_ids'));
+            }
+            if ($request->filled('customer_ids')) {
+                $q->whereIn('customer_id', $request->input('customer_ids'));
+            }
+            if ($request->filled('machine_codes')) {
+                $q->whereIn('code', $request->input('machine_codes'));
+            }
+        });
+
+        if ($type === 'connectivity') {
+            $query->where('context->type', 'connectivity');
+        } else {
+            $query->where('context->alert_type', $type);
+        }
+
+        if ($cursor) {
+            $query->where('occurred_at', '<', Carbon::parse($cursor));
+        }
+
+        $limit = 10;
+        $logs = $query->orderByDesc('occurred_at')
+            ->limit($limit + 1) // Fetch one extra to determine hasMore
+            ->get();
+
+        $hasMore = $logs->count() > $limit;
+        $logs = $logs->take($limit);
+
+        return response()->json([
+            'data' => $logs->map(function ($log) {
+                return [
+                    'id' => $log->id,
+                    'occurred_at' => $log->occurred_at->toIso8601String(),
+                    'vend_code' => $log->vend->code,
+                    'vend_name' => $log->vend->name,
+                    'customer_name' => $log->vend->customer ? $log->vend->customer->name : '',
+                    'operator_name' => $log->vend->operator ? $log->vend->operator->name : '',
+                ];
+            }),
+            'has_more' => $hasMore,
+            'next_cursor' => $hasMore ? $logs->last()->occurred_at->toIso8601String() : null,
+        ]);
+    }
+
     private function resolveDefaultOperatorIds(?Collection $operatorOptions = null): array
     {
         $user = auth()->user();
