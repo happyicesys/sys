@@ -324,7 +324,7 @@ const matrix21 = computed(() => {
   const meta = [
       {
           id: 't2_below_minus_25',
-          label: 'A) T2, below -25°C',
+          label: 'A) T2, below -27°C',
           sub: 'Possible caused by:\ni) Fan not function\nii) Temp probe malfunction',
           types: ['t2_below_minus_25'],
           headers: { 1: '> 10 mins', 2: '> 30 mins' }

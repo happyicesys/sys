@@ -442,14 +442,14 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $state = $vend->temp_monitoring_state ?? [];
         $newState = $state;
 
-        // --- Logic: T2 < -25C (Frozen?) ---
+        // --- Logic: T2 < -27C (Frozen?) ---
         // Ignore extremely low values (e.g. -50C) which are likely sensor errors/open circuits
-        if ($t2Val < -25 && $t2Val > -50) {
-            if (!isset($state['t2_lt_minus_25_start'])) {
-                $newState['t2_lt_minus_25_start'] = $t2->created_at->toIso8601String();
+        if ($t2Val < -27 && $t2Val > -50) {
+            if (!isset($state['t2_lt_minus_27_start'])) {
+                $newState['t2_lt_minus_27_start'] = $t2->created_at->toIso8601String();
             }
         } else {
-            unset($newState['t2_lt_minus_25_start']);
+            unset($newState['t2_lt_minus_27_start']);
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_T2_BELOW_MINUS_25)->update(['is_active' => false]);
         }
 
@@ -502,9 +502,9 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
 
         // --- Evaluate Alerts with Priority Suppression ---
-        // 1. T2 < -25 (Independent)
-        if (isset($newState['t2_lt_minus_25_start'])) {
-            $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['t2_lt_minus_25_start']), true);
+        // 1. T2 < -27 (Independent)
+        if (isset($newState['t2_lt_minus_27_start'])) {
+            $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['t2_lt_minus_27_start']), true);
             $severity = 0;
             if ($diffMinutes >= 30)
                 $severity = 2;
@@ -522,7 +522,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
                 );
                 $thresholdMinutes = $severity === 2 ? 30 : 10;
-                $occurredAt = \Carbon\Carbon::parse($newState['t2_lt_minus_25_start'])->addMinutes($thresholdMinutes);
+                $occurredAt = \Carbon\Carbon::parse($newState['t2_lt_minus_27_start'])->addMinutes($thresholdMinutes);
                 $this->handleEmailAlert($vend, $alert, ['> 10 mins', '> 30 mins'], $occurredAt);
             }
         }
@@ -674,7 +674,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
     private function getHumanReadableAlertType($type)
     {
         return match ($type) {
-            VendSmartAlert::TYPE_T2_BELOW_MINUS_25 => 'T2 below -25°C',
+            VendSmartAlert::TYPE_T2_BELOW_MINUS_25 => 'T2 below -27°C',
             VendSmartAlert::TYPE_TEMPS_ABOVE_0 => 'T1 & T2 above 0°C',
             VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8 => 'T1 & T2 above -8°C',
             VendSmartAlert::TYPE_NOT_REACH_MINUS_18 => 'T1 & T2 not reach -18°C',
