@@ -506,11 +506,18 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
+                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_T2_BELOW_MINUS_25)->first();
+                $meta = $existing ? ($existing->meta_data ?? []) : [];
+                $meta['val'] = $t2Val;
+                $meta['duration'] = $diffMinutes;
+
                 $alert = VendSmartAlert::updateOrCreate(
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_T2_BELOW_MINUS_25],
-                    ['severity' => $severity, 'is_active' => true, 'meta_data' => ['val' => $t2Val, 'duration' => $diffMinutes]]
+                    ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
                 );
-                $this->handleEmailAlert($vendId, $alert, ['> 10 mins', '> 30 mins']);
+                $thresholdMinutes = $severity === 2 ? 30 : 10;
+                $occurredAt = \Carbon\Carbon::parse($newState['t2_lt_minus_25_start'])->addMinutes($thresholdMinutes);
+                $this->handleEmailAlert($vendId, $alert, ['> 10 mins', '> 30 mins'], $occurredAt);
             }
         }
 
@@ -528,11 +535,18 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
+                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_0)->first();
+                $meta = $existing ? ($existing->meta_data ?? []) : [];
+                $meta['v1'] = $t1Val;
+                $meta['v2'] = $t2Val;
+
                 $alert = VendSmartAlert::updateOrCreate(
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_TEMPS_ABOVE_0],
-                    ['severity' => $severity, 'is_active' => true, 'meta_data' => ['v1' => $t1Val, 'v2' => $t2Val]]
+                    ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
                 );
-                $this->handleEmailAlert($vendId, $alert, ['> 30 mins', '> 60 mins']);
+                $thresholdMinutes = $severity === 2 ? 60 : 30;
+                $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
+                $this->handleEmailAlert($vendId, $alert, ['> 30 mins', '> 60 mins'], $occurredAt);
             }
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_0)->update(['is_active' => false]);
@@ -552,11 +566,18 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
+                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8)->first();
+                $meta = $existing ? ($existing->meta_data ?? []) : [];
+                $meta['v1'] = $t1Val;
+                $meta['v2'] = $t2Val;
+
                 $alert = VendSmartAlert::updateOrCreate(
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8],
-                    ['severity' => $severity, 'is_active' => true, 'meta_data' => ['v1' => $t1Val, 'v2' => $t2Val]]
+                    ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
                 );
-                $this->handleEmailAlert($vendId, $alert, ['> 60 mins', '> 90 mins']);
+                $thresholdMinutes = $severity === 2 ? 90 : 60;
+                $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
+                $this->handleEmailAlert($vendId, $alert, ['> 60 mins', '> 90 mins'], $occurredAt);
             }
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8)->update(['is_active' => false]);
@@ -576,11 +597,17 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
+                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_NOT_REACH_MINUS_18)->first();
+                $meta = $existing ? ($existing->meta_data ?? []) : [];
+                $meta['v1'] = $t1Val;
+
                 $alert = VendSmartAlert::updateOrCreate(
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_NOT_REACH_MINUS_18],
-                    ['severity' => $severity, 'is_active' => true, 'meta_data' => ['v1' => $t1Val]]
+                    ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
                 );
-                $this->handleEmailAlert($vendId, $alert, ['Within last 8 hours', '> 8 hours']);
+                $thresholdHours = $severity === 2 ? 12 : 8;
+                $occurredAt = $effectiveStart->copy()->addHours($thresholdHours);
+                $this->handleEmailAlert($vendId, $alert, ['Within last 8 hours', '> 8 hours'], $occurredAt);
             }
         } else {
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_NOT_REACH_MINUS_18)->update(['is_active' => false]);
@@ -589,7 +616,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
 
 
-    private function handleEmailAlert($vendId, $alert, $labels)
+    private function handleEmailAlert($vendId, $alert, $labels, $occurredAt = null)
     {
         // $alert->severity maps to index in $labels (Severity 1 = labels[0], Sev 2 = labels[1])
         // Indices are 0-based, severity is 1,2,3...
@@ -618,7 +645,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                         'severity' => $alert->severity,
                         'meta' => $meta,
                     ],
-                    'occurred_at' => now(),
+                    'occurred_at' => $occurredAt ?? now(),
                 ]);
 
                 // Update state
@@ -700,6 +727,18 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $state = $vend->temp_monitoring_state ?? [];
         $lastBucket = $state['connectivity_last_bucket'] ?? null;
 
+
+        $threshold = match ($bucket) {
+            '< 1hr' => 0.25,
+            '< 2hr' => 1,
+            '< 4hr' => 2,
+            '< 8hr' => 4,
+            '< 12hr' => 8,
+            '> 12hr' => 12,
+            default => 0,
+        };
+        $occurredAt = $lastContact->copy()->addMinutes($threshold * 60);
+
         if ($bucket !== $lastBucket) {
             // Log it
             VendLog::create([
@@ -711,7 +750,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     'type' => 'connectivity',
                     'hours_offline' => $hoursOffline,
                 ],
-                'occurred_at' => $now,
+                'occurred_at' => $occurredAt,
             ]);
 
             // Update state
