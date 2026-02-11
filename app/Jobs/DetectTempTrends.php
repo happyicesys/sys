@@ -443,7 +443,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $newState = $state;
 
         // --- Logic: T2 < -25C (Frozen?) ---
-        if ($t2Val < -25) {
+        // Ignore extremely low values (e.g. -50C) which are likely sensor errors/open circuits
+        if ($t2Val < -25 && $t2Val > -50) {
             if (!isset($state['t2_lt_minus_25_start'])) {
                 $newState['t2_lt_minus_25_start'] = $t2->created_at->toIso8601String();
             }
