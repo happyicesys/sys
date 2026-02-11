@@ -439,7 +439,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         // --- Logic: T2 < -25C (Frozen?) ---
         if ($t2Val < -25) {
             if (!isset($state['t2_lt_minus_25_start'])) {
-                $newState['t2_lt_minus_25_start'] = $now->toIso8601String();
+                $newState['t2_lt_minus_25_start'] = $t2->created_at->toIso8601String();
             }
         } else {
             unset($newState['t2_lt_minus_25_start']);
@@ -449,13 +449,13 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         // --- Logic: T1 & T2 > 0 (Warm) ---
         if ($t1Val > 0) {
             if (!isset($state['t1_gt_0_start']))
-                $newState['t1_gt_0_start'] = $now->toIso8601String();
+                $newState['t1_gt_0_start'] = $t1->created_at->toIso8601String();
         } else {
             unset($newState['t1_gt_0_start']);
         }
         if ($t2Val > 0) {
             if (!isset($state['t2_gt_0_start']))
-                $newState['t2_gt_0_start'] = $now->toIso8601String();
+                $newState['t2_gt_0_start'] = $t2->created_at->toIso8601String();
         } else {
             unset($newState['t2_gt_0_start']);
         }
@@ -463,13 +463,13 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         // --- Logic: T1 & T2 > -8 (Semi-Warm) ---
         if ($t1Val > -8) {
             if (!isset($state['t1_gt_minus_8_start']))
-                $newState['t1_gt_minus_8_start'] = $now->toIso8601String();
+                $newState['t1_gt_minus_8_start'] = $t1->created_at->toIso8601String();
         } else {
             unset($newState['t1_gt_minus_8_start']);
         }
         if ($t2Val > -8) {
             if (!isset($state['t2_gt_minus_8_start']))
-                $newState['t2_gt_minus_8_start'] = $now->toIso8601String();
+                $newState['t2_gt_minus_8_start'] = $t2->created_at->toIso8601String();
         } else {
             unset($newState['t2_gt_minus_8_start']);
         }
@@ -477,13 +477,13 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         // --- Logic: Not Reached -18 (Both > -18) ---
         if ($t1Val > -18) {
             if (!isset($state['t1_gt_minus_18_start']))
-                $newState['t1_gt_minus_18_start'] = $now->toIso8601String();
+                $newState['t1_gt_minus_18_start'] = $t1->created_at->toIso8601String();
         } else {
             unset($newState['t1_gt_minus_18_start']);
         }
         if ($t2Val > -18) {
             if (!isset($state['t2_gt_minus_18_start']))
-                $newState['t2_gt_minus_18_start'] = $now->toIso8601String();
+                $newState['t2_gt_minus_18_start'] = $t2->created_at->toIso8601String();
         } else {
             unset($newState['t2_gt_minus_18_start']);
         }
@@ -498,7 +498,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         // 1. T2 < -25
         if (isset($newState['t2_lt_minus_25_start'])) {
-            $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['t2_lt_minus_25_start']));
+            $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['t2_lt_minus_25_start']), true);
             $severity = 0;
             if ($diffMinutes >= 30)
                 $severity = 2;
@@ -526,7 +526,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $s1 = \Carbon\Carbon::parse($newState['t1_gt_0_start']);
             $s2 = \Carbon\Carbon::parse($newState['t2_gt_0_start']);
             $effectiveStart = $s1->max($s2);
-            $diffMinutes = $now->diffInMinutes($effectiveStart);
+            $diffMinutes = $now->diffInMinutes($effectiveStart, true);
 
             $severity = 0;
             if ($diffMinutes >= 60)
@@ -557,7 +557,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $s1 = \Carbon\Carbon::parse($newState['t1_gt_minus_8_start']);
             $s2 = \Carbon\Carbon::parse($newState['t2_gt_minus_8_start']);
             $effectiveStart = $s1->max($s2);
-            $diffMinutes = $now->diffInMinutes($effectiveStart);
+            $diffMinutes = $now->diffInMinutes($effectiveStart, true);
 
             $severity = 0;
             if ($diffMinutes >= 90)
@@ -588,7 +588,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $s1 = \Carbon\Carbon::parse($newState['t1_gt_minus_18_start']);
             $s2 = \Carbon\Carbon::parse($newState['t2_gt_minus_18_start']);
             $effectiveStart = $s1->max($s2);
-            $diffHours = $now->diffInHours($effectiveStart);
+            $diffHours = $now->diffInHours($effectiveStart, true);
 
             $severity = 0;
             if ($diffHours >= 12)

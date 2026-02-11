@@ -1157,7 +1157,7 @@ class VendController extends Controller
         if ($request->fans) {
             $fans = array_merge($fans, $request->fans);
         } else {
-            $fans = [];
+            $fans = [1];
         }
 
         $vendFans = DB::table('vend_fans')

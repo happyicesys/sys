@@ -346,6 +346,7 @@ scales: {
     type: 'linear',
     display: true,
     position: 'right',
+    min: 0,
     grid: {
       drawOnChartArea: false,
     },
@@ -364,7 +365,6 @@ plugins: {
           label += ': ';
         }
         if (context.parsed.y !== null) {
-            console.log(context)
           label += context.parsed.y + (context.dataset.yAxisID == 'y' ? '°C' : ' RPM');
         }
         return label;
@@ -727,7 +727,7 @@ if (types.value.length > 0 || fans.value.length > 0) {
     let fanColors = ['#808080']
     vendFans.value.forEach((vendFan, vendFanIndex) => {
       datasets.value.push({
-        label: 'Fan' + (vend.value.parameterJson['fan'] ? (' (' + vend.value.parameterJson['fan'] + ')' ) : ''),
+        label: 'Fan Speed' + (vend.value.parameterJson['fan'] ? (' (' + vend.value.parameterJson['fan'] + ')' ) : ''),
         data: vendFan.map((fan) => {
           let yVal = parseFloat(fan.value)
           if(isNaN(yVal)) {
