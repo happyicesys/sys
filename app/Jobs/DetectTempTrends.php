@@ -500,9 +500,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $vend->save();
         }
 
-        // --- Evaluate Alerts ---
-
-        // 1. T2 < -25
+        // --- Evaluate Alerts with Priority Suppression ---
+        // 1. T2 < -25 (Independent)
         if (isset($newState['t2_lt_minus_25_start'])) {
             $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['t2_lt_minus_25_start']), true);
             $severity = 0;
@@ -527,7 +526,11 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             }
         }
 
-        // 2. T1 & T2 > 0
+        // Initialize flags for alert priorities
+        $isCaseBActive = false;
+        $isCaseCActive = false;
+
+        // 2. T1 & T2 > 0 (Priority 1 for Warm)
         if (isset($newState['t1_gt_0_start']) && isset($newState['t2_gt_0_start'])) {
             $s1 = \Carbon\Carbon::parse($newState['t1_gt_0_start']);
             $s2 = \Carbon\Carbon::parse($newState['t2_gt_0_start']);
@@ -541,6 +544,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
+                $isCaseBActive = true; // Flag active to suppress lower alerts
                 $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_0)->first();
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['v1'] = $t1Val;
@@ -558,8 +562,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_0)->update(['is_active' => false]);
         }
 
-        // 3. T1 & T2 > -8
-        if (isset($newState['t1_gt_minus_8_start']) && isset($newState['t2_gt_minus_8_start'])) {
+        // 3. T1 & T2 > -8 (Priority 2 for Warm) - SUPPRESS if Case B is active
+        if (!$isCaseBActive && isset($newState['t1_gt_minus_8_start']) && isset($newState['t2_gt_minus_8_start'])) {
             $s1 = \Carbon\Carbon::parse($newState['t1_gt_minus_8_start']);
             $s2 = \Carbon\Carbon::parse($newState['t2_gt_minus_8_start']);
             $effectiveStart = $s1->max($s2);
@@ -572,6 +576,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
+                $isCaseCActive = true;
                 $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8)->first();
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['v1'] = $t1Val;
@@ -586,11 +591,12 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $this->handleEmailAlert($vend, $alert, ['> 60 mins', '> 90 mins'], $occurredAt);
             }
         } else {
+            // Must clear if Case B is active OR if condition not met
             VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8)->update(['is_active' => false]);
         }
 
-        // 4. Not Reach -18 (Both > -18)
-        if (isset($newState['t1_gt_minus_18_start']) && isset($newState['t2_gt_minus_18_start'])) {
+        // 4. Not Reach -18 (Priority 3 for Warm) - SUPPRESS if Case B or C is active
+        if (!$isCaseBActive && !$isCaseCActive && isset($newState['t1_gt_minus_18_start']) && isset($newState['t2_gt_minus_18_start'])) {
             $s1 = \Carbon\Carbon::parse($newState['t1_gt_minus_18_start']);
             $s2 = \Carbon\Carbon::parse($newState['t2_gt_minus_18_start']);
             $effectiveStart = $s1->max($s2);
