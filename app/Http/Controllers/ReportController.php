@@ -234,7 +234,7 @@ class ReportController extends Controller
         $cursor = $request->input('cursor');
 
         $query = \App\Models\VendLog::query()
-            ->with(['vend:id,code,name,customer_id,operator_id', 'vend.customer:id,name,code', 'vend.operator:id,name'])
+            ->with(['vend', 'vend.customer', 'vend.operator', 'vend.vendPrefix'])
             ->where('event', 'machine_health_alert')
             ->where('context->bucket', $bucket);
 
@@ -281,6 +281,7 @@ class ReportController extends Controller
                     'occurred_at' => $log->occurred_at->toIso8601String(),
                     'vend_code' => $log->vend->code,
                     'vend_name' => $log->vend->name,
+                    'vend_prefix_name' => $log->vend->vendPrefix ? $log->vend->vendPrefix->name : '',
                     'customer_name' => $log->vend->customer ? $log->vend->customer->name : '',
                     'operator_name' => $log->vend->operator ? $log->vend->operator->name : '',
                 ];

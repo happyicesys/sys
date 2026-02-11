@@ -2057,7 +2057,7 @@ const loadMoreHistory = () => {
                             <a :href="'/vends/customers?codes=' + log.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                                 {{ log.vend_code }}
                             </a>
-                             - {{ log.vend_name }}
+                             - {{ log.vend_prefix_name }} {{ log.vend_name }}
                         </span>
                         <span class="text-xs font-normal text-gray-500">{{ formatDateTimeComma(log.occurred_at) }}</span>
                     </div>
