@@ -1400,7 +1400,7 @@
 										</span>
 									</div>
 								</span>
-								<span class="flex flex-col space-y-1" v-if="vend.nextOpsJobItem.status == 2"
+								<span class="flex flex-col space-y-1" v-if="vend.nextOpsJobItem.status < 3 && (vend.next_ops_job_amount > 0 || vend.next_ops_job_count > 0)"
 									:class="[vend.nextOpsJobItem.status == 4 ? 'text-green-700' : (vend.nextOpsJobItem.status == 98 ? 'text-red-700' : '')]">
 									<span>
 										{{ operatorCountry.currency_symbol }}{{ vend.next_ops_job_amount ? vend.next_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}

@@ -3248,16 +3248,18 @@ class VendController extends Controller
                     SUM(ojic.picked_qty) AS count
                 FROM ops_job_items oji
                 INNER JOIN (
-                    SELECT customer_id, MAX(created_at) AS min_created_at
-                    FROM ops_job_items
-                    WHERE status < 3
-                    AND customer_id IN ($placeholders)
-                    GROUP BY customer_id
-                ) next_job ON next_job.customer_id = oji.customer_id AND oji.created_at = next_job.min_created_at
+                    SELECT oji_inner.customer_id, MIN(oj_inner.date) AS min_date
+                    FROM ops_job_items oji_inner
+                    INNER JOIN ops_jobs oj_inner ON oji_inner.ops_job_id = oj_inner.id
+                    WHERE oji_inner.status < 3
+                    AND oj_inner.date >= CURDATE()
+                    AND oji_inner.customer_id IN ($placeholders)
+                    GROUP BY oji_inner.customer_id
+                ) next_job ON next_job.customer_id = oji.customer_id
+                INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id AND oj.date = next_job.min_date
                 INNER JOIN ops_job_item_channels ojic ON oji.id = ojic.ops_job_item_id
                 INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
-                INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
-                WHERE oji.status < 3 AND oj.date >= CURDATE()
+                WHERE oji.status < 3
                 AND oji.customer_id IN ($placeholders)
                 GROUP BY oji.customer_id
             ", array_merge($customerIds, $customerIds));
