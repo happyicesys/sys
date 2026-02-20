@@ -276,7 +276,7 @@ class ReportController extends Controller
 
         return response()->json([
             'data' => $logs->map(function ($log) {
-                return [
+                $res = [
                     'id' => $log->id,
                     'occurred_at' => $log->occurred_at->toIso8601String(),
                     'vend_code' => $log->vend->code,
@@ -286,6 +286,19 @@ class ReportController extends Controller
                     'operator_name' => $log->vend->operator ? $log->vend->operator->name : '',
                     'event' => $log->event,
                 ];
+
+                $dates = array_filter([
+                    $log->vend->mqtt_last_updated_at,
+                    $log->vend->last_updated_at,
+                    $log->vend->last_vend_transaction_at,
+                    $log->vend->offline_restart_count_datetime,
+                ]);
+
+                $last = empty($dates) ? null : max($dates);
+                $res['last_contact_at'] = $last ? \Carbon\Carbon::parse($last)->toIso8601String() : null;
+                $res['hours_offline'] = $last ? max(0, round(\Carbon\Carbon::parse($last)->diffInMinutes(\Carbon\Carbon::now()) / 60, 2)) : 0;
+
+                return $res;
             }),
             'has_more' => $hasMore,
             'next_cursor' => $hasMore ? $logs->last()->occurred_at->toIso8601String() : null,

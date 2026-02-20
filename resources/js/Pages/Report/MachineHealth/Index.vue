@@ -2069,6 +2069,9 @@ const loadMoreHistory = () => {
                             <a :href="'/vends/customers?codes=' + log.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
                                 {{ log.vend_code }}
                             </a>
+                            <span v-if="log.hours_offline !== null && log.hours_offline !== undefined">
+                                · {{ Number(log.hours_offline).toFixed(2) }}
+                            </span>
                         </div>
                         <div class="text-xs text-gray-500">
                             {{ log.vend_prefix_name }}
@@ -2078,6 +2081,9 @@ const loadMoreHistory = () => {
                         </div>
                         <div class="text-xs text-gray-500">{{ log.customer_name }}</div>
                         <div class="text-xs text-gray-400 mt-0.5">{{ log.operator_name }}</div>
+                        <div class="text-xs text-gray-400 mt-1" v-if="log.last_contact_at">
+                            Last connect: {{ formatDateTimeComma(log.last_contact_at) }}
+                        </div>
                     </td>
                     <td class="px-4 py-2 text-gray-700">
                         <span v-if="log.event === 'machine_health_alert'">
