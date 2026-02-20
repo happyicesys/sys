@@ -1235,17 +1235,65 @@ class ReportController extends Controller
         $start = Carbon::parse($request->date_from)->startOfDay();
         $end = Carbon::parse($request->date_to)->endOfDay();
 
-        if ($className === 'products') {
+        $useProductMetrics = $className === 'products' || $request->filled('product_code') || $request->filled('product_name');
+
+        if ($useProductMetrics) {
             $transactionsQuery = $this->baseVendTransactionMetricsQuery($request, $start, $end)
                 ->leftJoin('vend_models', 'vend_models.id', '=', 'gm.vend_model_id')
+                ->leftJoin('vend_models as current_vend_models', 'vends.vend_model_id', '=', 'current_vend_models.id')
                 ->leftJoin('location_types', 'location_types.id', '=', 'gm.transaction_location_type_id')
-                ->whereNotNull('gm.product_id')
-                ->selectRaw('gm.product_id as id')
-                ->selectRaw('MAX(products.code) as code')
-                ->selectRaw('MAX(products.name) as name');
+                ->leftJoin('vend_prefixes as current_vend_prefixes', 'vends.vend_prefix_id', '=', 'current_vend_prefixes.id')
+                ->leftJoin('categories as customer_categories', 'customers.category_id', '=', 'customer_categories.id');
 
             $countColumn = 'gm.sale_count';
             $amountColumn = 'gm.revenue_cents';
+
+            switch ($className) {
+                case 'products':
+                    $transactionsQuery
+                        ->whereNotNull('gm.product_id')
+                        ->selectRaw('gm.product_id as id')
+                        ->selectRaw('MAX(products.code) as code')
+                        ->selectRaw('MAX(products.name) as name');
+                    break;
+                case 'categories':
+                    $transactionsQuery
+                        ->whereNotNull('customers.category_id')
+                        ->selectRaw('customers.category_id as id')
+                        ->selectRaw('MAX(customer_categories.name) as name');
+                    break;
+                case 'location_types':
+                    $transactionsQuery
+                        ->whereNotNull('gm.transaction_location_type_id')
+                        ->selectRaw('gm.transaction_location_type_id as id')
+                        ->selectRaw('MAX(location_types.name) as name');
+                    break;
+                case 'operators':
+                    $transactionsQuery
+                        ->whereNotNull('gm.operator_id')
+                        ->selectRaw('gm.operator_id as id')
+                        ->selectRaw('MAX(operators.code) as code')
+                        ->selectRaw('MAX(operators.name) as name');
+                    break;
+                case 'vends':
+                    $transactionsQuery
+                        ->whereNotNull('gm.vend_id')
+                        ->selectRaw('gm.vend_id as id')
+                        ->selectRaw('MAX(vends.code) as code')
+                        ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (", current_vend_prefixes.name,") - ", customers.name) ELSE vends.name END) as name')
+                        ->selectRaw('COALESCE(MAX(vend_models.name), MAX(current_vend_models.name)) as vend_model_name')
+                        ->selectRaw('MAX(location_types.name) as location_type_name');
+                    break;
+                case 'customers':
+                    $transactionsQuery
+                        ->whereNotNull('gm.customer_id')
+                        ->selectRaw('gm.customer_id as id')
+                        ->selectRaw('MAX(gm.customer_id + 20000) as code')
+                        ->selectRaw('MAX(CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code, " - ", customers.name) ELSE customers.name END) as name')
+                        ->selectRaw('COALESCE(MAX(vend_models.name), MAX(current_vend_models.name)) as vend_model_name')
+                        ->selectRaw('MAX(location_types.name) as location_type_name');
+                    break;
+            }
         } else {
             $transactionsQuery = $this->baseVendRecordsQuery($request, $start, $end);
 
