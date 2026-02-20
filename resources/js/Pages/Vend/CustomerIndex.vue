@@ -745,7 +745,7 @@
 							</SingleSortItem>
 						</div>
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_drive')">
+					<TableHead v-if="!roles.includes('operator_driver')">
 						Sales(qty)
 						<SingleSortItem modelName="totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->today_amount', false)">
 							Today
