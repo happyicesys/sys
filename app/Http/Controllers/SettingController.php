@@ -311,7 +311,7 @@ class SettingController extends Controller
                 'vends.id',
                 'vends.code',
                 'customers.id AS customer_id',
-                DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
+                DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (",IFNULL(customers.virtual_customer_prefix, \'\'),")") ELSE customers.code END AS customer_code'),
                 'customers.name AS customer_name',
                 'customers.person_id',
                 'customers.selling_price_type',
