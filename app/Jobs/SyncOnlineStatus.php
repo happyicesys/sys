@@ -32,58 +32,49 @@ class SyncOnlineStatus implements ShouldQueue
     {
         $now = Carbon::now();
 
-        Vend::has('customer')
-            ->where('is_active', true)
-            ->where('is_testing', false)
-            ->whereNotIn('code', ['808', '6001', '6002', '831'])
-            ->where('operator_id', '!=', 23)
-            ->chunk(100, function ($vends) use ($now) {
-                foreach ($vends as $vend) {
-                    // online flags
+        Vend::chunkById(200, function ($vends) use ($now) {
+            foreach ($vends as $vend) {
+                try {
+                    // 1. Core online statuses, updated for ALL machines
                     $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes($now) < 15;
                     $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes($now) < 15;
 
-                    $isHttpOffline = !$vend->last_updated_at || $vend->last_updated_at->diffInMinutes($now) >= 50;
-                    $isHttpRecovered = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes($now) < 15;
+                    if ($vend->is_mqtt) {
+                        $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes($now) < 15;
+                    }
 
-                    // MQTT flags
+                    // Skip the alert logic if not active, testing, no customer, specific codes, or specific operator
+                    if (!$vend->customer_id || !$vend->is_active || $vend->is_testing || in_array((string) $vend->code, ['808', '6001', '6002', '831']) || $vend->operator_id == 23) {
+                        $vend->save();
+                        continue;
+                    }
+
+                    // 2. Alert & Modems Reset logic
                     $isMqttOffline = false;
                     $isMqttRecovered = false;
 
                     if ($vend->is_mqtt) {
-                        $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes($now) < 15;
                         $isMqttOffline = !$vend->mqtt_last_updated_at || $vend->mqtt_last_updated_at->diffInMinutes($now) > 30;
                         $isMqttRecovered = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes($now) < 15;
 
                         if ($isMqttOffline && !$vend->is_mqtt_offline_notified) {
-                            // If you want a separate MQTT-offline mail, add a service method similar to offline
                             $vend->is_mqtt_offline_notified = true;
                         }
                     }
 
-                    // OFFLINE & RESTORED Check (Tiered Alerts)
-                    // Calculate effective last contact time
-                    $dates = [
+                    $dates = collect([
                         $vend->last_updated_at,
                         $vend->last_vend_transaction_at,
-                        $vend->offline_restart_count_datetime
-                    ];
-                    if ($vend->is_mqtt) {
-                        $dates[] = $vend->mqtt_last_updated_at;
-                    }
+                        $vend->offline_restart_count_datetime,
+                        $vend->is_mqtt ? $vend->mqtt_last_updated_at : null
+                    ])->filter()->max();
 
-                    $lastContact = null;
-                    foreach ($dates as $date) {
-                        if ($date && ($lastContact === null || $date->gt($lastContact))) {
-                            $lastContact = $date;
-                        }
-                    }
+                    $duration = $dates ? $dates->diffInMinutes($now) : 999999;
 
-                    $duration = $lastContact ? $lastContact->diffInMinutes($now) : 999999;
-
-                    // Determine current level
                     $level = 0;
                     $label = null;
+
+                    $customOfflineMinutes = $vend->offlineAlertMinutes();
 
                     if ($duration >= 720) {
                         $level = 6;
@@ -100,35 +91,33 @@ class SyncOnlineStatus implements ShouldQueue
                     } elseif ($duration >= 60) {
                         $level = 2;
                         $label = '< 2hr';
-                    } elseif ($duration >= 50) {
+                    } elseif ($duration >= $customOfflineMinutes) {
                         $level = 1;
                         $label = '< 1hr';
                     }
 
+                    $currentLevel = (int) $vend->offline_notification_level;
+
                     // Send Alert if Level Increased
-                    if ($level > $vend->offline_notification_level) {
-                        if ($vend->offline_notification_level > 0) {
-                            // Delete previous lower-level offline logs (escalation)
+                    if ($level > $currentLevel) {
+                        if ($currentLevel > 0) {
                             $oldLabels = [];
-                            if ($vend->offline_notification_level >= 1)
+                            if ($currentLevel >= 1)
                                 $oldLabels[] = '< 1hr';
-                            if ($vend->offline_notification_level >= 2)
+                            if ($currentLevel >= 2)
                                 $oldLabels[] = '< 2hr';
-                            if ($vend->offline_notification_level >= 3)
+                            if ($currentLevel >= 3)
                                 $oldLabels[] = '< 4hr';
-                            if ($vend->offline_notification_level >= 4)
+                            if ($currentLevel >= 4)
                                 $oldLabels[] = '< 8hr';
-                            if ($vend->offline_notification_level >= 5)
+                            if ($currentLevel >= 5)
                                 $oldLabels[] = '< 12hr';
 
-                            foreach ($oldLabels as $oldLabel) {
-                                \App\Models\VendLog::where('vend_id', $vend->id)
-                                    ->where('event', \App\Models\VendLog::EVENT_POWER_OFF)
-                                    ->where('context->label', $oldLabel)
-                                    // Make sure we only delete the most recent ones (from this incident)
-                                    ->where('created_at', '>=', now()->subHours(48))
-                                    ->delete();
-                            }
+                            \App\Models\VendLog::where('vend_id', $vend->id)
+                                ->where('event', \App\Models\VendLog::EVENT_POWER_OFF)
+                                ->whereIn('context->label', $oldLabels)
+                                ->where('created_at', '>=', now()->subHours(48))
+                                ->delete();
                         }
 
                         try {
@@ -137,18 +126,18 @@ class SyncOnlineStatus implements ShouldQueue
                             Log::error('SyncVendOnlineStatus: Failed to send offline mail for ' . $vend->code, ['error' => $e->getMessage()]);
                         }
                         $vend->offline_notification_level = $level;
-                        $vend->is_offline_notification_sent = true; // Sync legacy flag
+                        $vend->is_offline_notification_sent = true;
                     }
 
-                    // Restoration Check (if duration < 15 mins and was previously alerted)
-                    if ($duration < 15 && ($vend->offline_notification_level > 0 || $vend->is_offline_notification_sent)) {
+                    // Restoration Check
+                    if ($duration < 15 && ($currentLevel > 0 || $vend->is_offline_notification_sent)) {
                         try {
                             $this->alertEmailService->sendVendPowerRestoredNotificationMail($vend);
                         } catch (\Throwable $e) {
                             Log::error('SyncVendOnlineStatus: Failed to send restored mail for ' . $vend->code, ['error' => $e->getMessage()]);
                         }
                         $vend->offline_notification_level = 0;
-                        $vend->is_offline_notification_sent = false; // Sync legacy flag
+                        $vend->is_offline_notification_sent = false;
                         $vend->is_mqtt_offline_notified = false;
                     }
 
@@ -178,22 +167,18 @@ class SyncOnlineStatus implements ShouldQueue
                     }
 
                     $vend->save();
+                } catch (\Throwable $e) {
+                    Log::error('SyncVendOnlineStatus: Unhandled error for vend ' . ($vend->code ?? 'unknown'), [
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
                 }
-            });
-
-        // Vends without customer: just update flags
-        Vend::doesntHave('customer')
-            ->chunk(100, function ($vends) use ($now) {
-                foreach ($vends as $vend) {
-                    $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes($now) < 15;
-                    $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes($now) < 15;
-                    $vend->save();
-                }
-            });
+            }
+        });
 
         // Modem online status
         ModemUnit::whereHas('modemType', fn($q) => $q->where('name', 'Air724UGB4'))
-            ->chunk(100, function ($modems) use ($now) {
+            ->chunkById(100, function ($modems) use ($now) {
                 foreach ($modems as $modem) {
                     $modem->is_online = $modem->last_updated_at && $modem->last_updated_at->diffInMinutes($now) < 15;
                     $modem->save();

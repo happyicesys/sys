@@ -72,6 +72,12 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $this->analyzeTrend(VendTemp::TYPE_CHAMBER, VendSmartAlert::TYPE_RISING_T1);
             $this->analyzeTrend(VendTemp::TYPE_EVAPORATOR, VendSmartAlert::TYPE_RISING_T2);
 
+            // 3: No Transactions
+            $this->checkNoTransactions($this->targetVendId);
+
+            // 5: Stockouts
+            $this->checkStockouts($this->targetVendId);
+
             // 2.1: Frozen T2
             $this->analyzeFrozenT2();
 
@@ -145,7 +151,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             // 2. T2 <= -23.5C (Reached very cold temp) in last 24h
             $dismissThresholdRaw = -23.5 * $scale;
             if ($max24 === null || $max24 > $thresholdRaw || ($min24 !== null && $min24 <= $dismissThresholdRaw)) {
-                $this->clearSmartAlert($vend->id, VendSmartAlert::TYPE_T2_FROZEN);
+                $this->resolveStatefulAlert($vend->id, VendSmartAlert::TYPE_T2_FROZEN, ['> 24 hr', '> 48 hr', '> 72 hr']);
                 continue;
             }
 
@@ -178,7 +184,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
             $minTimestamp = $latestFrozen ? $latestFrozen->created_at->toIso8601String() : $now->toIso8601String();
 
-            VendSmartAlert::updateOrCreate(
+            $alert = VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vend->id, 'alert_type' => VendSmartAlert::TYPE_T2_FROZEN],
                 [
                     'severity' => $severity,
@@ -192,6 +198,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     ],
                 ]
             );
+            $this->logDashboardAlert($vend->id, $alert, ['> 24 hr', '> 48 hr', '> 72 hr']);
         }
     }
 
@@ -289,12 +296,13 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
             $minTimestamp = $minT1Record ? $minT1Record->created_at->toIso8601String() : now()->toIso8601String();
 
-            VendSmartAlert::updateOrCreate(
+            $alert = VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
                 ['severity' => $sev, 'is_active' => true, 'meta_data' => ['min_t1' => $v1, 'min_t2' => $v2, 'duration' => $duration, 'min_timestamp' => $minTimestamp]]
             );
+            $this->logDashboardAlert($vendId, $alert, ['Above -21c', 'Above -20c', 'Above -19c']);
         } else {
-            VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->update(['is_active' => false]);
+            $this->resolveStatefulAlert($vendId, $alertType, ['Above -21c', 'Above -20c', 'Above -19c']);
         }
     }
 
@@ -343,18 +351,14 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             // Need both to compare
             if (is_null($curr) || is_null($prev)) {
                 // If data missing, resolve existing alert if any
-                VendSmartAlert::where('vend_id', $vendId)
-                    ->where('alert_type', $alertType)
-                    ->update(['is_active' => false]);
+                $this->resolveStatefulAlert($vendId, $alertType, ['Δ ≥ 1c', 'Δ ≥ 2c', 'Δ ≥ 3c']);
                 continue;
             }
 
             // Exclude Sensor Error (3276.7C -> 32767 raw)
             // If either value is the error code, skip and clear alert
             if (abs($curr - 32767) < 1 || abs($prev - 32767) < 1) {
-                VendSmartAlert::where('vend_id', $vendId)
-                    ->where('alert_type', $alertType)
-                    ->update(['is_active' => false]);
+                $this->resolveStatefulAlert($vendId, $alertType, ['Δ ≥ 1c', 'Δ ≥ 2c', 'Δ ≥ 3c']);
                 continue;
             }
 
@@ -384,7 +388,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
                 $minTimestamp = $this->findMinTimestamp($vendId, $tempType, $windowCurrentStart, $now, $curr);
 
-                VendSmartAlert::updateOrCreate(
+                $alert = VendSmartAlert::updateOrCreate(
                     [
                         'vend_id' => $vendId,
                         'alert_type' => $alertType,
@@ -404,10 +408,9 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                         ],
                     ]
                 );
+                $this->logDashboardAlert($vendId, $alert, ['Δ ≥ 1c', 'Δ ≥ 2c', 'Δ ≥ 3c']);
             } else {
-                VendSmartAlert::where('vend_id', $vendId)
-                    ->where('alert_type', $alertType)
-                    ->update(['is_active' => false]);
+                $this->resolveStatefulAlert($vendId, $alertType, ['Δ ≥ 1c', 'Δ ≥ 2c', 'Δ ≥ 3c']);
             }
         }
     }
@@ -741,6 +744,49 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
     }
 
+    private function logDashboardAlert(int $vendId, $alert, array $labels, $occurredAt = null, $originalTriggerAt = null): void
+    {
+        $labelIndex = $alert->severity - 1;
+        $label = $labels[$labelIndex] ?? 'Unknown';
+
+        $meta = $alert->meta_data;
+        $lastSentSeverity = $meta['last_sent_severity'] ?? 0;
+
+        if ($alert->severity > $lastSentSeverity) {
+            if ($lastSentSeverity > 0) {
+                for ($s = 1; $s < $alert->severity; $s++) {
+                    $oldLabelIndex = $s - 1;
+                    if (isset($labels[$oldLabelIndex])) {
+                        $oldLabel = $labels[$oldLabelIndex];
+                        VendLog::where('vend_id', $vendId)
+                            ->where('event', 'machine_health_alert')
+                            ->where('context->bucket', $oldLabel)
+                            ->where('context->alert_type', $alert->alert_type)
+                            ->delete();
+                    }
+                }
+            }
+
+            VendLog::create([
+                'vend_id' => $vendId,
+                'event' => 'machine_health_alert',
+                'subject' => $this->getHumanReadableAlertType($alert->alert_type) . " ({$label})",
+                'context' => [
+                    'bucket' => $label,
+                    'alert_type' => $alert->alert_type,
+                    'severity' => $alert->severity,
+                    'triggered_at' => $originalTriggerAt ? $originalTriggerAt->toIso8601String() : ($occurredAt ?? now())->toIso8601String(),
+                    'meta' => $meta,
+                ],
+                'occurred_at' => $occurredAt ?? now(),
+            ]);
+
+            $meta['last_sent_severity'] = $alert->severity;
+            $alert->meta_data = $meta;
+            $alert->save();
+        }
+    }
+
     private function getHumanReadableAlertType($type)
     {
         return match ($type) {
@@ -749,6 +795,11 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             VendSmartAlert::TYPE_TEMPS_ABOVE_0 => 'T1 & or T2 above 0°C',
             VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8 => 'T1 & or T2 above -8°C',
             VendSmartAlert::TYPE_NOT_REACH_MINUS_18 => 'T1 & or T2 did not reach -18°C',
+            VendSmartAlert::TYPE_LOWEST_24H_ABOVE => 'T1 & T2 lowest (last 24hrs)',
+            VendSmartAlert::TYPE_LOWEST_72H_ABOVE => 'T1 & T2 lowest (last 72hrs)',
+            VendSmartAlert::TYPE_RISING_T1 => 'Rising lowest T1',
+            VendSmartAlert::TYPE_RISING_T2 => 'Rising lowest T2',
+            VendSmartAlert::TYPE_T2_FROZEN => 'T2, never above 2°C',
             default => $type,
         };
     }
@@ -876,6 +927,180 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $state['connectivity_last_bucket'] = $bucket;
             $vend->temp_monitoring_state = $state;
             $vend->save();
+        }
+    }
+
+    private function checkNoTransactions($vendId): void
+    {
+        $vends = $vendId ? [\App\Models\Vend::find($vendId)] : \App\Models\Vend::where('is_active', true)->where('is_testing', false)->get();
+        if (empty($vends))
+            return;
+        $now = now();
+
+        foreach ($vends as $vend) {
+            if (!$vend)
+                continue;
+
+            $state = $vend->temp_monitoring_state ?? [];
+            $lastNoTxnBuckets = $state['no_txn_buckets'] ?? [];
+            $newNoTxnBuckets = [];
+
+            // Any Sales (48hr)
+            if ($vend->last_vend_transaction_at) {
+                $diff = \Carbon\Carbon::parse($vend->last_vend_transaction_at)->diffInMinutes($now) / 60;
+                if ($diff >= 48) {
+                    $newNoTxnBuckets['any'] = ['label' => 'Any Sales', 'hours' => 48, 'diff' => $diff];
+                }
+            }
+
+            // Cash Sales (48hr)
+            $paramJson = $vend->parameter_json;
+            if (isset($paramJson['BILLStat']) && $paramJson['BILLStat'] == 3 && $vend->last_cash_vend_transaction_at) {
+                $diff = \Carbon\Carbon::parse($vend->last_cash_vend_transaction_at)->diffInMinutes($now) / 60;
+                if ($diff >= 48) {
+                    $newNoTxnBuckets['cash'] = ['label' => 'Cash Sales', 'hours' => 48, 'diff' => $diff];
+                }
+            }
+
+            // Card Sales (48hr)
+            if (isset($paramJson['CSHLStat']) && $paramJson['CSHLStat'] == 3 && $vend->last_card_vend_transaction_at) {
+                $diff = \Carbon\Carbon::parse($vend->last_card_vend_transaction_at)->diffInMinutes($now) / 60;
+                if ($diff >= 48) {
+                    $newNoTxnBuckets['card'] = ['label' => 'Card Terminal', 'hours' => 48, 'diff' => $diff];
+                }
+            }
+
+            // QR (72hr)
+            $paJson = $vend->acb_vmc_pa_json;
+            if ($vend->is_txn_src && isset($paJson['QRCode']) && $paJson['QRCode'] == 1 && $vend->last_txn_src_at) {
+                $diff = \Carbon\Carbon::parse($vend->last_txn_src_at)->diffInMinutes($now) / 60;
+                if ($diff >= 72) {
+                    $newNoTxnBuckets['qr'] = ['label' => 'QR Sales', 'hours' => 72, 'diff' => $diff];
+                }
+            }
+
+            // Digital Screen (72hr)
+            if ($vend->is_txn_src && $vend->last_txn_src_at) {
+                $diff = \Carbon\Carbon::parse($vend->last_txn_src_at)->diffInMinutes($now) / 60;
+                if ($diff >= 72) {
+                    $newNoTxnBuckets['digitalscreen'] = ['label' => 'Digital Screen', 'hours' => 72, 'diff' => $diff];
+                }
+            }
+
+            foreach ($newNoTxnBuckets as $key => $data) {
+                if (!isset($lastNoTxnBuckets[$key])) {
+                    VendLog::create([
+                        'vend_id' => $vend->id,
+                        'event' => 'machine_health_alert',
+                        'subject' => "No {$data['label']} (>= {$data['hours']}hr)",
+                        'context' => [
+                            'bucket' => ">= {$data['hours']}hr",
+                            'type' => "no_txn_{$key}",
+                            'hours_offline' => $data['diff'],
+                        ],
+                        'occurred_at' => $now,
+                    ]);
+                }
+            }
+
+            foreach ($lastNoTxnBuckets as $key => $data) {
+                if (!isset($newNoTxnBuckets[$key])) {
+                    VendLog::create([
+                        'vend_id' => $vend->id,
+                        'event' => 'machine_health_alert_dismissed',
+                        'subject' => "Transaction Received ({$data['label']})",
+                        'context' => [
+                            'bucket' => ">= {$data['hours']}hr",
+                            'type' => "no_txn_{$key}",
+                        ],
+                        'occurred_at' => $now,
+                    ]);
+                }
+            }
+
+            if (json_encode($lastNoTxnBuckets) !== json_encode($newNoTxnBuckets)) {
+                $state['no_txn_buckets'] = $newNoTxnBuckets;
+                $vend->temp_monitoring_state = $state;
+                $vend->save();
+            }
+        }
+    }
+
+    private function checkStockouts($vendId): void
+    {
+        $vends = $vendId ? [\App\Models\Vend::find($vendId)] : \App\Models\Vend::where('is_active', true)->where('is_testing', false)->get();
+        if (empty($vends))
+            return;
+        $now = now();
+        $targetHours = 72;
+
+        foreach ($vends as $vend) {
+            if (!$vend)
+                continue;
+
+            $state = $vend->temp_monitoring_state ?? [];
+            $lastStockoutBuckets = $state['stockout_buckets'] ?? [];
+            $newStockoutBuckets = [];
+
+            // Fetch latest event per channel for this vend to find active stockouts
+            $latestEvents = \App\Models\VendChannelStockEvent::where('vend_id', $vend->id)
+                ->orderBy('occurred_at', 'desc')
+                ->get()
+                ->unique('vend_channel_id');
+
+            foreach ($latestEvents as $event) {
+                if ($event->event_type === \App\Models\VendChannelStockEvent::TYPE_SOLD_OUT) {
+                    $durationHours = $event->occurred_at->diffInMinutes($now) / 60;
+                    if ($durationHours >= $targetHours) {
+                        $channelId = $event->vend_channel_id;
+                        $channel = \App\Models\VendChannel::find($channelId);
+                        $code = $channel ? $channel->code : "Unknown";
+
+                        $newStockoutBuckets[$channelId] = [
+                            'channel_code' => $code,
+                            'hours' => $targetHours,
+                            'diff' => $durationHours,
+                        ];
+                    }
+                }
+            }
+
+            foreach ($newStockoutBuckets as $channelId => $data) {
+                if (!isset($lastStockoutBuckets[$channelId])) {
+                    VendLog::create([
+                        'vend_id' => $vend->id,
+                        'event' => 'machine_health_alert',
+                        'subject' => "Stockout Channel {$data['channel_code']} (>= {$data['hours']}hr)",
+                        'context' => [
+                            'bucket' => ">= {$data['hours']}hr",
+                            'type' => "stockout_channel_{$channelId}",
+                            'hours_offline' => $data['diff'],
+                        ],
+                        'occurred_at' => $now,
+                    ]);
+                }
+            }
+
+            foreach ($lastStockoutBuckets as $channelId => $data) {
+                if (!isset($newStockoutBuckets[$channelId])) {
+                    VendLog::create([
+                        'vend_id' => $vend->id,
+                        'event' => 'machine_health_alert_dismissed',
+                        'subject' => "Restocked Channel {$data['channel_code']}",
+                        'context' => [
+                            'bucket' => ">= {$data['hours']}hr",
+                            'type' => "stockout_channel_{$channelId}",
+                        ],
+                        'occurred_at' => $now,
+                    ]);
+                }
+            }
+
+            if (json_encode($lastStockoutBuckets) !== json_encode($newStockoutBuckets)) {
+                $state['stockout_buckets'] = $newStockoutBuckets;
+                $vend->temp_monitoring_state = $state;
+                $vend->save();
+            }
         }
     }
 

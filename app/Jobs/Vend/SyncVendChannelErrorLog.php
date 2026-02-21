@@ -100,6 +100,19 @@ class SyncVendChannelErrorLog implements ShouldQueue
                     if ($lastVendChannelErrorLog and ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode)) {
                         $lastVendChannelErrorLog->is_error_cleared = true;
                         $lastVendChannelErrorLog->save();
+
+                        if (Schema::hasTable('vend_logs')) {
+                            VendLog::create([
+                                'vend_id' => $vend->id,
+                                'event' => 'machine_health_alert_dismissed',
+                                'subject' => sprintf('Channel %s error %s cleared', $lastVendChannelErrorLog->vendChannel->code, $lastVendChannelErrorLog->vendChannelError->code),
+                                'context' => [
+                                    'channel_code' => $lastVendChannelErrorLog->vendChannel->code,
+                                    'error_code' => $lastVendChannelErrorLog->vendChannelError->code,
+                                ],
+                                'occurred_at' => now(),
+                            ]);
+                        }
                     }
                 }
 
@@ -111,6 +124,19 @@ class SyncVendChannelErrorLog implements ShouldQueue
                         foreach ($recoveredVendChannelErrorLogs as $recoveredVendChannelErrorLog) {
                             $recoveredVendChannelErrorLog->is_error_cleared = true;
                             $recoveredVendChannelErrorLog->save();
+
+                            if (Schema::hasTable('vend_logs')) {
+                                VendLog::create([
+                                    'vend_id' => $vend->id,
+                                    'event' => 'machine_health_alert_dismissed',
+                                    'subject' => sprintf('Channel %s error %s cleared', $recoveredVendChannelErrorLog->vendChannel->code, $recoveredVendChannelErrorLog->vendChannelError->code),
+                                    'context' => [
+                                        'channel_code' => $recoveredVendChannelErrorLog->vendChannel->code,
+                                        'error_code' => $recoveredVendChannelErrorLog->vendChannelError->code,
+                                    ],
+                                    'occurred_at' => now(),
+                                ]);
+                            }
                         }
                     }
                 }
