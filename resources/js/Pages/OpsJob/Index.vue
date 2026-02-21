@@ -174,7 +174,7 @@
                           # of Job
                         </span>
                         <span>
-                          Plan picked value
+                          Refillable Value
                         </span>
                       </div>
                     </TableHead>
@@ -320,6 +320,8 @@
                           </span>
                           <span class="text-indigo-800 font-semibold text-xs text-nowrap" v-if="opsJob.refillable_amount !== null">
                              {{ operatorCountry.currency_symbol }}{{ opsJob.refillable_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                             <br>
+                             ({{ opsJob.refillable_count }})
                           </span>
                         </div>
                       </TableData>
