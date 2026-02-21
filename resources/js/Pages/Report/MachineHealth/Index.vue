@@ -323,32 +323,39 @@ function groupAlertsMatrix(rows, definitions) {
 const matrix21 = computed(() => {
   const meta = [
       {
-          id: 't2_below_minus_25',
-          label: 'A) T2, below -27°C',
-          sub: 'Possible caused by:\ni) Fan not function\nii) Temp probe malfunction',
-          types: ['t2_below_minus_25'],
+          id: 't1_higher_than_t2',
+          label: '1A) T1 higher than T2, >7°C',
+          sub: 'Possible component issue:\ni) Fan not function\nii) Temp probe malfunction',
+          types: ['t1_higher_than_t2'],
           headers: { 1: '> 10 mins', 2: '> 30 mins' }
       },
       {
+          id: 'comp_fan_off',
+          label: '1B) Compressor & or Fan, in OFF condition',
+          sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after defrost or resting\niii) Comp is working, but Fan not turning',
+          types: ['comp_fan_off'],
+          headers: { 1: '> 45 mins', 2: '> 60 mins' }
+      },
+      {
           id: 'temps_above_0',
-          label: 'B) T1 & or T2, above 0°C',
-          sub: 'Possible caused by:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Fan not function',
+          label: '1C) T1 & or T2, above 0°C',
+          sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after forced defrost\n\nPossible Operation issue:\niii) Freezer door not close tight\niv) Open freezer door >15mins',
           note: 'Alert dismissed once temp below 0c',
           types: ['temps_above_0'],
-          headers: { 1: '> 30 mins', 2: '> 60 mins' }
+          headers: { 1: '> 30 mins', 2: '> 50 mins' }
       },
       {
           id: 'temps_above_minus_8',
-          label: 'C) T1 & or T2, above -8°C',
-          sub: 'Possible caused by:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Comp not function',
+          label: '1D) T1 & or T2, above -8°C',
+          sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins',
           note: 'Alert dismissed once temp below -8c',
           types: ['temps_above_minus_8'],
           headers: { 1: '> 60 mins', 2: '> 90 mins' }
       },
       {
           id: 'not_reach_minus_18',
-          label: 'D) T1 & or T2, did not reach -18°C',
-          sub: 'Possible caused by:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Many purchases occur',
+          label: '1E) T1 & or T2, did not reach -18°C',
+          sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Many purchases occur',
           note: 'Alert dismissed once temp below -18c',
           types: ['not_reach_minus_18'],
           headers: { 1: 'Within last 8 hours', 2: '> 8 hours' }
@@ -364,33 +371,33 @@ const matrix22 = computed(() => {
     const meta = [
         {
             id: 'lowest_24h',
-            label: 'A) T1 & T2 lowest (last 24hrs)',
-            sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Dispensing Door not close tight',
-            note: 'Check and show lowest Temp in last 24hrs',
+            label: '2A) T1 & T2 lowest (last 24hrs)',
+            sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Defrost drain hole air-leak\niii) Fan/Comp ageing\niv) Many purchases occur',
+            note: null,
             types: ['lowest_24h_above'],
             headers: { 1: 'Above -21c', 2: 'Above -20c', 3: 'Above -19c' }
         },
         {
             id: 'lowest_72h',
-            label: 'B) T1 & T2 lowest (last 72hrs)',
-            sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Fan/Comp ageing\niii) Temperature probe malfunction',
-            note: 'Check and show lowest Temp in last 72hrs',
+            label: '2B) T1 & T2 lowest (last 72hrs)',
+            sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Defrost drain hole air-leak\niii) Fan/Comp ageing\niv) Temp probe malfunction',
+            note: null,
             types: ['lowest_72h_above'],
             headers: { 1: 'Above -21c', 2: 'Above -20c', 3: 'Above -19c' }
         },
         {
             id: 'rising_lowest',
-            label: 'C) Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
-            sub: 'Possible caused by:\ni) Defrost not clean/enough\nii) Door\'s seal air leak\niii) Defrost drain hole',
+            label: '2C) Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
+            sub: 'Possible caused by:\ni) Defrost not clean/enough\nii) Door\'s seal air leak\niii) Defrost drain hole air-leak',
             note: null,
             types: ['rising_t1_trend', 'rising_t2_trend'],
             headers: { 1: 'Δ ≥ 1c', 2: 'Δ ≥ 2c', 3: 'Δ ≥ 3c' }
         },
         {
             id: 't2_frozen',
-            label: 'D) T2, never above 2°C',
-            sub: 'Possible caused by:\ni) Defrost fail\nii) Defrost not clean/enough\niii) Temperature probe malfunction',
-            note: 'only for E/F/EG\nexclude UDD\n(Alert dismissed once temp below -23.5c)',
+            label: '2D) T2, never above 2°C',
+            sub: 'Possible caused by:\ni) Defrost fail\nii) Defrost not clean/enough\niii) Temp probe malfunction',
+            note: '\u2022 only for E/F/EG\n\u2022 exclude UDD\nAuto dismiss alert, once T2 reaches to -23.5c',
             types: ['t2_frozen'],
             headers: { 1: '> 24 hr', 2: '> 48 hr', 3: '> 72 hr' }
         },
@@ -691,7 +698,7 @@ const formatEventBreakdown = (event) => {
   if (hours === 0) hours = 12
   const time = `${String(hours).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} ${suffix}`
 
-  return `${event.channel_code} (E${event.error_code}) - ${yymmdd} ${time}`
+  return `#${event.channel_code} (E${event.error_code}) - ${yymmdd} ${time}`
 }
 
 const getEventsForCode = (events, code) => {
@@ -712,20 +719,36 @@ const formatEventBreakdownSimple = (event) => {
   if (hours === 0) hours = 12
   const time = `${String(hours).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} ${suffix}`
 
-  return `${event.channel_code} - ${yymmdd} ${time}`
+  return `#${event.channel_code} - ${yymmdd} ${time}`
 }
 
 const formatErrorDesc = (code, desc) => {
-  if (!desc) return ''
-  // Remove " (code)" from the end if it exists, assuming format "Description (code)"
+  let text = desc
+  if (!text) return ''
   const suffix = ` (${code})`
-  if (desc.endsWith(suffix)) {
-    return desc.slice(0, -suffix.length)
+  if (text.endsWith(suffix)) {
+    text = text.slice(0, -suffix.length)
   }
-  if (desc.endsWith(suffix)) {
-    return desc.slice(0, -suffix.length)
+
+  const codeNum = Number(code)
+  if (codeNum === 3) {
+    text = 'Microswitch not detected (Channel locked)'
+  } else if (codeNum === 5) {
+    text = 'Current overlimit, motor not turning'
+  } else if (codeNum === 6) {
+    text = 'Microswitch pressed over time (Channel locked)'
+  } else if (codeNum === 7) {
+    text = 'Sensor error or fail to detect dispensed product'
+  } else if (codeNum === 9) {
+    text = 'Sensor error and channel locked<br><span class="block mt-1 text-[10px] text-gray-500 font-medium leading-tight">3 consecutive Error #7</span>'
   }
-  return desc
+
+  return text
+}
+
+const highlightChannelLocked = (text) => {
+  if (!text) return ''
+  return text.replace(/(channel locked)/gi, '<span class="text-red-600 font-semibold">$1</span>')
 }
 
 // History Modal Logic
@@ -1208,13 +1231,26 @@ const loadMoreHistory = () => {
 
                                         <!-- Value Display -->
                                         <div class="text-xs text-gray-700 mb-2">
-                                          <span v-if="row.meta_min_t1">
-                                              Last lowest T1: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t1, 1) }}°C</span>
-                                          </span>
-                                          <span v-if="row.meta_max_temp">
-                                              Last highest T2: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_max_temp, 1) }}°C</span>
-                                          </span>
-                                          <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.updated_at) }}</div>
+                                          <template v-if="row.alert_type === 't1_higher_than_t2'">
+                                            <span class="block">
+                                              T1 vs T2 Diff: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.delta, 1) }}°C</span>
+                                            </span>
+                                          </template>
+                                          <template v-else-if="row.alert_type === 'comp_fan_off'">
+                                            <span class="block text-gray-400 italic">No temp data</span>
+                                          </template>
+                                          <template v-else>
+                                            <span v-if="row.meta_min_t1" class="block">
+                                                T1: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t1, 1) }}°C</span>
+                                            </span>
+                                            <span v-if="row.meta_min_t2" class="block">
+                                                T2: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t2, 1) }}°C</span>
+                                            </span>
+                                            <span v-if="row.meta_val" class="block">
+                                                Val: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_val, 1) }}°C</span>
+                                            </span>
+                                          </template>
+                                          <div class="text-[10px] text-gray-400 mt-0.5" v-if="row.alert_type !== 'comp_fan_off'">at {{ formatDateTime(row.updated_at) }}</div>
                                         </div>
 
                                         <!-- T1/T2 Buttons (Mimicking CustomerIndex) -->
@@ -1302,10 +1338,13 @@ const loadMoreHistory = () => {
                                               <div class="mt-1 text-xs">Delta: {{ formatNumber(row.delta, 1) }}°C</div>
                                            </div>
                                            <div v-else>
-                                              <span v-if="row.meta_min_t1">
+                                              <span v-if="row.meta_min_t1" class="block">
                                                   Last lowest T1: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t1, 1) }}°C</span>
                                               </span>
-                                              <span v-if="row.meta_max_temp">
+                                              <span v-if="row.meta_min_t2" class="block">
+                                                  Last lowest T2: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_min_t2, 1) }}°C</span>
+                                              </span>
+                                              <span v-if="row.meta_max_temp" class="block">
                                                   Last highest T2: <span class="bg-yellow-600/20 px-1 rounded">{{ formatNumber(row.meta_max_temp, 1) }}°C</span>
                                               </span>
                                               <div class="text-[10px] text-gray-400 mt-0.5">at {{ formatDateTime(row.updated_at) }}</div>
@@ -1789,9 +1828,7 @@ const loadMoreHistory = () => {
                           class="px-4 py-2 text-left font-medium text-gray-500 align-top"
                         >
                           <div class="whitespace-nowrap">Error {{ code }}</div>
-                          <div class="text-xs font-normal text-gray-600 break-words w-24">
-                            {{ formatErrorDesc(code, errorDefinitions[code]) }}
-                          </div>
+                          <div class="text-xs font-normal text-gray-600 break-words w-24" v-html="highlightChannelLocked(formatErrorDesc(code, errorDefinitions[code]))"></div>
                         </th>
 
                       </tr>
@@ -2086,13 +2123,13 @@ const loadMoreHistory = () => {
                         </div>
                     </td>
                     <td class="px-4 py-2 text-gray-700">
-                        <span v-if="log.event === 'machine_health_alert'">
+                        <span>
                             {{ formatDateTimeComma(log.occurred_at) }}
                         </span>
                     </td>
                     <td class="px-4 py-2 text-gray-700">
-                        <span v-if="log.event === 'machine_health_alert_dismissed'">
-                            {{ formatDateTimeComma(log.occurred_at) }}
+                        <span v-if="log.dismissed_at">
+                            {{ formatDateTimeComma(log.dismissed_at) }}
                         </span>
                     </td>
                   </tr>

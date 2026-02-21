@@ -50,17 +50,20 @@ class VendOperationErrorNotificationMail extends Mailable implements ShouldQueue
         // Determine title based on alert type
         $title = '';
         switch ($this->alertType) {
-            case \App\Models\VendSmartAlert::TYPE_T2_BELOW_MINUS_25:
-                $title = 'A) T2, below -25°C';
+            case \App\Models\VendSmartAlert::TYPE_T1_HIGHER_THAN_T2:
+                $title = '1A) T1 higher than T2, >7°C';
+                break;
+            case \App\Models\VendSmartAlert::TYPE_COMP_FAN_OFF:
+                $title = '1B) Compressor & or Fan, in OFF condition';
                 break;
             case \App\Models\VendSmartAlert::TYPE_TEMPS_ABOVE_0:
-                $title = 'B) T1 & or T2, above 0°C';
+                $title = '1C) T1 & or T2, above 0°C';
                 break;
             case \App\Models\VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8:
-                $title = 'C) T1 & or T2, above -8°C';
+                $title = '1D) T1 & or T2, above -8°C';
                 break;
             case \App\Models\VendSmartAlert::TYPE_NOT_REACH_MINUS_18:
-                $title = 'D) T1 & or T2, did not reach -18°C';
+                $title = '1E) T1 & or T2, did not reach -18°C';
                 break;
             default:
                 $title = 'Operation Error / Critical Parts Failure';

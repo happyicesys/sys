@@ -32,7 +32,8 @@ class VendSmartAlert extends Model
     const TYPE_T2_FROZEN = 't2_frozen';
 
     // 2.1 Operation Error
-    const TYPE_T2_BELOW_MINUS_25 = 't2_below_minus_25';
+    const TYPE_T1_HIGHER_THAN_T2 = 't1_higher_than_t2';
+    const TYPE_COMP_FAN_OFF = 'comp_fan_off';
     const TYPE_TEMPS_ABOVE_0 = 'temps_above_0';
     const TYPE_TEMPS_ABOVE_MINUS_8 = 'temps_above_minus_8';
     const TYPE_NOT_REACH_MINUS_18 = 'not_reach_minus_18';

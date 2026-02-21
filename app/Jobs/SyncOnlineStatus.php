@@ -79,7 +79,7 @@ class SyncOnlineStatus implements ShouldQueue
                         }
                     }
 
-                    $duration = $lastContact ? $now->diffInMinutes($lastContact) : 999999;
+                    $duration = $lastContact ? $lastContact->diffInMinutes($now) : 999999;
 
                     // Determine current level
                     $level = 0;
@@ -107,6 +107,30 @@ class SyncOnlineStatus implements ShouldQueue
 
                     // Send Alert if Level Increased
                     if ($level > $vend->offline_notification_level) {
+                        if ($vend->offline_notification_level > 0) {
+                            // Delete previous lower-level offline logs (escalation)
+                            $oldLabels = [];
+                            if ($vend->offline_notification_level >= 1)
+                                $oldLabels[] = '< 1hr';
+                            if ($vend->offline_notification_level >= 2)
+                                $oldLabels[] = '< 2hr';
+                            if ($vend->offline_notification_level >= 3)
+                                $oldLabels[] = '< 4hr';
+                            if ($vend->offline_notification_level >= 4)
+                                $oldLabels[] = '< 8hr';
+                            if ($vend->offline_notification_level >= 5)
+                                $oldLabels[] = '< 12hr';
+
+                            foreach ($oldLabels as $oldLabel) {
+                                \App\Models\VendLog::where('vend_id', $vend->id)
+                                    ->where('event', \App\Models\VendLog::EVENT_POWER_OFF)
+                                    ->where('context->label', $oldLabel)
+                                    // Make sure we only delete the most recent ones (from this incident)
+                                    ->where('created_at', '>=', now()->subHours(48))
+                                    ->delete();
+                            }
+                        }
+
                         try {
                             $this->alertEmailService->sendVendOfflineNotificationMail($vend, $label);
                         } catch (\Throwable $e) {

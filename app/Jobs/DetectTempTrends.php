@@ -444,15 +444,32 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $state = $vend->temp_monitoring_state ?? [];
         $newState = $state;
 
-        // --- Logic: T2 < -27C (Frozen?) ---
-        // Ignore extremely low values (e.g. -50C) which are likely sensor errors/open circuits
-        if ($t2Val < -27 && $t2Val > -50) {
-            if (!isset($state['t2_lt_minus_27_start'])) {
-                $newState['t2_lt_minus_27_start'] = $t2->created_at->toIso8601String();
+        // --- Logic: 1A) T1 higher than T2, >7°C ---
+        if (($t1Val - $t2Val) > 7 && $t1->value != VendTemp::TEMPERATURE_ERROR && $t2->value != VendTemp::TEMPERATURE_ERROR) {
+            if (!isset($state['t1_higher_t2_start'])) {
+                $newState['t1_higher_t2_start'] = $t1->created_at->max($t2->created_at)->toIso8601String();
             }
         } else {
-            unset($newState['t2_lt_minus_27_start']);
-            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_T2_BELOW_MINUS_25, ['> 10 mins', '> 30 mins']);
+            unset($newState['t1_higher_t2_start']);
+            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_T1_HIGHER_THAN_T2, ['> 10 mins', '> 30 mins']);
+        }
+
+        // --- Logic: 1B) Compressor & or Fan OFF ---
+        // Based on fan's value
+        $latestFan = \App\Models\VendFan::where('vend_id', $vendId)->where('type', \App\Models\VendFan::TYPE_MAIN)->orderBy('created_at', 'desc')->first();
+        $fanIsOff = false;
+        if (!$latestFan || $now->diffInMinutes($latestFan->created_at) > 40) {
+            $fanIsOff = true;
+        }
+
+        if ($fanIsOff && $vend->is_online) {
+            if (!isset($state['comp_fan_off_start'])) {
+                $startOff = $latestFan ? $latestFan->created_at : $now;
+                $newState['comp_fan_off_start'] = $startOff->toIso8601String();
+            }
+        } else {
+            unset($newState['comp_fan_off_start']);
+            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 45 mins', '> 60 mins']);
         }
 
         // --- Logic: T1 & T2 > 0 (Warm) ---
@@ -505,9 +522,9 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
 
         // --- Evaluate Alerts with Priority Suppression ---
-        // 1. T2 < -27 (Independent)
-        if (isset($newState['t2_lt_minus_27_start'])) {
-            $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['t2_lt_minus_27_start']), true);
+        // 1A. T1 higher than T2, >7°C (Independent)
+        if (isset($newState['t1_higher_t2_start'])) {
+            $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['t1_higher_t2_start']), true);
             $severity = 0;
             if ($diffMinutes >= 30)
                 $severity = 2;
@@ -515,18 +532,48 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
-                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_T2_BELOW_MINUS_25)->first();
+                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_T1_HIGHER_THAN_T2)->first();
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
-                $meta['val'] = $t2Val;
+                $meta['v1'] = $t1Val;
+                $meta['v2'] = $t2Val;
+                $meta['diff'] = round($t1Val - $t2Val, 2);
                 $meta['duration'] = $diffMinutes;
 
                 $alert = VendSmartAlert::updateOrCreate(
-                    ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_T2_BELOW_MINUS_25],
+                    ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_T1_HIGHER_THAN_T2],
                     ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
                 );
                 $thresholdMinutes = $severity === 2 ? 30 : 10;
-                $occurredAt = \Carbon\Carbon::parse($newState['t2_lt_minus_27_start'])->addMinutes($thresholdMinutes);
-                $this->handleEmailAlert($vend, $alert, ['> 10 mins', '> 30 mins'], $occurredAt);
+                $effectiveStart = \Carbon\Carbon::parse($newState['t1_higher_t2_start']);
+                $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
+                $firstTriggerAt = $effectiveStart->copy()->addMinutes(10);
+                $this->handleEmailAlert($vend, $alert, ['> 10 mins', '> 30 mins'], $occurredAt, $firstTriggerAt);
+            }
+        }
+
+        // 1B. Compressor & or Fan OFF (Independent)
+        if (isset($newState['comp_fan_off_start']) && $vend->is_online) {
+            $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['comp_fan_off_start']), true);
+            $severity = 0;
+            if ($diffMinutes >= 60)
+                $severity = 2;
+            elseif ($diffMinutes >= 45)
+                $severity = 1;
+
+            if ($severity > 0) {
+                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_COMP_FAN_OFF)->first();
+                $meta = $existing ? ($existing->meta_data ?? []) : [];
+                $meta['duration'] = $diffMinutes;
+
+                $alert = VendSmartAlert::updateOrCreate(
+                    ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_COMP_FAN_OFF],
+                    ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
+                );
+                $thresholdMinutes = $severity === 2 ? 60 : 45;
+                $effectiveStart = \Carbon\Carbon::parse($newState['comp_fan_off_start']);
+                $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
+                $firstTriggerAt = $effectiveStart->copy()->addMinutes(45);
+                $this->handleEmailAlert($vend, $alert, ['> 45 mins', '> 60 mins'], $occurredAt, $firstTriggerAt);
             }
         }
 
@@ -560,7 +607,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 );
                 $thresholdMinutes = $severity === 2 ? 60 : 30;
                 $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
-                $this->handleEmailAlert($vend, $alert, ['> 30 mins', '> 60 mins'], $occurredAt);
+                $firstTriggerAt = $effectiveStart->copy()->addMinutes(30);
+                $this->handleEmailAlert($vend, $alert, ['> 30 mins', '> 60 mins'], $occurredAt, $firstTriggerAt);
             }
         } else {
             $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_TEMPS_ABOVE_0, ['> 30 mins', '> 60 mins']);
@@ -592,7 +640,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 );
                 $thresholdMinutes = $severity === 2 ? 90 : 60;
                 $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
-                $this->handleEmailAlert($vend, $alert, ['> 60 mins', '> 90 mins'], $occurredAt);
+                $firstTriggerAt = $effectiveStart->copy()->addMinutes(60);
+                $this->handleEmailAlert($vend, $alert, ['> 60 mins', '> 90 mins'], $occurredAt, $firstTriggerAt);
             }
         } else {
             // Must clear if Case B is active OR if condition not met
@@ -623,7 +672,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 );
                 $thresholdHours = $severity === 2 ? 12 : 8;
                 $occurredAt = $effectiveStart->copy()->addHours($thresholdHours);
-                $this->handleEmailAlert($vend, $alert, ['Within last 8 hours', '> 8 hours'], $occurredAt);
+                $firstTriggerAt = $effectiveStart->copy()->addHours(8);
+                $this->handleEmailAlert($vend, $alert, ['Within last 8 hours', '> 8 hours'], $occurredAt, $firstTriggerAt);
             }
         } else {
             $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_NOT_REACH_MINUS_18, ['Within last 8 hours', '> 8 hours']);
@@ -632,7 +682,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
 
 
-    private function handleEmailAlert($vend, $alert, $labels, $occurredAt = null)
+    private function handleEmailAlert($vend, $alert, $labels, $occurredAt = null, $originalTriggerAt = null)
     {
         // $alert->severity maps to index in $labels (Severity 1 = labels[0], Sev 2 = labels[1])
         // Indices are 0-based, severity is 1,2,3...
@@ -675,6 +725,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                         'bucket' => $label,
                         'alert_type' => $alert->alert_type,
                         'severity' => $alert->severity,
+                        'triggered_at' => $originalTriggerAt ? $originalTriggerAt->toIso8601String() : ($occurredAt ?? now())->toIso8601String(),
                         'meta' => $meta,
                     ],
                     'occurred_at' => $occurredAt ?? now(),
@@ -693,10 +744,11 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
     private function getHumanReadableAlertType($type)
     {
         return match ($type) {
-            VendSmartAlert::TYPE_T2_BELOW_MINUS_25 => 'T2 below -27°C',
-            VendSmartAlert::TYPE_TEMPS_ABOVE_0 => 'T1 & T2 above 0°C',
-            VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8 => 'T1 & T2 above -8°C',
-            VendSmartAlert::TYPE_NOT_REACH_MINUS_18 => 'T1 & T2 not reach -18°C',
+            VendSmartAlert::TYPE_T1_HIGHER_THAN_T2 => 'T1 higher than T2, >7°C',
+            VendSmartAlert::TYPE_COMP_FAN_OFF => 'Compressor & or Fan OFF',
+            VendSmartAlert::TYPE_TEMPS_ABOVE_0 => 'T1 & or T2 above 0°C',
+            VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8 => 'T1 & or T2 above -8°C',
+            VendSmartAlert::TYPE_NOT_REACH_MINUS_18 => 'T1 & or T2 did not reach -18°C',
             default => $type,
         };
     }
@@ -815,6 +867,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     'bucket' => $bucket,
                     'type' => 'connectivity',
                     'hours_offline' => $hoursOffline,
+                    'triggered_at' => $lastContact ? $lastContact->copy()->addMinutes(15)->toIso8601String() : $occurredAt->toIso8601String(),
                 ],
                 'occurred_at' => $occurredAt,
             ]);

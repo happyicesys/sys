@@ -235,7 +235,7 @@ class ReportController extends Controller
 
         $query = \App\Models\VendLog::query()
             ->with(['vend', 'vend.customer', 'vend.operator', 'vend.vendPrefix'])
-            ->whereIn('event', ['machine_health_alert', 'machine_health_alert_dismissed'])
+            ->where('event', 'machine_health_alert')
             ->where('context->bucket', $bucket);
 
         // Filter by Vend properties
@@ -278,7 +278,7 @@ class ReportController extends Controller
             'data' => $logs->map(function ($log) {
                 $res = [
                     'id' => $log->id,
-                    'occurred_at' => $log->occurred_at->toIso8601String(),
+                    'occurred_at' => $log->context['triggered_at'] ?? $log->occurred_at->toIso8601String(),
                     'vend_code' => $log->vend->code,
                     'vend_name' => $log->vend->name,
                     'vend_prefix_name' => $log->vend->vendPrefix ? $log->vend->vendPrefix->name : '',
@@ -286,6 +286,21 @@ class ReportController extends Controller
                     'operator_name' => $log->vend->operator ? $log->vend->operator->name : '',
                     'event' => $log->event,
                 ];
+
+                $dismissLog = \App\Models\VendLog::where('vend_id', $log->vend_id)
+                    ->where('event', 'machine_health_alert_dismissed')
+                    ->where('context->bucket', $log->context['bucket'] ?? '')
+                    ->when($log->context['type'] ?? null, function ($q) use ($log) {
+                        return $q->where('context->type', $log->context['type']);
+                    })
+                    ->when($log->context['alert_type'] ?? null, function ($q) use ($log) {
+                        return $q->where('context->alert_type', $log->context['alert_type']);
+                    })
+                    ->where('occurred_at', '>=', $log->occurred_at)
+                    ->orderBy('occurred_at', 'asc')
+                    ->first();
+
+                $res['dismissed_at'] = $dismissLog ? $dismissLog->occurred_at->toIso8601String() : ($log->context['dismissed_at'] ?? null);
 
                 $dates = array_filter([
                     $log->vend->mqtt_last_updated_at,

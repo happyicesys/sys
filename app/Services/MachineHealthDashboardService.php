@@ -680,7 +680,8 @@ class MachineHealthDashboardService
             'rising_lowest_t2_smart' => $this->getSmartAlerts($filters, [VendSmartAlert::TYPE_RISING_T2]),
             't2_frozen_smart' => $this->getSmartAlerts($filters, [VendSmartAlert::TYPE_T2_FROZEN]),
             'operation_errors_smart' => $this->getSmartAlerts($filters, [
-                VendSmartAlert::TYPE_T2_BELOW_MINUS_25,
+                VendSmartAlert::TYPE_T1_HIGHER_THAN_T2,
+                VendSmartAlert::TYPE_COMP_FAN_OFF,
                 VendSmartAlert::TYPE_TEMPS_ABOVE_0,
                 VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8,
                 VendSmartAlert::TYPE_NOT_REACH_MINUS_18
@@ -1046,7 +1047,8 @@ class MachineHealthDashboardService
                     // Convert Minutes to Hours for types that store Minutes
                     if (
                         in_array($alert->alert_type, [
-                            VendSmartAlert::TYPE_T2_BELOW_MINUS_25,
+                            VendSmartAlert::TYPE_T1_HIGHER_THAN_T2,
+                            VendSmartAlert::TYPE_COMP_FAN_OFF,
                             VendSmartAlert::TYPE_TEMPS_ABOVE_0,
                             VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8,
                             VendSmartAlert::TYPE_LOWEST_24H_ABOVE,
@@ -1087,7 +1089,7 @@ class MachineHealthDashboardService
                     'first_min_temp' => $meta['prev_min'] ?? null,
                     'first_min_temp_at' => $meta['prev_min_timestamp'] ?? null,
                     'latest_min_temp' => $meta['current_min'] ?? null,
-                    'delta' => $meta['delta'] ?? null,
+                    'delta' => $meta['delta'] ?? $meta['diff'] ?? null,
                     'meta_max_temp' => $meta['max_temp'] ?? null,
                     'meta_duration' => $duration,
                     'meta_val' => $meta['val'] ?? null,

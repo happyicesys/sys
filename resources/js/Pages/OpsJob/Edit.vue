@@ -250,6 +250,9 @@
                                 Stock-out <br>
                                 (Transactions)
                               </SingleSortItem>
+                              <SingleSortItem modelName="refillable_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('refillable_amount')">
+                                Refillable
+                              </SingleSortItem>
                             </div>
                           </TableHead>
                           <TableHead>
@@ -458,6 +461,14 @@
                                   <span>
                                     {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                   ({{ opsJobItem.acc_vend_transactions_count }})
+                                  </span>
+                                </div>
+                              </span>
+                              <span class="text-indigo-800" v-if="opsJobItem.refillable_amount !== null">
+                                <div class="flex space-x-1 px-5 justify-center">
+                                  <span>
+                                    {{ operatorCountry.currency_symbol }}{{ opsJobItem.refillable_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                  ({{ opsJobItem.refillable_count }})
                                   </span>
                                 </div>
                               </span>
