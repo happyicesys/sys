@@ -31,9 +31,12 @@ class UpdateModemLastUpdated implements ShouldQueue
      */
     public function handle(): void
     {
-        $this->modemUnit->update([
-            'is_online' => true,
-            'last_updated_at' => Carbon::now(),
-        ]);
+        $now = Carbon::now();
+        if (!$this->modemUnit->last_updated_at || $this->modemUnit->last_updated_at->diffInSeconds($now) >= 30 || !$this->modemUnit->is_online) {
+            $this->modemUnit->update([
+                'is_online' => true,
+                'last_updated_at' => clone $now,
+            ]);
+        }
     }
 }

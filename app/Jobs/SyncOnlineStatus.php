@@ -32,7 +32,7 @@ class SyncOnlineStatus implements ShouldQueue
     {
         $now = Carbon::now();
 
-        Vend::chunkById(200, function ($vends) use ($now) {
+        Vend::with(['alertSetting', 'modemType', 'modemUnit'])->chunkById(200, function ($vends) use ($now) {
             foreach ($vends as $vend) {
                 try {
                     // 1. Core online statuses, updated for ALL machines
@@ -45,7 +45,9 @@ class SyncOnlineStatus implements ShouldQueue
 
                     // Skip the alert logic if not active, testing, no customer, specific codes, or specific operator
                     if (!$vend->customer_id || !$vend->is_active || $vend->is_testing || in_array((string) $vend->code, ['808', '6001', '6002', '831']) || $vend->operator_id == 23) {
-                        $vend->save();
+                        if ($vend->isDirty()) {
+                            $vend->save();
+                        }
                         continue;
                     }
 
@@ -150,7 +152,7 @@ class SyncOnlineStatus implements ShouldQueue
                         $vend->modem_unit_id != 65
                     ) {
                         try {
-                            $modemUnit = ModemUnit::find($vend->modem_unit_id);
+                            $modemUnit = $vend->modemUnit;
                             if ($modemUnit) {
                                 $content = ['action' => 'RESET', 'time' => $now->timestamp];
                                 $processed = $this->mqttService->publishModemParamMapping($modemUnit, 2, $content);
@@ -166,7 +168,9 @@ class SyncOnlineStatus implements ShouldQueue
                         }
                     }
 
-                    $vend->save();
+                    if ($vend->isDirty()) {
+                        $vend->save();
+                    }
                 } catch (\Throwable $e) {
                     Log::error('SyncVendOnlineStatus: Unhandled error for vend ' . ($vend->code ?? 'unknown'), [
                         'error' => $e->getMessage(),
@@ -181,7 +185,9 @@ class SyncOnlineStatus implements ShouldQueue
             ->chunkById(100, function ($modems) use ($now) {
                 foreach ($modems as $modem) {
                     $modem->is_online = $modem->last_updated_at && $modem->last_updated_at->diffInMinutes($now) < 15;
-                    $modem->save();
+                    if ($modem->isDirty()) {
+                        $modem->save();
+                    }
                 }
             });
     }

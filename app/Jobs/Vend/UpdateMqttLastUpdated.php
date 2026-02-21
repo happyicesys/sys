@@ -39,11 +39,14 @@ class UpdateMqttLastUpdated implements ShouldQueue
             return;
         }
 
-        $vend->update([
-            'is_mqtt' => true,
-            'is_mqtt_active' => true,
-            'mqtt_last_updated_at' => Carbon::now(),
-        ]);
+        $now = Carbon::now();
+        if (!$vend->mqtt_last_updated_at || $vend->mqtt_last_updated_at->diffInSeconds($now) >= 30 || !$vend->is_mqtt_active) {
+            $vend->update([
+                'is_mqtt' => true,
+                'is_mqtt_active' => true,
+                'mqtt_last_updated_at' => clone $now,
+            ]);
+        }
 
         // if($this->vend->is_offline_notification_sent) {
         //     Mail::to([

@@ -45,9 +45,10 @@ class SyncAvgSalesQtyProducts implements ShouldQueue
                     $count = $counts[$product->id] ?? 0;
                     $avg = $count / 7;
 
-                    $product->update([
-                        'avg_seven_days_count' => $avg
-                    ]);
+                    $product->avg_seven_days_count = $avg;
+                    if ($product->isDirty()) {
+                        $product->save();
+                    }
                 }
             });
 

@@ -41,12 +41,16 @@ class SyncAcbStatus implements ShouldQueue
         $this->createVendFan($input, $vend);
         $this->createVendTemp($input, $vend);
         $this->saveParameter($input, $vend);
+
+        if ($vend->isDirty()) {
+            $vend->save();
+        }
     }
 
 
     private function createVendFan($input, Vend $vend)
     {
-        if(isset($input['fan']) and $input['fan']) {
+        if (isset($input['fan']) and $input['fan']) {
             $vend->vendFans()->create([
                 'value' => $input['fan'],
                 'type' => VendFan::TYPE_MAIN,
@@ -58,51 +62,52 @@ class SyncAcbStatus implements ShouldQueue
     {
         // more than 3 minutes only update same machine temp
         // if(!$vend->temp_updated_at or $vend->temp_updated_at->addMinutes(2)->isPast()) {
-            if($temp = $input['t1']) {
-                if($temp == VendTemp::TEMPERATURE_ERROR) {
-                    $vend->is_temp_error = true;
-                }else {
-                    $createdTemp = $vend->vendTemps()->create([
-                        'value' => $temp,
-                        'type' => VendTemp::TYPE_CHAMBER,
+        if ($temp = $input['t1']) {
+            if ($temp == VendTemp::TEMPERATURE_ERROR) {
+                $vend->is_temp_error = true;
+            } else {
+                $createdTemp = $vend->vendTemps()->create([
+                    'value' => $temp,
+                    'type' => VendTemp::TYPE_CHAMBER,
+                ]);
+
+                if (isset($input['t2'])) {
+                    $tempEvaporator = $input['t2'];
+                    $vend->vendTemps()->create([
+                        'value' => $tempEvaporator,
+                        'type' => VendTemp::TYPE_EVAPORATOR,
                     ]);
-
-                    if(isset($input['t2'])) {
-                        $tempEvaporator = $input['t2'];
-                        $vend->vendTemps()->create([
-                            'value' => $tempEvaporator,
-                            'type' => VendTemp::TYPE_EVAPORATOR,
-                        ]);
-                    }
-
-                    if(isset($input['t3'])) {
-                        $temp3 = $input['t3'];
-                        $vend->vendTemps()->create([
-                            'value' => $temp3,
-                            'type' => VendTemp::TYPE_THREE,
-                        ]);
-                    }
-
-                    if(isset($input['t4'])) {
-                        $temp4 = $input['t4'];
-                        $vend->vendTemps()->create([
-                            'value' => $temp4,
-                            'type' => VendTemp::TYPE_FOUR,
-                        ]);
-                    }
-
-                    $vend->temp = $temp;
-                    $vend->is_temp_error = false;
                 }
+
+                if (isset($input['t3'])) {
+                    $temp3 = $input['t3'];
+                    $vend->vendTemps()->create([
+                        'value' => $temp3,
+                        'type' => VendTemp::TYPE_THREE,
+                    ]);
+                }
+
+                if (isset($input['t4'])) {
+                    $temp4 = $input['t4'];
+                    $vend->vendTemps()->create([
+                        'value' => $temp4,
+                        'type' => VendTemp::TYPE_FOUR,
+                    ]);
+                }
+
+                $vend->temp = $temp;
+                $vend->is_temp_error = false;
             }
-            $vend->temp_updated_at = Carbon::now();
-            $vend->save();
+        }
+        $now = Carbon::now();
+        if (!$vend->temp_updated_at || $vend->temp_updated_at->diffInSeconds($now) >= 60) {
+            $vend->temp_updated_at = clone $now;
+        }
         // }
     }
 
     private function saveParameter($input, Vend $vend)
     {
         $vend->acb_status_json = $input;
-        $vend->save();
     }
 }

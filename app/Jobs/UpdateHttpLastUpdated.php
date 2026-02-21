@@ -39,10 +39,13 @@ class UpdateHttpLastUpdated implements ShouldQueue
             return;
         }
 
-        $vend->update([
-            'last_updated_at' => Carbon::now(),
-            'is_online' => true,
-        ]);
+        $now = Carbon::now();
+        if (!$vend->last_updated_at || $vend->last_updated_at->diffInSeconds($now) >= 30 || !$vend->is_online) {
+            $vend->update([
+                'last_updated_at' => clone $now,
+                'is_online' => true,
+            ]);
+        }
 
         // if($this->vend->is_offline_notification_sent) {
         //     Mail::to([

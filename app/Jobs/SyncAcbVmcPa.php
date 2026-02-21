@@ -39,6 +39,8 @@ class SyncAcbVmcPa implements ShouldQueue
     private function saveParameter($input, Vend $vend)
     {
         $vend->acb_vmc_pa_json = $input;
-        $vend->save();
+        if ($vend->isDirty()) {
+            $vend->save();
+        }
     }
 }
