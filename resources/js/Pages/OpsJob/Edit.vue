@@ -240,6 +240,9 @@
                                 Value <br>
                                 (Qty)
                               </span>
+                              <SingleSortItem modelName="refillable_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('refillable_amount')">
+                                Refillable
+                              </SingleSortItem>
                               <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
                                 Picked
                               </SingleSortItem>
@@ -249,9 +252,6 @@
                               <SingleSortItem modelName="acc_vend_transactions_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('acc_vend_transactions_amount')">
                                 Stock-out <br>
                                 (Transactions)
-                              </SingleSortItem>
-                              <SingleSortItem modelName="refillable_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('refillable_amount')">
-                                Refillable
                               </SingleSortItem>
                             </div>
                           </TableHead>
@@ -439,6 +439,14 @@
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
                             <div class="flex flex-col space-y-2 text-center">
+                              <span class="text-indigo-800" v-if="opsJobItem.refillable_amount !== null">
+                                <div class="flex space-x-1 px-5 justify-center">
+                                  <span>
+                                    {{ operatorCountry.currency_symbol }}{{ opsJobItem.refillable_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                  ({{ opsJobItem.refillable_count }})
+                                  </span>
+                                </div>
+                              </span>
                               <div class="flex space-x-1 px-5 justify-center">
                                 <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">P</span> -->
                                 <span>
@@ -461,14 +469,6 @@
                                   <span>
                                     {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                   ({{ opsJobItem.acc_vend_transactions_count }})
-                                  </span>
-                                </div>
-                              </span>
-                              <span class="text-indigo-800" v-if="opsJobItem.refillable_amount !== null">
-                                <div class="flex space-x-1 px-5 justify-center">
-                                  <span>
-                                    {{ operatorCountry.currency_symbol }}{{ opsJobItem.refillable_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
-                                  ({{ opsJobItem.refillable_count }})
                                   </span>
                                 </div>
                               </span>

@@ -114,6 +114,39 @@
               </div>
             </div> -->
 
+            <div class="sm:col-span-6 mb-4 rounded-md bg-blue-50 p-4 shadow-sm border border-blue-200">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3 flex-1 text-sm text-blue-700">
+                  <p class="font-bold text-blue-800 mb-1">
+                    Remote Restart Instructions
+                  </p>
+                  <p>
+                    Remotely restart VMC and APK to address issues of Card Terminal not responding and Alert on Lost of Transaction/Sales from Cash Sales/ Card Terminal /via QR / No Digital Screen Activity.
+                  </p>
+                  <div class="mt-3 text-blue-800">
+                    <p class="font-semibold">Steps:</p>
+                    <ol class="list-decimal list-inside ml-1 mt-1 font-medium">
+                      <li>Restart VMC. Wait for 1 min, then</li>
+                      <li>Restart APK</li>
+                    </ol>
+                  </div>
+                  <div class="mt-4 flex flex-col space-y-1">
+                    <p class="text-red-500 font-semibold text-xs">
+                      * Note: Not able to remote restart on machines with 'offline' status.
+                    </p>
+                    <p class="text-xs italic text-blue-600">
+                      If issue persists after restarting, an onsite check is needed for connectivity and hardware.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="sm:col-span-6">
               <span class="flex space-x-1">
                 <!-- <Button

@@ -1389,7 +1389,38 @@ const loadMoreHistory = () => {
 
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900">(3) Alert on Lost of Transaction/Sales</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">(3) Alert on Lost of Transaction/Sales</h3>
+
+            <div class="mb-5 rounded-md bg-blue-50 p-4 shadow-sm border border-blue-200">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3 flex-1 text-sm text-blue-700">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p class="font-bold text-blue-800 mb-1">Possible caused by:</p>
+                      <ol class="list-decimal list-inside ml-1 text-blue-800 space-y-0.5">
+                        <li>System or hardware hanged / faulty</li>
+                        <li>Poor connectivity (for cashless sales)</li>
+                        <li>No sales</li>
+                      </ol>
+                    </div>
+                    <div>
+                      <p class="font-bold text-blue-800 mb-1">Solution:</p>
+                      <ol class="list-decimal list-inside ml-1 text-blue-800 space-y-0.5">
+                        <li>Remote restart VMC and APK</li>
+                        <li>Onsite check and reboot system</li>
+                        <li>Change sim card telco if is poor connectivity</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <form class="mt-4 mb-6 space-y-4 border-b border-gray-200 pb-6" @submit.prevent="applyFilters">
               <div class="grid grid-cols-1 gap-4 md:grid-cols-5 items-end">
                 <label class="flex flex-col space-y-1 text-sm">
@@ -1807,6 +1838,58 @@ const loadMoreHistory = () => {
                     </div>
                   </div>
                 </div>
+                <div v-if="bucket.label.includes('Dispense Stability')" class="bg-blue-50 p-4 border-b border-blue-200">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-3 flex-1 text-sm text-blue-700">
+                      <p class="font-bold text-blue-800 mb-2">Possible caused by:</p>
+                      <ol class="list-decimal pl-5 text-blue-800 space-y-1">
+                        <li>Spring position: need onsite to perform position tuning</li>
+                        <li>Sensor faulty: replace</li>
+                        <li>Product object too small/reflective surface, causing occasional sensor not able to detect</li>
+                        <li>
+                          Human operation error:
+                          <ul class="list-disc pl-5 mt-1 space-y-0.5 text-blue-700">
+                            <li>no stock in the spring's slot;</li>
+                            <li>wrong inventory qty</li>
+                          </ul>
+                        </li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="bucket.label.includes('Motor & Mechanical')" class="bg-blue-50 p-4 border-b border-blue-200">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-3 flex-1 text-sm text-blue-700">
+                      <p class="font-bold text-blue-800 mb-2">Error caused by Switch and Motor:</p>
+                      <ul class="list-none space-y-2 text-blue-800">
+                        <li>
+                          <span class="font-semibold">Error 3 & 6: Switch.</span>
+                          <ul class="list-disc pl-5 mt-0.5 text-blue-700">
+                            <li>Check switch position; replace faulty switch</li>
+                          </ul>
+                        </li>
+                        <li>
+                          <span class="font-semibold">Error 4 & 5: Motor.</span>
+                          <ul class="list-disc pl-5 mt-0.5 text-blue-700">
+                            <li>Check motor's cable connection; replace faulty motor</li>
+                          </ul>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="overflow-x-auto">
                   <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-white">

@@ -375,7 +375,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         // Based on fan's value
         $latestFan = \App\Models\VendFan::where('vend_id', $vendId)->where('type', \App\Models\VendFan::TYPE_MAIN)->orderBy('created_at', 'desc')->first();
         $fanIsOff = false;
-        if (!$latestFan || $now->diffInMinutes($latestFan->created_at) > 40) {
+        if ($latestFan && $now->diffInMinutes($latestFan->created_at) > 40) {
             $fanIsOff = true;
         }
 

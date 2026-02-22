@@ -156,7 +156,9 @@ class OpsJobController extends Controller
                     SUM(acc_total_cashless_amount) as acc_vend_transactions_cashless_amount,
                     SUM(acc_total_promo_amount) as acc_vend_transactions_promo_amount,
                     SUM(acc_total_count) as acc_vend_transactions_count,
-                    SUM(CASE WHEN cms_transaction_id IS NOT NULL THEN 1 ELSE 0 END) as cms_transaction_count
+                    SUM(CASE WHEN cms_transaction_id IS NOT NULL THEN 1 ELSE 0 END) as cms_transaction_count,
+                    SUM(refillable_amount) as refillable_amount_frozen,
+                    SUM(refillable_count) as refillable_count_frozen
                 ', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED, OpsJob::STATUS_VERIFIED])
                 ->groupBy('ops_job_id')
                 ->get()
@@ -187,8 +189,6 @@ class OpsJobController extends Controller
                 ->whereIn('oji.ops_job_id', $opsJobIds)
                 ->selectRaw('
                     oji.ops_job_id,
-                    SUM(GREATEST(CASE WHEN pl.id AND pl.qty < ojic.capacity THEN (pl.qty - ojic.qty) ELSE (ojic.capacity - ojic.qty) END, 0) * vc.amount) as refillable_amount,
-                    SUM(GREATEST(CASE WHEN pl.id AND pl.qty < ojic.capacity THEN (pl.qty - ojic.qty) ELSE (ojic.capacity - ojic.qty) END, 0)) as refillable_count,
                     SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty * vc.amount ELSE 0 END) as picked_amount,
                     SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty ELSE 0 END) as picked_count,
                     SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty * COALESCE(uc.cost, 0) ELSE 0 END) as picked_cost,
@@ -229,8 +229,8 @@ class OpsJobController extends Controller
                 $job->acc_vend_transactions_count = $iStat?->acc_vend_transactions_count ?? 0;
                 $job->cms_transaction_count = $iStat?->cms_transaction_count ?? 0;
 
-                $job->refillable_amount = $cStat?->refillable_amount ?? 0;
-                $job->refillable_count = $cStat?->refillable_count ?? 0;
+                $job->refillable_amount = $iStat?->refillable_amount_frozen ?? 0;
+                $job->refillable_count = $iStat?->refillable_count_frozen ?? 0;
                 $job->picked_amount = $cStat?->picked_amount ?? 0;
                 $job->picked_count = $cStat?->picked_count ?? 0;
                 $job->picked_cost = $cStat?->picked_cost ?? 0;
@@ -370,7 +370,9 @@ class OpsJobController extends Controller
                     SUM(acc_total_cashless_amount) as acc_vend_transactions_cashless_amount,
                     SUM(acc_total_promo_amount) as acc_vend_transactions_promo_amount,
                     SUM(acc_total_count) as acc_vend_transactions_count,
-                    SUM(CASE WHEN cms_transaction_id IS NOT NULL THEN 1 ELSE 0 END) as cms_transaction_count
+                    SUM(CASE WHEN cms_transaction_id IS NOT NULL THEN 1 ELSE 0 END) as cms_transaction_count,
+                    SUM(refillable_amount) as refillable_amount_frozen,
+                    SUM(refillable_count) as refillable_count_frozen
                 ', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED, OpsJob::STATUS_VERIFIED])
                 ->groupBy('ops_job_id')
                 ->get()
@@ -401,8 +403,6 @@ class OpsJobController extends Controller
                 ->whereIn('oji.ops_job_id', $opsJobIds)
                 ->selectRaw('
                     oji.ops_job_id,
-                    SUM(GREATEST(CASE WHEN pl.id AND pl.qty < ojic.capacity THEN (pl.qty - ojic.qty) ELSE (ojic.capacity - ojic.qty) END, 0) * vc.amount) as refillable_amount,
-                    SUM(GREATEST(CASE WHEN pl.id AND pl.qty < ojic.capacity THEN (pl.qty - ojic.qty) ELSE (ojic.capacity - ojic.qty) END, 0)) as refillable_count,
                     SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty * vc.amount ELSE 0 END) as picked_amount,
                     SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty ELSE 0 END) as picked_count,
                     SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty * COALESCE(uc.cost, 0) ELSE 0 END) as picked_cost,
@@ -467,8 +467,8 @@ class OpsJobController extends Controller
                     $summary['acc_vend_transactions_count'] += $iStat?->acc_vend_transactions_count ?? 0;
                     $summary['cms_transaction_count'] += $iStat?->cms_transaction_count ?? 0;
 
-                    $summary['refillable_amount'] += $cStat?->refillable_amount ?? 0;
-                    $summary['refillable_count'] += $cStat?->refillable_count ?? 0;
+                    $summary['refillable_amount'] += $iStat?->refillable_amount_frozen ?? 0;
+                    $summary['refillable_count'] += $iStat?->refillable_count_frozen ?? 0;
                     $summary['picked_amount'] += $cStat?->picked_amount ?? 0;
                     $summary['picked_count'] += $cStat?->picked_count ?? 0;
                     $summary['picked_cost'] += $cStat?->picked_cost ?? 0;
@@ -532,12 +532,36 @@ class OpsJobController extends Controller
 
         switch ($opsJobItem->status) {
             case 1:
+                $stats = DB::table('ops_job_item_channels as ojic')
+                    ->join('ops_jobs as oj', 'oj.id', '=', DB::raw($opsJobItem->ops_job_id))
+                    ->join('vend_channels as vc', 'ojic.vend_channel_id', '=', 'vc.id')
+                    ->leftJoin('products as p', 'vc.product_id', '=', 'p.id')
+                    ->leftJoin(DB::raw('(
+                        SELECT id, product_id, qty, date
+                        FROM (
+                            SELECT id, product_id, qty, date,
+                                ROW_NUMBER() OVER (PARTITION BY product_id, date ORDER BY id DESC) as rn
+                            FROM product_limits
+                        ) pl_inner
+                        WHERE rn = 1
+                    ) AS pl'), function ($join) {
+                        $join->on('p.id', '=', 'pl.product_id')
+                            ->on('pl.date', '=', 'oj.date');
+                    })
+                    ->where('ojic.ops_job_item_id', $opsJobItem->id)
+                    ->selectRaw('
+                        SUM(CASE WHEN p.is_available = 1 THEN GREATEST(CASE WHEN pl.id AND pl.qty < ojic.capacity THEN (pl.qty - COALESCE(ojic.qty, 0)) ELSE (ojic.capacity - COALESCE(ojic.qty, 0)) END, 0) ELSE 0 END * vc.amount) as refillable_amount,
+                        SUM(CASE WHEN p.is_available = 1 THEN GREATEST(CASE WHEN pl.id AND pl.qty < ojic.capacity THEN (pl.qty - COALESCE(ojic.qty, 0)) ELSE (ojic.capacity - COALESCE(ojic.qty, 0)) END, 0) ELSE 0 END) as refillable_count
+                    ')->first();
+
                 $opsJobItem->update([
                     'status' => OpsJob::STATUS_PICKED,
                     'picked_by' => auth()->id(),
                     'picked_at' => Carbon::now(),
                     'undo_picked_at' => null,
                     'undo_picked_by' => null,
+                    'refillable_amount' => $stats ? $stats->refillable_amount : 0,
+                    'refillable_count' => $stats ? $stats->refillable_count : 0,
                 ]);
 
                 if ($request->channels) {
@@ -850,6 +874,8 @@ class OpsJobController extends Controller
                         'picked_at',
                         'picked_by',
                         'previous_ops_job_item_id',
+                        'refillable_amount',
+                        'refillable_count',
                         'completed_at',
                         'completed_by',
                         'remarks',
@@ -885,13 +911,13 @@ class OpsJobController extends Controller
 
                     // Adjust the selectRaw queries to correctly reference the opsJobItems relationship
                     $query->selectRaw('
-                    (SELECT SUM(
-                        GREATEST(
+                    COALESCE(ops_job_items.refillable_amount, (SELECT SUM(
+                        CASE WHEN products.is_available = 1 THEN GREATEST(
                             CASE
-                                WHEN pl.id AND pl.qty < ops_job_item_channels.capacity THEN (pl.qty - ops_job_item_channels.qty)
-                                ELSE (ops_job_item_channels.capacity - ops_job_item_channels.qty)
+                                WHEN pl.id AND pl.qty < ops_job_item_channels.capacity THEN (pl.qty - COALESCE(ops_job_item_channels.qty, 0))
+                                ELSE (ops_job_item_channels.capacity - COALESCE(ops_job_item_channels.qty, 0))
                             END, 0
-                        ) * vend_channels.amount
+                        ) ELSE 0 END * vend_channels.amount
                     )
                      FROM ops_job_item_channels
                      JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
@@ -906,16 +932,16 @@ class OpsJobController extends Controller
                         WHERE rn = 1
                      ) AS pl ON products.id = pl.product_id AND pl.date = (SELECT date FROM ops_jobs WHERE ops_jobs.id = ops_job_items.ops_job_id)
                      WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
-                    ) as refillable_amount');
+                    )) as refillable_amount');
 
                     $query->selectRaw('
-                    (SELECT SUM(
-                        GREATEST(
+                    COALESCE(ops_job_items.refillable_count, (SELECT SUM(
+                        CASE WHEN products.is_available = 1 THEN GREATEST(
                             CASE
-                                WHEN pl.id AND pl.qty < ops_job_item_channels.capacity THEN (pl.qty - ops_job_item_channels.qty)
-                                ELSE (ops_job_item_channels.capacity - ops_job_item_channels.qty)
+                                WHEN pl.id AND pl.qty < ops_job_item_channels.capacity THEN (pl.qty - COALESCE(ops_job_item_channels.qty, 0))
+                                ELSE (ops_job_item_channels.capacity - COALESCE(ops_job_item_channels.qty, 0))
                             END, 0
-                        )
+                        ) ELSE 0 END
                     )
                      FROM ops_job_item_channels
                      JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
@@ -930,7 +956,7 @@ class OpsJobController extends Controller
                         WHERE rn = 1
                      ) AS pl ON products.id = pl.product_id AND pl.date = (SELECT date FROM ops_jobs WHERE ops_jobs.id = ops_job_items.ops_job_id)
                      WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
-                    ) as refillable_count');
+                    )) as refillable_count');
 
                     $query->selectRaw('
                     (SELECT SUM(ops_job_item_channels.picked_qty * vend_channels.amount)
@@ -1472,6 +1498,8 @@ class OpsJobController extends Controller
                 $opsJobItem->picked_by = null;
                 $opsJobItem->undo_picked_at = Carbon::now();
                 $opsJobItem->undo_picked_by = auth()->id();
+                $opsJobItem->refillable_amount = null;
+                $opsJobItem->refillable_count = null;
                 $opsJobItem->save();
 
                 // ✅ Restore saved `picked_before_qty` to `qty`
