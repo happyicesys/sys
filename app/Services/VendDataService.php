@@ -324,10 +324,10 @@ class VendDataService
         }
       }
 
-      // Trigger smart alert check for this specific vend (Debounced: Run max once every 3 mins)
+      // Trigger smart alert check for this specific vend (Debounced: Run max once every 10 mins)
       if (!Cache::has('detect_temp_trends_' . $vend->id)) {
         \App\Jobs\DetectTempTrends::dispatch($vend->id)->onQueue('low');
-        Cache::put('detect_temp_trends_' . $vend->id, true, now()->addMinutes(3));
+        Cache::put('detect_temp_trends_' . $vend->id, true, now()->addMinutes(10));
       }
 
     }
