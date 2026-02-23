@@ -1,0 +1,455 @@
+Vend Code | Customer Code | Customer Name | Operator Code
+--------------------------------------------------------
+1149 | 15709 (USD) | Bartley Residences Condo | HIPL
+1184 | 15670 (UEN) | Mount Faber Loop, Mt Faber | HIPL
+1184 | 16803 | Airshow2026 Exhibition Hall Machine 1 | HIPL
+1185 | 16680 (UEN) | Victoria Street, Enterprise Singapore 2 | HIESG
+1802 | 13189 (VBJ) | Tampines Central 5, Tampines Mall B&J Game Vbj-626 | HIPL
+1806 | 14570 (VBJ) | Netheravon Rd, CSC Changi Gallop Bowling B&J Vbj-723 | HIPL
+1808 | 15158 (VBJ) | Orchid Club Rd, Orchid Country Club Fairprice Claw Vbj-727 | HIPL
+1809 | 15364 (VBJ) | Amber Rd, Chinese Swimming Club B&J Fvm 732 | HIPL
+1810 | 15396 (VBJ) | Pasir Ris Close, Wild Wild Wet B&J Fvm Vbj-733 | HIPL
+2014 | 15650 (BEC) | River Place Condo | HIPL
+2043 | 15926 (UD) | Jurong Camp 1, Blk 101 - MINDEF | HIMD
+2046 | 15653 (BEC2) | Carissa Park Condo | HIPL
+2048 | 16110 (USD) | Sungei Gedong Camp, Blk 424 - MINDEF | HIMD
+2052 | 16685 (BEH) | Timbre+ One North | HIPL
+2060 | 15553 (UD) | Regentville Condo | HIPL
+2061 | 15831 (BEH) | The Cascadia Condo | HIPL
+2063 | 15624 (BEC2) | Laguna Park Condo | HIPL
+2065 | 15617 (UD) | Haig Court Condo | HIPL
+2067 | 15634 (BEC2) | Waterfront Gold Condo | HIPL
+2075 | 16237 (BEC2) | Seletar Springs Condo | HIPL
+2080 | 15627 (BEC2) | Waterview Condo | HIPL
+2081 | 16674 (UFI) | Treasure at Tampines Condo | HIPL
+2082 | 15675 (UKD) | Rivervale St Blk 126, Rivervale Spring RC | HIPL
+2091 | 15666 (BEC2) | Hillview Green Condo | HIPL
+2094 | 15630 (BEC2) | Watercolours Condo | HIPL
+2096 | 16290 (UUD) | Dieppe Barracks Camp, Blk 11 Lvl 2-14 - MINDEF | HIMD
+2097 | 16028 (USD) | Woodlands Dr 50 Blk 896B, Sweetlands | HIPL
+2098 | 15614 (UD) | Flamingo Valley Condo | HIPL
+2099 | 15657 (UEI) | Hyderabad Rd, SP Jain | HIPL
+2100 | 15616 (UKD) | Ridgewood Condo | HIPL
+2101 | 15858 (BEC) | The Bayshore Condo | HIPL
+2102 | 15644 (BEC) | Hume Park 1 Condo | HIPL
+2105 | 15704 (UFI) | Kitchener Rd, Parkroyal (Main Lobby) | HIPL
+2105 | 16774 (UFI) | Bartley Residences Condo (at Swimming Pool Deck) | HIPL
+2112 | 15700 (UEJ) | Garden Pavilion - Zoo | HIPL
+2113 | 15643 (UEJ) | East Lodge (Night Safari) - Zoo | HIPL
+2114 | 15753 (UFI) | Jurong Gateway Rd, Jurong Play Grounds | HIPL
+2116 | 15912 (UFI2) | Teck Whye Ln Blk 118, A1 Learning Centre | HIPL
+2117 | 15664 (BEC2) | Northvale Condo | HIPL
+2127 | 15619 (UKD) | The Estuary Condo | HIPL
+2128 | 16684 (CDR) | Northoaks Condo | HIPL
+2129 | 15655 (UEJ) | Retopia - Zoo | HIPL
+2130 | 15649 (UEJ) | Garden With A View - Zoo | HIPL
+2134 | 15585 (USD) | Winstedt Rd, LLS Lvl 1 (Ps/R) | HIPL
+2137 | 16689 | Kovan Residence Condo  | HIPL
+2137 | 16802 (UFI) | Jurong West St92 Blk931, Nanyang Zone 1 RC | HIPL
+2142 | 16740 (USD) | Selarang Camp, Block 28 - MINDEF (Free Placement) | HIMD
+2150 | 16238 (DEB) | Orchard Rd, Orchard Gateway (Rental To Cheers) | DCVIC
+2154 | 15992 (UKD) | Jurong West Central 1 Blk 682A, Boon Lay Zone B RN | HIPL
+2154 | 16777 (UUD) | Geylang East Ave 1 Block 125, Nice Minimarket | HIPL
+2158 | 15667 (BEC2) | The Luxurie Condo | HIPL
+2169 | 15610 | Toa Payoh Lor 6, Kidz Amaze (Toa Payoh SAFRA) | HIPL
+2169 | 16763 (USD) | Stagmont Camp Camp Blk 319 - MINDEF | HIMD
+2176 | 15949 | Netheravon Rd, CSC Changi Gallop Bowling | HIPL
+2177 | 15621 (USD) | Skypark Residences Condo | HIPL
+2179 | 15622 (USD) | Wandervale Condo | HIPL
+2190 | 15674 (BEC2) | Hedges Park Condo | HIPL
+2191 | 16054 (CFS) | Bukit Batok West Ave 6 Blk 188, Bukit Batok Zone 10 RN | HIPL
+2199 | 15595 | Elias Green Condo | HIPL
+2205 | 15600 (UKD) | Hillbrooks Condo | HIPL
+2206 | 15953 (BEC) | Seasons Park Condo | HIPL
+2212 | 15714 (BFC) | The Lanai Condo | HIPL
+2218 | 15669 (BEC) | Central Grove Condo | HIPL
+2228 | 15587 (UEFS) | Tree House Condo (Rental) | HIPL
+2230 | 16660 (BEC2) | Parc Greenwich Condo | HIPL
+2233 | 15633 (BEC2) | Sky Habitat Condo (Rental) | HIPL
+2235 | 15641 (BEC2) | Bellewater Condo | HIPL
+2237 | 15646 (BEC2) | Regent Grove Condo | HIPL
+2240 | 15648 (UEJ) | Tropical Crops - Zoo | HIPL
+2241 | 15732 (UFI) | Marine Crescent Blk 47, B.G.Lee (Rental) | HIPL
+2242 | 15644 (BEC) | Hume Park 1 Condo | HIPL
+2245 | 14655 (UFI) | Alexandra Rd, Delta House | HIPL
+2249 | 15659 (BEC2) | Ecopolitan Condo | HIPL
+2256 | 15665 (BEC) | Waterwoods Condo | HIPL
+2260 | 15571 (BEH) | Changi Court Condo | HIPL
+2268 | 15671 (UEI) | Pasir Panjang Rd, Haw Par Villa Courtyard | HIPL
+2268 | N/A | Unknown | HIPL
+2269 | 15613 (UUD) | Pasir Panjang Rd, Haw Par Villa Entrance | HIPL
+2269 | 16748 (UUD) | Compassvale Lane  Blk223A, Compassvale Villa  RC | HIPL
+2276 | 16250 (USD) | Tampines Industrial Ave 1, VSMC (Outdoor) | HIPL
+2280 | 15762 (BEH) | Flamingo Valley Condo | HIPL
+2282 | 15578 (BEH) | Changi Green Condo | HIPL
+2283 | 15719 (USD) | Woodlands Close, Woodlands 11 | HIPL
+2286 | 16245 (BEH) | Queensway Shopping Centre | HIPL
+2288 | 15581 (BEH) | Villa Marina Condo | HIPL
+2289 | 15582 | Flo Residences Condo | HIPL
+2290 | 16780 (CEP) | Nepal Park, Lyf One North | HIPL
+2291 | 15767 (UEI) | Changi Coast Walk, NSRCC | HIPL
+2292 | 16140 (BEH) | Parc Life Condo | HIPL
+2294 | 15584 (BEH) | Westwood Residences Condo | HIPL
+2296 | 15764 (BEC) | Boathouse Residences Condo | HIPL
+2298 | 16032 (BEC) | Joo Chiat Place 332 | HIPL
+2299 | 15723 (UEI) | Boon Lay Way, Jurong SAFRA | HIPL
+2300 | 15992 (UKD) | Jurong West Central 1 Blk 682A, Boon Lay Zone B RN | HIPL
+2301 | 15637 (BEC) | Arc Of Tampines Condo | HIPL
+2302 | 15702 (BEC) | Waterfront @ Faber Condo | HIPL
+2303 | 16241 (DEB) | Star Ave, Mediacorp | DCVIC
+2306 | 16708 (BEC) | Casablanca Condo | HIPL
+2310 | 15593 (UD) | Bukit Batok West Ave 2, CSC Bukit Batok (Swimming Pool) | HIPL
+2311 | 15639 (BEC) | City Square Residences Condo | HIPL
+2312 | 15668 (UFI) | Chiltern Park Condo | HIPL
+2316 | 15642 (BEC) | Parc Riviera Condo | HIPL
+2320 | 15645 (BEC) | Eastvale Condo | HIPL
+2321 | 15684 (UFI) | Choa Chu Kang Ave 2 Blk 295, Happy Star Learning Hub | HIPL
+2322 | 15596 (USD) | Bedok South Ave 3 Blk 295, Bedok Court | HIPL
+2323 | 16211 (USD) | Pasir Laba Camp, Blk 276 Lvl 1 - MINDEF | HIMD
+2324 | 16074 (USD) | Boon Lay Pl Blk 210A, Boon Lay Zone A RN | HIPL
+2326 | 15652 (BFC) | Jurong Lakeholmz Condo | HIPL
+2330 | 15663 (BEC2) | The Rainforest Executive Condo | HIPL
+2331 | 15699 | Rivervale Spring Blk 135, RC | HIPL
+2334 | 16292 (USD) | Safti Military Institute Camp, Blk 60 - MINDEF | HIMD
+2334 | 16758 (USD) | Sungei Gedong Camp, Blk 100 Level 2 - MINDEF | HIMD
+2337 | 15557 (USD) | Archipelago Condo | HIPL
+2338 | 15895 (UFI) | Tampines St 92, Tampines SAFRA (Indoor) | HIPL
+2342 | 15555 (BEC) | Austville Residences Condo | HIPL
+2348 | 15559 (BEC) | Orchid Park Condo | HIPL
+2351 | 16275 (BEC) | Orchard Scotts Condo | HIPL
+2352 | 15599 (USD) | Beach Rd, Destination | HIPL
+2356 | 15654 (UEJ) | Taxi Stand - Zoo | HIPL
+2359 | 15658 (UFI) | Changi Coast Walk, NSRCC Swimming Pool | HIPL
+2361 | 16012 (UD) | Serangoon North Ave 5, Singtel Serangoon Hub | HIPL
+2363 | 15607 (UFN) | Sunbear Area - Zoo | HIPL
+2365 | 15662 (UFI) | Woodsvale Condo | HIPL
+2366 | 16025 (UKD) | Yishun Ave 11 Blk 458, Sweetlands | HIPL
+2367 | 16688 | Compassvale Street Senior Citizen’s Corne  Blk 291B, Compassvale Lodge RC  | HIPL
+2370 | 16134 (BFC) | Compassvale Walk Blk 226A, Compassvale Vista RN | HIPL
+2376 | 15697 (UFN) | How Sun Dr, Bartley Church | HIPL
+2378 | 15563 (BFC) | Rivercove Residences Condo (Rental To Cheers) | HIPL
+2379 | 15564 (BFC) | Eastpoint Green Condo | HIPL
+2385 | 15950 (UFI) | Pasir Ris Dr 3 Blk 628 | HIPL
+2387 | 15715 (UFI) | Signature At Yishun Condo | HIPL
+2388 | 15573 (BFC) | Jurong East St 31 Blk 321 | HIPL
+2393 | 15577 (BFC) | Jurong West Ave 1 Blk 541 | HIPL
+2399 | 15620 (USD) | Jurong Gateway Rd, Jurong Play Grounds | HIPL
+2401 | 15673 (UEI) | Changi Coast Walk, NSRCC Main Lobby | HIPL
+2402 | 15747 (UD) | Fort Canning Rd, YWCA | HIPL
+2403 | 15816 (UFI) | Ang Mo Kio Ave 6 Blk 645, THK Charities | HIPL
+2406 | 15568 (USD) | Livia Condo | HIPL
+2406 | 16107 (CEP) | Nee Soon Camp, Blk 361 Lvl 2 - MINDEF (Appt.) | HIMD
+2408 | 15805 (CEP) | Florida Condo (Rental To Peter F&B) | HIPL
+2408 | 16762 (CEP) | CMPB Blk 2 - MINDEF | HIMD
+2418 | 15986 (USD) | Sentul Crescent, Kidz Amaze (Punggol SAFRA) | HIPL
+2427 | 15552 (BFC) | Waterfront Key Condo | HIPL
+2431 | 15679 (UFI) | Boon Lay Dr Blk 191, RC | HIPL
+2434 | 15798 (UFI) | Pending Rd Blk 112, Sysawi Wash | HIPL
+2436 | 15931 (USD) | Boon Lay Dr Blk 189, RC | HIPL
+2439 | 15681 (BFC) | Vue 8 Residence Condo | HIPL
+2442 | 15685 (UFI) | Sentul Crescent, Punggol SAFRA | HIPL
+2443 | 15601 (UFJ) | Pavilion By The Lake (PBTL) - Zoo | HIPL
+2445 | 15687 (UFI) | Yishun Ave 4, Yishun SAFRA Country Club | HIPL
+2446 | 15688 (BFC) | Palm Isles Condo | HIPL
+2457 | 15856 (BFC) | Amber Rd, Chinese Swimming Club | HIPL
+2461 | 15668 (UFI) | Chiltern Park Condo | HIPL
+2461 | 15610 | Toa Payoh Lor 6, Kidz Amaze (Toa Payoh SAFRA) | HIPL
+2462 | 16663 (USD) | Changi Rise Condo (Rental To Cheers) | HIPL
+2468 | 15705 (BFC) | East Meadows Condo | HIPL
+2470 | 16664 (BEC) | Sunglade Condo (Rental To Cheers) | HIPL
+2473 | 15707 (UFI) | Jurong West Central 1 Blk 692, Gnosis | HIPL
+2474 | 15708 (BEC) | Thomson Rd, Thomson Medical Hospital (Utilities) | HIPL
+2475 | 15602 (UEN) | Chimpanzee Area (Boat Dock 2) - Zoo | HIPL
+2476 | 15605 (UFJ) | Boat Dock 1 (White Tiger Side) - Zoo | HIPL
+2480 | 15713 (BFC) | Twin Waterfalls Condo | HIPL
+2483 | 15716 (UFI) | Bellewoods Condo | HIPL
+2487 | 16654 (USD) | Nee Soon Camp, Blk 701 Lvl 1 - MINDEF (Appt.) | HIMD
+2489 | 15733 (BEC) | The Hillside Condo | HIPL
+2491 | 15566 (UD) | Estella Gardens Condo | HIPL
+2493 | 15735 (BEC2) | The Glyndebourne Condo | HIPL
+2496 | 16124 (BEC2) | Casa Merah Condo | HIPL
+2497 | 15738 (CFM2) | Bedok South Ave 1, Certis Bedok (F) | HIPL
+2497 | 16730 (CFM) | Commonwealth Dr, Extra Space Commonwealth | HIPL
+2499 | 15740 (BEH) | Inz Residence Condo | HIPL
+2501 | 15811 (BEC) | Upper Jurong Rd, D Arena | HIPL
+2502 | 16086 (UFI) | Rivervale Crescent Blk 180C, Rivervale Arc RN | HIPL
+2504 | 15744 (CFK) | Regent Heights Condo | HIPL
+2506 | 15746 (FUD) | Computing Dr, Nus The Deck (Canteen) (No Com) | HIPL
+2508 | 16672 (USD) | Jurong West Central 3  Blk 698B, Pioneer Zone 5 RN | HIPL
+2509 | 15751 (CFM2) | D'Nest Condo (Rental To Cheers) | HIPL
+2513 |  | 198冰箱测试温度 | HIPL
+2516 | 15755 | Netheravon Rd, CSC Changi 1 | HIPL
+2517 | 15730 (UEJ) | Outside Squirrel Monkey Exhibit (River Wonder) - Zoo | HIPL
+2518 | 16154 (UFN) | Keppel Rd, PSA Bus Bay | HIPL
+2519 | 16153 (UFN) | Keppel Rd, PSA PPTB1 | HIPL
+2522 | 15763 (FUD) | Collage Ave West, Nus Utown Src (No Com) | HIPL
+2526 | 15765 (BFC) | Waterfront Isle Condo | HIPL
+2527 | 15766 (BFC) | Summerhill Condo | HIPL
+2539 | 15720 (BFC) | Parc Oasis Condo | HIPL
+2541 | 16719 (CEP) | Yishun Swimming Complex ActiveSG | HIPL
+2542 | 16060 (UFN) | Penjuru Dorm | HIPL
+2546 | 16240 (DEA) | Nepal Park, Lyf One North | DCVIC
+2550 | 15726 (USD) | Parc Oasis Condo DDVM | HIPL
+2555 | 15728 (BFC) | Varsity Park Condo | HIPL
+2556 | 16073 (USD) | Boon Lay Pl Blk 207, Boon Lay Zone A RN | HIPL
+2558 | 15833 (UFI) | Woodlands Ave 1 Blk 351, Dedicated Student Care Centre | HIPL
+2558 | 15579 (UFI) | Orchard Rd, Orchard Gateway (Rental To Cheers) | HIPL
+2561 | 16277 (USD) | Evergreen Park Condo Walls | HIPL
+2564 | 15748 (BFC) | J Gateway Condo | HIPL
+2566 | 16679 (BEC) | Treasure Crest Condo | HIPL
+2566 | 15833 (UFI) | Woodlands Ave 1 Blk 351, Dedicated Student Care Centre | HIPL
+2567 | 14989 (BFC) | Rivervale Dr Blk 120C, Rivervale Gardens RN | HIPL
+2568 | 16712 (UFI) | Riversound Residence Condo | HIPL
+2570 | 16273 (DEA) | Bencoolen St, Nafa Campus 3 | DCVIC
+2572 | 15768 (CFM2) | Prive Executive Condo | HIPL
+2573 | 16714 (UFJ) | Outside Colugo Camp - Zoo | HIPL
+2578 | 15965 (UD) | Mandai Hill Camp, Blk 8 - MINDEF | HIMD
+2580 | 15784 (UEI) | Northshore Dr, Marina Country Club | HIPL
+2581 | 15745 (UD) | Jln Besar, Holiday Inn Express Serangoon | HIPL
+2582 | 16152 (UFN) | Arumugam Rd, Lor Koo Chye Sheng Hong Temple Association 新加坡韮菜芭城隍庙 | HIPL
+2584 | 16695 (UD) | Kranji Camp 2, Blk 311 - MINDEF (Free Placement) | HIMD
+2584 | 15927 (CEP) | Kranji Camp, Blk 817 - MINDEF (Appt.)(Free Placement) | HIMD
+2586 | 16075 (CEP) | Khatib Camp - MINDEF | HIMD
+2596 | 15544 (UD) | Woodlands St 41 Blk 401, Bright Sparks | HIPL
+2598 | 16188 (CEP) | Sembawang Air Base Camp, Blk 67 - MINDEF (ePass) | HIPL
+2599 | 15998 (USD) | Sembawang Camp Blk 203 - MINDEF | HIMD
+2600 | 15777 (UD) | Seletar Club Rd, Seletar Country Club Golf Complex | HIPL
+2601 | 15797 (CFK) | Ferraria Park Condo | HIPL
+2603 | 15235 (CEP) | Jurong West St 93, ActiveSG Jurong West (Swimming Pool, Lvl 2) | HIPL
+2605 | 15771 (UFNH) | Jln Eunos, Masjid Darul Aman | HIPL
+2612 | 16696 (UD) | Jalan Haji Alias, Masjid Al-Huda | HIPL
+2613 | 15808 (CFM2) | The Queens Condo | HIPL
+2614 | 15809 (BEFC) | Sunhaven Condo | HIPL
+2616 | 15810 (UEI) | Somapah Rd, SUTD Building 1 Blk 1 | HIPL
+2619 | 15813 (USD) | Orchid Club Rd, Fairprice Orchid Country Club | HIPL
+2620 | 16222 (UD) | Hougang St 21, Paya Lebar Kovan CC | HIPL
+2621 | 16773 (CFW1) | Rivergate Condo (Swimming Pool area) | HIPL
+2622 | 16262 (USD) | Rivervale Drive Blk 189C, Rivervale Vista RN | HIPL
+2624 | 15592 (UKD) | Meadows @ Peirce Condo | HIPL
+2625 | 15769 (UKD) | Simei St 3, St Andrew's Community Hospital | HIPL
+2627 | 16699 (CFQ) | Serangoon Sec Sch  实仁中学(Good News Cafe) | HIPL
+2629 | 16283 (CEP) | Paddle Lodge @ MacRitchie (KWSC) | HIPL
+2630 |  | 206冷房在线状态 | HIPL
+2632 | 16286 (UUD) | Dieppe Barracks Camp, Blk 10 Lvl 1 - MINDEF | HIMD
+2634 | 15583 (BEH) | Pinevale Condo | HIPL
+2637 | 15686 (CEP) | Tampines St 92, Tampines SAFRA | HIPL
+2638 | 15783 (CEP) | Clementi Ave 3, Clementi ActiveSG (Swimming Pool) | HIPL
+2642 | 16676 (UEN) | Victoria Street, Enterprise Singapore 1 | HIESG
+2643 | 16135 (CEP) | Compassvale St Blk 250B, Compassvale Haven RC | HIPL
+2644 | 15791 (USD) | Boon Lay Dr Blk 190, RC | HIPL
+2645 | 16251 (BEC2) | Tampines Industrial Ave 1, VSMC (Indoor) | HIPL
+2654 | 15570 (UFNH) | The Inflora Condo | HIPL
+2655 | 15738 (CFM2) | Bedok South Ave 1, Certis Bedok (F) | HIPL
+2656 | 15849 (BEC2) | Grandeur Park Residences Condo | HIPL
+2657 | 16076 (UDC) | Jalan Ahmad Ibrahim, VDL Enabling Technologies Lvl 3 | HIPL
+2658 | 15850 (UFNH) | Tampines Ave 5, Masjid Darul Ghufran | HIPL
+2658 | 16771 (UFNH) | Compassvale Lane  Blk206C, Compassvale Villa  RC | HIPL
+2659 | 16729 (UFNH) | Jurong East St 21, Masjid Al Mukminin | HIPL
+2662 | 16271 (BFC) | Clementi Ave 4 Blk 311A, Trivelis RN | HIPL
+2663 | 15854 (UEN) | Boat Plazaku (River Wonder) - Zoo | HIPL
+2665 | 15807 (BEC) | Nuovo Condo | HIPL
+2665 | 16801 (BEC) | Soleil@Sinaran Condo | HIPL
+2666 | 16784 (CEZ) | Woodlands Ring Road Blk 609, Sweetlands | HIPL
+2671 | 16687 (BEC) | Timbre+ Hillview | HIPL
+2673 | 15855 (CFK) | Punggol Field, Masjid Al-Islah | HIPL
+2674 | 15853 (UD) | Jurong East St 32 Blk 316, Vending Mama | HIPL
+2674 | 16815 (UUD) | Bukit Batok Central Blk622B, Bukit Batok Zone 3 RN | HIPL
+2682 | 15861 (CFP) | Boon Lay Dr Blk 196B, RC | HIPL
+2685 | 16694 (CEP) | Somapah Rd, SUTD Building 2, Level 2 | HIPL
+2686 | 16263 (USD) | Dieppe Barracks Camp, Blk 11 Lvl 2 - MINDEF | HIMD
+2687 | 16135 (CEP) | Compassvale St Blk 250B, Compassvale Haven RC | HIPL
+2688 | 16261 (CFP) | Rivervale Drive Blk 188B, Rivervale Vista RN | HIPL
+2692 | 16279 (UD) | Dieppe Barracks Camp, Blk 11 Lvl 1 - MINDEF (Free Placement) | HIMD
+2693 | 15938 (BFC) | Tampines St 12 Blk 144, Ben Ayden's | HIPL
+2696 | 16159 (UD) | Hazel Park Condo | HIPL
+2697 | 15522 (CEP) | Thomson Rd, SLF Complex | HIPL
+2698 | 15822 (UKDC) | Woodland Loop, Ase Singapore | HIPL
+2699 | 16006 (USD) | Keat Hong Camp, Blk 9 - MINDEF | HIMD
+2700 | 15589 (CDR) | Bedok South Rd, Skyworks Global Ultimate | HIPL
+2701 | 16161 (USD) | Jurong West St 52 Blk 527, Jurong Spring Zone E RN | HIPL
+2702 | 15717 (BFC) | Rivervale Dr Blk 121A, RN | HIPL
+2704 | 15832 (BFC) | Clementi Ave 4 Blk 320, Lena Wellness | HIPL
+2705 | 15864 (USD) | Choa Chu Kang Ave 2 Blk 297C, Timeout Smarties Student Care (Rental) | HIPL
+2710 | 15847 (CDR) | Woodlands Circle Blk 738, Yews Tuition Centre | HIPL
+2712 | 15828 (CFK) | Parc Canberra Condo (Rental To Cheers) | HIPL
+2713 | 15710 | Greenwich Dr, DHL Tampines Logispark (F) | HIPL
+2714 | 15595 | Elias Green Condo | HIPL
+2715 | 15815 (CDR) | Kranji Rd, Kranji Lodge One (Admin Blk) | HIPL
+2716 | 16026 (CDR) | Woodlands Ring Rd Blk 643, Sweetlands | HIPL
+2716 | 16800 (CFQ) | Temasek Sec Sch  淡马锡中学 (Providence Café & Bakery) | HIPL
+2717 | 16278 (CDR) | Amaryllis Ville Condo Walls | HIPL
+2718 | 16812 (CFX) | LT6 @ NUS Blk E4, Engineering Dr 3 | HIPL
+2722 | 16130 (CFQ) | Dakota Cres, Broadrick Secondary School | HIPL
+2723 | 15835 (UFNH) | Admiralty Rd, Masjid An-Nur | HIPL
+2724 | 15836 | Jln Loyang Besar, CSC Loyang  | HIPL
+2725 | 15837 (BFC) | Simei Green Condo | HIPL
+2728 | 15838 (BEC) | The Quintet Condo | HIPL
+2731 | 15661 (BEC) | Hillview Regency Condo | HIPL
+2732 | 16691 (BEC) | Sophia Hills Condo | HIPL
+2733 | 15942 (CDR) | Winstedt Rd, LLS (Ps/R) | HIPL
+2734 | 16027 (CDR) | Woodlands Dr 50 Blk 886C, Sweetlands | HIPL
+2735 | 15846 (FUD) | 43 Admiralty Rd 钓鱼虾场 | HIPL
+2737 | 16746 (CFM) | Compassvale St Blk298D , Compassvale Green RC | HIPL
+2739 | 15722 (UEN) | Marina Garden Dr, Satay By The Bay | HIPL
+2741 | 16249 (BFC) | Riverfront Condo | HIPL
+2742 | 15562 (UD) | Bukit Batok West Ave 2, CSC Bukit Batok | HIPL
+2744 | 15906 (CDR) | Jurong West St 52 Blk 513, RC (Rental) | HIPL
+2747 | 15974 (USD) | Jurong West St 81 Blk 817, Nanyang Zone 6 RN | HIPL
+2748 | 15908 (CDR) | Jurong West St 41 Blk 468, Adj Student Centre | HIPL
+2749 | 15900 (UFI) | Yishun St 23 Blk 235, Etern Education Centre | HIPL
+2752 | 16192 (CDR) | Twin Vew Condo | HIPL
+2753 | 15911 (CDR) | The Santorini Condo | HIPL
+2756 | 16112 (CDR) | Martin Place Residences Condo | HIPL
+2757 | 15915 (UFI) | Boon Lay Dr Blk 260, Boon Lay Zone C RC | HIPL
+2759 | 16182 (BEC) | Irrawaddy Road, ibis Singapore Novena, Lobby | HIPL
+2760 | 15843 (UEN) | Pasir Ris Close, Wild Wild Wet | HIPL
+2761 | 15916 (BFC) | The Tapestry Condo | HIPL
+2763 | 15945 (UD) | Changi Coast Walk, NSRCC (Bowling Area) | HIPL
+2764 | 16243 (CFM2) | The Garden Residences Condo (Rental To Cheers) | HIPL
+2766 | 16129 (CDRH) | Matgaret Dr, Masjid Jamek Mosque | HIPL
+2767 | 16677 (CDR) | Clover by the park condo | HIPL
+2768 | 15574 | Riversails Condo (Rental) | HIPL
+2769 | 16754 (BEFC) | Canberra Road Void Deck Blk308 | HIPL
+2770 | 15792 (BEC2) | Skyvue Condo (Rental) | HIPL
+2771 | 15879 (CDR) | Water Place Condo | HIPL
+2772 | 15568 (USD) | Livia Condo | HIPL
+2773 | 16121 (USD) | Sungei Gedong Camp, Blk 380 - MINDEF | HIMD
+2774 | 16284 (USD) | Bedok Camp 2, Blk 103 Lvl 1 - MINDEF (Appt.) (Free Placement) | HIMD
+2775 | 15883 (CFK) | Riverbank @ Fernvale Condo | HIPL
+2776 | 15866 (CEP) | Bukit Batok St 22, Bukit Batok ActiveSG (Swimming Pool) | HIPL
+2779 | 15885 (USD) | Jurong West St 41 Blk 460, Bb House | HIPL
+2781 | 16666 (BEC) | Leedon Residence Condo | HIPL
+2783 | 16210 (USD) | Pasir Laba Camp, Blk 216 Outside Orchid Auditorium - MINDEF | HIMD
+2785 | 15886 (CDR) | Woodlands Dr 40 Blk 702, Ascenda Educare | HIPL
+2786 | 15770 (UFI) | The Visionaire Condo (Rental To Cheers) | HIPL
+2788 | 16285 (USD) | Keat Hong Camp, Blk 23B (Free Placement) | HIMD
+2789 | 15891 (CDR) | Castle Green Condo | HIPL
+2790 | 16039 (BEC2) | Foresque Residences Condo | HIPL
+2792 | 16108 (USD) | Kranji Camp 3, Blk 603 - MINDEF (Appt.) | HIMD
+2793 | 15944 (UFI) | Bukit Timah Rd, Hwa Chong's Boarding Hostel (Rental To Cheers) | HIPL
+2794 | 15781 (CEP) | Yuan Ching Rd, Jurong Lake Garden ActiveSG | HIPL
+2795 | 16738 (UFNH) | Pasir Ris Walk, Masjid Al-Istighfar | HIPL
+2796 | 16128 (CEP) | Bukit Gombak Camp HQ, Blk 303 Lvl B1 - MINDEF | HIMD
+2798 | 15779 (UD) | Toa Payoh Lor 8, Caritas Singapore | HIPL
+2799 | 16127 (CDR) | Dover Parkview Condo | HIPL
+2800 | 16113 (CFQ) | Compassvale Crescent, Compassvale Secondary School (Canteen) | HIPL
+2802 | 16683 (UD) | The Arte Condo | HIPL
+2803 | 15867 (CEP) | Anchorvale Rd, Sengkang ActiveSG (Outside Swimming Pool 1) | HIPL
+2805 | 15922 (UFI) | Yishun St 11 Blk 162 | HIPL
+2807 | 15923 (CFP) | Yishun Ave 9, Nee Soon East CC | HIPL
+2809 | 15924 (BFC) | Tampines St 84 Blk 873, Handywash | HIPL
+2810 | 16098 (CDR) | Principal Garden Condo (Rental to Cheers) | HIPL
+2811 | 16010 (CEP) | Maju Camp, Blk 37 - MINDEF | HIMD
+2813 | 15995 (CEP) | Clementi Camp, Blk 3 - MINDEF | HIMD
+2815 | 16280 (CFQ2) | Francis Thomas Dr, St Andrew's Secondary School 2 | HIPL
+2818 | 16083 (CDR) | Kian Teck Ln, Blue Star Dormitory | HIPL
+2819 | 16218 (CFP) | Barker Rd, Anglo-Chinese School (ACS) | HIPL
+2820 | 16677 (CDR) | Clover by the park condo | HIPL
+2821 | 16049 (CDR) | Micasa Condo | HIPL
+2822 | 15914 (CDR) | Bukit Batok East Ave 4 Blk 266, Bukit Batok East Zone 3 RN | HIPL
+2823 | 15625 (CDR) | Rosewood Condo | HIPL
+2824 | 15985 (CDR) | Boon Lay Way, Kidz Amaze (Jurong SAFRA) | HIPL
+2825 | 16126 (CDRH) | Changi Rd, Masjid Kassim | HIPL
+2826 | 15750 (CDR) | Euphony Gardens Condo | HIPL
+2827 | 15934 | Rio Vista Condo  | HIPL
+2828 | 16281 (CDR) | Tanamera Crest Condo Walls | HIPL
+2829 | 15943 (CDR) | Edelweiss Park Condo (Lower Deck) | HIPL
+2830 | 15611 (CDR) | Tuas Bay Lane, Novartis Tuas | HIPL
+2831 | 16741 (UFI) | Eco Sanctuary Condo | HIPL
+2832 | 16720 (CEP) | Bukit Canberra Swimming Complex ActiveSG | HIPL
+2833 | 16781 (CEP) | Star Ave, Mediacorp | HIPL
+2834 | 16109 (CEP) | Bedok Camp 2, Blk 102 Lvl 2 - MINDEF (Appt.) | HIMD
+2835 | 15786 (CEP) | Anchorvale Rd, Sengkang ActiveSG (Swimming Pool) | HIPL
+2836 | 16050 (CEP) | Pasir Laba Camp, Blk 120 Lvl 2 - MINDEF | HIMD
+2837 | 16264 (CEP) | Harding Rd Blk 10A, The Cage Dempsey | HIPL
+2838 | 16061 (CEP) | Sungei Gedong Camp, Bus Waiting Area - MINDEF | HIMD
+2839 | 15235 (CEP) | Jurong West St 93, ActiveSG Jurong West (Swimming Pool, Lvl 2) | HIPL
+2839 | 16078 (CEP) | Bencoolen St, Nafa Campus 3 | HIPL
+2840 | 15686 (CEP) | Tampines St 92, Tampines SAFRA | HIPL
+2841 | 16655 (CEP) | Bedok Heartbeat Level 5 ActiveSG | HIPL
+2841 | 16757 (CEP) | Jurong West St 93, ActiveSG Jurong West (Lvl 1) | HIPL
+2842 | 15927 (CEP) | Kranji Camp, Blk 817 - MINDEF (Appt.)(Free Placement) | HIMD
+2842 | 16695 (UD) | Kranji Camp 2, Blk 311 - MINDEF (Free Placement) | HIMD
+2843 | 15999 (CEP) | Kaki Bukit Camp, Hall - MINDEF | HIMD
+2844 | 16147 (CEP) | Kranji Camp, Blk 912 - MINDEF (Appt.) | HIMD
+2845 | 16181 (CEP) | Hillview Camp Blk 208 - MINDEF | HIMD
+2846 | 16751 (CEP) | Selarang Camp, Block 28 Location B - MINDEF (Free Placement) | HIMD
+2847 | 16733 (CEP) | Anchorvale Rd, Sengkang ActiveSG (Outside Swimming Pool 2) | HIPL
+2848 | 16103 (CEP) | Jurong Camp, Blk 213 - MINDEF | HIMD
+2849 | 16142 (CEP) | Jln Benaan Kapal Blk 2&3, The Cage Kallang | HIPL
+2850 | 15823 (CEP) | Tampines Walk, Our Tampines Hub ActiveSG (Swimming Pool Lvl 6) | HIPL
+2851 | 16656 (CEP) | Bishan Swimming Complex ActiveSG | HIPL
+2852 | 16724 (LEA) | Compassvale Walk Blk 226A, Compassvale Vista RN (Bulla) | LEA
+2853 | 16180 (LEA) | Boon Lay Drive Blk 260, Boon Lay Zone C RC (Bulla) | LEA
+2854 | 16776 (UUD) | Hougang st 22 Block 240, Nice Minimarket | HIPL
+2856 | 16214 (CFQ2) | Bedok North Ave 4, St. Anthony's Canossian Secondary School (SACSS) | HIPL
+2857 | 16269 (CFQ2) | Francis Thomas Dr, St Andrew's Secondary School | HIPL
+2858 | 16236 (CFQ2) | Marsiling Rd, Woodlands Secondary School | HIPL
+2859 | 15586 (CFQ) | Bukit Timah Rd, Hwa Chong Jc (Cafe) | HIPL
+2860 | 16701 (DEA) | The Glades Condo | DCVIC
+2860 | 16785 | The Glades Condo | HIPL
+2861 | 16234 (DEA) | Westgate, Lvl 3 @ Gateway Dr | DCVIC
+2862 | 16242 (DEA) | Rivervale Dr Blk 146, Rivervale Horizon RN | DCVIC
+2863 | 16232 (DEA) | Cheen Enterprise @ Blk 728 Jurong West Ave 5 | DCVIC
+2863 | 16786 (CEZ) | Cheen Enterprise @ Blk 728 Jurong West Ave 5 | HIPL
+2864 | 16231 (DEA) | LT6 @ NUS Blk E4, Engineering Dr 3 | DCVIC
+2865 | 16230 (DEA) | Stevie Wash @ Blk 604, Yishun St 61 | DCVIC
+2865 | 16788 (CEZ) | Stevie Wash @ Blk 604, Yishun St 61 | HIPL
+2866 | 16229 (DEA) | Parkview Aparments Condo (Swimming Pool area) | DCVIC
+2866 | 16789 (CEZ) | Parkview Aparments Condo (Swimming Pool area) | HIPL
+2867 | 16228 (DEA) | Rivergate Condo (Swimming Pool area) | DCVIC
+2868 | 16227 (DEA) | NUS PGP @ Prince George's Park | DCVIC
+2869 | 16226 (DEA) | Twin Fountains Condo (Outside Management Office) | DCVIC
+2869 | 16790 (CEZ) | Twin Fountains Condo (Outside Management Office) | HIPL
+2870 | 16772 (CFW2) | Westgate, Lvl 3 @ Gateway Dr | HIPL
+2871 | 16769 (CFY) | Rivervale Dr Blk 146, Rivervale Horizon RN | HIPL
+2872 | 16770 (CFY) | NUS PGP @ Prince George's Park | HIPL
+2873 | 15850 (UFNH) | Tampines Ave 5, Masjid Darul Ghufran | HIPL
+4406 | 15890 (UFI2) | Serangoon Ave 1 Blk 123, Hwi Yoh Garden RC | HIPL
+4407 | 15869 (UFI2) | Woodlands Close, Woodlands 11 | HIPL
+4408 | 16111 (UFI2) | Tembeling Rd Blk 124 | HIPL
+4411 | 16144 (UFI2) | Bedok Reservior Rd Blk 707, Bedok Reservoir-Punggol Rise RN | HIPL
+4412 | 16120 (UFI2) | PSA Tuas | HIPL
+4416 | 16681 (UFI2) | Strand Hotel Pte Ltd | HIPL
+4417 | 16682 (UFI2) | The Brownstone Condo | HIPL
+4418 | 15612 (UFI2) | Sims Dr, James Cook University (No Comm) | HIPL
+4419 | 16119 (UFI2) | Tuas S Blvd Aetos PSA Tuas Square Building | HIPL
+4420 | 15862 (USD) | Choa Chu Kang Ave 2 Blk 296, Gifted Learners Student Care | HIPL
+4601 | 16246 (DEA) | Gambas Cres, Nordcom One (Main Lobby) | DCVIC
+4601 | 16791 (CEZ) | Gambas Cres, Nordcom One (Main Lobby) | HIPL
+4602 | 16792 (CEZ) | Compassvale Walk Blk 227A, Compassvale Vista RN | HIPL
+4603 | 16253 (DEA) | Bedok North St 4, U Wash Laundry | DCVIC
+4604 | 16252 (DEA) | Waterfront Waves Condo | DCVIC
+4605 | 16254 (DEA) | Sin Ming Ln, Midview City | DCVIC
+4605 | 16794 (CEZ) | Sin Ming Ln, Midview City | HIPL
+4606 | 16256 (DEA) | Toa Payoh Lor 1 Blk 131 (Lvl 2), Toa Payoh Crest RN | DCVIC
+4606 | 16795 (CEZ) | Toa Payoh Lor 1 Blk 131 (Lvl 2), Toa Payoh Crest RN | HIPL
+4607 | 16255 (DEA) | Ang Mo Kio St 62, NCS Group | DCVIC
+4607 | 16796 (CEZ) | Ang Mo Kio St 62, NCS Group | HIPL
+4608 | 15870 (BEC2) | Tg Rhu Rd, Singapore Swimming Club | HIPL
+4609 | 15749 | Parc Vista Condo  | DCVIC
+4609 | 16797 (CEZ) | Parc Vista Condo | HIPL
+4610 | 16054 (CFS) | Bukit Batok West Ave 6 Blk 188, Bukit Batok Zone 10 RN | HIPL
+4610 | 16816 (CFQ) | Riverside Secondary School  立德中学 (Providence Café & Bakery)  (Replicate) | HIPL
+4611 | 16749 (BEFC) | Timbre + Yishun | HIPL
+4617 | 16721 (UEFS) | Changi Naval Base (YTC Changi East Project) LP371A | HIPL
+4617 | 15626 (UEFS) | Waterfront Waves Condo | HIPL
+4618 | 16692 (BEC) | Savannah Condopark Condo | HIPL
+4619 | 15640 (BEC) | Temasek Club | HIPL
+4620 | 15575 (BEC) | Terrasse Condo | HIPL
+4621 | 16717 (UEFS) | Changi East Pass Office 1 (Takenaka construction site） | HIPL
+4623 | 16734 (CFS) | Caspian Condo | HIPL
+4707 | 15635 (UFI3) | Loyang Way, Loyang Tua Pek Kong | HIPL
+4709 | 16759 (IFA) | Mount Faber Loop, Mt Faber 3D Ice Cream | IP
+4711 | 16727 (UFI3) | Parc Central Condo (Rental To Cheers) | HIPL
+4713 | 16715 (UFI3) | The Skywoods Condo | HIPL
+4715 | 15660 | The Terrace Condo  | HIPL
+4721 | 16100 (UFI3) | Hillington Green Condo | HIPL
+4721 | 16750 (UFI3) | Ubi Techpark Lobby A Walls | HIPL
+4722 | 15880 | The Rivervale Condo  | HIPL
+4723 | 15638 | Treasure Trove Condo | HIPL
+4727 | 15696 (CEP) | Seaside Residences Condo | HIPL
+4746 | 16693 (CET) | KTPH Tower C Level 1 | HIPL
+4752 | 16804 (IFA) | Airshow2026 Exhibition Hall Machine 2 | IP
+4753 | 16779 (IFA) | Kitchener Rd, Parkroyal (Main Lobby) | IP
+5073 | 16726 (UEFS) | Compassvale St Blk 252, Compassvale Haven RC | HIPL

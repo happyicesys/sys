@@ -15,3 +15,7 @@ yarn-error.log
 /.idea
 /.vscode
 composer.lock
+
+.DS_Store
+test*
+debug_scripts/
