@@ -194,7 +194,19 @@ class OpsJobController extends Controller
                     SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty * COALESCE(uc.cost, 0) ELSE 0 END) as picked_cost,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * vc.amount ELSE 0 END) as stock_in_amount,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty ELSE 0 END) as stock_in_count,
-                    SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * COALESCE(uc.cost, 0) ELSE 0 END) as stock_in_cost
+                    SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * COALESCE(uc.cost, 0) ELSE 0 END) as stock_in_cost,
+                    SUM(CASE WHEN oji.status = 1 AND p.is_available = 1 THEN GREATEST(
+                        CASE
+                            WHEN pl.id IS NOT NULL AND pl.qty < ojic.capacity THEN (pl.qty - COALESCE(ojic.qty, 0))
+                            ELSE (ojic.capacity - COALESCE(ojic.qty, 0))
+                        END, 0
+                    ) ELSE 0 END * vc.amount) as live_refillable_amount,
+                    SUM(CASE WHEN oji.status = 1 AND p.is_available = 1 THEN GREATEST(
+                        CASE
+                            WHEN pl.id IS NOT NULL AND pl.qty < ojic.capacity THEN (pl.qty - COALESCE(ojic.qty, 0))
+                            ELSE (ojic.capacity - COALESCE(ojic.qty, 0))
+                        END, 0
+                    ) ELSE 0 END) as live_refillable_count
                 ', [
                     OpsJob::STATUS_PICKED,
                     OpsJob::STATUS_PICKED,
@@ -229,8 +241,8 @@ class OpsJobController extends Controller
                 $job->acc_vend_transactions_count = $iStat?->acc_vend_transactions_count ?? 0;
                 $job->cms_transaction_count = $iStat?->cms_transaction_count ?? 0;
 
-                $job->refillable_amount = $iStat?->refillable_amount_frozen ?? 0;
-                $job->refillable_count = $iStat?->refillable_count_frozen ?? 0;
+                $job->refillable_amount = ($iStat?->refillable_amount_frozen ?? 0) + ($cStat?->live_refillable_amount ?? 0);
+                $job->refillable_count = ($iStat?->refillable_count_frozen ?? 0) + ($cStat?->live_refillable_count ?? 0);
                 $job->picked_amount = $cStat?->picked_amount ?? 0;
                 $job->picked_count = $cStat?->picked_count ?? 0;
                 $job->picked_cost = $cStat?->picked_cost ?? 0;
@@ -408,7 +420,19 @@ class OpsJobController extends Controller
                     SUM(CASE WHEN oji.status >= ? THEN ojic.picked_qty * COALESCE(uc.cost, 0) ELSE 0 END) as picked_cost,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * vc.amount ELSE 0 END) as stock_in_amount,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty ELSE 0 END) as stock_in_count,
-                    SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * COALESCE(uc.cost, 0) ELSE 0 END) as stock_in_cost
+                    SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * COALESCE(uc.cost, 0) ELSE 0 END) as stock_in_cost,
+                    SUM(CASE WHEN oji.status = 1 AND p.is_available = 1 THEN GREATEST(
+                        CASE
+                            WHEN pl.id IS NOT NULL AND pl.qty < ojic.capacity THEN (pl.qty - COALESCE(ojic.qty, 0))
+                            ELSE (ojic.capacity - COALESCE(ojic.qty, 0))
+                        END, 0
+                    ) ELSE 0 END * vc.amount) as live_refillable_amount,
+                    SUM(CASE WHEN oji.status = 1 AND p.is_available = 1 THEN GREATEST(
+                        CASE
+                            WHEN pl.id IS NOT NULL AND pl.qty < ojic.capacity THEN (pl.qty - COALESCE(ojic.qty, 0))
+                            ELSE (ojic.capacity - COALESCE(ojic.qty, 0))
+                        END, 0
+                    ) ELSE 0 END) as live_refillable_count
                 ', [
                     OpsJob::STATUS_PICKED,
                     OpsJob::STATUS_PICKED,
@@ -467,8 +491,8 @@ class OpsJobController extends Controller
                     $summary['acc_vend_transactions_count'] += $iStat?->acc_vend_transactions_count ?? 0;
                     $summary['cms_transaction_count'] += $iStat?->cms_transaction_count ?? 0;
 
-                    $summary['refillable_amount'] += $iStat?->refillable_amount_frozen ?? 0;
-                    $summary['refillable_count'] += $iStat?->refillable_count_frozen ?? 0;
+                    $summary['refillable_amount'] += ($iStat?->refillable_amount_frozen ?? 0) + ($cStat?->live_refillable_amount ?? 0);
+                    $summary['refillable_count'] += ($iStat?->refillable_count_frozen ?? 0) + ($cStat?->live_refillable_count ?? 0);
                     $summary['picked_amount'] += $cStat?->picked_amount ?? 0;
                     $summary['picked_count'] += $cStat?->picked_count ?? 0;
                     $summary['picked_cost'] += $cStat?->picked_cost ?? 0;

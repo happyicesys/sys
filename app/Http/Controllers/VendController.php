@@ -88,6 +88,7 @@ use App\Services\RunningNumberService;
 use App\Services\VendDataService;
 use App\Services\VendDispenseService;
 use App\Services\VendJobService;
+use App\Traits\ExportOptimizationTrait;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
@@ -110,7 +111,7 @@ use Spatie\Permission\Models\Role;
 
 class VendController extends Controller
 {
-    use GetUserTimezone, HasFilter;
+    use GetUserTimezone, HasFilter, ExportOptimizationTrait;
 
     protected $cmsService;
     protected $historyService;
