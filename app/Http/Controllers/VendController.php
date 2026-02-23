@@ -2842,6 +2842,7 @@ class VendController extends Controller
                     'vends.name AS vend_name',
                 )
                 ->whereIn('vends.id', $vendIds)
+                ->whereNotNull('vends.customer_id')
                 ->whereNotNull('vend_channels.product_id')
                 ->where('vend_channels.is_active', true)
                 ->where('vend_channels.capacity', '>', 0);
