@@ -2757,29 +2757,97 @@ class VendController extends Controller
 
     public function exportChannelExcel(Request $request)
     {
-        $vendChannels = DB::table('vend_channels')
-            ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
-            ->leftJoin('vends', 'vends.id', '=', 'vend_channels.vend_id')
-            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->select(
-                'customers.code AS customer_code',
-                'customers.name AS customer_name',
-                'products.code AS product_code',
-                'products.name AS product_name',
-                'vend_channels.code AS channel_code',
-                'vend_channels.amount',
-                'vend_channels.capacity',
-                'vend_channels.qty',
-                'vends.code AS vend_code',
-                'vends.name AS vend_name',
-            )
-            ->where('capacity', '>', 0);
-        $vendChannels = $this->filterVendChannelsDB($vendChannels, $request);
-        $vendChannels = $this->filterOperatorDB($vendChannels, 'customers');
-        $vendChannels = $vendChannels->get();
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+        if (!isset($request->is_active)) {
+            if (
+                auth()->user()->hasRole('superadmin') or
+                auth()->user()->hasRole('admin') or
+                auth()->user()->hasRole('supervisor') or
+                auth()->user()->hasRole('driver')
+            ) {
+                $request->merge(['is_active' => 'true']);
+            } else {
+                $request->merge(['is_active' => 'all']);
+            }
+        }
+
+        if (!$request->operators) {
+            $userOperator = auth()->user()->operator;
+
+            if ($userOperator && $userOperator->code === 'HIPL') {
+                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP'];
+
+                $operatorIds = \App\Models\Operator::whereIn('code', $relatedCodes)
+                    ->pluck('id')
+                    ->filter()
+                    ->values()
+                    ->toArray();
+
+                $request->merge(['operators' => $operatorIds]);
+            } else {
+                $request->merge(['operators' => [$userOperator?->id]]);
+            }
+        }
+
+        if ($request->indexType == 'customers') {
+            $vendsQuery = Customer::query()
+                ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+                ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+                ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+                ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+                ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+                ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+                ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id');
+
+            $vendsQuery = $this->filterVendsDB($vendsQuery, $request);
+            $vendsQuery = $this->filterOperatorDB($vendsQuery, 'operators');
+            $vendIds = $vendsQuery->pluck('vends.id')->filter()->toArray();
+        } else {
+            $vendsQuery = Vend::query()
+                ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+                ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+                ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+                ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+                ->leftJoin('location_types', 'location_types.id', '=', 'vends.location_type_id')
+                ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
+                ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id');
+
+            $vendsQuery = $this->filterVendsDB($vendsQuery, $request);
+            $vendsQuery = $this->filterOperatorDB($vendsQuery, 'vends');
+            $vendIds = $vendsQuery->pluck('vends.id')->filter()->toArray();
+        }
+
+        if (empty($vendIds)) {
+            $vendChannels = collect();
+        } else {
+            $vendChannels = DB::table('vend_channels')
+                ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
+                ->leftJoin('vends', 'vends.id', '=', 'vend_channels.vend_id')
+                ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+                ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+                ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+                ->select(
+                    'customers.code AS customer_code',
+                    'customers.name AS customer_name',
+                    'products.code AS product_code',
+                    'products.name AS product_name',
+                    'vend_channels.code AS channel_code',
+                    'vend_channels.amount',
+                    'vend_channels.capacity',
+                    'vend_channels.qty',
+                    'vends.code AS vend_code',
+                    'vends.name AS vend_name',
+                )
+                ->whereIn('vends.id', $vendIds)
+                ->whereNotNull('vend_channels.product_id')
+                ->where('vend_channels.is_active', true)
+                ->where('vend_channels.capacity', '>', 0);
+
+            $vendChannels = $this->filterOperatorDB($vendChannels, 'customers');
+            $vendChannels = $vendChannels->get();
+        }
 
         // dd($vendChannels);
         return (new FastExcel($this->yieldOneByOne($vendChannels)))->download('Vend_channels_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($vendChannel) {
