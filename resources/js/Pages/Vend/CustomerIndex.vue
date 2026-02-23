@@ -2512,7 +2512,6 @@ axios({
 		url: '/vends/channels/excel',
 		params: {
 				...filters.value,
-				indexType: props.indexType,
 				delivery_platform_id: filters.value.delivery_platform_id.id,
 				deviceType: filters.value.deviceType.id,
 				errors: filters.value.errors.map((error) => { return error.id }),
