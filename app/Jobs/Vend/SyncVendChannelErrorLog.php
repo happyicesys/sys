@@ -119,7 +119,9 @@ class SyncVendChannelErrorLog implements ShouldQueue
             } else {
                 $recoveredChannel = VendChannel::where('vend_id', $vend->id)->where('code', $vendChannelCode)->first();
                 if ($recoveredChannel) {
-                    $recoveredVendChannelErrorLogs = VendChannelErrorLog::where('vend_channel_id', $recoveredChannel->id)->get();
+                    $recoveredVendChannelErrorLogs = VendChannelErrorLog::where('vend_channel_id', $recoveredChannel->id)
+                        ->where('is_error_cleared', false)
+                        ->get();
                     if ($recoveredVendChannelErrorLogs) {
                         foreach ($recoveredVendChannelErrorLogs as $recoveredVendChannelErrorLog) {
                             $recoveredVendChannelErrorLog->is_error_cleared = true;

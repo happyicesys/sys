@@ -55,9 +55,9 @@ class SyncVendChannels implements ShouldQueue
         $input = $this->input;
         $vendChannelRecord = null;
 
-        if(isset($input) and isset($input['channels'])) {
+        if (isset($input) and isset($input['channels'])) {
             $channels = $input['channels'];
-            foreach($channels as $channel) {
+            foreach ($channels as $channel) {
                 $prevVendChannel = VendChannel::where('vend_id', $vend->id)->where('code', $channel['channel_code'])->first();
 
                 $data = [
@@ -113,23 +113,23 @@ class SyncVendChannels implements ShouldQueue
                 }
 
                 // update error rate json based on vend channel
-                if($vendChannel->is_active) {
+                if ($vendChannel->is_active) {
                     $vendChannel->update([
                         'error_rate_json' => $this->getChannelErrorRates($vendChannel->id)
                     ]);
                 }
 
-                if($vendChannel->qty_sold_at and $vendChannel->qty_restocked_at) {
+                if ($vendChannel->qty_sold_at and $vendChannel->qty_restocked_at) {
                     $vendChannel->update([
                         'qty_not_available_duration' => $vendChannel->qty_sold_at->diffForHumans($vendChannel->qty_restocked_at, true),
                     ]);
-                }else {
+                } else {
                     $vendChannel->update([
                         'qty_not_available_duration' => null,
                     ]);
                 }
 
-                if($vendChannel->is_active) {
+                if ($vendChannel->is_active) {
                     $this->syncProductMappingItem($vendChannel);
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }
@@ -139,16 +139,16 @@ class SyncVendChannels implements ShouldQueue
         }
 
         // handle VendChannelRecord
-        if(isset($input) and isset($input['label'])) {
+        if (isset($input) and isset($input['label'])) {
 
-            $input['channels'] = array_values(array_filter($input['channels'], function($channel) {
+            $input['channels'] = array_values(array_filter($input['channels'], function ($channel) {
                 return $channel['capacity'] > 0;
             }));
 
-            if($input['label'] == 'B') {
+            if ($input['label'] == 'B') {
                 $lastRecord = VendChannelRecord::where('vend_id', $vend->id)->orderBy('before_data_created_at', 'desc')->first();
 
-                if($lastRecord && $lastRecord->after_data_created_at == null) {
+                if ($lastRecord && $lastRecord->after_data_created_at == null) {
                     $lastRecord->update([
                         'customer_id' => $vend->customer_id,
                         'operator_id' => $vend->operator_id,
@@ -157,7 +157,7 @@ class SyncVendChannels implements ShouldQueue
                         'before_label' => $input['label'],
                     ]);
                     $vendChannelRecord = $lastRecord;
-                }else {
+                } else {
                     $vendChannelRecord = VendChannelRecord::create([
                         'customer_id' => $vend->customer_id,
                         'operator_id' => $vend->operator_id,
@@ -171,21 +171,21 @@ class SyncVendChannels implements ShouldQueue
                 $this->syncVendChannelRecordVMCBeforeQty($vendChannelRecord);
             }
 
-            if($input['label'] == 'A') {
+            if ($input['label'] == 'A') {
                 $vendChannelRecord = VendChannelRecord::query()
                     ->where('vend_id', $vend->id)
                     ->where('before_data_created_at', '>=', Carbon::now()->subHour())
                     ->whereNull('after_data_created_at')
                     ->orderBy('before_data_created_at', 'desc')
                     ->first();
-                if($vendChannelRecord) {
+                if ($vendChannelRecord) {
                     $vendChannelRecord->update([
                         'after_data_json' => $input,
                         'after_data_created_at' => Carbon::now(),
                         'after_label' => $input['label'],
                     ]);
 
-                    if($vendChannelRecord->stage_data_created_at) {
+                    if ($vendChannelRecord->stage_data_created_at) {
                         $vendChannelRecord->update([
                             'stage_data_json' => null,
                             'stage_data_created_at' => null,
@@ -197,14 +197,14 @@ class SyncVendChannels implements ShouldQueue
                 }
             }
 
-            if($input['label'] == 'S') {
+            if ($input['label'] == 'S') {
                 $vendChannelRecord = VendChannelRecord::query()
                     ->where('vend_id', $vend->id)
                     ->where('before_data_created_at', '>=', Carbon::now()->subHour())
                     ->whereNull('after_data_created_at')
                     ->orderBy('before_data_created_at', 'desc')
                     ->first();
-                if($vendChannelRecord && $vendChannelRecord->stage_data_created_at == null) {
+                if ($vendChannelRecord && $vendChannelRecord->stage_data_created_at == null) {
                     $vendChannelRecord->update([
                         'stage_data_json' => $input,
                         'stage_data_created_at' => Carbon::now(),
@@ -220,7 +220,7 @@ class SyncVendChannels implements ShouldQueue
                     ->orderBy('before_data_created_at', 'desc')
                     ->first();
 
-                if($checkExpiredVendChannelRecord) {
+                if ($checkExpiredVendChannelRecord) {
                     $this->convertStageVendChannelRecordToAfterVendChannelRecords($checkExpiredVendChannelRecord);
                 }
 
@@ -245,16 +245,16 @@ class SyncVendChannels implements ShouldQueue
     // get vend channel status by custom logic
     private function getVendChannelStatus($channel)
     {
-        if($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
+        if ($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
             return true;
-        }else {
+        } else {
             return false;
         }
     }
 
     private function getValidVendChannel($channel)
     {
-        if($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
+        if ($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
             return true;
         }
     }
@@ -268,7 +268,7 @@ class SyncVendChannels implements ShouldQueue
     private function syncVendChannelRecordVMCBeforeQty(VendChannelRecord $vendChannelRecord)
     {
         if ($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
-            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function($opsJobItemChannel) use ($vendChannelRecord) {
+            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function ($opsJobItemChannel) use ($vendChannelRecord) {
                 $channels = $vendChannelRecord->before_data_json['channels'] ?? [];
 
                 foreach ($channels as $channel) {
@@ -287,7 +287,7 @@ class SyncVendChannels implements ShouldQueue
     private function syncVendChannelRecordVMCAfterQty(VendChannelRecord $vendChannelRecord)
     {
         if ($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
-            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function($opsJobItemChannel) use ($vendChannelRecord) {
+            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function ($opsJobItemChannel) use ($vendChannelRecord) {
                 $channels = $vendChannelRecord->after_data_json['channels'] ?? [];
 
                 foreach ($channels as $channel) {
@@ -304,37 +304,46 @@ class SyncVendChannels implements ShouldQueue
 
     private function getChannelErrorRates($vendChannelID)
     {
-        $vendTransaction = VendTransaction::query()
+        $sixDaysAgo = Carbon::today()->subDays(6)->startOfDay()->toDateTimeString();
+        $twoDaysAgo = Carbon::today()->subDays(2)->startOfDay()->toDateTimeString();
+
+        $singleData = \App\Models\VendTransaction::query()
             ->where('vend_channel_id', $vendChannelID)
-            ->where('transaction_datetime', '>=', Carbon::today()->subDays(6)->startOfDay()->toDateTimeString())
-            ->groupBy('vend_channel_id')
-            ->select(
-                'id',
-                'vend_channel_id',
-                DB::raw(
-                    'COUNT(id) as seven_days_total_count'
-                ),
-                DB::raw(
-                    'COUNT(
-                        CASE
-                            WHEN error_code_normalized IS NULL THEN NULL
-                            WHEN error_code_normalized = 0 THEN NULL
-                            ELSE 1
-                        END
-                    ) as seven_days_error_count'
-                )
-            )
-            ->selectRaw('COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as three_days_total_count', [Carbon::today()->subDays(2)->startOfDay()->toDateTimeString()])
-            ->selectRaw('COUNT(CASE WHEN transaction_datetime >= ? AND error_code_normalized IS NOT NULL AND error_code_normalized != 0 THEN 1 END) as three_days_error_count', [Carbon::today()->subDays(2)->startOfDay()->toDateTimeString()])
+            ->where('is_multiple', false)
+            ->where('transaction_datetime', '>=', $sixDaysAgo)
+            ->selectRaw('
+                COUNT(id) as seven_days_total_count,
+                COUNT(CASE WHEN error_code_normalized IS NOT NULL AND error_code_normalized != 0 THEN 1 END) as seven_days_error_count,
+                COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as three_days_total_count,
+                COUNT(CASE WHEN transaction_datetime >= ? AND error_code_normalized IS NOT NULL AND error_code_normalized != 0 THEN 1 END) as three_days_error_count
+            ', [$twoDaysAgo, $twoDaysAgo])
             ->first();
 
+        $multiData = \App\Models\VendTransactionItem::query()
+            ->join('vend_transactions', 'vend_transaction_items.vend_transaction_id', '=', 'vend_transactions.id')
+            ->where('vend_transaction_items.vend_channel_id', $vendChannelID)
+            ->where('vend_transactions.is_multiple', true)
+            ->where('vend_transactions.transaction_datetime', '>=', $sixDaysAgo)
+            ->selectRaw('
+                COUNT(vend_transaction_items.id) as seven_days_total_count,
+                COUNT(CASE WHEN vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as seven_days_error_count,
+                COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? THEN vend_transaction_items.id ELSE NULL END) as three_days_total_count,
+                COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as three_days_error_count
+            ', [$twoDaysAgo, $twoDaysAgo])
+            ->first();
+
+        $sevenDaysTotal = ($singleData->seven_days_total_count ?? 0) + ($multiData->seven_days_total_count ?? 0);
+        $sevenDaysError = ($singleData->seven_days_error_count ?? 0) + ($multiData->seven_days_error_count ?? 0);
+        $threeDaysTotal = ($singleData->three_days_total_count ?? 0) + ($multiData->three_days_total_count ?? 0);
+        $threeDaysError = ($singleData->three_days_error_count ?? 0) + ($multiData->three_days_error_count ?? 0);
+
         return [
-            'seven_days_total_count' => isset($vendTransaction->seven_days_total_count) ? $vendTransaction->seven_days_total_count : 0,
-            'seven_days_error_count' => isset($vendTransaction->seven_days_error_count) ? $vendTransaction->seven_days_error_count : 0,
-            'seven_days_error_rate' => isset($vendTransaction->seven_days_total_count) && $vendTransaction->seven_days_total_count > 0 ? round(((isset($vendTransaction->seven_days_error_count) ? $vendTransaction->seven_days_error_count : 0) / $vendTransaction->seven_days_total_count) * 100, 2) : 0,
-            'three_days_total_count' => isset($vendTransaction->three_days_total_count) ? $vendTransaction->three_days_total_count : 0,
-            'three_days_error_count' => isset($vendTransaction->three_days_error_count) ? $vendTransaction->three_days_error_count : 0,
-            'three_days_error_rate' => isset($vendTransaction->three_days_total_count) && $vendTransaction->three_days_total_count > 0 ? round(((isset($vendTransaction->three_days_error_count) && $vendTransaction->three_days_error_count) / $vendTransaction->three_days_total_count) * 100, 2) : 0,
+            'seven_days_total_count' => $sevenDaysTotal,
+            'seven_days_error_count' => $sevenDaysError,
+            'seven_days_error_rate' => $sevenDaysTotal > 0 ? round(($sevenDaysError / $sevenDaysTotal) * 100, 2) : 0,
+            'three_days_total_count' => $threeDaysTotal,
+            'three_days_error_count' => $threeDaysError,
+            'three_days_error_rate' => $threeDaysTotal > 0 ? round(($threeDaysError / $threeDaysTotal) * 100, 2) : 0,
         ];
     }
 

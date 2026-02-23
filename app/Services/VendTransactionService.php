@@ -165,14 +165,17 @@ class VendTransactionService
             if (sizeof($processedInput['children']) > 1) {
                 foreach ($processedInput['children'] as $child) {
                     $this->createVendTransactionItem($vendTransaction, $child);
+                    if (!empty($child['vendChannelErrorID'])) {
+                        SyncVendChannelErrorLog::dispatch($vend, $child['vendChannelCode'], $child['errorCode'], $vendTransaction->id)->onQueue('default');
+                    }
+                }
+            } else {
+                if (!empty($processedInput['vendChannelErrorID'])) {
+                    SyncVendChannelErrorLog::dispatch($vend, $processedInput['vendChannelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');
                 }
             }
 
             SyncUnitCostJson::dispatch($vendTransaction)->onQueue('default');
-        }
-
-        if ($processedInput['vendChannelErrorID']) {
-            SyncVendChannelErrorLog::dispatch($vend, $processedInput['vendChannelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');
         }
 
         if ($processedInput['dcvendUserID']) {
