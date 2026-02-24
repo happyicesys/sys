@@ -322,23 +322,24 @@ function groupAlertsMatrix(rows, definitions) {
 
 const matrix21 = computed(() => {
   const meta = [
-      {
-          id: 't1_higher_than_t2',
-          label: '1A) T1 higher than T2, >7°C',
-          sub: 'Possible component issue:\ni) Fan not function\nii) Temp probe malfunction',
-          types: ['t1_higher_than_t2'],
-          headers: { 1: '> 10 mins', 2: '> 30 mins' }
-      },
+      // NOTE: Temporarily hidden — do NOT delete (user may want to restore)
+      // {
+      //     id: 't1_higher_than_t2',
+      //     label: '1A) T1 higher than T2, >7°C',
+      //     sub: 'Possible component issue:\ni) Fan not function\nii) Temp probe malfunction',
+      //     types: ['t1_higher_than_t2'],
+      //     headers: { 1: '> 10 mins', 2: '> 30 mins' }
+      // },
       {
           id: 'comp_fan_off',
-          label: '1B) Compressor & or Fan, in OFF condition',
+          label: '1A) Compressor & or Fan, in OFF condition',
           sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after defrost or resting\niii) Comp is working, but Fan not turning',
           types: ['comp_fan_off'],
           headers: { 1: '> 45 mins', 2: '> 60 mins' }
       },
       {
           id: 'temps_above_0',
-          label: '1C) T1 & or T2, above 0°C',
+          label: '1B) T1 & or T2, above 0°C',
           sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after forced defrost\n\nPossible Operation issue:\niii) Freezer door not close tight\niv) Open freezer door >15mins',
           note: 'Alert dismissed once temp below 0c',
           types: ['temps_above_0'],
@@ -346,7 +347,7 @@ const matrix21 = computed(() => {
       },
       {
           id: 'temps_above_minus_8',
-          label: '1D) T1 & or T2, above -8°C',
+          label: '1C) T1 & or T2, above -8°C',
           sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins',
           note: 'Alert dismissed once temp below -8c',
           types: ['temps_above_minus_8'],
@@ -354,7 +355,7 @@ const matrix21 = computed(() => {
       },
       {
           id: 'not_reach_minus_18',
-          label: '1E) T1 & or T2, did not reach -18°C',
+          label: '1D) T1 & or T2, did not reach -18°C',
           sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Many purchases occur',
           note: 'Alert dismissed once temp below -18c',
           types: ['not_reach_minus_18'],

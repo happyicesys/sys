@@ -990,9 +990,9 @@
 									target="_blank"
 									rel="noopener noreferrer"
 									type="button"
-									class="bg-green-300 hover:bg-green-400 px-3 py-2 text-xs text-green-800 flex space-x-1 w-fit rounded shadow font-bold"
+									class="bg-green-300 hover:bg-green-400 px-3 py-2 text-xs flex space-x-1 w-fit rounded shadow font-bold"
 								>
-									GPS
+									<span class="text-blue-800 underline">GPS</span>
 								</a>
 							</span>
 
@@ -1019,10 +1019,7 @@
 									:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 									v-if="vend.temp_updated_at"
 									>
-											<div class="flex items-center justify-between w-full">
-												<span>{{ vend.is_temp_error ? 'Error' : vend.temp }}</span>
-												<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
-											</div>
+											<span class="text-blue-800 underline">{{ vend.is_temp_error ? 'Error' : vend.temp }}</span>
 									</button>
 							</a>
 							<!-- <button
@@ -1041,10 +1038,7 @@
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && 't2' in vend.parameterJson"
 									>
-											<div class="flex items-center justify-between w-full">
-													<span>{{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)</span>
-													<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
-											</div>
+											<span class="text-blue-800 underline">{{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)</span>
 									</button>
 							</a>
 							<a :href="'/vends/' + vend.vend_id + '/temp/' + 3 " target="_blank" class="w-full">
@@ -1054,10 +1048,7 @@
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t3'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && vend.parameterJson['t3'] && vend.parameterJson['t3'] != constTempError"
 									>
-											<div class="flex items-center justify-between w-full">
-													<span>{{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)</span>
-													<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
-											</div>
+											<span class="text-blue-800 underline">{{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)</span>
 									</button>
 							</a>
 							<a :href="'/vends/' + vend.vend_id + '/temp/' + 4 " target="_blank" class="w-full">
@@ -1067,10 +1058,7 @@
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t4'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && vend.parameterJson['t4'] && vend.parameterJson['t4'] != constTempError"
 									>
-											<div class="flex items-center justify-between w-full">
-													<span>{{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)</span>
-													<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
-											</div>
+											<span class="text-blue-800 underline">{{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)</span>
 									</button>
 							</a>
 							<span class="mt-1">
@@ -1283,7 +1271,7 @@
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 									>
-										<span>
+										<span class="text-blue-800 underline">
 											{{ vend.lastSecondOpsJobItem.ref_id }}
 										</span>
 									</div>
@@ -1329,7 +1317,7 @@
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 									>
-										<span>
+										<span class="text-blue-800 underline">
 											{{ vend.lastOpsJobItem.ref_id }}
 										</span>
 									</div>
@@ -1378,7 +1366,7 @@
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 									>
-										<span>
+										<span class="text-blue-800 underline">
 											{{ vend.nextOpsJobItem.ref_id }}
 										</span>
 									</div>
@@ -1763,7 +1751,7 @@
 						type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
 						>
 						<EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
-						<span>
+						<span class="text-blue-800 underline">
 								more
 						</span>
 						</Button>
