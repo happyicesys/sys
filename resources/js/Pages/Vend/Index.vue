@@ -1117,20 +1117,34 @@
                       </span>
                   </div>
               </div>
-              <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.parameterJson && 'fan' in vend.parameterJson"
-              >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Fan Speed
-                      </span>
-                      <span>
-                          {{vend.parameterJson['fan']}}
-                      </span>
+              <!-- Fan RPM: only show for non-UD machines -->
+              <template v-if="vend.vend_prefix_name && !vend.vend_prefix_name.startsWith('UD')">
+                  <!-- Has fan speed signal -->
+                  <div
+                      v-if="vend.parameterJson && 'fan' in vend.parameterJson"
+                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                      :class="[
+                          vend.is_active || vend.is_testing
+                              ? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
+                              : 'bg-gray-200 text-gray-400'
+                      ]"
+                  >
+                      <div class="flex flex-col items-center">
+                          <span class="font-bold">Fan Speed</span>
+                          <span>{{vend.parameterJson['fan']}}</span>
+                      </div>
                   </div>
-              </div>
+                  <!-- Has fan model but no speed signal -->
+                  <div
+                      v-else
+                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-gray-200 text-gray-400"
+                  >
+                      <div class="flex flex-col items-center">
+                          <span class="font-bold">Fan Speed</span>
+                          <span>—</span>
+                      </div>
+                  </div>
+              </template>
               <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                   :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['door'] == 'close' ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"

@@ -655,6 +655,11 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Delta of T1 and T2 <br> Under normal condition, 1.5C to 3.5C', html: true }"></ExclamationCircleIcon>
 							</div>
+							<div class="flex justify-center items-center">
+								<SingleSortItem modelName="parameter_json->fan" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->fan', false)">
+									Fan RPM
+								</SingleSortItem>
+							</div>
 						</div>
 					</TableHead>
 					<TableHead>
@@ -1019,7 +1024,10 @@
 									:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 									v-if="vend.temp_updated_at"
 									>
-											<span class="text-blue-800 underline">{{ vend.is_temp_error ? 'Error' : vend.temp }}</span>
+											<div class="flex items-center justify-between w-full">
+												<span class="text-blue-800 underline">{{ vend.is_temp_error ? 'Error' : vend.temp }}</span>
+												<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+											</div>
 									</button>
 							</a>
 							<!-- <button
@@ -1038,7 +1046,10 @@
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && 't2' in vend.parameterJson"
 									>
-											<span class="text-blue-800 underline">{{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)</span>
+											<div class="flex items-center justify-between w-full">
+												<span class="text-blue-800 underline">{{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)</span>
+												<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+											</div>
 									</button>
 							</a>
 							<a :href="'/vends/' + vend.vend_id + '/temp/' + 3 " target="_blank" class="w-full">
@@ -1048,7 +1059,10 @@
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t3'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && vend.parameterJson['t3'] && vend.parameterJson['t3'] != constTempError"
 									>
-											<span class="text-blue-800 underline">{{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)</span>
+											<div class="flex items-center justify-between w-full">
+												<span class="text-blue-800 underline">{{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)</span>
+												<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+											</div>
 									</button>
 							</a>
 							<a :href="'/vends/' + vend.vend_id + '/temp/' + 4 " target="_blank" class="w-full">
@@ -1058,7 +1072,10 @@
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t4'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && vend.parameterJson['t4'] && vend.parameterJson['t4'] != constTempError"
 									>
-											<span class="text-blue-800 underline">{{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)</span>
+											<div class="flex items-center justify-between w-full">
+												<span class="text-blue-800 underline">{{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)</span>
+												<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+											</div>
 									</button>
 							</a>
 							<span class="mt-1">
@@ -1071,6 +1088,34 @@
 							>
 									{{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
 							</span>
+							<!-- Fan RPM: only show for non-UD machines -->
+							<template v-if="vend.vend_prefix_name && !vend.vend_prefix_name.startsWith('UD')">
+								<!-- Has fan speed signal -->
+								<div
+									v-if="vend.parameterJson && 'fan' in vend.parameterJson"
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1"
+									:class="[
+										vend.is_active || vend.is_testing
+											? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
+											: 'bg-gray-200 text-gray-400'
+									]"
+								>
+									<div class="flex flex-col items-center">
+										<span class="text-[10px] font-bold">Fan RPM</span>
+										<span>{{ vend.parameterJson['fan'] }}</span>
+									</div>
+								</div>
+								<!-- Has fan model but no speed signal -->
+								<div
+									v-else
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1 bg-gray-200 text-gray-400"
+								>
+									<div class="flex flex-col items-center">
+										<span class="text-[10px] font-bold">Fan RPM</span>
+										<span>—</span>
+									</div>
+								</div>
+							</template>
 						</div>
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
@@ -1506,20 +1551,7 @@
 											</span>
 									</div>
 							</div>
-							<div
-									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-									:class="[vend.is_active || vend.is_testing ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
-									v-if="vend.parameterJson && 'fan' in vend.parameterJson"
-							>
-									<div class="flex flex-col">
-											<span class="font-bold">
-													Freezer Fan Speed
-											</span>
-											<span>
-													{{vend.parameterJson['fan']}}
-											</span>
-									</div>
-							</div>
+
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 									:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['door'] == 'close' ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"

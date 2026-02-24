@@ -72,6 +72,7 @@ use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\VendRecord;
 use App\Models\VendSnapshot;
+use App\Models\VendLog;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
@@ -1172,6 +1173,24 @@ class VendController extends Controller
             )
             ->get();
 
+        $vendAlertLogs = VendLog::where('vend_id', $vendId)
+            ->whereIn('event', ['machine_health_alert', 'machine_health_alert_dismissed'])
+            ->where('occurred_at', '>=', $startDate)
+            ->where('occurred_at', '<=', $endDate)
+            ->select('id', 'event', 'subject', 'context', 'occurred_at')
+            ->orderBy('occurred_at', 'asc')
+            ->get()
+            ->map(function ($log) {
+                return [
+                    'event' => $log->event,
+                    'subject' => $log->subject,
+                    'alert_type' => $log->context['alert_type'] ?? null,
+                    'bucket' => $log->context['bucket'] ?? null,
+                    'severity' => $log->context['severity'] ?? null,
+                    'occurred_at' => $log->occurred_at->toIso8601String(),
+                ];
+            });
+
         $vendOptions = Cache::remember('vend_options_temp_index', 3600, function () {
             return DB::table('vends')
                 ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
@@ -1208,6 +1227,7 @@ class VendController extends Controller
             'vendObj' => VendDBResource::make($vend),
             'vendTempsObj' => VendTempResource::collection($vendTemps),
             'vendFansObj' => VendFanResource::collection($vendFans),
+            'vendAlertLogsObj' => $vendAlertLogs,
             'startDate' => $startDate->format('D M d Y H:i:s'),
             'endDate' => $endDate->format('D M d Y H:i:s'),
             'startDateString' => $startDate->format('y-m-d H:i'),

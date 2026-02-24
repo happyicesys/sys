@@ -11,7 +11,11 @@
 
 <script setup>
     import Vue3ChartJs from '@j-t-mcc/vue3-chartjs';
+    import { Chart } from 'chart.js';
+    import annotationPlugin from 'chartjs-plugin-annotation';
     import 'chartjs-adapter-moment';
+
+    Chart.register(annotationPlugin);
     import ChartDataLabels from 'chartjs-plugin-datalabels';
     import { ref } from 'vue'
 

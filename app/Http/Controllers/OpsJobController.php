@@ -934,12 +934,13 @@ class OpsJobController extends Controller
                     ELSE NULL END) as status_by');
 
                     // Adjust the selectRaw queries to correctly reference the opsJobItems relationship
+                    // For pending items (status=1), use live vend_channels.qty; for others use stored refillable_amount
                     $query->selectRaw('
                     COALESCE(ops_job_items.refillable_amount, (SELECT SUM(
                         CASE WHEN products.is_available = 1 THEN GREATEST(
                             CASE
-                                WHEN pl.id AND pl.qty < ops_job_item_channels.capacity THEN (pl.qty - COALESCE(ops_job_item_channels.qty, 0))
-                                ELSE (ops_job_item_channels.capacity - COALESCE(ops_job_item_channels.qty, 0))
+                                WHEN pl.id AND pl.qty < ops_job_item_channels.capacity THEN (pl.qty - COALESCE(vend_channels.qty, 0))
+                                ELSE (ops_job_item_channels.capacity - COALESCE(vend_channels.qty, 0))
                             END, 0
                         ) ELSE 0 END * vend_channels.amount
                     )
@@ -962,8 +963,8 @@ class OpsJobController extends Controller
                     COALESCE(ops_job_items.refillable_count, (SELECT SUM(
                         CASE WHEN products.is_available = 1 THEN GREATEST(
                             CASE
-                                WHEN pl.id AND pl.qty < ops_job_item_channels.capacity THEN (pl.qty - COALESCE(ops_job_item_channels.qty, 0))
-                                ELSE (ops_job_item_channels.capacity - COALESCE(ops_job_item_channels.qty, 0))
+                                WHEN pl.id AND pl.qty < ops_job_item_channels.capacity THEN (pl.qty - COALESCE(vend_channels.qty, 0))
+                                ELSE (ops_job_item_channels.capacity - COALESCE(vend_channels.qty, 0))
                             END, 0
                         ) ELSE 0 END
                     )
