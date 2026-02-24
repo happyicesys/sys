@@ -14,7 +14,7 @@ class SchedulerHeartbeat extends Command
     {
         $message = '[SCHEDULER HEARTBEAT] Running at ' . now()->toDateTimeString() . ' (env: ' . config('app.env') . ')';
 
-        Log::channel('daily')->info($message);
+        Log::info($message);
         $this->info($message);
 
         return 0;
