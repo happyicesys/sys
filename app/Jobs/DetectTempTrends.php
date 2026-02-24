@@ -19,10 +19,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
     public function uniqueId()
     {
-        // Differentiate between lightweight/realtime and heavy/scheduled jobs
-        // so they don't block each other unnecessarily, effectively.
-        // Or keep them same to prevent race conditions on DB?
-        // Safer to keep same ID (vendID) lock.
         return $this->targetVendId ? $this->targetVendId . '-' . ($this->isFullScan ? 'full' : 'light') : 'global';
     }
 
@@ -38,6 +34,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
     {
         $this->targetVendId = $vendId;
         $this->isFullScan = $isFullScan;
+        // Keep all jobs on the low queue to not starve real-time queues
+        $this->onQueue('low');
     }
 
     /**
@@ -51,7 +49,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 ->select('id')
                 ->chunk(100, function ($vends) {
                     foreach ($vends as $vend) {
-                        self::dispatch($vend->id, true)->onQueue('default');
+                        self::dispatch($vend->id, true);
                     }
                 });
             return;
@@ -62,16 +60,22 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             return;
         }
 
-        $this->analyzeStateful($vend);
+        // Pre-fetch all existing smart alerts for this vend in one query
+        // so individual methods don't need to hit the DB per alert type.
+        $existingAlerts = VendSmartAlert::where('vend_id', $vend->id)
+            ->get()
+            ->keyBy('alert_type');
+
+        $this->analyzeStateful($vend, $existingAlerts);
         $this->checkConnectivity($vend);
 
         if ($this->isFullScan) {
-            $this->analyzeTrend($vend, VendTemp::TYPE_CHAMBER, VendSmartAlert::TYPE_RISING_T1);
-            $this->analyzeTrend($vend, VendTemp::TYPE_EVAPORATOR, VendSmartAlert::TYPE_RISING_T2);
+            $this->analyzeTrend($vend, VendTemp::TYPE_CHAMBER, VendSmartAlert::TYPE_RISING_T1, $existingAlerts);
+            $this->analyzeTrend($vend, VendTemp::TYPE_EVAPORATOR, VendSmartAlert::TYPE_RISING_T2, $existingAlerts);
             $this->checkNoTransactions($vend);
             $this->checkStockouts($vend);
-            $this->analyzeFrozenT2($vend);
-            $this->analyzePreventiveMaintenance($vend);
+            $this->analyzeFrozenT2($vend, $existingAlerts);
+            $this->analyzePreventiveMaintenance($vend, $existingAlerts);
         }
 
         if ($vend->isDirty()) {
@@ -79,7 +83,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
     }
 
-    private function analyzeFrozenT2(\App\Models\Vend $vend): void
+    private function analyzeFrozenT2(\App\Models\Vend $vend, $existingAlerts): void
     {
         if (!in_array($vend->menu_frame_id, [5, 6, 7, 10])) {
             return;
@@ -102,7 +106,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
 
         // 2. Single Aggregate Query for 24h/48h/72h metrics
-        // Fetch Max/Min stats efficiently
         $stats = VendTemp::where('vend_id', $vend->id)
             ->where('type', VendTemp::TYPE_EVAPORATOR)
             ->where('created_at', '>=', $calc72h)
@@ -124,12 +127,9 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $max24 = $stats->max_24;
         $min24 = $stats->min_24;
 
-        // Dismiss if:
-        // 1. T2 > 2C (Defrosted/Working) in last 24h
-        // 2. T2 <= -23.5C (Reached very cold temp) in last 24h
         $dismissThresholdRaw = -23.5 * $scale;
         if ($max24 === null || $max24 > $thresholdRaw || ($min24 !== null && $min24 <= $dismissThresholdRaw)) {
-            $this->resolveStatefulAlert($vend->id, VendSmartAlert::TYPE_T2_FROZEN, ['> 24 hr', '> 48 hr', '> 72 hr']);
+            $this->resolveStatefulAlert($vend->id, VendSmartAlert::TYPE_T2_FROZEN, ['> 24 hr', '> 48 hr', '> 72 hr'], $existingAlerts);
             return;
         }
 
@@ -184,14 +184,14 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $type)->where('is_active', true)->update(['is_active' => false]);
     }
 
-    private function analyzePreventiveMaintenance(\App\Models\Vend $vend): void
+    private function analyzePreventiveMaintenance(\App\Models\Vend $vend, $existingAlerts): void
     {
         $scale = 10;
-        $this->checkLowestAbove($vend->id, 24, [-21, -20, -19], VendSmartAlert::TYPE_LOWEST_24H_ABOVE, $scale);
-        $this->checkLowestAbove($vend->id, 72, [-21, -20, -19], VendSmartAlert::TYPE_LOWEST_72H_ABOVE, $scale);
+        $this->checkLowestAbove($vend->id, 24, [-21, -20, -19], VendSmartAlert::TYPE_LOWEST_24H_ABOVE, $scale, $existingAlerts);
+        $this->checkLowestAbove($vend->id, 72, [-21, -20, -19], VendSmartAlert::TYPE_LOWEST_72H_ABOVE, $scale, $existingAlerts);
     }
 
-    private function checkLowestAbove($vendId, $hours, $thresholds, $alertType, $scale)
+    private function checkLowestAbove($vendId, $hours, $thresholds, $alertType, $scale, $existingAlerts)
     {
         // Optimized: Get both min values in one query
         $temps = VendTemp::where('vend_id', $vendId)
@@ -212,7 +212,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $v2 = $minT2 / $scale;
 
         $sev = 0;
-        // thresholds = [-21, -20, -19]
         if ($v1 > $thresholds[2] && $v2 > $thresholds[2])
             $sev = 3;
         elseif ($v1 > $thresholds[1] && $v2 > $thresholds[1])
@@ -222,38 +221,27 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         $duration = 0;
         if ($sev > 0) {
-            // Calculate duration: Time since last "Good" reading (<= threshold)
-            // Determine the threshold for the current severity
-            // severity 3 uses thresholds[2], severity 2 uses thresholds[1], severity 1 uses thresholds[0]
             $activeThreshold = $thresholds[$sev - 1];
             $threshRaw = $activeThreshold * $scale;
 
-            // Find last time EITHER T1 or T2 was <= activeThreshold
             $lastGood = VendTemp::where('vend_id', $vendId)
                 ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
                 ->where('value', '<=', $threshRaw)
                 ->where('created_at', '>=', now()->subDays(14))
                 ->latest('created_at')
-                ->first();
+                ->value('created_at');
 
-            if ($lastGood) {
-                $duration = now()->diffInMinutes($lastGood->created_at);
-            } else {
-                // If no good reading found, use the window plus some buffer or just the window?
-                // Using the window (hours) converted to minutes as a fallback minimum.
-                // Or maybe search deeper? For performance, let's limit to looking back a reasonable amount,
-                // but here we just fallback to the window if nothing found (which implies at least window duration).
-                $duration = $hours * 60;
-            }
+            $duration = $lastGood
+                ? now()->diffInMinutes($lastGood)
+                : $hours * 60;
 
-            // Find valid timestamp for min T1
             $minT1Record = VendTemp::where('vend_id', $vendId)
                 ->where('type', VendTemp::TYPE_CHAMBER)
                 ->where('created_at', '>=', now()->subHours($hours))
                 ->orderBy('value', 'asc')
-                ->first();
+                ->value('created_at');
 
-            $minTimestamp = $minT1Record ? $minT1Record->created_at->toIso8601String() : now()->toIso8601String();
+            $minTimestamp = $minT1Record ? \Carbon\Carbon::parse($minT1Record)->toIso8601String() : now()->toIso8601String();
 
             $alert = VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
@@ -261,32 +249,32 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             );
             $this->logDashboardAlert($vendId, $alert, ['Above -21c', 'Above -20c', 'Above -19c']);
         } else {
-            $this->resolveStatefulAlert($vendId, $alertType, ['Above -21c', 'Above -20c', 'Above -19c']);
+            $this->resolveStatefulAlert($vendId, $alertType, ['Above -21c', 'Above -20c', 'Above -19c'], $existingAlerts);
         }
     }
 
-    private function analyzeTrend(\App\Models\Vend $vend, int $tempType, string $alertType): void
+    private function analyzeTrend(\App\Models\Vend $vend, int $tempType, string $alertType, $existingAlerts): void
     {
         $now = now();
         $windowCurrentStart = $now->copy()->subHours(24);
         $windowPrevStart = $now->copy()->subHours(48);
 
-        $curr = VendTemp::query()
-            ->where('vend_id', $vend->id)
+        // Single query for both current and previous window min
+        $stats = VendTemp::where('vend_id', $vend->id)
             ->where('type', $tempType)
-            ->whereBetween('created_at', [$windowCurrentStart, $now])
+            ->where('created_at', '>=', $windowPrevStart)
             ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
-            ->min('value');
+            ->selectRaw('
+                MIN(CASE WHEN created_at >= ? THEN value END) as curr_min,
+                MIN(CASE WHEN created_at < ? THEN value END) as prev_min
+            ', [$windowCurrentStart, $windowCurrentStart])
+            ->first();
 
-        $prev = VendTemp::query()
-            ->where('vend_id', $vend->id)
-            ->where('type', $tempType)
-            ->whereBetween('created_at', [$windowPrevStart, $windowCurrentStart])
-            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
-            ->min('value');
+        $curr = $stats->curr_min ?? null;
+        $prev = $stats->prev_min ?? null;
 
         if (is_null($curr) || is_null($prev) || abs($curr - 32767) < 1 || abs($prev - 32767) < 1) {
-            $this->resolveStatefulAlert($vend->id, $alertType, ['Δ ≥ 1c', 'Δ ≥ 2c', 'Δ ≥ 3c']);
+            $this->resolveStatefulAlert($vend->id, $alertType, ['Δ ≥ 1c', 'Δ ≥ 2c', 'Δ ≥ 3c'], $existingAlerts);
             return;
         }
 
@@ -300,7 +288,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             elseif ($deltaC >= 2.0)
                 $severity = 2;
 
-            $existingAlert = VendSmartAlert::where('vend_id', $vend->id)->where('alert_type', $alertType)->first();
+            $existingAlert = $existingAlerts->get($alertType);
             $startedAt = $now->toIso8601String();
             if ($existingAlert && $existingAlert->is_active && isset($existingAlert->meta_data['started_at'])) {
                 $startedAt = $existingAlert->meta_data['started_at'];
@@ -328,19 +316,15 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             );
             $this->logDashboardAlert($vend->id, $alert, ['Δ ≥ 1c', 'Δ ≥ 2c', 'Δ ≥ 3c']);
         } else {
-            $this->resolveStatefulAlert($vend->id, $alertType, ['Δ ≥ 1c', 'Δ ≥ 2c', 'Δ ≥ 3c']);
+            $this->resolveStatefulAlert($vend->id, $alertType, ['Δ ≥ 1c', 'Δ ≥ 2c', 'Δ ≥ 3c'], $existingAlerts);
         }
     }
 
-    private function analyzeStateful(\App\Models\Vend $vend): void
+    private function analyzeStateful(\App\Models\Vend $vend, $existingAlerts): void
     {
         $vendId = $vend->id;
 
-        // Get latest temps (O(1) with index)
-        // Optimized: Single query to get both latest temps
-        // NOTE: We do NOT filter out TEMPERATURE_ERROR here.
-        // If the latest reading is Error, we want to know it so we can CLEAR the "Frozen" alert
-        // (treating it as 'not frozen') rather than falling back to an older 'frozen' reading.
+        // Single query to get the two latest temps (both types)
         $latestTemps = VendTemp::where('vend_id', $vendId)
             ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
             ->orderBy('created_at', 'desc')
@@ -350,7 +334,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $t1 = $latestTemps->where('type', VendTemp::TYPE_CHAMBER)->first();
         $t2 = $latestTemps->where('type', VendTemp::TYPE_EVAPORATOR)->first();
 
-        // If no recent data skip.
         if (!$t1 || !$t2)
             return;
 
@@ -368,16 +351,12 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             }
         } else {
             unset($newState['t1_higher_t2_start']);
-            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_T1_HIGHER_THAN_T2, ['> 10 mins', '> 30 mins']);
+            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_T1_HIGHER_THAN_T2, ['> 10 mins', '> 30 mins'], $existingAlerts);
         }
 
         // --- Logic: 1B) Compressor & or Fan OFF ---
-        // Based on fan's value
         $latestFan = \App\Models\VendFan::where('vend_id', $vendId)->where('type', \App\Models\VendFan::TYPE_MAIN)->orderBy('created_at', 'desc')->first();
-        $fanIsOff = false;
-        if ($latestFan && $now->diffInMinutes($latestFan->created_at) > 40) {
-            $fanIsOff = true;
-        }
+        $fanIsOff = $latestFan && $now->diffInMinutes($latestFan->created_at) > 40;
 
         if ($fanIsOff && $vend->is_online) {
             if (!isset($state['comp_fan_off_start'])) {
@@ -386,11 +365,10 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             }
         } else {
             unset($newState['comp_fan_off_start']);
-            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 45 mins', '> 60 mins']);
+            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 45 mins', '> 60 mins'], $existingAlerts);
         }
 
         // --- Logic: T1 & T2 > 0 (Warm) ---
-        // Ensure Error (3276.7) or unreasonably high temps do not trigger warm alerts
         if ($t1Val > 0 && $t1Val < 100 && $t1->value != VendTemp::TEMPERATURE_ERROR) {
             if (!isset($state['t1_gt_0_start']))
                 $newState['t1_gt_0_start'] = $t1->created_at->toIso8601String();
@@ -448,7 +426,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
-                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_T1_HIGHER_THAN_T2)->first();
+                $existing = $existingAlerts->get(VendSmartAlert::TYPE_T1_HIGHER_THAN_T2);
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['v1'] = $t1Val;
                 $meta['v2'] = $t2Val;
@@ -477,7 +455,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
-                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_COMP_FAN_OFF)->first();
+                $existing = $existingAlerts->get(VendSmartAlert::TYPE_COMP_FAN_OFF);
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['duration'] = $diffMinutes;
 
@@ -511,8 +489,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
-                $isCaseBActive = true; // Flag active to suppress lower alerts
-                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_0)->first();
+                $isCaseBActive = true;
+                $existing = $existingAlerts->get(VendSmartAlert::TYPE_TEMPS_ABOVE_0);
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['v1'] = $t1Val;
                 $meta['v2'] = $t2Val;
@@ -527,7 +505,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $this->handleEmailAlert($vend, $alert, ['> 30 mins', '> 60 mins'], $occurredAt, $firstTriggerAt);
             }
         } else {
-            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_TEMPS_ABOVE_0, ['> 30 mins', '> 60 mins']);
+            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_TEMPS_ABOVE_0, ['> 30 mins', '> 60 mins'], $existingAlerts);
         }
 
         // 3. T1 & T2 > -8 (Priority 2 for Warm) - SUPPRESS if Case B is active
@@ -545,7 +523,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
             if ($severity > 0) {
                 $isCaseCActive = true;
-                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8)->first();
+                $existing = $existingAlerts->get(VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8);
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['v1'] = $t1Val;
                 $meta['v2'] = $t2Val;
@@ -560,8 +538,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $this->handleEmailAlert($vend, $alert, ['> 60 mins', '> 90 mins'], $occurredAt, $firstTriggerAt);
             }
         } else {
-            // Must clear if Case B is active OR if condition not met
-            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8, ['> 60 mins', '> 90 mins']);
+            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8, ['> 60 mins', '> 90 mins'], $existingAlerts);
         }
 
         // 4. Not Reach -18 (Priority 3 for Warm) - SUPPRESS if Case B or C is active
@@ -578,7 +555,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 1;
 
             if ($severity > 0) {
-                $existing = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', VendSmartAlert::TYPE_NOT_REACH_MINUS_18)->first();
+                $existing = $existingAlerts->get(VendSmartAlert::TYPE_NOT_REACH_MINUS_18);
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['v1'] = $t1Val;
 
@@ -592,7 +569,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $this->handleEmailAlert($vend, $alert, ['Within last 8 hours', '> 8 hours'], $occurredAt, $firstTriggerAt);
             }
         } else {
-            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_NOT_REACH_MINUS_18, ['Within last 8 hours', '> 8 hours']);
+            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_NOT_REACH_MINUS_18, ['Within last 8 hours', '> 8 hours'], $existingAlerts);
         }
     }
 
@@ -600,20 +577,14 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
     private function handleEmailAlert($vend, $alert, $labels, $occurredAt = null, $originalTriggerAt = null)
     {
-        // $alert->severity maps to index in $labels (Severity 1 = labels[0], Sev 2 = labels[1])
-        // Indices are 0-based, severity is 1,2,3...
         $labelIndex = $alert->severity - 1;
         $label = $labels[$labelIndex] ?? 'Unknown';
 
-        // Check if email/log already sent for THIS severity level
         $meta = $alert->meta_data;
         $lastSentSeverity = $meta['last_sent_severity'] ?? 0;
 
         if ($alert->severity > $lastSentSeverity) {
-            // $vend is passed directly, no need to find()
             if ($vend) {
-                // Delete previous lower-severity logs (if escalating)
-                // Only keep the log for the current highest severity
                 if ($lastSentSeverity > 0) {
                     for ($s = 1; $s < $alert->severity; $s++) {
                         $oldLabelIndex = $s - 1;
@@ -635,7 +606,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 // 2. Log to Machine Log
                 VendLog::create([
                     'vend_id' => $vend->id,
-                    'event' => 'machine_health_alert', // Generic event
+                    'event' => 'machine_health_alert',
                     'subject' => $this->getHumanReadableAlertType($alert->alert_type) . " ({$label})",
                     'context' => [
                         'bucket' => $label,
@@ -647,7 +618,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     'occurred_at' => $occurredAt ?? now(),
                 ]);
 
-                // Update state
                 $meta['last_sent_severity'] = $alert->severity;
                 $alert->meta_data = $meta;
                 $alert->is_email_alert_sent = true;
@@ -719,11 +689,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
     private function checkConnectivity(\App\Models\Vend $vend): void
     {
-
-        // Calculate hours offline
         $now = now();
-        $limit = 500;
-        $fallbackDate = '1970-01-01 00:00:00';
 
         $dates = [
             $vend->mqtt_last_updated_at,
@@ -743,11 +709,10 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
 
         if (!$lastContact)
-            return; // Never contacted?
+            return;
 
         $hoursOffline = abs($now->diffInMinutes($lastContact)) / 60;
 
-        // Determine Bucket
         $bucket = null;
         if ($hoursOffline >= 0.25 && $hoursOffline < 1) {
             $bucket = '< 1hr';
@@ -789,10 +754,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         if (!$bucket)
             return;
 
-        // Check state to avoid duplicate logs for the same bucket
         $state = $vend->temp_monitoring_state ?? [];
         $lastBucket = $state['connectivity_last_bucket'] ?? null;
-
 
         $threshold = match ($bucket) {
             '< 1hr' => 0.25,
@@ -806,8 +769,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $occurredAt = $lastContact->copy()->addMinutes($threshold * 60);
 
         if ($bucket !== $lastBucket) {
-            // If escalating from a previous bucket, delete the old alert log
-            // so only the highest escalation level keeps a log
             if ($lastBucket) {
                 VendLog::where('vend_id', $vend->id)
                     ->where('event', 'machine_health_alert')
@@ -816,7 +777,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     ->delete();
             }
 
-            // Log the new bucket
             VendLog::create([
                 'vend_id' => $vend->id,
                 'event' => 'machine_health_alert',
@@ -830,7 +790,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 'occurred_at' => $occurredAt,
             ]);
 
-            // Update state
             $state['connectivity_last_bucket'] = $bucket;
             $vend->temp_monitoring_state = $state;
             $vend->save();
@@ -927,32 +886,36 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
     {
         $now = now();
         $targetHours = 72;
+        $cutoff = $now->copy()->subHours($targetHours);
 
         $state = $vend->temp_monitoring_state ?? [];
         $lastStockoutBuckets = $state['stockout_buckets'] ?? [];
         $newStockoutBuckets = [];
 
-        // Fetch latest event per channel for this vend to find active stockouts
+        // Use a DB-level subquery to get only the latest event per channel,
+        // avoiding loading all events into PHP memory.
         $latestEvents = \App\Models\VendChannelStockEvent::where('vend_id', $vend->id)
-            ->orderBy('occurred_at', 'desc')
-            ->get()
-            ->unique('vend_channel_id');
+            ->whereIn('id', function ($sub) use ($vend) {
+                $sub->selectRaw('MAX(id)')
+                    ->from('vend_channel_stock_events')
+                    ->where('vend_id', $vend->id)
+                    ->groupBy('vend_channel_id');
+            })
+            ->where('event_type', \App\Models\VendChannelStockEvent::TYPE_SOLD_OUT)
+            ->where('occurred_at', '<', $cutoff)
+            ->with('vendChannel:id,code')
+            ->get();
 
         foreach ($latestEvents as $event) {
-            if ($event->event_type === \App\Models\VendChannelStockEvent::TYPE_SOLD_OUT) {
-                $durationHours = $event->occurred_at->diffInMinutes($now) / 60;
-                if ($durationHours >= $targetHours) {
-                    $channelId = $event->vend_channel_id;
-                    $channel = \App\Models\VendChannel::find($channelId);
-                    $code = $channel ? $channel->code : "Unknown";
+            $durationHours = $event->occurred_at->diffInMinutes($now) / 60;
+            $channelId = $event->vend_channel_id;
+            $code = $event->vendChannel ? $event->vendChannel->code : 'Unknown';
 
-                    $newStockoutBuckets[$channelId] = [
-                        'channel_code' => $code,
-                        'hours' => $targetHours,
-                        'diff' => $durationHours,
-                    ];
-                }
-            }
+            $newStockoutBuckets[$channelId] = [
+                'channel_code' => $code,
+                'hours' => $targetHours,
+                'diff' => $durationHours,
+            ];
         }
 
         foreach ($newStockoutBuckets as $channelId => $data) {
@@ -992,22 +955,21 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
     }
 
-    private function resolveStatefulAlert(int $vendId, string $alertType, array $labels): void
+    private function resolveStatefulAlert(int $vendId, string $alertType, array $labels, $existingAlerts = null): void
     {
-        $alert = VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->first();
+        // Use pre-fetched alerts if provided, else fall back to a DB query
+        $alert = $existingAlerts
+            ? $existingAlerts->get($alertType)
+            : VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->first();
 
         if ($alert && $alert->is_active) {
             $alert->update(['is_active' => false]);
 
-            // Only log dismissal for the highest severity that was actually sent
-            // (lower severities were deleted during escalation)
             $lastSent = $alert->meta_data['last_sent_severity'] ?? $alert->severity;
 
-            // Cap lastSent just in case
             if ($lastSent > count($labels))
                 $lastSent = count($labels);
 
-            // Only create ONE dismissal log for the last sent severity
             if ($lastSent > 0) {
                 $labelIndex = $lastSent - 1;
                 if (isset($labels[$labelIndex])) {

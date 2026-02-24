@@ -934,13 +934,13 @@ class OpsJobController extends Controller
                     ELSE NULL END) as status_by');
 
                     // Adjust the selectRaw queries to correctly reference the opsJobItems relationship
-                    // For pending items (status=1), use live vend_channels.qty; for others use stored refillable_amount
+                    // For pending items (status=1), use live vend_channels data (qty, capacity) to match CustomerIndex's actual_stock_in_value logic
                     $query->selectRaw('
                     COALESCE(ops_job_items.refillable_amount, (SELECT SUM(
                         CASE WHEN products.is_available = 1 THEN GREATEST(
                             CASE
-                                WHEN pl.id AND pl.qty < ops_job_item_channels.capacity THEN (pl.qty - COALESCE(vend_channels.qty, 0))
-                                ELSE (ops_job_item_channels.capacity - COALESCE(vend_channels.qty, 0))
+                                WHEN pl.id AND pl.qty < vend_channels.capacity THEN (pl.qty - COALESCE(vend_channels.qty, 0))
+                                ELSE (vend_channels.capacity - COALESCE(vend_channels.qty, 0))
                             END, 0
                         ) ELSE 0 END * vend_channels.amount
                     )
@@ -957,14 +957,16 @@ class OpsJobController extends Controller
                         WHERE rn = 1
                      ) AS pl ON products.id = pl.product_id AND pl.date = (SELECT date FROM ops_jobs WHERE ops_jobs.id = ops_job_items.ops_job_id)
                      WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
+                     AND vend_channels.is_active = 1
+                     AND vend_channels.capacity > 0
                     )) as refillable_amount');
 
                     $query->selectRaw('
                     COALESCE(ops_job_items.refillable_count, (SELECT SUM(
                         CASE WHEN products.is_available = 1 THEN GREATEST(
                             CASE
-                                WHEN pl.id AND pl.qty < ops_job_item_channels.capacity THEN (pl.qty - COALESCE(vend_channels.qty, 0))
-                                ELSE (ops_job_item_channels.capacity - COALESCE(vend_channels.qty, 0))
+                                WHEN pl.id AND pl.qty < vend_channels.capacity THEN (pl.qty - COALESCE(vend_channels.qty, 0))
+                                ELSE (vend_channels.capacity - COALESCE(vend_channels.qty, 0))
                             END, 0
                         ) ELSE 0 END
                     )
@@ -981,6 +983,8 @@ class OpsJobController extends Controller
                         WHERE rn = 1
                      ) AS pl ON products.id = pl.product_id AND pl.date = (SELECT date FROM ops_jobs WHERE ops_jobs.id = ops_job_items.ops_job_id)
                      WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
+                     AND vend_channels.is_active = 1
+                     AND vend_channels.capacity > 0
                     )) as refillable_count');
 
                     $query->selectRaw('
