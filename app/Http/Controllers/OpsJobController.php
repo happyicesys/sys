@@ -195,13 +195,13 @@ class OpsJobController extends Controller
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * vc.amount ELSE 0 END) as stock_in_amount,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty ELSE 0 END) as stock_in_count,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * COALESCE(uc.cost, 0) ELSE 0 END) as stock_in_cost,
-                    SUM(CASE WHEN oji.status = 1 AND p.is_available = 1 THEN GREATEST(
+                    SUM(CASE WHEN (oji.status = 1 OR (oji.status = 2 AND oji.refillable_amount IS NULL)) AND p.is_available = 1 THEN GREATEST(
                         CASE
                             WHEN pl.id IS NOT NULL AND pl.qty < ojic.capacity THEN (pl.qty - COALESCE(ojic.qty, 0))
                             ELSE (ojic.capacity - COALESCE(ojic.qty, 0))
                         END, 0
                     ) ELSE 0 END * vc.amount) as live_refillable_amount,
-                    SUM(CASE WHEN oji.status = 1 AND p.is_available = 1 THEN GREATEST(
+                    SUM(CASE WHEN (oji.status = 1 OR (oji.status = 2 AND oji.refillable_amount IS NULL)) AND p.is_available = 1 THEN GREATEST(
                         CASE
                             WHEN pl.id IS NOT NULL AND pl.qty < ojic.capacity THEN (pl.qty - COALESCE(ojic.qty, 0))
                             ELSE (ojic.capacity - COALESCE(ojic.qty, 0))
@@ -218,6 +218,8 @@ class OpsJobController extends Controller
                     OpsJob::STATUS_DELIVERED,
                     OpsJob::STATUS_CANCELLED
                 ])
+                ->where('vc.is_active', 1)
+                ->where('vc.capacity', '>', 0)
                 ->groupBy('oji.ops_job_id')
                 ->get()
                 ->keyBy('ops_job_id');
@@ -421,13 +423,13 @@ class OpsJobController extends Controller
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * vc.amount ELSE 0 END) as stock_in_amount,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty ELSE 0 END) as stock_in_count,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * COALESCE(uc.cost, 0) ELSE 0 END) as stock_in_cost,
-                    SUM(CASE WHEN oji.status = 1 AND p.is_available = 1 THEN GREATEST(
+                    SUM(CASE WHEN (oji.status = 1 OR (oji.status = 2 AND oji.refillable_amount IS NULL)) AND p.is_available = 1 THEN GREATEST(
                         CASE
                             WHEN pl.id IS NOT NULL AND pl.qty < ojic.capacity THEN (pl.qty - COALESCE(ojic.qty, 0))
                             ELSE (ojic.capacity - COALESCE(ojic.qty, 0))
                         END, 0
                     ) ELSE 0 END * vc.amount) as live_refillable_amount,
-                    SUM(CASE WHEN oji.status = 1 AND p.is_available = 1 THEN GREATEST(
+                    SUM(CASE WHEN (oji.status = 1 OR (oji.status = 2 AND oji.refillable_amount IS NULL)) AND p.is_available = 1 THEN GREATEST(
                         CASE
                             WHEN pl.id IS NOT NULL AND pl.qty < ojic.capacity THEN (pl.qty - COALESCE(ojic.qty, 0))
                             ELSE (ojic.capacity - COALESCE(ojic.qty, 0))
@@ -444,6 +446,8 @@ class OpsJobController extends Controller
                     OpsJob::STATUS_DELIVERED,
                     OpsJob::STATUS_CANCELLED
                 ])
+                ->where('vc.is_active', 1)
+                ->where('vc.capacity', '>', 0)
                 ->groupBy('oji.ops_job_id')
                 ->get()
                 ->keyBy('ops_job_id');
