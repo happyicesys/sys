@@ -583,6 +583,11 @@
               <span>
                 &Delta;T1-T2
               </span>
+              <div class="flex justify-center items-center mt-2">
+                <SingleSortItem modelName="parameter_json->fan" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->fan', false)">
+                    Fan RPM
+                </SingleSortItem>
+              </div>
             </div>
           </TableHead>
           <TableHeadSort modelName="modem_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('modem_type_name')">
@@ -859,6 +864,36 @@
               >
                   {{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
               </span>
+              <!-- Fan RPM: only show for non-UD machines -->
+              <template v-if="vend.vend_prefix_name && !vend.vend_prefix_name.startsWith('UD') && vend.is_fan_enabled">
+                  <!-- Has fan speed signal -->
+                  <div
+                      v-if="vend.parameterJson && 'fan' in vend.parameterJson"
+                      class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px]"
+                      :class="[
+                          (vend.is_online || vend.is_testing)
+                            ? (vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'
+                                ? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
+                                : 'bg-gray-200 text-gray-400')
+                            : 'bg-gray-300 text-gray-600'
+                      ]"
+                  >
+                      <span class="text-[10px] font-bold">Fan Speed</span>
+                      <span v-if="(vend.is_online || vend.is_testing) && vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'">{{vend.parameterJson['fan']}}</span>
+                      <span v-else-if="!(vend.is_online || vend.is_testing)">—</span>
+                  </div>
+                  <!-- Has fan model but no speed signal -->
+                  <div
+                      v-else
+                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full mt-1"
+                      :class="[(vend.is_online || vend.is_testing) ? 'bg-gray-200 text-gray-400' : 'bg-gray-300 text-gray-600']"
+                  >
+                      <div class="flex flex-col items-center">
+                          <span class="text-[10px] font-bold">Fan Speed</span>
+                          <span>—</span>
+                      </div>
+                  </div>
+              </template>
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -1117,34 +1152,6 @@
                       </span>
                   </div>
               </div>
-              <!-- Fan RPM: only show for non-UD machines -->
-              <template v-if="vend.vend_prefix_name && !vend.vend_prefix_name.startsWith('UD')">
-                  <!-- Has fan speed signal -->
-                  <div
-                      v-if="vend.parameterJson && 'fan' in vend.parameterJson"
-                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                      :class="[
-                          vend.is_active || vend.is_testing
-                              ? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
-                              : 'bg-gray-200 text-gray-400'
-                      ]"
-                  >
-                      <div class="flex flex-col items-center">
-                          <span class="font-bold">Fan Speed</span>
-                          <span>{{vend.parameterJson['fan']}}</span>
-                      </div>
-                  </div>
-                  <!-- Has fan model but no speed signal -->
-                  <div
-                      v-else
-                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-gray-200 text-gray-400"
-                  >
-                      <div class="flex flex-col items-center">
-                          <span class="font-bold">Fan Speed</span>
-                          <span>—</span>
-                      </div>
-                  </div>
-              </template>
               <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                   :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['door'] == 'close' ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"

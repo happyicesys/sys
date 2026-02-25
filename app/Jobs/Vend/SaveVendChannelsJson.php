@@ -162,12 +162,12 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
             return collect();
         }
 
-        $today = Carbon::today();
+        $tomorrow = Carbon::today()->addDay();
 
         return ProductLimit::query()
             ->select('product_id', 'qty', 'created_at')
             ->whereIn('product_id', $productIds)
-            ->whereDate('date', $today)
+            ->whereDate('date', $tomorrow)
             ->orderBy('product_id')
             ->orderByDesc('created_at')
             ->get()

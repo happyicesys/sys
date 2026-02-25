@@ -441,7 +441,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $effectiveStart = \Carbon\Carbon::parse($newState['t1_higher_t2_start']);
                 $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
                 $firstTriggerAt = $effectiveStart->copy()->addMinutes(10);
-                $this->handleEmailAlert($vend, $alert, ['> 10 mins', '> 30 mins'], $occurredAt, $firstTriggerAt);
+                $this->logDashboardAlert($vend->id, $alert, ['> 10 mins', '> 30 mins'], $occurredAt, $firstTriggerAt);
             }
         }
 
@@ -483,7 +483,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $diffMinutes = $now->diffInMinutes($effectiveStart, true);
 
             $severity = 0;
-            if ($diffMinutes >= 60)
+            if ($diffMinutes >= 50)
                 $severity = 2;
             elseif ($diffMinutes >= 30)
                 $severity = 1;
@@ -499,13 +499,13 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_TEMPS_ABOVE_0],
                     ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
                 );
-                $thresholdMinutes = $severity === 2 ? 60 : 30;
+                $thresholdMinutes = $severity === 2 ? 50 : 30;
                 $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
                 $firstTriggerAt = $effectiveStart->copy()->addMinutes(30);
-                $this->handleEmailAlert($vend, $alert, ['> 30 mins', '> 60 mins'], $occurredAt, $firstTriggerAt);
+                $this->handleEmailAlert($vend, $alert, ['> 30 mins', '> 50 mins'], $occurredAt, $firstTriggerAt);
             }
         } else {
-            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_TEMPS_ABOVE_0, ['> 30 mins', '> 60 mins'], $existingAlerts);
+            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_TEMPS_ABOVE_0, ['> 30 mins', '> 50 mins'], $existingAlerts);
         }
 
         // 3. T1 & T2 > -8 (Priority 2 for Warm) - SUPPRESS if Case B is active

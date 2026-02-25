@@ -655,11 +655,6 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Delta of T1 and T2 <br> Under normal condition, 1.5C to 3.5C', html: true }"></ExclamationCircleIcon>
 							</div>
-							<div class="flex justify-center items-center">
-								<SingleSortItem modelName="parameter_json->fan" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->fan', false)">
-									Fan RPM
-								</SingleSortItem>
-							</div>
 						</div>
 					</TableHead>
 					<TableHead>
@@ -691,6 +686,17 @@
 								<SingleSortItem modelName="total_full_load_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_full_load_amount')">
 									Full Load Value
 								</SingleSortItem>
+							</div>
+							<div class="flex flex-col items-center pt-2 space-y-1 w-full mt-2">
+								<span>
+									Refill Planning
+								</span>
+								<div class="bg-gray-300 px-2 py-0.5 rounded text-xs text-gray-800 w-fit">
+									Grey: Capped Qty (Next Day)
+								</div>
+								<div class="bg-red-200 px-2 py-0.5 rounded text-xs text-gray-800 w-fit flex items-center space-x-1">
+									<span>Red: Not Available</span>
+								</div>
 							</div>
 						</div>
 					</TableHead>
@@ -736,12 +742,15 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Balance Qty % <br> Red: < 30% <br> Blue: >= 30% and < 50% <br> Green: >= 50%', html: true }"></ExclamationCircleIcon>
 							</div>
-							<div class="flex justify-center items-center">
+							<div class="flex justify-center items-center border-b border-gray-300 pb-2 mb-2 w-full">
 								<SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
 									Remaining SKU#
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Remaining SKU % <br> Red: < 50% <br> Blue: >= 50% and < 75% <br> Green: >= 75%', html: true }"></ExclamationCircleIcon>
 							</div>
+							<span>
+									Refill Planning
+							</span>
 							<SingleSortItem modelName="actual_stock_in_value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_value')">
 								Refillable Value
 							</SingleSortItem>
@@ -1089,26 +1098,29 @@
 									{{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
 							</span>
 							<!-- Fan RPM: only show for non-UD machines -->
-							<template v-if="vend.vend_prefix_name && !vend.vend_prefix_name.startsWith('UD')">
+							<template v-if="vend.vend_prefix_name && !vend.vend_prefix_name.startsWith('UD') && vend.is_fan_enabled">
 								<!-- Has fan speed signal -->
 								<div
 									v-if="vend.parameterJson && 'fan' in vend.parameterJson"
-									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1"
+									class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px]"
 									:class="[
-										vend.is_active || vend.is_testing
-											? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
-											: 'bg-gray-200 text-gray-400'
+										(vend.is_online || vend.is_testing)
+											? (vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'
+												? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
+												: 'bg-gray-200 text-gray-500')
+											: 'bg-gray-300 text-gray-600'
 									]"
+									v-tooltip="{ content: 'Fan Speed Signal exists' }"
 								>
-									<div class="flex flex-col items-center">
 										<span class="text-[10px] font-bold">Fan RPM</span>
-										<span>{{ vend.parameterJson['fan'] }}</span>
-									</div>
+										<span v-if="(vend.is_online || vend.is_testing) && vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'">{{ vend.parameterJson['fan'] }}</span>
+										<span v-else-if="!(vend.is_online || vend.is_testing)">—</span>
 								</div>
 								<!-- Has fan model but no speed signal -->
 								<div
 									v-else
-									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1 bg-gray-200 text-gray-400"
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1"
+									:class="[(vend.is_online || vend.is_testing) ? 'bg-gray-200 text-gray-400' : 'bg-gray-300 text-gray-600']"
 								>
 									<div class="flex flex-col items-center">
 										<span class="text-[10px] font-bold">Fan RPM</span>

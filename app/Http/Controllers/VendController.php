@@ -743,6 +743,7 @@ class VendController extends Controller
                 DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
                 'vends.product_mapping_id',
                 'vends.private_key',
+                'vends.is_fan_enabled',
                 'vends.vend_channel_totals_json',
                 DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
                 'customers.totals_json AS vend_transaction_totals_json',
@@ -1129,6 +1130,7 @@ class VendController extends Controller
                 'vends.is_online',
                 'vends.is_testing',
                 'vends.is_testing',
+                'vends.is_fan_enabled',
                 'customers.id AS customer_id',
                 'customers.virtual_customer_prefix',
                 'customers.virtual_customer_code',
@@ -2622,6 +2624,7 @@ class VendController extends Controller
             'is_active' => $request->is_active,
             'is_disposed' => $request->is_disposed,
             'is_testing' => $request->is_testing,
+            'is_fan_enabled' => $request->is_fan_enabled === 'true' || $request->is_fan_enabled === true,
             // 'is_using_server_price' => $request->is_using_server_price,
             'product_mapping_id' => $request->product_mapping_id,
             'serial_num' => $request->serial_num,
@@ -3148,7 +3151,7 @@ class VendController extends Controller
                         ->fromSub(function ($query) {
                             $query->select('id', 'product_id', 'qty', 'date', DB::raw('ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY id DESC) as rn'))
                                 ->from('product_limits')
-                                ->where('date', DB::raw('CURDATE()'));
+                                ->where('date', DB::raw('CURDATE() + INTERVAL 1 DAY'));
                         }, 'pl_inner')
                         ->where('rn', 1);
                 }, 'product_limits', 'products.id', '=', 'product_limits.product_id')

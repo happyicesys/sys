@@ -185,7 +185,7 @@
                                           <label class="pl-2">T4</label>
                                       </span>
                                   </span>
-                                  <span class="inline-flex rounded-md shadow-sm " v-if="'fan' in vend.parameterJson">
+                                  <span class="inline-flex rounded-md shadow-sm " v-if="'fan' in vend.parameterJson && vend.is_fan_enabled">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" value="1" v-model="fans" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                           <label class="pl-2">Fan</label>
@@ -712,7 +712,7 @@ if (types.value.length > 0 || fans.value.length > 0) {
     datasets.value = []
     vendTemps.value.forEach((vendTemp, vendTempIndex) => {
       datasets.value.push({
-        label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : '') + ' [ ' + ('H: ' + highest[vendTempIndex] + "\u2103" + ' L: ' + lowest[vendTempIndex] + "\u2103") + ' ] ' + 'Fan: ' + (vend.value.parameterJson['fan'] ? vend.value.parameterJson['fan'] : 'NaN'),
+        label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : '') + ' [ ' + ('H: ' + highest[vendTempIndex] + "\u2103" + ' L: ' + lowest[vendTempIndex] + "\u2103") + ' ] ' + (vend.value.is_fan_enabled && vend.value.parameterJson && 'fan' in vend.value.parameterJson ? ('Fan: ' + (vend.value.parameterJson['fan'] !== null && vend.value.parameterJson['fan'] !== undefined ? vend.value.parameterJson['fan'] : 'NaN')) : ''),
         data: vendTemp.map((temp) => { return { x: temp.created_at, y: temp.value } }),
         borderColor: colors[vendTempIndex - 1],
         backgroundColor: colors[vendTempIndex - 1],
@@ -723,11 +723,11 @@ if (types.value.length > 0 || fans.value.length > 0) {
       allTimings.push(vendTemp)
     })
   }
-  if (vendFans.value.length > 0) {
+  if (vendFans.value.length > 0 && vend.value.is_fan_enabled) {
     let fanColors = ['#808080']
     vendFans.value.forEach((vendFan, vendFanIndex) => {
       datasets.value.push({
-        label: 'Fan Speed' + (vend.value.parameterJson['fan'] ? (' (' + vend.value.parameterJson['fan'] + ')' ) : ''),
+        label: 'Fan Speed' + (vend.value.parameterJson['fan'] !== null && vend.value.parameterJson['fan'] !== undefined ? (' (' + vend.value.parameterJson['fan'] + ')' ) : ''),
         data: vendFan.map((fan) => {
           let yVal = parseFloat(fan.value)
           if(isNaN(yVal)) {

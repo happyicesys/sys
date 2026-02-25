@@ -325,21 +325,21 @@ const matrix21 = computed(() => {
       // NOTE: Temporarily hidden — do NOT delete (user may want to restore)
       // {
       //     id: 't1_higher_than_t2',
-      //     label: '1A) T1 higher than T2, >7°C',
+      //     label: '2.1A) T1 higher than T2, >7°C',
       //     sub: 'Possible component issue:\ni) Fan not function\nii) Temp probe malfunction',
       //     types: ['t1_higher_than_t2'],
       //     headers: { 1: '> 10 mins', 2: '> 30 mins' }
       // },
       {
           id: 'comp_fan_off',
-          label: '1A) Compressor & or Fan, in OFF condition',
+          label: '2.1A) Compressor & or Fan, in OFF condition',
           sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after defrost or resting\niii) Comp is working, but Fan not turning',
           types: ['comp_fan_off'],
           headers: { 1: '> 45 mins', 2: '> 60 mins' }
       },
       {
           id: 'temps_above_0',
-          label: '1B) T1 & or T2, above 0°C',
+          label: '2.1B) T1 & or T2, above 0°C',
           sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after forced defrost\n\nPossible Operation issue:\niii) Freezer door not close tight\niv) Open freezer door >15mins',
           note: 'Alert dismissed once temp below 0c',
           types: ['temps_above_0'],
@@ -347,7 +347,7 @@ const matrix21 = computed(() => {
       },
       {
           id: 'temps_above_minus_8',
-          label: '1C) T1 & or T2, above -8°C',
+          label: '2.1C) T1 & or T2, above -8°C',
           sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins',
           note: 'Alert dismissed once temp below -8c',
           types: ['temps_above_minus_8'],
@@ -355,7 +355,7 @@ const matrix21 = computed(() => {
       },
       {
           id: 'not_reach_minus_18',
-          label: '1D) T1 & or T2, did not reach -18°C',
+          label: '2.1D) T1 & or T2, did not reach -18°C',
           sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Many purchases occur',
           note: 'Alert dismissed once temp below -18c',
           types: ['not_reach_minus_18'],
@@ -372,7 +372,7 @@ const matrix22 = computed(() => {
     const meta = [
         {
             id: 'lowest_24h',
-            label: '2A) T1 & T2 lowest (last 24hrs)',
+            label: '2.2A) T1 & T2 lowest (last 24hrs)',
             sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Defrost drain hole air-leak\niii) Fan/Comp ageing\niv) Many purchases occur',
             note: null,
             types: ['lowest_24h_above'],
@@ -380,7 +380,7 @@ const matrix22 = computed(() => {
         },
         {
             id: 'lowest_72h',
-            label: '2B) T1 & T2 lowest (last 72hrs)',
+            label: '2.2B) T1 & T2 lowest (last 72hrs)',
             sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Defrost drain hole air-leak\niii) Fan/Comp ageing\niv) Temp probe malfunction',
             note: null,
             types: ['lowest_72h_above'],
@@ -388,7 +388,7 @@ const matrix22 = computed(() => {
         },
         {
             id: 'rising_lowest',
-            label: '2C) Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
+            label: '2.2C) Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
             sub: 'Possible caused by:\ni) Defrost not clean/enough\nii) Door\'s seal air leak\niii) Defrost drain hole air-leak',
             note: null,
             types: ['rising_t1_trend', 'rising_t2_trend'],
@@ -396,7 +396,7 @@ const matrix22 = computed(() => {
         },
         {
             id: 't2_frozen',
-            label: '2D) T2, never above 2°C',
+            label: '2.2D) T2, never above 2°C',
             sub: 'Possible caused by:\ni) Defrost fail\nii) Defrost not clean/enough\niii) Temp probe malfunction',
             note: '\u2022 only for E/F/EG\n\u2022 exclude UDD\nAuto dismiss alert, once T2 reaches to -23.5c',
             types: ['t2_frozen'],

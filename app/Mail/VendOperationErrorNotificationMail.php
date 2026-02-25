@@ -51,25 +51,25 @@ class VendOperationErrorNotificationMail extends Mailable implements ShouldQueue
         $title = '';
         switch ($this->alertType) {
             case \App\Models\VendSmartAlert::TYPE_T1_HIGHER_THAN_T2:
-                $title = '1A) T1 higher than T2, >7°C';
+                $title = '2.1A) T1 higher than T2, >7°C';
                 break;
             case \App\Models\VendSmartAlert::TYPE_COMP_FAN_OFF:
-                $title = '1B) Compressor & or Fan, in OFF condition';
+                $title = '2.1A) Compressor & or Fan, in OFF condition';
                 break;
             case \App\Models\VendSmartAlert::TYPE_TEMPS_ABOVE_0:
-                $title = '1C) T1 & or T2, above 0°C';
+                $title = '2.1B) T1 & or T2, above 0°C';
                 break;
             case \App\Models\VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8:
-                $title = '1D) T1 & or T2, above -8°C';
+                $title = '2.1C) T1 & or T2, above -8°C';
                 break;
             case \App\Models\VendSmartAlert::TYPE_NOT_REACH_MINUS_18:
-                $title = '1E) T1 & or T2, did not reach -18°C';
+                $title = '2.1D) T1 & or T2, did not reach -18°C';
                 break;
             default:
                 $title = 'Operation Error / Critical Parts Failure';
         }
 
-        $subject = $vend->code . ': ' . $title . ' (' . $this->label . ')';
+        $subject = '(2.1) ' . $vend->code . ': ' . $title . ' (' . $this->label . ')';
 
         return $this
             ->subject($subject)

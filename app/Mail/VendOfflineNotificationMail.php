@@ -55,7 +55,7 @@ class VendOfflineNotificationMail extends Mailable implements ShouldQueue
         $subject = 'ID: ' . $vend->code . ' Machine Offline Alert >= ' . $this->thresholdMinutes . ' mins (' . $this->now->format('y-m-d') . ')';
 
         if ($this->label) {
-            $subject = $vend->code . ': Alert on Lost of Connectivity or Electricity (' . $this->label . ')';
+            $subject = '(1) ' . $vend->code . ': Alert on Lost of Connectivity or Electricity (' . $this->label . ')';
         }
 
         return $this

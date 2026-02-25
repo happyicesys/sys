@@ -8,7 +8,13 @@
                 <a href="{{$baseUrl}}/vends/customers?operators[]=all&codes={{$vend->code}}"
                     style="color: #1a0dab; text-decoration: underline;">
                     #ID: {{$vend->code}} ({{$vendPrefixName}})
-                </a> - <span class="text-red-600 font-bold">{{ $title }}</span>
+                </a>
+            </h3>
+            <h3 class="text-md font-bold text-gray-900 mt-4">
+                2.1 Operation Error / Critical Parts Failure
+            </h3>
+            <h3 class="text-lg leading-6 font-medium text-red-600 font-bold">
+                {{ $title }}
             </h3>
             <h3 class="text-lg leading-6 font-medium text-gray-900">
                 @if($vend and $vend->customer)

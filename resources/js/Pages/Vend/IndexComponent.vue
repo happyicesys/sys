@@ -550,6 +550,11 @@
 
                         &Delta;T1-T2
 
+                        <div class="flex justify-center items-center mt-2">
+                            <SingleSortItem modelName="parameter_json->fan" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->fan', false)">
+                                Fan RPM
+                            </SingleSortItem>
+                        </div>
                     </TableHead>
                     <TableHead>
                         Inventory Status <br>
@@ -761,34 +766,6 @@
                               >
                                   {{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
                               </span>
-                              <!-- Fan RPM: only show for non-UD machines -->
-                              <template v-if="vend.vend_prefix_name && !vend.vend_prefix_name.startsWith('UD')">
-                                  <!-- Has fan speed signal -->
-                                  <div
-                                      v-if="vend.parameterJson && 'fan' in vend.parameterJson"
-                                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1"
-                                      :class="[
-                                          vend.is_active || vend.is_testing
-                                              ? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
-                                              : 'bg-gray-200 text-gray-400'
-                                      ]"
-                                  >
-                                      <div class="flex flex-col items-center">
-                                          <span>{{ vend.parameterJson['fan'] }}</span>
-                                          <span class="text-[10px] font-bold">Fan RPM</span>
-                                      </div>
-                                  </div>
-                                  <!-- Has fan model but no speed signal -->
-                                  <div
-                                      v-else
-                                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1 bg-gray-200 text-gray-400"
-                                  >
-                                      <div class="flex flex-col items-center">
-                                          <span>—</span>
-                                          <span class="text-[10px] font-bold">Fan RPM</span>
-                                      </div>
-                                  </div>
-                              </template>
                           </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">

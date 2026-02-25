@@ -34,7 +34,7 @@ class CopyProductLimits implements ShouldQueue
         // Iterate over each day from $dateFrom to $dateTo
         for ($date = $this->dateFrom->copy(); $date->lte($this->dateTo); $date->addDay()) {
             // Get the previous day's product limits
-            $previousDate = $date->copy();
+            $previousDate = $date->copy()->subDay();
             $previousProductLimits = ProductLimit::query()
                 ->where('date', $previousDate->toDateString())
                 ->get();
@@ -42,9 +42,11 @@ class CopyProductLimits implements ShouldQueue
             // Copy each previous day's product limit to the current date
             foreach ($previousProductLimits as $productLimit) {
                 // Skip if the limit already exists for the target date and product_id
-                if (ProductLimit::where('date', $date->toDateString())
-                                ->where('product_id', $productLimit->product_id)
-                                ->exists()) {
+                if (
+                    ProductLimit::where('date', $date->toDateString())
+                        ->where('product_id', $productLimit->product_id)
+                        ->exists()
+                ) {
                     continue;
                 }
 

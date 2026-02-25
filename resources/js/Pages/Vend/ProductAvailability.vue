@@ -79,7 +79,7 @@
                           {{ products.data.length }} products found
                       </span>
                       <div class="flex flex-row items-center gap-2">
-                        <label class="text-xs font-semibold text-gray-700">Date</label>
+                        <label class="text-xs font-semibold text-gray-700">Planning Date</label>
                         <DatePicker v-model="filters.productAvailableDate" class="py-1 text-xs" :isPreviousNextButton="false" :clearable="false" :format="'yyyy-MM-dd'" auto-apply @update:model-value="onSearchFilterUpdated" :minDate="today">
                             <template #trigger>
                                 <span class="p-1 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-100 flex flex-row gap-2 justify-center items-center h-full text-xs">

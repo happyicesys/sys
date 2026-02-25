@@ -570,6 +570,25 @@
                   {{ form.errors.server_price_type }}
                 </div>
             </div>
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Is Fan Enabled?
+                </label>
+                <MultiSelect
+                  v-model="form.is_fan_enabled"
+                  :options="booleanStrictOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.is_fan_enabled">
+                  {{ form.errors.is_fan_enabled }}
+                </div>
+            </div>
 
             <hr class="sm:col-span-6">
             <div class="sm:col-span-3" v-if="form.vend_prefix_id">
@@ -1433,6 +1452,7 @@ function getDefaultForm() {
     is_testing: '',
     is_active: '',
     is_using_server_price: '',
+    is_fan_enabled: {id: 'true', value: 'Yes'},
     upcoming_product_mapping_id: '',
     vend_config_id: '',
     vend_config_version: '',
@@ -1556,6 +1576,7 @@ onMounted(() => {
     modem_unit_id: props.vend.modem_unit_id ? modemUnitOptions.value.find(modemUnit => modemUnit.id == props.vend.modem_unit_id) : null,
     product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id == props.vend.product_mapping_id) : null,
     server_price_type: props.vend.server_price_type ? serverPriceTypeOptions.value.find(serverPriceType => serverPriceType.id == props.vend.server_price_type) : null,
+    is_fan_enabled: (props.vend.is_fan_enabled === false || props.vend.is_fan_enabled === 0 || props.vend.is_fan_enabled === '0' || props.vend.is_fan_enabled === 'false') ? {id: 'false', value: 'No'} : {id: 'true', value: 'Yes'},
     simcard_id: props.vend.simcard_id ? simcardOptions.value.find(simcard => simcard.id == props.vend.simcard_id) : null,
     status: statusOptions.value.find(status => status.id == (props.vend.is_disposed == 1 ? 'disposed' : (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive'))),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id == props.vend.operator_id) : null : null,
@@ -2100,6 +2121,7 @@ function saveVend(vendID) {
       simcard_id: data.simcard_id ? data.simcard_id.id : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
       operator_id: data.operator_id ? data.operator_id.id : null,
+      is_fan_enabled: data.is_fan_enabled ? (data.is_fan_enabled.id === 'true' ? true : false) : true,
       product_mapping_id: data.product_mapping_id ? data.product_mapping_id.id : null,
       status: data.status.id,
       upcoming_product_mapping_id: data.upcoming_product_mapping_id ? data.upcoming_product_mapping_id.id : null,
