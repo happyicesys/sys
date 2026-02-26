@@ -335,6 +335,7 @@ const showMarkers = ref(true)
 
 // Map alert_type -> short dashboard label
 const ALERT_TYPE_LABEL = {
+  'connectivity':        '1',
   'comp_fan_off':        '2.1A',
   'temps_above_0':       '2.1B',
   'temps_above_minus_8': '2.1C',
@@ -351,13 +352,34 @@ function buildAnnotations() {
   if (!showMarkers.value) return {}
   const logs = props.vendAlertLogsObj ?? []
   const annotations = {}
+  const activeAlertTypes = {}
+  const hasSeenLogForType = {}
+  let markerCount = 0
+
   logs.forEach((log, idx) => {
     const isTriggered = log.event === 'machine_health_alert'
-    const shortLabel = ALERT_TYPE_LABEL[log.alert_type] ?? log.alert_type ?? '?'
+    const isDismissed = log.event === 'machine_health_alert_dismissed'
+    const alertType = log.alert_type
+    const shortLabel = ALERT_TYPE_LABEL[alertType]
+
+    if (!shortLabel) return
+
+    if (isTriggered) {
+      if (hasSeenLogForType[alertType] && activeAlertTypes[alertType]) {
+        return // Ignore tier escalations, only show initial trigger in timeframe
+      }
+      activeAlertTypes[alertType] = true
+    } else if (isDismissed) {
+      if (hasSeenLogForType[alertType] && !activeAlertTypes[alertType]) {
+        return // Already dismissed
+      }
+      activeAlertTypes[alertType] = false
+    }
+    hasSeenLogForType[alertType] = true
+
+    const currentMarkerIdx = markerCount++
     const color = isTriggered ? 'rgba(220,38,38,0.85)' : 'rgba(22,163,74,0.85)'
-    const bgColor = isTriggered ? 'rgba(220,38,38,0.15)' : 'rgba(22,163,74,0.15)'
     const borderColor = isTriggered ? '#dc2626' : '#16a34a'
-    const timeLabel = log.occurred_at ? moment(log.occurred_at).format('YY-MM-DD HH:mm') : ''
     annotations[`alert_${idx}`] = {
       type: 'line',
       scaleID: 'x',
@@ -376,7 +398,7 @@ function buildAnnotations() {
         font: { size: 10, weight: 'bold' },
         padding: { x: 4, y: 2 },
         borderRadius: 3,
-        yAdjust: idx % 2 === 0 ? 0 : 18,
+        yAdjust: currentMarkerIdx % 2 === 0 ? 0 : 18,
         textAlign: 'center',
         zIndex: 1,
       },
@@ -396,7 +418,7 @@ function buildAnnotations() {
         ctx.element.options.label.backgroundColor = color
         ctx.element.options.label.font.size = 10
         ctx.element.options.label.padding = { x: 4, y: 2 }
-        ctx.element.options.label.yAdjust = idx % 2 === 0 ? 0 : 18
+        ctx.element.options.label.yAdjust = currentMarkerIdx % 2 === 0 ? 0 : 18
         ctx.element.options.label.zIndex = 1
         ctx.chart.update('none')
       },

@@ -1187,7 +1187,7 @@ class VendController extends Controller
                 return [
                     'event' => $log->event,
                     'subject' => $log->subject,
-                    'alert_type' => $log->context['alert_type'] ?? null,
+                    'alert_type' => $log->context['alert_type'] ?? ($log->context['type'] === 'connectivity' ? 'connectivity' : null),
                     'bucket' => $log->context['bucket'] ?? null,
                     'severity' => $log->context['severity'] ?? null,
                     'occurred_at' => $log->occurred_at->toIso8601String(),

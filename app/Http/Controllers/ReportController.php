@@ -268,14 +268,27 @@ class ReportController extends Controller
 
         $limit = 10;
         $logs = $query->orderByDesc('occurred_at')
-            ->limit($limit + 1) // Fetch one extra to determine hasMore
+            ->limit($limit + 1)
             ->get();
 
         $hasMore = $logs->count() > $limit;
         $logs = $logs->take($limit);
 
+        // Optimization: Pre-fetch all dismissal logs for these vends in one query
+        $vendIds = $logs->pluck('vend_id')->unique()->all();
+        $dismissals = collect();
+        if (!empty($vendIds)) {
+            $dismissals = \App\Models\VendLog::whereIn('vend_id', $vendIds)
+                ->where('event', 'machine_health_alert_dismissed')
+                ->where('context->bucket', $bucket)
+                ->where('occurred_at', '>=', $logs->min('occurred_at'))
+                ->orderBy('occurred_at', 'asc')
+                ->get()
+                ->groupBy('vend_id');
+        }
+
         return response()->json([
-            'data' => $logs->map(function ($log) {
+            'data' => $logs->map(function ($log) use ($dismissals) {
                 $res = [
                     'id' => $log->id,
                     'occurred_at' => $log->context['triggered_at'] ?? $log->occurred_at->toIso8601String(),
@@ -287,17 +300,16 @@ class ReportController extends Controller
                     'event' => $log->event,
                 ];
 
-                $dismissLog = \App\Models\VendLog::where('vend_id', $log->vend_id)
-                    ->where('event', 'machine_health_alert_dismissed')
-                    ->where('context->bucket', $log->context['bucket'] ?? '')
-                    ->when($log->context['type'] ?? null, function ($q) use ($log) {
-                        return $q->where('context->type', $log->context['type']);
-                    })
-                    ->when($log->context['alert_type'] ?? null, function ($q) use ($log) {
-                        return $q->where('context->alert_type', $log->context['alert_type']);
-                    })
-                    ->where('occurred_at', '>=', $log->occurred_at)
-                    ->orderBy('occurred_at', 'asc')
+                // Find the first dismissal for this vend that happened AFTER this alert
+                $dismissLog = ($dismissals->get($log->vend_id) ?? collect())
+                    ->filter(function ($d) use ($log) {
+                    // Match same bucket and type/alert_type
+                    if (($log->context['type'] ?? null) !== ($d->context['type'] ?? null))
+                        return false;
+                    if (($log->context['alert_type'] ?? null) !== ($d->context['alert_type'] ?? null))
+                        return false;
+                    return $d->occurred_at >= $log->occurred_at;
+                })
                     ->first();
 
                 $res['dismissed_at'] = $dismissLog ? $dismissLog->occurred_at->toIso8601String() : ($log->context['dismissed_at'] ?? null);

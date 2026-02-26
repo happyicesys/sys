@@ -162,18 +162,20 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         $minTimestamp = $latestFrozen ? $latestFrozen->created_at->toIso8601String() : $now->toIso8601String();
 
+        $existing = $existingAlerts->get(VendSmartAlert::TYPE_T2_FROZEN);
+        $meta = $existing ? ($existing->meta_data ?? []) : [];
+        $meta['val'] = $metaMax / $scale;
+        $meta['max_temp'] = $metaMax / $scale;
+        $meta['duration_label'] = $durationLabel;
+        $meta['calculated_at'] = $now->toIso8601String();
+        $meta['min_timestamp'] = $minTimestamp;
+
         $alert = VendSmartAlert::updateOrCreate(
             ['vend_id' => $vend->id, 'alert_type' => VendSmartAlert::TYPE_T2_FROZEN],
             [
                 'severity' => $severity,
                 'is_active' => true,
-                'meta_data' => [
-                    'val' => $metaMax / $scale,
-                    'max_temp' => $metaMax / $scale,
-                    'duration_label' => $durationLabel,
-                    'calculated_at' => $now->toIso8601String(),
-                    'min_timestamp' => $minTimestamp,
-                ],
+                'meta_data' => $meta,
             ]
         );
         $this->logDashboardAlert($vend->id, $alert, ['> 24 hr', '> 48 hr', '> 72 hr']);
@@ -243,9 +245,16 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
             $minTimestamp = $minT1Record ? \Carbon\Carbon::parse($minT1Record)->toIso8601String() : now()->toIso8601String();
 
+            $existing = $existingAlerts->get($alertType);
+            $meta = $existing ? ($existing->meta_data ?? []) : [];
+            $meta['min_t1'] = $v1;
+            $meta['min_t2'] = $v2;
+            $meta['duration'] = $duration;
+            $meta['min_timestamp'] = $minTimestamp;
+
             $alert = VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vendId, 'alert_type' => $alertType],
-                ['severity' => $sev, 'is_active' => true, 'meta_data' => ['min_t1' => $v1, 'min_t2' => $v2, 'duration' => $duration, 'min_timestamp' => $minTimestamp]]
+                ['severity' => $sev, 'is_active' => true, 'meta_data' => $meta]
             );
             $this->logDashboardAlert($vendId, $alert, ['Above -21c', 'Above -20c', 'Above -19c']);
         } else {
@@ -297,21 +306,22 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $elapsedMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($startedAt));
             $duration = (24 * 60) + $elapsedMinutes;
 
+            $meta = $existingAlert ? ($existingAlert->meta_data ?? []) : [];
+            $meta['current_min'] = $curr / $scale;
+            $meta['prev_min'] = $prev / $scale;
+            $meta['delta'] = $deltaC;
+            $meta['calculated_at'] = $now->toIso8601String();
+            $meta['started_at'] = $startedAt;
+            $meta['duration'] = $duration;
+            $meta['min_timestamp'] = $this->findMinTimestamp($vend->id, $tempType, $windowCurrentStart, $now, $curr);
+            $meta['prev_min_timestamp'] = $this->findMinTimestamp($vend->id, $tempType, $windowPrevStart, $windowCurrentStart, $prev);
+
             $alert = VendSmartAlert::updateOrCreate(
                 ['vend_id' => $vend->id, 'alert_type' => $alertType],
                 [
                     'severity' => $severity,
                     'is_active' => true,
-                    'meta_data' => [
-                        'current_min' => $curr / $scale,
-                        'prev_min' => $prev / $scale,
-                        'delta' => $deltaC,
-                        'calculated_at' => $now->toIso8601String(),
-                        'started_at' => $startedAt,
-                        'duration' => $duration,
-                        'min_timestamp' => $this->findMinTimestamp($vend->id, $tempType, $windowCurrentStart, $now, $curr),
-                        'prev_min_timestamp' => $this->findMinTimestamp($vend->id, $tempType, $windowPrevStart, $windowCurrentStart, $prev),
-                    ],
+                    'meta_data' => $meta,
                 ]
             );
             $this->logDashboardAlert($vend->id, $alert, ['Δ ≥ 1c', 'Δ ≥ 2c', 'Δ ≥ 3c']);
@@ -963,9 +973,10 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             : VendSmartAlert::where('vend_id', $vendId)->where('alert_type', $alertType)->first();
 
         if ($alert && $alert->is_active) {
-            $alert->update(['is_active' => false]);
-
-            $lastSent = $alert->meta_data['last_sent_severity'] ?? $alert->severity;
+            $meta = $alert->meta_data;
+            $lastSent = $meta['last_sent_severity'] ?? $alert->severity;
+            unset($meta['last_sent_severity']); // Reset so next trigger logs again
+            $alert->update(['is_active' => false, 'meta_data' => $meta]);
 
             if ($lastSent > count($labels))
                 $lastSent = count($labels);
