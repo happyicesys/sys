@@ -1,10 +1,10 @@
 <template>
-    <div class="md:hidden overflow-scroll">
-        <Vue3ChartJs :height="410" id="chartjs" :type="type" :data="data" ref="chartRef" :plugins="plugins" :options="options">
+    <div class="md:hidden overflow-x-hidden overflow-y-auto">
+        <Vue3ChartJs :height="410" id="chartjs-mobile" :type="type" :data="data" ref="chartRef" :plugins="plugins" :options="options">
         </Vue3ChartJs>
     </div>
-    <div class="hidden md:block overflow-scroll">
-        <Vue3ChartJs id="chartjs" :type="type" :data="data" ref="chartRef"  :plugins="plugins" :options="options">
+    <div class="hidden md:block">
+        <Vue3ChartJs id="chartjs-desktop" :type="type" :data="data" ref="chartRef"  :plugins="plugins" :options="options">
         </Vue3ChartJs>
     </div>
 </template>
@@ -37,6 +37,7 @@
                     datasets: props.datasets
                 })
     const options = ref({
+                    responsive: true,
                     elements: {
                         point: {
                             radius: 2

@@ -2207,7 +2207,7 @@ filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.code == 'IP'),
 		operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 	] : [],
-] : operatorOptions.value[0]
+].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 filters.value.status = statusOptions.value[2]
 	// filters.value.vend_prefix_id = vendPrefixOptions.value[0]
 // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
@@ -2442,7 +2442,7 @@ function onSearchFilterUpdated() {
 			location_type_id: filters.value.locationType.id,
 			next_planned_date: filters.value.next_planned_date,
 			next_planned_driver: filters.value.next_planned_driver.id,
-			operators: filters.value.operators.map((operator) => { return operator.id }),
+			operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
 			is_active: filters.value.is_active.id,
 			is_binded_customer: filters.value.is_binded_customer.id,
 			is_door_open: filters.value.is_door_open.id,

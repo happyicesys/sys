@@ -153,12 +153,12 @@
                   </Button>
               </div>
           </div>
-          <div class="px-1 mt-2 flex flex-col">
-              <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-                  <div class="inline-block min-w-full py-2 align-middle">
-                      <div class="shadow-sm ring-1 ring-black ring-opacity-5">
+          <div class="px-0 mt-2 flex flex-col overflow-x-hidden">
+              <div class="-my-2 sm:-mx-6 lg:-mx-8">
+                  <div class="py-2 align-middle">
+                      <div class="shadow-sm ring-1 ring-black ring-opacity-5 rounded-lg overflow-x-hidden w-full">
                           <div class="flex flex-col space-y-1">
-                              <div class="p-2 flex space-x-1">
+                              <div class="p-2 flex flex-wrap gap-1">
                                   <span class="inline-flex rounded-md shadow-sm" v-if="vend.temp && ('t2' in vend.parameterJson || 't3' in vend.parameterJson || 't4' in vend.parameterJson)">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" value="1" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
@@ -488,6 +488,8 @@ function buildAnnotations() {
   return annotations
 }
 const graphOptions = ref({
+responsive: true,
+maintainAspectRatio: false,
 scales: {
   x: {
     type: 'time',

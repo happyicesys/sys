@@ -1077,7 +1077,7 @@ onMounted(() => {
             operatorOptions.value.find(operator => operator.code == 'IP'),
             operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 		] : [],
-	] : operatorOptions.value[0]
+	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
     filters.value.interface_type = vmcByteOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]
     filters.value.is_member = booleanOptions.value[0]
@@ -1189,7 +1189,7 @@ function onExportCsvClicked() {
             categoryGroups: filters.value.categoryGroups.map(cg => cg.id),
             channel_codes: filters.value.channel_codes,
             location_type_id: filters.value.location_type_id.id,
-            operators: filters.value.operators.map(o => o.id),
+            operators: filters.value.operators.filter(operator => operator).map(o => o.id),
             interface_type: filters.value.interface_type.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_member: filters.value.is_member.id,
@@ -1339,7 +1339,7 @@ function onExportExcelClicked() {
             channel_codes: filters.value.channel_codes,
             errors: filters.value.errors.map((error) => { return error.id }),
             location_type_id: filters.value.location_type_id.id,
-            operators: filters.value.operators.map((operator) => { return operator.id }),
+            operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
             interface_type: filters.value.interface_type.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_member: filters.value.is_member.id,
@@ -1371,7 +1371,7 @@ function onSearchFilterUpdated() {
         channel_codes: filters.value.channel_codes,
         errors: filters.value.errors.map((error) => { return error.id }),
         location_type_id: filters.value.location_type_id.id,
-        operators: filters.value.operators.map((operator) => { return operator.id }),
+        operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
         interface_type: filters.value.interface_type.id,
         is_binded_customer: filters.value.is_binded_customer.id,
         is_member: filters.value.is_member.id,
