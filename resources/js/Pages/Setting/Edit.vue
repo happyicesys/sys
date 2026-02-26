@@ -572,7 +572,7 @@
             </div>
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Is Fan Enabled?
+                  Fan speed signal available?
                 </label>
                 <MultiSelect
                   v-model="form.is_fan_enabled"

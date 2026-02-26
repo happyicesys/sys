@@ -47,17 +47,20 @@ class DeliveryPlatformOrderController extends Controller
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
         ]);
 
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                    Operator::where('code', 'HIESG')->first()?->id,
-                    Operator::where('code', 'IP')->first()?->id,
-                ]]);
-            }else {
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
+                        Operator::where('code', 'UL_ST')->first()?->id,
+                    ]
+                ]);
+            } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
@@ -65,7 +68,7 @@ class DeliveryPlatformOrderController extends Controller
         $totals = DeliveryPlatformOrder::query()
             ->leftJoin('delivery_product_mapping_vend', 'delivery_platform_orders.delivery_product_mapping_vend_id', '=', 'delivery_product_mapping_vend.id')
             ->filterIndex($request)
-            ->whereNotIn('delivery_product_mapping_vend.vend_id', function($query) {
+            ->whereNotIn('delivery_product_mapping_vend.vend_id', function ($query) {
                 $query
                     ->select('id')
                     ->from('vends')
@@ -88,7 +91,7 @@ class DeliveryPlatformOrderController extends Controller
             'dateFilterTypeOptions' => DeliveryPlatformOrder::DATE_FILTER_MAPPING,
             'deliveryPlatformTypeOptions' => DeliveryPlatformOperator::DELIVERY_PLATFORM_TYPES,
             'deliveryPlatformOrders' => DeliveryPlatformOrderResource::collection(
-                    $query
+                $query
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
@@ -97,7 +100,7 @@ class DeliveryPlatformOrderController extends Controller
                     'id' => 'all',
                     'name' => 'All',
                 ],
-                ...collect(DeliveryPlatformOrder::STATUS_MAPPING)->map(function($status, $index) {
+                ...collect(DeliveryPlatformOrder::STATUS_MAPPING)->map(function ($status, $index) {
                     return [
                         'id' => $index,
                         'name' => $status,
@@ -153,12 +156,12 @@ class DeliveryPlatformOrderController extends Controller
         ]);
 
         $query = $this->getDeliveryPlatformOrderQuery($request);
-        $query = $query->when($request->sortKey, function($query, $search) use ($request) {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            })
+        $query = $query->when($request->sortKey, function ($query, $search) use ($request) {
+            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+        })
             ->get();
 
-            return Excel::download(new DeliveryPlatformOrderExport($query), 'Delivery_Platform_Order_'.Carbon::now()->toDateTimeString().'.xlsx');
+        return Excel::download(new DeliveryPlatformOrderExport($query), 'Delivery_Platform_Order_' . Carbon::now()->toDateTimeString() . '.xlsx');
         // return (new FastExcel($this->yieldOneByOne($query->get())))->download('Delivery_Platform_Order_'.Carbon::now()->toDateTimeString().'.xlsx', function ($orderItem) {
         //     return [
         //         'Platform Order ID' => $orderItem->deliveryPlatformOrder->order_id,
@@ -191,9 +194,9 @@ class DeliveryPlatformOrderController extends Controller
 
         $response = $this->deliveryPlatformService->cancelOrder($deliveryPlatformOrder);
 
-        if($response) {
+        if ($response) {
             return redirect()->back()->with('success', 'Order cancelled');
-        }else {
+        } else {
             return redirect()->back()->with('error', 'Order cancel not successful');
         }
     }
@@ -201,32 +204,33 @@ class DeliveryPlatformOrderController extends Controller
     private function getDeliveryPlatformOrderQuery($request)
     {
         $query = DeliveryPlatformOrder::query()
-        ->with([
-            'deliveryPlatform:id,name,country_id,slug',
-            'deliveryPlatformOrderItems',
-            'deliveryProductMappingVend.deliveryProductMapping:id,name',
-            'deliveryProductMappingVend.vend:id,code,name,customer_id,vend_prefix_id',
-            'deliveryProductMappingVend.vend.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
-            'deliveryProductMappingVend.vend.vendPrefix',
-            'deliveryProductMappingVend.deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
-            'deliveryPlatformOperator',
-            'deliveryPlatformOrderComplaint',
-            'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
-            'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
-            'deliveryPlatformOrderItems.orderItemVendChannels',
-            'vendTransaction',
+            ->with([
+                'deliveryPlatform:id,name,country_id,slug',
+                'deliveryPlatformOrderItems',
+                'deliveryProductMappingVend.deliveryProductMapping:id,name',
+                'deliveryProductMappingVend.vend:id,code,name,customer_id,vend_prefix_id',
+                'deliveryProductMappingVend.vend.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
+                'deliveryProductMappingVend.vend.vendPrefix',
+                'deliveryProductMappingVend.deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
+                'deliveryPlatformOperator',
+                'deliveryPlatformOrderComplaint',
+                'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
+                'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
+                'deliveryPlatformOrderItems.orderItemVendChannels',
+                'vendTransaction',
 
-        ])
-        ->filterIndex($request)
-        ->when($request->sortKey, function($query, $search) use ($request) {
-            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-        });
-// dd($query->get()->toArray());
+            ])
+            ->filterIndex($request)
+            ->when($request->sortKey, function ($query, $search) use ($request) {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+            });
+        // dd($query->get()->toArray());
         return $query;
     }
 
-    private function yieldOneByOne($items) {
-        foreach($items as $item) {
+    private function yieldOneByOne($items)
+    {
+        foreach ($items as $item) {
             yield $item;
         }
     }

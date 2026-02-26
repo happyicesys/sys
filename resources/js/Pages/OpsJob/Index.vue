@@ -176,6 +176,9 @@
                         <span>
                           Refillable Value
                         </span>
+                        <span>
+                          (Qty)
+                        </span>
                       </div>
                     </TableHead>
                     <TableHead>
@@ -571,6 +574,7 @@ onMounted(() => {
 			operatorOptions.value.find(operator => operator.code == 'DCVIC'),
       operatorOptions.value.find(operator => operator.code == 'HIESG'),
       operatorOptions.value.find(operator => operator.code == 'IP'),
+      operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 		] : [],
 	] : operatorOptions.value[0]
 })

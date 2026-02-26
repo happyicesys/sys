@@ -447,7 +447,7 @@
                                   </span>
                                 </div>
                               </span>
-                              <div class="flex space-x-1 px-5 justify-center">
+                              <div class="flex space-x-1 px-5 justify-center" v-if="opsJobItem.status >= 2">
                                 <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">P</span> -->
                                 <span>
                                   {{ operatorCountry.currency_symbol }}{{ opsJobItem.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>

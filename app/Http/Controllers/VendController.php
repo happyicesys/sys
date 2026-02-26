@@ -182,7 +182,7 @@ class VendController extends Controller
             $userOperator = auth()->user()->operator;
 
             if ($userOperator && $userOperator->code === 'HIPL') {
-                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP'];
+                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP', 'UL_ST'];
 
                 $operatorIds = Operator::whereIn('code', $relatedCodes)
                     ->pluck('id')
@@ -300,6 +300,7 @@ class VendController extends Controller
             'vends.parameter_json',
             'vends.product_mapping_id',
             'vends.private_key',
+            'vends.is_fan_enabled',
             'vends.termination_date',
             'vends.vend_channel_totals_json',
             'vends.vend_channel_error_logs_json',
@@ -451,7 +452,7 @@ class VendController extends Controller
             $userOperator = auth()->user()->operator;
 
             if ($userOperator && $userOperator->code === 'HIPL') {
-                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP'];
+                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP', 'UL_ST'];
 
                 $operatorIds = Operator::whereIn('code', $relatedCodes)
                     ->pluck('id')

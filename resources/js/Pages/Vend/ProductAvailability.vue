@@ -337,6 +337,7 @@ onMounted(() => {
       operatorOptions.value.find(operator => operator.code == 'DCVIC'),
       operatorOptions.value.find(operator => operator.code == 'HIESG'),
       operatorOptions.value.find(operator => operator.code == 'IP'),
+      operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 		] : [],
 	] : operatorOptions.value[0]
 

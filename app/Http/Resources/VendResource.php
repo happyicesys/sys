@@ -130,7 +130,7 @@ class VendResource extends JsonResource
             'is_temp_active' => isset($this->is_temp_active) && $this->is_temp_active ? true : false,
             'is_temp_error' => isset($this->is_temp_error) && $this->is_temp_error ? true : false,
             'is_testing' => isset($this->is_testing) && $this->is_testing ? true : false,
-            'key' => KeyResource::make($this->whenLoaded('key')),
+            'is_fan_enabled' => $this->is_fan_enabled === 0 || $this->is_fan_enabled === false ? false : true,
             'key_id' => isset($this->key_id) ? $this->key_id : null,
             'last_invoice_date' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'last_invoice_diff' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->startOfDay()->diffForHumans(['options' => Carbon::ONE_DAY_WORDS]) : null,

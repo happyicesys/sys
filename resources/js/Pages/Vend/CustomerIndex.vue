@@ -655,6 +655,11 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Delta of T1 and T2 <br> Under normal condition, 1.5C to 3.5C', html: true }"></ExclamationCircleIcon>
 							</div>
+							<div class="flex justify-center items-center mt-2">
+								<SingleSortItem modelName="parameter_json->fan" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->fan', false)">
+									Fan RPM
+								</SingleSortItem>
+							</div>
 						</div>
 					</TableHead>
 					<TableHead>
@@ -1097,8 +1102,8 @@
 							>
 									{{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
 							</span>
-							<!-- Fan RPM: only show for non-UD machines -->
-							<template v-if="vend.vend_prefix_name && !vend.vend_prefix_name.startsWith('UD') && vend.is_fan_enabled">
+							<!-- Fan RPM: only hide if is_fan_enabled is strictly false -->
+							<template v-if="vend.is_fan_enabled">
 								<!-- Has fan speed signal -->
 								<div
 									v-if="vend.parameterJson && 'fan' in vend.parameterJson"
@@ -1114,7 +1119,7 @@
 								>
 										<span class="text-[10px] font-bold">Fan RPM</span>
 										<span v-if="(vend.is_online || vend.is_testing) && vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'">{{ vend.parameterJson['fan'] }}</span>
-										<span v-else-if="!(vend.is_online || vend.is_testing)">—</span>
+										<span v-else-if="!(vend.is_online || vend.is_testing)">--</span>
 								</div>
 								<!-- Has fan model but no speed signal -->
 								<div
@@ -1124,7 +1129,7 @@
 								>
 									<div class="flex flex-col items-center">
 										<span class="text-[10px] font-bold">Fan RPM</span>
-										<span>—</span>
+										<span>--</span>
 									</div>
 								</div>
 							</template>
@@ -2201,6 +2206,7 @@ filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.code == 'DCVIC'),
 		operatorOptions.value.find(operator => operator.code == 'HIESG'),
 		operatorOptions.value.find(operator => operator.code == 'IP'),
+		operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 	] : [],
 ] : operatorOptions.value[0]
 filters.value.status = statusOptions.value[2]

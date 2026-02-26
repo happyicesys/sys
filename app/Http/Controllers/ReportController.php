@@ -335,7 +335,7 @@ class ReportController extends Controller
         }
 
         if ($operatorCode === 'HIPL') {
-            $codes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP'];
+            $codes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP', 'UL_ST'];
             $ids = $operatorOptions
                 ? $operatorOptions->whereIn('code', $codes)->pluck('id')->all()
                 : Operator::whereIn('code', $codes)->pluck('id')->all();
@@ -662,6 +662,7 @@ class ReportController extends Controller
                         Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'IP')->first()?->id,
+                        Operator::where('code', 'UL_ST')->first()?->id,
                     ])
                 ]);
             } else {
@@ -715,6 +716,7 @@ class ReportController extends Controller
                         Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'IP')->first()?->id,
+                        Operator::where('code', 'UL_ST')->first()?->id,
                     ]
                 ]);
             } else {

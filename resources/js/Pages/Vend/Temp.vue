@@ -191,6 +191,12 @@
                                           <label class="pl-2">Fan</label>
                                       </span>
                                   </span>
+                                  <span class="inline-flex rounded-md shadow-sm ">
+                                      <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
+                                      <input type="checkbox" v-model="showMarkers" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                          <label class="pl-2">Show Markers</label>
+                                      </span>
+                                  </span>
                               </div>
                               <div class="flex space-x-2 px-2">
                                 <div
@@ -263,6 +269,9 @@ import { ArrowDownTrayIcon, ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
 import { computed, ref, onBeforeMount, watch } from 'vue';
 import { Head, router, usePage, usePoll } from '@inertiajs/vue3';
 import moment from 'moment';
+import { useToast } from "vue-toastification";
+
+const toast = useToast();
 
 const props = defineProps({
 duration: [Number, String],
@@ -277,6 +286,7 @@ fans: [String, Object, Array],
 vendObj: Object,
 vendTempsObj: Object,
 vendFansObj: Object,
+vendAlertLogsObj: [Array, Object],
 vendOptions: [Array, Object],
 });
 
@@ -321,6 +331,92 @@ const types = ref([1, 2]) // Default to [1, 2]
 const fans = ref(props.fans ? props.fans : [])
 const componentKey = ref(0);
 const loading = ref(false)
+const showMarkers = ref(true)
+
+// Map alert_type -> short dashboard label
+const ALERT_TYPE_LABEL = {
+  'comp_fan_off':        '2.1A',
+  'temps_above_0':       '2.1B',
+  'temps_above_minus_8': '2.1C',
+  'not_reach_minus_18':  '2.1D',
+  'lowest_24h_above':    '2.2A',
+  'lowest_72h_above':    '2.2B',
+  'rising_t1_trend':     '2.2C',
+  'rising_t2_trend':     '2.2C',
+  't2_frozen':           '2.2D',
+  't1_higher_than_t2':   '1',
+}
+
+function buildAnnotations() {
+  if (!showMarkers.value) return {}
+  const logs = props.vendAlertLogsObj ?? []
+  const annotations = {}
+  logs.forEach((log, idx) => {
+    const isTriggered = log.event === 'machine_health_alert'
+    const shortLabel = ALERT_TYPE_LABEL[log.alert_type] ?? log.alert_type ?? '?'
+    const color = isTriggered ? 'rgba(220,38,38,0.85)' : 'rgba(22,163,74,0.85)'
+    const bgColor = isTriggered ? 'rgba(220,38,38,0.15)' : 'rgba(22,163,74,0.15)'
+    const borderColor = isTriggered ? '#dc2626' : '#16a34a'
+    const timeLabel = log.occurred_at ? moment(log.occurred_at).format('YY-MM-DD HH:mm') : ''
+    annotations[`alert_${idx}`] = {
+      type: 'line',
+      scaleID: 'x',
+      value: log.occurred_at,
+      borderColor: borderColor,
+      borderWidth: 2,
+      hoverBorderWidth: 4,
+      borderDash: isTriggered ? [] : [4, 3],
+      clip: false,
+      label: {
+        display: true,
+        content: shortLabel,
+        position: 'start',
+        backgroundColor: color,
+        color: '#fff',
+        font: { size: 10, weight: 'bold' },
+        padding: { x: 4, y: 2 },
+        borderRadius: 3,
+        yAdjust: idx % 2 === 0 ? 0 : 18,
+        textAlign: 'center',
+        zIndex: 1,
+      },
+      enter(ctx) {
+        ctx.chart.canvas.style.cursor = 'pointer'
+        ctx.element.options.label.content = `(${shortLabel}) ${log.subject}\n${isTriggered ? 'Triggered' : 'Dismissed'} At: ${moment(log.occurred_at).format('YYYY-MM-DD HH:mm:ss')}`
+        ctx.element.options.label.backgroundColor = isTriggered ? '#991b1b' : '#15803d'
+        ctx.element.options.label.font.size = 12
+        ctx.element.options.label.padding = { x: 8, y: 6 }
+        ctx.element.options.label.yAdjust = -10
+        ctx.element.options.label.zIndex = 100
+        ctx.chart.update('none')
+      },
+      leave(ctx) {
+        ctx.chart.canvas.style.cursor = 'default'
+        ctx.element.options.label.content = shortLabel
+        ctx.element.options.label.backgroundColor = color
+        ctx.element.options.label.font.size = 10
+        ctx.element.options.label.padding = { x: 4, y: 2 }
+        ctx.element.options.label.yAdjust = idx % 2 === 0 ? 0 : 18
+        ctx.element.options.label.zIndex = 1
+        ctx.chart.update('none')
+      },
+      click(ctx) {
+        const status = isTriggered ? 'Triggered' : 'Dismissed'
+        const message = `[${shortLabel}] ${log.subject}\n${status} At: ${moment(log.occurred_at).format('YYYY-MM-DD HH:mm:ss')}`
+        const config = {
+          timeout: 15000,
+          position: "bottom-right"
+        }
+        if (isTriggered) {
+            toast.error(message, config)
+        } else {
+            toast.success(message, config)
+        }
+      },
+    }
+  })
+  return annotations
+}
 const graphOptions = ref({
 scales: {
   x: {
@@ -380,7 +476,16 @@ plugins: {
       }
     },
   },
+  annotation: {
+    annotations: buildAnnotations(),
+  },
 },
+interaction: {
+  mode: 'index',
+  intersect: false,
+  axis: 'x',
+},
+events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
 })
 
 watch(() => props.vendObj.data, (newVend) => {
@@ -744,6 +849,8 @@ if (types.value.length > 0 || fans.value.length > 0) {
     })
   }
 
+  // Rebuild annotations in case alert logs changed
+  graphOptions.value.plugins.annotation.annotations = buildAnnotations()
   forceRerender()
 }
 }
@@ -781,5 +888,10 @@ function updateTemperatureTypes(tempData) {
         });
     }
 }
+
+watch(showMarkers, () => {
+  graphOptions.value.plugins.annotation.annotations = buildAnnotations()
+  forceRerender()
+})
 
 </script>

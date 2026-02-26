@@ -141,6 +141,7 @@ class ProductMovementController extends Controller
                         Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'IP')->first()?->id,
+                        Operator::where('code', 'UL_ST')->first()?->id,
                     ]
                 ]);
             } else {
@@ -392,6 +393,7 @@ class ProductMovementController extends Controller
                         Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'IP')->first()?->id,
+                        Operator::where('code', 'UL_ST')->first()?->id,
                     ]
                 ]);
             } else {

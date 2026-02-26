@@ -766,6 +766,37 @@
                               >
                                   {{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
                               </span>
+                              <!-- Fan RPM: only hide if is_fan_enabled is strictly false -->
+                              <template v-if="vend.is_fan_enabled">
+                                  <!-- Has fan speed signal -->
+                                  <div
+                                      v-if="vend.parameterJson && 'fan' in vend.parameterJson"
+                                      class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px]"
+                                      :class="[
+                                          (vend.is_online || vend.is_testing)
+                                            ? (vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'
+                                                ? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
+                                                : 'bg-gray-200 text-gray-500')
+                                            : 'bg-gray-300 text-gray-600'
+                                      ]"
+                                      v-tooltip="{ content: 'Fan Speed Signal exists' }"
+                                  >
+                                      <span class="text-[10px] font-bold">Fan RPM</span>
+                                      <span v-if="(vend.is_online || vend.is_testing) && vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'">{{vend.parameterJson['fan']}}</span>
+                                      <span v-else-if="!(vend.is_online || vend.is_testing)">--</span>
+                                  </div>
+                                  <!-- Has fan model but no speed signal -->
+                                  <div
+                                      v-else
+                                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1"
+                                      :class="[(vend.is_online || vend.is_testing) ? 'bg-gray-200 text-gray-400' : 'bg-gray-300 text-gray-600']"
+                                  >
+                                      <div class="flex flex-col items-center">
+                                          <span class="text-[10px] font-bold">Fan RPM</span>
+                                          <span>--</span>
+                                      </div>
+                                  </div>
+                              </template>
                           </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">

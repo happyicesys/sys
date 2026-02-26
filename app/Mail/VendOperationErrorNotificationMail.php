@@ -69,7 +69,7 @@ class VendOperationErrorNotificationMail extends Mailable implements ShouldQueue
                 $title = 'Operation Error / Critical Parts Failure';
         }
 
-        $subject = '(2.1) ' . $vend->code . ': ' . $title . ' (' . $this->label . ')';
+        $subject = $vend->code . ': ' . $title . ' (' . $this->label . ')';
 
         return $this
             ->subject($subject)

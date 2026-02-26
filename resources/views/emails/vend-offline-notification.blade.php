@@ -13,26 +13,33 @@
       <h3 class="text-lg leading-6 font-medium text-gray-900">
         @if($vend and $vend->customer)
           <span>
-            {{$vend->customer->code}} - {{$vend->customer->name}}
+            - {{$vend->customer->name}}
           </span>
         @endif
       </h3>
-      <p class="mt-1 max-w-2xl text-sm text-gray-500">
-        Last Detected Time ({{ optional($vend->last_updated_at)->format('y-m-d h:ia') ?? 'N/A' }})
+
+      <h3 class="text-md font-bold text-gray-900 mt-4">
+        (1) Alert on Lost of Connectivity or Electricity
+      </h3>
+      <p class="text-sm text-gray-500">
+        {{ $label }}
+      </p>
+      <p class="text-xs text-gray-400">
+        Last Detected Time: {{ optional($vend->last_updated_at)->format('Y-m-d H:i:s') ?? 'N/A' }}
       </p>
 
-      <div class="mt-6 border-t border-gray-200 pt-6">
-        <h3 class="text-md font-bold text-gray-900">(1) Alert on Lost of Connectivity or Electricity</h3>
+      <div class="mt-4 border-t border-gray-200"></div>
 
-        <div class="mt-4">
-          <h4 class="text-sm font-semibold text-gray-700">Handling Method:</h4>
-          <ul class="mt-2 list-none text-sm text-gray-700 space-y-2">
-            <li>i) Cross-check with other source of connectivity device (eg: cashless device; cctv)</li>
-            <li>ii) Contact location personnel to confirm is power-trip happen on machine</li>
-            <li>iii) If after > 8hrs, still lost connectivity/electricity, arrange technician to go onsite check</li>
-          </ul>
-        </div>
+      <div class="mt-4">
+        <ul class="mt-2 list-none text-sm text-gray-700 space-y-2">
+          <li>i) Cross-check with other source of connectivity device (eg: cashless device; cctv)</li>
+          <li>ii) Contact location personnel to confirm is power-trip happen on machine</li>
+          <li>iii) If after > 8hrs, still lost connectivity/electricity, arrange technician to go onsite check</li>
+        </ul>
       </div>
+      <p class="mt-4 max-w-2xl text-xs text-gray-400">
+        Timestamp: {{ $now->format('Y-m-d H:i:s') }}
+      </p>
     </div>
   </div>
 @endsection
