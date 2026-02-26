@@ -196,16 +196,16 @@ class OpsJobController extends Controller
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * vc.amount ELSE 0 END) as stock_in_amount,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty ELSE 0 END) as stock_in_count,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * COALESCE(uc.cost, 0) ELSE 0 END) as stock_in_cost,
-                    SUM(CASE WHEN (oji.status = 1 OR (oji.status = 2 AND oji.refillable_amount IS NULL)) AND p.is_available = 1 THEN GREATEST(
+                    SUM(CASE WHEN (oji.status = 1 OR oji.refillable_amount IS NULL) AND p.is_available = 1 THEN GREATEST(
                         CASE
-                            WHEN pl.id IS NOT NULL AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(vc.qty, 0))
-                            ELSE (vc.capacity - COALESCE(vc.qty, 0))
+                            WHEN pl.id IS NOT NULL AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(CASE WHEN oji.status >= 2 THEN COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty) ELSE vc.qty END, 0))
+                            ELSE (vc.capacity - COALESCE(CASE WHEN oji.status >= 2 THEN COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty) ELSE vc.qty END, 0))
                         END, 0
                     ) ELSE 0 END * vc.amount) as live_refillable_amount,
-                    SUM(CASE WHEN (oji.status = 1 OR (oji.status = 2 AND oji.refillable_amount IS NULL)) AND p.is_available = 1 THEN GREATEST(
+                    SUM(CASE WHEN (oji.status = 1 OR oji.refillable_amount IS NULL) AND p.is_available = 1 THEN GREATEST(
                         CASE
-                            WHEN pl.id IS NOT NULL AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(vc.qty, 0))
-                            ELSE (vc.capacity - COALESCE(vc.qty, 0))
+                            WHEN pl.id IS NOT NULL AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(CASE WHEN oji.status >= 2 THEN COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty) ELSE vc.qty END, 0))
+                            ELSE (vc.capacity - COALESCE(CASE WHEN oji.status >= 2 THEN COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty) ELSE vc.qty END, 0))
                         END, 0
                     ) ELSE 0 END) as live_refillable_count
                 ', [
@@ -425,16 +425,16 @@ class OpsJobController extends Controller
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * vc.amount ELSE 0 END) as stock_in_amount,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty ELSE 0 END) as stock_in_count,
                     SUM(CASE WHEN oji.status >= ? AND oji.status <> ? THEN ojic.actual_qty * COALESCE(uc.cost, 0) ELSE 0 END) as stock_in_cost,
-                    SUM(CASE WHEN (oji.status = 1 OR (oji.status = 2 AND oji.refillable_amount IS NULL)) AND p.is_available = 1 THEN GREATEST(
+                    SUM(CASE WHEN (oji.status = 1 OR oji.refillable_amount IS NULL) AND p.is_available = 1 THEN GREATEST(
                         CASE
-                            WHEN pl.id IS NOT NULL AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(vc.qty, 0))
-                            ELSE (vc.capacity - COALESCE(vc.qty, 0))
+                            WHEN pl.id IS NOT NULL AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(CASE WHEN oji.status >= 2 THEN COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty) ELSE vc.qty END, 0))
+                            ELSE (vc.capacity - COALESCE(CASE WHEN oji.status >= 2 THEN COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty) ELSE vc.qty END, 0))
                         END, 0
                     ) ELSE 0 END * vc.amount) as live_refillable_amount,
-                    SUM(CASE WHEN (oji.status = 1 OR (oji.status = 2 AND oji.refillable_amount IS NULL)) AND p.is_available = 1 THEN GREATEST(
+                    SUM(CASE WHEN (oji.status = 1 OR oji.refillable_amount IS NULL) AND p.is_available = 1 THEN GREATEST(
                         CASE
-                            WHEN pl.id IS NOT NULL AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(vc.qty, 0))
-                            ELSE (vc.capacity - COALESCE(vc.qty, 0))
+                            WHEN pl.id IS NOT NULL AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(CASE WHEN oji.status >= 2 THEN COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty) ELSE vc.qty END, 0))
+                            ELSE (vc.capacity - COALESCE(CASE WHEN oji.status >= 2 THEN COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty) ELSE vc.qty END, 0))
                         END, 0
                     ) ELSE 0 END) as live_refillable_count
                 ', [
@@ -642,6 +642,35 @@ class OpsJobController extends Controller
                             'qty' => $channel['qty'],
                         ]);
                     }
+                }
+
+                if ($opsJobItem->refillable_amount === null || $opsJobItem->refillable_count === null) {
+                    $stats = DB::table('ops_job_item_channels as ojic')
+                        ->join('ops_jobs as oj', 'oj.id', '=', DB::raw($opsJobItem->ops_job_id))
+                        ->join('vend_channels as vc', 'ojic.vend_channel_id', '=', 'vc.id')
+                        ->leftJoin('products as p', 'vc.product_id', '=', 'p.id')
+                        ->leftJoin(DB::raw('(
+                            SELECT id, product_id, qty, date
+                            FROM (
+                                SELECT id, product_id, qty, date,
+                                    ROW_NUMBER() OVER (PARTITION BY product_id, date ORDER BY id DESC) as rn
+                                FROM product_limits
+                            ) pl_inner
+                            WHERE rn = 1
+                        ) AS pl'), function ($join) {
+                            $join->on('p.id', '=', 'pl.product_id')
+                                ->on('pl.date', '=', 'oj.date');
+                        })
+                        ->where('ojic.ops_job_item_id', $opsJobItem->id)
+                        ->selectRaw('
+                            SUM(CASE WHEN p.is_available = 1 THEN GREATEST(CASE WHEN pl.id AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty, 0)) ELSE (vc.capacity - COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty, 0)) END, 0) ELSE 0 END * vc.amount) as refillable_amount,
+                            SUM(CASE WHEN p.is_available = 1 THEN GREATEST(CASE WHEN pl.id AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty, 0)) ELSE (vc.capacity - COALESCE(ojic.picked_before_qty, ojic.qty, vc.qty, 0)) END, 0) ELSE 0 END) as refillable_count
+                        ')->first();
+
+                    $opsJobItem->update([
+                        'refillable_amount' => $stats ? $stats->refillable_amount : 0,
+                        'refillable_count' => $stats ? $stats->refillable_count : 0,
+                    ]);
                 }
 
                 // get previous opsJobItem of same vend, then return the completed_at
@@ -945,8 +974,8 @@ class OpsJobController extends Controller
                     COALESCE(ops_job_items.refillable_amount, (SELECT SUM(
                         CASE WHEN products.is_available = 1 THEN GREATEST(
                             CASE
-                                WHEN pl.id AND pl.qty < vend_channels.capacity THEN (pl.qty - COALESCE(vend_channels.qty, 0))
-                                ELSE (vend_channels.capacity - COALESCE(vend_channels.qty, 0))
+                                WHEN pl.id AND pl.qty < vend_channels.capacity THEN (pl.qty - COALESCE(CASE WHEN ops_job_items.status >= 2 THEN COALESCE(ops_job_item_channels.picked_before_qty, ops_job_item_channels.qty, vend_channels.qty) ELSE vend_channels.qty END, 0))
+                                ELSE (vend_channels.capacity - COALESCE(CASE WHEN ops_job_items.status >= 2 THEN COALESCE(ops_job_item_channels.picked_before_qty, ops_job_item_channels.qty, vend_channels.qty) ELSE vend_channels.qty END, 0))
                             END, 0
                         ) ELSE 0 END * vend_channels.amount
                     )
@@ -971,8 +1000,8 @@ class OpsJobController extends Controller
                     COALESCE(ops_job_items.refillable_count, (SELECT SUM(
                         CASE WHEN products.is_available = 1 THEN GREATEST(
                             CASE
-                                WHEN pl.id AND pl.qty < vend_channels.capacity THEN (pl.qty - COALESCE(vend_channels.qty, 0))
-                                ELSE (vend_channels.capacity - COALESCE(vend_channels.qty, 0))
+                                WHEN pl.id AND pl.qty < vend_channels.capacity THEN (pl.qty - COALESCE(CASE WHEN ops_job_items.status >= 2 THEN COALESCE(ops_job_item_channels.picked_before_qty, ops_job_item_channels.qty, vend_channels.qty) ELSE vend_channels.qty END, 0))
+                                ELSE (vend_channels.capacity - COALESCE(CASE WHEN ops_job_items.status >= 2 THEN COALESCE(ops_job_item_channels.picked_before_qty, ops_job_item_channels.qty, vend_channels.qty) ELSE vend_channels.qty END, 0))
                             END, 0
                         ) ELSE 0 END
                     )

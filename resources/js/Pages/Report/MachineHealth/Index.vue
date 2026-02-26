@@ -907,11 +907,11 @@ const loadMoreHistory = () => {
             <div class="flex items-center justify-between mb-4">
               <div>
                 <h3 class="text-lg font-semibold text-gray-900">(1) Alert on Lost of Connectivity or Electricity</h3>
-                <p class="text-sm text-gray-500">Handling Method:</p>
+                <p class="text-sm text-gray-500">Handling methods:</p>
                 <div class="mt-2 text-xs text-gray-500 space-y-1">
                   <div>i) Cross-check with other source of connectivity device (eg: cashless device; cctv)</div>
                   <div>ii) Contact location personnel to confirm is power-trip happen on machine</div>
-                  <div>iii) If after > 8hrs, still lost connectivity/electricity,  arrange technician to go onsite check</div>
+                  <div>iii) If after > 8hrs, still lost connectivity/electricity, arrange technician to go onsite check</div>
                 </div>
                 <p class="pt-2 text-sm text-gray-500">Offline hours</p>
               </div>

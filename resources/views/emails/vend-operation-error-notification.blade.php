@@ -28,39 +28,39 @@
             </p>
             <div class="mt-4 border-t border-gray-200"></div>
             <div class="mt-4">
-                <ul class="mt-2 text-sm text-gray-700 space-y-1">
+                <div class="mt-2 text-sm text-gray-700 space-y-1">
                     @if($alertType === \App\Models\VendSmartAlert::TYPE_T1_HIGHER_THAN_T2)
-                        <li class="font-bold">Possible component issue:</li>
-                        <li>i) Fan not function</li>
-                        <li>ii) Temp probe malfunction</li>
+                        <div class="font-bold">Possible component issue:</div>
+                        <div>i) Fan not function</div>
+                        <div>ii) Temp probe malfunction</div>
                     @elseif($alertType === \App\Models\VendSmartAlert::TYPE_COMP_FAN_OFF)
-                        <li class="font-bold">Possible component issue:</li>
-                        <li>i) Freezer unit being turned off</li>
-                        <li>ii) Comp & or fan, fail to start after defrost or resting</li>
-                        <li>iii) Comp is working, but Fan not turning</li>
+                        <div class="font-bold">Possible component issue:</div>
+                        <div>i) Freezer unit being turned off</div>
+                        <div>ii) Comp & or fan, fail to start after defrost or resting</div>
+                        <div>iii) Comp is working, but Fan not turning</div>
                     @elseif($alertType === \App\Models\VendSmartAlert::TYPE_TEMPS_ABOVE_0)
-                        <li class="font-bold">Possible component issue:</li>
-                        <li>i) Freezer unit being turned off</li>
-                        <li>ii) Comp & or fan, fail to start after forced defrost</li>
-                        <li class="font-bold mt-2">Possible Operation issue:</li>
-                        <li>iii) Freezer door not close tight</li>
-                        <li>iv) Open freezer door >15mins</li>
-                        <li class="text-xs text-gray-500 italic mt-1">(Alert dismissed once temp below 0°C)</li>
+                        <div class="font-bold">Possible component issue:</div>
+                        <div>i) Freezer unit being turned off</div>
+                        <div>ii) Comp & or fan, fail to start after forced defrost</div>
+                        <div class="font-bold mt-2">Possible Operation issue:</div>
+                        <div>iii) Freezer door not close tight</div>
+                        <div>iv) Open freezer door >15mins</div>
+                        <div class="text-xs text-gray-500 italic mt-1">(Alert dismissed once temp below 0°C)</div>
                     @elseif($alertType === \App\Models\VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8)
-                        <li class="font-bold">Possible Operation issue:</li>
-                        <li>i) Freezer door not close tight</li>
-                        <li>ii) Open freezer door >15mins</li>
-                        <li class="text-xs text-gray-500 italic mt-1">(Alert dismissed once temp below -8°C)</li>
+                        <div class="font-bold">Possible Operation issue:</div>
+                        <div>i) Freezer door not close tight</div>
+                        <div>ii) Open freezer door >15mins</div>
+                        <div class="text-xs text-gray-500 italic mt-1">(Alert dismissed once temp below -8°C)</div>
                     @elseif($alertType === \App\Models\VendSmartAlert::TYPE_NOT_REACH_MINUS_18)
-                        <li class="font-bold">Possible Operation issue:</li>
-                        <li>i) Freezer door not close tight</li>
-                        <li>ii) Open freezer door >15mins</li>
-                        <li>iii) Many purchases occur</li>
-                        <li class="text-xs text-gray-500 italic mt-1">(Alert dismissed once temp below -18°C)</li>
+                        <div class="font-bold">Possible Operation issue:</div>
+                        <div>i) Freezer door not close tight</div>
+                        <div>ii) Open freezer door >15mins</div>
+                        <div>iii) Many purchases occur</div>
+                        <div class="text-xs text-gray-500 italic mt-1">(Alert dismissed once temp below -18°C)</div>
                     @else
-                        <li>Unknown error</li>
+                        <div>Unknown error</div>
                     @endif
-                </ul>
+                </div>
             </div>
             <p class="mt-1 max-w-2xl text-xs text-gray-400">
                 Timestamp: {{ $now->format('Y-m-d H:i:s') }}

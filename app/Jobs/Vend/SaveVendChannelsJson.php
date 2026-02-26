@@ -115,7 +115,8 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
                         'name' => $channel->product->name,
                         'thumbnail' => $channel->product->thumbnail ? $channel->product->thumbnail->only(['id', 'full_url', 'modelable_id', 'modelable_type', 'type']) : null,
                         'is_available' => $channel->product->is_available,
-                        'limit_qty' => $productLimitLookup->get($channel->product->id),
+                        'limit_qty' => $productLimitLookup->get($channel->product->id)['qty'] ?? 0,
+                        'limit_is_created_by_system' => $productLimitLookup->get($channel->product->id)['is_created_by_system'] ?? null,
                     ] : null,
                     'last_stock_in_qty' => $channel->latestOpsJobItemChannel?->actual_qty ?? null,
                     'server_amount' => $channel->server_amount ? $channel->server_amount / 100 : null,
@@ -165,7 +166,7 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
         $tomorrow = Carbon::today()->addDay();
 
         return ProductLimit::query()
-            ->select('product_id', 'qty', 'created_at')
+            ->select('product_id', 'qty', 'is_created_by_system', 'created_at')
             ->whereIn('product_id', $productIds)
             ->whereDate('date', $tomorrow)
             ->orderBy('product_id')
@@ -173,7 +174,12 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
             ->get()
             ->unique('product_id')
             ->mapWithKeys(function ($productLimit) {
-                return [$productLimit->product_id => $productLimit->qty];
+                return [
+                    $productLimit->product_id => [
+                        'qty' => $productLimit->qty,
+                        'is_created_by_system' => $productLimit->is_created_by_system
+                    ]
+                ];
             });
     }
 

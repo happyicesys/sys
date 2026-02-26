@@ -31,11 +31,12 @@
       <div class="mt-4 border-t border-gray-200"></div>
 
       <div class="mt-4">
-        <ul class="mt-2 list-none text-sm text-gray-700 space-y-2">
-          <li>i) Cross-check with other source of connectivity device (eg: cashless device; cctv)</li>
-          <li>ii) Contact location personnel to confirm is power-trip happen on machine</li>
-          <li>iii) If after > 8hrs, still lost connectivity/electricity, arrange technician to go onsite check</li>
-        </ul>
+        <p class="text-sm text-gray-500">Handling methods:</p>
+        <div class="mt-2 text-sm text-gray-700 space-y-2">
+          <div>i) Cross-check with other source of connectivity device (eg: cashless device; cctv)</div>
+          <div>ii) Contact location personnel to confirm is power-trip happen on machine</div>
+          <div>iii) If after > 8hrs, still lost connectivity/electricity, arrange technician to go onsite check</div>
+        </div>
       </div>
       <p class="mt-4 max-w-2xl text-xs text-gray-400">
         Timestamp: {{ $now->format('Y-m-d H:i:s') }}

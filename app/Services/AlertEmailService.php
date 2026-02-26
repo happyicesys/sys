@@ -123,6 +123,9 @@ class AlertEmailService
      */
     public function sendVendPowerRestoredNotificationMail(Vend $vend): int
     {
+        // Temporarily disabled
+        return 0;
+
         $thresholdMinutes = $vend->powerRestoredAlertMinutes();
 
         $recipientCount = $this->queueVendNotification(

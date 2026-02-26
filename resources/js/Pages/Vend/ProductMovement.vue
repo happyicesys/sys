@@ -186,7 +186,7 @@
                                         </th>
                                         <th  scope="col" class="th-header w-[10%] p-1 sm:p-3 text-[10px] sm:text-xs font-semibold text-center text-gray-900 border-b">
                                             Capped Qty per Channel<br>
-                                            <span class="font-normal text-xs text-gray-600">(max Qty after Refilling on Date & onwards)</span>
+                                            <span class="font-normal text-xs text-gray-600">(max Qty after Refilling on Planning Date & 4 Days Onwards)</span>
                                         </th>
                                     </tr>
                                 </thead>

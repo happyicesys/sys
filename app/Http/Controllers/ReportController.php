@@ -275,12 +275,12 @@ class ReportController extends Controller
         $logs = $logs->take($limit);
 
         // Optimization: Pre-fetch all dismissal logs for these vends in one query
+        // Avoid filtering by context->bucket in SQL as it's slow on large tables (no index on JSON path)
         $vendIds = $logs->pluck('vend_id')->unique()->all();
         $dismissals = collect();
         if (!empty($vendIds)) {
             $dismissals = \App\Models\VendLog::whereIn('vend_id', $vendIds)
                 ->where('event', 'machine_health_alert_dismissed')
-                ->where('context->bucket', $bucket)
                 ->where('occurred_at', '>=', $logs->min('occurred_at'))
                 ->orderBy('occurred_at', 'asc')
                 ->get()
@@ -288,7 +288,7 @@ class ReportController extends Controller
         }
 
         return response()->json([
-            'data' => $logs->map(function ($log) use ($dismissals) {
+            'data' => $logs->map(function ($log) use ($dismissals, $bucket) {
                 $res = [
                     'id' => $log->id,
                     'occurred_at' => $log->context['triggered_at'] ?? $log->occurred_at->toIso8601String(),
@@ -302,8 +302,10 @@ class ReportController extends Controller
 
                 // Find the first dismissal for this vend that happened AFTER this alert
                 $dismissLog = ($dismissals->get($log->vend_id) ?? collect())
-                    ->filter(function ($d) use ($log) {
+                    ->filter(function ($d) use ($log, $bucket) {
                     // Match same bucket and type/alert_type
+                    if (($d->context['bucket'] ?? null) !== $bucket)
+                        return false;
                     if (($log->context['type'] ?? null) !== ($d->context['type'] ?? null))
                         return false;
                     if (($log->context['alert_type'] ?? null) !== ($d->context['alert_type'] ?? null))

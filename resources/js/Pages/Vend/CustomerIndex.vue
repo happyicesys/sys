@@ -1102,37 +1102,36 @@
 							>
 									{{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
 							</span>
-							<!-- Fan RPM: only hide if is_fan_enabled is strictly false -->
-							<template v-if="vend.is_fan_enabled">
-								<!-- Has fan speed signal -->
-								<div
-									v-if="vend.parameterJson && 'fan' in vend.parameterJson"
-									class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px]"
-									:class="[
-										(vend.is_online || vend.is_testing)
-											? (vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'
-												? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
-												: 'bg-gray-200 text-gray-500')
-											: 'bg-gray-300 text-gray-600'
-									]"
-									v-tooltip="{ content: 'Fan Speed Signal exists' }"
-								>
-										<span class="text-[10px] font-bold">Fan RPM</span>
-										<span v-if="(vend.is_online || vend.is_testing) && vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'">{{ vend.parameterJson['fan'] }}</span>
-										<span v-else-if="!(vend.is_online || vend.is_testing)">--</span>
+							<!-- Fan RPM: show as greyscale when disabled or signal missing -->
+							<!-- Has fan speed signal -->
+							<div
+								v-if="vend.is_fan_enabled && vend.parameterJson && 'fan' in vend.parameterJson"
+								class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px]"
+								:class="[
+									(vend.is_online || vend.is_testing)
+										? (vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'
+											? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
+											: 'bg-gray-200 text-gray-500')
+										: 'bg-gray-300 text-gray-600'
+								]"
+								v-tooltip="{ content: 'Fan Speed Signal exists' }"
+							>
+									<span class="text-[10px] font-bold">Fan RPM</span>
+									<span v-if="(vend.is_online || vend.is_testing) && vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'">{{ vend.parameterJson['fan'] }}</span>
+									<span v-else-if="!(vend.is_online || vend.is_testing)">--</span>
+							</div>
+							<!-- Has fan model but no speed signal OR is_fan_enabled is false -->
+							<div
+								v-else
+								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1"
+								:class="[(vend.is_online || vend.is_testing) ? 'bg-gray-200 text-gray-400' : 'bg-gray-300 text-gray-600']"
+							>
+								<div class="flex flex-col items-center">
+									<span class="text-[10px] font-bold">Fan RPM</span>
+									<span>--</span>
 								</div>
-								<!-- Has fan model but no speed signal -->
-								<div
-									v-else
-									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1"
-									:class="[(vend.is_online || vend.is_testing) ? 'bg-gray-200 text-gray-400' : 'bg-gray-300 text-gray-600']"
-								>
-									<div class="flex flex-col items-center">
-										<span class="text-[10px] font-bold">Fan RPM</span>
-										<span>--</span>
-									</div>
-								</div>
-							</template>
+							</div>
+
 						</div>
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
@@ -1151,7 +1150,7 @@
 										:class="[
 											channelIndex > 0 && (String(channel.code)[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '',
 											channel.product && !channel.product.is_available ? 'bg-red-200' : '',
-											channel.product && channel.product.limit_qty > 0 ? 'bg-gray-300' : ''
+											channel.product && channel.product.limit_qty > 0 && !channel.product.limit_is_created_by_system ? 'bg-gray-300' : ''
 										]"
 								>
 									<span :class="[channelIndex > 0 && (String(channel.code)[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">

@@ -37,6 +37,8 @@ class OpsJobItem extends Model
         'notes',
         'ops_job_id',
         'previous_ops_job_item_id',
+        'refillable_amount',
+        'refillable_count',
         'remarks',
         'remarks_updated_at',
         'remarks_updated_by',

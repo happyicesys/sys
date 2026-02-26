@@ -185,10 +185,10 @@
                                           <label class="pl-2">T4</label>
                                       </span>
                                   </span>
-                                  <span class="inline-flex rounded-md shadow-sm " v-if="'fan' in vend.parameterJson && vend.is_fan_enabled">
+                                  <span class="inline-flex rounded-md shadow-sm " v-if="'fan' in vend.parameterJson">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
-                                      <input type="checkbox" value="1" v-model="fans" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                          <label class="pl-2">Fan</label>
+                                      <input type="checkbox" value="1" v-model="fans" :disabled="!vend.is_fan_enabled" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50" />
+                                          <label class="pl-2" :class="[!vend.is_fan_enabled ? 'text-gray-400' : '']">Fan</label>
                                       </span>
                                   </span>
                                   <span class="inline-flex rounded-md shadow-sm ">
@@ -348,6 +348,31 @@ const ALERT_TYPE_LABEL = {
   't1_higher_than_t2':   '1',
 }
 
+// Map alert_type -> human readable title
+const ALERT_TYPE_TITLE = {
+  'connectivity':        'Connectivity',
+  'comp_fan_off':        'Compressor & or Fan OFF',
+  'temps_above_0':       'T1 & or T2, above 0°C',
+  'temps_above_minus_8': 'T1 & or T2, above -8°C',
+  'not_reach_minus_18':  'T1 & or T2, did not reach -18°C',
+  'lowest_24h_above':    'T1 & T2 lowest (last 24hrs)',
+  'lowest_72h_above':    'T1 & T2 lowest (last 72hrs)',
+  'rising_t1_trend':     'Rising lowest T1',
+  'rising_t2_trend':     'Rising lowest T2',
+  't2_frozen':           'T2, never above 2°C',
+  't1_higher_than_t2':   'T1 higher than T2, >7°C',
+}
+
+// Map alert_type -> duration offset in minutes (to show when the event actually started)
+const ALERT_TYPE_OFFSET_MINUTES = {
+  'connectivity':        15,
+  'comp_fan_off':        45,
+  'temps_above_0':       30,
+  'temps_above_minus_8': 60,
+  'not_reach_minus_18':  480, // 8 hours
+  't1_higher_than_t2':   10,
+}
+
 function buildAnnotations() {
   if (!showMarkers.value) return {}
   const logs = props.vendAlertLogsObj ?? []
@@ -361,6 +386,10 @@ function buildAnnotations() {
     const isDismissed = log.event === 'machine_health_alert_dismissed'
     const alertType = log.alert_type
     const shortLabel = ALERT_TYPE_LABEL[alertType]
+    const alertTitle = ALERT_TYPE_TITLE[alertType] || ''
+    const displaySubject = isDismissed && log.subject.includes('Dismissed') && alertTitle
+      ? log.subject.replace('Dismissed', alertTitle)
+      : log.subject
 
     if (!shortLabel) return
 
@@ -380,10 +409,26 @@ function buildAnnotations() {
     const currentMarkerIdx = markerCount++
     const color = isTriggered ? 'rgba(220,38,38,0.85)' : 'rgba(22,163,74,0.85)'
     const borderColor = isTriggered ? '#dc2626' : '#16a34a'
+
+    // Adjust Triggered markers to show when the event started
+    let markerValue = log.occurred_at
+    let tooltipTimeLabel = isTriggered ? 'Triggered At' : 'Dismissed At'
+    let eventStartedAt = null
+
+    if (isTriggered) {
+      const offset = ALERT_TYPE_OFFSET_MINUTES[alertType] || 0
+      const baseTime = log.context?.triggered_at || log.occurred_at
+      if (offset > 0) {
+        markerValue = moment(baseTime).subtract(offset, 'minutes').format('YYYY-MM-DD HH:mm:ss')
+        tooltipTimeLabel = 'Event Started At'
+        eventStartedAt = markerValue
+      }
+    }
+
     annotations[`alert_${idx}`] = {
       type: 'line',
       scaleID: 'x',
-      value: log.occurred_at,
+      value: markerValue,
       borderColor: borderColor,
       borderWidth: 2,
       hoverBorderWidth: 4,
@@ -404,7 +449,9 @@ function buildAnnotations() {
       },
       enter(ctx) {
         ctx.chart.canvas.style.cursor = 'pointer'
-        ctx.element.options.label.content = `(${shortLabel}) ${log.subject}\n${isTriggered ? 'Triggered' : 'Dismissed'} At: ${moment(log.occurred_at).format('YYYY-MM-DD HH:mm:ss')}`
+        const timeDisplay = `${tooltipTimeLabel}: ${moment(markerValue).format('YYYY-MM-DD HH:mm:ss')}`
+        const triggerDisplay = eventStartedAt ? `\n(Triggered At: ${moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')})` : ''
+        ctx.element.options.label.content = `(${shortLabel}) ${displaySubject}\n${timeDisplay}${triggerDisplay}`
         ctx.element.options.label.backgroundColor = isTriggered ? '#991b1b' : '#15803d'
         ctx.element.options.label.font.size = 12
         ctx.element.options.label.padding = { x: 8, y: 6 }
@@ -423,8 +470,9 @@ function buildAnnotations() {
         ctx.chart.update('none')
       },
       click(ctx) {
-        const status = isTriggered ? 'Triggered' : 'Dismissed'
-        const message = `[${shortLabel}] ${log.subject}\n${status} At: ${moment(log.occurred_at).format('YYYY-MM-DD HH:mm:ss')}`
+        const timeDisplay = `${tooltipTimeLabel}: ${moment(markerValue).format('YYYY-MM-DD HH:mm:ss')}`
+        const triggerDisplay = eventStartedAt ? `\n(Triggered At: ${moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')})` : ''
+        const message = `[${shortLabel}] ${displaySubject}\n${timeDisplay}${triggerDisplay}`
         const config = {
           timeout: 15000,
           position: "bottom-right"
@@ -839,7 +887,7 @@ if (types.value.length > 0 || fans.value.length > 0) {
     datasets.value = []
     vendTemps.value.forEach((vendTemp, vendTempIndex) => {
       datasets.value.push({
-        label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : '') + ' [ ' + ('H: ' + highest[vendTempIndex] + "\u2103" + ' L: ' + lowest[vendTempIndex] + "\u2103") + ' ] ' + (vend.value.is_fan_enabled && vend.value.parameterJson && 'fan' in vend.value.parameterJson ? ('Fan: ' + (vend.value.parameterJson['fan'] !== null && vend.value.parameterJson['fan'] !== undefined ? vend.value.parameterJson['fan'] : 'NaN')) : ''),
+        label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : '') + ' [ ' + ('H: ' + highest[vendTempIndex] + "\u2103" + ' L: ' + lowest[vendTempIndex] + "\u2103") + ' ] ' + (vend.value.parameterJson && 'fan' in vend.value.parameterJson ? ('Fan: ' + (vend.value.is_fan_enabled && vend.value.parameterJson['fan'] !== null && vend.value.parameterJson['fan'] !== undefined && vend.value.parameterJson['fan'] !== 'NaN' ? vend.value.parameterJson['fan'] : '--')) : ''),
         data: vendTemp.map((temp) => { return { x: temp.created_at, y: temp.value } }),
         borderColor: colors[vendTempIndex - 1],
         backgroundColor: colors[vendTempIndex - 1],

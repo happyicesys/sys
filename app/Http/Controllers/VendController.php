@@ -1187,7 +1187,7 @@ class VendController extends Controller
                 return [
                     'event' => $log->event,
                     'subject' => $log->subject,
-                    'alert_type' => $log->context['alert_type'] ?? ($log->context['type'] === 'connectivity' ? 'connectivity' : null),
+                    'alert_type' => $log->context['alert_type'] ?? (($log->context['type'] ?? null) === 'connectivity' ? 'connectivity' : null),
                     'bucket' => $log->context['bucket'] ?? null,
                     'severity' => $log->context['severity'] ?? null,
                     'occurred_at' => $log->occurred_at->toIso8601String(),
@@ -1847,6 +1847,7 @@ class VendController extends Controller
 
         // Optimize: Split totals calculation into two queries to avoid expensive subquery join
         $totals = VendTransaction::query()
+            ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
@@ -1861,18 +1862,37 @@ class VendController extends Controller
                     THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
 
                 DB::raw('CAST(COUNT(CASE
-                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
                     THEN 1 ELSE NULL END) AS SIGNED) AS success_payment_count'),
 
                 DB::raw('COUNT(*) AS total_transaction_count'),
 
                 DB::raw('ROUND(COUNT(CASE
-                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
                     THEN 1 ELSE NULL END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS success_payment_rate'),
 
                 DB::raw('ROUND(COALESCE(SUM(CASE
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
                     THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
+
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                        AND delivery_platform_orders.id IS NULL
+                        AND payment_methods.code = 0
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cash_amount'),
+
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                        AND delivery_platform_orders.id IS NULL
+                        AND payment_methods.payment_gateway_id IS NULL
+                        AND payment_methods.code > 0
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS cashless_terminal_amount'),
+
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                        AND delivery_platform_orders.id IS NULL
+                        AND payment_methods.payment_gateway_id IS NOT NULL
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS qr_payment_amount'),
 
                 DB::raw('COUNT(*) AS total_count'),
 
@@ -1886,15 +1906,16 @@ class VendController extends Controller
                 DB::raw('ROUND(COUNT(CASE
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
                     THEN 1 ELSE NULL END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS success_count_rate'),
+
                 DB::raw('CAST(COUNT(CASE
-                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
                         AND delivery_platform_orders.id IS NOT NULL
                     THEN 1 ELSE NULL END) AS SIGNED) AS delivery_platform_success_count'),
 
-                DB::raw('CAST(ROUND(COALESCE(SUM(CASE
-                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
                         AND delivery_platform_orders.id IS NOT NULL
-                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS delivery_platform_success_amount'),
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS delivery_platform_success_amount'),
 
                 DB::raw('CAST(SUM(CASE
                     WHEN is_multiple = 1 AND delivery_platform_orders.id IS NOT NULL
