@@ -413,7 +413,7 @@ class VendTransactionService
         $gstVatRate = 0;
         $isPaymentReceived = false;
         $isSuccessful = false;
-        $paymentMethod = $this->paymentMethods ? $this->paymentMethods->get($input['paymentMethodCode']) : null;
+        $paymentMethod = (isset($input['paymentMethodCode']) && $this->paymentMethods) ? $this->paymentMethods->get($input['paymentMethodCode']) : null;
         $paymentClassification = null;
 
         if ($paymentMethod) {
@@ -430,11 +430,14 @@ class VendTransactionService
         $product = null;
         $unitCostValue = 0;
         $unitCostId = null;
-        $vendChannel = $this->vendChannels ? $this->vendChannels->get($input['vendChannelCode']) : null;
-        $vendChannelError = $this->vendChannelErrors ? $this->vendChannelErrors->get($input['errorCode']) : null;
+        $errorCode = $input['errorCode'] ?? 0;
+        $vendChannelCode = $input['vendChannelCode'] ?? 0;
+
+        $vendChannel = (isset($input['vendChannelCode']) && $this->vendChannels) ? $this->vendChannels->get($vendChannelCode) : null;
+        $vendChannelError = (isset($input['errorCode']) && $this->vendChannelErrors) ? $this->vendChannelErrors->get($errorCode) : null;
 
         // hardcode when 0 and 6 error code means successful dispense
-        if ($input['errorCode'] == '0' or $input['errorCode'] == '6') {
+        if ($errorCode == '0' or $errorCode == '6') {
             $isPaymentReceived = true;
             $isSuccessful = true;
         }
@@ -462,8 +465,8 @@ class VendTransactionService
         }
 
         // handle not found vend channel
-        if (!$vendChannel and $input['vendChannelCode'] != 0) {
-            $vendChannel = $this->createVendChannel($vend->id, $input['vendChannelCode']);
+        if (!$vendChannel and $vendChannelCode != 0) {
+            $vendChannel = $this->createVendChannel($vend->id, $vendChannelCode);
         }
 
         $unitPriceAmount = $this->determineUnitPriceAmount($vendChannel, $input, $isSuccessful);
@@ -473,7 +476,7 @@ class VendTransactionService
             'children' => isset($input['children']) ? $input['children'] : [],
             'dcvendUserID' => isset($input['dcvendUserID']) ? $input['dcvendUserID'] : null,
             'dcvendDiscountAmount' => isset($input['dcvendDiscountAmount']) ? $input['dcvendDiscountAmount'] : null,
-            'errorCode' => $input['errorCode'],
+            'errorCode' => $errorCode,
             'gstVatRate' => $gstVatRate,
             'interfaceType' => isset($input['interfaceType']) ? $input['interfaceType'] : null,
             'isMultiple' => isset($input['isMultiple']) ? $input['isMultiple'] : false,
@@ -495,7 +498,7 @@ class VendTransactionService
             'unitCostID' => $unitCostId,
             'unitCostValue' => $unitCostValue,
             'unit_price_amount' => $unitPriceAmount,
-            'vendChannelCode' => $input['vendChannelCode'],
+            'vendChannelCode' => $vendChannelCode,
             'vendChannelError' => $vendChannelError,
             'vendChannelErrorID' => $vendChannelError ? $vendChannelError->id : null,
             'vendChannelID' => $vendChannel ? $vendChannel->id : 0,
