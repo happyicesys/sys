@@ -766,10 +766,17 @@
                               >
                                   {{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
                               </span>
-                              <!-- Fan RPM: show as greyscale when disabled or signal missing -->
-                              <!-- Has fan speed signal -->
+                              <!-- Fan RPM Section -->
                               <div
-                                  v-if="vend.is_fan_enabled && vend.parameterJson && 'fan' in vend.parameterJson"
+                                  v-if="!vend.is_fan_enabled"
+                                  class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px] bg-white text-gray-800"
+                                  v-tooltip="{ content: 'Fan Speed Signal Disabled' }"
+                              >
+                                  <span class="text-[10px] font-bold">Fan RPM</span>
+                                  <span>N/A</span>
+                              </div>
+                              <div
+                                  v-else-if="vend.parameterJson && 'fan' in vend.parameterJson"
                                   class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px]"
                                   :class="[
                                       (vend.is_online || vend.is_testing)
@@ -781,19 +788,15 @@
                                   v-tooltip="{ content: 'Fan Speed Signal exists' }"
                               >
                                   <span class="text-[10px] font-bold">Fan RPM</span>
-                                  <span v-if="(vend.is_online || vend.is_testing) && vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'">{{vend.parameterJson['fan']}}</span>
-                                  <span v-else-if="!(vend.is_online || vend.is_testing)">--</span>
+                                  <span>{{vend.parameterJson['fan']}}</span>
                               </div>
-                              <!-- Has fan model but no speed signal OR is_fan_enabled is false -->
                               <div
                                   v-else
-                                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-full mt-1"
-                                  :class="[(vend.is_online || vend.is_testing) ? 'bg-gray-200 text-gray-400' : 'bg-gray-300 text-gray-600']"
+                                  class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px] bg-gray-300 text-gray-600"
+                                  v-tooltip="{ content: 'Fan Speed Signal Missing' }"
                               >
-                                  <div class="flex flex-col items-center">
-                                      <span class="text-[10px] font-bold">Fan RPM</span>
-                                      <span>--</span>
-                                  </div>
+                                  <span class="text-[10px] font-bold">Fan RPM</span>
+                                  <span>--</span>
                               </div>
 
                           </div>
