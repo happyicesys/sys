@@ -50,7 +50,7 @@ class SyncAcbStatus implements ShouldQueue
 
     private function createVendFan($input, Vend $vend)
     {
-        if (isset($input['fan']) and $input['fan']) {
+        if (isset($input['fan']) && $input['fan'] !== '') {
             $vend->vendFans()->create([
                 'value' => $input['fan'],
                 'type' => VendFan::TYPE_MAIN,
@@ -60,9 +60,8 @@ class SyncAcbStatus implements ShouldQueue
 
     private function createVendTemp($input, Vend $vend)
     {
-        // more than 3 minutes only update same machine temp
-        // if(!$vend->temp_updated_at or $vend->temp_updated_at->addMinutes(2)->isPast()) {
-        if ($temp = $input['t1']) {
+        if (isset($input['t1']) && $input['t1'] !== '') {
+            $temp = $input['t1'];
             if ($temp == VendTemp::TEMPERATURE_ERROR) {
                 $vend->is_temp_error = true;
             } else {
@@ -71,26 +70,23 @@ class SyncAcbStatus implements ShouldQueue
                     'type' => VendTemp::TYPE_CHAMBER,
                 ]);
 
-                if (isset($input['t2'])) {
-                    $tempEvaporator = $input['t2'];
+                if (isset($input['t2']) && $input['t2'] !== '') {
                     $vend->vendTemps()->create([
-                        'value' => $tempEvaporator,
+                        'value' => $input['t2'],
                         'type' => VendTemp::TYPE_EVAPORATOR,
                     ]);
                 }
 
-                if (isset($input['t3'])) {
-                    $temp3 = $input['t3'];
+                if (isset($input['t3']) && $input['t3'] !== '') {
                     $vend->vendTemps()->create([
-                        'value' => $temp3,
+                        'value' => $input['t3'],
                         'type' => VendTemp::TYPE_THREE,
                     ]);
                 }
 
-                if (isset($input['t4'])) {
-                    $temp4 = $input['t4'];
+                if (isset($input['t4']) && $input['t4'] !== '') {
                     $vend->vendTemps()->create([
-                        'value' => $temp4,
+                        'value' => $input['t4'],
                         'type' => VendTemp::TYPE_FOUR,
                     ]);
                 }
@@ -101,9 +97,8 @@ class SyncAcbStatus implements ShouldQueue
         }
         $now = Carbon::now();
         if (!$vend->temp_updated_at || $vend->temp_updated_at->diffInSeconds($now) >= 60) {
-            $vend->temp_updated_at = clone $now;
+            $vend->temp_updated_at = $now;
         }
-        // }
     }
 
     private function saveParameter($input, Vend $vend)

@@ -21,7 +21,7 @@ class SyncVendParameter implements ShouldQueue
 
     protected $input;
     protected $vend;
-    protected $vendTempService;
+
     /**
      * Create a new job instance.
      *
@@ -31,7 +31,6 @@ class SyncVendParameter implements ShouldQueue
     {
         $this->input = $input;
         $this->vend = $vend;
-        $this->vendTempService = new VendTempService($vend);
     }
 
     /**
@@ -39,19 +38,24 @@ class SyncVendParameter implements ShouldQueue
      *
      * @return void
      */
-    public function handle()
+    public function handle(): void
     {
         $input = $this->input;
         $vend = $this->vend;
+        $vendTempService = new \App\Services\VendTempService($vend);
 
         $this->createVendFan($input, $vend);
-        $this->createVendTemp($input, $vend);
+        $this->createVendTemp($input, $vend, $vendTempService);
         $this->saveParameter($input, $vend);
+
+        if ($vend->isDirty()) {
+            $vend->save();
+        }
     }
 
     private function createVendFan($input, Vend $vend)
     {
-        if (isset($input['fan']) and $input['fan']) {
+        if (isset($input['fan']) && $input['fan'] !== '') {
             $vend->vendFans()->create([
                 'value' => $input['fan'],
                 'type' => VendFan::TYPE_MAIN,
@@ -59,12 +63,12 @@ class SyncVendParameter implements ShouldQueue
         }
     }
 
-    private function createVendTemp($input, Vend $vend)
+    private function createVendTemp($input, Vend $vend, $vendTempService)
     {
         // more than 3 minutes only update same machine temp
         // if(!$vend->temp_updated_at or $vend->temp_updated_at->addMinutes(2)->isPast()) {
 
-        if (isset($input['TEMP'])) {
+        if (isset($input['TEMP']) && $input['TEMP'] !== '') {
             $temp = $input['TEMP'];
             $snapshot = [
                 't2' => $input['t2'] ?? null,
@@ -80,26 +84,23 @@ class SyncVendParameter implements ShouldQueue
                     'type' => VendTemp::TYPE_CHAMBER,
                 ]);
 
-                if (isset($input['t2'])) {
-                    $tempEvaporator = $input['t2'];
+                if (isset($input['t2']) && $input['t2'] !== '') {
                     $vend->vendTemps()->create([
-                        'value' => $tempEvaporator,
+                        'value' => $input['t2'],
                         'type' => VendTemp::TYPE_EVAPORATOR,
                     ]);
                 }
 
-                if (isset($input['t3'])) {
-                    $temp3 = $input['t3'];
+                if (isset($input['t3']) && $input['t3'] !== '') {
                     $vend->vendTemps()->create([
-                        'value' => $temp3,
+                        'value' => $input['t3'],
                         'type' => VendTemp::TYPE_THREE,
                     ]);
                 }
 
-                if (isset($input['t4'])) {
-                    $temp4 = $input['t4'];
+                if (isset($input['t4']) && $input['t4'] !== '') {
                     $vend->vendTemps()->create([
-                        'value' => $temp4,
+                        'value' => $input['t4'],
                         'type' => VendTemp::TYPE_FOUR,
                     ]);
                 }
@@ -108,7 +109,7 @@ class SyncVendParameter implements ShouldQueue
                 $vend->is_temp_error = false;
 
                 if (isset($input['t2'])) {
-                    $alert = $this->vendTempService->runVendTempAlert($temp, $input['t2']);
+                    $alert = $vendTempService->runVendTempAlert($temp, $input['t2']);
 
                     if ($alert) {
                         $this->dispatchAiAnalysis($vend, $createdTemp->id, $snapshot, $alert->id);
@@ -120,13 +121,11 @@ class SyncVendParameter implements ShouldQueue
         }
         $vend->temp_updated_at = Carbon::now();
         $vend->is_temp_active = true;
-        $vend->save();
     }
 
     private function saveParameter($input, Vend $vend)
     {
         $vend->parameter_json = $input;
-        $vend->save();
     }
 
     private function dispatchAiAnalysis(Vend $vend, int $latestTempId, array $snapshot = [], ?int $alertId = null): void

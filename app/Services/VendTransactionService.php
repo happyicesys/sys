@@ -28,6 +28,10 @@ use DB;
 class VendTransactionService
 {
     protected $voucherService;
+    protected $paymentMethods;
+    protected $vendChannelErrors;
+    protected $vendChannels;
+    protected $productMappingItems;
 
     public function __construct()
     {
@@ -45,6 +49,13 @@ class VendTransactionService
             'vendPrefix',
             'productMapping.productMappingItems.product.unitCosts',
         ]);
+
+        $this->paymentMethods = PaymentMethod::all()->keyBy('code');
+        $this->vendChannelErrors = VendChannelError::all()->keyBy('code');
+        $this->vendChannels = $vend->vendChannels->keyBy('code');
+        if ($vend->productMapping) {
+            $this->productMappingItems = $vend->productMapping->productMappingItems->keyBy('channel_code');
+        }
 
         $processedInput = $this->processMapping($vend, $this->processInput($vend, $input));
 
@@ -125,7 +136,7 @@ class VendTransactionService
                 $deliveryPlatformOrder->update([
                     'vend_transaction_id' => $vendTransaction->id,
                     'status' => DeliveryPlatformOrder::STATUS_DISPENSED > $deliveryPlatformOrder->status ? DeliveryPlatformOrder::STATUS_DISPENSED : $deliveryPlatformOrder->status,
-                    'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
+                    'status_json' => array_merge_recursive((array) $deliveryPlatformOrder->status_json, [
                         'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
                         'datetime' => Carbon::now()->toDateTimeString(),
                     ]),
@@ -146,9 +157,6 @@ class VendTransactionService
             // }
 
         } catch (\Exception $e) {
-            if ($e->getCode() == 1205) { // MySQL Lock Timeout error
-                $this->release(5); // Retry after 5 seconds
-            }
             \Log::error("Error creating vend transaction: " . $e->getMessage());
             return;
         }
@@ -175,7 +183,6 @@ class VendTransactionService
                 }
             }
 
-            SyncUnitCostJson::dispatch($vendTransaction)->onQueue('default');
         }
 
         if ($processedInput['dcvendUserID']) {
@@ -228,12 +235,16 @@ class VendTransactionService
             'operator_id' => $customer?->operator?->id ?? $vend->operator_id ?? 1,
             'unit_cost_id' => $input['unitCostID'],
             'gst_vat_rate' => $input['gstVatRate'],
+            'revenue' => $revenue = $input['amount'] / (1.00 + ($input['gstVatRate'] / 100)),
+            'unit_cost' => $unitCostValue = $input['unitCostValue'] ?? 0,
+            'gross_profit' => $grossProfit = $revenue - $unitCostValue,
+            'gross_profit_margin' => $revenue ? (($grossProfit * 100) / $revenue) : 0,
             'label_json' => isset($input['label']) ? $input['label'] : null,
             'meta_json' => [
                 'apk_ver' => isset($vend->apk_ver_json['apkver']) ? $vend->apk_ver_json['apkver'] : null,
                 'firmware_ver' => isset($vend->firmware_ver) ? dechex($vend->firmware_ver) : null,
                 'vend_code' => $vend->code,
-                'customer_code' => $customer?->id + 20000 ?? null,
+                'customer_code' => $customer ? ($customer->id + 20000) : null,
                 'customer_name' => $customer?->name ?? null,
                 // 'vend_prefix_id' => $vendPrefix?->id ?? null,
                 'vend_prefix_name' => $vendPrefix?->name ?? null,
@@ -296,11 +307,11 @@ class VendTransactionService
 
     private function createVendTransactionItem($vendTransaction, $input)
     {
-        $vendTransactionItem = VendTransactionItem::create([
+        VendTransactionItem::create([
             'is_refunded' => false,
             'product_id' => $input['productID'],
             'unit_cost_id' => $input['unitCostID'],
-            'unit_cost' => isset($input['unitCostID']) && $input['unitCostID'] ? UnitCost::find($input['unitCostID'])->cost : 0,
+            'unit_cost' => $input['unitCostValue'] ?? 0,
             'unit_price_amount' => $input['unit_price_amount'] ?? 0,
             'vend_channel_id' => $input['vendChannelID'],
             'vend_channel_code' => $input['vendChannelCode'],
@@ -402,7 +413,7 @@ class VendTransactionService
         $gstVatRate = 0;
         $isPaymentReceived = false;
         $isSuccessful = false;
-        $paymentMethod = isset($input['paymentMethodCode']) ? PaymentMethod::where('code', $input['paymentMethodCode'])->first() : null;
+        $paymentMethod = $this->paymentMethods ? $this->paymentMethods->get($input['paymentMethodCode']) : null;
         $paymentClassification = null;
 
         if ($paymentMethod) {
@@ -417,10 +428,10 @@ class VendTransactionService
             }
         }
         $product = null;
-        $unitCost = null;
+        $unitCostValue = 0;
         $unitCostId = null;
-        $vendChannel = VendChannel::where('code', $input['vendChannelCode'])->where('code', '!=', 0)->where('vend_id', $vend->id)->first();
-        $vendChannelError = VendChannelError::where('code', $input['errorCode'])->where('code', '!=', 0)->first();
+        $vendChannel = $this->vendChannels ? $this->vendChannels->get($input['vendChannelCode']) : null;
+        $vendChannelError = $this->vendChannelErrors ? $this->vendChannelErrors->get($input['errorCode']) : null;
 
         // hardcode when 0 and 6 error code means successful dispense
         if ($input['errorCode'] == '0' or $input['errorCode'] == '6') {
@@ -436,17 +447,16 @@ class VendTransactionService
             }
         }
 
-        // check is from payment gateway log
-        // if(isset($input['orderID'])) {
-        //     $paymentGatewayLog = PaymentGatewayLog::where('order_id', $input['orderID'])->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
-        // }
-
         // mapping product ID, and find unit cost, gst rate
-        if (isset($vendChannel) and $vendChannel and $vend->productMapping()->exists()) {
-            $productMappingItem = $vend->productMapping->productMappingItems()->where('channel_code', $vendChannel->code)->first();
+        if ($vendChannel && $this->productMappingItems) {
+            $productMappingItem = $this->productMappingItems->get($vendChannel->code);
             if ($productMappingItem) {
                 $product = $productMappingItem->product;
-                $unitCost = $product->unitCosts()->where('is_current', true)->first();
+                $unitCost = $product->unitCosts->where('is_current', true)->first();
+                if ($unitCost) {
+                    $unitCostId = $unitCost->id;
+                    $unitCostValue = $unitCost->cost * 100;
+                }
                 $gstVatRate = $product->operator ? $product->operator->gst_vat_rate : 0;
             }
         }
@@ -482,7 +492,8 @@ class VendTransactionService
             'success_qty' => isset($input['success_qty']) ? $input['success_qty'] : 0,
             'dispensed_qty' => isset($input['dispensed_qty']) ? $input['dispensed_qty'] : 0,
             'time' => isset($input['time']) ? $input['time'] : null,
-            'unitCostID' => $unitCost ? $unitCost->id : null,
+            'unitCostID' => $unitCostId,
+            'unitCostValue' => $unitCostValue,
             'unit_price_amount' => $unitPriceAmount,
             'vendChannelCode' => $input['vendChannelCode'],
             'vendChannelError' => $vendChannelError,
@@ -615,29 +626,34 @@ class VendTransactionService
         ])
             ->find($vendTransactionID);
 
+        $apkVerJson = (array) $vendTransaction->apk_ver_json;
+        $parameterJson = (array) $vendTransaction->parameter_json;
+        $vendTransactionJson = (array) $vendTransaction->vend_transaction_json;
+        $metaJson = (array) $vendTransaction->meta_json;
+
         $data = [
             'id' => $vendTransaction->id,
-            'apk_ver' => isset($vendTransaction->apk_ver_json['apkver']) ? $vendTransaction->apk_ver_json['apkver'] : null,
+            'apk_ver' => isset($apkVerJson['apkver']) ? $apkVerJson['apkver'] : null,
             'datetime' => $vendTransaction->created_at,
-            'firmware_ver' => isset($vendTransaction->parameter_json['Ver']) ? dechex($vendTransaction->parameter_json['Ver']) : null,
+            'firmware_ver' => isset($parameterJson['Ver']) ? dechex($parameterJson['Ver']) : null,
             'total_amount' => $vendTransaction->amount,
             'customer_id' => $vendTransaction->customer_id,
             'customer_name' => $vendTransaction->customer?->name,
             'payment_method_id' => $vendTransaction->payment_method_id,
             'payment_method_name' => $vendTransaction->paymentMethod?->name,
-            'plan_item_id' => isset($vendTransaction->vend_transaction_json['plan_item_id']) ? $vendTransaction->vend_transaction_json['plan_item_id'] : null,
+            'plan_item_id' => isset($vendTransactionJson['plan_item_id']) ? $vendTransactionJson['plan_item_id'] : null,
             'ref_order_id' => $vendTransaction->order_id,
-            'total_promo_amount' => isset($vendTransaction->vend_transaction_json['dcvend_discount_amount']) ? $vendTransaction->vend_transaction_json['dcvend_discount_amount'] : 0,
+            'total_promo_amount' => isset($vendTransactionJson['dcvend_discount_amount']) ? $vendTransactionJson['dcvend_discount_amount'] : 0,
             'total_qty' => $vendTransaction->vendTransactionItems ? $vendTransaction->vendTransactionItems->count() : 1,
-            'user_id' => isset($vendTransaction->vend_transaction_json['dcvend_user_id']) ? $vendTransaction->vend_transaction_json['dcvend_user_id'] : null,
+            'user_id' => isset($vendTransactionJson['dcvend_user_id']) ? $vendTransactionJson['dcvend_user_id'] : null,
             'vend_code' => $vendTransaction->vend?->code,
             'vend_id' => $vendTransaction->vend_id,
             'vend_prefix_id' => $vendTransaction->vend?->vend_prefix_id,
             'vend_prefix_name' => $vendTransaction->vend?->vendPrefix?->name,
-            'vouchers' => isset($vendTransaction->meta_json['vouchers']) ? $vendTransaction->meta_json['vouchers'] : null,
+            'vouchers' => isset($metaJson['vouchers']) ? $metaJson['vouchers'] : null,
         ];
 
-        if ($vendTransaction->vendTransactionItems) {
+        if ($vendTransaction->vendTransactionItems && $vendTransaction->vendTransactionItems->count() > 0) {
             $data['items'] = $vendTransaction->vendTransactionItems->map(function ($item) {
                 return [
                     'product_id' => $item->product?->id,
@@ -653,8 +669,8 @@ class VendTransactionService
             });
         }
 
-        if (count($vendTransaction->vendTransactionItems) == 0 and isset($vendTransaction->vend_transaction_json['transf_info']) and count($vendTransaction->vend_transaction_json['transf_info']) > 0) {
-            foreach ($vendTransaction->vend_transaction_json['transf_info'] as $transfInfo) {
+        if (empty($data['items']) && isset($vendTransactionJson['transf_info']) && count((array) $vendTransactionJson['transf_info']) > 0) {
+            foreach ($vendTransactionJson['transf_info'] as $transfInfo) {
 
                 $product = Product::find($transfInfo['goods_id']);
                 $vendChannel = VendChannel::where('code', $transfInfo['SId'])->where('vend_id', $vendTransaction->vend_id)->first();

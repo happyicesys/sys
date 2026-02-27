@@ -15,27 +15,22 @@ class SyncUnitCostJson implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $vendTransaction;
-    /**
-     * Create a new job instance.
-     */
+
     public function __construct(VendTransaction $vendTransaction)
     {
         $this->vendTransaction = $vendTransaction;
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
-        $vendTransaction = $this->vendTransaction;
+        $vt = $this->vendTransaction;
 
-        $revenue = $vendTransaction->getRevenue();
-        $unitCost = $vendTransaction->getUnitCost();
-        $grossProfit = $vendTransaction->getGrossProfit();
-        $grossProfitMargin = $revenue ? (($grossProfit * 100)/ $revenue) : 0;
+        $revenue = $vt->getRevenue();
+        $unitCost = $vt->getUnitCost();
+        $grossProfit = $revenue - $unitCost;
+        $grossProfitMargin = $revenue ? (($grossProfit * 100) / $revenue) : 0;
 
-        $vendTransaction->update([
+        $vt->update([
             'revenue' => $revenue,
             'gross_profit' => $grossProfit,
             'gross_profit_margin' => $grossProfitMargin,

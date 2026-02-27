@@ -26,8 +26,6 @@ class SyncVendChannels implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $deliveryProductMappingService;
-    protected $productMappingService;
     protected $input;
     protected $vend;
 
@@ -40,8 +38,6 @@ class SyncVendChannels implements ShouldQueue
     {
         $this->input = $input;
         $this->vend = $vend;
-        $this->deliveryProductMappingService = new DeliveryProductMappingService();
-        $this->productMappingService = new ProductMappingService();
     }
 
     /**
@@ -49,11 +45,10 @@ class SyncVendChannels implements ShouldQueue
      *
      * @return void
      */
-    public function handle()
+    public function handle(DeliveryProductMappingService $deliveryProductMappingService, ProductMappingService $productMappingService)
     {
         $vend = $this->vend;
         $input = $this->input;
-        $vendChannelRecord = null;
 
         if (isset($input) and isset($input['channels'])) {
             $channels = $input['channels'];
@@ -74,19 +69,19 @@ class SyncVendChannels implements ShouldQueue
                     'sku_code' => isset($channel['sku_code']) ? $channel['sku_code'] : null,
                 ];
 
-                $soldOutEvent = null;
-                $restockedEvent = null;
+                $stockEvent = null;
 
                 // Check condition and add qty_sold_at only if the condition meets
                 if ($prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0) {
                     $occurredAt = Carbon::now();
                     $data['qty_sold_at'] = $occurredAt;
                     $data['qty_restocked_at'] = null;
-                    $soldOutEvent = [
+                    $stockEvent = [
                         'event_type' => VendChannelStockEvent::TYPE_SOLD_OUT,
                         'qty_before' => $prevVendChannel->qty,
                         'qty_after' => $channel['qty'],
                         'occurred_at' => $occurredAt,
+                        'product_id' => $prevVendChannel->product_id,
                     ];
                 }
 
@@ -94,51 +89,48 @@ class SyncVendChannels implements ShouldQueue
                     $occurredAt = Carbon::now();
                     $data['qty_restocked_at'] = $occurredAt;
                     $data['qty_sold_at'] = null;
-                    $restockedEvent = [
+                    $stockEvent = [
                         'event_type' => VendChannelStockEvent::TYPE_RESTOCKED,
                         'qty_before' => $prevVendChannel->qty,
                         'qty_after' => $channel['qty'],
                         'occurred_at' => $occurredAt,
+                        'product_id' => $prevVendChannel->product_id,
                     ];
                 }
 
+                // Initial updateOrCreate
                 $vendChannel = VendChannel::updateOrCreate([
                     'vend_id' => $vend->id,
                     'code' => $channel['channel_code'],
                 ], $data);
 
-                if ($soldOutEvent) {
-                    $this->recordStockEvent($vendChannel, $soldOutEvent, $prevVendChannel);
-                }
-
-                if ($restockedEvent) {
-                    $this->recordStockEvent($vendChannel, $restockedEvent, $prevVendChannel);
-                }
-
-                // update error rate json based on vend channel
+                // Combine remaining updates into one if possible
+                $updates = [];
                 if ($vendChannel->is_active) {
-                    $vendChannel->update([
-                        'error_rate_json' => $this->calculateChannelErrorRateJson($vendChannel->id, $errorRates)
-                    ]);
+                    $updates['error_rate_json'] = $this->calculateChannelErrorRateJson($vendChannel->id, $errorRates);
                 }
 
                 if ($vendChannel->qty_sold_at and $vendChannel->qty_restocked_at) {
-                    $vendChannel->update([
-                        'qty_not_available_duration' => $vendChannel->qty_sold_at->diffForHumans($vendChannel->qty_restocked_at, true),
-                    ]);
+                    $updates['qty_not_available_duration'] = $vendChannel->qty_sold_at->diffForHumans($vendChannel->qty_restocked_at, true);
                 } else {
-                    $vendChannel->update([
-                        'qty_not_available_duration' => null,
-                    ]);
+                    $updates['qty_not_available_duration'] = null;
+                }
+
+                if (!empty($updates)) {
+                    $vendChannel->update($updates);
+                }
+
+                if ($stockEvent) {
+                    $this->recordStockEvent($vendChannel, $stockEvent);
                 }
 
                 if ($vendChannel->is_active) {
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }
             }
-            $this->productMappingService->syncChannelsByVend($vend);
+            $productMappingService->syncChannelsByVend($vend);
             SaveVendChannelsJson::dispatch($vend->id, $this->input)->onQueue('default');
-            $this->deliveryProductMappingService->syncVendChannels(null, $vend->id);
+            $deliveryProductMappingService->syncVendChannels(null, $vend->id);
         }
 
         // handle VendChannelRecord
@@ -365,12 +357,12 @@ class SyncVendChannels implements ShouldQueue
         ];
     }
 
-    private function recordStockEvent(VendChannel $vendChannel, array $event, ?VendChannel $prevVendChannel = null): void
+    private function recordStockEvent(VendChannel $vendChannel, array $event): void
     {
         VendChannelStockEvent::create([
             'vend_channel_id' => $vendChannel->id,
             'vend_id' => $vendChannel->vend_id,
-            'product_id' => $vendChannel->product_id ?? $prevVendChannel?->product_id,
+            'product_id' => $event['product_id'] ?? $vendChannel->product_id,
             'event_type' => $event['event_type'],
             'qty_before' => $event['qty_before'],
             'qty_after' => $event['qty_after'],

@@ -18,18 +18,11 @@ class CreateVendTransaction implements ShouldQueue
     protected $input;
     protected $vend;
     protected $isCurrentTime;
-    protected $vendTransactionService;
-    /**
-     * Create a new job instance.
-     *
-     * @return void
-     */
     public function __construct($input, Vend $vend, $isCurrentTime = true)
     {
         $this->input = $input;
         $this->vend = $vend;
         $this->isCurrentTime = $isCurrentTime;
-        $this->vendTransactionService = new VendTransactionService();
     }
 
     /**
@@ -37,9 +30,9 @@ class CreateVendTransaction implements ShouldQueue
      *
      * @return void
      */
-    public function handle()
+    public function handle(VendTransactionService $vendTransactionService)
     {
-        $this->vendTransactionService->create($this->vend, $this->input, $this->isCurrentTime);
+        $vendTransactionService->create($this->vend, $this->input, $this->isCurrentTime);
     }
 
 
