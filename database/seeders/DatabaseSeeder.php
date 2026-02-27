@@ -123,6 +123,7 @@ class DatabaseSeeder extends Seeder
 
             // RebuildVendRecordsSeeder::class,
             // RemoveOddTransactionsSeeder::class,
+            // MachineHealthHistoryBackfillSeeder::class,
 
         ]);
     }

@@ -194,7 +194,7 @@
                                   <span class="inline-flex rounded-md shadow-sm ">
                                       <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                       <input type="checkbox" v-model="showMarkers" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                          <label class="pl-2">Show Markers</label>
+                                          <label class="pl-2">Show Alert Markers</label>
                                       </span>
                                   </span>
                               </div>
@@ -345,7 +345,7 @@ const ALERT_TYPE_LABEL = {
   'rising_t1_trend':     '2.2C',
   'rising_t2_trend':     '2.2C',
   't2_frozen':           '2.2D',
-  't1_higher_than_t2':   '1',
+  't1_higher_than_t2':   '2.1A',
 }
 
 // Map alert_type -> human readable title
@@ -417,8 +417,8 @@ function buildAnnotations() {
 
     if (isTriggered) {
       const offset = ALERT_TYPE_OFFSET_MINUTES[alertType] || 0
-      const baseTime = log.context?.triggered_at || log.occurred_at
       if (offset > 0) {
+        const baseTime = log.context?.triggered_at || log.occurred_at
         markerValue = moment(baseTime).subtract(offset, 'minutes').format('YYYY-MM-DD HH:mm:ss')
         tooltipTimeLabel = 'Event Started At'
         eventStartedAt = markerValue
@@ -691,196 +691,124 @@ function onVendSelected(option) {
 }
 
 function getVendTempsData() {
-let colors = ['#E6676B', '#36a2eb', '#cc65fe', '#ffce56']
-let vendTempsAllArr = props.vendTempsObj.data
-let vendFansAllArr = props.vendFansObj.data
-let vendTempsArr = []
-let vendFansArr = []
-let lastTempValue = []
-let lowest = []
-let highest = []
+  const colors = ['#E6676B', '#36a2eb', '#cc65fe', '#ffce56']
+  const vendTempsAllArr = props.vendTempsObj.data
+  const vendFansAllArr = props.vendFansObj.data
+  const vendTempsArr = []
+  const vendFansArr = []
+  const lastTempValue = []
+  const lowest = []
+  const highest = []
 
-if(firstLoad.value) {
-  updateTemperatureTypes(vendTempsAllArr);
-}
+  if (firstLoad.value) {
+    updateTemperatureTypes(vendTempsAllArr);
+  }
 
+  const nowMomentLabel = moment();
+  const nowTs = nowMomentLabel.valueOf();
 
-if (types.value.length > 0 || fans.value.length > 0) {
-  types.value.forEach((type, typeIndex) => {
-    let vendTempsDataByType = vendTempsAllArr.filter((vendTemp) => {
-      return vendTemp.type == type;
-    })
+  if (types.value.length > 0 || fans.value.length > 0) {
+    types.value.forEach((type) => {
+      const vendTempsDataByType = vendTempsAllArr.filter(vt => vt.type == type);
+      if (vendTempsDataByType.length === 0) return;
 
-    if (vendTempsDataByType.length > 0) {
-      vendTempsArr[type] = vendTempsDataByType
-      let processList = []
-      for (let i = 0; i < vendTempsArr[type].length; i++) {
-        if (lowest[type] == undefined || lowest[type] > vendTempsArr[type][i].value) {
-          lowest[type] = vendTempsArr[type][i].value
+      // Add numeric timestamp for faster processing/sorting
+      vendTempsDataByType.forEach(vt => {
+        vt.ts = vt.ts || moment(vt.created_at).valueOf();
+        const val = parseFloat(vt.value);
+        if (!isNaN(val)) {
+          if (lowest[type] === undefined || lowest[type] > val) lowest[type] = val;
+          if (highest[type] === undefined || highest[type] < val) highest[type] = val;
         }
-        if (highest[type] == undefined || highest[type] < vendTempsArr[type][i].value) {
-          highest[type] = vendTempsArr[type][i].value
-        }
-        if (i > 0 && Math.abs(moment(vendTempsArr[type][i].created_at).diff(moment(vendTempsArr[type][i - 1].created_at), 'minutes')) > 5) {
-          processList.push({
-            past: vendTempsArr[type][i - 1],
-            current: vendTempsArr[type][i]
-          })
-        }
-      }
-      lastTempValue[type] = vendTempsArr[type][vendTempsArr[type].length - 1].value
-      if (processList.length) {
-        processList.forEach((value, index) => {
-          let tempTimer = moment(value.past.created_at).add(5, 'minutes')
-          do {
-            vendTempsArr[type].push({
+      });
+
+      lastTempValue[type] = vendTempsDataByType[vendTempsDataByType.length - 1].value;
+      const resultArr = [...vendTempsDataByType];
+      const FIVE_MINS_MS = 5 * 60 * 1000;
+
+      // Find gaps and fill them
+      for (let i = 1; i < vendTempsDataByType.length; i++) {
+        const prev = vendTempsDataByType[i - 1];
+        const curr = vendTempsDataByType[i];
+        if (curr.ts - prev.ts > FIVE_MINS_MS + 1000) { // Gap > 5 mins (plus small buffer)
+          let gapTs = prev.ts + FIVE_MINS_MS;
+          while (curr.ts - gapTs > FIVE_MINS_MS) {
+            resultArr.push({
               value: 'NaN',
-              created_at: tempTimer.format(),
+              created_at: moment(gapTs).format(),
+              ts: gapTs,
               type: type,
-            })
-            tempTimer = tempTimer.add(5, 'minutes')
-          } while (moment(value.current.created_at).diff(tempTimer, 'minutes') > 5)
-        })
+            });
+            gapTs += FIVE_MINS_MS;
+          }
+        }
       }
 
-      if (vendTempsArr[type][vendTempsDataByType.length - 1] && moment().diff(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at), 'minutes') > 10) {
-        let addNullTempSetting = {
-          unit: 'hours',
-          qty: 2,
-        }
-        let startTimer = moment(vendTempsArr[type][0].created_at)
-        let endTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at)
-        let timerDiffMinutes = endTimer.diff(startTimer, 'minutes')
-
-        if (timerDiffMinutes <= 60) {
-          addNullTempSetting = {
-            unit: 'hours',
-            qty: 2,
-          }
-        } else if (timerDiffMinutes > 60 && timerDiffMinutes <= 360) {
-          addNullTempSetting = {
-            unit: 'hours',
-            qty: 3,
-          }
-        } else if (timerDiffMinutes > 360 && timerDiffMinutes <= 1440) {
-          addNullTempSetting = {
-            unit: 'hours',
-            qty: 4,
-          }
-        } else {
-          addNullTempSetting = {
-            unit: 'hours',
-            qty: 6,
-          }
-        }
-
-        let finalTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(addNullTempSetting.qty, addNullTempSetting.unit)
-        if (moment().diff(finalTimer, 'minutes') < 10) {
-          addNullTempSetting = {
-            unit: 'hours',
-            qty: 2,
-          }
-        }
-
-        let tempTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(5, 'minutes')
-
-        do {
-          vendTempsArr[type].push({
+      // Add trailing NaNs if needed
+      const lastPoint = resultArr[resultArr.length - 1];
+      const endTs = moment(filters.value.datetime_to).valueOf();
+      if (endTs > lastPoint.ts) {
+        let gapTs = lastPoint.ts + FIVE_MINS_MS;
+        while (endTs - gapTs >= 0) {
+          resultArr.push({
             value: 'NaN',
-            created_at: tempTimer.format(),
+            created_at: moment(gapTs).format('YYYY-MM-DD HH:mm:ss'),
+            ts: gapTs,
             type: type,
-          })
-          tempTimer = tempTimer.add(5, 'minutes')
-        } while (finalTimer.diff(tempTimer, 'minutes') > 5)
-
+          });
+          gapTs += FIVE_MINS_MS;
+        }
       }
-      vendTempsArr[type].sort((a, b) => moment(a.created_at).unix() - moment(b.created_at).unix())
-    }
-  })
-  vendTemps.value = vendTempsArr
 
-  fans.value.forEach((type, typeIndex) => {
-    let vendFansDataByType = vendFansAllArr.filter((vendFan) => {
-      return vendFan.type == type;
-    })
+      resultArr.sort((a, b) => a.ts - b.ts);
+      vendTempsArr[type] = resultArr;
+    });
+    vendTemps.value = vendTempsArr;
 
-    vendFansArr[type] = vendFansDataByType
-    let processList = []
-    for (let i = 0; i < vendFansArr[type].length; i++) {
-      if (i > 0 && Math.abs(moment(vendFansArr[type][i].created_at).diff(moment(vendFansArr[type][i - 1].created_at), 'minutes')) > 5) {
-        processList.push({
-          past: vendFansArr[type][i - 1],
-          current: vendFansArr[type][i]
-        })
+    fans.value.forEach((type) => {
+      const vendFansDataByType = vendFansAllArr.filter(vf => vf.type == type);
+      if (vendFansDataByType.length === 0) return;
+
+      vendFansDataByType.forEach(vf => vf.ts = vf.ts || moment(vf.created_at).valueOf());
+      const resultArr = [...vendFansDataByType];
+      const FIVE_MINS_MS = 5 * 60 * 1000;
+
+      for (let i = 1; i < vendFansDataByType.length; i++) {
+        const prev = vendFansDataByType[i - 1];
+        const curr = vendFansDataByType[i];
+        if (curr.ts - prev.ts > FIVE_MINS_MS + 1000) {
+          let gapTs = prev.ts + FIVE_MINS_MS;
+          while (curr.ts - gapTs > FIVE_MINS_MS) {
+            resultArr.push({
+              value: 'NaN',
+              created_at: moment(gapTs).format(),
+              ts: gapTs,
+              type: type,
+            });
+            gapTs += FIVE_MINS_MS;
+          }
+        }
       }
-    }
-    if (processList.length) {
-      processList.forEach((value, index) => {
-        let fanTimer = moment(value.past.created_at).add(5, 'minutes')
-        do {
-          vendFansArr[type].push({
+
+      const lastPoint = resultArr[resultArr.length - 1];
+      const endTs = moment(filters.value.datetime_to).valueOf();
+      if (endTs > lastPoint.ts) {
+        let gapTs = lastPoint.ts + FIVE_MINS_MS;
+        while (endTs - gapTs >= 0) {
+          resultArr.push({
             value: 'NaN',
-            created_at: fanTimer.format(),
+            created_at: moment(gapTs).format('YYYY-MM-DD HH:mm:ss'),
+            ts: gapTs,
             type: type,
-          })
-          fanTimer = fanTimer.add(5, 'minutes')
-        } while (moment(value.current.created_at).diff(fanTimer, 'minutes') > 5)
-      })
-    }
-
-    if (vendFansArr[type][vendFansDataByType.length - 1] && moment().diff(moment(vendFansArr[type][vendFansArr[type].length - 1].created_at), 'minutes') > 10) {
-      let addNullTempSetting = {
-        unit: 'hours',
-        qty: 2,
-      }
-      let startTimer = moment(vendFansArr[type][0].created_at)
-      let endTimer = moment(vendFansArr[type][vendFansArr[type].length - 1].created_at)
-      let timerDiffMinutes = endTimer.diff(startTimer, 'minutes')
-
-      if (timerDiffMinutes <= 60) {
-        addNullTempSetting = {
-          unit: 'hours',
-          qty: 2,
-        }
-      } else if (timerDiffMinutes > 60 && timerDiffMinutes <= 360) {
-        addNullTempSetting = {
-          unit: 'hours',
-          qty: 3,
-        }
-      } else if (timerDiffMinutes > 360 && timerDiffMinutes <= 1440) {
-        addNullTempSetting = {
-          unit: 'hours',
-          qty: 4,
-        }
-      } else {
-        addNullTempSetting = {
-          unit: 'hours',
-          qty: 6,
+          });
+          gapTs += FIVE_MINS_MS;
         }
       }
 
-      let finalTimer = moment(vendFansArr[type][vendFansArr[type].length - 1].created_at).add(addNullTempSetting.qty, addNullTempSetting.unit)
-      if (moment().diff(finalTimer, 'minutes') < 10) {
-        addNullTempSetting = {
-          unit: 'hours',
-          qty: 2,
-        }
-      }
-
-      let fanTimer = moment(vendFansArr[type][vendFansArr[type].length - 1].created_at).add(5, 'minutes')
-
-      do {
-        vendFansArr[type].push({
-          value: 'NaN',
-          created_at: fanTimer.format(),
-          type: type,
-        })
-        fanTimer = fanTimer.add(5, 'minutes')
-      } while (finalTimer.diff(fanTimer, 'minutes') > 5)
-    }
-    vendFansArr[type].sort((a, b) => moment(a.created_at).unix() - moment(b.created_at).unix())
-  })
-  vendFans.value = vendFansArr
+      resultArr.sort((a, b) => a.ts - b.ts);
+      vendFansArr[type] = resultArr;
+    });
+    vendFans.value = vendFansArr;
 
   if (vendTemps.value.length > 0) {
     let allTimings = []
@@ -943,14 +871,18 @@ axios({
 }
 
 function updateTemperatureTypes(tempData) {
-    const availableTypes = [...new Set(tempData.map(temp => temp.type))]; // Get unique types from data
+    if (!tempData || !tempData.length) return;
+
+    const typesSet = new Set();
+    for (let i = 0; i < tempData.length; i++) {
+        typesSet.add(tempData[i].type);
+    }
+    const availableTypes = Array.from(typesSet);
 
     if (firstLoad.value) {
-        // If it's the first load, set types to available ones
         types.value = availableTypes;
-        firstLoad.value = false; // Disable auto-checking after first load
+        firstLoad.value = false;
     } else {
-        // If it's NOT the first load, only ADD new types, but don't override unchecked ones
         availableTypes.forEach(type => {
             if (!types.value.includes(type)) {
                 types.value.push(type);

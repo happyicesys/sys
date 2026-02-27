@@ -58,8 +58,8 @@ class GpMetricsAggregator
                     });
             })
             ->where(function ($query) {
-                $query->whereIn('vend_transactions.error_code_normalized', [0, 6])
-                    ->orWhereNull('vend_transactions.error_code_normalized');
+                $query->whereIn('vend_transactions.vend_channel_error_id', [1, 5])
+                    ->orWhereNull('vend_transactions.vend_channel_error_id');
             })
             ->selectRaw("$transactionDateExpression as txn_date")
             ->selectRaw('vend_transactions.operator_id as operator_id')

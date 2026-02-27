@@ -1191,6 +1191,7 @@ class VendController extends Controller
                     'bucket' => $log->context['bucket'] ?? null,
                     'severity' => $log->context['severity'] ?? null,
                     'occurred_at' => $log->occurred_at->toIso8601String(),
+                    'context' => $log->context,
                 ];
             });
 
@@ -1315,15 +1316,15 @@ class VendController extends Controller
                             DB::raw(
                                 'COUNT(
                                     CASE
-                                        WHEN error_code_normalized IS NULL THEN NULL
-                                        WHEN error_code_normalized = 0 THEN NULL
+                                        WHEN vend_channel_error_id IS NULL THEN NULL
+                                        WHEN vend_channel_error_id IN (1, 5) THEN NULL
                                         ELSE 1
                                     END
                                 ) as seven_days_error_count'
                             )
                         )
                         ->selectRaw('COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as three_days_total_count', [Carbon::today()->subDays(2)])
-                        ->selectRaw('COUNT(CASE WHEN transaction_datetime >= ? AND error_code_normalized IS NOT NULL AND error_code_normalized != 0 THEN 1 END) as three_days_error_count', [Carbon::today()->subDays(2)]);
+                        ->selectRaw('COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1, 5) THEN 1 END) as three_days_error_count', [Carbon::today()->subDays(2)]);
                 },
             ])
             ->where('vend_id', $id)
@@ -1812,27 +1813,24 @@ class VendController extends Controller
                 'vend_transactions.items_json',
                 'vend_transactions.meta_json',
                 'vend_transactions.vend_transaction_json',
-                'vend_transactions.label_json AS raw_label_json',
-                DB::raw("
-                (
-                    SELECT JSON_ARRAYAGG(
-                            JSON_OBJECT('id', t.id, 'slug', t.slug, 'name', t.name)
-                        )
-                    FROM JSON_TABLE(
-                            COALESCE(vend_transactions.label_json, '[]'),
-                            '$[*]' COLUMNS(
-                                tag_id BIGINT PATH '$',
-                                tag_name VARCHAR(255) PATH '$'
-                            )
-                        ) jt
-                    JOIN tags t ON (t.id = jt.tag_id OR t.name = jt.tag_name)
-                ) AS label_json
-                ")
+                'vend_transactions.label_json'
             );
 
         $records = $recordsQuery
             ->forPage($currentPage, $perPage)
             ->get();
+
+        // Resolve labels in PHP to avoid expensive JSON_TABLE join per row
+        $tagIds = $records->pluck('label_json')->flatten()->unique()->filter();
+        $tagMap = Tag::whereIn('id', $tagIds)->orWhereIn('name', $tagIds)->get(['id', 'name', 'slug'])->keyBy('id');
+
+        foreach ($records as $record) {
+            $record->raw_label_json = $record->label_json;
+            $record->label_json = collect($record->label_json)->map(function ($t) use ($tagMap) {
+                $tag = $tagMap->get($t) ?? $tagMap->firstWhere('name', $t);
+                return $tag ? ['id' => $tag->id, 'slug' => $tag->slug, 'name' => $tag->name] : $t;
+            })->toArray();
+        }
 
         $vendTransactions = new LengthAwarePaginator(
             $records,
@@ -1851,7 +1849,7 @@ class VendController extends Controller
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-            ->filterTransactionIndex($request)
+            ->filterTransactionIndex($request, true)
             ->where(function ($query) {
                 $query->whereNull('vends.is_testing')
                     ->orWhere('vends.is_testing', false);
@@ -1931,7 +1929,7 @@ class VendController extends Controller
         // Calculate item totals for multiple transactions
         $itemTotals = VendTransaction::query()
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-            ->filterTransactionIndex($request)
+            ->filterTransactionIndex($request, true)
             ->where('is_multiple', true)
             ->where(function ($query) {
                 $query->whereNull('vends.is_testing')
@@ -1957,58 +1955,64 @@ class VendController extends Controller
             ->limit(5)
             ->get();
 
-        // Cache all option queries to reduce database calls
-        $categories = CategoryResource::collection(
+        // Cache metadata queries to reduce database load
+        $ttl = 86400; // 24 hours
+        $categories = Cache::remember('categories_' . $className, $ttl, fn() => CategoryResource::collection(
             Category::where('classname', $className)->orderBy('name')->get()
-        );
-        $categoryGroups = CategoryGroupResource::collection(
+        )->resolve());
+
+        $categoryGroups = Cache::remember('category_groups_' . $className, $ttl, fn() => CategoryGroupResource::collection(
             CategoryGroup::where('classname', $className)->orderBy('name')->get()
-        );
-        $locationTypeOptions = LocationTypeResource::collection(
+        )->resolve());
+
+        $locationTypeOptions = Cache::remember('location_type_options', $ttl, fn() => LocationTypeResource::collection(
             LocationType::orderBy('sequence')->get()
-        );
-        $operatorOptions = OperatorResource::collection(
+        )->resolve());
+
+        $operatorOptions = Cache::remember('operator_options', $ttl, fn() => OperatorResource::collection(
             Operator::orderBy('name')->get()
-        );
-        $paymentMethods = PaymentMethodResource::collection(
+        )->resolve());
+
+        $paymentMethods = Cache::remember('payment_methods', $ttl, fn() => PaymentMethodResource::collection(
             PaymentMethod::orderBy('name')->get()
-        );
-        $tagOptions = TagResource::collection(
+        )->resolve());
+
+        $tagOptions = Cache::remember('tag_options', $ttl, fn() => TagResource::collection(
             Tag::orderBy('name')->get()
-        );
-        $vendChannelErrors = VendChannelErrorResource::collection(
+        )->resolve());
+
+        $vendChannelErrors = Cache::remember('vend_channel_errors', $ttl, fn() => VendChannelErrorResource::collection(
             VendChannelError::orderBy('code')->get()
-        );
-        $vendContractOptions = VendContractResource::collection(
+        )->resolve());
+
+        $vendContractOptions = Cache::remember('vend_contract_options', $ttl, fn() => VendContractResource::collection(
             VendContract::orderBy('name')->get()
-        );
-        $vendModelOptions = VendModelResource::collection(
+        )->resolve());
+
+        $vendModelOptions = Cache::remember('vend_model_options', $ttl, fn() => VendModelResource::collection(
             VendModel::orderBy('name')->get()
-        );
-        $vendPrefixOptions = VendPrefixResource::collection(
+        )->resolve());
+
+        $vendPrefixOptions = Cache::remember('vend_prefix_options', $ttl, fn() => VendPrefixResource::collection(
             VendPrefix::orderBy('name')->get()
-        );
+        )->resolve());
 
         return Inertia::render('Vend/Transaction', [
-            'categories' => $categories,
-            'categoryGroups' => $categoryGroups,
+            'categories' => ['data' => $categories],
+            'categoryGroups' => ['data' => $categoryGroups],
             'latestExports' => $latestExports,
-            'locationTypeOptions' => $locationTypeOptions,
-            'operatorOptions' => $operatorOptions,
-            'paymentMethods' => $paymentMethods,
+            'locationTypeOptions' => ['data' => $locationTypeOptions],
+            'operatorOptions' => ['data' => $operatorOptions],
+            'paymentMethods' => ['data' => $paymentMethods],
             'vendTransactions' => VendTransactionResource::collection(
                 $vendTransactions
             ),
-            'tagOptions' => $tagOptions,
+            'tagOptions' => ['data' => $tagOptions],
             'totals' => $totals,
-            'vendChannelErrors' => $vendChannelErrors,
-            'vendContractOptions' => $vendContractOptions,
-            'vendModelOptions' => VendModelResource::collection(
-                VendModel::orderBy('name')->get()
-            ),
-            'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
-            ),
+            'vendChannelErrors' => ['data' => $vendChannelErrors],
+            'vendContractOptions' => ['data' => $vendContractOptions],
+            'vendModelOptions' => ['data' => $vendModelOptions],
+            'vendPrefixOptions' => ['data' => $vendPrefixOptions],
         ]);
     }
 

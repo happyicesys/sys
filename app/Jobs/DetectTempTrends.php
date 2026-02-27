@@ -600,10 +600,15 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                         $oldLabelIndex = $s - 1;
                         if (isset($labels[$oldLabelIndex])) {
                             $oldLabel = $labels[$oldLabelIndex];
-                            VendLog::where('vend_id', $vend->id)
+                            \App\Models\VendLog::where('vend_id', $vend->id)
                                 ->where('event', 'machine_health_alert')
                                 ->where('context->bucket', $oldLabel)
                                 ->where('context->alert_type', $alert->alert_type)
+                                ->delete();
+                            \App\Models\MachineHealthHistory::where('vend_id', $vend->id)
+                                ->where('event', 'machine_health_alert')
+                                ->where('bucket', $oldLabel)
+                                ->where('alert_type', $alert->alert_type)
                                 ->delete();
                         }
                     }
@@ -614,19 +619,29 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $alertService->sendVendOperationErrorNotificationMail($vend, $alert->alert_type, $label);
 
                 // 2. Log to Machine Log
+                $logContext = [
+                    'bucket' => $label,
+                    'alert_type' => $alert->alert_type,
+                    'severity' => $alert->severity,
+                    'triggered_at' => $originalTriggerAt ? $originalTriggerAt->toIso8601String() : ($occurredAt ?? now())->toIso8601String(),
+                    'meta' => $meta,
+                ];
                 VendLog::create([
                     'vend_id' => $vend->id,
                     'event' => 'machine_health_alert',
                     'subject' => $this->getHumanReadableAlertType($alert->alert_type) . " ({$label})",
-                    'context' => [
-                        'bucket' => $label,
-                        'alert_type' => $alert->alert_type,
-                        'severity' => $alert->severity,
-                        'triggered_at' => $originalTriggerAt ? $originalTriggerAt->toIso8601String() : ($occurredAt ?? now())->toIso8601String(),
-                        'meta' => $meta,
-                    ],
+                    'context' => $logContext,
                     'occurred_at' => $occurredAt ?? now(),
                 ]);
+                \App\Models\MachineHealthHistory::log(
+                    $vend->id,
+                    'machine_health_alert',
+                    $alert->alert_type,
+                    $label,
+                    $alert->severity,
+                    $logContext,
+                    $occurredAt
+                );
 
                 $meta['last_sent_severity'] = $alert->severity;
                 $alert->meta_data = $meta;
@@ -656,23 +671,38 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                             ->where('context->bucket', $oldLabel)
                             ->where('context->alert_type', $alert->alert_type)
                             ->delete();
+                        \App\Models\MachineHealthHistory::where('vend_id', $vendId)
+                            ->where('event', 'machine_health_alert')
+                            ->where('bucket', $oldLabel)
+                            ->where('alert_type', $alert->alert_type)
+                            ->delete();
                     }
                 }
             }
 
+            $logContext = [
+                'bucket' => $label,
+                'alert_type' => $alert->alert_type,
+                'severity' => $alert->severity,
+                'triggered_at' => $originalTriggerAt ? $originalTriggerAt->toIso8601String() : ($occurredAt ?? now())->toIso8601String(),
+                'meta' => $meta,
+            ];
             VendLog::create([
                 'vend_id' => $vendId,
                 'event' => 'machine_health_alert',
                 'subject' => $this->getHumanReadableAlertType($alert->alert_type) . " ({$label})",
-                'context' => [
-                    'bucket' => $label,
-                    'alert_type' => $alert->alert_type,
-                    'severity' => $alert->severity,
-                    'triggered_at' => $originalTriggerAt ? $originalTriggerAt->toIso8601String() : ($occurredAt ?? now())->toIso8601String(),
-                    'meta' => $meta,
-                ],
+                'context' => $logContext,
                 'occurred_at' => $occurredAt ?? now(),
             ]);
+            \App\Models\MachineHealthHistory::log(
+                $vendId,
+                'machine_health_alert',
+                $alert->alert_type,
+                $label,
+                $alert->severity,
+                $logContext,
+                $occurredAt
+            );
 
             $meta['last_sent_severity'] = $alert->severity;
             $alert->meta_data = $meta;
@@ -744,16 +774,25 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $lastBucket = $state['connectivity_last_bucket'] ?? null;
 
             if ($lastBucket) {
+                $logContext = [
+                    'bucket' => $lastBucket,
+                    'type' => 'connectivity',
+                ];
                 VendLog::create([
                     'vend_id' => $vend->id,
                     'event' => 'machine_health_alert_dismissed',
                     'subject' => "Back Online (was {$lastBucket})",
-                    'context' => [
-                        'bucket' => $lastBucket,
-                        'type' => 'connectivity',
-                    ],
+                    'context' => $logContext,
                     'occurred_at' => now(),
                 ]);
+                \App\Models\MachineHealthHistory::log(
+                    $vend->id,
+                    'machine_health_alert_dismissed',
+                    'connectivity',
+                    $lastBucket,
+                    null,
+                    $logContext
+                );
 
                 unset($state['connectivity_last_bucket']);
                 $vend->temp_monitoring_state = $state;
@@ -785,20 +824,35 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     ->where('context->bucket', $lastBucket)
                     ->where('context->type', 'connectivity')
                     ->delete();
+                \App\Models\MachineHealthHistory::where('vend_id', $vend->id)
+                    ->where('event', 'machine_health_alert')
+                    ->where('bucket', $lastBucket)
+                    ->where('alert_type', 'connectivity')
+                    ->delete();
             }
 
+            $logContext = [
+                'bucket' => $bucket,
+                'type' => 'connectivity',
+                'hours_offline' => $hoursOffline,
+                'triggered_at' => $lastContact ? $lastContact->copy()->addMinutes(15)->toIso8601String() : $occurredAt->toIso8601String(),
+            ];
             VendLog::create([
                 'vend_id' => $vend->id,
                 'event' => 'machine_health_alert',
                 'subject' => "Offline ({$bucket})",
-                'context' => [
-                    'bucket' => $bucket,
-                    'type' => 'connectivity',
-                    'hours_offline' => $hoursOffline,
-                    'triggered_at' => $lastContact ? $lastContact->copy()->addMinutes(15)->toIso8601String() : $occurredAt->toIso8601String(),
-                ],
+                'context' => $logContext,
                 'occurred_at' => $occurredAt,
             ]);
+            \App\Models\MachineHealthHistory::log(
+                $vend->id,
+                'machine_health_alert',
+                'connectivity',
+                $bucket,
+                null,
+                $logContext,
+                $occurredAt
+            );
 
             $state['connectivity_last_bucket'] = $bucket;
             $vend->temp_monitoring_state = $state;
@@ -822,7 +876,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
 
         // Cash Sales (48hr)
-        $paramJson = $vend->parameter_json;
+        $paramJson = (array) ($vend->parameter_json ?? []);
         if (isset($paramJson['BILLStat']) && $paramJson['BILLStat'] == 3 && $vend->last_cash_vend_transaction_at) {
             $diff = \Carbon\Carbon::parse($vend->last_cash_vend_transaction_at)->diffInMinutes($now) / 60;
             if ($diff >= 48) {
@@ -839,7 +893,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
 
         // QR (72hr)
-        $paJson = $vend->acb_vmc_pa_json;
+        $paJson = (array) ($vend->acb_vmc_pa_json ?? []);
         if ($vend->is_txn_src && isset($paJson['QRCode']) && $paJson['QRCode'] == 1 && $vend->last_txn_src_at) {
             $diff = \Carbon\Carbon::parse($vend->last_txn_src_at)->diffInMinutes($now) / 60;
             if ($diff >= 72) {
@@ -857,32 +911,52 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         foreach ($newNoTxnBuckets as $key => $data) {
             if (!isset($lastNoTxnBuckets[$key])) {
+                $logContext = [
+                    'bucket' => ">= {$data['hours']}hr",
+                    'type' => "no_txn_{$key}",
+                    'hours_offline' => $data['diff'],
+                ];
                 VendLog::create([
                     'vend_id' => $vend->id,
                     'event' => 'machine_health_alert',
                     'subject' => "No {$data['label']} (>= {$data['hours']}hr)",
-                    'context' => [
-                        'bucket' => ">= {$data['hours']}hr",
-                        'type' => "no_txn_{$key}",
-                        'hours_offline' => $data['diff'],
-                    ],
+                    'context' => $logContext,
                     'occurred_at' => $now,
                 ]);
+                \App\Models\MachineHealthHistory::log(
+                    $vend->id,
+                    'machine_health_alert',
+                    "no_txn_{$key}",
+                    ">= {$data['hours']}hr",
+                    null,
+                    $logContext,
+                    $now
+                );
             }
         }
 
         foreach ($lastNoTxnBuckets as $key => $data) {
             if (!isset($newNoTxnBuckets[$key])) {
+                $logContext = [
+                    'bucket' => ">= {$data['hours']}hr",
+                    'type' => "no_txn_{$key}",
+                ];
                 VendLog::create([
                     'vend_id' => $vend->id,
                     'event' => 'machine_health_alert_dismissed',
                     'subject' => "Transaction Received ({$data['label']})",
-                    'context' => [
-                        'bucket' => ">= {$data['hours']}hr",
-                        'type' => "no_txn_{$key}",
-                    ],
+                    'context' => $logContext,
                     'occurred_at' => $now,
                 ]);
+                \App\Models\MachineHealthHistory::log(
+                    $vend->id,
+                    'machine_health_alert_dismissed',
+                    "no_txn_{$key}",
+                    ">= {$data['hours']}hr",
+                    null,
+                    $logContext,
+                    $now
+                );
             }
         }
 
@@ -930,32 +1004,52 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         foreach ($newStockoutBuckets as $channelId => $data) {
             if (!isset($lastStockoutBuckets[$channelId])) {
+                $logContext = [
+                    'bucket' => ">= {$data['hours']}hr",
+                    'type' => "stockout_channel_{$channelId}",
+                    'hours_offline' => $data['diff'],
+                ];
                 VendLog::create([
                     'vend_id' => $vend->id,
                     'event' => 'machine_health_alert',
                     'subject' => "Stockout Channel {$data['channel_code']} (>= {$data['hours']}hr)",
-                    'context' => [
-                        'bucket' => ">= {$data['hours']}hr",
-                        'type' => "stockout_channel_{$channelId}",
-                        'hours_offline' => $data['diff'],
-                    ],
+                    'context' => $logContext,
                     'occurred_at' => $now,
                 ]);
+                \App\Models\MachineHealthHistory::log(
+                    $vend->id,
+                    'machine_health_alert',
+                    "stockout_channel_{$channelId}",
+                    ">= {$data['hours']}hr",
+                    null,
+                    $logContext,
+                    $now
+                );
             }
         }
 
         foreach ($lastStockoutBuckets as $channelId => $data) {
             if (!isset($newStockoutBuckets[$channelId])) {
+                $logContext = [
+                    'bucket' => ">= {$data['hours']}hr",
+                    'type' => "stockout_channel_{$channelId}",
+                ];
                 VendLog::create([
                     'vend_id' => $vend->id,
                     'event' => 'machine_health_alert_dismissed',
                     'subject' => "Restocked Channel {$data['channel_code']}",
-                    'context' => [
-                        'bucket' => ">= {$data['hours']}hr",
-                        'type' => "stockout_channel_{$channelId}",
-                    ],
+                    'context' => $logContext,
                     'occurred_at' => $now,
                 ]);
+                \App\Models\MachineHealthHistory::log(
+                    $vend->id,
+                    'machine_health_alert_dismissed',
+                    "stockout_channel_{$channelId}",
+                    ">= {$data['hours']}hr",
+                    null,
+                    $logContext,
+                    $now
+                );
             }
         }
 
@@ -986,17 +1080,26 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 if (isset($labels[$labelIndex])) {
                     $bucket = $labels[$labelIndex];
 
+                    $logContext = [
+                        'bucket' => $bucket,
+                        'alert_type' => $alertType,
+                        'severity' => $lastSent,
+                    ];
                     VendLog::create([
                         'vend_id' => $vendId,
                         'event' => 'machine_health_alert_dismissed',
                         'subject' => "Dismissed ({$bucket})",
-                        'context' => [
-                            'bucket' => $bucket,
-                            'alert_type' => $alertType,
-                            'severity' => $lastSent,
-                        ],
+                        'context' => $logContext,
                         'occurred_at' => now(),
                     ]);
+                    \App\Models\MachineHealthHistory::log(
+                        $vendId,
+                        'machine_health_alert_dismissed',
+                        $alertType,
+                        $bucket,
+                        $lastSent,
+                        $logContext
+                    );
                 }
             }
         }

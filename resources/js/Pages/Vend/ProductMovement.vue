@@ -625,7 +625,7 @@ function getPickedValueTotal() {
 }
 
 function getNeededValueTotal() {
-  return props.products.data.reduce((acc, product) => acc + (Number(product.needed_value) || 0), 0);
+  return props.products.data.reduce((acc, product) => acc + (product.is_available ? (Number(product.needed_value) || 0) : 0), 0);
 }
 
 function getCalculatedWarehouseQtyTotal() {
@@ -641,12 +641,12 @@ function getCalculatedWarehouseQtyTotalCost() {
 }
 
 function getNeededQtyTotal() {
-  return props.products.data.reduce((acc, product) => acc + (Number(product.needed_qty) || 0), 0);
+  return props.products.data.reduce((acc, product) => acc + (product.is_available ? (Number(product.needed_qty) || 0) : 0), 0);
 }
 
 function getNeededQtyTotalCost() {
   return props.products.data.reduce((acc, product) => {
-    const qty = Number(product.needed_qty) || 0;
+    const qty = product.is_available ? (Number(product.needed_qty) || 0) : 0;
     const cost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qty * cost);
   }, 0);

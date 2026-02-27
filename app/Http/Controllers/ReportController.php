@@ -233,10 +233,10 @@ class ReportController extends Controller
         $type = $request->input('type');
         $cursor = $request->input('cursor');
 
-        $query = \App\Models\VendLog::query()
+        $query = \App\Models\MachineHealthHistory::query()
             ->with(['vend', 'vend.customer', 'vend.operator', 'vend.vendPrefix'])
             ->where('event', 'machine_health_alert')
-            ->where('context->bucket', $bucket);
+            ->where('bucket', $bucket);
 
         // Filter by Vend properties
         $query->whereHas('vend', function ($q) use ($request) {
@@ -257,9 +257,9 @@ class ReportController extends Controller
         });
 
         if ($type === 'connectivity') {
-            $query->where('context->type', 'connectivity');
+            $query->where('alert_type', 'connectivity');
         } else {
-            $query->where('context->alert_type', $type);
+            $query->where('alert_type', $type);
         }
 
         if ($cursor) {
@@ -275,11 +275,10 @@ class ReportController extends Controller
         $logs = $logs->take($limit);
 
         // Optimization: Pre-fetch all dismissal logs for these vends in one query
-        // Avoid filtering by context->bucket in SQL as it's slow on large tables (no index on JSON path)
         $vendIds = $logs->pluck('vend_id')->unique()->all();
         $dismissals = collect();
         if (!empty($vendIds)) {
-            $dismissals = \App\Models\VendLog::whereIn('vend_id', $vendIds)
+            $dismissals = \App\Models\MachineHealthHistory::whereIn('vend_id', $vendIds)
                 ->where('event', 'machine_health_alert_dismissed')
                 ->where('occurred_at', '>=', $logs->min('occurred_at'))
                 ->orderBy('occurred_at', 'asc')
@@ -2088,8 +2087,8 @@ SQL;
                     ->orWhereNull('vend_transactions.is_multiple');
             })
             ->where(function ($query) {
-                $query->whereIn('vend_transactions.error_code_normalized', [0, 6])
-                    ->orWhereNull('vend_transactions.error_code_normalized');
+                $query->whereIn('vend_transactions.vend_channel_error_id', [1, 5])
+                    ->orWhereNull('vend_transactions.vend_channel_error_id');
             })
             ->whereNotNull('vend_transactions.vend_channel_id')
             ->whereIn(DB::raw('COALESCE(vend_transactions.product_id, vend_channels.product_id)'), $productIds)
@@ -2116,8 +2115,8 @@ SQL;
             })
             ->where('vend_transactions.is_multiple', true)
             ->where(function ($query) {
-                $query->whereIn('vend_transactions.error_code_normalized', [0, 6])
-                    ->orWhereNull('vend_transactions.error_code_normalized');
+                $query->whereIn('vend_transaction_items.vend_channel_error_code', ['0', '6'])
+                    ->orWhereNull('vend_transaction_items.vend_channel_error_code');
             })
             ->whereNotNull('vend_transaction_items.vend_channel_id')
             ->whereIn(DB::raw('COALESCE(vend_transaction_items.product_id, vend_channels.product_id)'), $productIds)

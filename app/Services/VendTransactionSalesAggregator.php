@@ -44,8 +44,8 @@ class VendTransactionSalesAggregator
 
         if (!$includeAll) {
             $singleQuery->where(function (EloquentBuilder $query) {
-                $query->whereNull('vend_transactions.error_code_normalized')
-                    ->orWhereIn('vend_transactions.error_code_normalized', [0, 6]);
+                $query->whereNull('vend_transactions.vend_channel_error_id')
+                    ->orWhereIn('vend_transactions.vend_channel_error_id', [1, 5]);
             });
         }
 

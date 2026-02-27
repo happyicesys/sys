@@ -1267,13 +1267,16 @@
 									({{ vend.balance_percent }}%)
 							</span>
 
-							<span
-								v-if="vend.vendChannelTotalsJson"
-								:class="[vend.is_active || vend.is_testing ? (100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
-							>
-									{{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
-									({{ 100 - vend.out_of_stock_sku_percent }}%)
-							</span>
+							<div class="flex justify-center border-b border-gray-300 pb-2 mb-2 w-full">
+								<span
+									v-if="vend.vendChannelTotalsJson"
+									:class="[vend.is_active || vend.is_testing ? (100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
+								>
+										{{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
+										({{ 100 - vend.out_of_stock_sku_percent }}%)
+								</span>
+							</div>
+							<span>&nbsp;</span>
 							<span :class="[vend.actual_stock_in_value < 100 ? 'text-red-500' : 'text-gray-800']" v-if="vend.actual_stock_in_value">
 								{{ operatorCountry.currency_symbol }}{{(vend.actual_stock_in_value ? vend.actual_stock_in_value : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 							</span>

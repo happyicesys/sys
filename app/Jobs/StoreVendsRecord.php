@@ -42,7 +42,7 @@ CASE
     WHEN (vend_transactions.success_qty IS NULL OR vend_transactions.success_qty = 0)
          AND (
              vend_transactions.vend_channel_error_id IS NULL
-             OR vend_channel_errors.code IN (0, 6)
+             OR vend_transactions.vend_channel_error_id IN (1, 5)
              OR vend_transactions.is_multiple = 1
          )
     THEN COALESCE(vend_transactions.qty, 0)
@@ -79,8 +79,8 @@ SQL;
                     'COALESCE(SUM(
                         CASE
                             WHEN vend_channel_error_id IS NULL THEN amount
-                            WHEN vend_channel_errors.code = 0 THEN amount
-                            WHEN vend_channel_errors.code = 6 THEN amount
+                            WHEN vend_channel_error_id = 1 THEN amount
+                            WHEN vend_channel_error_id = 5 THEN amount
                             WHEN is_multiple = 1 THEN amount
                             ELSE 0
                         END
@@ -95,7 +95,7 @@ SQL;
                 DB::raw(
                     'COUNT(
                         CASE
-                            WHEN vend_channel_error_id IS NOT NULL THEN 1
+                            WHEN vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1, 5) THEN 1
                             ELSE NULL
                         END
                     ) as error_count'
@@ -104,8 +104,8 @@ SQL;
                     'COALESCE(SUM(
                         CASE
                             WHEN vend_channel_error_id IS NULL THEN revenue
-                            WHEN vend_channel_errors.code = 0 THEN revenue
-                            WHEN vend_channel_errors.code = 6 THEN revenue
+                            WHEN vend_channel_error_id = 1 THEN revenue
+                            WHEN vend_channel_error_id = 5 THEN revenue
                             WHEN is_multiple = 1 THEN revenue
                             ELSE 0
                         END
@@ -115,8 +115,8 @@ SQL;
                     'COALESCE(SUM(
                         CASE
                             WHEN vend_channel_error_id IS NULL THEN gross_profit
-                            WHEN vend_channel_errors.code = 0 THEN gross_profit
-                            WHEN vend_channel_errors.code = 6 THEN gross_profit
+                            WHEN vend_channel_error_id = 1 THEN gross_profit
+                            WHEN vend_channel_error_id = 5 THEN gross_profit
                             WHEN is_multiple = 1 THEN gross_profit
                             ELSE 0
                         END
@@ -126,8 +126,8 @@ SQL;
                     'COALESCE(SUM(
                         CASE
                             WHEN vend_channel_error_id IS NULL THEN 0
-                            WHEN vend_channel_errors.code = 0 THEN 0
-                            WHEN vend_channel_errors.code = 6 THEN 0
+                            WHEN vend_channel_error_id = 1 THEN 0
+                            WHEN vend_channel_error_id = 5 THEN 0
                             ELSE amount
                         END
                     ),0) as failure_amount'
@@ -139,8 +139,8 @@ SQL;
                     'COALESCE(SUM(
                         CASE
                             WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_error_id IS NULL THEN amount
-                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 0 THEN amount
-                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 6 THEN amount
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_error_id = 1 THEN amount
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_error_id = 5 THEN amount
                             WHEN delivery_platform_orders.id IS NULL THEN 0
                             ELSE 0
                         END
@@ -158,7 +158,7 @@ SQL;
                     'COALESCE(SUM(
                         CASE
                             WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_error_id IS NULL THEN 0
-                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 0 THEN 0
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_error_id = 1 THEN 0
                             WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 6 THEN 0
                             WHEN delivery_platform_orders.id IS NULL THEN NULL
                             ELSE amount

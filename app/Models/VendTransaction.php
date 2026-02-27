@@ -157,7 +157,7 @@ class VendTransaction extends Model
     }
 
     // scopes
-    public function scopeFilterTransactionIndex($query, $request)
+    public function scopeFilterTransactionIndex($query, $request, $skipSort = false)
     {
         $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
 
@@ -468,8 +468,10 @@ class VendTransaction extends Model
                     //     $query->whereIn('vend_prefix_id', $search);
                     // });
                 }
-            })
-            ->when($request->sortKey, function ($query, $search) use ($request) {
+            });
+
+        if (!$skipSort) {
+            $query->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
                     $inputSearch = explode("->", $search);
                     $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
@@ -478,6 +480,7 @@ class VendTransaction extends Model
                     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 }
             });
+        }
 
         return $query;
     }
@@ -592,8 +595,8 @@ class VendTransaction extends Model
     public function scopeIsSuccessful($query)
     {
         return $query->where(function ($query) {
-            $query->where('vend_transaction_json->SErr', 0)
-                ->orWhere('vend_transaction_json->SErr', 6)
+            $query->whereIn('vend_channel_error_id', [1, 5])
+                ->orWhereNull('vend_channel_error_id')
                 ->orWhere('vend_transaction_json->GET_TYPE', 1);
         });
     }
@@ -601,7 +604,8 @@ class VendTransaction extends Model
     public function scopeIsFailure($query)
     {
         return $query->where(function ($query) {
-            $query->whereNotIn('vend_transaction_json->SErr', [0, 6])
+            $query->whereNotNull('vend_channel_error_id')
+                ->whereNotIn('vend_channel_error_id', [1, 5])
                 ->orWhereNot('vend_transaction_json->GET_TYPE', 1);
         });
     }
@@ -609,7 +613,8 @@ class VendTransaction extends Model
     public function scopeIsError($query)
     {
         return $query->where(function ($query) {
-            $query->whereNot('vend_transaction_json->SErr', 0)
+            $query->whereNotNull('vend_channel_error_id')
+                ->whereNotIn('vend_channel_error_id', [1, 5])
                 ->orWhereNot('vend_transaction_json->GET_TYPE', 1);
         });
     }

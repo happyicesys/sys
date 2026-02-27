@@ -17,9 +17,16 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class SyncVendChannelErrorLog implements ShouldQueue
+class SyncVendChannelErrorLog implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public $uniqueFor = 60;
+
+    public function uniqueId()
+    {
+        return $this->vend->id . '_' . $this->vendChannelCode . '_' . $this->vendChannelErrorCode . '_' . ($this->vendTransactionId ?? 'null');
+    }
 
     protected $vend;
     protected $vendChannelCode;
@@ -59,61 +66,94 @@ class SyncVendChannelErrorLog implements ShouldQueue
                     'code' => $vendChannelCode,
                 ]);
 
-                $lastVendChannelErrorLog = $vendChannel->vendChannelErrorLogs()->latest()->first();
+                // If transaction ID is provided, check if THIS specific transaction already has a log for this error
+                if ($vendTransactionId) {
+                    $exists = VendChannelErrorLog::where('vend_transaction_id', $vendTransactionId)
+                        ->where('vend_channel_id', $vendChannel->id)
+                        ->where('vend_channel_error_id', $vendChannelError->id)
+                        ->exists();
 
-                // dd($vendChannel->toArray(), $lastVendChannelErrorLog->toArray(), $lastVendChannelErrorLog->vendChannelError->code, $vendChannelErrorCode, $lastVendChannelErrorLog->is_error_cleared);
+                    if ($exists) {
+                        return; // Already logged for this transaction
+                    }
+                    $vendChannelErrorLog = VendChannelErrorLog::create([
+                        'vend_channel_id' => $vendChannel->id,
+                        'vend_channel_error_id' => $vendChannelError->id,
+                        'vend_transaction_id' => $vendTransactionId
+                    ]);
+                } else {
+                    // Heartbeat/Sync: Only create if no active log exists for this channel/error to prevent spam
+                    $activeLog = $vendChannel->vendChannelErrorLogs()
+                        ->where('is_error_cleared', false)
+                        ->where('vend_channel_error_id', $vendChannelError->id)
+                        ->first();
 
-                if ($vendTransactionId or !$lastVendChannelErrorLog or ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode) or $lastVendChannelErrorLog->is_error_cleared == 1) {
+                    if ($activeLog) {
+                        return; // Machine is already in this error state, no need for redundant badge
+                    }
+
                     $vendChannelErrorLog = VendChannelErrorLog::create([
                         'vend_channel_id' => $vendChannel->id,
                         'vend_channel_error_id' => $vendChannelError->id
                     ]);
+                }
 
-                    if (Schema::hasTable('vend_logs')) {
-                        try {
-                            VendLog::create([
-                                'vend_id' => $vend->id,
-                                'event' => VendLog::EVENT_CHANNEL_ERROR,
-                                'subject' => sprintf('Channel %s error %s', $vendChannelCode, $vendChannelErrorCode),
-                                'context' => [
-                                    'vend_channel_error_log_id' => $vendChannelErrorLog->id,
-                                    'channel_code' => $vendChannelCode,
-                                    'error_code' => $vendChannelErrorCode,
-                                ],
-                                'occurred_at' => now(),
-                            ]);
-                        } catch (\Throwable $e) {
-                            Logger::warning('Failed to create vend log for channel error', [
-                                'vend_id' => $vend->id,
-                                'channel_code' => $vendChannelCode,
-                                'error_code' => $vendChannelErrorCode,
-                                'message' => $e->getMessage(),
-                            ]);
-                        }
-                    }
+                try {
+                    VendLog::create([
+                        'vend_id' => $vend->id,
+                        'event' => VendLog::EVENT_CHANNEL_ERROR,
+                        'subject' => sprintf('Channel %s error %s', $vendChannelCode, $vendChannelErrorCode),
+                        'context' => [
+                            'vend_channel_error_log_id' => $vendChannelErrorLog->id,
+                            'channel_code' => $vendChannelCode,
+                            'error_code' => $vendChannelErrorCode,
+                        ],
+                        'occurred_at' => now(),
+                    ]);
 
-                    if ($vendTransactionId) {
-                        $vendChannelErrorLog->vend_transaction_id = $vendTransactionId;
-                        $vendChannelErrorLog->save();
-                    }
+                    \App\Models\MachineHealthHistory::log(
+                        $vend->id,
+                        'machine_health_alert',
+                        'channel_error',
+                        'channel_error',
+                        null,
+                        [
+                            'vend_channel_error_log_id' => $vendChannelErrorLog->id,
+                            'channel_code' => $vendChannelCode,
+                            'error_code' => $vendChannelErrorCode,
+                        ],
+                        now()
+                    );
+                } catch (\Throwable $e) {
+                    Logger::warning('Failed to create vend log for channel error', [
+                        'vend_id' => $vend->id,
+                        'channel_code' => $vendChannelCode,
+                        'error_code' => $vendChannelErrorCode,
+                        'message' => $e->getMessage(),
+                    ]);
+                }
 
-                    if ($lastVendChannelErrorLog and ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode)) {
-                        $lastVendChannelErrorLog->is_error_cleared = true;
-                        $lastVendChannelErrorLog->save();
+                $lastLog = $vendChannel->vendChannelErrorLogs()
+                    ->where('id', '!=', $vendChannelErrorLog->id)
+                    ->latest()
+                    ->first();
 
-                        if (Schema::hasTable('vend_logs')) {
-                            VendLog::create([
-                                'vend_id' => $vend->id,
-                                'event' => 'machine_health_alert_dismissed',
-                                'subject' => sprintf('Channel %s error %s cleared', $lastVendChannelErrorLog->vendChannel->code, $lastVendChannelErrorLog->vendChannelError->code),
-                                'context' => [
-                                    'channel_code' => $lastVendChannelErrorLog->vendChannel->code,
-                                    'error_code' => $lastVendChannelErrorLog->vendChannelError->code,
-                                ],
-                                'occurred_at' => now(),
-                            ]);
-                        }
-                    }
+                if ($lastLog and $lastLog->vendChannelError->code != $vendChannelErrorCode and !$lastLog->is_error_cleared) {
+                    $lastLog->is_error_cleared = true;
+                    $lastLog->save();
+
+                    \App\Models\MachineHealthHistory::log(
+                        $vend->id,
+                        'machine_health_alert_dismissed',
+                        'channel_error',
+                        'channel_error',
+                        null,
+                        [
+                            'channel_code' => $lastLog->vendChannel->code,
+                            'error_code' => $lastLog->vendChannelError->code,
+                        ],
+                        now()
+                    );
                 }
 
             } else {
@@ -123,22 +163,23 @@ class SyncVendChannelErrorLog implements ShouldQueue
                         ->where('is_error_cleared', false)
                         ->get();
                     if ($recoveredVendChannelErrorLogs) {
+                        /** @var VendChannelErrorLog \$recoveredVendChannelErrorLog */
                         foreach ($recoveredVendChannelErrorLogs as $recoveredVendChannelErrorLog) {
                             $recoveredVendChannelErrorLog->is_error_cleared = true;
                             $recoveredVendChannelErrorLog->save();
 
-                            if (Schema::hasTable('vend_logs')) {
-                                VendLog::create([
-                                    'vend_id' => $vend->id,
-                                    'event' => 'machine_health_alert_dismissed',
-                                    'subject' => sprintf('Channel %s error %s cleared', $recoveredVendChannelErrorLog->vendChannel->code, $recoveredVendChannelErrorLog->vendChannelError->code),
-                                    'context' => [
-                                        'channel_code' => $recoveredVendChannelErrorLog->vendChannel->code,
-                                        'error_code' => $recoveredVendChannelErrorLog->vendChannelError->code,
-                                    ],
-                                    'occurred_at' => now(),
-                                ]);
-                            }
+                            \App\Models\MachineHealthHistory::log(
+                                $vend->id,
+                                'machine_health_alert_dismissed',
+                                'channel_error',
+                                'channel_error',
+                                null,
+                                [
+                                    'channel_code' => $recoveredVendChannelErrorLog->vendChannel->code,
+                                    'error_code' => $recoveredVendChannelErrorLog->vendChannelError->code,
+                                ],
+                                now()
+                            );
                         }
                     }
                 }
