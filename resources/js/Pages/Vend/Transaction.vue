@@ -503,39 +503,39 @@
                     <div>
                         {{((totals['success_amount'] ? totals['success_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                     </div>
-                    <div class="flex flex-col mt-2 space-y-1.5">
+                    <div class="flex flex-col mt-2 space-y-2">
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-[10px] font-medium text-gray-500">Cash:</span>
-                            <span class="text-xs font-semibold text-gray-800">
+                            <span class="text-xs font-medium text-gray-500">Cash:</span>
+                            <span class="text-lg font-semibold text-gray-800">
                                 {{((totals['cash_amount'] ? totals['cash_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-                                <span class="text-[10px] text-gray-400 font-normal">
+                                <span class="text-xs text-gray-400 font-normal">
                                     ({{ (totals['success_amount'] > 0 ? ((totals['cash_amount'] / totals['success_amount']) * 100).toFixed(2) : '0.00') }}%)
                                 </span>
                             </span>
                         </div>
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-[10px] font-medium text-gray-500">Cashless Terminal:</span>
-                            <span class="text-xs font-semibold text-gray-800">
+                            <span class="text-xs font-medium text-gray-500">Cashless Terminal:</span>
+                            <span class="text-lg font-semibold text-gray-800">
                                 {{((totals['cashless_terminal_amount'] ? totals['cashless_terminal_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-                                <span class="text-[10px] text-gray-400 font-normal">
+                                <span class="text-xs text-gray-400 font-normal">
                                     ({{ (totals['success_amount'] > 0 ? ((totals['cashless_terminal_amount'] / totals['success_amount']) * 100).toFixed(2) : '0.00') }}%)
                                 </span>
                             </span>
                         </div>
                          <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-[10px] font-medium text-gray-500">QR Payment Gateway:</span>
-                            <span class="text-xs font-semibold text-gray-800">
+                            <span class="text-xs font-medium text-gray-500">QR Payment Gateway:</span>
+                            <span class="text-lg font-semibold text-gray-800">
                                 {{((totals['qr_payment_amount'] ? totals['qr_payment_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-                                <span class="text-[10px] text-gray-400 font-normal">
+                                <span class="text-xs text-gray-400 font-normal">
                                     ({{ (totals['success_amount'] > 0 ? ((totals['qr_payment_amount'] / totals['success_amount']) * 100).toFixed(2) : '0.00') }}%)
                                 </span>
                             </span>
                         </div>
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-[10px] font-medium text-gray-500">Delivery Platform (Grab):</span>
-                            <span class="text-xs font-semibold text-gray-800">
+                            <span class="text-xs font-medium text-gray-500">Delivery Platform (Grab):</span>
+                            <span class="text-lg font-semibold text-gray-800">
                                 {{((totals['delivery_platform_success_amount'] ? totals['delivery_platform_success_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-                                <span class="text-[10px] text-gray-400 font-normal">
+                                <span class="text-xs text-gray-400 font-normal">
                                     ({{ (totals['success_amount'] > 0 ? ((totals['delivery_platform_success_amount'] / totals['success_amount']) * 100).toFixed(2) : '0.00') }}%)
                                 </span>
                             </span>
@@ -548,7 +548,7 @@
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div class="flex flex-col space-y-1">
                         <div class="flex flex-col border-b border-gray-200 pb-1">
-                             <span class="text-[10px] font-medium text-gray-500">
+                             <span class="text-xs font-medium text-gray-500">
                                 Successful Payment Transaction:
                             </span>
                              <span class="text-lg">
@@ -557,7 +557,7 @@
                         </div>
 
                          <div class="flex flex-col border-b border-gray-200 pb-1">
-                             <span class="text-[10px] font-medium text-gray-500">
+                             <span class="text-xs font-medium text-gray-500">
                                 Total Transaction:
                             </span>
                              <span class="text-lg">
@@ -566,7 +566,7 @@
                         </div>
 
                          <div class="flex justify-between items-center space-x-2 pt-1 border-gray-300">
-                             <span class="text-[10px] font-medium text-gray-500">
+                             <span class="text-xs font-medium text-gray-500">
                                 Success Rate:
                             </span>
                              <span class="text-lg">
@@ -623,27 +623,27 @@
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div class="flex flex-col space-y-1">
                         <div class="flex flex-col border-b border-gray-200 pb-1">
-                            <span class="text-[10px] font-medium text-gray-500">
+                            <span class="text-xs font-medium text-gray-500">
                                 Total Transactions:
                             </span>
                             <div class="flex items-center space-x-1">
                                 <span class="text-lg">
                                     {{(totals['delivery_platform_success_count'] ? totals['delivery_platform_success_count'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                                 </span>
-                                <span class="text-[10px] text-gray-400 font-normal">
+                                <span class="text-xs text-gray-400 font-normal">
                                     ({{ totals['success_count'] > 0 ? ((totals['delivery_platform_success_count'] / totals['success_count']) * 100).toFixed(2) : '0.00' }}%)
                                 </span>
                             </div>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-[10px] font-medium text-gray-500">
+                            <span class="text-xs font-medium text-gray-500">
                                 Total Revenue:
                             </span>
                             <div class="flex items-center space-x-1">
                                 <span class="text-lg">
                                     {{((totals['delivery_platform_success_amount'] ? totals['delivery_platform_success_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                                 </span>
-                                <span class="text-[10px] text-gray-400 font-normal">
+                                <span class="text-xs text-gray-400 font-normal">
                                     ({{ totals['success_amount'] > 0 ? ((totals['delivery_platform_success_amount'] / totals['success_amount']) * 100).toFixed(2) : '0.00' }}%)
                                 </span>
                             </div>

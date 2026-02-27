@@ -439,7 +439,7 @@ onMounted(() => {
   filters.value.location_type_id = locationTypeOptions.value[0]
   filters.value.operators = [
     operatorOptions.value[0]
-  ]
+  ].filter(operator => operator !== undefined)
   filters.value.vendPrefixes = [
     vendPrefixOptions.value[0]
   ]
@@ -451,7 +451,7 @@ function onSearchFilterUpdated() {
       currentMonth: filters.value.currentMonth.id,
       is_binded_customer: filters.value.is_binded_customer.id,
       location_type_id: filters.value.location_type_id.id,
-      operators: filters.value.operators.map((operator) => { return operator.id }),
+      operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
       numberPerPage: filters.value.numberPerPage.id,
       vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
   }, {
@@ -480,7 +480,7 @@ function onExportExcelClicked() {
             currentMonth: filters.value.currentMonth.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             location_type_id: filters.value.location_type_id.id,
-            operators: filters.value.operators.map((operator) => { return operator.id }),
+            operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
             vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
         },
         responseType: 'blob',

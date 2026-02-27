@@ -871,8 +871,8 @@ onMounted(() => {
   filters.value.is_active = booleanOptions.value[1];
   filters.value.is_binded_vend = booleanOptions.value[0];
   filters.value.is_cms = booleanOptions.value[0];
-  filters.value.location_types = [locationTypeOptions.value.find((locationType) => locationType.id == 'all')];
-  filters.value.operators = [operatorOptions.value.find((operator) => operator.id == 'all')];
+  filters.value.location_types = [locationTypeOptions.value.find((locationType) => locationType.id == 'all')].filter(Boolean);
+  filters.value.operators = [operatorOptions.value.find((operator) => operator.id == 'all')].filter(Boolean);
   filters.value.vend_model_id = vendModelOptions.value[0];
 });
 
@@ -934,7 +934,7 @@ function onSearchFilterUpdated() {
       is_cms: filters.value.is_cms.id,
       is_active: filters.value.is_active.id,
       location_types: filters.value.location_types.map((locationType) => locationType.id),
-      operators: filters.value.operators.map((operator) => operator.id),
+      operators: filters.value.operators.filter(operator => operator).map((operator) => operator.id),
       preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
       selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
       vend_model_id: filters.value.vend_model_id.id,

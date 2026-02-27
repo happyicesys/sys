@@ -1545,30 +1545,28 @@
 <style setup>
 .quick-look
 {
--webkit-border-horizontal-spacing: 0px;
--webkit-border-image: none;
--webkit-border-vertical-spacing: 0px;
-border-bottom-color: white;
-border-bottom-left-radius: 3px;
-border-bottom-right-radius: 3px;
-border-bottom-style: none;
-border-width: 0px;
-border-collapse: separate;
-border-left-color: white;
-border-left-style: none;
-border-right-color: white;
-border-right-style: none;
-border-top-color: white;
-border-top-left-radius: 3px;
-border-top-right-radius: 3px;
-border-top-style: none;
-line-height: 14px;
-max-width: none;
-text-align: left;
-vertical-align: baseline;
-white-space: nowrap;
-padding:5px;
-margin:3px;
+  -webkit-border-horizontal-spacing: 0px;
+  -webkit-border-vertical-spacing: 0px;
+  border-bottom-color: white;
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+  border-bottom-style: none;
+  border-width: 0px;
+  border-collapse: separate;
+  border-left-color: white;
+  border-left-style: none;
+  border-right-color: white;
+  border-right-style: none;
+  border-top-color: white;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+  border-top-style: none;
+  line-height: 14px;
+  max-width: none;
+  text-align: left;
+  white-space: nowrap;
+  padding:5px;
+  margin:3px;
 display:block;
 float:left;
 /* width:170px; */
@@ -1850,7 +1848,7 @@ filters.value.locationType = locationTypeOptions.value[0]
 		operatorOptions.value.find(operator => operator.code == 'IP'),
 		operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 	] : [],
-] : operatorOptions.value[0]
+].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 filters.value.status = statusOptions.value[0]
 // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })
@@ -1954,7 +1952,7 @@ function onSearchFilterUpdated() {
       modem_unit_id: filters.value.modem_unit_id?.id,
       next_planned_date: filters.value.next_planned_date,
       next_planned_driver: filters.value.next_planned_driver.id,
-      operators: filters.value.operators.map((operator) => { return operator.id }),
+      operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
       is_active: filters.value.is_active.id,
       is_binded_customer: filters.value.is_binded_customer.id,
       is_door_open: filters.value.is_door_open.id,
@@ -2062,7 +2060,7 @@ axios({
         location_type_id: filters.value.locationType.id,
         modem_type_id: filters.value.modem_type_id.id,
         modem_unit_id: filters.value.modem_unit_id?.id,
-        operators: filters.value.operators.map((operator) => { return operator.id }),
+        operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
         is_active: filters.value.is_active.id,
         is_binded_customer: filters.value.is_binded_customer.id,
         is_door_open: filters.value.is_door_open.id,

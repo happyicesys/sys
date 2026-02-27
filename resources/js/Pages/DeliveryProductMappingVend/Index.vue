@@ -349,7 +349,6 @@
 	.quick-look
 	{
 		-webkit-border-horizontal-spacing: 0px;
-		-webkit-border-image: none;
 		-webkit-border-vertical-spacing: 0px;
 		border-bottom-color: white;
 		border-bottom-left-radius: 3px;
@@ -368,7 +367,6 @@
 		line-height: 14px;
 		max-width: none;
 		text-align: left;
-		vertical-align: baseline;
 		white-space: nowrap;
 		padding:5px;
 		margin:3px;
@@ -478,7 +476,7 @@ onMounted(() => {
             operatorOptions.value.find(operator => operator.code == 'IP'),
             operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 		] : [],
-	] : operatorOptions.value[0]
+	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
   const preselectedPlatformRef = platformRefNumberOptions.value.find(option => option.ref_number === filters.value.platform_ref_id)
   selectedPlatformRefNumber.value = preselectedPlatformRef ?? platformRefNumberOptions.value[0]
 })
@@ -505,7 +503,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
       delivery_product_mapping_id: filters.value.delivery_product_mapping_id.id,
-      operators: filters.value.operators.map((operator) => { return operator.id }),
+      operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
       is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
       platform_ref_id: filters.value.platform_ref_id || undefined,

@@ -973,7 +973,7 @@
                 operatorOptions.value.find(operator => operator.code == 'IP'),
                 operatorOptions.value.find(operator => operator.code == 'UL_ST'),
             ] : [],
-        ] : operatorOptions.value[0]
+        ].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
     })
 
     function generateMonthYearOptions() {
@@ -1006,7 +1006,7 @@
             ...overrides,
             locationType: locationType && locationType.id ? locationType.id : '',
             location_type_id: locationType && locationType.id ? locationType.id : '',
-            operators: filters.value.operators.map((operator) => { return operator.id }),
+            operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
             vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
             vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
             performer_limit: performerLimit.value,

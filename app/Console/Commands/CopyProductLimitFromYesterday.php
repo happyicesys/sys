@@ -28,7 +28,7 @@ class CopyProductLimitFromYesterday extends Command
     public function handle()
     {
         // Define the range of dates
-        $from = Carbon::yesterday();
+        $from = Carbon::today();
         $to = Carbon::today()->addDays(5);
 
         // Dispatch the job with Carbon instances

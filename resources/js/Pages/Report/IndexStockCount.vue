@@ -701,7 +701,7 @@ onMounted(() => {
             operatorOptions.value.find(operator => operator.code == 'IP'),
             operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 		] : [],
-    ] : operatorOptions.value[0]
+    ].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
   filters.value.vendPrefixes = [
     vendPrefixOptions.value[0]
   ]
@@ -727,7 +727,7 @@ const dayTitle = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
           currentFilterDate: filters.value.currentFilterDate?.id ?? null,
           locationType: filters.value.locationType.id,
           location_type_id: filters.value.locationType.id,
-          operators: filters.value.operators.map((operator) => { return operator.id }),
+          operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
           numberPerPage: filters.value.numberPerPage.id,
           vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       }, {
@@ -755,7 +755,7 @@ function onExportExcelClicked() {
           ...filters.value,
           currentFilterDate: filters.value.currentFilterDate?.id ?? null,
           location_type_id: filters.value.locationType.id,
-          operators: filters.value.operators.map((operator) => { return operator.id }),
+          operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
           vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       },
       responseType: 'blob',

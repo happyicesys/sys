@@ -206,7 +206,7 @@ onMounted(() => {
   filters.value.operators = authOperator ? [
     operatorOptions.value.find(o => o?.id === authOperator.id),
     ...(authOperator.code === 'HIPL'
-      ? ['HIMD','LEA','DCVIC','HIESG','IP'].map(c => operatorOptions.value.find(o => o?.code === c))
+      ? ['HIMD','LEA','DCVIC','HIESG','IP','UL_ST'].map(c => operatorOptions.value.find(o => o?.code === c))
       : []),
   ].filter(Boolean) : [operatorOptions.value[0]]
   filters.value.vendPrefixes = [vendPrefixOptions.value[0]]
@@ -225,7 +225,7 @@ function onSearchFilterUpdated () {
     ...filters.value,
     locationType: filters.value.locationType?.id,
     location_type_id: filters.value.locationType?.id,
-    operators: (filters.value.operators ?? []).map(o => o.id),
+    operators: (filters.value.operators ?? []).filter(o => o).map(o => o.id),
     vendPrefixes: (filters.value.vendPrefixes ?? []).map(v => v.id),
     products: (filters.value.products ?? []).map(p => p.id),
   }, {

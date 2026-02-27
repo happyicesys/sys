@@ -380,7 +380,6 @@
 .quick-look
 {
   -webkit-border-horizontal-spacing: 0px;
-  -webkit-border-image: none;
   -webkit-border-vertical-spacing: 0px;
   border-bottom-color: white;
   border-bottom-left-radius: 3px;
@@ -399,7 +398,6 @@
   line-height: 14px;
   max-width: none;
   text-align: left;
-  vertical-align: baseline;
   white-space: nowrap;
   padding:5px;
   margin:3px;
@@ -514,10 +512,10 @@ onMounted(() => {
   filters.value.locationType = locationTypeOptions.value[0]
   filters.value.operators = [
     operatorOptions.value[0]
-  ]
+  ].filter(operator => operator !== undefined)
   filters.value.vendPrefixes = [
     vendPrefixOptions.value[0]
-  ]
+  ].filter(prefix => prefix !== undefined)
 
   // vendOptions.value = props.vendOptions.data.map((vendSnapshot) => {return {id: vendSnapshot.id, code: vendSnapshot.code}})
 })
@@ -538,7 +536,7 @@ onMounted(() => {
           currentMonth: filters.value.currentMonth.id,
           locationType: filters.value.locationType.id,
           location_type_id: filters.value.locationType.id,
-          operators: filters.value.operators.map((operator) => { return operator.id }),
+          operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
           is_binded_customer: filters.value.is_binded_customer.id,
           numberPerPage: filters.value.numberPerPage.id,
           vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
@@ -567,7 +565,7 @@ function onExportChannelExcelClicked() {
           ...filters.value,
           currentMonth: filters.value.currentMonth.id,
           location_type_id: filters.value.locationType.id,
-          operators: filters.value.operators.map((operator) => { return operator.id }),
+          operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
           is_binded_customer: filters.value.is_binded_customer.id,
           vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       },

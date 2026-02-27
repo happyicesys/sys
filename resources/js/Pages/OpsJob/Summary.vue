@@ -519,14 +519,14 @@ onMounted(() => {
       operatorOptions.value.find(operator => operator.code == 'IP'),
       operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 		] : [],
-	] : operatorOptions.value[0]
+	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 })
 
 function onSearchFilterUpdated() {
   router.get('/ops-jobs/summary', {
       ...filters.value,
       delivered_by: filters.value.delivered_by?.id,
-      operators: filters.value.operators.map(operator => operator.id),
+      operators: filters.value.operators.filter(operator => operator).map(operator => operator.id),
   }, {
       preserveState: true,
       replace: true,

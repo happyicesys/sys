@@ -596,7 +596,7 @@ onMounted(() => {
       operatorOptions.value.find(operator => operator.code == 'IP'),
       operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 		] : [],
-	] : operatorOptions.value[0]
+	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
   filters.value.status = props.deliveryPlatformOrderStatusOptions[0]
   const preselectedPlatformRef = platformRefNumberSelectOptions.value.find(option => option.ref_number === filters.value.platform_ref_id)
   selectedPlatformRefNumber.value = preselectedPlatformRef ?? platformRefNumberSelectOptions.value[0]
@@ -641,7 +641,7 @@ function onExportExcelClicked() {
           ...filters.value,
           date_filter_type: filters.value.date_filter_type.id,
           delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
-          operators: filters.value.operators.map(operator => operator.id),
+          operators: filters.value.operators.filter(operator => operator).map(operator => operator.id),
           has_complaint: filters.value.has_complaint.id,
           status: filters.value.status.id,
           platform_ref_id: filters.value.platform_ref_id || undefined,
@@ -662,7 +662,7 @@ function onSearchFilterUpdated() {
       date_filter_type: filters.value.date_filter_type.id,
       delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
       // operator_id: filters.value.operator_id.id,
-      operators: filters.value.operators.map(operator => operator.id),
+      operators: filters.value.operators.filter(operator => operator).map(operator => operator.id),
       status: filters.value.status.id,
       has_complaint: filters.value.has_complaint.id,
       numberPerPage: filters.value.numberPerPage.id,

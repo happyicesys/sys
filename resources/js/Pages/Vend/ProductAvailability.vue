@@ -339,7 +339,7 @@ onMounted(() => {
       operatorOptions.value.find(operator => operator.code == 'IP'),
       operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 		] : [],
-	] : operatorOptions.value[0]
+	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 
   filters.value = {
     ...filters.value,
@@ -481,7 +481,7 @@ function onMaxOpsJobPickLimitSelected(id, max_ops_job_pick_limit) {
 function onSearchFilterUpdated() {
   router.get(baseUrl.value, {
     ...filters.value,
-    operators: filters.value.operators.map(operator => operator.id),
+    operators: filters.value.operators.filter(operator => operator).map(operator => operator.id),
     is_available: filters.value.is_available ? filters.value.is_available.id : 'all',
   }, {
     replace: true,
@@ -500,10 +500,3 @@ function resetFilters() {
   router.get(baseUrl.value)
 }
 </script>
-const updatedProduct = response.data; // Assuming the server returns the updated product
-
-// Find the product in the list and update its max_ops_job_pick_limit
-const productIndex = props.products.data.findIndex(product => product.id === id);
-if (productIndex !== -1) {
-  props.products.data[productIndex].max_ops_job_pick_limit = max_ops_job_pick_limit;
-}

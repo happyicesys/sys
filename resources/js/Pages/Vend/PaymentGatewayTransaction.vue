@@ -477,7 +477,7 @@ onMounted(() => {
             operatorOptions.value.find(operator => operator.code == 'IP'),
             operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 		] : [],
-	] : operatorOptions.value[0]
+	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
     filters.value.interface_type = vmcByteOptions.value[0]
     filters.value.is_refunded = booleanOptions.value[0]
 })
@@ -515,7 +515,7 @@ function onExportExcelClicked() {
             ...filters.value,
             ref_id: filters.value.ref_id,
             codes: filters.value.codes,
-            operators: filters.value.operators.map((operator) => { return operator.id }),
+            operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
             is_dispensed: filters.value.is_dispensed.id,
             is_found_in_transaction: filters.value.is_found_in_transaction.id,
             is_refunded: filters.value.is_refunded.id,
@@ -538,7 +538,7 @@ function onSearchFilterUpdated() {
         ...filters.value,
         ref_id: filters.value.ref_id,
         codes: filters.value.codes,
-        operators: filters.value.operators.map((operator) => { return operator.id }),
+        operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
         is_dispensed: filters.value.is_dispensed.id,
         is_found_in_transaction: filters.value.is_found_in_transaction.id,
         is_refunded: filters.value.is_refunded.id,

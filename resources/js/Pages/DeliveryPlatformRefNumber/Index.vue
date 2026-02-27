@@ -274,7 +274,7 @@ onMounted(() => {
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-  filters.value.operators = [operatorOptions.value[0]]
+  filters.value.operators = [operatorOptions.value[0]].filter(operator => operator !== undefined)
   // default to Active
   filters.value.is_active = booleanOptions.value[1]
 })
@@ -282,7 +282,7 @@ onMounted(() => {
 function onSearchFilterUpdated() {
   router.get('/delivery-platform-ref-numbers', {
       ...filters.value,
-      operators: filters.value.operators.map((operator) => { return operator.id }),
+      operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
       vend_prefixes: filters.value.vendPrefixes.map((prefix) => { return prefix.id }),
       is_active: filters.value.is_active?.id ?? 'all',
       numberPerPage: filters.value.numberPerPage.id,

@@ -422,7 +422,7 @@ onMounted(() => {
       operatorOptions.value.find(operator => operator.code == 'IP'),
       operatorOptions.value.find(operator => operator.code == 'UL_ST'),
 		] : [],
-	] : operatorOptions.value[0]
+	].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 
     // If props.filters.operators exist, it means the user has searched, so we should use those values.
     // The values from props.filters.operators will be IDs (strings or numbers) if they came from the URL.
@@ -450,7 +450,7 @@ onMounted(() => {
 })
 
 const onSearchFilterUpdated = () => {
-    let operators = filters.value.operators.map(operator => operator.id)
+    let operators = filters.value.operators.filter(operator => operator).map(operator => operator.id)
     if (operators.includes('all')) {
         operators = ['all']
     }
@@ -496,7 +496,7 @@ const onTrackingDetailsClicked = () => {
 }
 
 const onExcelExportClicked = () => {
-    let operators = filters.value.operators.map(operator => operator.id)
+    let operators = filters.value.operators.filter(operator => operator).map(operator => operator.id)
     if (operators.includes('all')) {
         operators = ['all']
     }

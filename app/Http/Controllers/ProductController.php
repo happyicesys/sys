@@ -604,24 +604,35 @@ class ProductController extends Controller
     public function updateMaxOpsJobPickLimit(Request $request, $productID)
     {
         $product = Product::findOrFail($productID);
+        $date = $request->date;
+        $maxOpsLimit = $request->max_ops_job_pick_limit;
 
-        if ($request->max_ops_job_pick_limit === null) {
+        if ($maxOpsLimit === null) {
             $product->productLimits()
-                ->where('date', '>=', $request->date)
+                ->where('date', '>=', $date)
                 ->delete();
+
+            // Update JSON to remove entries for this date and beyond
+            $json = $product->max_ops_job_pick_limit_json ?? [];
+            if (is_array($json)) {
+                foreach ($json as $d => $qty) {
+                    if ($d >= $date) {
+                        unset($json[$d]);
+                    }
+                }
+                $product->max_ops_job_pick_limit_json = $json;
+                $product->save();
+            }
+
+            $this->vendChannelService->syncAllVendChannelsJson($product->vendChannels->pluck('vend_id')->toArray());
 
             return redirect()->back();
         }
-        // find the latest previous productlimit
-        $previousProductLimit = $product->productLimits()
-            ->where('date', '<', $request->date)
-            ->latest('date')
-            ->first();
 
         $product->productLimits()->updateOrCreate([
-            'date' => $request->date,
+            'date' => $date,
         ], [
-            'qty' => $request->max_ops_job_pick_limit,
+            'qty' => $maxOpsLimit,
             'setup_date' => Carbon::now(),
             'is_created_by_system' => false,
             'created_by' => auth()->user()->id,
@@ -629,23 +640,30 @@ class ProductController extends Controller
 
         // Find and update any future product limits for the product
         $product->productLimits()
-            ->where('date', '>', $request->date)
+            ->where('date', '>', $date)
             ->update([
-                'qty' => $request->max_ops_job_pick_limit,
+                'qty' => $maxOpsLimit,
                 'is_created_by_system' => true,
             ]);
 
-        // Retrieve the current `max_ops_job_pick_limit_json` as an associative array
-        $maxOpsJobPickLimitJson = $product->max_ops_job_pick_limit_json;
-
-        // Check if new data is provided in the request, then add it to the array
-        if ($request->date && $request->max_ops_job_pick_limit) {
-            // Add or update the entry for the new date
-            $maxOpsJobPickLimitJson[$request->date] = $request->max_ops_job_pick_limit;
+        // Retrieve and update the current `max_ops_job_pick_limit_json`
+        $json = $product->max_ops_job_pick_limit_json ?? [];
+        if (!is_array($json)) {
+            $json = (array) $json;
         }
 
-        // Encode the updated array back to JSON and save it
-        $product->max_ops_job_pick_limit_json = $maxOpsJobPickLimitJson;
+        if ($date && isset($maxOpsLimit)) {
+            $json[$date] = $maxOpsLimit;
+
+            // Also update future dates in JSON to maintain consistency
+            foreach ($json as $d => $qty) {
+                if ($d > $date) {
+                    $json[$d] = $maxOpsLimit;
+                }
+            }
+        }
+
+        $product->max_ops_job_pick_limit_json = $json;
         $product->save();
 
         $this->vendChannelService->syncAllVendChannelsJson($product->vendChannels->pluck('vend_id')->toArray());

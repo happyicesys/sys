@@ -1199,7 +1199,7 @@ function onSearchFilterUpdated() {
       locationTypes: filters.value.locationTypes.map((locationType) => { return locationType.id }),
       modem_type_id: filters.value.modem_type_id.id,
       modem_unit_id: filters.value.modem_unit_id.id,
-      operators: filters.value.operators.map((operator) => { return operator.id }),
+      operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
       is_binded_customer: filters.value.is_binded_customer.id,
       key_id: filters.value.key_id.id,
       selling_price_type: filters.value.selling_price_type.id,

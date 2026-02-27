@@ -451,7 +451,7 @@ onMounted(() => {
 
   filters.value.is_binded_customer = operatorRole ? booleanOptions.value[0] : booleanOptions.value[1];
   filters.value.location_type_id = locationTypeOptions.value[0];
-  filters.value.operators = [operatorOptions.value[0]];
+  filters.value.operators = [operatorOptions.value[0]].filter(operator => operator !== undefined);
   filters.value.vendPrefixes = [vendPrefixOptions.value[0]];
 });
 
@@ -461,7 +461,7 @@ function onSearchFilterUpdated() {
     currentMonth: filters.value.currentMonth.id,
     is_binded_customer: filters.value.is_binded_customer.id,
     location_type_id: filters.value.location_type_id.id,
-    operators: filters.value.operators.map((operator) => operator.id),
+    operators: filters.value.operators.filter(operator => operator).map((operator) => operator.id),
     vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => vendPrefix.id),
     numberPerPage: filters.value.numberPerPage.id,
   }, {
