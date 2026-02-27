@@ -98,14 +98,14 @@
               <div class="pl-1 py-2 flex space-x-2 overflow-x-scroll">
                   <Button
                       v-for="hourDurationFilter in hourDurationFilters"
-                      class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-5 sm:px-3"
+                      class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
                       :class="hourDurationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
                       @click="onDurationFilterClicked(hourDurationFilter, 'hour')">
                       {{ hourDurationFilter }} {{ hourDurationFilter > 1 ? 'Hours' : 'Hour' }}
                   </Button>
                   <Button
                       v-for="durationFilter in durationFilters"
-                      class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-5 sm:px-3"
+                      class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
                       :class="durationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
                       @click="onDurationFilterClicked(durationFilter, 'day')">
                       {{ durationFilter }} {{ durationFilter > 1 ? 'Days' : 'Day' }}
@@ -138,7 +138,7 @@
                           Search
                       </span>
                   </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-600 bg-white px-5 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-600 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   @click="onExportExcelClicked()"
                   v-if="permissions.includes('export vends')"
                   >
@@ -153,10 +153,10 @@
                   </Button>
               </div>
           </div>
-          <div class="px-0 mt-2 flex flex-col">
+          <div class="px-1 mt-2 flex flex-col">
               <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-                  <div class="py-2 align-middle">
-                      <div class="shadow-sm ring-1 ring-black ring-opacity-5 rounded-lg overflow-x-hidden w-full">
+                  <div class="inline-block min-w-full py-2 align-middle">
+                      <div class="shadow-sm ring-1 ring-black ring-opacity-5">
                           <div class="flex flex-col space-y-1">
                               <div class="p-2 flex flex-wrap gap-1">
                                   <span class="inline-flex rounded-md shadow-sm" v-if="vend.temp && ('t2' in vend.parameterJson || 't3' in vend.parameterJson || 't4' in vend.parameterJson)">
@@ -488,8 +488,6 @@ function buildAnnotations() {
   return annotations
 }
 const graphOptions = ref({
-responsive: true,
-maintainAspectRatio: false,
 scales: {
   x: {
     type: 'time',
