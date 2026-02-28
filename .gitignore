@@ -19,3 +19,5 @@ composer.lock
 .DS_Store
 test*
 debug_scripts/
+
+/omise_portfolio

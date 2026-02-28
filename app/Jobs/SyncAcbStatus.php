@@ -60,7 +60,7 @@ class SyncAcbStatus implements ShouldQueue
 
     private function createVendTemp($input, Vend $vend)
     {
-        if (isset($input['t1']) && $input['t1'] !== '') {
+        if (isset($input['t1']) && $input['t1'] !== '' && $input['t1'] != 0) {
             $temp = $input['t1'];
             if ($temp == VendTemp::TEMPERATURE_ERROR) {
                 $vend->is_temp_error = true;

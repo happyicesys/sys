@@ -769,7 +769,7 @@
                               <!-- Fan RPM Section -->
                               <div
                                   v-if="!vend.is_fan_enabled"
-                                  class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px] bg-white text-gray-800"
+                                  class="flex flex-col items-center justify-center border border-gray-400 rounded-md p-1 min-w-[80px] bg-white text-gray-800"
                                   v-tooltip="{ content: 'Fan Speed Signal Disabled' }"
                               >
                                   <span class="text-[10px] font-bold">Fan RPM</span>
@@ -777,13 +777,13 @@
                               </div>
                               <div
                                   v-else-if="vend.parameterJson && 'fan' in vend.parameterJson"
-                                  class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px]"
+                                  class="flex flex-col items-center justify-center border border-gray-400 rounded-md p-1 min-w-[80px] bg-white"
                                   :class="[
                                       (vend.is_online || vend.is_testing)
                                         ? (vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'
-                                            ? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
-                                            : 'bg-gray-200 text-gray-500')
-                                        : 'bg-gray-300 text-gray-600'
+                                            ? (vend.parameterJson['fan'] > 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold')
+                                            : 'text-gray-500')
+                                        : 'text-gray-600'
                                   ]"
                                   v-tooltip="{ content: 'Fan Speed Signal exists' }"
                               >
@@ -792,7 +792,7 @@
                               </div>
                               <div
                                   v-else
-                                  class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px] bg-gray-300 text-gray-600"
+                                  class="flex flex-col items-center justify-center border border-gray-400 rounded-md p-1 min-w-[80px] bg-white text-gray-600"
                                   v-tooltip="{ content: 'Fan Speed Signal Missing' }"
                               >
                                   <span class="text-[10px] font-bold">Fan RPM</span>
