@@ -28,7 +28,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('store:previous-day-vend-records')->daily();
         $schedule->command('grab:sync-all-menu')->daily();
         $schedule->command('sync:all-cms-vend-code-vend-prefix')->dailyAt('02:00');
-        $schedule->command('copy:product-limit-from-yesterday')->daily();
+        $schedule->command('copy:product-limit-from-yesterday')->at('23:57');
         $schedule->command('refund:payment-gateway-every-ten-minutes')->everyTenMinutes();
         $schedule->command('sync:voucher-status-daily')->daily();
         $schedule->command('telescope:prune --hours=48')->dailyAt('01:00');

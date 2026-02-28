@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Models\ProductLimit;
+use App\Models\Product;
+use App\Models\VendData;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,16 +16,19 @@ class CopyProductLimits implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $dateFrom;
-    protected $dateTo;
+    protected $sourceDate;
+    protected $targetDate;
 
     /**
      * Create a new job instance.
+     *
+     * @param  Carbon  $sourceDate  The date to copy FROM
+     * @param  Carbon  $targetDate  The date to seed TO (the new Day 5)
      */
-    public function __construct($dateFrom, $dateTo)
+    public function __construct(Carbon $sourceDate, Carbon $targetDate)
     {
-        $this->dateFrom = Carbon::parse($dateFrom);
-        $this->dateTo = Carbon::parse($dateTo);
+        $this->sourceDate = $sourceDate;
+        $this->targetDate = $targetDate;
     }
 
     /**
@@ -31,36 +36,75 @@ class CopyProductLimits implements ShouldQueue
      */
     public function handle(): void
     {
-        // Iterate over each day from $dateFrom to $dateTo
-        for ($date = $this->dateFrom->copy(); $date->lte($this->dateTo); $date->addDay()) {
-            // Get the previous day's product limits
-            $previousDate = $date->copy()->subDay();
-            $previousProductLimits = ProductLimit::query()
-                ->where('date', $previousDate->toDateString())
-                ->get();
+        // 1. Fetch all active inventory products once
+        $products = Product::query()
+            ->where('is_active', true)
+            ->where('is_inventory', true)
+            ->get();
 
-            // Copy each previous day's product limit to the current date
-            foreach ($previousProductLimits as $productLimit) {
-                // Skip if the limit already exists for the target date and product_id
-                if (
-                    ProductLimit::where('date', $date->toDateString())
-                        ->where('product_id', $productLimit->product_id)
-                        ->exists()
-                ) {
-                    continue;
-                }
+        $sourceDateStr = $this->sourceDate->toDateString();
+        $targetDateStr = $this->targetDate->toDateString();
 
-                // Create or update with the previous day's qty
+        // 2. Optimized Fetch: Use a single query to get all source and current target limits
+        $sourceLimits = ProductLimit::where('date', $sourceDateStr)
+            ->whereIn('product_id', $products->pluck('id'))
+            ->get()
+            ->keyBy('product_id');
+
+        $targetLimits = ProductLimit::where('date', $targetDateStr)
+            ->whereIn('product_id', $products->pluck('id'))
+            ->get()
+            ->keyBy('product_id');
+
+        // Snapshot storage
+        $snapshot = [];
+
+        // 3. Main Loop
+        foreach ($products as $product) {
+            $sourceLimit = $sourceLimits->get($product->id);
+            $targetLimit = $targetLimits->get($product->id);
+
+            // Record the snapshot BEFORE changes
+            $snapshot[$product->code] = [
+                'name' => $product->name,
+                'qty' => $sourceLimit ? $sourceLimit->qty : 'No',
+            ];
+
+            // 4. Respect future manual overrides (Green labels)
+            if ($targetLimit && !$targetLimit->is_created_by_system) {
+                continue;
+            }
+
+            // 5. Apply the "Relay" copy (X+1 from X)
+            if ($sourceLimit) {
                 ProductLimit::updateOrCreate([
-                    'date' => $date->toDateString(),
-                    'product_id' => $productLimit->product_id,
+                    'date' => $targetDateStr,
+                    'product_id' => $product->id,
                 ], [
-                    'created_by' => $productLimit->created_by,
+                    'created_by' => $sourceLimit->created_by,
                     'is_created_by_system' => true,
-                    'qty' => $productLimit->qty, // Use qty from the previous day
-                    'setup_date' => $productLimit->setup_date,
+                    'qty' => $sourceLimit->qty,
+                    'setup_date' => $sourceLimit->setup_date,
                 ]);
+            } else {
+                // If previous day was "No", ensure target day stays "No"
+                if ($targetLimit) {
+                    \App\Models\ProductLimit::where('id', $targetLimit->id)->delete();
+                }
             }
         }
+
+        // 6. Log detailed evidence to vend_data in bulk
+        VendData::create([
+            'type' => 'copy_product_limit_done',
+            'vend_code' => 'SYSTEM',
+            'value' => [
+                'source_date' => $sourceDateStr,
+                'target_date' => $targetDateStr,
+                'products_processed' => $products->count(),
+                'snapshot' => $snapshot,
+                'timestamp' => now()->toDateTimeString(),
+            ]
+        ]);
     }
 }

@@ -37,7 +37,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'dashboard',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'observer', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'observer', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
             ],
 
             [
@@ -55,7 +55,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'dashboard-machine-health',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
             ],
 
             [

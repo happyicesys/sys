@@ -90,7 +90,8 @@ class ReportController extends Controller
     public function __construct(
         private MachineHealthDashboardService $machineHealthDashboardService
     ) {
-        $this->middleware(['permission:read reports']);
+        $this->middleware(['permission:read reports'])->except(['indexMachineHealth', 'historyMachineHealth']);
+        $this->middleware(['permission:read dashboard-machine-health'])->only(['indexMachineHealth', 'historyMachineHealth']);
     }
 
     public function indexSales(Request $request, $type)

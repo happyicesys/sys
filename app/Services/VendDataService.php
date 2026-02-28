@@ -319,7 +319,8 @@ class VendDataService
       if ($connectionType == 'mqtt') {
         UpdateMqttLastUpdated::dispatch($vend->id)->onQueue('default');
 
-        if ($vend->apk_ver_json && $vend->apk_ver_json['apkver'] && $vend->apk_ver_json['apkver'] >= 129) {
+        $apkVer = (array) $vend->apk_ver_json;
+        if ($apkVer && isset($apkVer['apkver']) && $apkVer['apkver'] >= 129) {
           PublishMqtt::dispatch('CM' . $vend->code, $response, 0)->onQueue('default');
         }
       }

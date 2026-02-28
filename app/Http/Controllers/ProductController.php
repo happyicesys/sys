@@ -363,8 +363,8 @@ class ProductController extends Controller
 
         foreach ($products as $product) {
             // Map calculated values
-            $product->needed_qty = $neededData->get($product->id)?->needed_qty ?? 0;
-            $product->needed_value = $neededData->get($product->id)?->needed_value ?? 0;
+            $product->needed_qty = $product->is_available ? ($neededData->get($product->id)?->needed_qty ?? 0) : 0;
+            $product->needed_value = $product->is_available ? ($neededData->get($product->id)?->needed_value ?? 0) : 0;
             $product->not_yet_sync_api_qty = $notYetSyncData->get($product->id)?->qty ?? 0;
             $product->picked_value_on_date = $pickedValueData->get($product->id)?->value ?? 0;
 
@@ -604,70 +604,80 @@ class ProductController extends Controller
     public function updateMaxOpsJobPickLimit(Request $request, $productID)
     {
         $product = Product::findOrFail($productID);
-        $date = $request->date;
-        $maxOpsLimit = $request->max_ops_job_pick_limit;
+        $startDateStr = $request->date;
+        $newValue = $request->max_ops_job_pick_limit; // Can be a number or null ("No")
 
-        if ($maxOpsLimit === null) {
+        // 1. Update the record for the specific date the user clicked
+        if ($newValue === null) {
             $product->productLimits()
-                ->where('date', '>=', $date)
+                ->where('date', $startDateStr)
                 ->delete();
-
-            // Update JSON to remove entries for this date and beyond
-            $json = $product->max_ops_job_pick_limit_json ?? [];
-            if (is_array($json)) {
-                foreach ($json as $d => $qty) {
-                    if ($d >= $date) {
-                        unset($json[$d]);
-                    }
-                }
-                $product->max_ops_job_pick_limit_json = $json;
-                $product->save();
-            }
-
-            $this->vendChannelService->syncAllVendChannelsJson($product->vendChannels->pluck('vend_id')->toArray());
-
-            return redirect()->back();
-        }
-
-        $product->productLimits()->updateOrCreate([
-            'date' => $date,
-        ], [
-            'qty' => $maxOpsLimit,
-            'setup_date' => Carbon::now(),
-            'is_created_by_system' => false,
-            'created_by' => auth()->user()->id,
-        ]);
-
-        // Find and update any future product limits for the product
-        $product->productLimits()
-            ->where('date', '>', $date)
-            ->update([
-                'qty' => $maxOpsLimit,
-                'is_created_by_system' => true,
+        } else {
+            $product->productLimits()->updateOrCreate([
+                'date' => $startDateStr,
+            ], [
+                'qty' => $newValue,
+                'setup_date' => Carbon::now(),
+                'is_created_by_system' => false,
+                'created_by' => auth()->user()->id,
             ]);
-
-        // Retrieve and update the current `max_ops_job_pick_limit_json`
-        $json = $product->max_ops_job_pick_limit_json ?? [];
-        if (!is_array($json)) {
-            $json = (array) $json;
         }
 
-        if ($date && isset($maxOpsLimit)) {
-            $json[$date] = $maxOpsLimit;
+        // 2. Propagation: Forward seed to the next 5 days
+        $startDate = Carbon::parse($startDateStr)->startOfDay();
+        for ($i = 1; $i <= 5; $i++) {
+            $targetDate = $startDate->copy()->addDays($i);
+            $targetDateStr = $targetDate->toDateString();
 
-            // Also update future dates in JSON to maintain consistency
-            foreach ($json as $d => $qty) {
-                if ($d > $date) {
-                    $json[$d] = $maxOpsLimit;
-                }
+            // Check if the target day already has a manual setting
+            $targetLimit = $product->productLimits()
+                ->where('date', $targetDateStr)
+                ->first();
+
+            // RESPECT future manual overrides (Green labels)
+            if ($targetLimit && !$targetLimit->is_created_by_system) {
+                // If we hit a manual override, STOP propagating this change further forward?
+                // Or just skip this day? User said "propagate till before that day value being set".
+                // Stop is usually the intent of "till before".
+                break;
+            }
+
+            // Apply the new value (either Qty or No)
+            if ($newValue === null) {
+                // Propagate "No"
+                $product->productLimits()
+                    ->where('date', $targetDateStr)
+                    ->delete();
+            } else {
+                // Propagate Quantity
+                $product->productLimits()->updateOrCreate([
+                    'date' => $targetDateStr,
+                ], [
+                    'qty' => $newValue,
+                    'setup_date' => Carbon::now(),
+                    'is_created_by_system' => true,
+                    'created_by' => auth()->user()->id,
+                ]);
             }
         }
 
-        $product->max_ops_job_pick_limit_json = $json;
-        $product->save();
+        // 3. Sync JSON Cache (for Dashboard and mobile)
+        $this->syncProductLimitJson($product);
 
         $this->vendChannelService->syncAllVendChannelsJson($product->vendChannels->pluck('vend_id')->toArray());
 
         return redirect()->back();
+    }
+
+    protected function syncProductLimitJson(Product $product)
+    {
+        // Fetch all current limits for this product and rebuild the JSON
+        $limits = $product->productLimits()->orderBy('date')->get();
+        $json = [];
+        foreach ($limits as $limit) {
+            $json[$limit->date->toDateString()] = $limit->qty;
+        }
+        $product->max_ops_job_pick_limit_json = $json;
+        $product->save();
     }
 }
