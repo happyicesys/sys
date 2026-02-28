@@ -206,8 +206,12 @@ class VendTransaction extends Model
             ->when($request->errors, function ($query, $search) {
                 if (in_array('errors_only', $search)) {
                     $query->where(function ($query) {
-                        $query->has('vendChannelError')
-                            ->orWhereHas('vendTransactionItems.vendChannelError');
+                        $query->whereHas('vendChannelError', function ($q) {
+                            $q->whereNotIn('code', [0, 6]);
+                        })
+                            ->orWhereHas('vendTransactionItems.vendChannelError', function ($q) {
+                                $q->whereNotIn('code', [0, 6]);
+                            });
                     });
                 } else if (in_array('1', $search)) {
                     $query->where(function ($query) {

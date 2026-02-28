@@ -833,7 +833,7 @@ function getVendTempsData() {
         label: 'Fan Speed' + (vend.value.parameterJson['fan'] !== null && vend.value.parameterJson['fan'] !== undefined ? (' (' + vend.value.parameterJson['fan'] + ')' ) : ''),
         data: vendFan.map((fan) => {
           let yVal = parseFloat(fan.value)
-          if(isNaN(yVal)) {
+          if(isNaN(yVal) || yVal === 0) {
             yVal = null
           }
           return { x: fan.created_at, y: yVal }
