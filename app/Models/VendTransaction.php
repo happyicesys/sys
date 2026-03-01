@@ -207,10 +207,10 @@ class VendTransaction extends Model
                 if (in_array('errors_only', $search)) {
                     $query->where(function ($query) {
                         $query->whereHas('vendChannelError', function ($q) {
-                            $q->whereNotIn('code', [0, 6]);
+                            $q->whereNotIn('code', [0]);
                         })
                             ->orWhereHas('vendTransactionItems.vendChannelError', function ($q) {
-                                $q->whereNotIn('code', [0, 6]);
+                                $q->whereNotIn('code', [0]);
                             });
                     });
                 } else if (in_array('1', $search)) {
@@ -617,9 +617,14 @@ class VendTransaction extends Model
     public function scopeIsError($query)
     {
         return $query->where(function ($query) {
-            $query->whereNotNull('vend_channel_error_id')
-                ->whereNotIn('vend_channel_error_id', [1, 5])
-                ->orWhereNot('vend_transaction_json->GET_TYPE', 1);
+            $query->where(function ($q) {
+                $q->whereNotNull('vend_channel_error_id')
+                    ->whereNotIn('vend_channel_error_id', [1])
+                    ->orWhereNot('vend_transaction_json->GET_TYPE', 1);
+            })->orWhereHas('vendTransactionItems', function ($q2) {
+                $q2->whereNotNull('vend_channel_error_id')
+                    ->whereNotIn('vend_channel_error_id', [1]);
+            });
         });
     }
 }

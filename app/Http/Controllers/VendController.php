@@ -182,7 +182,7 @@ class VendController extends Controller
             $userOperator = auth()->user()->operator;
 
             if ($userOperator && $userOperator->code === 'HIPL') {
-                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP', 'UL_ST'];
+                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
 
                 $operatorIds = Operator::whereIn('code', $relatedCodes)
                     ->pluck('id')
@@ -452,7 +452,7 @@ class VendController extends Controller
             $userOperator = auth()->user()->operator;
 
             if ($userOperator && $userOperator->code === 'HIPL') {
-                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP', 'UL_ST'];
+                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
 
                 $operatorIds = Operator::whereIn('code', $relatedCodes)
                     ->pluck('id')
@@ -1742,9 +1742,8 @@ class VendController extends Controller
                         auth()->user()->operator_id,
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
                     ]
                 ]);
             } else {
@@ -2052,9 +2051,8 @@ class VendController extends Controller
                         auth()->user()->operator_id,
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
                     ]
                 ]);
             } else {
@@ -2445,9 +2443,8 @@ class VendController extends Controller
                         auth()->user()->operator_id,
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
                     ]
                 ]);
             } else {

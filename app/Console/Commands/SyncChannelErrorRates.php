@@ -64,9 +64,9 @@ class SyncChannelErrorRates extends Command
                     ->where('transaction_datetime', '>=', $sixDaysAgo)
                     ->selectRaw('
                         COUNT(id) as seven_days_total_count,
-                        COUNT(CASE WHEN vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1, 5) THEN 1 END) as seven_days_error_count,
+                        COUNT(CASE WHEN vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as seven_days_error_count,
                         COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as three_days_total_count,
-                        COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1, 5) THEN 1 END) as three_days_error_count
+                        COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as three_days_error_count
                     ', [$twoDaysAgo, $twoDaysAgo])
                     ->first();
 

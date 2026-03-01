@@ -33,7 +33,7 @@ const props = defineProps({
 })
 
 const DEFAULT_VISIBLE = 10
-const HIPL_OPERATOR_CODES = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP']
+const HIPL_OPERATOR_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST']
 
 const normalizeCollection = (collection) => {
   if (!collection) {

@@ -124,7 +124,7 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
                     'qty_sold_at_date_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->format('ymd') : null,
                     'qty_sold_at_time_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->format('h:i a') : null,
                     'qty_sold_at_human_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->shortRelativeDiffForHumans() : null,
-                    'vendChannelErrorLogs' => $channel->vendChannelErrorLogs?->map(function ($errorLog) {
+                    'vendChannelErrorLogs' => $channel->vendChannelErrorLogs?->whereNotNull('vend_transaction_id')->values()->map(function ($errorLog) {
                         return [
                             'id' => $errorLog->id,
                             'code' => $errorLog->vendChannelError->code,

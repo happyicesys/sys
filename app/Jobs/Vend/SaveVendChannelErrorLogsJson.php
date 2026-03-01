@@ -39,7 +39,7 @@ class SaveVendChannelErrorLogsJson implements ShouldQueue
         $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)->findOrFail($this->vendId);
 
         $vend->update([
-            'vend_channel_error_logs_json' => VendChannelErrorLogResource::collection(VendChannelErrorLog::with(['vendChannel', 'vendChannelError'])->whereIn('vend_channel_id', $vend->vendChannels->pluck('id'))->where('is_error_cleared', false)->orderBy('created_at', 'desc')->get()),
+            'vend_channel_error_logs_json' => VendChannelErrorLogResource::collection(VendChannelErrorLog::with(['vendChannel', 'vendChannelError'])->whereIn('vend_channel_id', $vend->vendChannels->pluck('id'))->whereNotNull('vend_transaction_id')->where('is_error_cleared', false)->orderBy('created_at', 'desc')->get()),
         ]);
     }
 }

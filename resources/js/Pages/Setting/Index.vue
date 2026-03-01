@@ -1145,10 +1145,8 @@ onMounted(() => {
 		...authOperator.code == 'HIPL' ? [
 		    operatorOptions.value.find(operator => operator.code == 'HIMD'),
             operatorOptions.value.find(operator => operator.code == 'LEA'),
-			operatorOptions.value.find(operator => operator.code == 'DCVIC'),
             operatorOptions.value.find(operator => operator.code == 'HIESG'),
-            operatorOptions.value.find(operator => operator.code == 'IP'),
-            operatorOptions.value.find(operator => operator.code == 'UL_ST'),
+            operatorOptions.value.find(operator => operator.code == 'UL-ST'),
         ] : [],
 	].filter(Boolean) : operatorOptions.value[0]
 

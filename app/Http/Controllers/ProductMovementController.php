@@ -138,10 +138,8 @@ class ProductMovementController extends Controller
                         auth()->user()->operator_id,
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
-                        Operator::where('code', 'UL_ST')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
                     ]
                 ]);
             } else {
@@ -390,10 +388,8 @@ class ProductMovementController extends Controller
                         auth()->user()->operator_id,
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
-                        Operator::where('code', 'UL_ST')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
                     ]
                 ]);
             } else {

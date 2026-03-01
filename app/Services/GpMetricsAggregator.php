@@ -96,7 +96,7 @@ class GpMetricsAggregator
                 DB::raw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END'),
             ]);
 
-        $multiRevenueExpression = 'COALESCE(vend_transaction_items.unit_price_amount, 0)';
+        $multiRevenueExpression = 'ROUND(COALESCE(vend_transaction_items.unit_price_amount, 0) / (1 + COALESCE(vend_transactions.gst_vat_rate, 0) / 100))';
         $multiUnitCostExpression = 'ROUND(COALESCE(vend_transaction_items.unit_cost, 0) * 100)';
         $multiGrossProfitExpression = '(' . $multiRevenueExpression . ' - ' . $multiUnitCostExpression . ')';
 

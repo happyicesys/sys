@@ -72,19 +72,11 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                     ELSE COALESCE(NULLIF(vend_transactions.qty, 0), 1)
                 END
             "));
-            $todayErrorCount = $todayTxns->clone()->isError()->count();
+            $todayErrorCount = $this->calculateErrorItemCount($todayTxns);
             $todayRevenue = (int) $todayTxns->clone()->isSuccessful()->sum('revenue');
             $todayGrossProfit = (int) $todayTxns->clone()->isSuccessful()->sum('gross_profit');
 
-            $todayChannelErrors = VendChannelErrorLog::whereHas('vendChannel', function ($q) use ($vend) {
-                $q->where('vend_id', $vend->id);
-            })
-                ->where('created_at', '>=', Carbon::today())
-                ->whereNull('vend_transaction_id')
-                ->count();
-
-            $todayErrorCount += $todayChannelErrors;
-            $todayAllCount += $todayChannelErrors;
+            // Calculate from vend_transactions only, ignoring heartbeat errors
 
             $records1 = $vend->daysVendRecords(1, 1)->get();
             $records3 = $vend->daysVendRecords(3, 0)->get();
@@ -146,19 +138,11 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                     ELSE COALESCE(NULLIF(vend_transactions.qty, 0), 1)
                 END
             "));
-            $todayErrorCount = $todayTxns->clone()->isError()->count();
+            $todayErrorCount = $this->calculateErrorItemCount($todayTxns);
             $todayRevenue = (int) $todayTxns->clone()->isSuccessful()->sum('revenue');
             $todayGrossProfit = (int) $todayTxns->clone()->isSuccessful()->sum('gross_profit');
 
-            $todayChannelErrors = VendChannelErrorLog::whereHas('vendChannel.vend', function ($q) use ($customer) {
-                $q->where('customer_id', $customer->id);
-            })
-                ->where('created_at', '>=', Carbon::today())
-                ->whereNull('vend_transaction_id')
-                ->count();
-
-            $todayErrorCount += $todayChannelErrors;
-            $todayAllCount += $todayChannelErrors;
+            // Calculate from vend_transactions only, ignoring heartbeat errors
 
             $records1 = $customer->daysVendRecords(1, 1)->get();
             $records3 = $customer->daysVendRecords(3, 0)->get();
@@ -237,6 +221,33 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                 ) as total_count
             ')
             ->value('total_count');
+
+        return (int) ($result ?? 0);
+    }
+
+    private function calculateErrorItemCount($transactionQuery): int
+    {
+        $result = $transactionQuery
+            ->clone()
+            ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
+            ->selectRaw("
+                SUM(
+                    CASE
+                        WHEN vend_transactions.is_multiple = 1 THEN
+                            (SELECT COUNT(*) FROM vend_transaction_items
+                             LEFT JOIN vend_channel_errors AS vce ON vend_transaction_items.vend_channel_error_id = vce.id
+                             WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id
+                               AND vce.code != 0
+                            )
+                        ELSE
+                            CASE
+                                WHEN vend_channel_errors.code != 0 OR JSON_UNQUOTE(JSON_EXTRACT(vend_transactions.vend_transaction_json, '$.GET_TYPE')) != '1' THEN 1
+                                ELSE 0
+                            END
+                    END
+                ) as error_count
+            ")
+            ->value('error_count');
 
         return (int) ($result ?? 0);
     }

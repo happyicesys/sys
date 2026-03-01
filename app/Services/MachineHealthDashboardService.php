@@ -478,8 +478,7 @@ class MachineHealthDashboardService
                 ->join('customers', 'vends.customer_id', '=', 'customers.id')
                 ->leftJoin('operators', 'vends.operator_id', '=', 'operators.id')
                 ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
-                ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
-                ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
+                ->whereNotNull('vend_channel_error_logs.vend_transaction_id')
                 ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
                 ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
                 ->when(!$filters['show_all_errors'], function ($q) {
@@ -504,12 +503,12 @@ class MachineHealthDashboardService
                 'customers.name as customer_name',
                 'operators.name as operator_name',
                 'vend_prefixes.name as vend_prefix_name',
-                DB::raw('COUNT(DISTINCT vend_channel_error_logs.vend_transaction_id) + COUNT(CASE WHEN vend_channel_error_logs.vend_transaction_id IS NULL THEN 1 END) as total_events'),
+                DB::raw('COUNT(DISTINCT vend_channel_error_logs.vend_transaction_id) as total_events'),
                 DB::raw('MAX(vend_channel_error_logs.created_at) as last_event_at'),
             ];
 
             foreach ($definition['codes'] as $code) {
-                $selects[] = DB::raw("COUNT(DISTINCT CASE WHEN vend_channel_errors.code = {$code} THEN vend_channel_error_logs.vend_transaction_id END) + COUNT(CASE WHEN vend_channel_errors.code = {$code} AND vend_channel_error_logs.vend_transaction_id IS NULL THEN 1 END) as code_{$code}_count");
+                $selects[] = DB::raw("COUNT(DISTINCT CASE WHEN vend_channel_errors.code = {$code} THEN vend_channel_error_logs.vend_transaction_id END) as code_{$code}_count");
             }
 
             $rows = $query
@@ -529,8 +528,7 @@ class MachineHealthDashboardService
                     ->whereIn('vend_channel_error_logs.vend_channel_id', function ($query) use ($vendIds) {
                         $query->select('id')->from('vend_channels')->whereIn('vend_id', $vendIds);
                     })
-                    ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
-                    ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
+                    ->whereNotNull('vend_channel_error_logs.vend_transaction_id')
                     ->whereBetween('vend_channel_error_logs.created_at', [$periodStart, $periodEnd])
                     ->whereIn('vend_channel_error_logs.vend_channel_error_id', $errorIds)
                     ->when(!$filters['show_all_errors'], function ($q) {

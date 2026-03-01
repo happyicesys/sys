@@ -349,7 +349,7 @@ class ReportController extends Controller
         }
 
         if ($operatorCode === 'HIPL') {
-            $codes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP', 'UL_ST'];
+            $codes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
             $ids = $operatorOptions
                 ? $operatorOptions->whereIn('code', $codes)->pluck('id')->all()
                 : Operator::whereIn('code', $codes)->pluck('id')->all();
@@ -673,10 +673,8 @@ class ReportController extends Controller
                         auth()->user()->operator_id,
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
-                        Operator::where('code', 'UL_ST')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
                     ])
                 ]);
             } else {
@@ -727,10 +725,8 @@ class ReportController extends Controller
                         auth()->user()->operator_id,
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
-                        Operator::where('code', 'UL_ST')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
                     ]
                 ]);
             } else {
@@ -839,9 +835,8 @@ class ReportController extends Controller
                         auth()->user()->operator_id,
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
                     ]
                 ]);
             } else {
@@ -915,9 +910,8 @@ class ReportController extends Controller
                         auth()->user()->operator_id,
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'DCVIC')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'IP')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
                     ]
                 ]);
             } else {
@@ -1342,7 +1336,7 @@ class ReportController extends Controller
             $transactionsQuery = $this->baseVendRecordsQuery($request, $start, $end);
 
             $countColumn = 'vr.total_count';
-            $amountColumn = 'vr.total_amount';
+            $amountColumn = 'vr.revenue';
 
             switch ($className) {
                 case 'categories':
@@ -1450,50 +1444,20 @@ class ReportController extends Controller
 
     private function getLiveVendRecordsQuery(Carbon $from, Carbon $to)
     {
-        $successfulItemsExpression = <<<SQL
-CASE
-    WHEN vend_transactions.success_qty IS NOT NULL AND vend_transactions.success_qty > 0 THEN vend_transactions.success_qty
-    WHEN (vend_transactions.success_qty IS NULL OR vend_transactions.success_qty = 0)
-         AND (
-             vend_transactions.vend_channel_error_id IS NULL
-             OR vend_channel_errors.code IN (0, 6)
-             OR vend_transactions.is_multiple = 1
-         )
-    THEN COALESCE(vend_transactions.qty, 0)
-    ELSE 0
-END
-SQL;
+        $rawQuery = GpMetricsAggregator::buildRawQuery($from, $to);
 
-        return VendTransaction::query()
-            ->join('vends', 'vend_transactions.vend_id', '=', 'vends.id')
-            ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
-            ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
-            ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
-            ->whereBetween('vend_transactions.transaction_datetime', [$from, $to])
-            ->where('vend_transactions.amount', '>', 0)
-            ->groupBy('date', 'vends.id', 'customers.id')
+        return DB::query()->fromSub($rawQuery, 'gm')
+            ->groupBy('date', 'vend_id', 'customer_id')
             ->select(
-                'vends.id AS vend_id',
-                'customers.id AS customer_id',
-                'vend_transactions.operator_id',
-                'location_types.id AS location_type_id',
-                'vends.vend_prefix_id',
-                'vends.vend_model_id',
-                DB::raw('DATE(vend_transactions.transaction_datetime) as date'),
-                DB::raw(
-                    "SUM({$successfulItemsExpression}) as total_count"
-                ),
-                DB::raw(
-                    'COALESCE(SUM(
-                        CASE
-                            WHEN vend_channel_error_id IS NULL THEN amount
-                            WHEN vend_channel_errors.code = 0 THEN amount
-                            WHEN vend_channel_errors.code = 6 THEN amount
-                            WHEN is_multiple = 1 THEN amount
-                            ELSE 0
-                        END
-                    ),0) as total_amount'
-                )
+                'vend_id',
+                'customer_id',
+                'operator_id',
+                'transaction_location_type_id AS location_type_id',
+                'vend_prefix_id',
+                'vend_model_id',
+                DB::raw('txn_date as date'),
+                DB::raw('SUM(sale_count) as total_count'),
+                DB::raw('SUM(revenue_cents) as total_amount')
             );
     }
 
