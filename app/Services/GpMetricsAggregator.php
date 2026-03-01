@@ -112,6 +112,11 @@ class GpMetricsAggregator
             })
             ->where('vend_transactions.amount', '>', 0)
             ->where('vend_transactions.is_multiple', true)
+            ->where(function ($query) {
+                $query->whereIn('vend_transaction_items.vend_channel_error_id', [1, 5])
+                    ->orWhereNull('vend_transaction_items.vend_channel_error_id')
+                    ->orWhereIn('vend_transaction_items.vend_channel_error_code', [0, 6]);
+            })
             ->selectRaw("$transactionDateExpression as txn_date")
             ->selectRaw('vend_transactions.operator_id as operator_id')
             ->selectRaw('vend_transactions.vend_id as vend_id')

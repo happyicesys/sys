@@ -279,16 +279,24 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $windowCurrentStart = $now->copy()->subHours(24);
         $windowPrevStart = $now->copy()->subHours(48);
 
-        // Single query to fetch all relevant temps for analysis to reduce DB round trips
-        $allTemps = VendTemp::where('vend_id', $vend->id)
+        // Optimized: Instead of hydrating thousands of models and sorting in PHP,
+        // we query for the lowest records directly from the database to reduce memory and execution time.
+        $currRecord = VendTemp::where('vend_id', $vend->id)
+            ->where('type', $tempType)
+            ->where('created_at', '>=', $windowCurrentStart)
+            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+            ->orderBy('value', 'asc')
+            ->orderBy('created_at', 'asc')
+            ->first();
+
+        $prevRecord = VendTemp::where('vend_id', $vend->id)
             ->where('type', $tempType)
             ->where('created_at', '>=', $windowPrevStart)
+            ->where('created_at', '<', $windowCurrentStart)
             ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+            ->orderBy('value', 'asc')
             ->orderBy('created_at', 'asc')
-            ->get();
-
-        $currRecord = $allTemps->filter(fn($t) => $t->created_at >= $windowCurrentStart)->sortBy('value')->first();
-        $prevRecord = $allTemps->filter(fn($t) => $t->created_at < $windowCurrentStart)->sortBy('value')->first();
+            ->first();
 
         $curr = $currRecord?->value;
         $prev = $prevRecord?->value;

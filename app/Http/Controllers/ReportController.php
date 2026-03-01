@@ -1289,33 +1289,28 @@ class ReportController extends Controller
             switch ($className) {
                 case 'products':
                     $transactionsQuery
-                        ->whereNotNull('gm.product_id')
                         ->selectRaw('gm.product_id as id')
                         ->selectRaw('MAX(products.code) as code')
                         ->selectRaw('MAX(products.name) as name');
                     break;
                 case 'categories':
                     $transactionsQuery
-                        ->whereNotNull('customers.category_id')
                         ->selectRaw('customers.category_id as id')
                         ->selectRaw('MAX(customer_categories.name) as name');
                     break;
                 case 'location_types':
                     $transactionsQuery
-                        ->whereNotNull('gm.transaction_location_type_id')
                         ->selectRaw('gm.transaction_location_type_id as id')
                         ->selectRaw('MAX(location_types.name) as name');
                     break;
                 case 'operators':
                     $transactionsQuery
-                        ->whereNotNull('gm.operator_id')
                         ->selectRaw('gm.operator_id as id')
                         ->selectRaw('MAX(operators.code) as code')
                         ->selectRaw('MAX(operators.name) as name');
                     break;
                 case 'vends':
                     $transactionsQuery
-                        ->whereNotNull('gm.vend_id')
                         ->selectRaw('gm.vend_id as id')
                         ->selectRaw('MAX(vends.code) as code')
                         ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (", IFNULL(current_vend_prefixes.name, \'\'),") - ", IFNULL(customers.name, \'\')) ELSE vends.name END) as name')
@@ -1324,7 +1319,6 @@ class ReportController extends Controller
                     break;
                 case 'customers':
                     $transactionsQuery
-                        ->whereNotNull('gm.customer_id')
                         ->selectRaw('gm.customer_id as id')
                         ->selectRaw('MAX(gm.customer_id + 20000) as code')
                         ->selectRaw('MAX(CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\'), " - ", IFNULL(customers.name, \'\')) ELSE customers.name END) as name')
@@ -1341,19 +1335,16 @@ class ReportController extends Controller
             switch ($className) {
                 case 'categories':
                     $transactionsQuery
-                        ->whereNotNull('customers.category_id')
                         ->selectRaw('customers.category_id as id')
                         ->selectRaw('MAX(categories.name) as name');
                     break;
                 case 'location_types':
                     $transactionsQuery
-                        ->whereNotNull('vr.location_type_id')
                         ->selectRaw('vr.location_type_id as id')
                         ->selectRaw('MAX(location_types.name) as name');
                     break;
                 case 'operators':
                     $transactionsQuery
-                        ->whereNotNull('vr.operator_id')
                         ->selectRaw('vr.operator_id as id')
                         ->selectRaw('MAX(operators.code) as code')
                         ->selectRaw('MAX(operators.name) as name');
@@ -1361,7 +1352,6 @@ class ReportController extends Controller
                 case 'vends':
                     $transactionsQuery
                         ->leftJoin('vend_models as current_vend_models', 'vends.vend_model_id', '=', 'current_vend_models.id')
-                        ->whereNotNull('vr.vend_id')
                         ->selectRaw('vr.vend_id as id')
                         ->selectRaw('MAX(vends.code) as code')
                         ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (", IFNULL(current_vend_prefixes.name, \'\'),") - ", IFNULL(customers.name, \'\')) ELSE vends.name END) as name')
@@ -1371,7 +1361,6 @@ class ReportController extends Controller
                 case 'customers':
                     $transactionsQuery
                         ->leftJoin('vend_models as current_vend_models', 'vends.vend_model_id', '=', 'current_vend_models.id')
-                        ->whereNotNull('vr.customer_id')
                         ->selectRaw('vr.customer_id as id')
                         ->selectRaw('MAX(vr.customer_id + 20000) as code')
                         ->selectRaw('MAX(CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\'), " - ", IFNULL(customers.name, \'\')) ELSE customers.name END) as name')
@@ -1409,7 +1398,8 @@ class ReportController extends Controller
                     'vr.vend_model_id',
                     'vr.date',
                     'vr.total_count',
-                    'vr.total_amount'
+                    'vr.total_amount',
+                    'vr.revenue'
                 )
                 ->whereBetween('vr.date', [$start, $end])
                 ->where('vr.date', '<', $today->toDateString());
@@ -1457,7 +1447,8 @@ class ReportController extends Controller
                 'vend_model_id',
                 DB::raw('txn_date as date'),
                 DB::raw('SUM(sale_count) as total_count'),
-                DB::raw('SUM(revenue_cents) as total_amount')
+                DB::raw('SUM(revenue_cents) as total_amount'),
+                DB::raw('SUM(revenue_cents) as revenue')
             );
     }
 
