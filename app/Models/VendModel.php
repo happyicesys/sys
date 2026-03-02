@@ -11,7 +11,8 @@ class VendModel extends Model
 
     protected $fillable = [
         'name',
-        'desc'
+        'desc',
+        'is_sortable'
     ];
 
     public function vends()

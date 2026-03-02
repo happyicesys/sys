@@ -755,6 +755,13 @@ trait HasFilter
                     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 } else {
                     if ($search == 'balance_percent' or $search == 'out_of_stock_sku_percent') {
+                        $excludedModelIds = \App\Models\VendModel::where('is_sortable', false)->pluck('id')->toArray();
+
+                        if (!empty($excludedModelIds)) {
+                            $excludedModelIdsString = implode(',', $excludedModelIds);
+                            $query->orderByRaw('vends.vend_model_id IN (' . $excludedModelIdsString . ') ASC');
+                        }
+
                         $query->orderByRaw('ISNULL(' . $search . '), ' . $search . ' ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     } elseif ($search == 'temp_diff') {
                         $query->orderByRaw('(temp - CAST(json_unquote(json_extract(parameter_json, "$.t2")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
