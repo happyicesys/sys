@@ -275,6 +275,31 @@ class ReportController extends Controller
         $hasMore = $logs->count() > $limit;
         $logs = $logs->take($limit);
 
+        // For connectivity: exclude vends whose LATEST alert is already in a different (higher) bucket.
+        // This prevents machines that escalated (e.g., < 12hr → > 12hr) from still appearing in the
+        // lower-tier history list.
+        if ($type === 'connectivity' && $logs->isNotEmpty()) {
+            $allVendIdsInLog = $logs->pluck('vend_id')->unique()->all();
+            $latestBucketPerVend = \App\Models\MachineHealthHistory::where('event', 'machine_health_alert')
+                ->where('alert_type', 'connectivity')
+                ->whereIn('vend_id', $allVendIdsInLog)
+                ->selectRaw('vend_id, bucket')
+                ->orderByDesc('occurred_at')
+                ->get()
+                ->unique('vend_id')
+                ->pluck('bucket', 'vend_id');
+
+            $excludeVendIds = $latestBucketPerVend
+                ->filter(fn($b) => $b !== $bucket)
+                ->keys()
+                ->all();
+
+            if (!empty($excludeVendIds)) {
+                $logs = $logs->reject(fn($log) => in_array($log->vend_id, $excludeVendIds))->values();
+                $hasMore = false; // conservative: reset pagination after in-memory filter
+            }
+        }
+
         // Optimization: Pre-fetch all dismissal logs for these vends in one query
         $vendIds = $logs->pluck('vend_id')->unique()->all();
         $dismissals = collect();
@@ -355,7 +380,16 @@ class ReportController extends Controller
 
                 $last = empty($dates) ? null : max($dates);
                 $res['last_contact_at'] = $last ? \Carbon\Carbon::parse($last)->toIso8601String() : null;
-                $res['hours_offline'] = $last ? max(0, round(\Carbon\Carbon::parse($last)->diffInMinutes(\Carbon\Carbon::now()) / 60, 2)) : 0;
+
+                // Prefer the hours_offline value stored in the log context at the time of alert logging.
+                // Recalculating from current machine state gives wrong values:
+                //  - Dismissed machines show ~0 hrs (they're back online now)
+                //  - Escalated machines show the current (larger) value instead of when they crossed the threshold
+                if (isset($log->context['hours_offline'])) {
+                    $res['hours_offline'] = max(0, round((float) $log->context['hours_offline'], 2));
+                } else {
+                    $res['hours_offline'] = $last ? max(0, round(\Carbon\Carbon::parse($last)->diffInMinutes(\Carbon\Carbon::now()) / 60, 2)) : 0;
+                }
 
                 return $res;
             }),
