@@ -407,6 +407,15 @@ function buildAnnotations() {
 
     if (!shortLabel) return
 
+    // Skip 2A (comp_fan_off) markers for machines without a fan:
+    //  - N/A  → !vend.is_fan_enabled (Fan Signal Disabled)
+    //  - "--"  → 'fan' key missing from parameterJson (Fan Signal Missing)
+    if (alertType === 'comp_fan_off') {
+      const hasFanEnabled = vend.value && vend.value.is_fan_enabled
+      const hasFanKey = vend.value && vend.value.parameterJson && 'fan' in vend.value.parameterJson
+      if (!hasFanEnabled || !hasFanKey) return
+    }
+
     if (isTriggered) {
       if (hasSeenLogForType[shortLabel] && activeAlertTypes[shortLabel]) {
         return // Ignore tier escalations, only show initial trigger in timeframe

@@ -315,29 +315,36 @@ class ReportController extends Controller
                 // Find the first dismissal for this vend that happened AFTER this alert
                 $dismissLog = ($dismissals->get($log->vend_id) ?? collect())
                     ->filter(function ($d) use ($log, $bucket) {
-                    // Match same bucket and type/alert_type
+                    // Match same bucket
                     if (($d->context['bucket'] ?? null) !== $bucket)
                         return false;
+                    // Match same type
                     if (($log->context['type'] ?? null) !== ($d->context['type'] ?? null))
                         return false;
+                    // Match same alert_type AND must have occurred after the trigger
                     if (($log->context['alert_type'] ?? null) !== ($d->context['alert_type'] ?? null))
-                        return $d->occurred_at >= $log->occurred_at;
+                        return false;
+                    return $d->occurred_at >= $log->occurred_at;
                 })
                     ->first();
 
-                // Backward Compatibility: If no explicit dismissed log is found, guess it from legacy inactive VendSmartAlerts
-                if (!$res['dismissed_at'] && $type !== 'connectivity') {
+                // Primary: use the explicit dismissed log if found
+                if ($dismissLog) {
+                    $res['dismissed_at'] = $dismissLog->occurred_at->toIso8601String();
+                } elseif ($log->context['dismissed_at'] ?? null) {
+                    // Secondary: use dismissed_at stored in the alert's own context
+                    $res['dismissed_at'] = $log->context['dismissed_at'];
+                } elseif ($type !== 'connectivity') {
+                    // Backward Compatibility: fall back to legacy inactive VendSmartAlerts
                     $smartAlert = ($legacySmartAlerts->get($log->vend_id) ?? collect())
                         ->filter(function ($a) use ($log) {
-                            return $a->updated_at >= $log->occurred_at;
-                        })
+                        return $a->updated_at >= $log->occurred_at;
+                    })
                         ->first();
-                    if ($smartAlert) {
-                        $res['dismissed_at'] = $smartAlert->updated_at->toIso8601String();
-                    }
+                    $res['dismissed_at'] = $smartAlert ? $smartAlert->updated_at->toIso8601String() : null;
+                } else {
+                    $res['dismissed_at'] = null;
                 }
-
-                $res['dismissed_at'] = $dismissLog ? $dismissLog->occurred_at->toIso8601String() : ($log->context['dismissed_at'] ?? null);
 
                 $dates = array_filter([
                     $log->vend->mqtt_last_updated_at,

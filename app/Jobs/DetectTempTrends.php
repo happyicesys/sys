@@ -384,34 +384,41 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
 
         // --- Logic: 1B) Compressor & or Fan OFF ---
-        $latestFan = \App\Models\VendFan::where('vend_id', $vendId)->where('type', \App\Models\VendFan::TYPE_MAIN)->orderBy('created_at', 'desc')->first();
-
-        $fanIsOff = false;
-        $startOff = $now;
-        if ($latestFan) {
-            $recentActiveFan = \App\Models\VendFan::where('vend_id', $vendId)
-                ->where('type', \App\Models\VendFan::TYPE_MAIN)
-                ->where('value', '>', 0)
-                ->where('created_at', '>=', $now->copy()->subHours(8))
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            if ($recentActiveFan) {
-                $fanIsOff = $now->diffInMinutes($recentActiveFan->created_at) > 40;
-                $startOff = $recentActiveFan->created_at;
-            } else {
-                $fanIsOff = true;
-                $startOff = $now->copy()->subHours(8); // Bound backtrace history to 8 hours to avoid db full table scan
-            }
-        }
-
-        if ($fanIsOff && $vend->is_online) {
-            if (!isset($state['comp_fan_off_start'])) {
-                $newState['comp_fan_off_start'] = $startOff->toIso8601String();
-            }
-        } else {
+        // Skip entirely for machines without a fan signal (is_fan_enabled = false → "N/A" badge in CustomerIndex)
+        if (!$vend->is_fan_enabled) {
+            // Ensure any lingering alert is cleared immediately for fan-less machines
             unset($newState['comp_fan_off_start']);
             $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 45 mins', '> 60 mins'], $existingAlerts);
+        } else {
+            $latestFan = \App\Models\VendFan::where('vend_id', $vendId)->where('type', \App\Models\VendFan::TYPE_MAIN)->orderBy('created_at', 'desc')->first();
+
+            $fanIsOff = false;
+            $startOff = $now;
+            if ($latestFan) {
+                $recentActiveFan = \App\Models\VendFan::where('vend_id', $vendId)
+                    ->where('type', \App\Models\VendFan::TYPE_MAIN)
+                    ->where('value', '>', 0)
+                    ->where('created_at', '>=', $now->copy()->subHours(8))
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                if ($recentActiveFan) {
+                    $fanIsOff = $now->diffInMinutes($recentActiveFan->created_at) > 40;
+                    $startOff = $recentActiveFan->created_at;
+                } else {
+                    $fanIsOff = true;
+                    $startOff = $now->copy()->subHours(8); // Bound backtrace history to 8 hours to avoid db full table scan
+                }
+            }
+
+            if ($fanIsOff && $vend->is_online) {
+                if (!isset($state['comp_fan_off_start'])) {
+                    $newState['comp_fan_off_start'] = $startOff->toIso8601String();
+                }
+            } else {
+                unset($newState['comp_fan_off_start']);
+                $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 45 mins', '> 60 mins'], $existingAlerts);
+            }
         }
 
         // --- Logic: T1 & T2 > 0 (Warm) ---
