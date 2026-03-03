@@ -325,21 +325,21 @@ const matrix21 = computed(() => {
       // NOTE: Temporarily hidden — do NOT delete (user may want to restore)
       // {
       //     id: 't1_higher_than_t2',
-      //     label: '2.1A) T1 higher than T2, >7°C',
+      //     label: 'T1 higher than T2, >7°C',
       //     sub: 'Possible component issue:\ni) Fan not function\nii) Temp probe malfunction',
       //     types: ['t1_higher_than_t2'],
       //     headers: { 1: '> 10 mins', 2: '> 30 mins' }
       // },
       {
           id: 'comp_fan_off',
-          label: '2.1A) Compressor & or Fan, in OFF condition',
+          label: '2A) Compressor & or Fan, in OFF condition',
           sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after defrost or resting\niii) Comp is working, but Fan not turning',
           types: ['comp_fan_off'],
           headers: { 1: '> 45 mins', 2: '> 60 mins' }
       },
       {
           id: 'temps_above_0',
-          label: '2.1B) T1 & or T2, above 0°C',
+          label: '2B) T1 & or T2, above 0°C',
           sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after forced defrost\n\nPossible Operation issue:\niii) Freezer door not close tight\niv) Open freezer door >15mins',
           note: 'Alert dismissed once temp below 0c',
           types: ['temps_above_0'],
@@ -347,7 +347,7 @@ const matrix21 = computed(() => {
       },
       {
           id: 'temps_above_minus_8',
-          label: '2.1C) T1 & or T2, above -8°C',
+          label: '2C) T1 & or T2, above -8°C',
           sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins',
           note: 'Alert dismissed once temp below -8c',
           types: ['temps_above_minus_8'],
@@ -355,7 +355,7 @@ const matrix21 = computed(() => {
       },
       {
           id: 'not_reach_minus_18',
-          label: '2.1D) T1 & or T2, did not reach -18°C',
+          label: '2D) T1 & or T2, did not reach -18°C',
           sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Many purchases occur',
           note: 'Alert dismissed once temp below -18c',
           types: ['not_reach_minus_18'],
@@ -372,7 +372,7 @@ const matrix22 = computed(() => {
     const meta = [
         {
             id: 'lowest_24h',
-            label: '2.2A) T1 & T2 lowest (last 24hrs)',
+            label: '3A) T1 & T2 lowest (last 24hrs)',
             sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Defrost drain hole air-leak\niii) Fan/Comp ageing\niv) Many purchases occur',
             note: null,
             types: ['lowest_24h_above'],
@@ -380,7 +380,7 @@ const matrix22 = computed(() => {
         },
         {
             id: 'lowest_72h',
-            label: '2.2B) T1 & T2 lowest (last 72hrs)',
+            label: '3B) T1 & T2 lowest (last 72hrs)',
             sub: 'Possible caused by:\ni) Door\'s seal air leak\nii) Defrost drain hole air-leak\niii) Fan/Comp ageing\niv) Temp probe malfunction',
             note: null,
             types: ['lowest_72h_above'],
@@ -388,7 +388,7 @@ const matrix22 = computed(() => {
         },
         {
             id: 'rising_lowest',
-            label: '2.2C) Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
+            label: '3C) Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
             sub: 'Possible caused by:\ni) Defrost not clean/enough\nii) Door\'s seal air leak\niii) Defrost drain hole air-leak',
             note: null,
             types: ['rising_t1_trend', 'rising_t2_trend'],
@@ -396,7 +396,7 @@ const matrix22 = computed(() => {
         },
         {
             id: 't2_frozen',
-            label: '2.2D) T2, never above 2°C',
+            label: '3D) T2, never above 2°C',
             sub: 'Possible caused by:\ni) Defrost fail\nii) Defrost not clean/enough\niii) Temp probe malfunction',
             note: '\u2022 only for E/F/EG\n\u2022 exclude UDD\nAuto dismiss alert, once T2 reaches to -23.5c',
             types: ['t2_frozen'],
@@ -735,7 +735,7 @@ const formatErrorDesc = (code, desc) => {
   if (codeNum === 3) {
     text = 'Microswitch not detected (Channel locked)'
   } else if (codeNum === 5) {
-    text = 'Current overlimit, motor not turning'
+    text = 'Current overlimit, motor not turning (Channel locked)'
   } else if (codeNum === 6) {
     text = 'Microswitch pressed over time (Channel locked)'
   } else if (codeNum === 7) {
@@ -761,7 +761,7 @@ const historyHasMore = ref(false)
 const historyNextCursor = ref(null)
 const historyParams = reactive({ type: null, bucket: null, filters: {} })
 
-const fetchHistory = async (type, bucket, title, cursor = null) => {
+const fetchHistory = async (type, bucket, title, cursor = null, activeVends = null) => {
     if (!cursor) {
         historyTitle.value = title
         historyLogs.value = []
@@ -777,6 +777,25 @@ const fetchHistory = async (type, bucket, title, cursor = null) => {
             machine_codes: filters.machine_codes_input ? String(filters.machine_codes_input).split(',').map(s => s.trim()).filter(Boolean) : []
         }
         showHistoryModal.value = true
+
+        // 1) Inject active UI vends into the top of the history list if they exist
+        if (activeVends && Array.isArray(activeVends)) {
+             const activeMapped = activeVends.map(vend => ({
+                  id: 'active-' + vend.vend_id,
+                  // fallback to current time if no known trigger time on the row
+                  occurred_at: vend.updated_at || vend.last_contact_at || new Date().toISOString(),
+                  vend_code: vend.vend_code,
+                  vend_name: vend.vend_name,
+                  vend_prefix_name: vend.vend_prefix_name,
+                  customer_name: vend.customer_name,
+                  operator_name: vend.operator_name,
+                  dismissed_at: null, // Active means no dismissal
+                  last_contact_at: vend.last_contact_at,
+                  hours_offline: vend.hours_offline,
+                  is_live_active: true // optional marker
+             }));
+             historyLogs.value.push(...activeMapped);
+        }
     }
 
     historyLoading.value = true
@@ -790,10 +809,19 @@ const fetchHistory = async (type, bucket, title, cursor = null) => {
                 ...historyParams.filters
             }
         })
+
+        // Filter out API logs that are exactly the active injected rows (same vend code, undismissed) to prevent true duplicates
+        const newLogs = response.data.data.filter(log => {
+             if (!log.dismissed_at && historyLogs.value.some(existing => existing.is_live_active && existing.vend_code === log.vend_code)) {
+                  return false; // already injected from UI
+             }
+             return true;
+        })
+
         if (cursor) {
-            historyLogs.value.push(...response.data.data)
+            historyLogs.value.push(...newLogs)
         } else {
-            historyLogs.value = response.data.data
+            historyLogs.value.push(...newLogs)
         }
         historyHasMore.value = response.data.has_more
         historyNextCursor.value = response.data.next_cursor
@@ -936,7 +964,7 @@ const loadMoreHistory = () => {
                           Max 60hr
                         </span>
                       </span>
-                      <button @click="fetchHistory('connectivity', bucket.label, 'Offline History (' + bucket.label + ')')" class="text-gray-500 hover:text-indigo-600">
+                      <button @click="fetchHistory('connectivity', bucket.label, 'Offline History (' + bucket.label + ')', null, bucket.rows)" class="text-gray-500 hover:text-indigo-600">
                           <ClockIcon class="w-4 h-4" />
                       </button>
                     </h4>
@@ -995,7 +1023,7 @@ const loadMoreHistory = () => {
 
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900">(2) Temperature Alert</h3>
+            <h3 class="text-lg font-semibold text-gray-900">Temperature Alert</h3>
             <div class="text-sm text-gray-500">
               <div>T1 = Machine's freezer temp</div>
               <div>T2 = Evaporator Temp</div>
@@ -1189,10 +1217,10 @@ const loadMoreHistory = () => {
             </div>
             </div>
 
-              <!-- (2.1) Operation Error / Critical Parts Failure -->
+              <!-- (2) Operation Error / Critical Parts Failure -->
               <div class="mt-8">
                 <h4 class="text-sm font-bold text-gray-900 mb-4 bg-gray-100 p-2 rounded">
-                  (2.1) Operation Error / Critical Parts Failure
+                  (2) Operation Error / Critical Parts Failure
                 </h4>
                 <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
                   <div v-for="(group, idx) in matrix21" :key="group.id" class="border-b border-gray-200 last:border-b-0">
@@ -1211,7 +1239,7 @@ const loadMoreHistory = () => {
                         <div v-for="(header, sev) in group.headers" :key="sev" class="border-r border-gray-100 last:border-r-0 flex flex-col">
                             <div class="border-b border-red-800 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide shadow-sm flex justify-between items-center" :class="getMatrixHeaderClass(sev)">
                               <span>{{ header }}</span>
-                              <button @click="fetchHistory(group.types[0], header, group.label + ' - ' + header)" class="text-white hover:text-gray-200">
+                              <button @click="fetchHistory(group.types[0], header, group.label + ' - ' + header, null, group.cells[sev])" class="text-white hover:text-gray-200">
                                   <ClockIcon class="w-4 h-4" />
                               </button>
                             </div>
@@ -1287,10 +1315,10 @@ const loadMoreHistory = () => {
                 </div>
               </div>
 
-              <!-- (2.2) Preventive Maintenance -->
+              <!-- (3) Preventive Maintenance -->
               <div class="mt-8">
                 <h4 class="text-sm font-bold text-gray-900 mb-4 bg-gray-100 p-2 rounded">
-                  (2.2) Preventive maintenance / Temp raise alert
+                  (3) Preventive maintenance / Temp raise alert
                 </h4>
                 <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
                   <div v-for="(group, idx) in matrix22" :key="group.id" class="border-b border-gray-200 last:border-b-0">
@@ -1307,8 +1335,11 @@ const loadMoreHistory = () => {
                        <!-- Data Columns -->
                       <div class="md:col-span-3 grid" :style="`grid-template-columns: repeat(${Object.keys(group.headers).length}, minmax(0, 1fr))`">
                         <div v-for="(header, sev) in group.headers" :key="sev" class="border-r border-gray-100 last:border-r-0 flex flex-col">
-                            <div :class="getMatrixHeaderClassGray(sev)" class="border-b border-gray-600 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide">
-                              {{ header }}
+                            <div :class="getMatrixHeaderClassGray(sev)" class="border-b border-gray-600 px-3 py-2 text-xs font-semibold text-white uppercase tracking-wide flex justify-between items-center">
+                              <span>{{ header }}</span>
+                              <button @click="fetchHistory(group.types[0], header, group.label + ' - ' + header, null, group.cells[sev])" class="text-white hover:text-gray-200">
+                                  <ClockIcon class="w-4 h-4" />
+                              </button>
                             </div>
                             <div class="p-3 flex-1 space-y-3">
                                 <template v-if="group.cells[sev] && group.cells[sev].length">
@@ -1390,7 +1421,7 @@ const loadMoreHistory = () => {
 
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">(3) Alert on Lost of Transaction/Sales</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">(4) Alert on Lost of Transaction/Sales</h3>
 
             <div class="mb-5 rounded-md bg-blue-50 p-4 shadow-sm border border-blue-200">
               <div class="flex">
@@ -1777,7 +1808,7 @@ const loadMoreHistory = () => {
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-900">(4) Channel Errors</h3>
+              <h3 class="text-lg font-semibold text-gray-900">(5) Channel Errors</h3>
               <p class="text-sm text-gray-500">
                 Grouped by dispense stability vs. mechanical codes.
               </p>
@@ -1995,7 +2026,7 @@ const loadMoreHistory = () => {
         <section class="bg-white shadow-sm sm:rounded-lg">
           <div class="p-6">
             <h3 class="text-lg font-semibold text-gray-900">
-              (5) Stockout KPI Overview
+              (6) Stockout KPI Overview
             </h3>
             <p class="text-sm text-gray-500">
               Rolling {{ stockouts.metadata?.lookback_days ?? 30 }}-day window based on

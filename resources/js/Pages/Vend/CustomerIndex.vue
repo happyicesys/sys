@@ -1111,29 +1111,49 @@
 								<span class="text-[10px] font-bold">Fan RPM</span>
 								<span>N/A</span>
 							</div>
-							<div
+							<a
 								v-else-if="vend.parameterJson && 'fan' in vend.parameterJson"
-								class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px]"
-								:class="[
-									(vend.is_online || vend.is_testing)
-										? (vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'
-											? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 text-gray-800' : 'bg-red-200 text-gray-800')
-											: 'bg-gray-200 text-gray-500')
-										: 'bg-gray-300 text-gray-600'
-								]"
-								v-tooltip="{ content: 'Fan Speed Signal exists' }"
+								:href="'/vends/' + vend.vend_id + '/temp/' + 1 "
+								target="_blank"
+								class="w-full mt-1"
 							>
-								<span class="text-[10px] font-bold">Fan RPM</span>
-								<span>{{ vend.parameterJson['fan'] }}</span>
-							</div>
-							<div
+								<button
+									type="button"
+									class="flex flex-col items-center justify-center border border-transparent rounded-md p-1 min-w-[80px] w-full focus:outline-none disabled:opacity-25 transition ease-in-out duration-150"
+									:class="[
+										(vend.is_online || vend.is_testing)
+											? (vend.parameterJson['fan'] !== null && vend.parameterJson['fan'] !== undefined && vend.parameterJson['fan'] !== 'NaN'
+												? (vend.parameterJson['fan'] > 0 ? 'bg-green-200 active:bg-green-300 hover:bg-green-300 text-gray-800' : 'bg-red-200 active:bg-red-300 hover:bg-red-300 text-gray-800')
+												: 'bg-gray-200 text-gray-500')
+											: 'bg-gray-300 text-gray-600'
+									]"
+									v-tooltip="{ content: 'Fan Speed Signal exists' }"
+								>
+									<span class="text-[10px] font-bold">Fan RPM</span>
+									<div class="flex items-center justify-center w-full">
+										<span class="text-blue-800 underline">{{ vend.parameterJson['fan'] }}</span>
+										<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+									</div>
+								</button>
+							</a>
+							<a
 								v-else
-								class="flex flex-col items-center justify-center border rounded-md p-1 min-w-[80px] bg-gray-300 text-gray-600"
-								v-tooltip="{ content: 'Fan Speed Signal Missing' }"
+								:href="'/vends/' + vend.vend_id + '/temp/' + 1 "
+								target="_blank"
+								class="w-full mt-1"
 							>
-								<span class="text-[10px] font-bold">Fan RPM</span>
-								<span>--</span>
-							</div>
+								<button
+									type="button"
+									class="flex flex-col items-center justify-center border border-transparent rounded-md p-1 min-w-[80px] w-full focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 bg-gray-300 hover:bg-gray-400 active:bg-gray-500 text-gray-600"
+									v-tooltip="{ content: 'Fan Speed Signal Missing' }"
+								>
+									<span class="text-[10px] font-bold">Fan RPM</span>
+									<div class="flex items-center justify-center w-full">
+										<span class="text-blue-800 underline">--</span>
+										<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
+									</div>
+								</button>
+							</a>
 
 						</div>
 					</TableData>

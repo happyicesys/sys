@@ -336,29 +336,29 @@ const showMarkers = ref(true)
 // Map alert_type -> short dashboard label
 const ALERT_TYPE_LABEL = {
   'connectivity':        '1',
-  'comp_fan_off':        '2.1A',
-  'temps_above_0':       '2.1B',
-  'temps_above_minus_8': '2.1C',
-  'not_reach_minus_18':  '2.1D',
-  'lowest_24h_above':    '2.2A',
-  'lowest_72h_above':    '2.2B',
-  'rising_t1_trend':     '2.2C',
-  'rising_t2_trend':     '2.2C',
-  't2_frozen':           '2.2D',
-  't1_higher_than_t2':   '2.1A',
+  'comp_fan_off':        '2A',
+  'temps_above_0':       '2B',
+  'temps_above_minus_8': '2C',
+  'not_reach_minus_18':  '2D',
+  'lowest_24h_above':    '3A',
+  'lowest_72h_above':    '3B',
+  'rising_t1_trend':     '3C',
+  'rising_t2_trend':     '3C',
+  't2_frozen':           '3D',
+  't1_higher_than_t2':   'T1>T2',
 }
 
 // Map alert_type -> human readable title
 const ALERT_TYPE_TITLE = {
   'connectivity':        'Connectivity',
-  'comp_fan_off':        'Compressor & or Fan OFF',
+  'comp_fan_off':        'Compressor & or Fan, in OFF condition',
   'temps_above_0':       'T1 & or T2, above 0°C',
   'temps_above_minus_8': 'T1 & or T2, above -8°C',
   'not_reach_minus_18':  'T1 & or T2, did not reach -18°C',
   'lowest_24h_above':    'T1 & T2 lowest (last 24hrs)',
   'lowest_72h_above':    'T1 & T2 lowest (last 72hrs)',
-  'rising_t1_trend':     'Rising lowest T1',
-  'rising_t2_trend':     'Rising lowest T2',
+  'rising_t1_trend':     'Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
+  'rising_t2_trend':     'Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
   't2_frozen':           'T2, never above 2°C',
   't1_higher_than_t2':   'T1 higher than T2, >7°C',
 }
@@ -387,24 +387,38 @@ function buildAnnotations() {
     const alertType = log.alert_type
     const shortLabel = ALERT_TYPE_LABEL[alertType]
     const alertTitle = ALERT_TYPE_TITLE[alertType] || ''
-    const displaySubject = isDismissed && log.subject.includes('Dismissed') && alertTitle
-      ? log.subject.replace('Dismissed', alertTitle)
-      : log.subject
+
+    let displaySubject = log.subject
+    if (isDismissed) {
+      if (log.context?.bucket && alertTitle) {
+        displaySubject = `${alertTitle} (${log.context.bucket})`
+      } else {
+        displaySubject = log.subject.replace(/\[?Dismissed\]?\s*/i, alertTitle ? alertTitle + ' ' : '').trim()
+      }
+    } else {
+      // It's triggered
+      if (log.context?.bucket && alertTitle) {
+        displaySubject = `${alertTitle} (${log.context.bucket})`
+      } else if (alertTitle) {
+        // Fallback: if we just don't have a bucket, at least show the proper full title
+        displaySubject = alertTitle
+      }
+    }
 
     if (!shortLabel) return
 
     if (isTriggered) {
-      if (hasSeenLogForType[alertType] && activeAlertTypes[alertType]) {
+      if (hasSeenLogForType[shortLabel] && activeAlertTypes[shortLabel]) {
         return // Ignore tier escalations, only show initial trigger in timeframe
       }
-      activeAlertTypes[alertType] = true
+      activeAlertTypes[shortLabel] = true
     } else if (isDismissed) {
-      if (hasSeenLogForType[alertType] && !activeAlertTypes[alertType]) {
+      if (hasSeenLogForType[shortLabel] && !activeAlertTypes[shortLabel]) {
         return // Already dismissed
       }
-      activeAlertTypes[alertType] = false
+      activeAlertTypes[shortLabel] = false
     }
-    hasSeenLogForType[alertType] = true
+    hasSeenLogForType[shortLabel] = true
 
     const currentMarkerIdx = markerCount++
     const color = isTriggered ? 'rgba(220,38,38,0.85)' : 'rgba(22,163,74,0.85)'
@@ -451,7 +465,7 @@ function buildAnnotations() {
         ctx.chart.canvas.style.cursor = 'pointer'
         const timeDisplay = `${tooltipTimeLabel}: ${moment(markerValue).format('YYYY-MM-DD HH:mm:ss')}`
         const triggerDisplay = eventStartedAt ? `\n(Triggered At: ${moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')})` : ''
-        ctx.element.options.label.content = `(${shortLabel}) ${displaySubject}\n${timeDisplay}${triggerDisplay}`
+        ctx.element.options.label.content = `[${shortLabel}] ${displaySubject}\n${timeDisplay}${triggerDisplay}`
         ctx.element.options.label.backgroundColor = isTriggered ? '#991b1b' : '#15803d'
         ctx.element.options.label.font.size = 12
         ctx.element.options.label.padding = { x: 8, y: 6 }
@@ -474,7 +488,7 @@ function buildAnnotations() {
         const triggerDisplay = eventStartedAt ? `\n(Triggered At: ${moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')})` : ''
         const message = `[${shortLabel}] ${displaySubject}\n${timeDisplay}${triggerDisplay}`
         const config = {
-          timeout: 15000,
+          timeout: 7500,
           position: "bottom-right"
         }
         if (isTriggered) {
@@ -816,12 +830,13 @@ function getVendTempsData() {
     vendTemps.value.forEach((vendTemp, vendTempIndex) => {
       datasets.value.push({
         label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : '') + ' [ ' + ('H: ' + highest[vendTempIndex] + "\u2103" + ' L: ' + lowest[vendTempIndex] + "\u2103") + ' ] ' + (vend.value.parameterJson && 'fan' in vend.value.parameterJson ? ('Fan: ' + (vend.value.is_fan_enabled && vend.value.parameterJson['fan'] !== null && vend.value.parameterJson['fan'] !== undefined && vend.value.parameterJson['fan'] !== 'NaN' ? vend.value.parameterJson['fan'] : '--')) : ''),
-        data: vendTemp.map((temp) => { return { x: temp.created_at, y: temp.value } }),
+        data: vendTemp.map((temp) => { return { x: temp.ts, y: temp.value } }),
         borderColor: colors[vendTempIndex - 1],
         backgroundColor: colors[vendTempIndex - 1],
         tension: 0.1,
         spanGaps: true,
         yAxisID: 'y',
+        normalized: true,
       })
       allTimings.push(vendTemp)
     })
@@ -836,13 +851,14 @@ function getVendTempsData() {
           if(isNaN(yVal) || yVal === 0) {
             yVal = null
           }
-          return { x: fan.created_at, y: yVal }
+          return { x: fan.ts, y: yVal }
         }),
         borderColor: fanColors[0],
         backgroundColor: fanColors[0],
         tension: 0.1,
         spanGaps: false,
         yAxisID: 'y1',
+        normalized: true,
       })
     })
   }

@@ -423,7 +423,7 @@
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       <span v-if="deliveryPlatformOrder.vendTransaction && deliveryPlatformOrder.vendTransaction.itemsJson" v-for="item in deliveryPlatformOrder.vendTransaction.itemsJson" class="inline-flex items-center rounded px-2 py-0.5 text-xs">
-                        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border bg-red-100 text-red-800" v-if="item.vendChannelError != null">
+                        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border bg-red-100 text-red-800" v-if="item.vendChannelError != null && item.vendChannelError.code != 0 && item.vendChannelError.code != 6">
                           <div class="flex flex-col space-x-1">
                               <div>
                                   #{{ item.vendChannelCode }}

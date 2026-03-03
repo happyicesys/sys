@@ -385,11 +385,28 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         // --- Logic: 1B) Compressor & or Fan OFF ---
         $latestFan = \App\Models\VendFan::where('vend_id', $vendId)->where('type', \App\Models\VendFan::TYPE_MAIN)->orderBy('created_at', 'desc')->first();
-        $fanIsOff = $latestFan && $now->diffInMinutes($latestFan->created_at) > 40;
+
+        $fanIsOff = false;
+        $startOff = $now;
+        if ($latestFan) {
+            $recentActiveFan = \App\Models\VendFan::where('vend_id', $vendId)
+                ->where('type', \App\Models\VendFan::TYPE_MAIN)
+                ->where('value', '>', 0)
+                ->where('created_at', '>=', $now->copy()->subHours(8))
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($recentActiveFan) {
+                $fanIsOff = $now->diffInMinutes($recentActiveFan->created_at) > 40;
+                $startOff = $recentActiveFan->created_at;
+            } else {
+                $fanIsOff = true;
+                $startOff = $now->copy()->subHours(8); // Bound backtrace history to 8 hours to avoid db full table scan
+            }
+        }
 
         if ($fanIsOff && $vend->is_online) {
             if (!isset($state['comp_fan_off_start'])) {
-                $startOff = $latestFan ? $latestFan->created_at : $now;
                 $newState['comp_fan_off_start'] = $startOff->toIso8601String();
             }
         } else {
@@ -1101,7 +1118,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     VendLog::create([
                         'vend_id' => $vendId,
                         'event' => 'machine_health_alert_dismissed',
-                        'subject' => "Dismissed ({$bucket})",
+                        'subject' => "[Dismissed] " . $this->getHumanReadableAlertType($alertType) . " ({$bucket})",
                         'context' => $logContext,
                         'occurred_at' => now(),
                     ]);

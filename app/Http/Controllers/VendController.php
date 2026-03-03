@@ -1891,6 +1891,25 @@ class VendController extends Controller
                         AND payment_methods.payment_gateway_id IS NOT NULL
                     THEN vend_transactions.amount ELSE 0 END), 0), 2) AS qr_payment_amount'),
 
+                DB::raw('CAST(COUNT(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                        AND delivery_platform_orders.id IS NULL
+                        AND payment_methods.code = 0
+                    THEN 1 ELSE NULL END) AS SIGNED) AS cash_count'),
+
+                DB::raw('CAST(COUNT(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                        AND delivery_platform_orders.id IS NULL
+                        AND payment_methods.payment_gateway_id IS NULL
+                        AND payment_methods.code > 0
+                    THEN 1 ELSE NULL END) AS SIGNED) AS cashless_terminal_count'),
+
+                DB::raw('CAST(COUNT(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true)
+                        AND delivery_platform_orders.id IS NULL
+                        AND payment_methods.payment_gateway_id IS NOT NULL
+                    THEN 1 ELSE NULL END) AS SIGNED) AS qr_payment_count'),
+
                 DB::raw('COUNT(*) AS total_count'),
 
                 // Count of single items (where is_multiple = 0)
@@ -2923,6 +2942,12 @@ class VendController extends Controller
     public function logs(Request $request, Vend $vend)
     {
         $perPage = (int) $request->input('per_page', 10);
+
+        // Ensure real-time connectivity/temp mathematical alerts are forcefully written
+        // to the database log before fetching the response so the UI and history align
+        if ($vend->is_active && !$vend->is_testing) {
+            (new \App\Jobs\DetectTempTrends($vend->id, true))->handle();
+        }
 
         $logs = $vend->eventLogs()
             ->select(['id', 'event', 'subject', 'context', 'occurred_at', 'created_at'])

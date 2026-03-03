@@ -18,7 +18,7 @@
                 @endif
             </h3>
             <h3 class="text-md font-bold text-gray-900 mt-4">
-                2.1 Operation Error / Critical Parts Failure
+                (2) Operation Error / Critical Parts Failure
             </h3>
             <h3 class="text-lg leading-6 font-medium text-gray-900 font-bold mt-4">
                 {{ $title }}

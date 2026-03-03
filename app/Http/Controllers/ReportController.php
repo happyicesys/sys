@@ -278,6 +278,7 @@ class ReportController extends Controller
         // Optimization: Pre-fetch all dismissal logs for these vends in one query
         $vendIds = $logs->pluck('vend_id')->unique()->all();
         $dismissals = collect();
+        $legacySmartAlerts = collect();
         if (!empty($vendIds)) {
             $dismissals = \App\Models\MachineHealthHistory::whereIn('vend_id', $vendIds)
                 ->where('event', 'machine_health_alert_dismissed')
@@ -285,10 +286,21 @@ class ReportController extends Controller
                 ->orderBy('occurred_at', 'asc')
                 ->get()
                 ->groupBy('vend_id');
+
+            // Pre-fetch legacy inactive smart alerts as fallback (excluding real-time connectivity which uses temp_monitoring_state)
+            if ($type !== 'connectivity') {
+                $legacySmartAlerts = \App\Models\VendSmartAlert::whereIn('vend_id', $vendIds)
+                    ->where('alert_type', $type)
+                    ->where('is_active', false)
+                    ->where('updated_at', '>=', $logs->min('occurred_at'))
+                    ->orderBy('updated_at', 'asc')
+                    ->get()
+                    ->groupBy('vend_id');
+            }
         }
 
         return response()->json([
-            'data' => $logs->map(function ($log) use ($dismissals, $bucket) {
+            'data' => $logs->map(function ($log) use ($dismissals, $legacySmartAlerts, $bucket, $type) {
                 $res = [
                     'id' => $log->id,
                     'occurred_at' => $log->context['triggered_at'] ?? $log->occurred_at->toIso8601String(),
@@ -309,10 +321,21 @@ class ReportController extends Controller
                     if (($log->context['type'] ?? null) !== ($d->context['type'] ?? null))
                         return false;
                     if (($log->context['alert_type'] ?? null) !== ($d->context['alert_type'] ?? null))
-                        return false;
-                    return $d->occurred_at >= $log->occurred_at;
+                        return $d->occurred_at >= $log->occurred_at;
                 })
                     ->first();
+
+                // Backward Compatibility: If no explicit dismissed log is found, guess it from legacy inactive VendSmartAlerts
+                if (!$res['dismissed_at'] && $type !== 'connectivity') {
+                    $smartAlert = ($legacySmartAlerts->get($log->vend_id) ?? collect())
+                        ->filter(function ($a) use ($log) {
+                            return $a->updated_at >= $log->occurred_at;
+                        })
+                        ->first();
+                    if ($smartAlert) {
+                        $res['dismissed_at'] = $smartAlert->updated_at->toIso8601String();
+                    }
+                }
 
                 $res['dismissed_at'] = $dismissLog ? $dismissLog->occurred_at->toIso8601String() : ($log->context['dismissed_at'] ?? null);
 
