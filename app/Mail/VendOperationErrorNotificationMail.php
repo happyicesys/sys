@@ -50,9 +50,6 @@ class VendOperationErrorNotificationMail extends Mailable implements ShouldQueue
         // Determine title based on alert type
         $title = '';
         switch ($this->alertType) {
-            case \App\Models\VendSmartAlert::TYPE_T1_HIGHER_THAN_T2:
-                $title = 'T1 higher than T2, >7°C';
-                break;
             case \App\Models\VendSmartAlert::TYPE_COMP_FAN_OFF:
                 $title = '2A) Compressor & or Fan, in OFF condition';
                 break;

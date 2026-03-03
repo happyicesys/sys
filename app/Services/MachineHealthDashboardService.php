@@ -678,7 +678,6 @@ class MachineHealthDashboardService
             'rising_lowest_t2_smart' => $this->getSmartAlerts($filters, [VendSmartAlert::TYPE_RISING_T2]),
             't2_frozen_smart' => $this->getSmartAlerts($filters, [VendSmartAlert::TYPE_T2_FROZEN]),
             'operation_errors_smart' => $this->getSmartAlerts($filters, [
-                VendSmartAlert::TYPE_T1_HIGHER_THAN_T2,
                 VendSmartAlert::TYPE_COMP_FAN_OFF,
                 VendSmartAlert::TYPE_TEMPS_ABOVE_0,
                 VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8,
@@ -1047,13 +1046,7 @@ class MachineHealthDashboardService
                 if ($startTime) {
                     try {
                         $start = Carbon::parse($startTime);
-                        $durationHours = $start->diffInMinutes($now) / 60;
-
-                        // For rising trends, we add 24hrs base as per business logic in DetectTempTrends
-                        if (in_array($alert->alert_type, [VendSmartAlert::TYPE_RISING_T1, VendSmartAlert::TYPE_RISING_T2])) {
-                            $durationHours += 24;
-                        }
-                        $duration = $durationHours;
+                        $duration = $start->diffInMinutes($now) / 60;
                     } catch (\Exception $e) {
                         // Fallback to stored duration if parsing fails
                     }
@@ -1061,7 +1054,6 @@ class MachineHealthDashboardService
                     // Convert Minutes to Hours for types that store Minutes
                     if (
                         in_array($alert->alert_type, [
-                            VendSmartAlert::TYPE_T1_HIGHER_THAN_T2,
                             VendSmartAlert::TYPE_COMP_FAN_OFF,
                             VendSmartAlert::TYPE_TEMPS_ABOVE_0,
                             VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8,

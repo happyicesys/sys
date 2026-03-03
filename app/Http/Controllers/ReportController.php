@@ -407,11 +407,6 @@ class ReportController extends Controller
                         try {
                             $start = Carbon::parse($startTime);
                             $res['hours_offline'] = max(0, round($start->diffInMinutes(now()) / 60, 2));
-
-                            // Adjust for rising trends if needed
-                            if (in_array($type, [\App\Models\VendSmartAlert::TYPE_RISING_T1, \App\Models\VendSmartAlert::TYPE_RISING_T2])) {
-                                $res['hours_offline'] += 24;
-                            }
                         } catch (\Exception $e) {
                             $durationMinutes = $meta['duration'] ?? null;
                             $res['hours_offline'] = $durationMinutes !== null ? max(0, round((float) $durationMinutes / 60, 2)) : null;

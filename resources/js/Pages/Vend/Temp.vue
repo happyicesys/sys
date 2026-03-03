@@ -345,7 +345,6 @@ const ALERT_TYPE_LABEL = {
   'rising_t1_trend':     '3C',
   'rising_t2_trend':     '3C',
   't2_frozen':           '3D',
-  't1_higher_than_t2':   'T1>T2',
 }
 
 // Map alert_type -> human readable title
@@ -360,7 +359,6 @@ const ALERT_TYPE_TITLE = {
   'rising_t1_trend':     'Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
   'rising_t2_trend':     'Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
   't2_frozen':           'T2, never above 2°C',
-  't1_higher_than_t2':   'T1 higher than T2, >7°C',
 }
 
 // Map alert_type -> duration offset in minutes (to show when the event actually started)
@@ -370,7 +368,6 @@ const ALERT_TYPE_OFFSET_MINUTES = {
   'temps_above_0':       30,
   'temps_above_minus_8': 60,
   'not_reach_minus_18':  480, // 8 hours
-  't1_higher_than_t2':   10,
 }
 
 function buildAnnotations() {
@@ -439,12 +436,20 @@ function buildAnnotations() {
     let eventStartedAt = null
 
     if (isTriggered) {
-      const offset = ALERT_TYPE_OFFSET_MINUTES[alertType] || 0
-      if (offset > 0) {
-        const baseTime = log.context?.triggered_at || log.occurred_at
-        markerValue = moment(baseTime).subtract(offset, 'minutes').format('YYYY-MM-DD HH:mm:ss')
-        tooltipTimeLabel = 'Event Started At'
-        eventStartedAt = markerValue
+      // Priority 1: Use explicit 'started_at' from log context (new behavior)
+      if (log.context?.started_at) {
+        markerValue = moment(log.context.started_at).format('YYYY-MM-DD HH:mm:ss');
+        tooltipTimeLabel = 'Event Started At';
+        eventStartedAt = markerValue;
+      } else {
+        // Priority 2: Use hardcoded offset (legacy behavior)
+        const offset = ALERT_TYPE_OFFSET_MINUTES[alertType] || 0;
+        if (offset > 0) {
+          const baseTime = log.context?.triggered_at || log.occurred_at;
+          markerValue = moment(baseTime).subtract(offset, 'minutes').format('YYYY-MM-DD HH:mm:ss');
+          tooltipTimeLabel = 'Event Started At';
+          eventStartedAt = markerValue;
+        }
       }
     }
 
@@ -473,7 +478,9 @@ function buildAnnotations() {
       enter(ctx) {
         ctx.chart.canvas.style.cursor = 'pointer'
         const timeDisplay = `${tooltipTimeLabel}: ${moment(markerValue).format('YYYY-MM-DD HH:mm:ss')}`
-        const triggerDisplay = eventStartedAt ? `\n(Triggered At: ${moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')})` : ''
+        const triggerTime = moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')
+        const triggerDisplay = `\n(Triggered At: ${triggerTime})`
+
         ctx.element.options.label.content = `[${shortLabel}] ${displaySubject}\n${timeDisplay}${triggerDisplay}`
         ctx.element.options.label.backgroundColor = isTriggered ? '#991b1b' : '#15803d'
         ctx.element.options.label.font.size = 12
@@ -494,7 +501,8 @@ function buildAnnotations() {
       },
       click(ctx) {
         const timeDisplay = `${tooltipTimeLabel}: ${moment(markerValue).format('YYYY-MM-DD HH:mm:ss')}`
-        const triggerDisplay = eventStartedAt ? `\n(Triggered At: ${moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')})` : ''
+        const triggerTime = moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')
+        const triggerDisplay = `\n(Triggered At: ${triggerTime})`
         const message = `[${shortLabel}] ${displaySubject}\n${timeDisplay}${triggerDisplay}`
         const config = {
           timeout: 7500,

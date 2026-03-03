@@ -158,10 +158,22 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         $existing = $existingAlerts->get(VendSmartAlert::TYPE_T2_FROZEN);
         $meta = $existing ? ($existing->meta_data ?? []) : [];
+        $baseHours = 24;
+        if ($severity === 3)
+            $baseHours = 72;
+        elseif ($severity === 2)
+            $baseHours = 48;
+
+        $startedAt = $now->copy()->subHours($baseHours)->toIso8601String();
+        if ($existing && $existing->is_active && isset($existing->meta_data['started_at'])) {
+            $startedAt = $existing->meta_data['started_at'];
+        }
+
         $meta['val'] = $metaMax / $scale;
         $meta['max_temp'] = $metaMax / $scale;
         $meta['duration_label'] = $durationLabel;
         $meta['calculated_at'] = $now->toIso8601String();
+        $meta['started_at'] = $startedAt;
         $meta['min_timestamp'] = $minTimestamp;
 
         $alert = VendSmartAlert::updateOrCreate(
@@ -261,6 +273,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $meta['min_t1'] = $v1;
             $meta['min_t2'] = $v2;
             $meta['duration'] = $duration;
+            $meta['started_at'] = now()->subMinutes($duration)->toIso8601String();
             $meta['min_timestamp'] = $minTimestamp;
 
             $alert = VendSmartAlert::updateOrCreate(
@@ -317,12 +330,12 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $severity = 2;
 
             $existingAlert = $existingAlerts->get($alertType);
-            $startedAt = $now->toIso8601String();
-            if ($existingAlert && $existingAlert->is_active && isset($existingAlert->meta_data['started_at'])) {
-                $startedAt = $existingAlert->meta_data['started_at'];
+            $firstDetectionTime = $now->toIso8601String();
+            if ($existingAlert && $existingAlert->is_active && isset($existingAlert->meta_data['first_detection_at'])) {
+                $firstDetectionTime = $existingAlert->meta_data['first_detection_at'];
             }
 
-            $elapsedMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($startedAt));
+            $elapsedMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($firstDetectionTime));
             $duration = (24 * 60) + $elapsedMinutes;
 
             $meta = $existingAlert ? ($existingAlert->meta_data ?? []) : [];
@@ -330,7 +343,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $meta['prev_min'] = $prev / $scale;
             $meta['delta'] = $deltaC;
             $meta['calculated_at'] = $now->toIso8601String();
-            $meta['started_at'] = $startedAt;
+            $meta['first_detection_at'] = $firstDetectionTime;
+            $meta['started_at'] = \Carbon\Carbon::parse($firstDetectionTime)->subHours(24)->toIso8601String();
             $meta['duration'] = $duration;
             $meta['min_timestamp'] = $currRecord->created_at->toIso8601String();
             $meta['prev_min_timestamp'] = $prevRecord->created_at->toIso8601String();
@@ -373,13 +387,8 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $state = $vend->temp_monitoring_state ?? [];
         $newState = $state;
 
-        // --- Logic: 1A) T1 higher than T2, >7°C ---
-        if (($t1Val - $t2Val) > 7 && $t1->value != VendTemp::TEMPERATURE_ERROR && $t2->value != VendTemp::TEMPERATURE_ERROR) {
-            if (!isset($state['t1_higher_t2_start'])) {
-                $newState['t1_higher_t2_start'] = $t1->created_at->max($t2->created_at)->toIso8601String();
-            }
-        } else {
-            unset($newState['t1_higher_t2_start']);
+        // Resolve any lingering T1 higher than T2 alerts if they exist
+        if ($existingAlerts->has(VendSmartAlert::TYPE_T1_HIGHER_THAN_T2)) {
             $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_T1_HIGHER_THAN_T2, ['> 10 mins', '> 30 mins'], $existingAlerts);
         }
 
@@ -466,39 +475,11 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         // Save State
         if ($state !== $newState) {
             $vend->temp_monitoring_state = $newState;
+            // Ensure t1_higher_t2_start is removed if it was there
+            unset($vend->temp_monitoring_state['t1_higher_t2_start']);
         }
 
         // --- Evaluate Alerts with Priority Suppression ---
-        // 1A. T1 higher than T2, >7°C (Independent)
-        if (isset($newState['t1_higher_t2_start'])) {
-            $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['t1_higher_t2_start']), true);
-            $severity = 0;
-            if ($diffMinutes >= 30)
-                $severity = 2;
-            elseif ($diffMinutes >= 10)
-                $severity = 1;
-
-            if ($severity > 0) {
-                $existing = $existingAlerts->get(VendSmartAlert::TYPE_T1_HIGHER_THAN_T2);
-                $meta = $existing ? ($existing->meta_data ?? []) : [];
-                $meta['v1'] = $t1Val;
-                $meta['v2'] = $t2Val;
-                $meta['diff'] = round($t1Val - $t2Val, 2);
-                $meta['duration'] = $diffMinutes;
-                $meta['started_at'] = $newState['t1_higher_t2_start'];
-
-                $alert = VendSmartAlert::updateOrCreate(
-                    ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_T1_HIGHER_THAN_T2],
-                    ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
-                );
-                $thresholdMinutes = $severity === 2 ? 30 : 10;
-                $effectiveStart = \Carbon\Carbon::parse($newState['t1_higher_t2_start']);
-                $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
-                $firstTriggerAt = $effectiveStart->copy()->addMinutes(10);
-                $this->logDashboardAlert($vend->id, $alert, ['> 10 mins', '> 30 mins'], $occurredAt, $firstTriggerAt);
-            }
-        }
-
         // 1B. Compressor & or Fan OFF (Independent)
         if (isset($newState['comp_fan_off_start']) && $vend->is_online) {
             $diffMinutes = $now->diffInMinutes(\Carbon\Carbon::parse($newState['comp_fan_off_start']), true);
@@ -755,7 +736,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
     private function getHumanReadableAlertType($type)
     {
         return match ($type) {
-            VendSmartAlert::TYPE_T1_HIGHER_THAN_T2 => 'T1 higher than T2, >7°C',
             VendSmartAlert::TYPE_COMP_FAN_OFF => 'Compressor & or Fan OFF',
             VendSmartAlert::TYPE_TEMPS_ABOVE_0 => 'T1 & or T2 above 0°C',
             VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8 => 'T1 & or T2 above -8°C',
@@ -1152,10 +1132,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     if ($startTime) {
                         try {
                             $smartLapseHours = round(\Carbon\Carbon::parse($startTime)->diffInMinutes($now) / 60, 2);
-                            // Adjust for rising trends if needed
-                            if (in_array($alertType, [VendSmartAlert::TYPE_RISING_T1, VendSmartAlert::TYPE_RISING_T2])) {
-                                $smartLapseHours += 24;
-                            }
                         } catch (\Exception $e) {
                         }
                     }

@@ -322,14 +322,6 @@ function groupAlertsMatrix(rows, definitions) {
 
 const matrix21 = computed(() => {
   const meta = [
-      // NOTE: Temporarily hidden — do NOT delete (user may want to restore)
-      // {
-      //     id: 't1_higher_than_t2',
-      //     label: 'T1 higher than T2, >7°C',
-      //     sub: 'Possible component issue:\ni) Fan not function\nii) Temp probe malfunction',
-      //     types: ['t1_higher_than_t2'],
-      //     headers: { 1: '> 10 mins', 2: '> 30 mins' }
-      // },
       {
           id: 'comp_fan_off',
           label: '2A) Compressor & or Fan, in OFF condition',
