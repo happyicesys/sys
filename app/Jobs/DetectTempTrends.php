@@ -811,9 +811,21 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $lastBucket = $state['connectivity_last_bucket'] ?? null;
 
             if ($lastBucket) {
+                // Calculate lapse hours: from when the connectivity alert was first triggered until now
+                $triggerLog = \App\Models\MachineHealthHistory::where('vend_id', $vend->id)
+                    ->where('event', 'machine_health_alert')
+                    ->where('alert_type', 'connectivity')
+                    ->where('bucket', $lastBucket)
+                    ->orderByDesc('occurred_at')
+                    ->first();
+                $lapseHours = $triggerLog
+                    ? max(0, round(\Carbon\Carbon::parse($triggerLog->occurred_at)->diffInMinutes(now()) / 60, 2))
+                    : null;
+
                 $logContext = [
                     'bucket' => $lastBucket,
                     'type' => 'connectivity',
+                    'lapse_hours' => $lapseHours,
                 ];
                 VendLog::create([
                     'vend_id' => $vend->id,
@@ -974,9 +986,19 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         foreach ($lastNoTxnBuckets as $key => $data) {
             if (!isset($newNoTxnBuckets[$key])) {
+                $noTxnTriggerLog = \App\Models\MachineHealthHistory::where('vend_id', $vend->id)
+                    ->where('event', 'machine_health_alert')
+                    ->where('alert_type', "no_txn_{$key}")
+                    ->orderByDesc('occurred_at')
+                    ->first();
+                $noTxnLapseHours = $noTxnTriggerLog
+                    ? max(0, round(\Carbon\Carbon::parse($noTxnTriggerLog->occurred_at)->diffInMinutes($now) / 60, 2))
+                    : null;
+
                 $logContext = [
                     'bucket' => ">= {$data['hours']}hr",
                     'type' => "no_txn_{$key}",
+                    'lapse_hours' => $noTxnLapseHours,
                 ];
                 VendLog::create([
                     'vend_id' => $vend->id,
@@ -1117,10 +1139,21 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 if (isset($labels[$labelIndex])) {
                     $bucket = $labels[$labelIndex];
 
+                    // Compute lapse: from when this alert was first triggered to now
+                    $smartTriggerLog = \App\Models\MachineHealthHistory::where('vend_id', $vendId)
+                        ->where('event', 'machine_health_alert')
+                        ->where('alert_type', $alertType)
+                        ->orderByDesc('occurred_at')
+                        ->first();
+                    $smartLapseHours = $smartTriggerLog
+                        ? max(0, round(\Carbon\Carbon::parse($smartTriggerLog->occurred_at)->diffInMinutes(now()) / 60, 2))
+                        : null;
+
                     $logContext = [
                         'bucket' => $bucket,
                         'alert_type' => $alertType,
                         'severity' => $lastSent,
+                        'lapse_hours' => $smartLapseHours,
                     ];
                     VendLog::create([
                         'vend_id' => $vendId,

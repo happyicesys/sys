@@ -13,6 +13,7 @@ use App\Http\Resources\ProfileResource;
 use App\Http\Resources\TagResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendModelResource;
+use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\ZoneResource;
 use App\Jobs\SyncVendCustomerCms;
@@ -30,6 +31,7 @@ use App\Models\SellingPrice;
 use App\Models\Tag;
 use App\Models\User;
 use App\Models\Vend;
+use App\Models\VendConfig;
 use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\Zone;
@@ -171,6 +173,9 @@ class CustomerController extends Controller
             ],
             'tags' => $optionsService->tags($className),
             'users' => $optionsService->users(),
+            'vendConfigOptions' => VendConfigResource::collection(
+                VendConfig::orderBy('name')->get()
+            ),
             'vendModelOptions' => $optionsService->vendModels(),
             'vendPrefixOptions' => $optionsService->vendPrefixes(),
             'zoneOptions' => $optionsService->zones(),

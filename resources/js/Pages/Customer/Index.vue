@@ -202,6 +202,22 @@
           </div>
           <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
+              Setting Chart
+            </label>
+            <MultiSelect
+              v-model="filters.vendConfigs"
+              :options="vendConfigOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              mode="tags"
+            ></MultiSelect>
+          </div>
+          <div v-if="permissions.includes('admin-access customers')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
               Refilling Routes
             </label>
             <MultiSelect
@@ -744,6 +760,7 @@ const props = defineProps({
   tags: Object,
   users: Object,
   vendModelOptions: Object,
+  vendConfigOptions: Object,
   vendPrefixOptions: Object,
   zoneOptions: Object,
 });
@@ -760,6 +777,7 @@ const filters = ref({
   status: '',
   vend_code: '',
   vend_model_id: '',
+  vendConfigs: [],
   vendPrefixes: [],
   sortKey: '',
   sortBy: false,
@@ -790,6 +808,7 @@ const zoneOptions = ref([]);
 const type = ref('');
 const numberPerPageOptions = ref([]);
 const vendModelOptions = ref([]);
+const vendConfigOptions = ref([])
 const vendPrefixOptions = ref([])
 
 onMounted(() => {
@@ -858,6 +877,12 @@ onMounted(() => {
   vendModelOptions.value = [
     { id: 'all', value: 'All' },
     ...props.vendModelOptions.data.map((data) => {
+      return { id: data.id, value: data.name };
+    }),
+  ];
+  vendConfigOptions.value = [
+    { id: 'all', value: 'All' },
+    ...props.vendConfigOptions.data.map((data) => {
       return { id: data.id, value: data.name };
     }),
   ];
@@ -938,6 +963,7 @@ function onSearchFilterUpdated() {
       preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
       selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
       vend_model_id: filters.value.vend_model_id.id,
+      vendConfigs: filters.value.vendConfigs.map((vc) => vc.id),
       vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       numberPerPage: filters.value.numberPerPage.id,
       zones: filters.value.zones.map((zone) => zone.id),

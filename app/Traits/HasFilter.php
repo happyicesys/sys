@@ -704,6 +704,11 @@ trait HasFilter
                     $query->where('vends.vend_config_id', $search);
                 }
             })
+            ->when($request->vendConfigs, function ($query, $search) {
+                if (!in_array('all', $search)) {
+                    $query->whereIn('vends.vend_config_id', $search);
+                }
+            })
             ->when($request->vendContracts, function ($query, $search) {
                 if (!in_array('all', $search)) {
                     $query->whereIn('vend_contract_id', $search);

@@ -26,6 +26,7 @@ use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelResource;
 use App\Http\Resources\VendChannelErrorResource;
+use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendFanResource;
 use App\Http\Resources\VendModelResource;
@@ -66,6 +67,7 @@ use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
+use App\Models\VendConfig;
 use App\Models\VendContract;
 use App\Models\VendData;
 use App\Models\VendModel;
@@ -423,6 +425,9 @@ class VendController extends Controller
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            'vendConfigOptions' => VendConfigResource::collection(
+                VendConfig::orderBy('name')->get()
+            ),
             'vendModelOptions' => VendModelResource::collection(
                 VendModel::orderBy('name')->get()
             ),
@@ -954,6 +959,9 @@ class VendController extends Controller
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => $vendChannelErrors,
+            'vendConfigOptions' => VendConfigResource::collection(
+                VendConfig::orderBy('name')->get()
+            ),
             'vendContractOptions' => $vendContractOptions,
             'vendModelOptions' => $vendModelOptions,
             'vendPrefixOptions' => $vendPrefixOptions,

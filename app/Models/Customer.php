@@ -185,37 +185,37 @@ class Customer extends Model
     public function lastOpsJobItem()
     {
         return $this->hasOne(OpsJobItem::class)
-                    ->whereHas('opsJob', function ($query) {
-                        $query->where('date', '<=', Carbon::today()->endOfDay());
-                    })
-                    ->where('status', '>=', OpsJob::STATUS_DELIVERED)
-                    ->where('status', '<>', OpsJob::STATUS_CANCELLED)
-                    ->latest();
+            ->whereHas('opsJob', function ($query) {
+                $query->where('date', '<=', Carbon::today()->endOfDay());
+            })
+            ->where('status', '>=', OpsJob::STATUS_DELIVERED)
+            ->where('status', '<>', OpsJob::STATUS_CANCELLED)
+            ->latest();
     }
 
     public function lastSecondOpsJobItem()
     {
         return $this->hasOne(OpsJobItem::class)
-                    ->whereHas('opsJob', function ($query) {
-                        $query->where('date', '<=', Carbon::today()->endOfDay());
-                    })
-                    ->where('status', '>=', OpsJob::STATUS_DELIVERED)
-                    ->where('status', '<>', OpsJob::STATUS_CANCELLED)
-                    ->latest()    // Order by the latest date
-                    ->skip(1)     // Skip the most recent (latest) entry
-                    ->take(1);    // Take the second-to-last entry
+            ->whereHas('opsJob', function ($query) {
+                $query->where('date', '<=', Carbon::today()->endOfDay());
+            })
+            ->where('status', '>=', OpsJob::STATUS_DELIVERED)
+            ->where('status', '<>', OpsJob::STATUS_CANCELLED)
+            ->latest()    // Order by the latest date
+            ->skip(1)     // Skip the most recent (latest) entry
+            ->take(1);    // Take the second-to-last entry
     }
 
 
     public function nextOpsJobItem()
     {
         return $this->hasOne(OpsJobItem::class)
-                    ->whereHas('opsJob', function ($query) {
-                        $query->where('date', '>=', Carbon::today()->startOfDay());
-                    })
-                    ->where('status', '<', OpsJob::STATUS_DELIVERED)
-                    ->where('status', '<>', OpsJob::STATUS_CANCELLED)
-                    ->oldest();
+            ->whereHas('opsJob', function ($query) {
+                $query->where('date', '>=', Carbon::today()->startOfDay());
+            })
+            ->where('status', '<', OpsJob::STATUS_DELIVERED)
+            ->where('status', '<>', OpsJob::STATUS_CANCELLED)
+            ->oldest();
     }
 
     public function locationType()
@@ -298,155 +298,163 @@ class Customer extends Model
     public function daysVendTransactions($from = 0, $to = 0)
     {
         return $this->vendTransactions()
-                    // ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::today()->subDays($from)->startOfDay())
-                    ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
+            // ->isSuccessful()
+            ->where('transaction_datetime', '>=', Carbon::today()->subDays($from)->startOfDay())
+            ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 
     // vend_records with customer begin date and termination date
     public function lifetimeVendRecords()
     {
         return $this->vendRecords()
-                    ->where('date', '>=', Carbon::parse($this->begin_date)->startOfDay())
-                    ->where('date', '<=', ($this->termination_date ? Carbon::parse($this->termination_date)->endOfDay() : Carbon::today()->endOfDay()));
+            ->where('date', '>=', Carbon::parse($this->begin_date)->startOfDay())
+            ->where('date', '<=', ($this->termination_date ? Carbon::parse($this->termination_date)->endOfDay() : Carbon::today()->endOfDay()));
     }
 
     // vend_records with date range
     public function daysVendRecords($from = 0, $to = 0)
     {
         return $this->vendRecords()
-                    ->where('date', '>=', Carbon::today()->subDays($from)->startOfDay())
-                    ->where('date', '<=', Carbon::today()->subDays($to)->endOfDay());
+            ->where('date', '>=', Carbon::today()->subDays($from)->startOfDay())
+            ->where('date', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 
     // scopes
     public function scopeFilterIndex($query, $request)
     {
-        return $query->when($request->categories, function($query, $search) {
-            $query->whereHas('categories', function($query) use ($search) {
+        return $query->when($request->categories, function ($query, $search) {
+            $query->whereHas('categories', function ($query) use ($search) {
                 $query->whereIn('id', $search);
             });
         })
-        ->when($request->categoryGroups, fn($query, $input) => $query->whereHas('category.categoryGroup', function($query) use ($input) {
-            $query->whereIn('id', $input);
-        }))
-        ->when($request->code, fn($query, $input) => $query->where('code', 'LIKE', '%'.$input.'%'))
-        ->when($request->created_in, fn($query, $input) => $query->whereDate('created_at', '>=', Carbon::createFromFormat('m-Y', $input)->startOfMonth())->whereDate('created_at', '<=', Carbon::createFromFormat('m-Y', $input)->endOfMonth()))
-        ->when($request->customer, function($query, $search) {
-            $query->where(function($query) use ($search) {
-                $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
+            ->when($request->categoryGroups, fn($query, $input) => $query->whereHas('category.categoryGroup', function ($query) use ($input) {
+                $query->whereIn('id', $input);
+            }))
+            ->when($request->code, fn($query, $input) => $query->where('code', 'LIKE', '%' . $input . '%'))
+            ->when($request->created_in, fn($query, $input) => $query->whereDate('created_at', '>=', Carbon::createFromFormat('m-Y', $input)->startOfMonth())->whereDate('created_at', '<=', Carbon::createFromFormat('m-Y', $input)->endOfMonth()))
+            ->when($request->customer, function ($query, $search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
                         ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
                         ->orWhere('customers.name', 'LIKE', "%{$search}%");
                 });
-        })
-        ->when($request->frequency_per_week_status, function($query, $search) {
-            if($search != 'all') {
-                $query->whereIn('frequency_per_week_status', $search);
-            }
-        })
-        ->when($request->is_active, function($query, $search) use ($request) {
-            if($search != 'all') {
-                $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-            }
-        })
-        ->when($request->is_binded_vend, function($query, $search) {
-            if($search != 'all') {
-                $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
-                if($searchBoolean)
-                    $query->whereHas('vend');
-                else {
-                    $query->doesntHave('vend');
+            })
+            ->when($request->frequency_per_week_status, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereIn('frequency_per_week_status', $search);
                 }
-            }
-        })
-        ->when($request->is_cms, function($query, $search) {
-            if($search != 'all') {
-                $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
-                if($searchBoolean)
-                    $query->whereNotNull('person_id');
-                else {
-                    $query->whereNull('person_id');
+            })
+            ->when($request->is_active, function ($query, $search) use ($request) {
+                if ($search != 'all') {
+                    $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 }
-            }
-        })
-        ->when($request->handled_by, fn($query, $input) => $query->where('handled_by', $input))
-        ->when($request->location_types, function($query, $search) {
-            if(!in_array('all', $search)){
-                $query->whereIn('location_type_id', $search);
-            }
-        })
-        ->when($request->operator_id, function($query, $search) {
-            if($search != 'all') {
-                $query->where('customers.operator_id', $search);
-            }
-        })
-        ->when($request->operators, function($query, $search) {
-            if(!in_array('all', $search)){
-                $query->whereIn('customers.operator_id', $search);
-            }
-        })
-        ->when($request->preferredDays, function($query, $search) {
-            $query->where(function($subQuery) use ($search) {
-                foreach ($search as $day) {
-                    $subQuery->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(customers.preferred_visit_days_json, '$.\"$day\"')) = 'true'");
+            })
+            ->when($request->is_binded_vend, function ($query, $search) {
+                if ($search != 'all') {
+                    $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
+                    if ($searchBoolean)
+                        $query->whereHas('vend');
+                    else {
+                        $query->doesntHave('vend');
+                    }
                 }
-            });
-        })
-        ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
-        ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
-        ->when($request->ref_id, function($query, $search) {
-            $query->where('customers.id', '=', ($search - 20000));
-        })
-        ->when($request->selling_price_type, fn($query, $input) => $query->where('selling_price_type', $input))
-        ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
-        ->when($request->vend_code, function($query, $search) {
-            $query->whereIn('customers.id',
-                Vend::where('code', 'LIKE', '%'.$search.'%')
-                ->pluck('customer_id')
-            );
-        })
-        ->when($request->vend_model_id, function($query, $search) {
-            if($search != 'all') {
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->where('vend_model_id', $search);
+            })
+            ->when($request->is_cms, function ($query, $search) {
+                if ($search != 'all') {
+                    $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
+                    if ($searchBoolean)
+                        $query->whereNotNull('person_id');
+                    else {
+                        $query->whereNull('person_id');
+                    }
+                }
+            })
+            ->when($request->handled_by, fn($query, $input) => $query->where('handled_by', $input))
+            ->when($request->location_types, function ($query, $search) {
+                if (!in_array('all', $search)) {
+                    $query->whereIn('location_type_id', $search);
+                }
+            })
+            ->when($request->operator_id, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->where('customers.operator_id', $search);
+                }
+            })
+            ->when($request->operators, function ($query, $search) {
+                if (!in_array('all', $search)) {
+                    $query->whereIn('customers.operator_id', $search);
+                }
+            })
+            ->when($request->preferredDays, function ($query, $search) {
+                $query->where(function ($subQuery) use ($search) {
+                    foreach ($search as $day) {
+                        $subQuery->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(customers.preferred_visit_days_json, '$.\"$day\"')) = 'true'");
+                    }
                 });
-            }
-        })
-        ->when($request->vendPrefixes, function($query, $search) {
-            $query->whereHas('vend', function($query) use ($search) {
-                if(in_array('single-ud', $search)) {
-                    $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
-                    unset($search[array_search('single-ud', $search)]);
+            })
+            ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
+            ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
+            ->when($request->ref_id, function ($query, $search) {
+                $query->where('customers.id', '=', ($search - 20000));
+            })
+            ->when($request->selling_price_type, fn($query, $input) => $query->where('selling_price_type', $input))
+            ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
+            ->when($request->vend_code, function ($query, $search) {
+                $query->whereIn(
+                    'customers.id',
+                    Vend::where('code', 'LIKE', '%' . $search . '%')
+                        ->pluck('customer_id')
+                );
+            })
+            ->when($request->vend_model_id, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereHas('vend', function ($query) use ($search) {
+                        $query->where('vend_model_id', $search);
+                    });
                 }
-                $query->whereIn('vend_prefix_id', $search);
-            });
-        })
-        ->when($request->zones, function($query, $search) {
-            if(!in_array('all', $search)){
-                $query->whereIn('zone_id', $search);
-            }
-        })
-        ->when($request->sortKey, function($query, $search) use ($request) {
-            // Check if the sortKey involves a JSON field
-            if(strpos($search, '->')) {
-                $inputSearch = explode("->", $search);
-                if(
-                    $search === 'vend_transaction_totals_json->vend_records_amount_latest' or
-                    $search === 'vend_transaction_totals_json->vend_records_amount_average_day' or
-                    $search === 'vend_transaction_totals_json->vend_records_thirty_days_amount_average' or
-                    $search === 'vend_transaction_totals_json->vend_records_thirty_days_amount'
-                ) {
-                    $query->orderByRaw('(CAST(json_unquote(json_extract(`'. 'totals_json' .'`, "$.'.$inputSearch[1].'")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
-                }else {
-                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+            })
+            ->when($request->vendConfigs, function ($query, $search) {
+                if (!in_array('all', $search)) {
+                    $query->whereHas('vend', function ($query) use ($search) {
+                        $query->whereIn('vend_config_id', $search);
+                    });
                 }
+            })
+            ->when($request->vendPrefixes, function ($query, $search) {
+                $query->whereHas('vend', function ($query) use ($search) {
+                    if (in_array('single-ud', $search)) {
+                        $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
+                        unset($search[array_search('single-ud', $search)]);
+                    }
+                    $query->whereIn('vend_prefix_id', $search);
+                });
+            })
+            ->when($request->zones, function ($query, $search) {
+                if (!in_array('all', $search)) {
+                    $query->whereIn('zone_id', $search);
+                }
+            })
+            ->when($request->sortKey, function ($query, $search) use ($request) {
+                // Check if the sortKey involves a JSON field
+                if (strpos($search, '->')) {
+                    $inputSearch = explode("->", $search);
+                    if (
+                        $search === 'vend_transaction_totals_json->vend_records_amount_latest' or
+                        $search === 'vend_transaction_totals_json->vend_records_amount_average_day' or
+                        $search === 'vend_transaction_totals_json->vend_records_thirty_days_amount_average' or
+                        $search === 'vend_transaction_totals_json->vend_records_thirty_days_amount'
+                    ) {
+                        $query->orderByRaw('(CAST(json_unquote(json_extract(`' . 'totals_json' . '`, "$.' . $inputSearch[1] . '")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                    } else {
+                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                    }
 
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            } else {
-                // Handle sorting for non-JSON fields
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
-            }
-        });
+                    $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                } else {
+                    // Handle sorting for non-JSON fields
+                    $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                }
+            });
 
     }
 }

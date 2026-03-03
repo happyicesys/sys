@@ -387,6 +387,23 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
+								Setting Chart
+						</label>
+						<MultiSelect
+								v-model="filters.vendConfigs"
+								:options="vendConfigOptions"
+								trackBy="id"
+								valueProp="id"
+								label="value"
+								placeholder="Select"
+								open-direction="bottom"
+								mode="tags"
+								class="mt-1"
+						>
+						</MultiSelect>
+				</div>
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+						<label for="text" class="block text-sm font-medium text-gray-700">
 								Machine Contract
 						</label>
 						<MultiSelect
@@ -1999,6 +2016,7 @@ font-size:13px;
 			totals: [Array, Object],
 			vends: Object,
 			vendChannelErrors: Object,
+			vendConfigOptions: Object,
 			vendContractOptions: Object,
 			vendModelOptions: Object,
 			vendPrefixOptions: Object,
@@ -2048,6 +2066,7 @@ font-size:13px;
 			vendRecordsThirtyDaysAmountAverageLessThan: '',
 			sortBy: true,
 			numberPerPage: '',
+			vendConfigs: [],
 			vendContracts: [],
 			visited: true,
 			zones: [],
@@ -2091,6 +2110,7 @@ font-size:13px;
 
 	const vends = ref(getVendsField())
 	const vendChannelErrorsOptions = ref([])
+	const vendConfigOptions = ref([])
 	const vendContractOptions = ref([])
 	const vendModelOptions = ref([])
 	const vendPrefixOptions = ref([])
@@ -2189,6 +2209,10 @@ statusOptions.value = [
 		{id: 'inactive', value: 'Not Active'},
 		{id: 'disposed', value: 'Disposed'},
 ]
+vendConfigOptions.value = [
+		{id: 'all', value: 'All'},
+		...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
+	]
 vendContractOptions.value = [
 		{id: 'all', value: 'All'},
 		...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -2299,6 +2323,7 @@ if(urlParams.has('channel_codes')) {
 	hydrateMulti('frequency_per_week_status', frequencyPerWeekOptions.value, 'frequency_per_week_status');
 	hydrateMulti('operators', operatorOptions.value, 'operators');
 	hydrateMulti('preferredDays', dayOptions.value, 'preferredDays');
+	hydrateMulti('vendConfigs', vendConfigOptions.value, 'vendConfigs');
 	hydrateMulti('vendContracts', vendContractOptions.value, 'vendContracts');
 	hydrateMulti('vendModels', vendModelOptions.value, 'vendModels');
 	hydrateMulti('vendPrefixes', vendPrefixOptions.value, 'vendPrefixes');
@@ -2478,6 +2503,7 @@ function onSearchFilterUpdated() {
 			// is_testing: filters.value.is_testing.id,
 			status: filters.value.status.id,
 			// vend_prefix_id: filters.value.vend_prefix_id.id,
+			vendConfigs: filters.value.vendConfigs.map(vc => vc.id),
 			vendContracts: filters.value.vendContracts.map(vc => vc.id),
 			vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
 			vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
@@ -2590,6 +2616,7 @@ axios({
 				is_testing: filters.value.is_testing.id,
 				status: filters.value.status.id,
 				// vend_prefix_id: filters.value.vend_prefix_id.id,
+				vendConfigs: filters.value.vendConfigs.map(vc => vc.id),
 				vendContracts: filters.value.vendContracts.map(vc => vc.id),
 				vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
 				vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),

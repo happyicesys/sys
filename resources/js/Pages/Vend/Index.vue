@@ -305,6 +305,23 @@
           </div>
           <div :class="[showAllFilters ? 'block' : 'hidden']">
             <label for="text" class="block text-sm font-medium text-gray-700">
+                Setting Chart
+            </label>
+            <MultiSelect
+                v-model="filters.vendConfigs"
+                :options="vendConfigOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
+          <div :class="[showAllFilters ? 'block' : 'hidden']">
+            <label for="text" class="block text-sm font-medium text-gray-700">
                 Modem Type
             </label>
             <MultiSelect
@@ -1617,6 +1634,7 @@ import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleU
       totals: [Array, Object],
       vends: Object,
       vendChannelErrors: Object,
+      vendConfigOptions: Object,
       vendModelOptions: Object,
       vendPrefixOptions: Object,
   })
@@ -1663,6 +1681,7 @@ import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleU
       selling_price_type: '',
       status: '',
       sortKey: '',
+      vendConfigs: [],
       vendModels: [],
       vendRecordsThirtyDaysAmountAverageLessThan: '',
       sortBy: true,
@@ -1707,6 +1726,7 @@ import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleU
 
   const vends = ref(getVendsField())
   const vendChannelErrorsOptions = ref([])
+  const vendConfigOptions = ref([])
   const vendModelOptions = ref([])
   const vendPrefixOptions = ref([])
   //   const vendOptions = ref([])
@@ -1815,6 +1835,10 @@ if(authUser.is_production_status_only) {
   ]
 }
 
+vendConfigOptions.value = [
+    {id: 'all', value: 'All'},
+    ...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
+]
 vendModelOptions.value = [
     {id: 'all', value: 'All'},
     ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -1964,6 +1988,7 @@ function onSearchFilterUpdated() {
       is_sensor: filters.value.is_sensor.id,
       // is_testing: filters.value.is_testing.id,
       status: filters.value.status.id,
+      vendConfigs: filters.value.vendConfigs.map((vc) => vc.id),
       vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
       vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       numberPerPage: filters.value.numberPerPage.id,
@@ -2072,6 +2097,7 @@ axios({
         is_sensor: filters.value.is_sensor.id,
         is_testing: filters.value.is_testing.id,
         status: filters.value.status.id,
+        vendConfigs: filters.value.vendConfigs.map((vc) => vc.id),
         vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
         vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
     },

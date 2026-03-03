@@ -275,13 +275,15 @@ class ReportController extends Controller
         $hasMore = $logs->count() > $limit;
         $logs = $logs->take($limit);
 
-        // For connectivity: exclude vends whose LATEST alert is already in a different (higher) bucket.
-        // This prevents machines that escalated (e.g., < 12hr → > 12hr) from still appearing in the
-        // lower-tier history list.
-        if ($type === 'connectivity' && $logs->isNotEmpty()) {
+        // Exclude vends whose LATEST alert for this alert_type is already in a different (higher) bucket.
+        // Applies to ALL sections (1 = connectivity, 2 = operation errors, 3 = preventive maintenance).
+        // e.g. connectivity: < 12hr → > 12hr; comp_fan_off: > 45 mins → > 60 mins
+        if ($logs->isNotEmpty()) {
+            // alert_type stored in MachineHealthHistory matches the main query logic above
+            $alertTypeForLookup = $type === 'connectivity' ? 'connectivity' : $type;
             $allVendIdsInLog = $logs->pluck('vend_id')->unique()->all();
             $latestBucketPerVend = \App\Models\MachineHealthHistory::where('event', 'machine_health_alert')
-                ->where('alert_type', 'connectivity')
+                ->where('alert_type', $alertTypeForLookup)
                 ->whereIn('vend_id', $allVendIdsInLog)
                 ->selectRaw('vend_id, bucket')
                 ->orderByDesc('occurred_at')
@@ -381,14 +383,24 @@ class ReportController extends Controller
                 $last = empty($dates) ? null : max($dates);
                 $res['last_contact_at'] = $last ? \Carbon\Carbon::parse($last)->toIso8601String() : null;
 
-                // Prefer the hours_offline value stored in the log context at the time of alert logging.
-                // Recalculating from current machine state gives wrong values:
-                //  - Dismissed machines show ~0 hrs (they're back online now)
-                //  - Escalated machines show the current (larger) value instead of when they crossed the threshold
-                if (isset($log->context['hours_offline'])) {
-                    $res['hours_offline'] = max(0, round((float) $log->context['hours_offline'], 2));
+                // hours_offline: final lapse time shown next to the machine in the history popup.
+                // Priority chain:
+                //   1. Dismissal log's lapse_hours (computed & persisted at dismiss time — most accurate)
+                //   2. Connectivity trigger's stored hours_offline (snapshot at trigger time)
+                //   3. Smart alert meta duration in minutes (from trigger log context)
+                //   4. null (hide the field in the frontend)
+                if ($dismissLog && isset($dismissLog->context['lapse_hours'])) {
+                    $res['hours_offline'] = max(0, round((float) $dismissLog->context['lapse_hours'], 2));
+                } elseif ($type === 'connectivity') {
+                    if (isset($log->context['hours_offline'])) {
+                        $res['hours_offline'] = max(0, round((float) $log->context['hours_offline'], 2));
+                    } else {
+                        $res['hours_offline'] = $last ? max(0, round(\Carbon\Carbon::parse($last)->diffInMinutes(\Carbon\Carbon::now()) / 60, 2)) : null;
+                    }
                 } else {
-                    $res['hours_offline'] = $last ? max(0, round(\Carbon\Carbon::parse($last)->diffInMinutes(\Carbon\Carbon::now()) / 60, 2)) : 0;
+                    // Sections 2 & 3: use the alert duration stored in meta (in minutes)
+                    $durationMinutes = $log->context['meta']['duration'] ?? null;
+                    $res['hours_offline'] = $durationMinutes !== null ? max(0, round((float) $durationMinutes / 60, 2)) : null;
                 }
 
                 return $res;
