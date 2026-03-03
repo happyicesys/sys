@@ -2222,7 +2222,7 @@ const loadMoreHistory = () => {
                                 {{ log.vend_code }}
                             </a>
                             <span v-if="log.hours_offline !== null && log.hours_offline !== undefined">
-                                · {{ Number(log.hours_offline).toFixed(2) }}
+                                · {{ Number(log.hours_offline).toFixed(2) }} hr
                             </span>
                         </div>
                         <div class="text-xs text-gray-500">

@@ -485,6 +485,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $meta['v2'] = $t2Val;
                 $meta['diff'] = round($t1Val - $t2Val, 2);
                 $meta['duration'] = $diffMinutes;
+                $meta['started_at'] = $newState['t1_higher_t2_start'];
 
                 $alert = VendSmartAlert::updateOrCreate(
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_T1_HIGHER_THAN_T2],
@@ -511,6 +512,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $existing = $existingAlerts->get(VendSmartAlert::TYPE_COMP_FAN_OFF);
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['duration'] = $diffMinutes;
+                $meta['started_at'] = $newState['comp_fan_off_start'];
 
                 $alert = VendSmartAlert::updateOrCreate(
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_COMP_FAN_OFF],
@@ -547,6 +549,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['v1'] = $t1Val;
                 $meta['v2'] = $t2Val;
+                $meta['started_at'] = $effectiveStart->toIso8601String();
 
                 $alert = VendSmartAlert::updateOrCreate(
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_TEMPS_ABOVE_0],
@@ -580,6 +583,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['v1'] = $t1Val;
                 $meta['v2'] = $t2Val;
+                $meta['started_at'] = $effectiveStart->toIso8601String();
 
                 $alert = VendSmartAlert::updateOrCreate(
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8],
@@ -611,6 +615,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 $existing = $existingAlerts->get(VendSmartAlert::TYPE_NOT_REACH_MINUS_18);
                 $meta = $existing ? ($existing->meta_data ?? []) : [];
                 $meta['v1'] = $t1Val;
+                $meta['started_at'] = $effectiveStart->toIso8601String();
 
                 $alert = VendSmartAlert::updateOrCreate(
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_NOT_REACH_MINUS_18],
@@ -1140,14 +1145,33 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     $bucket = $labels[$labelIndex];
 
                     // Compute lapse: from when this alert was first triggered to now
-                    $smartTriggerLog = \App\Models\MachineHealthHistory::where('vend_id', $vendId)
-                        ->where('event', 'machine_health_alert')
-                        ->where('alert_type', $alertType)
-                        ->orderByDesc('occurred_at')
-                        ->first();
-                    $smartLapseHours = $smartTriggerLog
-                        ? max(0, round(\Carbon\Carbon::parse($smartTriggerLog->occurred_at)->diffInMinutes(now()) / 60, 2))
-                        : null;
+                    $now = now();
+                    $startTime = $meta['started_at'] ?? $meta['min_timestamp'] ?? $meta['triggered_at'] ?? null;
+                    $smartLapseHours = null;
+
+                    if ($startTime) {
+                        try {
+                            $smartLapseHours = round(\Carbon\Carbon::parse($startTime)->diffInMinutes($now) / 60, 2);
+                            // Adjust for rising trends if needed
+                            if (in_array($alertType, [VendSmartAlert::TYPE_RISING_T1, VendSmartAlert::TYPE_RISING_T2])) {
+                                $smartLapseHours += 24;
+                            }
+                        } catch (\Exception $e) {
+                        }
+                    }
+
+                    if ($smartLapseHours === null) {
+                        $smartTriggerLog = \App\Models\MachineHealthHistory::where('vend_id', $vendId)
+                            ->where('event', 'machine_health_alert')
+                            ->where('alert_type', $alertType)
+                            ->orderByDesc('occurred_at')
+                            ->first();
+                        $smartLapseHours = $smartTriggerLog
+                            ? max(0, round(\Carbon\Carbon::parse($smartTriggerLog->occurred_at)->diffInMinutes($now) / 60, 2))
+                            : null;
+                    }
+
+                    $smartLapseHours = $smartLapseHours !== null ? max(0, (float) $smartLapseHours) : null;
 
                     $logContext = [
                         'bucket' => $bucket,

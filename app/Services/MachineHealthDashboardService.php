@@ -1040,8 +1040,24 @@ class MachineHealthDashboardService
                 $scale = 10;
 
                 $duration = $meta['duration_label'] ?? $meta['duration'] ?? null;
+                $now = now();
 
-                if (is_numeric($duration)) {
+                // Dynamic calculation if we have a starting timestamp
+                $startTime = $meta['started_at'] ?? $meta['min_timestamp'] ?? $meta['triggered_at'] ?? null;
+                if ($startTime) {
+                    try {
+                        $start = Carbon::parse($startTime);
+                        $durationHours = $start->diffInMinutes($now) / 60;
+
+                        // For rising trends, we add 24hrs base as per business logic in DetectTempTrends
+                        if (in_array($alert->alert_type, [VendSmartAlert::TYPE_RISING_T1, VendSmartAlert::TYPE_RISING_T2])) {
+                            $durationHours += 24;
+                        }
+                        $duration = $durationHours;
+                    } catch (\Exception $e) {
+                        // Fallback to stored duration if parsing fails
+                    }
+                } elseif (is_numeric($duration)) {
                     // Convert Minutes to Hours for types that store Minutes
                     if (
                         in_array($alert->alert_type, [

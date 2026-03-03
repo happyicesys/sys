@@ -399,8 +399,27 @@ class ReportController extends Controller
                     }
                 } else {
                     // Sections 2 & 3: use the alert duration stored in meta (in minutes)
-                    $durationMinutes = $log->context['meta']['duration'] ?? null;
-                    $res['hours_offline'] = $durationMinutes !== null ? max(0, round((float) $durationMinutes / 60, 2)) : null;
+                    // If it's an active alert (no dismissal yet), calculate dynamically if possible
+                    $meta = $log->context['meta'] ?? [];
+                    $startTime = $meta['started_at'] ?? $meta['min_timestamp'] ?? $meta['triggered_at'] ?? null;
+
+                    if (!$dismissLog && $startTime) {
+                        try {
+                            $start = Carbon::parse($startTime);
+                            $res['hours_offline'] = max(0, round($start->diffInMinutes(now()) / 60, 2));
+
+                            // Adjust for rising trends if needed
+                            if (in_array($type, [\App\Models\VendSmartAlert::TYPE_RISING_T1, \App\Models\VendSmartAlert::TYPE_RISING_T2])) {
+                                $res['hours_offline'] += 24;
+                            }
+                        } catch (\Exception $e) {
+                            $durationMinutes = $meta['duration'] ?? null;
+                            $res['hours_offline'] = $durationMinutes !== null ? max(0, round((float) $durationMinutes / 60, 2)) : null;
+                        }
+                    } else {
+                        $durationMinutes = $meta['duration'] ?? null;
+                        $res['hours_offline'] = $durationMinutes !== null ? max(0, round((float) $durationMinutes / 60, 2)) : null;
+                    }
                 }
 
                 return $res;
