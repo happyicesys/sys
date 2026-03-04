@@ -934,7 +934,9 @@ class VendController extends Controller
             VendModel::orderBy('name')->get()
         );
         $vendPrefixOptions = VendPrefixResource::collection(
-            VendPrefix::orderBy('name')->get()
+            VendPrefix::whereHas('vends', fn($q) => $q->where('is_active', true))
+                ->orderBy('name')
+                ->get()
         );
         $zoneOptions = ZoneResource::collection(
             Zone::orderBy('name')->get()

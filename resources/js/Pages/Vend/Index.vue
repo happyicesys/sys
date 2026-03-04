@@ -699,13 +699,9 @@
           <TableHead>
             Payment Device
           </TableHead>
-          <TableHead>
-            <div class="flex flex-col space-y-2">
-              <span>
-                LCD Monitor
-              </span>
-            </div>
-          </TableHead>
+          <TableHeadSort modelName="vends.lcd_monitor_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.lcd_monitor_id')">
+            LCD Monitor
+          </TableHeadSort>
           <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
             Location
           </TableHeadSort>
