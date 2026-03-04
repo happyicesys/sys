@@ -278,6 +278,7 @@ const filters = ref({
   const operatorRole = usePage().props.auth.operatorRole
   const permissions = usePage().props.auth.permissions
   const roles = usePage().props.auth.roles
+  const operatorOptions = ref([])
   const vendPrefixOptions = ref([])
 
 onMounted(() => {

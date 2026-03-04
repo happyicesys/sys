@@ -270,7 +270,7 @@
               <DropzoneFileInput
                 :endpoint="'/apk-settings/' + apkSetting.id + '/upload-images'"
                 :accepted-files="'image/*'"
-                :max-filesize="1"
+                :max-filesize="1.5"
                 >
               </DropzoneFileInput>
             </div>
@@ -478,7 +478,7 @@
               <DropzoneFileInput
                 :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-images'"
                 :accepted-files="'image/*'"
-                :max-filesize="1"
+                :max-filesize="1.5"
                 >
               </DropzoneFileInput>
             </div>

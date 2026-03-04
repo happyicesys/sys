@@ -825,9 +825,18 @@ class Vend extends Model
             ->when($request->categoryGroups, function ($query, $search) {
                 $query->whereIn('category_groups.id', $search);
             })
-            ->when($request->fanSpeedLowerThan, function ($query, $search) {
-                if (is_numeric($search)) {
-                    $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
+            ->when($request->fan_rpm !== null && $request->fan_rpm !== '' && $request->fan_rpm !== 'all', function ($query) use ($request) {
+                $search = $request->fan_rpm;
+                if ($search == '0') {
+                    $query->where('vends.is_fan_enabled', true)->where('vends.parameter_json->fan', 0);
+                } else if ($search == '>0') {
+                    $query->where('vends.is_fan_enabled', true)->where('vends.parameter_json->fan', '>', 0);
+                } else if ($search == 'N/A') {
+                    $query->where('vends.is_fan_enabled', false);
+                } else if ($search == '--') {
+                    $query->where('vends.is_fan_enabled', true)->where(function ($q) {
+                        $q->whereNull('vends.parameter_json->fan');
+                    });
                 }
             })
             ->when($request->is_active, function ($query, $search) use ($request) {

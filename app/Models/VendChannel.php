@@ -45,7 +45,7 @@ class VendChannel extends Model
 
     public function latestOpsJobItemChannel()
     {
-        return $this->hasOne(OpsJobItemChannel::class)->whereHas('opsJobItem', function($query) {
+        return $this->hasOne(OpsJobItemChannel::class)->whereHas('opsJobItem', function ($query) {
             $query->where('status', '>=', OpsJob::STATUS_DELIVERED)
                 ->where('status', '<>', OpsJob::STATUS_CANCELLED);
         })->orderByDesc('created_at');
@@ -90,19 +90,19 @@ class VendChannel extends Model
     public function daysVendTransactions($from = 0, $to = 0)
     {
         return $this->vendTransactions()
-                    // ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::today()->subDays($from)->startOfDay())
-                    ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
+            // ->isSuccessful()
+            ->where('transaction_datetime', '>=', Carbon::today()->subDays($from)->startOfDay())
+            ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 
     public function vendThreeDaysErrorTransactions()
     {
-        return $this->daysVendTransactions(2,0)->isError()->latest();
+        return $this->daysVendTransactions(2, 0)->isError()->latest();
     }
 
     public function vendSevenDaysErrorTransactions()
     {
-        return $this->daysVendTransactions(6,0)->isError()->latest();
+        return $this->daysVendTransactions(6, 0)->isError()->latest();
     }
 
     // attributes
@@ -132,144 +132,153 @@ class VendChannel extends Model
         $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
         $sortBy = $request->sortBy ? $request->sortBy : false;
 
-        return $query->when($request->codes, function($query, $search) {
-            if(strpos($search, ',') !== false) {
+        return $query->when($request->codes, function ($query, $search) {
+            if (strpos($search, ',') !== false) {
                 $search = explode(',', $search);
-            }else {
+            } else {
                 $search = [$search];
             }
-            $query->whereHas('vend', function($query) use ($search) {
+            $query->whereHas('vend', function ($query) use ($search) {
                 $query->whereIn('vends.code', $search);
             });
         })
-        ->when($request->channel_codes, function($query, $search) {
-            if(strpos($search, ',') !== false) {
-                $search = explode(',', $search);
-            }else {
-                $search = [$search];
-            }
-            $query->whereIn('vend_channels.code', $search);
-        })
-        ->when($request->serialNum, function($query, $search) {
-            $query->whereHas('vend', function($query) use ($search) {
-                $query->where('serial_num', 'LIKE', "%{$search}%");
-            });
-        })
-        ->when($request->customer_code, function($query, $search) {
-            $query->whereHas('vend.customer', function($query) use ($search) {
-                $query->where('customers.code', 'LIKE', "%{$search}%");
-            });
-        })
-        ->when($request->customer_name, function($query, $search) {
-            $query->where(function($query) use ($search) {
-                $query->whereHas('vend.customer', function($query) use ($search) {
+            ->when($request->channel_codes, function ($query, $search) {
+                if (strpos($search, ',') !== false) {
+                    $search = explode(',', $search);
+                } else {
+                    $search = [$search];
+                }
+                $query->whereIn('vend_channels.code', $search);
+            })
+            ->when($request->serialNum, function ($query, $search) {
+                $query->whereHas('vend', function ($query) use ($search) {
+                    $query->where('serial_num', 'LIKE', "%{$search}%");
+                });
+            })
+            ->when($request->customer_code, function ($query, $search) {
+                $query->whereHas('vend.customer', function ($query) use ($search) {
+                    $query->where('customers.code', 'LIKE', "%{$search}%");
+                });
+            })
+            ->when($request->customer_name, function ($query, $search) {
+                $query->where(function ($query) use ($search) {
+                    $query->whereHas('vend.customer', function ($query) use ($search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->orWhere('vends.name', 'LIKE', "%{$search}%");
-            });
-        })
-        ->when($request->categories, function($query, $search) {
-            $query->whereHas('vend.customer.category', function($query) use ($search) {
-                $query->whereIn('id', $search);
-            });
-        })
-        ->when($request->categoryGroups, function($query, $search) {
-            $query->whereHas('vend.customer.category.categoryGroup', function($query) use ($search) {
-                $query->whereIn('id', $search);
-            });
-        })
-        ->when($request->fanSpeedLowerThan, function($query, $search) {
-            if(is_numeric($search)) {
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
+                        ->orWhere('vends.name', 'LIKE', "%{$search}%");
                 });
-            }
-        })
-        ->when($isDoorOpen, function($query, $search) {
-            if($search != 'all') {
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->where('parameter_json->door', '=', $search);
+            })
+            ->when($request->categories, function ($query, $search) {
+                $query->whereHas('vend.customer.category', function ($query) use ($search) {
+                    $query->whereIn('id', $search);
                 });
-            }
-        })
-        ->when($isBindedCustomer, function($query, $search) {
-            if($search != 'all') {
-                if($search == 'true') {
-                    $query->has('vend.customer');
-                }else {
-                    $query->doesntHave('vend.customer');
-                }
-            }
-        })
-        ->when($request->tempHigherThan, function($query, $search) {
-            if(is_numeric($search)) {
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->where('temp', '>=', $search * 10);
+            })
+            ->when($request->categoryGroups, function ($query, $search) {
+                $query->whereHas('vend.customer.category.categoryGroup', function ($query) use ($search) {
+                    $query->whereIn('id', $search);
                 });
-            }
-        })
-        ->when($request->tempDeltaHigherThan, function($query, $search) {
-            if(is_numeric($search)) {
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->whereNotNull('parameter_json->t2')
-                        ->where('parameter_json->t2', '!=', VendTemp::TEMPERATURE_ERROR)
-                        ->whereRaw('temp - json_extract(parameter_json, "$.t2") > ?', [$search * 10]);
-                });
-            }
-        })
-        ->when($request->errors, function($query, $search) {
-            if(in_array('errors_only', $search)) {
-                $query->whereHas('vendChannelErrorLogs', function($query) {
-                    $query->where('is_error_cleared', false);
-                });
-            }else {
-                $query->whereHas('vendChannelErrorLogs', function($query) use ($search) {
-                    $query->whereIn('vend_channel_error_id', $search)->where('is_error_cleared', false);
-                });
-            }
-
-        })
-        ->when($request->operator_id, function($query, $search) {
-            if($search != 'all') {
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->where('operator_id', $search);
-                });
-            }
-        })
-        ->when($isOnline, function($query, $search) {
-            if($search != 'all') {
-                if($search == 'true') {
-                    $search = true;
-                }else {
-                    $search = false;
-                }
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->where('is_online', $search);
-                });
-            }
-        })
-        ->when($isSensor, function($query, $search) {
-            if($search != 'all') {
-                $query->whereHas('vend', function($query) use ($search) {
-                    if($search == 'true') {
-                        $query->whereIn('parameter_json->Sensor', ['1', '3', '5', '7', '9']);
-                    }else {
-                        $query->whereIn('parameter_json->Sensor', ['0', '2', '4', '6', '8', '10']);
+            })
+            ->when($request->fan_rpm !== null && $request->fan_rpm !== '' && $request->fan_rpm !== 'all', function ($query) use ($request) {
+                $search = $request->fan_rpm;
+                $query->whereHas('vend', function ($query) use ($search) {
+                    if ($search == '0') {
+                        $query->where('is_fan_enabled', true)->where('parameter_json->fan', 0);
+                    } else if ($search == '>0') {
+                        $query->where('is_fan_enabled', true)->where('parameter_json->fan', '>', 0);
+                    } else if ($search == 'N/A') {
+                        $query->where('is_fan_enabled', false);
+                    } else if ($search == '--') {
+                        $query->where('is_fan_enabled', true)->where(function ($q) {
+                            $q->whereNull('parameter_json->fan');
+                        });
                     }
                 });
-            }
-        })
-        ->when($sortKey, function($query, $search) use ($sortBy) {
-            $query->whereHas('vend', function($query) use ($search, $sortBy) {
-                if(strpos($search, '->')) {
-                    $inputSearch = explode("->", $search);
-                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
-                    ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                }else {
-                    $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            })
+            ->when($isDoorOpen, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereHas('vend', function ($query) use ($search) {
+                        $query->where('parameter_json->door', '=', $search);
+                    });
                 }
-            });
+            })
+            ->when($isBindedCustomer, function ($query, $search) {
+                if ($search != 'all') {
+                    if ($search == 'true') {
+                        $query->has('vend.customer');
+                    } else {
+                        $query->doesntHave('vend.customer');
+                    }
+                }
+            })
+            ->when($request->tempHigherThan, function ($query, $search) {
+                if (is_numeric($search)) {
+                    $query->whereHas('vend', function ($query) use ($search) {
+                        $query->where('temp', '>=', $search * 10);
+                    });
+                }
+            })
+            ->when($request->tempDeltaHigherThan, function ($query, $search) {
+                if (is_numeric($search)) {
+                    $query->whereHas('vend', function ($query) use ($search) {
+                        $query->whereNotNull('parameter_json->t2')
+                            ->where('parameter_json->t2', '!=', VendTemp::TEMPERATURE_ERROR)
+                            ->whereRaw('temp - json_extract(parameter_json, "$.t2") > ?', [$search * 10]);
+                    });
+                }
+            })
+            ->when($request->errors, function ($query, $search) {
+                if (in_array('errors_only', $search)) {
+                    $query->whereHas('vendChannelErrorLogs', function ($query) {
+                        $query->where('is_error_cleared', false);
+                    });
+                } else {
+                    $query->whereHas('vendChannelErrorLogs', function ($query) use ($search) {
+                        $query->whereIn('vend_channel_error_id', $search)->where('is_error_cleared', false);
+                    });
+                }
 
-        });
+            })
+            ->when($request->operator_id, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereHas('vend', function ($query) use ($search) {
+                        $query->where('operator_id', $search);
+                    });
+                }
+            })
+            ->when($isOnline, function ($query, $search) {
+                if ($search != 'all') {
+                    if ($search == 'true') {
+                        $search = true;
+                    } else {
+                        $search = false;
+                    }
+                    $query->whereHas('vend', function ($query) use ($search) {
+                        $query->where('is_online', $search);
+                    });
+                }
+            })
+            ->when($isSensor, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereHas('vend', function ($query) use ($search) {
+                        if ($search == 'true') {
+                            $query->whereIn('parameter_json->Sensor', ['1', '3', '5', '7', '9']);
+                        } else {
+                            $query->whereIn('parameter_json->Sensor', ['0', '2', '4', '6', '8', '10']);
+                        }
+                    });
+                }
+            })
+            ->when($sortKey, function ($query, $search) use ($sortBy) {
+                $query->whereHas('vend', function ($query) use ($search, $sortBy) {
+                    if (strpos($search, '->')) {
+                        $inputSearch = explode("->", $search);
+                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                            ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                    } else {
+                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                    }
+                });
+
+            });
     }
 }

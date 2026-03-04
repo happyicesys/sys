@@ -155,9 +155,22 @@
 						>
 						</MultiSelect>
 				</div>
-				<SearchInput placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
-						Fan Speed &lt;&lt;
-				</SearchInput>
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					<label for="text" class="block text-sm font-medium text-gray-700">
+						Fan RPM
+					</label>
+					<MultiSelect
+						v-model="filters.fan_rpm"
+						:options="fanRpmOptions"
+						trackBy="id"
+						valueProp="id"
+						label="value"
+						placeholder="Select"
+						open-direction="bottom"
+						class="mt-1"
+					>
+					</MultiSelect>
+				</div>
 				<div v-if="permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Operator
@@ -2054,7 +2067,7 @@ font-size:13px;
 			//   is_testing: '',
 			is_door_open: '',
 			preferredDays: [],
-			fanSpeedLowerThan: '',
+			fan_rpm: '',
 			balanceStockLessThan: '',
 			remainingSkuLessThan: '',
 			// vend_prefix_id: '',
@@ -2082,6 +2095,7 @@ font-size:13px;
 	const deviceTypeOptions = ref([])
 	const dayOptions = ref([])
 	const doorOptions = ref([])
+	const fanRpmOptions = ref([])
 	const enableOptions = ref([])
 	const frequencyPerWeekOptions = ref([])
 	const isActiveFactoryOptions = ref([])
@@ -2174,6 +2188,13 @@ doorOptions.value = [
 		{id: 'open', value: 'Open'},
 		{id: 'close', value: 'Close'},
 ]
+fanRpmOptions.value = [
+		{id: 'all', value: 'All'},
+		{id: '0', value: '0'},
+		{id: '>0', value: '>0'},
+		{id: 'N/A', value: 'N/A'},
+		{id: '--', value: '--'},
+]
 frequencyPerWeekOptions.value = [
 	...Object.entries(props.frequencyPerWeekOptions).map(([id, value]) => {
 		return {
@@ -2237,6 +2258,7 @@ filters.value.is_active = booleanOptions.value[1]
 filters.value.deviceType = deviceTypeOptions.value[0]
 // filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0]
 filters.value.is_door_open = doorOptions.value[0]
+filters.value.fan_rpm = fanRpmOptions.value[0]
 filters.value.is_mqtt = booleanOptions.value[0]
 filters.value.is_mqtt_active = booleanOptions.value[0]
 filters.value.is_online = booleanOptions.value[0]
@@ -2282,7 +2304,7 @@ if(urlParams.has('channel_codes')) {
 		if([
 			'account_manager_name', 'apk_ver', 'codes', 'coinLessThan', 'channel_codes',
 			'serialNum', 'customer', 'firmware_ver', 'tempHigherThan', 't2HigherThan',
-			'tempDeltaHigherThan', 'lastVisitedGreaterThan', 'fanSpeedLowerThan',
+			'tempDeltaHigherThan', 'lastVisitedGreaterThan',
 			'balanceStockLessThan', 'remainingSkuLessThan', 'vendRecordsThirtyDaysAmountAverageLessThan',
 			'sortKey', 'next_planned_date'
 		].includes(cleanKey)) {
@@ -2298,6 +2320,7 @@ if(urlParams.has('channel_codes')) {
 		if(cleanKey === 'is_active') filters.value.is_active = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_active;
 		if(cleanKey === 'is_binded_customer') filters.value.is_binded_customer = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_binded_customer;
 		if(cleanKey === 'is_door_open') filters.value.is_door_open = doorOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_door_open;
+		if(cleanKey === 'fan_rpm') filters.value.fan_rpm = fanRpmOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.fan_rpm;
 		if(cleanKey === 'is_mqtt') filters.value.is_mqtt = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_mqtt;
 		if(cleanKey === 'is_mqtt_active') filters.value.is_mqtt_active = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_mqtt_active;
 		if(cleanKey === 'is_online') filters.value.is_online = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_online;
@@ -2487,6 +2510,7 @@ function onSearchFilterUpdated() {
 			delivery_platform_id: filters.value.delivery_platform_id.id,
 			deviceType: filters.value.deviceType.id,
 			errors: filters.value.errors.map((error) => { return error.id }),
+			fan_rpm: filters.value.fan_rpm.id,
 			frequency_per_week_status: filters.value.frequency_per_week_status.map((frequency) => { return frequency.id }),
 			location_type_id: filters.value.locationType.id,
 			next_planned_date: filters.value.next_planned_date,

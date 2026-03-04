@@ -145,9 +145,22 @@
             >
             </MultiSelect>
         </div>
-        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()">
-            Fan Speed &lt;&lt;
-        </SearchInput>
+        <div :class="[showAllFilters ? 'block' : 'hidden']">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Fan RPM
+            </label>
+            <MultiSelect
+                v-model="filters.fan_rpm"
+                :options="fanRpmOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+        </div>
         <div>
           <label for="text" class="block text-sm font-medium text-gray-700">
             Operator
@@ -1674,7 +1687,7 @@ import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleU
       is_sensor: '',
       //   is_testing: '',
       is_door_open: '',
-      fanSpeedLowerThan: '',
+      fan_rpm: '',
       balanceStockLessThan: '',
       remainingSkuLessThan: '',
       vendPrefixes: [],
@@ -1697,6 +1710,7 @@ import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleU
   const deliveryPlatformOptions = ref([])
   const deviceTypeOptions = ref([])
   const doorOptions = ref([])
+  const fanRpmOptions = ref([])
   const enableOptions = ref([])
   const isActiveFactoryOptions = ref([])
   const isShowOperationDiv = ref(false)
@@ -1782,6 +1796,13 @@ doorOptions.value = [
     {id: 'open', value: 'Open'},
     {id: 'close', value: 'Close'},
 ]
+fanRpmOptions.value = [
+    {id: 'all', value: 'All'},
+    {id: '0', value: '0'},
+    {id: '>0', value: '>0'},
+    {id: 'N/A', value: 'N/A'},
+    {id: '--', value: '--'},
+]
 isActiveFactoryOptions.value = [
     {id: 'all', value: 'All'},
     {id: '1', value: 'Factory (JB)'},
@@ -1855,6 +1876,7 @@ filters.value.is_active = booleanOptions.value[1]
 filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
 filters.value.deviceType = deviceTypeOptions.value[0]
 filters.value.is_door_open = doorOptions.value[0]
+filters.value.fan_rpm = fanRpmOptions.value[0]
 filters.value.is_mqtt = booleanOptions.value[0]
 filters.value.is_mqtt_active = booleanOptions.value[0]
 filters.value.is_online = booleanOptions.value[0]
@@ -1970,6 +1992,7 @@ function onSearchFilterUpdated() {
       delivery_platform_id: filters.value.delivery_platform_id.id,
       deviceType: filters.value.deviceType.id,
       errors: filters.value.errors.map((error) => { return error.id }),
+      fan_rpm: filters.value.fan_rpm.id,
       has_customer: filters.value.has_customer.id,
       lcd_monitor_id: filters.value.lcd_monitor_id.id,
       location_type_id: filters.value.locationType.id,

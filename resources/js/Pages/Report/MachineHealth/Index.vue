@@ -325,7 +325,7 @@ const matrix21 = computed(() => {
       {
           id: 'comp_fan_off',
           label: '2A) Compressor & or Fan, in OFF condition',
-          sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after defrost or resting\niii) Comp is working, but Fan not turning',
+          sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after defrost or resting\niii) Comp is working, but Fan not turning \niv) Alert dismissed once detected fan speed',
           types: ['comp_fan_off'],
           headers: { 1: '> 45 mins', 2: '> 60 mins' }
       },

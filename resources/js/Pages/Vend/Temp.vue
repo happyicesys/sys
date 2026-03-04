@@ -552,7 +552,7 @@ scales: {
 plugins: {
   title: {
     display: true,
-    text: '#' + vend.value.code + ' (' + (vend.value.cust_full_name ? vend.value.cust_full_name : vend.value.customer_name) + ')'
+    text: '#' + vend.value.code + ' (' + (vend.value.customer_id ? (vend.value.customer_id + 20000) + (vend.value.vend_prefix_name ? ' (' + vend.value.vend_prefix_name + ')' : '') + ' - ' + vend.value.customer_name : vend.value.customer_name) + ')'
   },
   tooltip: {
     callbacks: {

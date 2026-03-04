@@ -41,6 +41,7 @@ class Kernel extends ConsoleKernel
         $schedule->job(new \App\Jobs\DetectTempTrends, 'low')->hourly();
         // $schedule->command('clean:ops-job-and-incoming-data')->daily();
         // $schedule->command('release:voucher-lock-every-2-mins')->everyMinute();
+        $schedule->command('check:vend-fan-enabled')->everyTenMinutes();
     }
 
     /**
