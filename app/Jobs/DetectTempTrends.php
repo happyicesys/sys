@@ -386,6 +386,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
 
         $state = $vend->temp_monitoring_state ?? [];
         $newState = $state;
+        unset($newState['t1_higher_t2_start']);
 
         // Resolve any lingering T1 higher than T2 alerts if they exist
         if ($existingAlerts->has(VendSmartAlert::TYPE_T1_HIGHER_THAN_T2)) {
@@ -475,8 +476,6 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         // Save State
         if ($state !== $newState) {
             $vend->temp_monitoring_state = $newState;
-            // Ensure t1_higher_t2_start is removed if it was there
-            unset($vend->temp_monitoring_state['t1_higher_t2_start']);
         }
 
         // --- Evaluate Alerts with Priority Suppression ---

@@ -479,7 +479,7 @@ function buildAnnotations() {
         ctx.chart.canvas.style.cursor = 'pointer'
         const timeDisplay = `${tooltipTimeLabel}: ${moment(markerValue).format('YYYY-MM-DD HH:mm:ss')}`
         const triggerTime = moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')
-        const triggerDisplay = `\n(Triggered At: ${triggerTime})`
+        const triggerDisplay = isTriggered ? `\n(Triggered At: ${triggerTime})` : ''
 
         ctx.element.options.label.content = `[${shortLabel}] ${displaySubject}\n${timeDisplay}${triggerDisplay}`
         ctx.element.options.label.backgroundColor = isTriggered ? '#991b1b' : '#15803d'
@@ -502,7 +502,7 @@ function buildAnnotations() {
       click(ctx) {
         const timeDisplay = `${tooltipTimeLabel}: ${moment(markerValue).format('YYYY-MM-DD HH:mm:ss')}`
         const triggerTime = moment(log.context?.triggered_at || log.occurred_at).format('YYYY-MM-DD HH:mm:ss')
-        const triggerDisplay = `\n(Triggered At: ${triggerTime})`
+        const triggerDisplay = isTriggered ? `\n(Triggered At: ${triggerTime})` : ''
         const message = `[${shortLabel}] ${displaySubject}\n${timeDisplay}${triggerDisplay}`
         const config = {
           timeout: 7500,
