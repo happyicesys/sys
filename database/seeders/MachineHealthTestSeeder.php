@@ -74,7 +74,7 @@ class MachineHealthTestSeeder extends Seeder
                 1 => ['v1' => -5.0, 'v2' => -18.0, 'diff' => 13.0, 'duration' => 15],
                 2 => ['v1' => -3.0, 'v2' => -18.0, 'diff' => 15.0, 'duration' => 45],
             ],
-                // 1B: Compressor & or Fan OFF — > 45 mins (1), > 60 mins (2)
+                // 1B: Compressor & or Fan OFF — > 40 mins (1), > 60 mins (2)
             VendSmartAlert::TYPE_COMP_FAN_OFF => [
                 1 => ['duration' => 50],
                 2 => ['duration' => 75],

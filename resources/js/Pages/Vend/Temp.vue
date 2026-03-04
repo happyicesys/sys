@@ -345,6 +345,7 @@ const ALERT_TYPE_LABEL = {
   'rising_t1_trend':     '3C',
   'rising_t2_trend':     '3C',
   't2_frozen':           '3D',
+  'temps_above_minus_17_upward': '2E',
 }
 
 // Map alert_type -> human readable title
@@ -359,15 +360,17 @@ const ALERT_TYPE_TITLE = {
   'rising_t1_trend':     'Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
   'rising_t2_trend':     'Rising lowest T1 and T2 (Last 24hrs vs Last 48hrs)',
   't2_frozen':           'T2, never above 2°C',
+  'temps_above_minus_17_upward': 'T1 or T2 above -17°C and upward trending',
 }
 
 // Map alert_type -> duration offset in minutes (to show when the event actually started)
 const ALERT_TYPE_OFFSET_MINUTES = {
   'connectivity':        15,
-  'comp_fan_off':        45,
+  'comp_fan_off':        40,
   'temps_above_0':       30,
   'temps_above_minus_8': 60,
   'not_reach_minus_18':  480, // 8 hours
+  'temps_above_minus_17_upward': 30, // Default to Tier 1
 }
 
 function buildAnnotations() {

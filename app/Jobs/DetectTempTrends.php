@@ -398,7 +398,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         if (!$vend->is_fan_enabled) {
             // Ensure any lingering alert is cleared immediately for fan-less machines
             unset($newState['comp_fan_off_start']);
-            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 45 mins', '> 60 mins'], $existingAlerts);
+            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 40 mins', '> 60 mins'], $existingAlerts);
         } else {
             $latestFan = \App\Models\VendFan::where('vend_id', $vendId)->where('type', \App\Models\VendFan::TYPE_MAIN)->orderBy('created_at', 'desc')->first();
 
@@ -427,7 +427,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                 }
             } else {
                 unset($newState['comp_fan_off_start']);
-                $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 45 mins', '> 60 mins'], $existingAlerts);
+                $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 40 mins', '> 60 mins'], $existingAlerts);
             }
         }
 
@@ -473,6 +473,32 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             unset($newState['t2_gt_minus_18_start']);
         }
 
+        // --- Logic: 2E) T1 or T2 > -17 and upward trending ---
+        $isT1Above17 = ($t1Val > -17 && $t1Val < 100 && $t1->value != VendTemp::TEMPERATURE_ERROR);
+        $isT2Above17 = ($t2Val > -17 && $t2Val < 100 && $t2->value != VendTemp::TEMPERATURE_ERROR);
+
+        if ($isT1Above17 || $isT2Above17) {
+            foreach (['t1', 't2'] as $prefix) {
+                $isAbove = ${'is' . ucfirst($prefix) . 'Above17'};
+                $val = ${$prefix . 'Val'};
+                if ($isAbove) {
+                    $lastVal = $state[$prefix . '_upward_last_val'] ?? null;
+                    if ($lastVal !== null && $val > $lastVal) {
+                        $newState[$prefix . '_upward_streak'] = ($state[$prefix . '_upward_streak'] ?? 0) + 1;
+                    } else if ($lastVal !== null && $val < $lastVal) {
+                        $newState[$prefix . '_upward_streak'] = 0;
+                    }
+                    $newState[$prefix . '_upward_last_val'] = $val;
+                } else {
+                    unset($newState[$prefix . '_upward_streak'], $newState[$prefix . '_upward_last_val']);
+                }
+            }
+        } else {
+            unset($newState['t1_upward_streak'], $newState['t1_upward_last_val']);
+            unset($newState['t2_upward_streak'], $newState['t2_upward_last_val']);
+            $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_17_UPWARD, ['> 30 mins', '> 50 mins'], $existingAlerts);
+        }
+
         // Save State
         if ($state !== $newState) {
             $vend->temp_monitoring_state = $newState;
@@ -485,7 +511,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $severity = 0;
             if ($diffMinutes >= 60)
                 $severity = 2;
-            elseif ($diffMinutes >= 45)
+            elseif ($diffMinutes >= 40)
                 $severity = 1;
 
             if ($severity > 0) {
@@ -498,11 +524,11 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_COMP_FAN_OFF],
                     ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
                 );
-                $thresholdMinutes = $severity === 2 ? 60 : 45;
+                $thresholdMinutes = $severity === 2 ? 60 : 40;
                 $effectiveStart = \Carbon\Carbon::parse($newState['comp_fan_off_start']);
                 $occurredAt = $effectiveStart->copy()->addMinutes($thresholdMinutes);
-                $firstTriggerAt = $effectiveStart->copy()->addMinutes(45);
-                $this->handleEmailAlert($vend, $alert, ['> 45 mins', '> 60 mins'], $occurredAt, $firstTriggerAt);
+                $firstTriggerAt = $effectiveStart->copy()->addMinutes(40);
+                $this->handleEmailAlert($vend, $alert, ['> 40 mins', '> 60 mins'], $occurredAt, $firstTriggerAt);
             }
         }
 
@@ -609,6 +635,30 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         } else {
             $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_NOT_REACH_MINUS_18, ['Within last 8 hours', '> 8 hours'], $existingAlerts);
         }
+
+        // 5. T1 or T2 > -17 and upward trending (2E)
+        $maxStreak = max($newState['t1_upward_streak'] ?? 0, $newState['t2_upward_streak'] ?? 0);
+        if ($maxStreak >= 3) {
+            $severity = ($maxStreak >= 5) ? 2 : 1;
+            $startTime = $now->copy()->subMinutes($maxStreak * 10)->toIso8601String();
+
+            $existing = $existingAlerts->get(VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_17_UPWARD);
+            $meta = $existing ? ($existing->meta_data ?? []) : [];
+            $meta['v1'] = $t1Val;
+            $meta['v2'] = $t2Val;
+            $meta['streak'] = $maxStreak;
+            $meta['started_at'] = $startTime;
+            $meta['duration'] = $maxStreak * 10;
+
+            $alert = VendSmartAlert::updateOrCreate(
+                ['vend_id' => $vendId, 'alert_type' => VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_17_UPWARD],
+                ['severity' => $severity, 'is_active' => true, 'meta_data' => $meta]
+            );
+            $thresholdMinutes = $severity === 2 ? 50 : 30;
+            $occurredAt = $now;
+            $firstTriggerAt = \Carbon\Carbon::parse($startTime);
+            $this->handleEmailAlert($vend, $alert, ['> 30 mins', '> 50 mins'], $occurredAt, $firstTriggerAt);
+        }
     }
 
 
@@ -649,6 +699,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
                     'alert_type' => $alert->alert_type,
                     'severity' => $alert->severity,
                     'triggered_at' => $originalTriggerAt ? $originalTriggerAt->toIso8601String() : ($occurredAt ?? now())->toIso8601String(),
+                    'started_at' => $meta['started_at'] ?? null,
                     'meta' => $meta,
                 ];
                 VendLog::create([
@@ -744,6 +795,7 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             VendSmartAlert::TYPE_RISING_T1 => 'Rising lowest T1',
             VendSmartAlert::TYPE_RISING_T2 => 'Rising lowest T2',
             VendSmartAlert::TYPE_T2_FROZEN => 'T2, never above 2°C',
+            VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_17_UPWARD => 'T1 or T2 above -17°C and upward trending',
             default => $type,
         };
     }

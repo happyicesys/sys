@@ -324,14 +324,14 @@ const matrix21 = computed(() => {
   const meta = [
       {
           id: 'comp_fan_off',
-          label: '2A) Compressor & or Fan, in OFF condition',
+          label: '2A) Cooling Fan, in OFF condition',
           sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after defrost or resting\niii) Comp is working, but Fan not turning \niv) Alert dismissed once detected fan speed',
           types: ['comp_fan_off'],
-          headers: { 1: '> 45 mins', 2: '> 60 mins' }
+          headers: { 1: '> 40 mins', 2: '> 60 mins' }
       },
       {
           id: 'temps_above_0',
-          label: '2B) T1 & or T2, above 0°C',
+          label: '2B) T1 or T2, above 0°C',
           sub: 'Possible component issue:\ni) Freezer unit being turned off\nii) Comp & or fan, fail to start after forced defrost\n\nPossible Operation issue:\niii) Freezer door not close tight\niv) Open freezer door >15mins',
           note: 'Alert dismissed once temp below 0c',
           types: ['temps_above_0'],
@@ -339,7 +339,7 @@ const matrix21 = computed(() => {
       },
       {
           id: 'temps_above_minus_8',
-          label: '2C) T1 & or T2, above -8°C',
+          label: '2C) T1 or T2, above -8°C',
           sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins',
           note: 'Alert dismissed once temp below -8c',
           types: ['temps_above_minus_8'],
@@ -347,11 +347,19 @@ const matrix21 = computed(() => {
       },
       {
           id: 'not_reach_minus_18',
-          label: '2D) T1 & or T2, did not reach -18°C',
+          label: '2D) T1 or T2, did not reach -18°C',
           sub: 'Possible Operation issue:\ni) Freezer door not close tight\nii) Open freezer door >15mins\niii) Many purchases occur',
           note: 'Alert dismissed once temp below -18c',
           types: ['not_reach_minus_18'],
           headers: { 1: 'Within last 8 hours', 2: '> 8 hours' }
+      },
+      {
+          id: 'temps_above_minus_17_upward',
+          label: '2E) T1 or T2, above -17°C and upward trending',
+          sub: 'Possible component issue:\ni) Actuator door open and fan keeps running\nii) Compressor fail but fan still running',
+          note: 'Alert dismissed once temp below -17c',
+          types: ['temps_above_minus_17_upward'],
+          headers: { 1: '> 30 mins', 2: '> 50 mins' }
       },
   ]
   const rows = [

@@ -62,6 +62,9 @@ class VendOperationErrorNotificationMail extends Mailable implements ShouldQueue
             case \App\Models\VendSmartAlert::TYPE_NOT_REACH_MINUS_18:
                 $title = '2D) T1 & or T2, did not reach -18°C';
                 break;
+            case \App\Models\VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_17_UPWARD:
+                $title = '2E) T1 or T2, above -17°C and upward trending';
+                break;
             default:
                 $title = 'Operation Error / Critical Parts Failure';
         }

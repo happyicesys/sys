@@ -37,6 +37,7 @@ class VendSmartAlert extends Model
     const TYPE_TEMPS_ABOVE_0 = 'temps_above_0';
     const TYPE_TEMPS_ABOVE_MINUS_8 = 'temps_above_minus_8';
     const TYPE_NOT_REACH_MINUS_18 = 'not_reach_minus_18';
+    const TYPE_TEMPS_ABOVE_MINUS_17_UPWARD = 'temps_above_minus_17_upward';
 
     // 2.2 Preventive
     const TYPE_LOWEST_24H_ABOVE = 'lowest_24h_above';
