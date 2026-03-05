@@ -330,6 +330,7 @@ class VendController extends Controller
             'operators.code AS operator_code',
             'operators.name AS operator_name',
             'vend_prefixes.name AS vend_prefix_name',
+            'customers.totals_json AS customers_totals_json',
             // 'delivery_platforms.slug AS delivery_platform_slug'
         ];
 
@@ -382,7 +383,7 @@ class VendController extends Controller
             'thirthyDaysAvg' => collect((clone $vends)
                 ->items())
                 ->sum(function ($vend) {
-                    return $vend->virtual_vend_records_thirty_days_amount_average ?? 0;
+                    return $vend->customers_totals_json ? $vend->customers_totals_json['vend_records_thirty_days_amount_average'] : 0;
                 }) / 100,
         ];
 
