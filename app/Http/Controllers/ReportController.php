@@ -82,6 +82,7 @@ class ReportController extends Controller
         'is_binded_customer',
         'sale_count',
         'transaction_count',
+        'amount_cents',
         'revenue_cents',
         'gross_profit_cents',
         'unit_cost_cents',
@@ -1374,7 +1375,7 @@ class ReportController extends Controller
                 ->leftJoin('categories as customer_categories', 'customers.category_id', '=', 'customer_categories.id');
 
             $countColumn = 'gm.sale_count';
-            $amountColumn = 'gm.revenue_cents';
+            $amountColumn = 'gm.amount_cents';
 
             switch ($className) {
                 case 'products':
@@ -1420,7 +1421,7 @@ class ReportController extends Controller
             $transactionsQuery = $this->baseVendRecordsQuery($request, $start, $end);
 
             $countColumn = 'vr.total_count';
-            $amountColumn = 'vr.revenue';
+            $amountColumn = 'vr.total_amount';
 
             switch ($className) {
                 case 'categories':
@@ -1537,8 +1538,8 @@ class ReportController extends Controller
                 'vend_model_id',
                 DB::raw('txn_date as date'),
                 DB::raw('SUM(sale_count) as total_count'),
-                DB::raw('SUM(revenue_cents) as total_amount'),
-                DB::raw('SUM(revenue_cents) as revenue')
+                DB::raw('SUM(amount_cents) as total_amount'),
+                DB::raw('SUM(amount_cents) as revenue')
             );
     }
 
@@ -1869,9 +1870,9 @@ class ReportController extends Controller
             ->selectRaw('MAX(customers.name) as customer_name')
             ->selectRaw($monthDiffExpression . ' as month_diff')
             ->selectRaw('SUM(gm.sale_count) as count')
-            ->selectRaw('SUM(gm.revenue_cents) as revenue')
+            ->selectRaw('SUM(gm.amount_cents) as revenue')
             ->selectRaw('SUM(gm.gross_profit_cents) as gross_profit')
-            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.revenue_cents), 0), 1) as gross_profit_margin')
+            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.amount_cents), 0), 1) as gross_profit_margin')
             ->groupBy('gm.vend_id', DB::raw($monthDiffExpression));
 
         $vends = DB::query()
@@ -2337,9 +2338,9 @@ class ReportController extends Controller
             ->selectRaw('MAX(products.code) as code')
             ->selectRaw($monthDiffExpression . ' as month_diff')
             ->selectRaw('SUM(gm.sale_count) as count')
-            ->selectRaw('SUM(gm.revenue_cents) as revenue')
+            ->selectRaw('SUM(gm.amount_cents) as revenue')
             ->selectRaw('SUM(gm.gross_profit_cents) as gross_profit')
-            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.revenue_cents), 0), 1) as gross_profit_margin')
+            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.amount_cents), 0), 1) as gross_profit_margin')
             ->groupBy('gm.product_id', DB::raw($monthDiffExpression));
 
         $products = DB::query()
@@ -2417,9 +2418,9 @@ class ReportController extends Controller
             ->selectRaw('MAX(categories.classname) as classname')
             ->selectRaw($monthDiffExpression . ' as month_diff')
             ->selectRaw('SUM(gm.sale_count) as count')
-            ->selectRaw('SUM(gm.revenue_cents) as revenue')
+            ->selectRaw('SUM(gm.amount_cents) as revenue')
             ->selectRaw('SUM(gm.gross_profit_cents) as gross_profit')
-            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.revenue_cents), 0), 1) as gross_profit_margin')
+            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.amount_cents), 0), 1) as gross_profit_margin')
             ->groupBy('gm.category_id', DB::raw($monthDiffExpression));
 
         $categories = DB::query()
@@ -2497,9 +2498,9 @@ class ReportController extends Controller
             ->selectRaw('MAX(location_types.name) as name')
             ->selectRaw($monthDiffExpression . ' as month_diff')
             ->selectRaw('SUM(gm.sale_count) as count')
-            ->selectRaw('SUM(gm.revenue_cents) as revenue')
+            ->selectRaw('SUM(gm.amount_cents) as revenue')
             ->selectRaw('SUM(gm.gross_profit_cents) as gross_profit')
-            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.revenue_cents), 0), 1) as gross_profit_margin')
+            ->selectRaw('ROUND(SUM(gm.gross_profit_cents) * 100.0 / NULLIF(SUM(gm.amount_cents), 0), 1) as gross_profit_margin')
             ->groupBy('gm.transaction_location_type_id', DB::raw($monthDiffExpression));
 
         $locationTypes = DB::query()

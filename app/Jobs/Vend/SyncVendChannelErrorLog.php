@@ -138,7 +138,14 @@ class SyncVendChannelErrorLog implements ShouldQueue, ShouldBeUnique
                     ->latest()
                     ->first();
 
-                if ($lastLog and $lastLog->vendChannelError->code != $vendChannelErrorCode and !$lastLog->is_error_cleared) {
+                $shouldClearLastLog = $lastLog && $lastLog->vendChannelError->code != $vendChannelErrorCode && !$lastLog->is_error_cleared;
+
+                // Protect recent transaction-based errors from being cleared by heartbeats (potentially stale data)
+                if ($shouldClearLastLog && !$vendTransactionId && $lastLog->vend_transaction_id && $lastLog->created_at->gt(now()->subSeconds(90))) {
+                    $shouldClearLastLog = false;
+                }
+
+                if ($shouldClearLastLog) {
                     $lastLog->is_error_cleared = true;
                     $lastLog->save();
 
@@ -159,9 +166,19 @@ class SyncVendChannelErrorLog implements ShouldQueue, ShouldBeUnique
             } else {
                 $recoveredChannel = VendChannel::where('vend_id', $vend->id)->where('code', $vendChannelCode)->first();
                 if ($recoveredChannel) {
-                    $recoveredVendChannelErrorLogs = VendChannelErrorLog::where('vend_channel_id', $recoveredChannel->id)
-                        ->where('is_error_cleared', false)
-                        ->get();
+                    $recoveredVendChannelErrorLogsQuery = VendChannelErrorLog::where('vend_channel_id', $recoveredChannel->id)
+                        ->where('is_error_cleared', false);
+
+                    // If this recovery is from a heartbeat/sync (no transaction ID),
+                    // protect recent transaction-based errors from being cleared by potentially stale heartbeat data
+                    if (!$vendTransactionId) {
+                        $recoveredVendChannelErrorLogsQuery->where(function ($q) {
+                            $q->whereNull('vend_transaction_id')
+                                ->orWhere('created_at', '<', now()->subSeconds(90));
+                        });
+                    }
+
+                    $recoveredVendChannelErrorLogs = $recoveredVendChannelErrorLogsQuery->get();
                     if ($recoveredVendChannelErrorLogs) {
                         /** @var VendChannelErrorLog \$recoveredVendChannelErrorLog */
                         foreach ($recoveredVendChannelErrorLogs as $recoveredVendChannelErrorLog) {

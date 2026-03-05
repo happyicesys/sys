@@ -26,6 +26,7 @@ class GpMetric extends Model
         'is_binded_customer',
         'sale_count',
         'transaction_count',
+        'amount_cents',
         'revenue_cents',
         'gross_profit_cents',
         'unit_cost_cents',

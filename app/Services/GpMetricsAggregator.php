@@ -34,13 +34,15 @@ class GpMetricsAggregator
                 });
         };
 
+        $singleAmountExpression = 'COALESCE(vend_transactions.amount, 0)';
         $singleRevenueExpression = 'COALESCE(vend_transactions.revenue, vend_transactions.amount, 0)';
         $singleUnitCostExpression = 'COALESCE(vend_transactions.unit_cost, 0)';
         $singleGrossProfitExpression = '(' . $singleRevenueExpression . ' - ' . $singleUnitCostExpression . ')';
-        $singleCountExpression = 'CASE WHEN vend_transactions.success_qty IS NULL OR vend_transactions.success_qty = 0 THEN 1 ELSE vend_transactions.success_qty END';
+        $singleCountExpression = 'COALESCE(vend_transactions.qty, 1)';
 
         $single = DB::table('vend_transactions')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
+            ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
             ->leftJoin('vend_channels', 'vend_transactions.vend_channel_id', '=', 'vend_channels.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
@@ -56,10 +58,6 @@ class GpMetricsAggregator
                             ->from('vend_transaction_items')
                             ->whereColumn('vend_transaction_items.vend_transaction_id', 'vend_transactions.id');
                     });
-            })
-            ->where(function ($query) {
-                $query->whereIn('vend_transactions.vend_channel_error_id', [1, 5])
-                    ->orWhereNull('vend_transactions.vend_channel_error_id');
             })
             ->selectRaw("$transactionDateExpression as txn_date")
             ->selectRaw('vend_transactions.operator_id as operator_id')
@@ -77,8 +75,9 @@ class GpMetricsAggregator
             ->selectRaw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END as is_binded_customer')
             ->selectRaw('SUM(' . $singleCountExpression . ') as sale_count')
             ->selectRaw('COUNT(*) as transaction_count')
-            ->selectRaw('SUM(' . $singleRevenueExpression . ') as revenue_cents')
-            ->selectRaw('SUM(' . $singleGrossProfitExpression . ') as gross_profit_cents')
+            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN $singleAmountExpression ELSE 0 END) as amount_cents")
+            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN ($singleRevenueExpression) ELSE 0 END) as revenue_cents")
+            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN ($singleGrossProfitExpression) ELSE 0 END) as gross_profit_cents")
             ->selectRaw('SUM(' . $singleUnitCostExpression . ') as unit_cost_cents')
             ->groupBy([
                 DB::raw($transactionDateExpression),
@@ -96,12 +95,27 @@ class GpMetricsAggregator
                 DB::raw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END'),
             ]);
 
+        $multiAmountExpression = 'COALESCE(vend_transaction_items.unit_price_amount, 0)';
         $multiRevenueExpression = 'ROUND(COALESCE(vend_transaction_items.unit_price_amount, 0) / (1 + COALESCE(vend_transactions.gst_vat_rate, 0) / 100))';
-        $multiUnitCostExpression = 'ROUND(COALESCE(vend_transaction_items.unit_cost, 0) * 100)';
-        $multiGrossProfitExpression = '(' . $multiRevenueExpression . ' - ' . $multiUnitCostExpression . ')';
+        $multiSub = DB::table('vend_transaction_items as vti')
+            ->select(
+                'vend_transaction_id',
+                DB::raw('SUM(unit_price_amount) as item_sum'),
+                DB::raw('COUNT(CASE WHEN unit_price_amount = 0 THEN 1 END) as zero_count'),
+                DB::raw('COUNT(*) as total_count')
+            )
+            ->groupBy('vend_transaction_id');
+
+        $adjustedAmountExpr = "vend_transaction_items.unit_price_amount + (CASE
+            WHEN vti_sum.zero_count > 0 AND vend_transaction_items.unit_price_amount = 0 THEN (vend_transactions.amount - vti_sum.item_sum) / vti_sum.zero_count
+            WHEN vti_sum.zero_count = 0 THEN (vend_transactions.amount - vti_sum.item_sum) / vti_sum.total_count
+            ELSE 0 END)";
+
+        $adjustedRevenueExpr = "COALESCE(vend_transactions.revenue, vend_transactions.amount, 0) / NULLIF(vti_sum.total_count, 0)";
 
         $multi = DB::table('vend_transaction_items')
             ->join('vend_transactions', 'vend_transaction_items.vend_transaction_id', '=', 'vend_transactions.id')
+            ->leftJoinSub($multiSub, 'vti_sum', 'vend_transactions.id', '=', 'vti_sum.vend_transaction_id')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('vend_channels', 'vend_transaction_items.vend_channel_id', '=', 'vend_channels.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
@@ -112,11 +126,6 @@ class GpMetricsAggregator
             })
             ->where('vend_transactions.amount', '>', 0)
             ->where('vend_transactions.is_multiple', true)
-            ->where(function ($query) {
-                $query->whereIn('vend_transaction_items.vend_channel_error_id', [1, 5])
-                    ->orWhereNull('vend_transaction_items.vend_channel_error_id')
-                    ->orWhereIn('vend_transaction_items.vend_channel_error_code', [0, 6]);
-            })
             ->selectRaw("$transactionDateExpression as txn_date")
             ->selectRaw('vend_transactions.operator_id as operator_id')
             ->selectRaw('vend_transactions.vend_id as vend_id')
@@ -131,11 +140,12 @@ class GpMetricsAggregator
             ->selectRaw('COALESCE(vend_transaction_items.product_id, vend_channels.product_id) as product_id')
             ->selectRaw('1 as is_multiple')
             ->selectRaw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END as is_binded_customer')
-            ->selectRaw('SUM(CASE WHEN ' . $multiRevenueExpression . ' > 0 THEN 1 ELSE 0 END) as sale_count')
+            ->selectRaw('SUM(1) as sale_count')
             ->selectRaw('COUNT(DISTINCT vend_transaction_items.vend_transaction_id) as transaction_count')
-            ->selectRaw('SUM(' . $multiRevenueExpression . ') as revenue_cents')
-            ->selectRaw('SUM(' . $multiGrossProfitExpression . ') as gross_profit_cents')
-            ->selectRaw('SUM(' . $multiUnitCostExpression . ') as unit_cost_cents')
+            ->selectRaw("SUM($adjustedAmountExpr) as amount_cents")
+            ->selectRaw("SUM($adjustedRevenueExpr) as revenue_cents")
+            ->selectRaw("SUM($adjustedRevenueExpr - (COALESCE(vend_transaction_items.unit_cost, 0) * 100)) as gross_profit_cents")
+            ->selectRaw('SUM(COALESCE(vend_transaction_items.unit_cost, 0) * 100) as unit_cost_cents')
             ->groupBy([
                 DB::raw($transactionDateExpression),
                 'vend_transactions.operator_id',
@@ -172,6 +182,7 @@ class GpMetricsAggregator
                 'metrics.is_binded_customer',
                 'metrics.sale_count',
                 'metrics.transaction_count',
+                'metrics.amount_cents',
                 'metrics.revenue_cents',
                 'metrics.gross_profit_cents',
                 'metrics.unit_cost_cents',
