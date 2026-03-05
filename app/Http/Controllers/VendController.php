@@ -382,7 +382,7 @@ class VendController extends Controller
             'thirthyDaysAvg' => collect((clone $vends)
                 ->items())
                 ->sum(function ($vend) {
-                    return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] : 0;
+                    return $vend->virtual_vend_records_thirty_days_amount_average ?? 0;
                 }) / 100,
         ];
 
