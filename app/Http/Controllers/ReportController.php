@@ -196,11 +196,7 @@ class ReportController extends Controller
     {
         $operatorOptions = Operator::select('id', 'code', 'name')->orderBy('name')->get();
 
-        if (empty($request->input('operator_ids'))) {
-            $request->merge([
-                'operator_ids' => $this->resolveDefaultOperatorIds($operatorOptions),
-            ]);
-        }
+        // Default is "All" operators — no pre-selection applied
 
         $dashboardData = $this->machineHealthDashboardService->getDashboardData($request);
 

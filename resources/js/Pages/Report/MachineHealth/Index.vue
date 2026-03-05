@@ -33,7 +33,6 @@ const props = defineProps({
 })
 
 const DEFAULT_VISIBLE = 10
-const HIPL_OPERATOR_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST']
 
 const normalizeCollection = (collection) => {
   if (!collection) {
@@ -109,7 +108,6 @@ const noTransactions = computed(() => props.machineHealth?.no_transactions ?? {}
 const errorDefinitions = computed(() => props.machineHealth?.error_definitions ?? {})
 const operatorOptions = computed(() => normalizeCollection(props.operatorOptions))
 const vendPrefixOptions = computed(() => normalizeCollection(props.vendPrefixOptions))
-const authOperator = computed(() => page.props.auth?.operator ?? null)
 
 const operatorSelectOptions = computed(() =>
   operatorOptions.value.map((option) => {
@@ -166,53 +164,8 @@ const vendPrefixSelections = computed({
   },
 })
 
-const ensureDefaultOperatorFilters = () => {
-  if ((filters.operator_ids?.length ?? 0) > 0) {
-    return
-  }
+// Machine Health Dashboard defaults to "All" operators (empty operator_ids = no filter)
 
-  const operator = authOperator.value
-  if (!operator) {
-    return
-  }
-
-  const options = operatorSelectOptions.value
-  if (!options.length) {
-    return
-  }
-
-  const byCode = new Map(options.map((option) => [option.code, option]))
-  const byId = new Map(options.map((option) => [option.id, option]))
-  const selectedIds = []
-  const [normalizedId] = normalizeIds([operator.id])
-
-  const activeOption =
-    byId.get(normalizedId) ??
-    (operator.code ? byCode.get(operator.code) : undefined)
-
-  if (!activeOption) {
-    return
-  }
-
-  if (activeOption.code === 'HIPL') {
-    HIPL_OPERATOR_CODES.forEach((code) => {
-      const match = byCode.get(code)
-      if (match) {
-        selectedIds.push(match.id)
-      }
-    })
-  } else {
-    selectedIds.push(activeOption.id)
-  }
-
-  if (selectedIds.length) {
-    filters.operator_ids = selectedIds
-  }
-}
-
-watch([operatorSelectOptions, authOperator], ensureDefaultOperatorFilters, {
-  immediate: true,
-})
 
 const createRowLimiter = (rowsSource, limitSource) => {
   const expanded = ref(false)

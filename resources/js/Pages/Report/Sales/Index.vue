@@ -393,6 +393,7 @@ const locationTypeOptions = ref([])
 const reportDateOptions = ref([])
 const operatorOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
+const authOperator = usePage().props.auth.operator
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const currentUrl = ref()
@@ -452,7 +453,7 @@ onMounted(() => {
   ]
   operatorOptions.value = [
     {id: 'all', full_name: 'All'},
-    ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+    ...props.operators.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   vendContractOptions.value = [
       {id: 'all', value: 'All'},
@@ -470,9 +471,15 @@ onMounted(() => {
   filters.value.currentFilterDate = reportDateOptions.value[0]
   filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
   filters.value.location_type_id = locationTypeOptions.value[0]
-  filters.value.operators = [
-    operatorOptions.value[0]
-  ].filter(operator => operator !== undefined)
+  filters.value.operators = authOperator ? [
+    operatorOptions.value.find(operator => operator.id === authOperator.id),
+    ...authOperator.code == 'HIPL' ? [
+      operatorOptions.value.find(operator => operator.code == 'HIMD'),
+      operatorOptions.value.find(operator => operator.code == 'LEA'),
+      operatorOptions.value.find(operator => operator.code == 'HIESG'),
+      operatorOptions.value.find(operator => operator.code == 'UL-ST'),
+    ] : [],
+  ].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
   filters.value.vendPrefixes = [
     vendPrefixOptions.value[0]
   ]

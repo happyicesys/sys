@@ -498,7 +498,7 @@ onMounted(() => {
   ]
   operatorOptions.value = [
       {id: 'all', full_name: 'All'},
-      ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+      ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   monthOptions.value = props.monthOptions.map((data) => {return {id: data.id, name: data.name}})
   vendPrefixOptions.value = [
@@ -510,9 +510,15 @@ onMounted(() => {
   filters.value.currentMonth = monthOptions.value[1]
   filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
   filters.value.locationType = locationTypeOptions.value[0]
-  filters.value.operators = [
-    operatorOptions.value[0]
-  ].filter(operator => operator !== undefined)
+  filters.value.operators = authOperator ? [
+    operatorOptions.value.find(operator => operator.id === authOperator.id),
+    ...authOperator.code == 'HIPL' ? [
+      operatorOptions.value.find(operator => operator.code == 'HIMD'),
+      operatorOptions.value.find(operator => operator.code == 'LEA'),
+      operatorOptions.value.find(operator => operator.code == 'HIESG'),
+      operatorOptions.value.find(operator => operator.code == 'UL-ST'),
+    ] : [],
+  ].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
   filters.value.vendPrefixes = [
     vendPrefixOptions.value[0]
   ].filter(prefix => prefix !== undefined)
