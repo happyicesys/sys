@@ -29,6 +29,7 @@ const productOptions = ref([])
 
 const filters = ref({
     product_id: '',
+    vend_code: '',
     operators: [],
     date_from: moment().format('YYYY-MM-DD'),
     date_to: moment().format('YYYY-MM-DD'),
@@ -73,12 +74,16 @@ onMounted(() => {
     if (props.filters.date_to) {
         filters.value.date_to = props.filters.date_to
     }
+    if (props.filters.vend_code) {
+        filters.value.vend_code = props.filters.vend_code
+    }
 })
 
 const onSearchFilterUpdated = () => {
     let operatorIds = filters.value.operators.map(op => op.id)
     router.get(route('product-movements.tracking-details'), {
         product_id: filters.value.product_id,
+        vend_code: filters.value.vend_code,
         operators: operatorIds,
         date_from: filters.value.date_from,
         date_to: filters.value.date_to,
@@ -90,6 +95,7 @@ const onSearchFilterUpdated = () => {
 
 const onResetFilterClicked = () => {
     filters.value.product_id = ''
+    filters.value.vend_code = ''
     filters.value.operators = []
     filters.value.date_from = moment().format('YYYY-MM-DD')
     filters.value.date_to = moment().format('YYYY-MM-DD')
@@ -115,6 +121,7 @@ const onExcelExportClicked = () => {
         url: '/products/movements/tracking-export-excel',
         params: {
             product_id: filters.value.product_id,
+            vend_code: filters.value.vend_code,
             operators: operatorIds,
             date_from: filters.value.date_from,
             date_to: filters.value.date_to,
@@ -167,6 +174,11 @@ const onExcelExportClicked = () => {
                             :searchable="true"
                         >
                         </MultiSelect>
+                    </div>
+                    <div class="col-span-5 md:col-span-1">
+                        <SearchInput placeholderStr="4 to 5 Digits Number" v-model="filters.vend_code">
+                            Machine ID ("," for multiple)
+                        </SearchInput>
                     </div>
                     <div class="col-span-5 md:col-span-1">
                         <label class="block text-sm font-medium text-gray-700">Operator</label>
@@ -243,6 +255,7 @@ const onExcelExportClicked = () => {
                                     <TableHead>Product Name</TableHead>
                                     <TableHead>Qty</TableHead>
                                     <TableHead>By</TableHead>
+                                    <TableHead>Machine ID</TableHead>
                                     <TableHead>Job Number</TableHead>
                                     <TableHead>Job Delivery Date</TableHead>
 
@@ -284,6 +297,9 @@ const onExcelExportClicked = () => {
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
                                         {{ movement.by_user }}
                                     </TableData>
+                                    <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
+                                        {{ movement.machine_id }}
+                                    </TableData>
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
                                         {{ movement.remarks ? '#' + movement.remarks : '' }}
                                     </TableData>
@@ -293,7 +309,7 @@ const onExcelExportClicked = () => {
 
                                 </tr>
                                 <tr v-if="movements.data.length === 0">
-                                    <td colspan="9" class="p-3 text-center text-gray-500">
+                                    <td colspan="11" class="p-3 text-center text-gray-500">
                                         No tracking data found for the selected criteria.
                                     </td>
                                 </tr>

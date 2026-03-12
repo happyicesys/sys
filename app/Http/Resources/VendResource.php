@@ -209,6 +209,7 @@ class VendResource extends JsonResource
             'vendPrefix' => VendPrefixResource::make($this->whenLoaded('vendPrefix')),
             'vend_prefix_id' => isset($this->vend_prefix_id) ? $this->vend_prefix_id : null,
             'vend_prefix_name' => isset($this->vend_prefix_name) ? $this->vend_prefix_name : null,
+            'vend_config_name' => isset($this->vend_config_name) ? $this->vend_config_name : null,
             'vendSerialNumber' => VendSerialNumberResource::make($this->whenLoaded('vendSerialNumber')),
             'vend_serial_number_id' => isset($this->vend_serial_number_id) ? $this->vend_serial_number_id : null,
             'vend_serial_number_code' => isset($this->vend_serial_number_code) ? $this->vend_serial_number_code : null,

@@ -168,6 +168,7 @@ class ProductMovementController extends Controller
                 users.name as by_user,
                 product_movements.created_at as created_at,
                 ops_jobs.date as job_delivery_date,
+                vends.code as machine_id,
                 'ProductMovement' as source_type
             ")
             ->leftJoin('products', 'products.id', '=', 'product_movements.product_id')
@@ -177,6 +178,7 @@ class ProductMovementController extends Controller
                     ->whereIn('product_movements.type', [3, 4]);
             })
             ->leftJoin('ops_jobs', 'ops_job_items.ops_job_id', '=', 'ops_jobs.id')
+            ->leftJoin('vends', 'ops_job_items.vend_id', '=', 'vends.id')
             ->whereIn('product_movements.operator_id', $operators)
             ->when($request->product_id, function ($q) use ($request) {
                 $q->where('product_movements.product_id', $request->product_id);
@@ -186,6 +188,14 @@ class ProductMovementController extends Controller
             })
             ->when($request->date_to, function ($q) use ($request) {
                 $q->whereDate('product_movements.created_at', '<=', $request->date_to);
+            })
+            ->when($request->vend_code, function ($q) use ($request) {
+                if (strpos($request->vend_code, ',') !== false) {
+                    $search = array_map('trim', explode(',', $request->vend_code));
+                    $q->whereIn('vends.code', $search);
+                } else {
+                    $q->where('vends.code', 'LIKE', '%' . $request->vend_code . '%');
+                }
             });
 
         // 3. Outgoing (OpsJobItemChannel -> OpsJob)
@@ -202,12 +212,14 @@ class ProductMovementController extends Controller
                 users.name as by_user,
                 COALESCE(ops_job_items.picked_at, ops_job_items.last_picked_at) as created_at,
                 ops_jobs.date as job_delivery_date,
+                vends.code as machine_id,
                 'OpsJob' as source_type
             ")
             ->join('ops_job_items', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
             ->join('ops_job_item_channels', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
             ->join('products', 'products.id', '=', 'ops_job_item_channels.product_id')
             ->leftJoin('users', 'ops_jobs.delivered_by', '=', 'users.id')
+            ->leftJoin('vends', 'ops_job_items.vend_id', '=', 'vends.id')
             ->whereIn('ops_jobs.operator_id', $operators)
             ->where(function ($q) {
                 $q->where(function ($sub) {
@@ -230,6 +242,14 @@ class ProductMovementController extends Controller
             ->when($request->date_to, function ($q) use ($request) {
                 $q->whereDate(DB::raw('COALESCE(ops_job_items.picked_at, ops_job_items.last_picked_at)'), '<=', $request->date_to);
             })
+            ->when($request->vend_code, function ($q) use ($request) {
+                if (strpos($request->vend_code, ',') !== false) {
+                    $search = array_map('trim', explode(',', $request->vend_code));
+                    $q->whereIn('vends.code', $search);
+                } else {
+                    $q->where('vends.code', 'LIKE', '%' . $request->vend_code . '%');
+                }
+            })
             // Exclude records after cutoff because they are now logged in product_movements
             ->where(DB::raw('COALESCE(ops_job_items.picked_at, ops_job_items.last_picked_at)'), '<', '2026-01-15 19:30:00');
 
@@ -246,12 +266,14 @@ class ProductMovementController extends Controller
                 users.name as by_user,
                 ops_job_items.undo_picked_at as created_at,
                 ops_jobs.date as job_delivery_date,
+                vends.code as machine_id,
                 'OpsJob' as source_type
             ")
             ->join('ops_job_items', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
             ->join('ops_job_item_channels', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
             ->join('products', 'products.id', '=', 'ops_job_item_channels.product_id')
             ->leftJoin('users', 'ops_job_items.undo_picked_by', '=', 'users.id')
+            ->leftJoin('vends', 'ops_job_items.vend_id', '=', 'vends.id')
             ->whereIn('ops_jobs.operator_id', $operators)
             ->whereNotNull('ops_job_items.undo_picked_at')
             ->where('ops_job_item_channels.saved_picked_qty', '>', 0)
@@ -263,6 +285,14 @@ class ProductMovementController extends Controller
             })
             ->when($request->date_to, function ($q) use ($request) {
                 $q->whereDate('ops_job_items.undo_picked_at', '<=', $request->date_to);
+            })
+            ->when($request->vend_code, function ($q) use ($request) {
+                if (strpos($request->vend_code, ',') !== false) {
+                    $search = array_map('trim', explode(',', $request->vend_code));
+                    $q->whereIn('vends.code', $search);
+                } else {
+                    $q->where('vends.code', 'LIKE', '%' . $request->vend_code . '%');
+                }
             })
             // Exclude records after cutoff because they are now logged in product_movements
             ->where('ops_job_items.undo_picked_at', '<', '2026-01-15 19:30:00');

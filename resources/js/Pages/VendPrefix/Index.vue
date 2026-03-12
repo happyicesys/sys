@@ -155,7 +155,15 @@
               <thead class="bg-gray-100">
                 <tr class="divide-x divide-gray-200">
                   <TableHead>#</TableHead>
-                  <TableHead>Setting Chart</TableHead>
+                  <TableHeadSort
+                    modelName="vend_config_name"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('vend_config_name')"
+                    class="bg-sky-200"
+                  >
+                    Setting Chart
+                  </TableHeadSort>
                   <TableHeadSort
                     modelName="name"
                     :sortKey="filters.sortKey"
@@ -166,8 +174,24 @@
                     Prefix
                   </TableHeadSort>
                   <TableHead>Desc</TableHead>
-                  <TableHead>Product Mapping <br /> Current</TableHead>
-                  <TableHead>Product Mapping <br /> Upcoming</TableHead>
+                  <TableHeadSort
+                    modelName="product_mapping_name"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('product_mapping_name')"
+                    class="bg-sky-200"
+                  >
+                    Product Mapping <br /> Current
+                  </TableHeadSort>
+                  <TableHeadSort
+                    modelName="upcoming_product_mapping_name"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('upcoming_product_mapping_name')"
+                    class="bg-sky-200"
+                  >
+                    Product Mapping <br /> Upcoming
+                  </TableHeadSort>
                   <TableHead></TableHead>
                 </tr>
               </thead>
@@ -384,8 +408,8 @@ const filters = ref({
   vend_config_id: '',
   vendPrefixes: [],
   vendStatus: '',
-  sortKey: '',
-  sortBy: true,
+  sortKey: 'vend_config_name',
+  sortBy: false,
   numberPerPage: 100,
 });
 const attachments = ref([]);

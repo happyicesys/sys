@@ -648,6 +648,9 @@
 							<SingleSortItem modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')">
 								Machine ID
 							</SingleSortItem>
+							<SingleSortItem modelName="vend_configs.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_configs.name', false)">
+								Setting Chart
+							</SingleSortItem>
 							<SingleSortItem modelName="vend_prefixes.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefixes.name', false)">
 								Machine Prefix
 							</SingleSortItem>
@@ -971,6 +974,12 @@
 							<span v-if="!(permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings'))">
 								{{ vend.code }}
 							</span>
+							<div
+								class="inline-flex rounded px-0.5 py-0.5 text-[0.65rem] border w-fit font-semibold bg-blue-600 border-blue-600 text-white"
+								v-if="vend.vend_config_name"
+							>
+								{{ vend.vend_config_name }}
+							</div>
 							<div class="text-left">
 								{{ vend.vend_prefix_name }}
 							</div>

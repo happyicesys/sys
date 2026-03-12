@@ -223,6 +223,7 @@ class VendController extends Controller
             ->leftJoin('modem_units', 'modem_units.id', '=', 'vends.modem_unit_id')
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id');
 
         $vends = $this->filterVendsDB($vends, $request);
@@ -329,6 +330,7 @@ class VendController extends Controller
             'product_mappings.remarks AS product_mapping_remarks',
             'operators.code AS operator_code',
             'operators.name AS operator_name',
+            'vend_configs.name AS vend_config_name',
             'vend_prefixes.name AS vend_prefix_name',
             'customers.totals_json AS customers_totals_json',
             // 'delivery_platforms.slug AS delivery_platform_slug'
@@ -536,6 +538,7 @@ class VendController extends Controller
                         ->where('addresses.modelable_type', '=', 'App\Models\Customer')
                         ->where('addresses.type', '=', 2);
                 })
+                ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
                 ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id');
 
             $vends = $this->filterVendsDB($vends, $request);
@@ -786,6 +789,7 @@ class VendController extends Controller
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
                 'addresses.postcode AS postcode',
+                'vend_configs.name AS vend_config_name',
                 'vend_prefixes.name AS vend_prefix_name',
                 'zones.name AS zone_name',
             ];
