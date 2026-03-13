@@ -306,7 +306,7 @@ class ProductMovementController extends Controller
         // Since we are doing a union, we can't use simple paginate easily on the builder before union in older Laravel,
         // but recent versions support it. If it fails, we wrap in DB::table.
         // Let's assume wrap is needed for safe sort/paginate.
-        $data = $query->paginate(100);
+        $data = $query->paginate(100)->withQueryString();
 
         // 6. Running Balance Calculation (Tricky with pagination & date filters)
         // If the user selects a date range, the "NetQty" for the first row shown needs to be relative to the running total up to that point?
