@@ -974,10 +974,7 @@
 							<span v-if="!(permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings'))">
 								{{ vend.code }}
 							</span>
-							<div
-								class="inline-flex rounded px-0.5 py-0.5 text-[0.65rem] border w-fit font-semibold bg-blue-600 border-blue-600 text-white"
-								v-if="vend.vend_config_name"
-							>
+							<div class="text-left" v-if="vend.vend_config_name">
 								{{ vend.vend_config_name }}
 							</div>
 							<div class="text-left">
