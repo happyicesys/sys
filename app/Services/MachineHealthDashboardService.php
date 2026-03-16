@@ -57,8 +57,8 @@ class MachineHealthDashboardService
     private function hydrateFilters(Request $request): array
     {
         return [
-            'machine_limit' => $this->clamp((int) $request->input('machine_limit', 15), 10, 50),
-            'channel_limit' => $this->clamp((int) $request->input('channel_limit', 10), 10, 50),
+            'machine_limit' => (int) $request->input('machine_limit', 15),
+            'channel_limit' => (int) $request->input('channel_limit', 10),
             'error_window_days' => $this->clamp((int) $request->input('error_window_days', 7), 1, 90),
             'temperature_window_days' => $this->clamp((int) $request->input('temperature_window_days', 7), 3, 90),
             'temperature_delta_threshold' => (float) $request->input('temperature_delta_threshold', 3),

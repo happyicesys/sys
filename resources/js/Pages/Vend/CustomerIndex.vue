@@ -1190,7 +1190,15 @@
 									</div>
 								</button>
 							</a>
-
+							<!-- Smart Alerts (Temperature) -->
+							<div v-if="activeMachineHealthAlerts[vend.vend_id || vend.id]?.filter(a => a.group === 'temperature').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
+								<span v-for="alert in activeMachineHealthAlerts[vend.vend_id || vend.id].filter(a => a.group === 'temperature')" :key="alert.type"
+									class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-red-100 text-red-800 border border-red-200 cursor-help"
+									v-tooltip="`${alert.label}\nDuration: ${alert.duration}\nOccurred: ${alert.occurred_at ? moment(alert.occurred_at).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}`"
+								>
+									{{ alert.label }}
+								</span>
+							</div>
 						</div>
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
@@ -1250,6 +1258,15 @@
 										Full Load Value: {{ operatorCountry.currency_symbol }}{{ vend.total_full_load_amount ? vend.total_full_load_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</div>
 								</span>
+								<!-- Smart Alerts (Stockout) -->
+								<div v-if="activeMachineHealthAlerts[vend.vend_id || vend.id]?.filter(a => a.group === 'stockout').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
+									<span v-for="alert in activeMachineHealthAlerts[vend.vend_id || vend.id].filter(a => a.group === 'stockout')" :key="alert.type"
+										class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200 cursor-help"
+										v-tooltip="`${alert.label}\nDuration: ${alert.duration}\nOccurred: ${alert.occurred_at ? moment(alert.occurred_at).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}`"
+									>
+										{{ alert.label }}
+									</span>
+								</div>
 							</div>
 						</div>
 					</TableData>
@@ -1386,6 +1403,15 @@
 								<br>
 								{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 						</span>
+						<!-- Smart Alerts (No Transactions) -->
+						<div v-if="activeMachineHealthAlerts[vend.vend_id || vend.id]?.filter(a => a.group === 'no_transactions').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
+							<span v-for="alert in activeMachineHealthAlerts[vend.vend_id || vend.id].filter(a => a.group === 'no_transactions')" :key="alert.type"
+								class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-800 border border-purple-200 cursor-help"
+								v-tooltip="`${alert.label}\nDuration: ${alert.duration}\nOccurred: ${alert.occurred_at ? moment(alert.occurred_at).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}`"
+							>
+								{{ alert.label }}
+							</span>
+						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
@@ -1600,6 +1626,15 @@
 													{{vend.last_online_at}}
 											</span>
 									</div>
+							</div>
+							<!-- Smart Alerts (Connectivity) -->
+							<div v-if="activeMachineHealthAlerts[vend.vend_id || vend.id]?.filter(a => a.group === 'connectivity').length > 0" class="w-full flex flex-col items-center justify-center space-y-1">
+								<span v-for="alert in activeMachineHealthAlerts[vend.vend_id || vend.id].filter(a => a.group === 'connectivity')" :key="alert.type"
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-gray-200 text-gray-800 border border-gray-300 min-w-full cursor-help"
+									v-tooltip="`${alert.label}\nDuration: ${alert.duration}\nOccurred: ${alert.occurred_at ? moment(alert.occurred_at).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}`"
+								>
+									Offline Alert (>1h)
+								</span>
 							</div>
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
@@ -2002,7 +2037,7 @@ font-size:13px;
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
 	import SingleSortItem from '@/Components/SingleSortItem.vue';
-	import { ref, onMounted, defineAsyncComponent } from 'vue';
+	import { ref, onMounted, defineAsyncComponent, watch } from 'vue';
 	import { router, Link, Head, usePage } from '@inertiajs/vue3';
 	import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 	import moment from 'moment';
@@ -2362,6 +2397,22 @@ if(urlParams.has('channel_codes')) {
 		onSearchFilterUpdated();
 	}
 })
+
+const activeMachineHealthAlerts = ref({});
+
+watch(() => vends.value.data, (newData) => {
+	if (newData && newData.length > 0) {
+		let vendIds = newData.map(v => v.vend_id || v.id).filter(id => id);
+		if (vendIds.length > 0) {
+			axios.post('/reports/machine-health/active-alerts', { vend_ids: vendIds })
+				.then(res => {
+					activeMachineHealthAlerts.value = res.data;
+				});
+		}
+	} else {
+		activeMachineHealthAlerts.value = {};
+	}
+}, { immediate: true });
 
 function compareRefPrice(vend, channel) {
 // let type = vend && vend.customer ? vend.customer.selling_price_type : vend.selling_price_type

@@ -37,7 +37,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'dashboard',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'observer', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'observer', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
             ],
 
             [
@@ -49,7 +49,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'dashboard-performance',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'observer', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'observer', 'observer_transactions', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
             ],
 
             [
@@ -61,7 +61,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'vends',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
+                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
             ],
 
             [
@@ -79,7 +79,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'vend-customers',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee', 'licensee']
+                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee', 'licensee']
             ],
 
             [
@@ -109,7 +109,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'transactions',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user']
             ],
 
             [
@@ -121,7 +121,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'transactions-sales',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user']
+                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user']
             ],
 
             [

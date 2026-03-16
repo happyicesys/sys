@@ -161,6 +161,7 @@ class VendController extends Controller
                 auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
+                auth()->user()->hasRole('observer_transactions') or
                 auth()->user()->hasRole('driver')
             ) {
                 $request->merge(['is_active' => 'true']);
@@ -451,6 +452,7 @@ class VendController extends Controller
                 auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
+                auth()->user()->hasRole('observer_transactions') or
                 auth()->user()->hasRole('driver')
             ) {
                 $request->merge(['is_active' => 'true']);

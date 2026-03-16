@@ -390,6 +390,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/stock-count-dashboard', [ReportController::class, 'indexStockCountDashboard']);
         Route::get('/machine-health', [ReportController::class, 'indexMachineHealth']);
         Route::get('/machine-health/history', [ReportController::class, 'historyMachineHealth']);
+        Route::post('/machine-health/active-alerts', [ReportController::class, 'activeMachineHealthAlerts']);
     });
 
     Route::prefix('resource-centers')->group(function () {
