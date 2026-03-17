@@ -222,10 +222,10 @@ class ReportController extends Controller
             'vend_ids.*' => 'integer',
         ]);
 
-        $vendIds = $request->vend_ids;
-
-        // Fetch codes to filter the dashboard data
-        $machineCodes = Vend::whereIn('id', $vendIds)->pluck('code')->toArray();
+        $vendIds = $request->vend_ids;        // Fetch codes to filter the dashboard data
+        $vends = Vend::whereIn('id', $vendIds)->orWhereIn('customer_id', $vendIds)->get();
+        $machineCodes = $vends->pluck('code')->toArray();
+        $resolvedVendIds = $vends->pluck('id')->toArray();
 
         // Create a new request to fetch specific vends from the dashboard service
         $dashboardRequest = new Request();
@@ -257,71 +257,76 @@ class ReportController extends Controller
         }
 
         // Fallback Connectivity: Sync with official is_online status for requested vends
-        $offlineVends = Vend::whereIn('id', $vendIds)->where('is_online', false)->get();
-        foreach ($offlineVends as $v) {
-            $hasConnectivityAlert = false;
-            if (isset($alertsByVend[$v->id])) {
-                foreach ($alertsByVend[$v->id] as $alert) {
-                    if ($alert['group'] === 'connectivity') {
-                        $hasConnectivityAlert = true;
-                        break;
+        // Use resolvedVendIds to ensure we catch those found by customer_id lookup too
+        $allRequestedVends = Vend::whereIn('id', array_unique(array_merge($vendIds, $resolvedVendIds)))->get();
+        foreach ($allRequestedVends as $v) {
+            if (!$v->is_online) {
+                $hasConnectivityAlert = false;
+                if (isset($alertsByVend[$v->id])) {
+                    foreach ($alertsByVend[$v->id] as $alert) {
+                        if ($alert['group'] === 'connectivity') {
+                            $hasConnectivityAlert = true;
+                            break;
+                        }
                     }
                 }
-            }
-            if (!$hasConnectivityAlert) {
-                if (!isset($alertsByVend[$v->id])) $alertsByVend[$v->id] = [];
-                $lastContact = $v->last_updated_at ?: $v->mqtt_last_updated_at;
-                $duration = $lastContact ? round(now()->diffInMinutes($lastContact) / 60, 2) . ' hours' : 'Unknown';
-                $alertsByVend[$v->id][] = [
-                    'group' => 'connectivity',
-                    'type' => 'connectivity',
-                    'label' => 'Offline',
-                    'duration' => $duration,
-                    'occurred_at' => $lastContact ? $lastContact->toIso8601String() : null,
-                ];
+                if (!$hasConnectivityAlert) {
+                    if (!isset($alertsByVend[$v->id])) $alertsByVend[$v->id] = [];
+                    $lastContact = $v->last_updated_at ?: $v->mqtt_last_updated_at;
+                    $duration = $lastContact ? round(now()->diffInMinutes($lastContact) / 60, 2) . ' hours' : 'Unknown';
+                    $alertsByVend[$v->id][] = [
+                        'group' => 'connectivity',
+                        'type' => 'connectivity',
+                        'label' => 'Offline',
+                        'duration' => $duration,
+                        'occurred_at' => $lastContact ? $lastContact->toIso8601String() : null,
+                    ];
+                }
             }
         }
 
         // 2 & 3. Temperature Smart Alerts
-        $tempBuckets = [
-            'lowest_24h_above' => '3A) T1 & T2 lowest (last 24hrs)',
-            'lowest_72h_above' => '3B) T1 & T2 lowest (last 72hrs)',
-            'rising_lowest_t1_smart' => '3C) Rising lowest T1 (Last 24hrs vs Last 48hrs)',
-            'rising_lowest_t2_smart' => '3C) Rising lowest T2 (Last 24hrs vs Last 48hrs)',
-            't2_frozen_smart' => '3D) T2, never above 2°C',
-            't1_higher_than_t2_smart' => '3F) T1 higher than T2 (Sensor Swapped?)',
-            'temps_above_0_smart' => '2B) T1 or T2, above 0°C',
-            'temps_above_minus_8_smart' => '2C) T1 or T2, above -8°C',
-            'not_reach_minus_18_smart' => '2D) T1 or T2, did not reach -18°C',
+        $tempGroupKeys = [
+            'rising_lowest_t1_smart',
+            'rising_lowest_t2_smart',
+            't2_frozen_smart',
+            'operation_errors_smart',
+            'preventive_maintenance_smart'
         ];
-        
+
         $detailedLabelMap = [
             'comp_fan_off' => '2A) Cooling Fan, in OFF condition',
             'temps_above_0' => '2B) T1 or T2, above 0°C',
             'temps_above_minus_8' => '2C) T1 or T2, above -8°C',
             'not_reach_minus_18' => '2D) T1 or T2, did not reach -18°C',
-            'temps_above_minus_17_upward' => '2E) T1 or T2, above -17°C and upward trending',
-            'rising_t1_trend' => '3C) Rising lowest T1 (Last 24hrs vs Last 48hrs)',
-            'rising_t2_trend' => '3C) Rising lowest T2 (Last 24hrs vs Last 48hrs)',
+            'temps_above_minus_17_upward' => '2E) Above -17°C & Rising',
+            'lowest_24h_above' => '3A) Lowest (last 24h) above -21°C',
+            'lowest_72h_above' => '3B) Lowest (last 72h) above -21°C',
+            'rising_t1_trend' => '3C) Rising T1 Trend (24h vs Average)',
+            'rising_t2_trend' => '3C) Rising T2 Trend (24h vs Average)',
+            'rising_lowest_t1_smart' => '3C) Rising lowest T1 (24h vs 48h)',
+            'rising_lowest_t2_smart' => '3C) Rising lowest T2 (24h vs 48h)',
             't2_frozen' => '3D) T2, never above 2°C',
-            't1_higher_than_t2' => '3F) T1 higher than T2 (Sensor Swapped?)',
-            'lowest_24h_above' => '3A) T1 & T2 lowest (last 24hrs)',
-            'lowest_72h_above' => '3B) T1 & T2 lowest (last 72hrs)',
+            't2_frozen_smart' => '3D) T2, never above 2°C',
+            't1_higher_than_t2_smart' => '3F) T1 higher than T2',
         ];
 
         if (isset($dashboardData['temperature'])) {
-            foreach ($tempBuckets as $key => $title) {
-                if (isset($dashboardData['temperature'][$key]['rows'])) {
-                    foreach ($dashboardData['temperature'][$key]['rows'] as $row) {
+            foreach ($tempGroupKeys as $groupKey) {
+                if (isset($dashboardData['temperature'][$groupKey]['rows'])) {
+                    foreach ($dashboardData['temperature'][$groupKey]['rows'] as $row) {
                         $vid = $row['vend_id'];
                         if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
-                        $label = $detailedLabelMap[$row['alert_type'] ?? ''] ?? $title;
+
+                        $type = $row['alert_type'] ?? '';
+                        $label = $detailedLabelMap[$type] ?? 'Temperature Alert';
+
                         $alertsByVend[$vid][] = [
                             'group' => 'temperature',
-                            'type' => $row['alert_type'],
+                            'type' => $type,
                             'label' => $label,
-                            'duration' => $row['meta_duration'] . ' hours',
-                            'occurred_at' => $row['updated_at'],
+                            'duration' => ($row['duration_hours'] ?? null) ? $row['duration_hours'] . ' hours' : ($row['duration'] ?? null),
+                            'occurred_at' => $row['started_at'] ?? $row['triggered_at'] ?? $row['occurred_at'] ?? null,
                         ];
                     }
                 }
