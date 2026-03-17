@@ -1190,15 +1190,14 @@
 									</div>
 								</button>
 							</a>
-							<!-- Smart Alerts (Temperature) -->
-							<div v-if="activeMachineHealthAlerts[vend.vend_id || vend.id]?.filter(a => a.group === 'temperature').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
-								<span v-for="alert in activeMachineHealthAlerts[vend.vend_id || vend.id].filter(a => a.group === 'temperature')" :key="alert.type"
-									class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-red-100 text-red-800 border border-red-200 cursor-help"
-									v-tooltip="`${alert.label}\nDuration: ${alert.duration}\nOccurred: ${alert.occurred_at ? moment(alert.occurred_at).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}`"
-								>
-									{{ alert.label }}
-								</span>
-							</div>
+								<div v-if="getMachineAlerts(vend, 'temperature').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
+									<span v-for="alert in getMachineAlerts(vend, 'temperature')" :key="alert.type"
+										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 cursor-help"
+										v-tooltip="getAlertTooltip(alert)"
+									>
+										({{ getAlertLabel(alert) }})
+									</span>
+								</div>
 						</div>
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
@@ -1258,21 +1257,13 @@
 										Full Load Value: {{ operatorCountry.currency_symbol }}{{ vend.total_full_load_amount ? vend.total_full_load_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</div>
 								</span>
-								<!-- Smart Alerts (Stockout) -->
-								<div v-if="activeMachineHealthAlerts[vend.vend_id || vend.id]?.filter(a => a.group === 'stockout').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
-									<span v-for="alert in activeMachineHealthAlerts[vend.vend_id || vend.id].filter(a => a.group === 'stockout')" :key="alert.type"
-										class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200 cursor-help"
-										v-tooltip="`${alert.label}\nDuration: ${alert.duration}\nOccurred: ${alert.occurred_at ? moment(alert.occurred_at).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}`"
-									>
-										{{ alert.label }}
-									</span>
-								</div>
+								<!-- Smart Alerts (Stockout - Hidden per user request for only 1-5) -->
 							</div>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
 						<div class="flex flex-col space-y-2">
-							<span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
+							<span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" :key="vendChannelErrorLog.id" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
 							:class="[
 								vendChannelErrorLog['vendChannelError'] ?
 								(
@@ -1330,6 +1321,15 @@
 							]">
 									{{vend.vendTransactionTotalsJson['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
 									({{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+							</span>
+						</div>
+						<!-- Smart Alerts (Channel Errors) -->
+						<div v-if="getMachineAlerts(vend, 'error_code').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
+							<span v-for="alert in getMachineAlerts(vend, 'error_code')" :key="alert.type"
+								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 cursor-help"
+								v-tooltip="getAlertTooltip(alert)"
+							>
+								({{ getAlertLabel(alert) }})
 							</span>
 						</div>
 					</TableData>
@@ -1404,12 +1404,12 @@
 								{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 						</span>
 						<!-- Smart Alerts (No Transactions) -->
-						<div v-if="activeMachineHealthAlerts[vend.vend_id || vend.id]?.filter(a => a.group === 'no_transactions').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
-							<span v-for="alert in activeMachineHealthAlerts[vend.vend_id || vend.id].filter(a => a.group === 'no_transactions')" :key="alert.type"
-								class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-800 border border-purple-200 cursor-help"
-								v-tooltip="`${alert.label}\nDuration: ${alert.duration}\nOccurred: ${alert.occurred_at ? moment(alert.occurred_at).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}`"
+						<div v-if="getMachineAlerts(vend, 'no_transactions').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
+							<span v-for="alert in getMachineAlerts(vend, 'no_transactions')" :key="alert.type"
+								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 cursor-help"
+								v-tooltip="getAlertTooltip(alert)"
 							>
-								{{ alert.label }}
+								({{ getAlertLabel(alert) }})
 							</span>
 						</div>
 					</TableData>
@@ -1628,12 +1628,12 @@
 									</div>
 							</div>
 							<!-- Smart Alerts (Connectivity) -->
-							<div v-if="activeMachineHealthAlerts[vend.vend_id || vend.id]?.filter(a => a.group === 'connectivity').length > 0" class="w-full flex flex-col items-center justify-center space-y-1">
-								<span v-for="alert in activeMachineHealthAlerts[vend.vend_id || vend.id].filter(a => a.group === 'connectivity')" :key="alert.type"
-									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-gray-200 text-gray-800 border border-gray-300 min-w-full cursor-help"
-									v-tooltip="`${alert.label}\nDuration: ${alert.duration}\nOccurred: ${alert.occurred_at ? moment(alert.occurred_at).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}`"
+							<div v-if="getMachineAlerts(vend, 'connectivity').length > 0" class="w-full flex flex-col items-center justify-center space-y-1">
+								<span v-for="alert in getMachineAlerts(vend, 'connectivity')" :key="alert.type"
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-gray-200 text-gray-800 border border-gray-300 min-w-full cursor-help"
+									v-tooltip="getAlertTooltip(alert)"
 								>
-									Offline Alert (>1h)
+									({{ getAlertLabel(alert) }})
 								</span>
 							</div>
 							<div
@@ -2400,19 +2400,92 @@ if(urlParams.has('channel_codes')) {
 
 const activeMachineHealthAlerts = ref({});
 
-watch(() => vends.value.data, (newData) => {
-	if (newData && newData.length > 0) {
-		let vendIds = newData.map(v => v.vend_id || v.id).filter(id => id);
-		if (vendIds.length > 0) {
-			axios.post('/reports/machine-health/active-alerts', { vend_ids: vendIds })
-				.then(res => {
-					activeMachineHealthAlerts.value = res.data;
-				});
-		}
-	} else {
+const fetchActiveAlerts = (data) => {
+	if (!data || data.length === 0) {
 		activeMachineHealthAlerts.value = {};
+		return;
 	}
-}, { immediate: true });
+	let vendIds = data.map(v => v.vend_id || v.id).filter(id => id);
+	if (vendIds.length > 0) {
+		axios.post('/reports/machine-health/active-alerts', { vend_ids: vendIds })
+			.then(res => {
+				activeMachineHealthAlerts.value = res.data;
+			})
+			.catch(err => {
+				activeMachineHealthAlerts.value = {};
+			});
+	}
+};
+
+watch(() => vends.value.data, (newData) => {
+	fetchActiveAlerts(newData);
+}, { immediate: true, deep: true });
+
+const getMachineAlerts = (vend, group) => {
+	const id = vend.vend_id || vend.id;
+	const alerts = activeMachineHealthAlerts.value[id] || [];
+	return alerts.filter(a => a.group === group);
+};
+
+const getAlertLabel = (alert) => {
+	const map = {
+		'connectivity': '1',
+		'comp_fan_off': '2A',
+		'temps_above_0': '2B',
+		'temps_above_minus_8': '2C',
+		'not_reach_minus_18': '2D',
+		'temps_above_minus_17_upward': '2E',
+		'lowest_24h_above': '3A',
+		'lowest_72h_above': '3B',
+		'rising_t1_trend': '3C',
+		'rising_t2_trend': '3C',
+		'rising_lowest_t1_smart': '3C',
+		'rising_lowest_t2_smart': '3C',
+		't2_frozen': '3D',
+		't2_frozen_smart': '3D',
+		't1_higher_than_t2_smart': '3F',
+	};
+
+	if (alert.group === 'no_transactions') return '4';
+	if (alert.group === 'error_code') return '5';
+	
+	return map[alert.type] || null;
+};
+
+const getAlertTooltip = (alert) => {
+	let header = '';
+	
+	if (alert.group === 'no_transactions') {
+		header = '(4) Alert on Lost of Transaction/Sales';
+	} else if (alert.group === 'connectivity') {
+		header = '(1) Alert on Lost of Connectivity or Electricity';
+	} else if (alert.group === 'error_code') {
+		header = '(5) Channel Errors';
+	} else if (alert.group === 'stockout') {
+		header = '(6) Stockout Alert';
+	} else if (alert.group === 'temperature') {
+		const code = getAlertLabel(alert);
+		if (code && code.startsWith('1')) {
+			header = '(1) Alert on Lost of Connectivity or Electricity';
+		} else if (code && code.startsWith('2')) {
+			header = '(2) Operation Error / Critical Parts Failure';
+		} else if (code && code.startsWith('3')) {
+			header = '(3) Preventive maintenance / Temp raise alert';
+		}
+	}
+	
+	const duration = (alert.duration && String(alert.duration).toLowerCase() !== 'null' && String(alert.duration).toLowerCase() !== 'null hours') ? alert.duration : null;
+	const parts = [];
+	if (header) parts.push(`<b>${header}</b>`);
+	parts.push(alert.label);
+	if (duration) parts.push(`Duration: ${duration}`);
+	parts.push(`Occurred: ${alert.occurred_at ? moment(alert.occurred_at).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}`);
+	
+	return {
+		content: parts.join('<br>'),
+		html: true
+	};
+};
 
 function compareRefPrice(vend, channel) {
 // let type = vend && vend.customer ? vend.customer.selling_price_type : vend.selling_price_type

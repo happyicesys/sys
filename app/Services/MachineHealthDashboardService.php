@@ -184,7 +184,7 @@ class MachineHealthDashboardService
             $durationMinutes = $soldOutEvent->occurred_at->diffInMinutes($event->occurred_at);
             unset($pendingSoldOut[$channelId]);
 
-            $durationRecord = $this->makeStockoutDurationRecord($soldOutEvent, $event, $durationMinutes, false);
+            $durationRecord = $this->makeStockoutDurationRecord($soldOutEvent, $event, (int) $durationMinutes, false);
             $this->pushTopDuration($topDurations, $durationRecord, $channelLimit);
 
             $durationHours = $durationMinutes / 60;
@@ -209,7 +209,7 @@ class MachineHealthDashboardService
 
         foreach ($pendingSoldOut as $soldOutEvent) {
             $durationMinutes = $soldOutEvent->occurred_at->diffInMinutes($now);
-            $durationRecord = $this->makeStockoutDurationRecord($soldOutEvent, null, $durationMinutes, true);
+            $durationRecord = $this->makeStockoutDurationRecord($soldOutEvent, null, (int) $durationMinutes, true);
             $this->pushTopDuration($topDurations, $durationRecord, $channelLimit);
             $this->pushTopDuration($topOpenDurations, $durationRecord, $channelLimit);
         }

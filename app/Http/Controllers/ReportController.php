@@ -329,23 +329,30 @@ class ReportController extends Controller
 
         // 5. No Transactions
         $salesBuckets = [
-            'any_sales' => 'No Trans (Any)',
-            'cash_sales' => 'No Trans (Cash)',
-            'card_sales' => 'No Trans (Card)',
-            'qr_sales' => 'No Trans (QR)',
-            'digitalscreen_sales' => 'No Trans (Digital)',
+            'any_sales' => 'No any Sales',
+            'cash_sales' => 'No Cash Sales',
+            'card_sales' => 'No Sales via Card Terminal',
+            'qr_sales' => 'No Sales via QR',
+            'digitalscreen_sales' => 'No Digital Screen Activity',
         ];
+
         if (isset($dashboardData['no_transactions'])) {
+            $thresholds = $dashboardData['no_transactions']['thresholds'] ?? [];
             foreach ($salesBuckets as $key => $title) {
                 if (isset($dashboardData['no_transactions'][$key])) {
                     foreach ($dashboardData['no_transactions'][$key] as $row) {
                         $vid = $row['vend_id'];
                         if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
                         
+                        $label = $title;
+                        if (isset($thresholds[$key])) {
+                            $label .= " ({$thresholds[$key]}hr)";
+                        }
+
                         $alertsByVend[$vid][] = [
                             'group' => 'no_transactions',
                             'type' => $key,
-                            'label' => $title,
+                            'label' => $label,
                             'duration' => $row['hours_since'] . ' hours',
                             'occurred_at' => $row['last_transaction_at'],
                         ];
