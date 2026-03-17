@@ -19,7 +19,7 @@
               <div v-for="(item, index) in managementItems" :key="index" class="border-b pb-4 last:border-b-0 last:pb-0">
                 <div class="flex justify-between items-start">
                   <div>
-                    <h4 class="font-medium text-gray-900">{{ index + 1 }}) {{ item.title }}</h4>
+                    <h4 class="font-medium text-gray-900">{{ item.id || (index + 1) }}) {{ item.title }}</h4>
                     <ul class="mt-2 list-disc list-inside text-sm text-gray-600 pl-4">
                       <li v-for="(sub, subIndex) in item.subtitles" :key="subIndex">{{ sub }}</li>
                     </ul>
@@ -43,7 +43,7 @@
               <div v-for="(item, index) in driverItems" :key="index" class="border-b pb-4 last:border-b-0 last:pb-0">
                 <div class="flex justify-between items-start">
                   <div>
-                    <h4 class="font-medium text-gray-900">{{ index + 1 }}) {{ item.title }}</h4>
+                    <h4 class="font-medium text-gray-900">{{ item.id || (index + 1) }}) {{ item.title }}</h4>
                     <ul class="mt-2 list-decimal list-inside text-sm text-gray-600 pl-4">
                       <li v-for="(sub, subIndex) in item.subtitles" :key="subIndex">{{ sub }}</li>
                     </ul>
@@ -175,6 +175,12 @@ const driverItems = [
             'Refill spoon',
             'External cleaning'
         ]
+    },
+    {
+        id: '1a',
+        title: 'Revised: update inventory qty to VMC and Clear Error',
+        link: 'https://youtube.com/shorts/ogIv8Q-PuAU',
+        subtitles: []
     }
 ];
 
