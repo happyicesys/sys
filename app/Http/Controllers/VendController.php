@@ -1755,7 +1755,7 @@ class VendController extends Controller
 
     public function transactionIndex(Request $request)
     {
-        if (!$request->operators) {
+        if (!$request->has('operators')) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [

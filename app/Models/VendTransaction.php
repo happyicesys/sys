@@ -319,7 +319,8 @@ class VendTransaction extends Model
                 $query->where('vend_transactions.order_id', 'LIKE', "%{$search}%");
             })
             ->when($request->paymentMethods, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                $search = array_filter((array)$search, fn($item) => $item !== 'all');
+                if (!empty($search)) {
                     $query->whereIn('vend_transactions.payment_method_id', $search);
                 }
             })
@@ -367,7 +368,8 @@ class VendTransaction extends Model
                 }
             })
             ->when($request->operators, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                $search = array_filter((array)$search, fn($item) => $item !== 'all');
+                if (!empty($search)) {
                     $query->whereIn('vend_transactions.operator_id', $search);
                 }
             })

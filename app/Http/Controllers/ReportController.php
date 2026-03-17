@@ -222,10 +222,20 @@ class ReportController extends Controller
             'vend_ids.*' => 'integer',
         ]);
 
-        $vendIds = $request->vend_ids;        // Fetch codes to filter the dashboard data
+        $vendIds = $request->vend_ids;
+        \Log::info('activeMachineHealthAlerts Request IDs: ' . json_encode($vendIds));
+        
+        // Fetch codes to filter the dashboard data
         $vends = Vend::whereIn('id', $vendIds)->orWhereIn('customer_id', $vendIds)->get();
         $machineCodes = $vends->pluck('code')->toArray();
         $resolvedVendIds = $vends->pluck('id')->toArray();
+        \Log::info('Resolved Machine Codes: ' . json_encode($machineCodes));
+
+        // Create a mapping of found vends for double-keying the response
+        $idMap = [];
+        foreach ($vends as $v) {
+            $idMap[$v->id] = $v->customer_id;
+        }
 
         // Create a new request to fetch specific vends from the dashboard service
         $dashboardRequest = new Request();
@@ -239,48 +249,68 @@ class ReportController extends Controller
         $dashboardData = $this->machineHealthDashboardService->getDashboardData($dashboardRequest);
         $alertsByVend = [];
 
+        // Helper to add alert with double-keying
+        $addAlert = function($vid, $alert) use (&$alertsByVend, $idMap) {
+            if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
+            $alertsByVend[$vid][] = $alert;
+            
+            // Also key by customer_id if different and provided in the request
+            $cid = $idMap[$vid] ?? null;
+            if ($cid && (string)$cid !== (string)$vid) {
+                if (!isset($alertsByVend[$cid])) $alertsByVend[$cid] = [];
+                // Check for duplicates before adding to cid
+                $isDup = false;
+                foreach($alertsByVend[$cid] as $existing) {
+                    if ($existing['group'] === $alert['group'] && $existing['type'] === $alert['type']) {
+                        $isDup = true;
+                        break;
+                    }
+                }
+                if (!$isDup) {
+                    $alertsByVend[$cid][] = $alert;
+                }
+            }
+        };
+
         // 1. Connectivity Alerts
         if (isset($dashboardData['connectivity']['buckets'])) {
             foreach ($dashboardData['connectivity']['buckets'] as $bucket) {
                 foreach ($bucket['rows'] as $row) {
                     $vid = $row['vend_id'];
-                    if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
-                    $alertsByVend[$vid][] = [
+                    $addAlert($vid, [
                         'group' => 'connectivity',
                         'type' => 'connectivity',
                         'label' => 'Offline',
                         'duration' => $row['hours_offline'] . ' hours',
                         'occurred_at' => $row['last_contact_at'],
-                    ];
+                    ]);
                 }
             }
         }
 
         // Fallback Connectivity: Sync with official is_online status for requested vends
-        // Use resolvedVendIds to ensure we catch those found by customer_id lookup too
         $allRequestedVends = Vend::whereIn('id', array_unique(array_merge($vendIds, $resolvedVendIds)))->get();
         foreach ($allRequestedVends as $v) {
             if (!$v->is_online) {
                 $hasConnectivityAlert = false;
-                if (isset($alertsByVend[$v->id])) {
-                    foreach ($alertsByVend[$v->id] as $alert) {
-                        if ($alert['group'] === 'connectivity') {
-                            $hasConnectivityAlert = true;
-                            break;
-                        }
+                $currentAlerts = $alertsByVend[$v->id] ?? [];
+                foreach ($currentAlerts as $alert) {
+                    if ($alert['group'] === 'connectivity') {
+                        $hasConnectivityAlert = true;
+                        break;
                     }
                 }
+
                 if (!$hasConnectivityAlert) {
-                    if (!isset($alertsByVend[$v->id])) $alertsByVend[$v->id] = [];
                     $lastContact = $v->last_updated_at ?: $v->mqtt_last_updated_at;
                     $duration = $lastContact ? round(now()->diffInMinutes($lastContact) / 60, 2) . ' hours' : 'Unknown';
-                    $alertsByVend[$v->id][] = [
+                    $addAlert($v->id, [
                         'group' => 'connectivity',
                         'type' => 'connectivity',
                         'label' => 'Offline',
                         'duration' => $duration,
                         'occurred_at' => $lastContact ? $lastContact->toIso8601String() : null,
-                    ];
+                    ]);
                 }
             }
         }
@@ -316,22 +346,19 @@ class ReportController extends Controller
                 if (isset($dashboardData['temperature'][$groupKey]['rows'])) {
                     foreach ($dashboardData['temperature'][$groupKey]['rows'] as $row) {
                         $vid = $row['vend_id'];
-                        if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
-
                         $type = $row['alert_type'] ?? '';
-                        $label = $detailedLabelMap[$type] ?? 'Temperature Alert';
-
-                        $alertsByVend[$vid][] = [
+                        $addAlert($vid, [
                             'group' => 'temperature',
                             'type' => $type,
-                            'label' => $label,
+                            'label' => $detailedLabelMap[$type] ?? 'Temperature Alert',
                             'duration' => ($row['duration_hours'] ?? null) ? $row['duration_hours'] . ' hours' : ($row['duration'] ?? null),
                             'occurred_at' => $row['started_at'] ?? $row['triggered_at'] ?? $row['occurred_at'] ?? null,
-                        ];
+                        ]);
                     }
                 }
             }
         }
+
 
         // 4. No Transactions
         $salesBuckets = [
@@ -348,20 +375,19 @@ class ReportController extends Controller
                 if (isset($dashboardData['no_transactions'][$key])) {
                     foreach ($dashboardData['no_transactions'][$key] as $row) {
                         $vid = $row['vend_id'];
-                        if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
                         
                         $label = $title;
                         if (isset($thresholds[$key])) {
                             $label .= " ({$thresholds[$key]}hr)";
                         }
 
-                        $alertsByVend[$vid][] = [
+                        $addAlert($vid, [
                             'group' => 'no_transactions',
                             'type' => $key,
                             'label' => $label,
                             'duration' => $row['hours_since'] . ' hours',
                             'occurred_at' => $row['last_transaction_at'],
-                        ];
+                        ]);
                     }
                 }
             }
@@ -373,16 +399,15 @@ class ReportController extends Controller
                 if (isset($group['rows'])) {
                     foreach ($group['rows'] as $row) {
                         $vid = $row['vend_id'];
-                        if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
                         if (isset($row['events']) && count($row['events']) > 0) {
                             foreach($row['events'] as $ev) {
-                                $alertsByVend[$vid][] = [
+                                $addAlert($vid, [
                                     'group' => 'error_code',
                                     'type' => 'error_code_' . $ev['error_code'],
                                     'label' => 'Error ' . $ev['error_code'] . ' (Ch: ' . $ev['channel_code'] . ')',
                                     'duration' => null,
                                     'occurred_at' => $ev['created_at'],
-                                ];
+                                ]);
                             }
                         }
                     }

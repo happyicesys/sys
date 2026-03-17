@@ -1054,14 +1054,12 @@
 
               <Button
                 type="button"
-                class="bg-orange-400 hover:bg-orange-500 px-2 py-1 text-xs text-white flex space-x-1 items-center w-fit"
+                class="bg-orange-400 hover:bg-orange-500 px-2 py-1 text-[10px] text-white flex space-x-1 items-center w-fit rounded shadow"
                 @click="openLogModal(vend)"
                 v-if="permissions.includes('admin-access vend-customers')"
               >
-                <ClockIcon class="w-4 h-4" />
-                <span>
-                    Log
-                </span>
+                <ClockIcon class="w-3 h-3" />
+                <span>Log</span>
               </Button>
 						</div>
 					</TableData>
@@ -1133,7 +1131,7 @@
 							</span>
 							<span
 									class="mt-1"
-									:class="[vend.is_active || vend.is_testing ? ((vend.temp - vend.parameterJson['t2']/10).toFixed(1) >= 4 ? 'text-red-700' : 'text-green-700') : 'text-gray-400' ]"
+									:class="[vend.is_active || vend.is_testing ? (((vend.temp - vend.parameterJson['t2']/10).toFixed(1) >= 4 || (vend.temp - vend.parameterJson['t2']/10).toFixed(1) <= 0) ? 'text-red-700' : 'text-green-700') : 'text-gray-400' ]"
 									v-if="vend.parameterJson && vend.parameterJson['t2'] && vend.parameterJson['t2'] != constTempError && !vend.is_temp_error"
 							>
 									{{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
@@ -1190,9 +1188,11 @@
 									</div>
 								</button>
 							</a>
-								<div v-if="getMachineAlerts(vend, 'temperature').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
-									<span v-for="alert in getMachineAlerts(vend, 'temperature')" :key="alert.type"
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 cursor-help"
+								<!-- Consolidated Machine Health Alerts (1-5) -->
+								<div v-if="getAllMachineHealthAlerts(vend).length > 0" class="mt-2 w-full flex flex-wrap gap-1 items-center justify-center">
+									<span v-for="alert in getAllMachineHealthAlerts(vend)" :key="alert.type + alert.group"
+										class="inline-flex justify-center items-center rounded-md px-1 py-0.5 text-[10px] font-bold border cursor-help shadow-sm min-w-[28px]"
+										:class="getAlertClass(alert)"
 										v-tooltip="getAlertTooltip(alert)"
 									>
 										({{ getAlertLabel(alert) }})
@@ -1323,15 +1323,7 @@
 									({{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 							</span>
 						</div>
-						<!-- Smart Alerts (Channel Errors) -->
-						<div v-if="getMachineAlerts(vend, 'error_code').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
-							<span v-for="alert in getMachineAlerts(vend, 'error_code')" :key="alert.type"
-								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-red-600 text-white border border-red-700 cursor-help"
-								v-tooltip="getAlertTooltip(alert)"
-							>
-								({{ getAlertLabel(alert) }})
-							</span>
-						</div>
+						<!-- Consolidated alerts moved to column 3 -->
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
@@ -1403,15 +1395,7 @@
 								<br>
 								{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 						</span>
-						<!-- Smart Alerts (No Transactions) -->
-						<div v-if="getMachineAlerts(vend, 'no_transactions').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
-							<span v-for="alert in getMachineAlerts(vend, 'no_transactions')" :key="alert.type"
-								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 cursor-help"
-								v-tooltip="getAlertTooltip(alert)"
-							>
-								({{ getAlertLabel(alert) }})
-							</span>
-						</div>
+						<!-- Consolidated alerts moved to column 3 -->
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
@@ -1627,15 +1611,7 @@
 											</span>
 									</div>
 							</div>
-							<!-- Smart Alerts (Connectivity) -->
-							<div v-if="getMachineAlerts(vend, 'connectivity').length > 0" class="w-full flex flex-col items-center justify-center space-y-1">
-								<span v-for="alert in getMachineAlerts(vend, 'connectivity')" :key="alert.type"
-									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 min-w-full cursor-help"
-									v-tooltip="getAlertTooltip(alert)"
-								>
-									({{ getAlertLabel(alert) }})
-								</span>
-							</div>
+							<!-- Consolidated alerts moved to column 3 -->
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 									:class="[vend.is_active || vend.is_testing ? (vend.is_mqtt_active ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
@@ -2405,7 +2381,13 @@ const fetchActiveAlerts = (data) => {
 		activeMachineHealthAlerts.value = {};
 		return;
 	}
-	let vendIds = data.map(v => v.vend_id || v.id).filter(id => id);
+	let vendIds = [];
+	data.forEach(v => {
+		if (v.vend_id) vendIds.push(v.vend_id);
+		if (v.id) vendIds.push(v.id);
+	});
+	vendIds = [...new Set(vendIds.filter(id => id))];
+
 	if (vendIds.length > 0) {
 		axios.post('/reports/machine-health/active-alerts', { vend_ids: vendIds })
 			.then(res => {
@@ -2425,6 +2407,31 @@ const getMachineAlerts = (vend, group) => {
 	const id = vend.vend_id || vend.id;
 	const alerts = activeMachineHealthAlerts.value[id] || [];
 	return alerts.filter(a => a.group === group);
+};
+
+const getAllMachineHealthAlerts = (vend) => {
+	const id = vend.vend_id || vend.id;
+	const alerts = activeMachineHealthAlerts.value[id] || [];
+	// Only return 1-5 (connectivity, temperature, no_transactions, error_code)
+	return alerts.filter(a => ['connectivity', 'temperature', 'no_transactions', 'error_code'].includes(a.group));
+};
+
+const getAlertClass = (alert) => {
+	const code = getAlertLabel(alert);
+	if (alert.group === 'connectivity' || (code && code.startsWith('1'))) {
+		return 'bg-red-500 text-white border-red-600'; // High visibility for (1)
+	}
+	if (alert.group === 'error_code' || code === '5') {
+		return 'bg-red-600 text-white border-red-700'; // Critical red for (5)
+	}
+	if (alert.group === 'no_transactions' || code === '4') {
+		return 'bg-purple-500 text-white border-purple-600'; // Purple for (4)
+	}
+	if (alert.group === 'temperature') {
+		if (code && code.startsWith('2')) return 'bg-orange-500 text-white border-orange-600'; // Orange for (2)
+		if (code && code.startsWith('3')) return 'bg-yellow-400 text-gray-900 border-yellow-500'; // Yellow for (3)
+	}
+	return 'bg-red-100 text-red-800 border-red-200';
 };
 
 const getAlertLabel = (alert) => {

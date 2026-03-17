@@ -937,7 +937,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { Head, usePage, router, usePoll } from '@inertiajs/vue3';
 import axios from 'axios';
 import fileDownload from 'js-file-download'
@@ -1103,6 +1103,32 @@ const filters = ref({
     vendPrefixes: [],
     visited: true,
 })
+
+watch(() => filters.value.operators, (newVal, oldVal) => {
+    if (newVal.length > 1) {
+        const hasAllNew = newVal.some(o => (o.id ?? o) === 'all');
+        const hasAllOld = oldVal.some(o => (o.id ?? o) === 'all');
+
+        if (hasAllNew && !hasAllOld) {
+            filters.value.operators = operatorOptions.value.filter(o => o.id === 'all');
+        } else if (hasAllNew && hasAllOld) {
+            filters.value.operators = newVal.filter(o => (o.id ?? o) !== 'all');
+        }
+    }
+}, { deep: true });
+
+watch(() => filters.value.paymentMethods, (newVal, oldVal) => {
+    if (newVal.length > 1) {
+        const hasAllNew = newVal.some(pm => (pm.id ?? pm) === 'all');
+        const hasAllOld = oldVal.some(pm => (pm.id ?? pm) === 'all');
+
+        if (hasAllNew && !hasAllOld) {
+            filters.value.paymentMethods = paymentMethodOptions.value.filter(pm => pm.id === 'all');
+        } else if (hasAllNew && hasAllOld) {
+            filters.value.paymentMethods = newVal.filter(pm => (pm.id ?? pm) !== 'all');
+        }
+    }
+}, { deep: true });
 // const vendOptions = ref([])
 const vendChannelErrorOptions = ref([])
 const loading = ref(false)
