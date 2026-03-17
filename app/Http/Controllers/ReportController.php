@@ -224,36 +224,22 @@ class ReportController extends Controller
 
         $vendIds = $request->vend_ids;
 
-        // Create a new request to fetch specific vends overriding limits
+        // Fetch codes to filter the dashboard data
+        $machineCodes = Vend::whereIn('id', $vendIds)->pluck('code')->toArray();
+
+        // Create a new request to fetch specific vends from the dashboard service
         $dashboardRequest = new Request();
         $dashboardRequest->merge([
             'machine_limit' => 10000,
             'channel_limit' => 100,
-            'machine_codes' => Vend::whereIn('id', $vendIds)->pluck('code')->toArray(),
+            'machine_codes' => $machineCodes,
             'show_all_errors' => false,
         ]);
 
         $dashboardData = $this->machineHealthDashboardService->getDashboardData($dashboardRequest);
-
-        // Process the dashboard data into a flat list of alerts per vend_id
         $alertsByVend = [];
 
-        // 1. Stockouts
-        if (isset($dashboardData['stockouts']['open_channels'])) {
-            foreach ($dashboardData['stockouts']['open_channels'] as $row) {
-                $vid = $row['vend_id'];
-                if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
-                $alertsByVend[$vid][] = [
-                    'group' => 'stockout',
-                    'type' => 'stockout',
-                    'label' => 'Channel ' . $row['channel_code'] . ' Sold Out',
-                    'duration' => $row['duration_hours'] . ' hours',
-                    'occurred_at' => $row['stockout_at'],
-                ];
-            }
-        }
-
-        // 2. Connectivity
+        // 1. Connectivity Alerts
         if (isset($dashboardData['connectivity']['buckets'])) {
             foreach ($dashboardData['connectivity']['buckets'] as $bucket) {
                 foreach ($bucket['rows'] as $row) {
@@ -270,31 +256,70 @@ class ReportController extends Controller
             }
         }
 
-        // 3. Temperature Smart Alerts
+        // Fallback Connectivity: Sync with official is_online status for requested vends
+        $offlineVends = Vend::whereIn('id', $vendIds)->where('is_online', false)->get();
+        foreach ($offlineVends as $v) {
+            $hasConnectivityAlert = false;
+            if (isset($alertsByVend[$v->id])) {
+                foreach ($alertsByVend[$v->id] as $alert) {
+                    if ($alert['group'] === 'connectivity') {
+                        $hasConnectivityAlert = true;
+                        break;
+                    }
+                }
+            }
+            if (!$hasConnectivityAlert) {
+                if (!isset($alertsByVend[$v->id])) $alertsByVend[$v->id] = [];
+                $lastContact = $v->last_updated_at ?: $v->mqtt_last_updated_at;
+                $duration = $lastContact ? round(now()->diffInMinutes($lastContact) / 60, 2) . ' hours' : 'Unknown';
+                $alertsByVend[$v->id][] = [
+                    'group' => 'connectivity',
+                    'type' => 'connectivity',
+                    'label' => 'Offline',
+                    'duration' => $duration,
+                    'occurred_at' => $lastContact ? $lastContact->toIso8601String() : null,
+                ];
+            }
+        }
+
+        // 2 & 3. Temperature Smart Alerts
         $tempBuckets = [
-            'lowest_24h_above' => '3A) Lowest (last 24h)',
-            'lowest_72h_above' => '3B) Lowest (last 72h)',
-            'rising_lowest_t1_smart' => '3C) Rising Lowest (T1)',
-            'rising_lowest_t2_smart' => '3C) Rising Lowest (T2)',
-            't2_frozen_smart' => '3D) T2 Frozen',
-            't1_higher_than_t2_smart' => '3F) T1 higher than T2',
-            'temps_above_0_smart' => 'Temps above 0',
-            'temps_above_minus_8_smart' => 'Temps above -8',
-            'not_reach_minus_18_smart' => 'Not reach -18',
-            'operation_errors_smart' => 'Operation Error',
-            'preventive_maintenance_smart' => 'Preventive Maintenance',
+            'lowest_24h_above' => '3A) T1 & T2 lowest (last 24hrs)',
+            'lowest_72h_above' => '3B) T1 & T2 lowest (last 72hrs)',
+            'rising_lowest_t1_smart' => '3C) Rising lowest T1 (Last 24hrs vs Last 48hrs)',
+            'rising_lowest_t2_smart' => '3C) Rising lowest T2 (Last 24hrs vs Last 48hrs)',
+            't2_frozen_smart' => '3D) T2, never above 2°C',
+            't1_higher_than_t2_smart' => '3F) T1 higher than T2 (Sensor Swapped?)',
+            'temps_above_0_smart' => '2B) T1 or T2, above 0°C',
+            'temps_above_minus_8_smart' => '2C) T1 or T2, above -8°C',
+            'not_reach_minus_18_smart' => '2D) T1 or T2, did not reach -18°C',
         ];
+        
+        $detailedLabelMap = [
+            'comp_fan_off' => '2A) Cooling Fan, in OFF condition',
+            'temps_above_0' => '2B) T1 or T2, above 0°C',
+            'temps_above_minus_8' => '2C) T1 or T2, above -8°C',
+            'not_reach_minus_18' => '2D) T1 or T2, did not reach -18°C',
+            'temps_above_minus_17_upward' => '2E) T1 or T2, above -17°C and upward trending',
+            'rising_t1_trend' => '3C) Rising lowest T1 (Last 24hrs vs Last 48hrs)',
+            'rising_t2_trend' => '3C) Rising lowest T2 (Last 24hrs vs Last 48hrs)',
+            't2_frozen' => '3D) T2, never above 2°C',
+            't1_higher_than_t2' => '3F) T1 higher than T2 (Sensor Swapped?)',
+            'lowest_24h_above' => '3A) T1 & T2 lowest (last 24hrs)',
+            'lowest_72h_above' => '3B) T1 & T2 lowest (last 72hrs)',
+        ];
+
         if (isset($dashboardData['temperature'])) {
             foreach ($tempBuckets as $key => $title) {
                 if (isset($dashboardData['temperature'][$key]['rows'])) {
                     foreach ($dashboardData['temperature'][$key]['rows'] as $row) {
                         $vid = $row['vend_id'];
                         if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
-                        
+                        $label = $detailedLabelMap[$row['alert_type'] ?? ''] ?? $title;
                         $alertsByVend[$vid][] = [
                             'group' => 'temperature',
                             'type' => $row['alert_type'],
-                            'label' => $title,
+                            'label' => $label,
                             'duration' => $row['meta_duration'] . ' hours',
                             'occurred_at' => $row['updated_at'],
                         ];
@@ -303,31 +328,7 @@ class ReportController extends Controller
             }
         }
 
-        // 4. Error Codes
-        if (isset($dashboardData['error_codes'])) {
-            foreach ($dashboardData['error_codes'] as $groupKey => $group) {
-                if (isset($group['rows'])) {
-                    foreach ($group['rows'] as $row) {
-                        $vid = $row['vend_id'];
-                        if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
-                        
-                        if (isset($row['events']) && count($row['events']) > 0) {
-                            foreach($row['events'] as $ev) {
-                                $alertsByVend[$vid][] = [
-                                    'group' => 'error_code',
-                                    'type' => 'error_code_' . $ev['error_code'],
-                                    'label' => 'Error ' . $ev['error_code'] . ' (Ch: ' . $ev['channel_code'] . ')',
-                                    'duration' => null,
-                                    'occurred_at' => $ev['created_at'],
-                                ];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 5. No Transactions
+        // 4. No Transactions
         $salesBuckets = [
             'any_sales' => 'No any Sales',
             'cash_sales' => 'No Cash Sales',
@@ -356,6 +357,29 @@ class ReportController extends Controller
                             'duration' => $row['hours_since'] . ' hours',
                             'occurred_at' => $row['last_transaction_at'],
                         ];
+                    }
+                }
+            }
+        }
+
+        // 5. Channel Errors
+        if (isset($dashboardData['error_codes'])) {
+            foreach ($dashboardData['error_codes'] as $groupKey => $group) {
+                if (isset($group['rows'])) {
+                    foreach ($group['rows'] as $row) {
+                        $vid = $row['vend_id'];
+                        if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
+                        if (isset($row['events']) && count($row['events']) > 0) {
+                            foreach($row['events'] as $ev) {
+                                $alertsByVend[$vid][] = [
+                                    'group' => 'error_code',
+                                    'type' => 'error_code_' . $ev['error_code'],
+                                    'label' => 'Error ' . $ev['error_code'] . ' (Ch: ' . $ev['channel_code'] . ')',
+                                    'duration' => null,
+                                    'occurred_at' => $ev['created_at'],
+                                ];
+                            }
+                        }
                     }
                 }
             }

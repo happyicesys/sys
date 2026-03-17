@@ -1326,7 +1326,7 @@
 						<!-- Smart Alerts (Channel Errors) -->
 						<div v-if="getMachineAlerts(vend, 'error_code').length > 0" class="mt-2 w-full flex flex-col items-center justify-center space-y-1">
 							<span v-for="alert in getMachineAlerts(vend, 'error_code')" :key="alert.type"
-								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 cursor-help"
+								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-red-600 text-white border border-red-700 cursor-help"
 								v-tooltip="getAlertTooltip(alert)"
 							>
 								({{ getAlertLabel(alert) }})
@@ -1630,7 +1630,7 @@
 							<!-- Smart Alerts (Connectivity) -->
 							<div v-if="getMachineAlerts(vend, 'connectivity').length > 0" class="w-full flex flex-col items-center justify-center space-y-1">
 								<span v-for="alert in getMachineAlerts(vend, 'connectivity')" :key="alert.type"
-									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-gray-200 text-gray-800 border border-gray-300 min-w-full cursor-help"
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 min-w-full cursor-help"
 									v-tooltip="getAlertTooltip(alert)"
 								>
 									({{ getAlertLabel(alert) }})
@@ -2449,7 +2449,7 @@ const getAlertLabel = (alert) => {
 	if (alert.group === 'no_transactions') return '4';
 	if (alert.group === 'error_code') return '5';
 	
-	return map[alert.type] || null;
+	return map[alert.type] || map[alert.group] || null;
 };
 
 const getAlertTooltip = (alert) => {
@@ -2474,18 +2474,31 @@ const getAlertTooltip = (alert) => {
 		}
 	}
 	
-	const duration = (alert.duration && String(alert.duration).toLowerCase() !== 'null' && String(alert.duration).toLowerCase() !== 'null hours') ? alert.duration : null;
 	const parts = [];
 	if (header) parts.push(`<b>${header}</b>`);
-	parts.push(alert.label);
-	if (duration) parts.push(`Duration: ${duration}`);
-	parts.push(`Occurred: ${alert.occurred_at ? moment(alert.occurred_at).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}`);
+	
+	// Add subtitle (label)
+	if (alert.label) {
+		parts.push(alert.label);
+	}
+	
+	// Add duration if available
+	const duration = (alert.duration && String(alert.duration).toLowerCase() !== 'null' && String(alert.duration).toLowerCase() !== 'null hours') ? alert.duration : null;
+	if (duration) {
+		parts.push(`Duration: ${duration}`);
+	}
+	
+	// Add occurred at if available
+	if (alert.occurred_at) {
+		parts.push(`Since: ${moment(alert.occurred_at).format('DD MMM YY, HH:mm')}`);
+	}
 	
 	return {
 		content: parts.join('<br>'),
 		html: true
 	};
 };
+
 
 function compareRefPrice(vend, channel) {
 // let type = vend && vend.customer ? vend.customer.selling_price_type : vend.selling_price_type
