@@ -1188,9 +1188,9 @@
 									</div>
 								</button>
 							</a>
-								<!-- Consolidated Machine Health Alerts (1-5) -->
-								<div v-if="getAllMachineHealthAlerts(vend).length > 0" class="mt-2 w-full flex flex-wrap gap-1 items-center justify-center">
-									<span v-for="alert in getAllMachineHealthAlerts(vend)" :key="alert.type + alert.group"
+								<!-- Consolidated Machine Health Alerts (1, 2, 3) -->
+								<div v-if="getMachineAlertsGroup(vend, [1, 2, 3]).length > 0" class="mt-2 w-full flex flex-wrap gap-1 items-center justify-center">
+									<span v-for="alert in getMachineAlertsGroup(vend, [1, 2, 3])" :key="alert.type + alert.group"
 										class="inline-flex justify-center items-center rounded-md px-1 py-0.5 text-[10px] font-bold border cursor-help shadow-sm min-w-[28px]"
 										:class="getAlertClass(alert)"
 										v-tooltip="getAlertTooltip(alert)"
@@ -1323,7 +1323,16 @@
 									({{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 							</span>
 						</div>
-						<!-- Consolidated alerts moved to column 3 -->
+						<!-- Machine Health Alerts (5) -->
+						<div v-if="getMachineAlertsGroup(vend, [5]).length > 0" class="mt-2 w-full flex flex-wrap gap-1 items-center justify-center">
+							<span v-for="alert in getMachineAlertsGroup(vend, [5])" :key="alert.type + alert.group"
+								class="inline-flex justify-center items-center rounded-md px-1 py-0.5 text-[10px] font-bold border cursor-help shadow-sm min-w-[28px]"
+								:class="getAlertClass(alert)"
+								v-tooltip="getAlertTooltip(alert)"
+							>
+								({{ getAlertLabel(alert) }})
+							</span>
+						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
@@ -1395,7 +1404,16 @@
 								<br>
 								{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 						</span>
-						<!-- Consolidated alerts moved to column 3 -->
+						<!-- Machine Health Alerts (4) -->
+						<div v-if="getMachineAlertsGroup(vend, [4]).length > 0" class="mt-2 w-full flex flex-wrap gap-1 items-center justify-center">
+							<span v-for="alert in getMachineAlertsGroup(vend, [4])" :key="alert.type + alert.group"
+								class="inline-flex justify-center items-center rounded-md px-1 py-0.5 text-[10px] font-bold border cursor-help shadow-sm min-w-[28px]"
+								:class="getAlertClass(alert)"
+								v-tooltip="getAlertTooltip(alert)"
+							>
+								({{ getAlertLabel(alert) }})
+							</span>
+						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
@@ -2407,6 +2425,17 @@ const getMachineAlerts = (vend, group) => {
 	const id = vend.vend_id || vend.id;
 	const alerts = activeMachineHealthAlerts.value[id] || [];
 	return alerts.filter(a => a.group === group);
+};
+
+const getMachineAlertsGroup = (vend, numbers) => {
+	const id = vend.vend_id || vend.id;
+	const alerts = activeMachineHealthAlerts.value[id] || [];
+	return alerts.filter(a => {
+		const label = getAlertLabel(a);
+		if (!label) return false;
+		// Check if the label (e.g., '1', '2B', '5') starts with any of the requested numbers
+		return numbers.some(n => label.startsWith(n.toString()));
+	});
 };
 
 const getAllMachineHealthAlerts = (vend) => {
