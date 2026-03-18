@@ -379,7 +379,11 @@ class SettingController extends Controller
             'vend_prefix_id' => $request->vend_prefix_id ? $request->vend_prefix_id : $vend->vend_prefix_id,
             'vend_config_id' => $request->vend_config_id ? $request->vend_config_id : $vend->vend_config_id,
         ]);
-        $upcomingProductMappingOptions = ProductMapping::find($vend->product_mapping_id) ? ProductMapping::find($vend->product_mapping_id)->upcomingProductMappings : [];
+        $upcomingProductMappingOptions = ProductMapping::find($vend->product_mapping_id) ? ProductMapping::find($vend->product_mapping_id)->upcomingProductMappings : collect();
+        $naProductMapping = ProductMapping::withoutGlobalScopes()->where('name', 'N/A')->whereNull('operator_id')->first();
+        if ($naProductMapping && ! $upcomingProductMappingOptions->contains('id', $naProductMapping->id)) {
+            $upcomingProductMappingOptions = $upcomingProductMappingOptions->push($naProductMapping);
+        }
 
         $selectedProductMapping = null;
         if ($request->has('product_mapping_id')) {
@@ -448,11 +452,12 @@ class SettingController extends Controller
             ),
             'productMappingOptions' => ProductMappingResource::collection(
                 ProductMapping::query()
-                    // ->when($request->vend_prefix_id, function($query) use ($request) {
-                    ->whereHas('vendPrefixes', function ($query) use ($request) {
-                        $query->where('vend_prefixes.id', $request->vend_prefix_id);
+                    ->where(function ($query) use ($request) {
+                        $query->whereHas('vendPrefixes', function ($query) use ($request) {
+                            $query->where('vend_prefixes.id', $request->vend_prefix_id);
+                        })
+                        ->orWhere('product_mappings.name', 'N/A');
                     })
-                    // })
                     ->orderBy('name')
                     ->get()
             ),
@@ -479,10 +484,13 @@ class SettingController extends Controller
             'vendPrefixOptions' =>
                 VendPrefixResource::collection(
                     VendPrefix::query()
-                        ->when($request->vend_config_id, function ($query) use ($request) {
-                            $query->whereHas('vendConfigs', function ($query) use ($request) {
-                                $query->where('vend_configs.id', $request->vend_config_id);
+                        ->where(function ($query) use ($request) {
+                            $query->when($request->vend_config_id, function ($query) use ($request) {
+                                $query->whereHas('vendConfigs', function ($query) use ($request) {
+                                    $query->where('vend_configs.id', $request->vend_config_id);
+                                });
                             });
+                            $query->orWhere('vend_prefixes.name', 'N/A');
                         })
                         ->orderBy('name')
                         ->get()

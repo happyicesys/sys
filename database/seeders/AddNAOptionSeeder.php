@@ -45,28 +45,31 @@ class AddNAOptionSeeder extends Seeder
         //     ]);
         // }
 
-        // Also create one with null operator_id if needed for shared views
-        VendConfig::updateOrCreate([
-            'name' => 'N/A',
-            'operator_id' => null,
-        ], [
-            'desc' => 'Not Applicable',
-            'is_active' => true,
-        ]);
-
-        VendPrefix::withoutGlobalScopes()->updateOrCreate([
-            'name' => 'N/A',
-            'operator_id' => null,
-        ], [
-            'desc' => 'Not Applicable',
-        ]);
-
-        ProductMapping::withoutGlobalScopes()->updateOrCreate([
+        $productMapping = ProductMapping::withoutGlobalScopes()->updateOrCreate([
             'name' => 'N/A',
             'operator_id' => null,
         ], [
             'remarks' => 'Not Applicable',
             'is_active' => true,
         ]);
+
+        $vendPrefix = VendPrefix::withoutGlobalScopes()->updateOrCreate([
+            'name' => 'N/A',
+            'operator_id' => null,
+        ], [
+            'desc' => 'Not Applicable',
+        ]);
+
+        $vendConfig = VendConfig::updateOrCreate([
+            'name' => 'N/A',
+            'operator_id' => null,
+        ], [
+            'desc' => 'Not Applicable',
+            'is_active' => true,
+        ]);
+
+        // Link them together
+        $vendConfig->vendPrefixes()->syncWithoutDetaching([$vendPrefix->id]);
+        $vendPrefix->productMappings()->syncWithoutDetaching([$productMapping->id]);
     }
 }

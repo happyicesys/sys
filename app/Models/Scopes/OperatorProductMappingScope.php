@@ -24,7 +24,10 @@ class OperatorProductMappingScope implements Scope
           $operatorId = null;
         }
         if($operatorId) {
-          $builder->where('product_mappings.operator_id', $operatorId);
+          $builder->where(function ($query) use ($operatorId) {
+              $query->where('product_mappings.operator_id', $operatorId)
+                    ->orWhereNull('product_mappings.operator_id');
+          });
         }
       }
     }

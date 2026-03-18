@@ -24,7 +24,10 @@ class OperatorIDFilterScope implements Scope
           $operatorId = null;
         }
         if($operatorId) {
-          $builder->where('operator_id', $operatorId);
+          $builder->where(function ($query) use ($operatorId) {
+              $query->where('operator_id', $operatorId)
+                    ->orWhereNull('operator_id');
+          });
         }
       }
     }

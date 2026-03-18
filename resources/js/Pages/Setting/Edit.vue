@@ -672,8 +672,8 @@
                         <thead class="bg-gray-50">
                           <tr>
                             <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"> # </th>
-                            <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="form.product_mapping_id"> Image </th>
-                            <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="form.product_mapping_id"> Product </th>
+                            <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'"> Image </th>
+                            <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'"> Product </th>
                             <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                               <div class="flex justify-center">
                                 <span> P1 </span>
@@ -698,12 +698,12 @@
                         <tbody class="bg-white">
                           <tr v-for="(channel, channelIndex) in vendChannels" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-900"> {{ channel.code }} </td>
-                            <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="form.product_mapping_id">
+                            <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'">
                               <div class="flex justify-center items-center">
                                 <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
                               </div>
                             </td>
-                            <td class="py-4 text-sm font-semibold text-center text-gray-900" v-if="form.product_mapping_id">
+                            <td class="py-4 text-sm font-semibold text-center text-gray-900" v-if="form.product_mapping_id && form.product_mapping_id.name !== 'N/A'">
                               <span v-if="channel.product && channel.product.code"> {{ channel.product.code }} </span>
                               <span class="break-normal text-xs" v-if="channel.product && channel.product.name"> <br> {{ channel.product.name }} </span>
                             </td>
@@ -1783,7 +1783,12 @@ function applyMappingPreview(mapping) {
       : [];
 
   if (!items.length) {
-    resetMappingPreview();
+    if (mapping.name === 'N/A') {
+      selectedProductMapping.value = mapping;
+      vendChannels.value = [];
+    } else {
+      resetMappingPreview();
+    }
     return;
   }
 
