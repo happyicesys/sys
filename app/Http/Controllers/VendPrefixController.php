@@ -234,7 +234,14 @@ class VendPrefixController extends Controller
 
     public function delete($id)
     {
-        $model = VendPrefix::findOrFail($id);
+        $model = VendPrefix::withoutGlobalScopes()->findOrFail($id);
+
+        if (!$model->operator_id) {
+            return redirect()->route('vend-prefixes')->withErrors([
+                'delete' => 'Global Machine Prefixes cannot be deleted.',
+            ]);
+        }
+
         $model->delete();
 
         return redirect()->route('vend-prefixes');

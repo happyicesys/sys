@@ -415,7 +415,14 @@ class ProductMappingController extends Controller
 
     public function delete($productMappingId)
     {
-        $productMapping = ProductMapping::findOrFail($productMappingId);
+        $productMapping = ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId);
+
+        if (!$productMapping->operator_id) {
+            return redirect()->route('product-mappings')->withErrors([
+                'delete' => 'Global Product Mappings cannot be deleted.',
+            ]);
+        }
+
         $productMapping->productMappingItems()->delete();
         $productMapping->delete();
 
@@ -424,9 +431,10 @@ class ProductMappingController extends Controller
 
     public function replicate(Request $request)
     {
-        $productMapping = ProductMapping::findOrFail($request->id);
+        $productMapping = ProductMapping::withoutGlobalScopes()->findOrFail($request->id);
         $replicated = $productMapping->replicate()->fill([
             'name' => $productMapping->name . '-replicated',
+            'operator_id' => auth()->user()->operator_id,
         ]);
         $replicated->save();
 

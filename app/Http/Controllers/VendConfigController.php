@@ -175,6 +175,13 @@ class VendConfigController extends Controller
     public function delete($id)
     {
         $model = VendConfig::findOrFail($id);
+
+        if (!$model->operator_id) {
+            return redirect()->route('vend-configs')->withErrors([
+                'delete' => 'Global Setting Charts cannot be deleted.',
+            ]);
+        }
+
         $model->delete();
 
         return redirect()->route('vend-configs');

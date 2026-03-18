@@ -313,6 +313,7 @@
                         ]"
                         @click="onDeleteClicked(vendPrefix)"
                         :disabled="(vendPrefix.vends && vendPrefix.vends.length > 0) || (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)"
+                        v-if="vendPrefix.operator_id"
                       >
                         <span class="flex space-x-1 items-center">
                           <TrashIcon class="w-4 h-4"></TrashIcon>

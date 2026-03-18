@@ -331,6 +331,7 @@
                             :class="[productMapping.vends && productMapping.vends.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
                             @click="onDeleteClicked(productMapping)"
                             :disabled="productMapping.vends && productMapping.vends.length > 0"
+                            v-if="productMapping.operator_id"
                           >
                             <span class="flex space-x-1 items-center">
                               <TrashIcon class="w-4 h-4"></TrashIcon>
