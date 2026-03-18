@@ -322,7 +322,7 @@
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Machine Prefix
-                    <span class="text-red-500">
+                    <span class="text-red-500" v-if="!isVendConfigNA">
                       *
                     </span>
                     <span v-if="form.vend_prefix_id && form.vend_prefix_id.id">
@@ -595,7 +595,7 @@
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Product Mapping (current)
-                    <span class="text-red-500">
+                    <span class="text-red-500" v-if="!isVendConfigNA">
                       *
                     </span>
                     <span v-if="form.product_mapping_id && form.product_mapping_id.id">
@@ -1392,6 +1392,10 @@ const vendSerialNumberOptions = ref([])
 const versionOptions = ref([])
 const isPromoting = ref(false)
 let hasMounted = false;
+
+const isVendConfigNA = computed(() => {
+  return form.value.vend_config_id && form.value.vend_config_id.name === 'N/A';
+})
 
 const showPromoteUpcoming = computed(() => {
   const upcomingId = form.value?.upcoming_product_mapping_id?.id

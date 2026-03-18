@@ -2660,14 +2660,22 @@ class VendController extends Controller
             ]);
         }
 
+        $isNA = false;
+        if ($request->vend_config_id) {
+            $config = VendConfig::find($request->vend_config_id);
+            if ($config && $config->name === 'N/A') {
+                $isNA = true;
+            }
+        }
+
         $request->validate([
             'lcd_monitor_id' => 'required',
             'menu_frame_id' => 'required',
             'operator_id' => 'required',
-            'product_mapping_id' => 'required',
+            'product_mapping_id' => $isNA ? 'nullable' : 'required',
             // 'vend_config_id' => 'required',
             'vend_model_id' => 'required',
-            'vend_prefix_id' => 'required',
+            'vend_prefix_id' => $isNA ? 'nullable' : 'required',
         ]);
 
         $vend->update([
