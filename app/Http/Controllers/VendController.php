@@ -1659,9 +1659,9 @@ class VendController extends Controller
             if ($vendChannel->product && $vendChannel->product->thumbnail) {
 
                 $thumbnail = Image::read(file_get_contents($vendChannel->product->thumbnail->full_url));
-                $thumbnail->resize(500, 500);
-                return response($thumbnail->toPng(), 200)
-                    ->header('Content-Type', 'image/png');
+                $thumbnail->resize(300, 300);
+                return response($thumbnail->toJpeg(), 200)
+                    ->header('Content-Type', 'image/jpeg');
             }
         }
 
