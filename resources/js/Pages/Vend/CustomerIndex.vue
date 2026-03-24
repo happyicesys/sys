@@ -1551,6 +1551,26 @@
 								<div class="max-w-32 text-left bg-gray-100 px-1 py-1 rounded break-words shadow text-xs mt-1" v-if="vend.nextOpsJobItem.remarks">
 									{{ vend.nextOpsJobItem.remarks }}
 								</div>
+								<!-- Stock Action Type Badges -->
+								<div
+									v-if="vend.nextOpsJobItem.stock_action_type === 'implement_new_mapping'"
+									class="flex flex-col items-center mt-1 space-y-0.5"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-purple-100 text-purple-700 border-purple-300">
+										Implement New Mapping
+									</span>
+									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.nextOpsJobItem.vend && (vend.nextOpsJobItem.vend.upcomingProductMapping || (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping))">
+										{{ vend.nextOpsJobItem.vend.upcomingProductMapping ? vend.nextOpsJobItem.vend.upcomingProductMapping.name : (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping ? vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name : '') }}
+									</span>
+								</div>
+								<div
+									v-else-if="vend.nextOpsJobItem.stock_action_type === 'return_stock'"
+									class="mt-1"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-orange-100 text-orange-700 border-orange-300">
+										Return Stock
+									</span>
+								</div>
 							</div>
 						</div>
 					</TableData>

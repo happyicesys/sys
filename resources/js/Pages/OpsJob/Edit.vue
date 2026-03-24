@@ -2,14 +2,22 @@
   <Head title="VM Edit" />
   <BreezeAuthenticatedLayout>
     <template #header >
-        <div class="flex flex-col md:flex-row space-x-2">
-          <span class="text-gray-600" v-if="opsJob && opsJob.id">
-            Daily Job for
+        <div class="flex flex-col md:flex-row justify-between items-center w-full">
+          <div class="flex flex-col md:flex-row space-x-2">
+            <span class="text-gray-600" v-if="opsJob && opsJob.id">
+              Daily Job for
+            </span>
+            <div
+              v-if="opsJob.stock_action_type"
+              class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit uppercase"
+              :class="opsJob.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
+            >
+              <span class="font-semibold grow-0">
+                {{ opsJob.stock_action_type.replace(/_/g, ' ') }}
+              </span>
+            </div>
+          </div>
 
-          </span>
-          <!-- <span v-if="opsJob && opsJob.id">
-            {{ opsJob.code }}
-          </span> -->
         </div>
       </template>
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
@@ -344,17 +352,18 @@
                                       </div>
                                   </div>
                                   <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 h-fit"
-                                  :class="[opsJobItem.is_cash_collected == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
-                                  v-if="opsJobItem.status >= 3"
-                                  >
-                                    <CurrencyDollarIcon class="w-4 h-4"></CurrencyDollarIcon>
-                                  </span>
-                                  <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 h-fit"
                                   :class="[opsJobItem.attachments && opsJobItem.attachments.length ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
                                   v-if="opsJobItem.status >= 3"
                                   >
                                     <PaperClipIcon class="w-4 h-4"></PaperClipIcon>
                                   </span>
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-bold border w-fit"
+                                    :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'"
+                                    v-if="opsJobItem.stock_action_type"
+                                >
+                                    {{ opsJobItem.stock_action_type == 'implement_new_mapping' ? 'Implement New Mapping' : 'Return Stock' }}
                                 </div>
                                 <span v-if="opsJobItem.status_at" class="text-xs font-medium text-gray-600">
                                   {{ opsJobItem.status_at }}
@@ -678,7 +687,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlayIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlayIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -864,21 +873,13 @@ function onChangeDriverModalClosed() {
 }
 
 function onDeleteClicked() {
-  const approval = confirm('Are you sure to delete this entry?');
+  const approval = confirm('Are you sure to delete this job?');
   if (!approval) {
       return;
   }
-
-  form.value.delete('/ops-jobs/' + opsJob.value.id, {
-    onSuccess: () => {
-      toast.success("Successfully Deleted", {
-        timeout: 3000
-      });
-    },
-    preserveState: true,
-    replace: true,
-  })
+  router.delete('/ops-jobs/' + opsJob.value.id)
 }
+
 
 function onGeneratePickListClicked() {
     axios({

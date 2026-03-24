@@ -23,75 +23,75 @@ Route::prefix('v1')->group(function () {
         ->middleware(['throttle:client'])
         ->middleware('auth:api')
         ->group(function () {
-            Route::post('/transactions', [ClientController::class, 'getTransactions']);
-            Route::post('/channel-stock-level', [ClientController::class, 'getChannels']);
-        });
+            Route::post('/transactions', [ClientController::class , 'getTransactions']);
+            Route::post('/channel-stock-level', [ClientController::class , 'getChannels']);
+        }
+        );
 
-    // Legacy support for existing endpoint
-    Route::prefix('client')->group(function () {
-        Route::post('/dcvends', [VendController::class, 'getAllDCVends']);
+        // Legacy support for existing endpoint
+        Route::prefix('client')->group(function () {
+            Route::post('/dcvends', [VendController::class , 'getAllDCVends']);
+        }
+        );
+
+        Route::post('/vend-data', [VendDataController::class , 'create']);
+        // Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
+        Route::post('/customers/person/{personID?}', [CustomerController::class , 'getCustomersByPersonID']);
+        Route::post('/payment-gateway-status/{company?}', [PaymentController::class , 'createPaymentGatewayLog']);
+        Route::get('/binded-vends', [VendDataController::class , 'getBindedVends']);
+        Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class , 'getPaymentMerchantsApi']);
+        Route::post('/vends/{id}/upload-log', [VendDataController::class , 'uploadLog']);
+        Route::post('/content/vends/{code}', [VendDataController::class , 'getVendMediaContent']);
+
+        Route::prefix('customers')->group(function () {
+            Route::post('/people', [CustomerController::class , 'syncNextDeliveryDate']);
+        }
+        );
+
+        Route::prefix('ops-jobs')->group(function () {
+            Route::post('/item/{opsJobItemID}', [OpsJobController::class , 'syncOpsJobItem']);
+        }
+        );
     });
-
-    Route::post('/vend-data', [VendDataController::class, 'create']);
-    // Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
-    Route::post('/customers/person/{personID?}', [CustomerController::class, 'getCustomersByPersonID']);
-    Route::post('/payment-gateway-status/{company?}', [PaymentController::class, 'createPaymentGatewayLog']);
-    Route::get('/binded-vends', [VendDataController::class, 'getBindedVends']);
-    Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class, 'getPaymentMerchantsApi']);
-    Route::post('/vends/{id}/upload-log', [VendDataController::class, 'uploadLog']);
-    Route::post('/content/vends/{code}', [VendDataController::class, 'getVendMediaContent']);
-
-    Route::prefix('customers')->group(function () {
-        Route::post('/people', [CustomerController::class, 'syncNextDeliveryDate']);
-    });
-
-    Route::prefix('ops-jobs')->group(function () {
-        Route::post('/item/{opsJobItemID}', [OpsJobController::class, 'syncOpsJobItem']);
-    });
-});
 
 Route::prefix('delivery')->group(function () {
     Route::prefix('grab')->group(function () {
-        Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class, 'getCategories']);
-        Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getGrabMenu']);
-        Route::get('/oauth/{deliveryPlatformOperatorId}', [DeliveryPlatformController::class, 'getOauth']);
-        Route::post('/order/create', [DeliveryPlatformController::class, 'createGrabOrder']);
-        Route::put('/order/update', [DeliveryPlatformController::class, 'updateGrabOrder']);
-        Route::post('/sync-menu-webhook', [DeliveryPlatformController::class, 'syncGrabMenuWebhook']);
+            Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class , 'getCategories']);
+            Route::get('/merchant/menu', [DeliveryPlatformController::class , 'getGrabMenu']);
+            Route::get('/oauth/{deliveryPlatformOperatorId}', [DeliveryPlatformController::class , 'getOauth']);
+            Route::post('/order/create', [DeliveryPlatformController::class , 'createGrabOrder']);
+            Route::put('/order/update', [DeliveryPlatformController::class , 'updateGrabOrder']);
+            Route::post('/sync-menu-webhook', [DeliveryPlatformController::class , 'syncGrabMenuWebhook']);
+        }
+        );
+        Route::post('/order/search/{dispenseSearch?}', [DeliveryPlatformController::class , 'searchGrabOrder']);
+        Route::post('/order/complaint', [DeliveryPlatformController::class , 'submitGrabOrderComplaint']);
     });
-    Route::post('/order/search/{dispenseSearch?}', [DeliveryPlatformController::class, 'searchGrabOrder']);
-    Route::post('/order/complaint', [DeliveryPlatformController::class, 'submitGrabOrderComplaint']);
-});
 
 Route::prefix('hid-cards')->group(function () {
-    Route::post('/search', [HidCardController::class, 'search']);
+    Route::post('/search', [HidCardController::class , 'search']);
 });
 
 Route::prefix('vouchers')->group(function () {
-    Route::get('/dcvend', [VoucherController::class, 'getDCVends']);
-    Route::post('/search', [VoucherController::class, 'search']);
-    Route::post('/details', [VoucherController::class, 'getVoucherDetails']);
+    Route::get('/dcvend', [VoucherController::class , 'getDCVends']);
+    Route::post('/search', [VoucherController::class , 'search']);
+    Route::post('/details', [VoucherController::class , 'getVoucherDetails']);
 });
 
 // Internal api
 Route::prefix('customers')->group(function () {
-    Route::get('/search/{search?}', [CustomerController::class, 'search']);
+    Route::get('/search/{search?}', [CustomerController::class , 'search']);
 });
 
 Route::prefix('vends')->group(function () {
-    Route::get('/search/{code?}', [VendController::class, 'searchVendCode']);
-    Route::get('/search/operator/{code?}', [VendController::class, 'searchVendCodeWithOperator']);
-    Route::get('/{vendCode}/vend-channels/{vendChanelCode}/thumbnail', [VendController::class, 'getVendChannelThumnail']);
-    Route::get('/{vendCode}/thumbnails', [VendController::class, 'getVendAllChannelThumbnails']);
-    Route::get('/{vendCode}/parameters/{apkver?}', [VendController::class, 'getVendParameters']);
-    Route::get('/{vendCode}/banner-video', [VendController::class, 'getVendBannerVideo']);
-    Route::get('/{vendCode}/banner-image', [VendController::class, 'getVendBannerImage']);
-    Route::get('/{vendCode}/campaign-video', [VendController::class, 'getVendCampaignVideo']);
-    Route::get('/{vendCode}/campaign-image', [VendController::class, 'getVendCampaignImage']);
-    Route::get('/operators/{operatorCode}/update-dcvends-countries', [VendController::class, 'updateDCVendsCountries']);
+    Route::get('/search/{code?}', [VendController::class , 'searchVendCode']);
+    Route::get('/search/operator/{code?}', [VendController::class , 'searchVendCodeWithOperator']);
+    Route::get('/{vendCode}/vend-channels/{vendChanelCode}/thumbnail', [VendController::class , 'getVendChannelThumnail']);
+    Route::get('/{vendCode}/thumbnails', [VendController::class , 'getVendAllChannelThumbnails']);
+    Route::get('/{vendCode}/parameters/{apkver?}', [VendController::class , 'getVendParameters']);
+    Route::get('/{vendCode}/banner-video', [VendController::class , 'getVendBannerVideo']);
+    Route::get('/{vendCode}/banner-image', [VendController::class , 'getVendBannerImage']);
+    Route::get('/{vendCode}/campaign-video', [VendController::class , 'getVendCampaignVideo']);
+    Route::get('/{vendCode}/campaign-image', [VendController::class , 'getVendCampaignImage']);
+    Route::get('/operators/{operatorCode}/update-dcvends-countries', [VendController::class , 'updateDCVendsCountries']);
 });
-
-
-
-
-

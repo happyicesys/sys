@@ -2,7 +2,8 @@
   <Head title="VM Edit" />
   <BreezeAuthenticatedLayout>
     <template #header >
-      <div class="flex flex-col space-y-1 md:flex-row md:space-x-3 md:space-y-0 text-left">
+      <div class="flex flex-col space-y-1 md:flex-row md:justify-between md:items-center text-left">
+        <div class="flex flex-col space-y-1 md:flex-row md:space-x-3 md:space-y-0">
           <span class="font-semibold" v-if="opsJobItem.sequence && opsJobItem.status < 3">
             ({{ opsJobItem.sequence }})
           </span>
@@ -32,22 +33,67 @@
             ({{ opsJobItem.customer.id + 20000 }})
             {{ opsJobItem.customer.name }}
           </span> -->
-          <div
-            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
-            :class="statusClass(opsJobItem.status)"
-          >
-            <div class="flex flex-col">
-                <span class="font-semibold grow-0">
-                  {{ opsJobItem.status_name }}
-                </span>
+          <div class="flex space-x-1">
+            <div
+              class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
+              :class="statusClass(opsJobItem.status)"
+            >
+              <div class="flex flex-col">
+                  <span class="font-semibold grow-0">
+                    {{ opsJobItem.status_name }}
+                  </span>
+              </div>
+            </div>
+            <div
+                class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit capitalize"
+                :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
+                v-if="opsJobItem.stock_action_type"
+            >
+                {{ opsJobItem.stock_action_type.replace(/_/g, ' ') }}
             </div>
           </div>
         </div>
-      </template>
+      </div>
+    </template>
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
+            <div class="px-2 border-b mb-2 border-gray-100 text-left relative flex justify-between items-center">
+              <div></div>
+              <div class="absolute right-0 top-0 mt-2 mr-2">
+                <Menu as="div" class="relative inline-block text-left" v-if="permissions.includes('admin-access operations') && opsJobItem.status == 1">
+                  <div>
+                    <MenuButton class="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-sky-400 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 focus:outline-none ring-1 ring-inset ring-sky-300">
+                      Stock Action
+                      <ChevronDownIcon class="-mr-1 h-5 w-5 text-sky-100" aria-hidden="true" />
+                    </MenuButton>
+                  </div>
+
+                  <transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
+                    <MenuItems class="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                      <div class="py-1">
+                        <MenuItem v-slot="{ active }" v-if="vend && vend.productMapping && vend.productMapping.upcoming_product_mapping_id">
+                          <button type="button" @click="onUpdateStockAction('implement_new_mapping')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm']">
+                            Implement New Mapping
+                          </button>
+                        </MenuItem>
+                        <MenuItem v-slot="{ active }">
+                          <button type="button" @click="onUpdateStockAction('return_stock')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm']">
+                            Return Stock
+                          </button>
+                        </MenuItem>
+                        <MenuItem v-slot="{ active }" v-if="opsJobItem.stock_action_type">
+                          <button type="button" @click="onUpdateStockAction(null)" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm']">
+                            Clear Action
+                          </button>
+                        </MenuItem>
+                      </div>
+                    </MenuItems>
+                  </transition>
+                </Menu>
+              </div>
+            </div>
             <div class="px-2 border-b mb-2 border-gray-100 text-left">
             <dl class="divide-y divide-gray-100">
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.opsJob">
@@ -368,17 +414,19 @@
                       </tr>
                     </thead>
                     <tbody class="bg-white">
-                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? 'bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400' : (channel.is_upcoming_product ? 'border-b-2 border-r-2 border-l-2 border-dashed border-gray-400' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))]">
                         <td class="whitespace py-5 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-left text-gray-800 text-center">
                           <div class="flex flex-col space-y-1">
-                            <div>
-                              #{{ channel.code }}
+                            <div class="flex items-center justify-center space-x-1">
+                              <span>#{{ channel.code }}</span>
+                              <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">Upcoming</span>
+                              <span v-if="channel.is_replaced" class="inline-flex items-center rounded bg-gray-100 px-1 py-0.5 text-[10px] font-bold text-gray-700 ring-1 ring-inset ring-gray-700/10">Current</span>
                             </div>
                             <div class="flex items-center justify-center" >
                               <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
                             </div>
                             <div :class="[(channel.product && channel.product.is_available) ? 'text-gray-700' : 'text-gray-400']">
-                                <p class="break-words text-xs" v-if="channel.product && channel.product.name">
+                                <p class="break-words text-xs font-bold" :class="[channel.is_upcoming_product ? 'text-purple-700' : '']" v-if="channel.product && channel.product.name">
                                   {{ channel.product.name }}
                                 </p>
                             </div>
@@ -388,13 +436,14 @@
                           <div class="flex flex-col space-y-2 items-center justify-center px-1.5">
                             <div class="flex space-x-2 items-center">
                               <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span>
-                              <span :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']">
+                              <span :class="[channel.is_replaced ? 'line-through text-gray-400' : (channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400')]">
                                 {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                               </span>
                             </div>
-                            <div class="flex space-x-2 items-center"  v-if="opsJobItem.status > 1">
-                              <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">picked</span>
+                            <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 1">
                               <span class="flex flex-col space-y-1" :class="[channel.product && channel.product.is_available ? (channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10" v-if="!channel.is_replaced">picked</span>
+                                <span class="inline-flex items-center rounded-full bg-red-50 px-1 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-700/10" v-else>return</span>
                                 <span>
                                   {{ channel.picked }}
                                 </span>
@@ -402,30 +451,32 @@
                                   capped ({{ channel.picked_limit }})
                                 </span>
                               </span>
-
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
-                              <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
+                              <div v-if="channel.is_replaced || channel.is_return_stock" class="text-xs text-gray-500 italic py-2">
+                                N/A
+                              </div>
+                              <select v-else name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                                 <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                               </select>
                               <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
                                 capped ({{ channel.picked_limit }})
                               </span>
                             </div>
-                            <div class="flex space-x-2 items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                              <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-blue-600">
-                              </ArrowRightEndOnRectangleIcon>
+                            <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                               <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
-                                <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                                <option v-for="n in channel.capacity + 1" :key="n-1" :value="(channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1)">{{ (channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1) }}</option>
                               </select>
                               <span v-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
+                                <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-blue-600">
+                                </ArrowRightEndOnRectangleIcon>
                                 {{ channel.refill }}
                               </span>
                             </div>
-                            <div class="flex space-x-2 items-center" :class="[channel.product && channel.product.is_available ? (opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900') : 'text-gray-400']" v-if="opsJobItem.status >= 2">
-                              <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
-                              <span>
-                                {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
+                            <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                              <span :class="[channel.product && channel.product.is_available ? (opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900') : 'text-gray-400']">
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
+                                {{ channel.qty }}
                               </span>
                             </div>
                           </div>
@@ -638,9 +689,13 @@
                       </tr>
                     </thead>
                     <tbody class="bg-white">
-                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? 'bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400' : (channel.is_upcoming_product ? 'border-b-2 border-r-2 border-l-2 border-dashed border-gray-400' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))]">
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-800">
-                          {{ channel.code }}
+                          <div class="flex flex-col items-center space-y-1">
+                            <span>{{ channel.code }}</span>
+                            <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">Upcoming</span>
+                            <span v-if="channel.is_replaced" class="inline-flex items-center rounded bg-gray-100 px-1 py-0.5 text-[10px] font-bold text-gray-700 ring-1 ring-inset ring-gray-700/10">Current</span>
+                          </div>
                         </td>
                         <td class="whitespace-nowrap text-sm  font-semibold text-gray-800 text-center">
                           <div class="flex justify-center items-center" >
@@ -657,7 +712,7 @@
                             </span>
                           </span>
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[channel.is_replaced ? 'line-through text-gray-400' : (channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400')]">
                           {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" v-if="opsJobItem.status > 1" :class="[channel.product && channel.product.is_available ? ((channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked)) ? 'text-red-500' : ((channel.picked > (channel.capacity - channel.before_picked)) ? 'text-sky-600' : 'text-gray-900')) : 'text-gray-400']">
@@ -665,14 +720,17 @@
                             <span>
                               {{ channel.picked }}
                             </span>
-                            <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
+                            <span class="text-xs text-red-500" v-if="!channel.is_replaced && channel.picked_limit != null && !opsJobItem.is_ignore_limit">
                               capped ({{ channel.picked_limit }})
                             </span>
                           </div>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                           <div class="flex flex-col items-center justify-center">
-                            <select name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
+                            <div v-if="channel.is_replaced || channel.is_return_stock" class="text-xs text-gray-500 italic py-2">
+                               N/A
+                            </div>
+                            <select v-else name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                               <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                             </select>
                             <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
@@ -682,20 +740,20 @@
                         </td>
 
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                          <!-- <FormInput inputType="number" v-model="channel.refill" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
-                          </FormInput> -->
-                          <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
-                            <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                          <select v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available">
+                            <option v-for="n in channel.capacity + 1" :key="n-1" :value="(channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1)">{{ (channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1) }}</option>
                           </select>
 
-                          <span v-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
+                          <span v-else-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
                             {{ channel.refill }}
                           </span>
                         </td>
                         <td
                           class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 2"
                           >
-                          {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
+                          <span>
+                            {{ channel.qty }}
+                          </span>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ channel.vmc_before_qty }}
@@ -1156,7 +1214,8 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ComputerDesktopIcon, FlagIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
+import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ChevronDownIcon, ComputerDesktopIcon, FlagIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -1188,67 +1247,120 @@ function loadingData() {
     ...opsJobItem.value,
   }) : useForm(getDefaultForm())
 
-  channels.value = props.opsJobItem.data.opsJobItemChannels.map((opsJobItemChannel) => {
+  const allChannels = props.opsJobItem.data.opsJobItemChannels
+  channels.value = allChannels.map((opsJobItemChannel) => {
+    // Identify if this row is being replaced or removed (current slot product with upcoming counterpart, or removed entirely)
+    const is_replaced = (() => {
+      if (opsJobItemChannel.is_upcoming_product) return false;
+
+      // check if it's being replaced by another counterpart mapped in this job
+      if (allChannels.some(u => u.is_upcoming_product && u.vend_channel_id == opsJobItemChannel.vend_channel_id)) return true;
+
+      // check if it's completely cleared off (stock action is implement mapping but no upcoming product for it)
+      if (opsJobItem.value && opsJobItem.value.stock_action_type === 'implement_new_mapping') {
+        const v = opsJobItem.value.vend;
+        if (v) {
+          const cMapping = v.productMapping;
+          const uMapping = cMapping?.upcomingProductMapping || v.upcomingProductMapping;
+          if (uMapping) {
+            const uItems = uMapping.productMappingItemsNormalSequence || [];
+            return !uItems.some(i => i.channel_code == opsJobItemChannel.vend_channel_code);
+          }
+        }
+      }
+
+      return false;
+    })();
+
+    // Return Stock: all channels are being cleared out (nothing to pick, return all)
+    const is_return_stock = !opsJobItemChannel.is_upcoming_product &&
+                            opsJobItem.value.stock_action_type === 'return_stock';
 
     // picked logic
-    let pickedQty = 0
-    if (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available) {
-      pickedQty = opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty
-
-      if(opsJobItemChannel.saved_picked_qty != null) {
-        pickedQty = opsJobItemChannel.saved_picked_qty
-      }
-
-      if (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null && !opsJobItem.value.is_ignore_limit) {
-          let maxLimit = opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit
-          let currentQty = opsJobItemChannel.vendChannel.qty
-          let limitBasedQty = 0
-
-          if (maxLimit >= currentQty) {
-              limitBasedQty = maxLimit - currentQty
-          }
-
-          if (limitBasedQty < pickedQty) {
-              pickedQty = limitBasedQty
-          }
-      }
+    // picked logic
+    let pickedQty = 0;
+    if (opsJobItem.value.status >= 2) {
+      pickedQty = opsJobItemChannel.picked_qty;
     } else {
-      pickedQty = opsJobItemChannel.picked_qty
+      if (is_return_stock) {
+        pickedQty = 0;
+      } else if (is_replaced) {
+        pickedQty = -opsJobItemChannel.qty;
+      } else {
+        const activeProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
+        const initialDefault = opsJobItemChannel.is_upcoming_product ? 5 : (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty);
+        pickedQty = initialDefault;
+
+        if (opsJobItemChannel.saved_picked_qty != null) {
+          if (opsJobItemChannel.is_upcoming_product && opsJobItemChannel.saved_picked_qty === 0) {
+            pickedQty = 5;
+          } else {
+            pickedQty = opsJobItemChannel.saved_picked_qty;
+          }
+        } else if (activeProduct) {
+          if (!activeProduct.is_available) {
+            pickedQty = 0;
+          } else if (activeProduct.max_ops_job_pick_limit != null && !opsJobItem.value.is_ignore_limit) {
+            let maxLimit = activeProduct.max_ops_job_pick_limit;
+            let currentQty = opsJobItemChannel.is_upcoming_product ? 0 : opsJobItemChannel.vendChannel.qty;
+            let limitBasedQty = Math.max(0, maxLimit - currentQty);
+
+            if (limitBasedQty < pickedQty) {
+                pickedQty = limitBasedQty;
+            }
+          }
+        }
+      }
+
+      // Double-check availability for final pick qty (skip for is_replaced/is_return_stock where we intentionally clear)
+      const finalProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
+      if (finalProduct && !finalProduct.is_available && !is_replaced && !is_return_stock) {
+        pickedQty = 0;
+      }
+    }
+
+    // Default refill (Stock In) logic
+    let refill = opsJobItemChannel.actual_qty;
+    if (opsJobItem.value.status == 2 && (refill === null || refill === 0)) {
+      if (is_return_stock) {
+        const currentQty = opsJobItemChannel.vendChannel ? opsJobItemChannel.vendChannel.qty : opsJobItemChannel.qty;
+        refill = -currentQty;
+      } else if (is_replaced) {
+        refill = -opsJobItemChannel.qty;
+      } else {
+        refill = pickedQty;
+      }
+    }
+
+    const finalProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
+    if (opsJobItem.value.status < 3 && finalProduct && !finalProduct.is_available && !is_replaced && !is_return_stock) {
+      refill = 0;
     }
 
     return {
       ...opsJobItemChannel.vendChannel,
       id: opsJobItemChannel.id,
-      amount: opsJobItemChannel.vendChannel.amount,
+      amount: opsJobItemChannel.amount || opsJobItemChannel.vendChannel.amount,
+      is_upcoming_product: opsJobItemChannel.is_upcoming_product,
+      is_replaced: is_replaced,
+      is_return_stock: is_return_stock,
+      vend_channel_id: opsJobItemChannel.vend_channel_id,
       error_settled_at_formatted: opsJobItemChannel.error_settled_at_formatted,
       is_error_settle: opsJobItemChannel.is_error_settle,
       ops_job_item_channel_id: opsJobItemChannel.id,
-      picked_limit: opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null && !opsJobItem.is_ignore_limit ? opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit : null,
+      picked_limit: (opsJobItemChannel.product || opsJobItemChannel.vendChannel.product) && (opsJobItemChannel.product || opsJobItemChannel.vendChannel.product).max_ops_job_pick_limit != null && !opsJobItem.value.is_ignore_limit ? (opsJobItemChannel.product || opsJobItemChannel.vendChannel.product).max_ops_job_pick_limit : null,
       before_picked: opsJobItemChannel.picked_before_qty,
       picked: pickedQty,
-      // picked: props.opsJobItem.data.status < 2 ?
-      //   (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ?
-      //   (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? (
-      //   (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit > opsJobItemChannel.vendChannel.capacity &&
-      //     opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) ?
-      //     (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) :
-      //     ((opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit <= opsJobItemChannel.vendChannel.capacity &&
-      //     opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) ?
-      //     (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit - opsJobItemChannel.vendChannel.qty)
-      //   :0)
-      //   )
-      //     : opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) :
-      //   opsJobItemChannel.picked_qty,
       before_refill: opsJobItemChannel.actual_before_qty,
-      refill: props.opsJobItem.data.status == 2 ? opsJobItemChannel.picked_qty : opsJobItemChannel.actual_qty,
-      product: opsJobItemChannel.vendChannel.product ? {
+      refill: refill,
+      product: opsJobItemChannel.product ? opsJobItemChannel.product : (opsJobItemChannel.vendChannel.product ? {
         ...opsJobItemChannel.vendChannel.product,
-      } : null,
+      } : null),
       vmc_before_qty: opsJobItemChannel.vmc_before_qty,
       vmc_after_qty: opsJobItemChannel.vmc_after_qty,
       // set static capacity and qty once opsJobItem status is more than 3 (stocked in)
       capacity: props.opsJobItem.data.status >= 3 ? opsJobItemChannel.capacity : opsJobItemChannel.vendChannel.capacity,
-      qty: props.opsJobItem.data.vendChannelRecord ? opsJobItemChannel.vmc_before_qty : (props.opsJobItem.data.status >= 3 ? opsJobItemChannel.qty : opsJobItemChannel.vendChannel.qty),
+      qty: opsJobItemChannel.is_upcoming_product ? 0 : (props.opsJobItem.data.vendChannelRecord ? opsJobItemChannel.vmc_before_qty : (props.opsJobItem.data.status >= 3 ? opsJobItemChannel.qty : opsJobItemChannel.vendChannel.qty)),
       virtual_is_error: opsJobItemChannel.virtual_is_error,
     }
   })
@@ -1264,15 +1376,15 @@ function getDefaultForm() {
 }
 
 // subtotals
-function getSubtotalCapacity() {
-  return channels.value.reduce((acc, channel) => {
-    return acc + Number(channel.capacity);
+function getSubtotalNeeded() {
+  return channels.value.filter(c => !c.is_replaced).reduce((acc, channel) => {
+    return acc + (Number(channel.capacity) - Number(channel.qty));
   }, 0);
 }
 
-function getSubtotalNeeded() {
-  return channels.value.reduce((acc, channel) => {
-    return acc + (Number(channel.capacity) - Number(channel.qty));
+function getSubtotalCapacity() {
+  return channels.value.filter(c => !c.is_replaced).reduce((acc, channel) => {
+    return acc + (Number(channel.capacity));
   }, 0);
 }
 
@@ -1283,9 +1395,10 @@ function getSubtotalPicked() {
 }
 
 function getSubtotalPickedAmount() {
-  return channels.value.reduce((acc, channel) => {
+  const sum = channels.value.reduce((acc, channel) => {
     return acc + (Number(channel.picked) * Number(channel.amount));
   }, 0);
+  return sum / Math.pow(10, operatorCountry?.currency_exponent || 0);
 }
 
 function getSubtotalRefill() {
@@ -1295,14 +1408,15 @@ function getSubtotalRefill() {
 }
 
 function getSubtotalRefillAmount() {
-  return channels.value.reduce((acc, channel) => {
+  const sum = channels.value.reduce((acc, channel) => {
     return acc + (Number(channel.refill) * Number(channel.amount));
   }, 0);
+  return sum / Math.pow(10, operatorCountry?.currency_exponent || 0);
 }
 
 function getSubtotalVMCInventoryCount() {
   return channels.value.reduce((acc, channel) => {
-    return acc + (Number(channel.capacity) - (Number(channel.capacity) - Number(channel.qty))) + Number(channel.refill);
+    return acc + Number(channel.qty) + Number(channel.refill);
   }, 0);
 }
 
@@ -1619,6 +1733,36 @@ function onVerifyClicked(verify) {
 
 function formatDatetime(value) {
   return moment(value).format('YYMMDD hh:mm A');
+}
+
+function onUpdateStockAction(type) {
+  let typeName = 'normal job';
+  if (type == 'implement_new_mapping') typeName = 'Implement New Mapping';
+  else if (type == 'return_stock') typeName = 'Return Stock';
+  else if (type == null) typeName = 'Reset to Normal Job';
+
+  const approval = confirm(`Are you sure to ${typeName}?`);
+  if (!approval) {
+      return;
+  }
+  router.post('/ops-jobs/items/' + opsJobItem.value.id + '/update/stock-action', {
+    stock_action_type: type,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Successfully Updated", {
+        timeout: 3000
+      });
+      router.reload({
+        only: ['opsJobItem'],
+        replace: true,
+        preserveState: true,
+        onSuccess: page => {
+          loadingData()
+        }
+      })
+    }
+  })
 }
 
 function statusClass(status) {

@@ -379,7 +379,9 @@ class SettingController extends Controller
             'vend_prefix_id' => $request->vend_prefix_id ? $request->vend_prefix_id : $vend->vend_prefix_id,
             'vend_config_id' => $request->vend_config_id ? $request->vend_config_id : $vend->vend_config_id,
         ]);
-        $upcomingProductMappingOptions = ProductMapping::find($vend->product_mapping_id) ? ProductMapping::find($vend->product_mapping_id)->upcomingProductMappings : collect();
+        $currentMapping = ProductMapping::find($vend->product_mapping_id);
+        $upcomingMapping = $currentMapping ? $currentMapping->upcomingProductMapping : null;
+        $upcomingProductMappingOptions = $upcomingMapping ? collect([$upcomingMapping]) : collect();
         $naProductMapping = ProductMapping::withoutGlobalScopes()->where('name', 'N/A')->whereNull('operator_id')->first();
         if ($naProductMapping && ! $upcomingProductMappingOptions->contains('id', $naProductMapping->id)) {
             $upcomingProductMappingOptions = $upcomingProductMappingOptions->push($naProductMapping);
@@ -451,13 +453,28 @@ class SettingController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'productMappingOptions' => ProductMappingResource::collection(
-                ProductMapping::query()
-                    ->where(function ($query) use ($request) {
-                        $query->whereHas('vendPrefixes', function ($query) use ($request) {
-                            $query->where('vend_prefixes.id', $request->vend_prefix_id);
-                        })
-                        ->orWhere('product_mappings.name', 'N/A');
+                ProductMapping::withoutGlobalScopes()
+                    ->with(['upcomingProductMapping', 'productMappingItems.product.thumbnail'])
+                    ->where(function($query) {
+                        $query->where('operator_id', auth()->user()->operator_id)
+                              ->orWhereNull('operator_id');
                     })
+                    ->when($request->vend_prefix_id, function($query) use ($request, $vend) {
+                        $query->where(function ($q) use ($request, $vend) {
+                            $q->whereHas('vendPrefixes', function($q2) use ($request) {
+                                $q2->where('vend_prefixes.id', $request->vend_prefix_id);
+                            });
+                            $q->orWhere('name', 'N/A');
+                            if ($vend && $vend->product_mapping_id) {
+                                $q->orWhere('id', $vend->product_mapping_id);
+                            }
+                            if ($vend && $vend->upcoming_product_mapping_id) {
+                                $q->orWhere('id', $vend->upcoming_product_mapping_id);
+                            }
+                        });
+                    })
+                    ->where('is_active', 1)
+                    ->orderByRaw("CASE WHEN name = 'N/A' AND operator_id IS NULL THEN 1 ELSE 0 END ASC")
                     ->orderBy('name')
                     ->get()
             ),

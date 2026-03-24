@@ -158,6 +158,9 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
+                      Upcoming Product Mapping
+                    </TableHead>
+                    <TableHead>
                       Operator
                     </TableHead>
                     <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name', false)">
@@ -198,6 +201,11 @@
                               </div>
                           </div>
                         </div>
+                      </TableData>
+                      <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
+                        <span v-if="productMapping.upcomingProductMapping">
+                          {{ productMapping.upcomingProductMapping.name }}
+                        </span>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
                         <span v-if="productMapping.operator">

@@ -60,6 +60,7 @@ class OpsJobItemResource extends JsonResource
             'statusBy' => UserResource::make($this->whenLoaded('statusBy')),
             'status' => $this->status,
             'status_name' => OpsJob::STATUS_MAPPINGS[$this->status],
+            'stock_action_type' => $this->stock_action_type,
             'refillable_amount' => isset($this->refillable_amount) ? $this->refillable_amount / 100 : 0,
             'refillable_count' => isset($this->refillable_count) ? $this->refillable_count : 0,
             'stock_in_amount' => isset($this->stock_in_amount) ? $this->stock_in_amount / 100 : 0,

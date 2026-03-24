@@ -46,6 +46,11 @@
                 Phone Number
               </FormInput>
             </div>
+            <div class="sm:col-span-6">
+              <FormInput v-model="form.msisdn" :error="form.errors.msisdn">
+                MSISDN
+              </FormInput>
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -111,6 +116,7 @@ function getDefaultForm() {
   return {
     code: '',
     phone_number: '',
+    msisdn: '',
     telco_id: '',
   }
 }

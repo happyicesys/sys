@@ -29,6 +29,9 @@
           <SearchInput placeholderStr="Phone Number" v-model="filters.phone_number">
             Phone Number
           </SearchInput>
+          <SearchInput placeholderStr="MSISDN" v-model="filters.msisdn">
+            MSISDN
+          </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Telco
@@ -113,6 +116,9 @@
                     <TableHead>
                       Phone Number
                     </TableHead>
+                    <TableHeadSort modelName="msisdn" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('msisdn')">
+                      MSISDN
+                    </TableHeadSort>
                     <TableHead>
                     </TableHead>
                   </tr>
@@ -130,6 +136,9 @@
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-left">
                         {{ simcard.phone_number }}
+                      </TableData>
+                      <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-left">
+                        {{ simcard.msisdn }}
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -201,6 +210,7 @@ const props = defineProps({
 const filters = ref({
   code: '',
   phone_number: '',
+  msisdn: '',
   telco_id: '',
   sortKey: '',
   sortBy: true,

@@ -19,7 +19,9 @@ class ProductMappingResource extends JsonResource
             'name' => $this->name,
             'currentProductMappings' => ProductMappingResource::collection($this->whenLoaded('currentProductMappings')),
             'upcomingProductMappings' => ProductMappingResource::collection($this->whenLoaded('upcomingProductMappings')),
+            'upcomingProductMapping' => ProductMappingResource::make($this->whenLoaded('upcomingProductMapping')),
             'upcoming_product_mapping_id' => $this->upcoming_product_mapping_id,
+            'upcoming_product_mapping_name' => $this->relationLoaded('upcomingProductMapping') ? ($this->upcomingProductMapping ? $this->upcomingProductMapping->name : null) : null,
             'is_active' => $this->is_active ? true : false,
             'remarks' => $this->remarks,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
@@ -27,7 +29,11 @@ class ProductMappingResource extends JsonResource
             'operator_id' => $this->operator_id,
             // 'productMappingItems' => ProductMappingItemResource::collection($this->whenLoaded('productMappingItems')),
             // 'productMappingItemsBySequence' => ProductMappingItemResource::collection($this->whenLoaded('productMappingItemsBySequence')),
-            'productMappingItems' => ProductMappingItemResource::collection($this->whenLoaded('productMappingItemsNormalSequence')),
+            'productMappingItems' => ProductMappingItemResource::collection(
+                $this->relationLoaded('productMappingItemsNormalSequence')
+                ? $this->productMappingItemsNormalSequence
+                : $this->whenLoaded('productMappingItems')
+            ),
             // 'productMappingItemsJson' => $this->product_mapping_items_json,
             'selling_price_type' => $this->selling_price_type,
             'vends' => VendResource::collection($this->whenLoaded('vends')),

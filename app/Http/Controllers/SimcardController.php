@@ -26,10 +26,13 @@ class SimcardController extends Controller
                         'telco',
                     ])
                     ->when($request->code, function($query, $search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
+                        $query->where('code', 'LIKE', "%{$search}%");
                     })
                     ->when($request->phone_number, function($query, $search) {
                         $query->where('phone_number', 'LIKE', "%{$search}%");
+                    })
+                    ->when($request->msisdn, function($query, $search) {
+                        $query->where('msisdn', 'LIKE', "%{$search}%");
                     })
                     ->when($request->telco_id, function($query, $search) {
                         $query->where('telco_id', $search);

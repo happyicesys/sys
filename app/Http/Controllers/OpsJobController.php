@@ -600,7 +600,7 @@ class OpsJobController extends Controller
                             'saved_picked_qty' => $channel['picked'],
                         ]);
 
-                        if ($channel['picked'] > 0) {
+                        if ($channel['picked'] != 0) {
                             ProductMovement::create([
                                 'product_id' => $opsJobItemChannel->product_id,
                                 'type' => ProductMovement::TYPE_PICKED,
@@ -628,6 +628,8 @@ class OpsJobController extends Controller
                     'undo_completed_by' => null,
                 ]);
 
+                $hasMappingChange = $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->exists();
+
                 if ($request->channels) {
                     foreach ($request->channels as $channel) {
                         $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
@@ -637,6 +639,19 @@ class OpsJobController extends Controller
                             'capacity' => $channel['capacity'],
                             'qty' => $channel['qty'],
                         ]);
+                    }
+                }
+
+                if ($hasMappingChange) {
+                    $vend = $opsJobItem->vend;
+                    if ($vend) {
+                        $targetMappingId = $vend->upcoming_product_mapping_id ?: ($vend->productMapping ? $vend->productMapping->upcoming_product_mapping_id : null);
+                        if ($targetMappingId) {
+                            $vend->update([
+                                'product_mapping_id' => $targetMappingId,
+                                'upcoming_product_mapping_id' => null,
+                            ]);
+                        }
                     }
                 }
 
@@ -940,6 +955,7 @@ class OpsJobController extends Controller
                         'vend_channel_record_id',
                         'verified_at',
                         'verified_by',
+                        'stock_action_type',
                     ]);
 
                     $query->selectRaw('
@@ -1123,7 +1139,10 @@ class OpsJobController extends Controller
                     });
                 },
                 'opsJobItems.attachments',
-                'opsJobItems.vend:id,customer_id,code,vend_prefix_id',
+                'opsJobItems.vend:id,customer_id,code,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id',
+                'opsJobItems.vend.productMapping.productMappingItemsNormalSequence.product',
+                'opsJobItems.vend.productMapping.upcomingProductMapping.productMappingItemsNormalSequence.product',
+                'opsJobItems.vend.upcomingProductMapping.productMappingItemsNormalSequence.product',
                 'opsJobItems.cmsTransactionBy',
                 'opsJobItems.customer.deliveryAddress',
                 'opsJobItems.opsJobItemChannels.vendChannel.product.thumbnail',
@@ -1171,13 +1190,28 @@ class OpsJobController extends Controller
         $opsJob = OpsJobItem::findOrFail($id)->opsJob;
         $opsJobItem = OpsJobItem::query()
             ->with([
-                'vend:id,customer_id,code,vend_prefix_id',
-                'vend.productMapping',
+                'vend:id,customer_id,code,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id',
+                'vend.productMapping.productMappingItemsNormalSequence.product',
+                'vend.productMapping.upcomingProductMapping.productMappingItemsNormalSequence.product',
+                'vend.upcomingProductMapping.productMappingItemsNormalSequence.product',
                 'cmsTransactionBy',
                 'createdBy',
                 'customer.deliveryAddress',
                 'vend.vendPrefix',
                 'opsJob',
+                'opsJobItemChannels' => function ($query) {
+                    $query->orderBy('vend_channel_code', 'asc')->orderBy('is_upcoming_product', 'asc');
+                },
+                'opsJobItemChannels.product' => function ($query) use ($opsJob) {
+                    $query->select('*')
+                        ->selectRaw('(
+                        SELECT qty FROM product_limits
+                        WHERE product_limits.product_id = products.id
+                        AND product_limits.date = ?
+                        LIMIT 1
+                    ) AS max_ops_job_pick_limit', [$opsJob->date->toDateString()]);
+                },
+                'opsJobItemChannels.product.thumbnail',
                 'opsJobItemChannels.vendChannel.product' => function ($query) use ($opsJob) {
                     $query->select('*')
                         ->selectRaw('(
@@ -1671,7 +1705,142 @@ class OpsJobController extends Controller
             'is_cash_collected' => false,
         ]);
 
-        return redirect()->back();
+        $opsJobItem->save();
+    }
+
+    public function updateStockAction(Request $request, $id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+        $stockActionType = $request->stock_action_type;
+
+        $opsJobItem->update([
+            'stock_action_type' => $stockActionType,
+        ]);
+
+        if ($stockActionType === 'implement_new_mapping') {
+            $this->applyNewMappingToItem($opsJobItem);
+        } elseif ($stockActionType === 'return_stock') {
+            // Remove any upcoming products first
+            $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
+            $this->applyReturnStockToItem($opsJobItem);
+        } else {
+            // Remove any upcoming products if we are clearing or changing action
+            $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
+            // Reset channels to normal (clear any negative picked_qty set by return_stock)
+            $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', false)->update([
+                'picked_qty' => null,
+                'saved_picked_qty' => null,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Stock Action updated successfully.');
+    }
+
+    public function updateJobStockAction(Request $request, $id)
+    {
+        $opsJob = OpsJob::findOrFail($id);
+        $opsJob->update([
+            'stock_action_type' => $request->stock_action_type,
+        ]);
+
+        foreach ($opsJob->opsJobItems as $item) {
+            $item->update(['stock_action_type' => $request->stock_action_type]);
+            if ($request->stock_action_type === 'implement_new_mapping') {
+                $this->applyNewMappingToItem($item);
+            } else {
+                $item->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
+            }
+        }
+
+        return redirect()->back()->with('success', 'Job Stock Action updated successfully.');
+    }
+
+    private function applyNewMappingToItem($opsJobItem)
+    {
+        $vend = $opsJobItem->vend;
+        if (!$vend) return;
+
+        $currentMapping = $vend->productMapping;
+        $upcomingMapping = $currentMapping?->upcomingProductMapping ?: $vend->upcomingProductMapping;
+
+        if (!$upcomingMapping) return;
+
+        $currentItems = $currentMapping ? $currentMapping->productMappingItems : collect();
+        $upcomingItems = $upcomingMapping->productMappingItems;
+
+        $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
+
+        foreach ($upcomingItems as $uItem) {
+            $cItem = $currentItems->where('channel_code', $uItem->channel_code)->first();
+            
+            if ($cItem && $cItem->product_id != $uItem->product_id) {
+                // Product changed for this channel!
+                // 1. Find the existing Ojic (Current slot)
+                $ojic = $opsJobItem->opsJobItemChannels()
+                    ->where('vend_channel_code', $uItem->channel_code) // Match physical slot code
+                    ->where('is_upcoming_product', false)
+                    ->first();
+
+                if ($ojic) {
+                    // Update current ojic: "To Pick Qty for current product isnt applicable anymore"
+                    $ojic->update([
+                        'picked_qty' => -$ojic->qty,
+                        'saved_picked_qty' => -$ojic->qty,
+                    ]);
+
+                    // 2. Create New Ojic for Upcoming Product
+                    $opsJobItem->opsJobItemChannels()->create([
+                        'ops_job_id' => $opsJobItem->ops_job_id,
+                        'ops_job_item_id' => $opsJobItem->id,
+                        'vend_channel_id' => $ojic->vend_channel_id,
+                        'vend_channel_code' => $ojic->vend_channel_code,
+                        'vend_code' => $ojic->vend_code,
+                        'product_id' => $uItem->product_id,
+                        'capacity' => $ojic->capacity,
+                        'qty' => 0, // NEW product, machine is empty for it
+                        'picked_qty' => 5, // "default chosen 'To Pick Qty' = 5"
+                        'saved_picked_qty' => 5,
+                        'is_upcoming_product' => true,
+                        'amount' => $ojic->amount, // Copy price
+                    ]);
+                }
+            }
+        }
+
+        // Handle removed channels (cleared off without any upcoming mapping)
+        foreach ($currentItems as $cItem) {
+            $uItem = $upcomingItems->where('channel_code', $cItem->channel_code)->first();
+
+            if (!$uItem) {
+                // Product changed for this channel! (Completely removed)
+                $ojic = $opsJobItem->opsJobItemChannels()
+                    ->where('vend_channel_code', $cItem->channel_code)
+                    ->where('is_upcoming_product', false)
+                    ->first();
+
+                if ($ojic) {
+                    // Update current ojic: to be cleared off
+                    $ojic->update([
+                        'picked_qty' => -$ojic->qty,
+                        'saved_picked_qty' => -$ojic->qty,
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function applyReturnStockToItem($opsJobItem)
+    {
+        // For return stock: no picking needed (0 from warehouse),
+        // the stock-in (refill) will be negative of current qty (handled on frontend)
+        $opsJobItem->opsJobItemChannels()
+            ->where('is_upcoming_product', false)
+            ->each(function ($ojic) {
+                $ojic->update([
+                    'picked_qty' => 0,
+                    'saved_picked_qty' => 0,
+                ]);
+            });
     }
 
     public function updateItemRemarks(Request $request, $id)

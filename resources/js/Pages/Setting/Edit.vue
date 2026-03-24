@@ -631,21 +631,16 @@
                     </span>
                   </div>
                 </label>
-                <MultiSelect
-                  v-model="form.upcoming_product_mapping_id"
-                  :options="upcomingProductMappingOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="name"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                >
-                </MultiSelect>
+                <input
+                  type="text"
+                  class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 mt-1"
+                  :value="form.product_mapping_id ? form.product_mapping_id.upcoming_product_mapping_name : (vend.upcoming_product_mapping_name ? vend.upcoming_product_mapping_name : (vend.upcoming_product_mapping ? vend.upcoming_product_mapping.name : ''))"
+                  disabled
+                />
                 <div class="text-sm text-red-600" v-if="form.errors.upcoming_product_mapping_id">
                   {{ form.errors.upcoming_product_mapping_id }}
                 </div>
-                <div class="flex justify-end mt-2" v-if="showPromoteUpcoming">
+                <!-- <div class="flex justify-end mt-2" v-if="showPromoteUpcoming">
                   <Button
                     type="button"
                     :class="[
@@ -660,7 +655,7 @@
                       Update Product Mapping
                     </span>
                   </Button>
-                </div>
+                </div> -->
             </div>
 
             <!-- Vend Channels Section -->
@@ -1637,6 +1632,18 @@ onMounted(() => {
   }
 
   hasMounted = true;
+})
+
+watch(() => form.value.product_mapping_id, (newVal) => {
+  if (hasMounted && newVal && newVal.upcoming_product_mapping_id) {
+    form.value.upcoming_product_mapping_id = newVal.upcoming_product_mapping_id
+  } else if (hasMounted) {
+    form.value.upcoming_product_mapping_id = null
+  }
+
+  if (hasMounted) {
+    applyMappingPreview(newVal)
+  }
 })
 
 function compareSellingPrice(channel) {

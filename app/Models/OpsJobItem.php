@@ -48,6 +48,7 @@ class OpsJobItem extends Model
         'temp_cash_amount_from_vmc',
         'picked_at',
         'picked_by',
+        'stock_action_type',
         'undo_completed_at',
         'undo_completed_by',
         'undo_flagged_at',

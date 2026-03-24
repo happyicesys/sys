@@ -130,16 +130,7 @@ class VendPrefixController extends Controller
                                     ->limit(1),
                                 $sortDirection
                             );
-                        } elseif ($search === 'upcoming_product_mapping_name') {
-                            $query->orderBy(
-                                \App\Models\ProductMapping::select('product_mappings.name')
-                                    ->join('product_mapping_product_mapping', 'product_mappings.id', '=', 'product_mapping_product_mapping.upcoming_product_mapping_id')
-                                    ->join('product_mapping_vend_prefix', 'product_mapping_product_mapping.product_mapping_id', '=', 'product_mapping_vend_prefix.product_mapping_id')
-                                    ->whereColumn('product_mapping_vend_prefix.vend_prefix_id', 'vend_prefixes.id')
-                                    ->orderBy('product_mappings.name')
-                                    ->limit(1),
-                                $sortDirection
-                            );
+
                         } else {
                             $query->orderBy($search, $sortDirection);
                         }
@@ -172,12 +163,10 @@ class VendPrefixController extends Controller
             $vendPrefix->productMappings()->sync($productMappingIds);
         }
 
-        $upcomingProductMappingIds = array_values(array_unique(array_filter(
-            array_map('intval', (array) $request->input('upcomingProductMappings', [])),
-            fn($id) => $id > 0
-        )));
+        $upcomingProductMappingId = (int) $request->input('upcomingProductMapping');
+        $this->syncUpcomingProductMapping($productMappingIds, $upcomingProductMappingId);
 
-        $this->syncUpcomingProductMappings($productMappingIds, $upcomingProductMappingIds);
+
 
         return redirect()->route('vend-prefixes');
     }
@@ -201,18 +190,16 @@ class VendPrefixController extends Controller
 
         $model->productMappings()->sync($productMappingIds);
 
-        $upcomingProductMappingIds = array_values(array_unique(array_filter(
-            array_map('intval', (array) $request->input('upcomingProductMappings', [])),
-            fn($id) => $id > 0
-        )));
-
-        $this->syncUpcomingProductMappings($productMappingIds, $upcomingProductMappingIds);
+        $upcomingProductMappingId = (int) $request->input('upcomingProductMapping');
+        $this->syncUpcomingProductMapping($productMappingIds, $upcomingProductMappingId);
 
         $removedProductMappings = array_diff($existingProductMappingIds, $productMappingIds);
 
         if ($removedProductMappings) {
-            $this->syncUpcomingProductMappings($removedProductMappings, []);
+            $this->syncUpcomingProductMapping($removedProductMappings, null);
         }
+
+
 
         // validate if product mapping is no longer in vend prefix, unmap the product mapping id of vend
         $vends = $model->vends;
@@ -247,21 +234,33 @@ class VendPrefixController extends Controller
         return redirect()->route('vend-prefixes');
     }
 
-    protected function syncUpcomingProductMappings(array $productMappingIds, array $upcomingProductMappingIds): void
+    protected function syncUpcomingProductMapping(array $productMappingIds, ?int $upcomingProductMappingId): void
     {
         $productMappingIds = array_filter(
             array_map('intval', $productMappingIds),
-            fn($id) => $id > 0
+            fn ($id) => $id > 0
         );
 
         foreach ($productMappingIds as $productMappingId) {
             $productMapping = ProductMapping::find($productMappingId);
 
-            if (!$productMapping) {
+            if (! $productMapping) {
                 continue;
             }
 
-            $productMapping->upcomingProductMappings()->sync($upcomingProductMappingIds);
+            // Sync the pivot table (product_mapping_product_mapping)
+            $syncIds = $upcomingProductMappingId && $upcomingProductMappingId > 0
+                ? [$upcomingProductMappingId]
+                : [];
+
+            $productMapping->upcomingProductMappings()->sync($syncIds);
+
+            // Cascade: also directly set upcoming_product_mapping_id on the ProductMapping model
+            // VendPrefix's upcoming mapping overrides ProductMapping's own upcoming_product_mapping_id
+            $productMapping->upcoming_product_mapping_id = $upcomingProductMappingId && $upcomingProductMappingId > 0
+                ? $upcomingProductMappingId
+                : null;
+            $productMapping->save();
         }
     }
 }

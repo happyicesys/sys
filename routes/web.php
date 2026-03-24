@@ -337,6 +337,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/{id}/edit', [OpsJobController::class, 'edit'])->name('ops-jobs.edit');
         Route::post('/store', [OpsJobController::class, 'store']);
         Route::post('/{id}/update', [OpsJobController::class, 'update']);
+        Route::post('/{id}/update/stock-action', [OpsJobController::class, 'updateJobStockAction']);
         Route::delete('/{id}', [OpsJobController::class, 'delete']);
         Route::post('/{id}/complete', [OpsJobController::class, 'complete']);
         Route::post('/items/{itemID}/status', [OpsJobController::class, 'changeItemStatus']);
@@ -350,6 +351,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/item/create', [OpsJobController::class, 'createItem']);
         Route::post('/items/{itemId}/update', [OpsJobController::class, 'updateItem']);
         Route::post('/items/{itemId}/update/remarks', [OpsJobController::class, 'updateItemRemarks']);
+        Route::post('/items/{itemId}/update/stock-action', [OpsJobController::class, 'updateStockAction']);
         Route::post('/items/{itemID}/toggle/is-ignore-limit', [OpsJobController::class, 'toggleIsIgnoreLimit']);
         Route::post('/{id}/create-cms-empty-invoices', [OpsJobController::class, 'createCmsEmptyInvoices']);
         Route::post('/{id}/sync-cms-invoices', [OpsJobController::class, 'syncCmsInvoices']);

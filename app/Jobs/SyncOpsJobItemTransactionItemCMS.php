@@ -49,7 +49,7 @@ class SyncOpsJobItemTransactionItemCMS implements ShouldQueue
 
             if ($opsJobItem->opsJobItemChannels) {
                 foreach ($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
-                    if ($opsJobItemChannel->actual_qty > 0) {
+                    if ($opsJobItemChannel->actual_qty != 0) {
                         $data['items'][$opsJobItemChannel->vend_channel_code] = [
                             'product_code' => $opsJobItemChannel->vendChannel->product->code,
                             'capacity' => $opsJobItemChannel->capacity,

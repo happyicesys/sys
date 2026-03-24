@@ -126,7 +126,8 @@ class DatabaseSeeder extends Seeder
             // MachineHealthHistoryBackfillSeeder::class,
 
             // RolePermissionSyncSeeder::class,
-            AddNAOptionSeeder::class ,
+            // AddNAOptionSeeder::class ,
+            // InterviewDataAnonymizerSeeder::class ,
 
         ]);
     }

@@ -34,6 +34,7 @@ class ProductMapping extends Model
         'operator_id',
         // 'product_mapping_items_json',
         'selling_price_type',
+        'upcoming_product_mapping_id',
     ];
 
 
@@ -58,6 +59,11 @@ class ProductMapping extends Model
     public function upcomingProductMappings()
     {
         return $this->belongsToMany(ProductMapping::class, 'product_mapping_product_mapping', 'product_mapping_id', 'upcoming_product_mapping_id')->orderBy('name');
+    }
+
+    public function upcomingProductMapping()
+    {
+        return $this->belongsTo(ProductMapping::class, 'upcoming_product_mapping_id');
     }
 
     public function productMappingItems()

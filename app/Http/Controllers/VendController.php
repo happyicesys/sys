@@ -514,9 +514,13 @@ class VendController extends Controller
                     'lastSecondOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
                     'lastSecondOpsJobItem.opsJob:id,code,date,delivered_by',
                     'lastSecondOpsJobItem.opsJob.deliveredBy:id,name,username',
-                    'nextOpsJobItem:id,ops_job_id,status,vend_id,customer_id,remarks,sequence',
+                    'nextOpsJobItem:id,ops_job_id,status,vend_id,customer_id,remarks,sequence,stock_action_type',
                     'nextOpsJobItem.opsJob:id,code,date,delivered_by',
                     'nextOpsJobItem.opsJob.deliveredBy:id,name,username',
+                    'nextOpsJobItem.vend:id,upcoming_product_mapping_id,product_mapping_id',
+                    'nextOpsJobItem.vend.upcomingProductMapping:id,name',
+                    'nextOpsJobItem.vend.productMapping:id,upcoming_product_mapping_id,name',
+                    'nextOpsJobItem.vend.productMapping.upcomingProductMapping:id,name',
                     'nextOpsJobItem.opsJobItemChannels.vendChannel' => function ($query) {
                         $query->with([
                             'vend:id,server_price_type',

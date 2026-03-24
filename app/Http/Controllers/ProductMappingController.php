@@ -132,9 +132,13 @@ class ProductMappingController extends Controller
                 (clone $query)->with([
                     'attachments',
                     'operator',
-                    'productMappingItems',
-                    'productMappingItems.product:id,code,name,is_active',
-                    'productMappingItems.product.thumbnail',
+                    'productMappingItemsNormalSequence' => function ($q) {
+                        $q->orderByRaw("CASE WHEN channel_code REGEXP '^[0-9]+$' THEN 0 ELSE 1 END ASC")
+                            ->orderByRaw("CAST(channel_code AS UNSIGNED) ASC")
+                            ->orderBy('channel_code', 'asc');
+                    },
+                    'productMappingItemsNormalSequence.product:id,code,name,is_active',
+                    'productMappingItemsNormalSequence.product.thumbnail',
                     'vends' => function ($query) use ($request) {
                         $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed');
 
@@ -157,7 +161,8 @@ class ProductMappingController extends Controller
                     },
                     'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
                     'vends.vendPrefix:id,name',
-                    'vendPrefixes'
+                    'vendPrefixes',
+                    'upcomingProductMapping',
                 ])
 
                     ->select('product_mappings.*', 'vend_prefixes.name as vend_prefix_name')
@@ -305,6 +310,7 @@ class ProductMappingController extends Controller
             },
             'productMappingItemsNormalSequence.product:id,code,name,is_active',
             'upcomingProductMappings',
+            'upcomingProductMapping',
             'vends:id,code,name,product_mapping_id,customer_id,vend_prefix_id',
             'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
             'vends.vendPrefix:id,name',
@@ -319,6 +325,12 @@ class ProductMappingController extends Controller
                     ->where('is_inventory', true)
                     ->where('is_active', true)
                     ->orderBy('code')
+                    ->get()
+            ),
+            'upcomingProductMappingOptions' => ProductMappingResource::collection(
+                ProductMapping::where('id', '!=', $id)
+                    ->where('is_active', true)
+                    ->orderBy('name')
                     ->get()
             ),
             // send current sort back so the header arrows know what to show

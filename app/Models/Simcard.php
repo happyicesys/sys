@@ -14,6 +14,7 @@ class Simcard extends Model
         'code',
         'created_by',
         'is_active',
+        'msisdn',
         'operator_id',
         'phone_number',
         'telco_id',

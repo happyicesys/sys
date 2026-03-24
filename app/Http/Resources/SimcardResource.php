@@ -21,6 +21,7 @@ class SimcardResource extends JsonResource
             'createdBy' => UserResource::make($this->whenLoaded('createdBy')),
             'created_by' => $this->created_by,
             'is_active' => $this->is_active,
+            'msisdn' => $this->msisdn,
             'phone_number' => $this->phone_number,
             'telco' => TelcoResource::make($this->whenLoaded('telco')),
             'telco_id' => $this->telco_id,

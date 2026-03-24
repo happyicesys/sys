@@ -217,7 +217,7 @@
                       <div class="flex flex-col items-center gap-1">
                         <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-xs py-1" :class="[product.max_ops_job_pick_limit >= 0 && product.max_ops_job_pick_limit != null ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available || !permissions.includes('admin-access product-availability')" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
                           <option :value="null">No</option>
-                          <option v-for="n in 20 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                          <option v-for="n in 25 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                         </select>
                         <span class="text-[10px] text-red-700" v-if="product.max_ops_job_pick_limit != null && product.limit_is_created_by_system">
                           from Yesterday

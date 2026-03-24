@@ -48,6 +48,7 @@ class OpsJobResource extends JsonResource
             'date_diff_count' => isset($this->date) ? Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() : null,
             'delta_cash_amount' => isset($this->delta_cash_amount) ? $this->delta_cash_amount / 100 : 0,
             'status' => $this->status,
+            'stock_action_type' => $this->stock_action_type,
             'createdBy' => UserResource::make($this->whenLoaded('createdBy')),
             'deliveredBy' => UserResource::make($this->whenLoaded('deliveredBy')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),

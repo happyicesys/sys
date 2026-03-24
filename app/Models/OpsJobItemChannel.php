@@ -16,6 +16,7 @@ class OpsJobItemChannel extends Model
         'capacity',
         'error_settled_at',
         'is_error_settle',
+        'is_upcoming_product',
         'ops_job_id',
         'ops_job_item_id',
         'picked_before_qty',

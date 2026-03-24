@@ -85,6 +85,7 @@
             >
             </MultiSelect>
           </div>
+
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Machine Status
@@ -183,15 +184,10 @@
                   >
                     Product Mapping <br /> Current
                   </TableHeadSort>
-                  <TableHeadSort
-                    modelName="upcoming_product_mapping_name"
-                    :sortKey="filters.sortKey"
-                    :sortBy="filters.sortBy"
-                    @sort-table="sortTable('upcoming_product_mapping_name')"
-                    class="bg-sky-200"
-                  >
+                  <TableHead>
                     Product Mapping <br /> Upcoming
-                  </TableHeadSort>
+                  </TableHead>
+
                   <TableHead></TableHead>
                 </tr>
               </thead>
@@ -268,26 +264,26 @@
                       </span>
                     </div>
                   </TableData>
+
                   <TableData
                     :currentIndex="vendPrefixIndex"
                     :totalLength="vendPrefixes.length"
                     inputClass="text-center"
                   >
                     <div class="flex flex-col space-y-1">
-                      <span
-                        v-for="upcomingProductMapping in uniqueUpcomingProductMappings(vendPrefix)"
-                        :key="upcomingProductMapping.id"
-                      >
+                      <template v-if="getUpcomingProductMapping(vendPrefix)">
                         <a
-                          :href="'/product-mappings/' + upcomingProductMapping.id + '/edit'"
+                          :href="'/product-mappings/' + getUpcomingProductMapping(vendPrefix).id + '/edit'"
                           class="text-blue-600"
                           target="_blank"
                         >
-                          {{ upcomingProductMapping.name }}
+                          {{ getUpcomingProductMapping(vendPrefix).name }}
                         </a>
-                      </span>
+                      </template>
                     </div>
                   </TableData>
+
+
                   <TableData
                     :currentIndex="vendPrefixIndex"
                     :totalLength="vendPrefixes.length"
@@ -544,32 +540,7 @@ function normalizeCollection(collection) {
   return [];
 }
 
-function uniqueUpcomingProductMappings(vendPrefix) {
-  const normalizedUpcoming = normalizeCollection(
-    vendPrefix?.upcomingProductMappingsUnique
-  );
-  if (normalizedUpcoming.length) {
-    return normalizedUpcoming;
-  }
 
-  const uniques = [];
-  const seen = new Set();
-
-  normalizeCollection(vendPrefix?.productMappings).forEach((productMapping) => {
-    normalizeCollection(productMapping?.upcomingProductMappings).forEach(
-      (upcoming) => {
-        const id = upcoming?.id;
-        if (!id || seen.has(id)) {
-          return;
-        }
-        seen.add(id);
-        uniques.push(upcoming);
-      }
-    );
-  });
-
-  return uniques;
-}
 
 function upcomingProductMappingIds(vendPrefix) {
   return normalizeCollection(vendPrefix?.productMappings).reduce((ids, productMapping) => {
@@ -585,5 +556,15 @@ function filteredProductMappings(vendPrefix) {
   return normalizeCollection(vendPrefix?.productMappings).filter(
     (productMapping) => !upcomingIds.includes(productMapping.id)
   );
+}
+
+function getUpcomingProductMapping(vendPrefix) {
+  for (const productMapping of normalizeCollection(vendPrefix?.productMappings)) {
+    const upcoming = normalizeCollection(productMapping?.upcomingProductMappings);
+    if (upcoming.length > 0) {
+      return upcoming[0];
+    }
+  }
+  return null;
 }
 </script>

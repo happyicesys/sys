@@ -56,26 +56,27 @@
                 {{ form.errors.productMappings }}
               </div>
             </div>
+
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Upcoming Product Mapping(s)
+                Upcoming Product Mapping
               </label>
               <MultiSelect
-                v-model="form.upcomingProductMappings"
+                v-model="form.upcomingProductMapping"
                 :options="upcomingOptions()"
                 trackBy="id"
                 valueProp="id"
                 label="value"
                 placeholder="Select"
                 open-direction="top"
-                mode="tags"
                 class="mt-1"
               >
               </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors.upcomingProductMappings">
-                {{ form.errors.upcomingProductMappings }}
+              <div class="text-sm text-red-600" v-if="form.errors.upcomingProductMapping">
+                {{ form.errors.upcomingProductMapping }}
               </div>
             </div>
+
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
@@ -183,7 +184,6 @@ onMounted(() => {
   productMappingOptions.value = props.productMappingOptions.data.map((data) => {
     return { id: data.id, value: data.name }
   })
-  vendConfigOptions.value = props.vendConfigOptions
   form.value = props.vendPrefix
     ? useForm({
         ...props.vendPrefix,
@@ -198,12 +198,10 @@ onMounted(() => {
         operator_id: props.vendPrefix.operator_id
           ? operatorOptions.value.find((operator) => operator.id == props.vendPrefix.operator_id)
           : operatorOptions.value.find((operator) => operator.id == authOperator.id),
-        upcomingProductMappings: buildInitialUpcomingSelections(
-          props.vendPrefix?.productMappings,
-          props.vendPrefix?.upcomingProductMappingsUnique
-        ),
+        upcomingProductMapping: buildInitialUpcomingSelection(props.vendPrefix.productMappings),
       })
     : useForm(getDefaultForm())
+    
   ensureUpcomingValid()
 })
 
@@ -214,6 +212,44 @@ watch(
   },
   { deep: true }
 )
+
+function buildInitialUpcomingSelection(productMappings = []) {
+  for (const productMapping of productMappings || []) {
+    const upcoming = productMapping.upcomingProductMappings && productMapping.upcomingProductMappings[0]
+    if (upcoming) {
+      const option = findProductMappingOption(upcoming.id)
+      if (option) {
+        return option
+      }
+    }
+  }
+
+  return null
+}
+
+function upcomingOptions() {
+  const selectedIds = new Set(
+    (form.value.productMappings || []).map((item) => Number(item.id))
+  )
+
+  return productMappingOptions.value.filter((option) => !selectedIds.has(Number(option.id)))
+}
+
+function ensureUpcomingValid() {
+  if (!form.value.upcomingProductMapping) {
+    return
+  }
+
+  const selectedIds = new Set(
+    (form.value.productMappings || []).map((item) => Number(item.id))
+  )
+
+  if (selectedIds.has(Number(form.value.upcomingProductMapping.id))) {
+    form.value.upcomingProductMapping = null
+  }
+}
+
+
 
 function normalizeCollection(collection) {
   if (Array.isArray(collection)) {
@@ -255,59 +291,7 @@ function findProductMappingOption(id) {
   )
 }
 
-function buildInitialUpcomingSelections(productMappings = [], uniqueUpcoming = []) {
-  const selections = []
-  const seen = new Set()
 
-  const normalizedUpcoming = normalizeCollection(uniqueUpcoming)
-  const normalizedProductMappings = normalizeCollection(productMappings)
-
-  const upcomingSource = normalizedUpcoming.length
-    ? normalizedUpcoming
-    : normalizedProductMappings.flatMap((productMapping) =>
-        normalizeCollection(productMapping?.upcomingProductMappings)
-      )
-
-  for (const upcoming of upcomingSource) {
-    const normalizedId = normalizeId(upcoming?.id)
-    if (!normalizedId || seen.has(normalizedId)) {
-      continue
-    }
-
-    const option =
-      findProductMappingOption(normalizedId) ||
-      buildOptionFromMapping(upcoming)
-
-    if (option) {
-      seen.add(normalizedId)
-      selections.push(option)
-    }
-  }
-
-  return selections
-}
-
-function upcomingOptions() {
-  return productMappingOptions.value
-}
-
-function ensureUpcomingValid() {
-  if (!Array.isArray(form.value.upcomingProductMappings)) {
-    form.value.upcomingProductMappings = []
-    return
-  }
-
-  const seen = new Set()
-
-  form.value.upcomingProductMappings = form.value.upcomingProductMappings.filter((upcoming) => {
-    const id = normalizeId(upcoming?.id)
-    if (!id || seen.has(id)) {
-      return false
-    }
-    seen.add(id)
-    return true
-  })
-}
 
 function getDefaultForm() {
   return {
@@ -315,7 +299,7 @@ function getDefaultForm() {
     desc: '',
     operator_id: '',
     productMappings: [],
-    upcomingProductMappings: [],
+    upcomingProductMapping: null,
   }
 }
 
@@ -329,7 +313,7 @@ function submit() {
         ...data,
         operator_id: data.operator_id.id,
         productMappings: data.productMappings.map(productMapping => productMapping.id),
-        upcomingProductMappings: (data.upcomingProductMappings || []).map(productMapping => productMapping.id),
+        upcomingProductMapping: data.upcomingProductMapping ? data.upcomingProductMapping.id : null,
       }
     })
     .post('/vend-prefixes/create', {
@@ -352,7 +336,7 @@ function submit() {
           ...data,
           operator_id: data.operator_id.id,
           productMappings: data.productMappings.map(productMapping => productMapping.id),
-          upcomingProductMappings: (data.upcomingProductMappings || []).map(productMapping => productMapping.id),
+          upcomingProductMapping: data.upcomingProductMapping ? data.upcomingProductMapping.id : null,
         }
       })
       .post('/vend-prefixes/' + form.value.id + '/update', {
