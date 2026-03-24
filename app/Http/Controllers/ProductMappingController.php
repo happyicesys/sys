@@ -468,11 +468,16 @@ class ProductMappingController extends Controller
         $productMapping = ProductMapping::findOrFail($productMappingId);
         $this->unbindProductFromChannels($productMapping->vends);
 
-        $productMapping->vends()->update(['product_mapping_id' => null]);
+        $productMapping->vends()->update([
+            'product_mapping_id' => null,
+            'upcoming_product_mapping_id' => null
+        ]);
+        
         if ($request->productMappingVends) {
             foreach ($request->productMappingVends as $vendData) {
                 $vend = Vend::findOrFail($vendData['id']);
                 $vend->product_mapping_id = $productMapping->id;
+                $vend->upcoming_product_mapping_id = $productMapping->upcoming_product_mapping_id;
                 $vend->save();
             }
         }

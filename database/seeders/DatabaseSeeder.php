@@ -128,6 +128,7 @@ class DatabaseSeeder extends Seeder
             // RolePermissionSyncSeeder::class,
             // AddNAOptionSeeder::class ,
             // InterviewDataAnonymizerSeeder::class ,
+            BackfillProductMappingUpcomingSeeder::class ,
 
         ]);
     }

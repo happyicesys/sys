@@ -261,6 +261,12 @@ class VendPrefixController extends Controller
                 ? $upcomingProductMappingId
                 : null;
             $productMapping->save();
+
+            // Cascade to all bound vends as well
+            foreach ($productMapping->vends as $vend) {
+                $vend->upcoming_product_mapping_id = $productMapping->upcoming_product_mapping_id;
+                $vend->save();
+            }
         }
     }
 }

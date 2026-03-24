@@ -2652,8 +2652,9 @@ class VendController extends Controller
         $vend = Vend::findOrFail($vendID);
 
         if ($request->product_mapping_id != $vend->product_mapping_id) {
+            $newProductMapping = ProductMapping::find($request->product_mapping_id);
             $request->merge([
-                'upcoming_product_mapping_id' => null,
+                'upcoming_product_mapping_id' => $newProductMapping ? $newProductMapping->upcoming_product_mapping_id : null,
             ]);
             $isProductMappingChanged = true;
         }
@@ -3057,8 +3058,13 @@ class VendController extends Controller
     public function replaceProductMapping($id)
     {
         $vend = Vend::findOrFail($id);
-        $vend->product_mapping_id = $vend->upcoming_product_mapping_id;
-        $vend->upcoming_product_mapping_id = null;
+        
+        $newMappingId = $vend->upcoming_product_mapping_id;
+        $vend->product_mapping_id = $newMappingId;
+        
+        $newProductMapping = ProductMapping::find($newMappingId);
+        $vend->upcoming_product_mapping_id = $newProductMapping ? $newProductMapping->upcoming_product_mapping_id : null;
+        
         $vend->save();
 
         return redirect()->back();
