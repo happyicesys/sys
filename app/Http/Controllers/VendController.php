@@ -216,6 +216,8 @@ class VendController extends Controller
         $vends = Vend::query()
             ->with([
                 'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform',
+                'vendConfig:id,name,version',
+                'upcomingProductMapping:id,name',
             ])
             ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
@@ -332,6 +334,8 @@ class VendController extends Controller
             'operators.code AS operator_code',
             'operators.name AS operator_name',
             'vend_configs.name AS vend_config_name',
+            'vends.vend_vend_config_version',
+            'vends.upcoming_product_mapping_id',
             'vend_prefixes.name AS vend_prefix_name',
             'customers.totals_json AS customers_totals_json',
             // 'delivery_platforms.slug AS delivery_platform_slug'

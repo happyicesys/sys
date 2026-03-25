@@ -582,22 +582,19 @@
           <TableHead>
             #
           </TableHead>
-          <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType !== 'customers'">
-            Machine ID
-          </TableHeadSort>
-          <TableHeadSort modelName="customers.virtual_customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.virtual_customer_code')">
-            Customer
-          </TableHeadSort>
-          <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType === 'customers'">
-            Machine ID
-          </TableHeadSort>
           <TableHead>
             <div class="flex flex-col space-y-2">
+              <SingleSortItem modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')">
+                Machine ID
+              </SingleSortItem>
               <SingleSortItem modelName="vend_configs.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_configs.name', false)">
                 Setting Chart
               </SingleSortItem>
               <SingleSortItem modelName="vend_prefixes.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefixes.name', false)">
                 Machine Prefix
+              </SingleSortItem>
+              <SingleSortItem modelName="customers.virtual_customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.virtual_customer_code')">
+                Customer
               </SingleSortItem>
               <SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
                 Ref Price
@@ -625,6 +622,16 @@
               </div>
             </div>
           </TableHead>
+          <TableHead>
+            <div class="flex flex-col space-y-2">
+              <span>Setting Chart</span>
+              <span class="text-blue-600 text-xs">Current</span>
+              <span class="text-blue-600 text-xs">Latest*</span>
+              <span class="border-t border-gray-300 pt-1">Product Mapping</span>
+              <span class="text-blue-600 text-xs">Current</span>
+              <span class="text-blue-600 text-xs">Upcoming*</span>
+            </div>
+          </TableHead>
           <TableHeadSort modelName="modem_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('modem_type_name')">
             <div class="flex flex-col space-y-1">
               <span>
@@ -642,24 +649,29 @@
             Inventory Status <br>
             #Channel, Needed, Balance/Capacity (LastStockIn)
           </TableHead>
-          <TableHeadSort modelName="vend_channel_error_logs_json" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_error_logs_json')">
-            Errors
-          </TableHeadSort>
           <TableHead>
-            Error Rate
-            <SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', false)">
-              3d
-            </SingleSortItem>
-            <SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', false)">
-              7d
-            </SingleSortItem>
+            <div class="flex flex-col space-y-2">
+              <SingleSortItem modelName="vend_channel_error_logs_json" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_error_logs_json')">
+                Errors
+              </SingleSortItem>
+              <SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', false)">
+                Error Rate 3d
+              </SingleSortItem>
+              <SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', false)">
+                Error Rate 7d
+              </SingleSortItem>
+            </div>
           </TableHead>
-          <TableHeadSort modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent', true)">
-            Balance Stock
-          </TableHeadSort>
-          <TableHeadSort modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
-              Remaining SKU#
-          </TableHeadSort>
+          <TableHead>
+            <div class="flex flex-col space-y-2">
+              <SingleSortItem modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent', true)">
+                Balance Stock
+              </SingleSortItem>
+              <SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
+                Remaining SKU#
+              </SingleSortItem>
+            </div>
+          </TableHead>
           <TableHead>
             Sales(qty)
             <SingleSortItem modelName="totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->today_amount', false)">
@@ -676,7 +688,10 @@
             </SingleSortItem>
           </TableHead>
           <TableHead>
-            Status
+            Machine Status
+          </TableHead>
+          <TableHead>
+            Payment Device
           </TableHead>
           <TableHeadSort modelName="last_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_invoice_date')" v-if="indexType === 'customers'">
             Last Visited <br>
@@ -686,36 +701,38 @@
             Next Planned Visit <br>
             yymmdd
           </TableHeadSort>
-          <TableHeadSort modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
-            Avg Per Day <br>
-            (Last 30d)
-          </TableHeadSort>
-          <TableHeadSort modelName="amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount_average_day', true)">
-            Lifetime Sales,<br>
-            Begin Date, <br>
-            Avg Sales/ Day
-          </TableHeadSort>
+          <TableHead>
+            <div class="flex flex-col space-y-2">
+              <SingleSortItem modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
+                Avg Per Day (Last 30d)
+              </SingleSortItem>
+              <SingleSortItem modelName="amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount_average_day', true)">
+                Lifetime Sales
+              </SingleSortItem>
+              <span>Begin Date</span>
+              <span>Avg Sales/ Day</span>
+            </div>
+          </TableHead>
           <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')" v-if="indexType == 'customers'">
             Postcode
           </TableHeadSort>
           <TableHead>
-            Firmware Ver
+            <div class="flex flex-col space-y-2">
+              <span>Firmware Ver</span>
+              <SingleSortItem modelName="vends.lcd_monitor_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.lcd_monitor_id')">
+                LCD Monitor
+              </SingleSortItem>
+              <SingleSortItem modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
+                Operator
+              </SingleSortItem>
+              <SingleSortItem modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
+                Location
+              </SingleSortItem>
+              <SingleSortItem modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('account_manager_name')" v-if="indexType === 'customers'">
+                Acc Manager
+              </SingleSortItem>
+            </div>
           </TableHead>
-          <TableHead>
-            Payment Device
-          </TableHead>
-          <TableHeadSort modelName="vends.lcd_monitor_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.lcd_monitor_id')">
-            LCD Monitor
-          </TableHeadSort>
-          <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
-            Location
-          </TableHeadSort>
-          <TableHeadSort modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('account_manager_name')" v-if="indexType === 'customers'">
-            Acc Manager
-          </TableHeadSort>
-          <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
-            Operator
-          </TableHeadSort>
           <TableHead>
           </TableHead>
         </tr>
@@ -729,8 +746,8 @@
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             {{ vends.meta.from + vendIndex }}
           </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
-            <div class="flex flex-col space-y-2 items-center">
+          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
+            <div class="flex flex-col space-y-1">
               <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
                 {{ vend.code }}
               </Link>
@@ -740,100 +757,59 @@
               >
                 {{ vend.label_name }}
               </div>
-              <Button
-                type="button"
-                class="bg-orange-400 hover:bg-orange-500 px-2 py-1 text-xs text-white flex space-x-1 items-center"
-                @click="openLogModal(vend)"
-              >
-                <ClockIcon class="w-4 h-4" />
-                <span>
-                    Log
-                </span>
-              </Button>
-            </div>
-          </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-            <span v-if="vend.person_id" class="flex flex-col space-y-1">
+              <div class="text-left" v-if="vend.vend_config_name">
+                {{ vend.vend_config_name }}
+              </div>
+              <div class="text-left">
+                {{ vend.vend_prefix_name }}
+              </div>
+              <span v-if="vend.person_id" class="flex flex-col space-y-1">
                 <span v-if="permissions.includes('admin-access vend-machines')">
-                    <a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
-                        {{ vend.virtual_customer_code }}
-                        <!-- ({{ vend.virtual_customer_prefix }}) -->
-                        <br>
-                        {{ vend.customer_name }}
-                    </a>
+                  <a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
+                    {{ vend.virtual_customer_code }}<br>
+                    {{ vend.customer_name }}
+                  </a>
                 </span>
                 <span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-                    {{ vend.virtual_customer_code }}
-                    <!-- ({{ vend.virtual_customer_prefix }}) -->
-                    <br>
-                    {{ vend.customer_name }}
+                  {{ vend.virtual_customer_code }}<br>
+                  {{ vend.customer_name }}
                 </span>
-
                 <a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="">
-                    <div
-                        class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
-                    >
-                        CMS
-                    </div>
+                  <div class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800">
+                    CMS
+                  </div>
                 </a>
                 <span v-if="vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.deliveryProductMappingVends">
                   <div
-                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
-                      v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
+                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
+                    v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
                   >
                     {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
                   </div>
                 </span>
-            </span>
-            <span v-else-if="!vend.person_id">
+              </span>
+              <span v-else-if="!vend.person_id">
                 <span v-if="permissions.includes('admin-access vend-machines')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-                    <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
-                        {{ vend.customer_name }}
-                    </a>
+                  <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">{{ vend.customer_name }}</a>
                 </span>
                 <span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-                    <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
-                    {{ vend.customer_name }}
-                    </a>
+                  <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">{{ vend.customer_name }}</a>
                 </span>
-            </span>
-          </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-            <div class="flex flex-col space-y-2 items-center">
-              <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
-                {{ vend.code }}
-              </Link>
-              <div
-                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-yellow-100 text-yellow-800 border-yellow-300 max-w-48"
-                v-if="vend.label_name"
-              >
-                {{ vend.label_name }}
-              </div>
-              <Button
-                type="button"
-                class="bg-orange-400 hover:bg-orange-500 px-2 py-1 text-xs text-white flex space-x-1 items-center"
-                @click="openLogModal(vend)"
-              >
-                <ClockIcon class="w-4 h-4" />
-                <span>
-                    Log
-                </span>
-              </Button>
-            </div>
-          </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <div class="flex flex-col space-y-2 text-center justify-center items-center">
-              <span v-if="vend.vend_config_name">
-                {{ vend.vend_config_name }}
-              </span>
-              <span>
-                {{ vend.vend_prefix_name }}
               </span>
               <div
                 class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-indigo-100 text-indigo-800 border-indigo-300"
+                v-if="vend.selling_price_type"
               >
                 RP{{ vend.selling_price_type }}
               </div>
+              <Button
+                type="button"
+                class="bg-orange-400 hover:bg-orange-500 px-2 py-1 text-xs text-white flex space-x-1 items-center w-fit"
+                @click="openLogModal(vend)"
+              >
+                <ClockIcon class="w-4 h-4" />
+                <span>Log</span>
+              </Button>
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -931,6 +907,40 @@
                   <span>--</span>
               </div>
 
+            </div>
+          </TableData>
+          <!-- Setting Chart version / Product Mapping cell -->
+          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+            <div class="flex flex-col space-y-1" :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
+              <!-- Setting Chart -->
+              <span v-if="vend.vendConfig" class="flex flex-col space-y-0.5">
+                <a :href="'/vend-configs/' + vend.vendConfig.id + '/edit'" target="_blank" class="text-blue-600 text-xs font-medium">
+                  {{ vend.vendConfig.name }}
+                </a>
+                <span class="text-xs">
+                  Current: {{ vend.vend_vend_config_version }}
+                </span>
+                <span class="text-xs" :class="[vend.vend_vend_config_version == vend.vendConfig.version ? 'text-gray-600' : 'text-red-600 font-bold']">
+                  Latest: {{ vend.vendConfig.version }}
+                </span>
+              </span>
+              <span v-else-if="vend.vend_config_name" class="text-xs">
+                {{ vend.vend_config_name }}
+              </span>
+              <!-- Divider -->
+              <div class="border-t border-gray-300 my-0.5"></div>
+              <!-- Product Mapping -->
+              <span class="flex flex-col space-y-0.5">
+                <a v-if="vend.productMapping" :href="'/product-mappings/' + vend.productMapping.id + '/edit'" target="_blank" class="text-blue-600 text-xs font-medium">
+                  {{ vend.productMapping.name }}
+                </a>
+                <span v-else-if="vend.product_mapping_name" class="text-xs">
+                  {{ vend.product_mapping_name }}
+                </span>
+                <a v-if="vend.upcomingProductMapping" :href="'/product-mappings/' + vend.upcomingProductMapping.id + '/edit'" target="_blank" class="text-red-600 text-xs font-bold">
+                  ↑ {{ vend.upcomingProductMapping.name }}
+                </a>
+              </span>
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -1061,10 +1071,6 @@
                     </div>
                 </div>
               </span>
-            </div>
-          </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <div class="flex flex-col space-y-3 w-full">
               <span
               v-if="vend.vendTransactionTotalsJson && 'three_days_error_rate' in vend.vendTransactionTotalsJson"
               :class="[
@@ -1072,7 +1078,7 @@
                   (vend.vendTransactionTotalsJson['three_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
                   'text-gray-400'
               ]">
-                  {{vend.vendTransactionTotalsJson['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
+                  3d: {{vend.vendTransactionTotalsJson['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
                   ({{vend.vendTransactionTotalsJson['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['three_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
               </span>
               <span
@@ -1082,28 +1088,28 @@
                   (vend.vendTransactionTotalsJson['seven_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
                   'text-gray-400'
               ]">
-                  {{vend.vendTransactionTotalsJson['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
+                  7d: {{vend.vendTransactionTotalsJson['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
                   ({{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
               </span>
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <span
-                v-if="vend.vendChannelTotalsJson"
-                :class="[vend.is_active || vend.is_testing ? (vend.balance_percent <= 20 ? 'text-red-700' : (vend.balance_percent > 50 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
-            >
-                {{ vend.vendChannelTotalsJson['qty'] }}/ {{ vend.vendChannelTotalsJson['capacity'] }} <br>
-                ({{ vend.balance_percent }}%)
-            </span>
-          </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <span
-                v-if="vend.vendChannelTotalsJson"
-                :class="[vend.is_active || vend.is_testing ? (100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
-            >
-                {{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
-                ({{ 100 - vend.out_of_stock_sku_percent }}%)
-            </span>
+            <div class="flex flex-col space-y-1">
+              <span
+                  v-if="vend.vendChannelTotalsJson"
+                  :class="[vend.is_active || vend.is_testing ? (vend.balance_percent <= 20 ? 'text-red-700' : (vend.balance_percent > 50 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
+              >
+                  {{ vend.vendChannelTotalsJson['qty'] }}/ {{ vend.vendChannelTotalsJson['capacity'] }} <br>
+                  ({{ vend.balance_percent }}%)
+              </span>
+              <span
+                  v-if="vend.vendChannelTotalsJson"
+                  :class="[vend.is_active || vend.is_testing ? (100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
+              >
+                  {{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
+                  ({{ 100 - vend.out_of_stock_sku_percent }}%)
+              </span>
+            </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <span
@@ -1232,6 +1238,52 @@
               </div>
             </div>
           </TableData>
+          <!-- Payment Device separated cell -->
+          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+            <div class="flex flex-col space-y-1" :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
+              <div
+                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                  :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['QRCode'] == 1 ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                  v-if="vend.acbVmcPaJson && 'QRCode' in vend.acbVmcPaJson"
+              >
+                  <div class="flex flex-col"><span class="font-bold">QR Code</span><span>{{vend.acbVmcPaJson['QRCode'] == 1 ? 'Active' : 'NA'}}</span></div>
+              </div>
+              <div
+                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['BILLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['BILLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                  v-if="vend.parameterJson && 'BILLStat' in vend.parameterJson"
+              >
+                  <div class="flex flex-col"><span class="font-bold">Bill Acceptor</span><span>{{vend.parameterJson['BILLStat'] == 3 ? 'Active' : (vend.parameterJson['BILLStat'] == 1 ? 'Inactive' : 'NA')}}</span></div>
+              </div>
+              <div
+                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CHGEStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CHGEStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                  v-if="vend.parameterJson && 'CHGEStat' in vend.parameterJson"
+              >
+                  <div class="flex flex-col"><span class="font-bold">Coin Acceptor</span><span>{{vend.parameterJson['CHGEStat'] == 3 ? 'Active' : (vend.parameterJson['CHGEStat'] == 1 ? 'Inactive' : 'NA')}}</span></div>
+              </div>
+              <div
+                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200 text-gray-800"
+                  v-if="vend.acbVmcPaJson && 'CoinLimit' in vend.acbVmcPaJson"
+              >
+                  <div class="flex flex-col"><span class="font-bold">Coin Limit</span><span>{{vend.acbVmcPaJson['CoinLimit']}}</span></div>
+              </div>
+              <div
+                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                  v-if="vend.parameterJson && 'CSHLStat' in vend.parameterJson"
+              >
+                  <div class="flex flex-col"><span class="font-bold">Cashless Status</span><span>{{vend.parameterJson['CSHLStat'] == 3 ? 'Active' : (vend.parameterJson['CSHLStat'] == 1 ? 'Inactive' : 'NA')}}</span></div>
+              </div>
+              <div
+                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                  :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                  v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
+              >
+                  <div class="flex flex-col"><span class="font-bold">Cashless Mfg</span><span>{{vend.acbVmcPaJson['CSHL_MFG'] ? vend.acbVmcPaJson['CSHL_MFG'] : 'NA'}}</span></div>
+              </div>
+            </div>
+          </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
             <span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
                 {{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
@@ -1267,249 +1319,64 @@
             </span>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
-                {{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-            </span>
-          </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <span
-            v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_latest' in vend.vendTransactionTotalsJson"
-            :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'"
-            >
-              {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
-            </span>
-            <span
-              v-if="vend.begin_date"
-              :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'"
-            >
-              <br>
-              {{ vend.begin_date_short }}
-            </span>
-            <br>
-            <span
-            v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson"
-            :class="[ vend.is_active || vend.is_testing ? getVendRecordsAmountAverageDayClass(vend.vendTransactionTotalsJson['vend_records_amount_average_day']) : 'text-gray-400']"
-            >
-              {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-            </span>
-          </TableData>
-
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-            <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
-                {{ vend.postcode }}
-            </span>
-          </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
-                {{ vend.apkVerJson['deviceType'] }}
-            </span>
-            <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
-              <br>
-              {{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
-            </span>
-            <span class="text-blue-600" :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
-              <br>Apk: {{ vend.apkVerJson['apkver'] }}
-              <span v-if="vend.apkVerJson && 'buildtime' in vend.apkVerJson">
-                  {{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss')  }}
-              </span>
-            </span>
-          </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <div class="flex flex-col space-y-1">
-              <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['QRCode'] == 1 ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.acbVmcPaJson && 'QRCode' in vend.acbVmcPaJson"
+              <span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
+                {{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+              </span>
+              <span
+              v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_latest' in vend.vendTransactionTotalsJson"
+              :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'"
               >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          QR Code
-                      </span>
-                      <span>
-                          {{vend.acbVmcPaJson['QRCode'] == 1 ? 'Active' : 'NA'}}
-                      </span>
-                  </div>
-              </div>
-              <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['BILLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['BILLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.parameterJson && 'BILLStat' in vend.parameterJson"
+                {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+              </span>
+              <span
+                v-if="vend.begin_date"
+                :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'"
               >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Bill Acceptor
-                      </span>
-                      <span>
-                          {{vend.parameterJson['BILLStat'] == 3 ? 'Active' : (vend.parameterJson['BILLStat'] == 1 ? 'Inactive' : 'NA') }}
-                      </span>
-                  </div>
-              </div>
-              <!-- <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['BILL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.acbVmcPaJson && 'BILL_MFG' in vend.acbVmcPaJson"
+                {{ vend.begin_date_short }}
+              </span>
+              <span
+              v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson"
+              :class="[ vend.is_active || vend.is_testing ? getVendRecordsAmountAverageDayClass(vend.vendTransactionTotalsJson['vend_records_amount_average_day']) : 'text-gray-400']"
               >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Bill Mfg
-                      </span>
-                      <span>
-                          {{vend.acbVmcPaJson['BILL_MFG'] ? vend.acbVmcPaJson['BILL_MFG'] : 'NA' }}
-                      </span>
-                  </div>
-              </div>
-              <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['BILL_MDL'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.acbVmcPaJson && 'BILL_MDL' in vend.acbVmcPaJson"
-              >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Bill Model
-                      </span>
-                      <span>
-                          {{ vend.acbVmcPaJson['BILL_MDL'] ? vend.acbVmcPaJson['BILL_MDL'] : 'NA' }}
-                      </span>
-                  </div>
-              </div> -->
-              <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CHGEStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CHGEStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.parameterJson && 'CHGEStat' in vend.parameterJson"
-              >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Coin Acceptor
-                      </span>
-                      <span>
-                          {{vend.parameterJson['CHGEStat'] == 3 ? 'Active' : (vend.parameterJson['CHGEStat'] == 1 ? 'Inactive' : 'NA') }}
-                      </span>
-                  </div>
-              </div>
-              <!-- <div
-              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-              :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
-              v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
-              >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Coin Float
-                      </span>
-                      <span>
-                          {{(vend.parameterJson['CoinCnt']/ (Math.pow(10, operatorCountry.currency_exponent))).toFixed(2)}}
-                      </span>
-                  </div>
-              </div> -->
-              <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200 text-gray-800"
-                  v-if="vend.acbVmcPaJson && 'CoinLimit' in vend.acbVmcPaJson"
-              >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Coin Limit
-                      </span>
-                      <span>
-                          {{vend.acbVmcPaJson['CoinLimit']}}
-                      </span>
-                  </div>
-              </div>
-              <!-- <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['COIN_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.acbVmcPaJson && 'COIN_MFG' in vend.acbVmcPaJson"
-              >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Coin Mfg
-                      </span>
-                      <span>
-                          {{vend.acbVmcPaJson['COIN_MFG'] ? vend.acbVmcPaJson['COIN_MFG'] : 'NA' }}
-                      </span>
-                  </div>
-              </div>
-              <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['COIN_MDL'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.acbVmcPaJson && 'COIN_MDL' in vend.acbVmcPaJson"
-              >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Coin Model
-                      </span>
-                      <span>
-                          {{vend.acbVmcPaJson['COIN_MDL'] ? vend.acbVmcPaJson['COIN_MDL'] : 'NA' }}
-                      </span>
-                  </div>
-              </div> -->
-              <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.parameterJson && 'CSHLStat' in vend.parameterJson"
-              >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Cashless Status
-                      </span>
-                      <span>
-                          {{vend.parameterJson['CSHLStat'] == 3 ? 'Active' : (vend.parameterJson['CSHLStat'] == 1 ? 'Inactive' : 'NA') }}
-                      </span>
-                  </div>
-              </div>
-              <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
-              >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Cashless Mfg
-                      </span>
-                      <span>
-                          {{vend.acbVmcPaJson['CSHL_MFG'] ? vend.acbVmcPaJson['CSHL_MFG'] : 'NA' }}
-                      </span>
-                  </div>
-              </div>
-              <!--<div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MDL'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                  v-if="vend.acbVmcPaJson && 'CSHL_MDL' in vend.acbVmcPaJson"
-              >
-                  <div class="flex flex-col">
-                      <span class="font-bold">
-                          Cashless Model
-                      </span>
-                      <span>
-                          {{vend.acbVmcPaJson['CSHL_MDL'] ? vend.acbVmcPaJson['CSHL_MDL'] : 'NA' }}
-                      </span>
-                  </div>
-              </div> -->
+                {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+              </span>
+              <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'" v-if="indexType === 'customers'">
+                {{ vend.postcode }}
+              </span>
             </div>
           </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-            <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
-                {{ vend.location_type_name }}
-            </span>
-          </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-            <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
-                {{ vend.account_manager_name }}
-            </span>
-          </TableData>
+          <!-- Firmware / LCD / Operator merged cell -->
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <div class="flex flex-col space-y-2" :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
+            <div class="flex flex-col space-y-1" :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
+              <!-- Firmware Ver -->
+              <span v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
+                {{ vend.apkVerJson['deviceType'] }}
+              </span>
+              <span>
+                {{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
+              </span>
+              <span class="text-blue-600" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
+                Apk: {{ vend.apkVerJson['apkver'] }}
+                <span v-if="vend.apkVerJson && 'buildtime' in vend.apkVerJson">
+                  {{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss') }}
+                </span>
+              </span>
+              <!-- LCD Monitor -->
               <span>
                 {{ vend.modem_type }}
               </span>
               <span>
                 {{ vend.lcd_monitor }}
               </span>
+              <!-- Operator -->
+              <span>{{ vend.operator_code }}</span>
+              <!-- Location / Acc Manager (customers only) -->
+              <span v-if="indexType === 'customers'">{{ vend.location_type_name }}</span>
+              <span v-if="indexType === 'customers'">{{ vend.account_manager_name }}</span>
             </div>
           </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
-                {{ vend.operator_code }}
-            </span>
-          </TableData>
+
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <div class="flex justify-center space-x-1">
               <Link :href="'/vends/' + vend.vend_id + '/edit'">
