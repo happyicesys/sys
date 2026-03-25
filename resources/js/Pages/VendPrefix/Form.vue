@@ -214,8 +214,9 @@ watch(
 )
 
 function buildInitialUpcomingSelection(productMappings = []) {
-  for (const productMapping of productMappings || []) {
-    const upcoming = productMapping.upcomingProductMappings && productMapping.upcomingProductMappings[0]
+  for (const productMapping of normalizeCollection(productMappings)) {
+    const upcomingCollection = normalizeCollection(productMapping.upcomingProductMappings)
+    const upcoming = upcomingCollection.length > 0 ? upcomingCollection[0] : null
     if (upcoming) {
       const option = findProductMappingOption(upcoming.id)
       if (option) {
@@ -228,25 +229,11 @@ function buildInitialUpcomingSelection(productMappings = []) {
 }
 
 function upcomingOptions() {
-  const selectedIds = new Set(
-    (form.value.productMappings || []).map((item) => Number(item.id))
-  )
-
-  return productMappingOptions.value.filter((option) => !selectedIds.has(Number(option.id)))
+  return productMappingOptions.value
 }
 
 function ensureUpcomingValid() {
-  if (!form.value.upcomingProductMapping) {
-    return
-  }
-
-  const selectedIds = new Set(
-    (form.value.productMappings || []).map((item) => Number(item.id))
-  )
-
-  if (selectedIds.has(Number(form.value.upcomingProductMapping.id))) {
-    form.value.upcomingProductMapping = null
-  }
+  // Do nothing, it is perfectly valid for an upcoming product mapping to also be one of the current product mappings.
 }
 
 

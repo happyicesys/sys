@@ -24,9 +24,15 @@ class SimcardController extends Controller
                     ->with([
                         'operator',
                         'telco',
+                        'vends',
                     ])
                     ->when($request->code, function($query, $search) {
                         $query->where('code', 'LIKE', "%{$search}%");
+                    })
+                    ->when($request->vend_code, function($query, $search) {
+                        $query->whereHas('vends', function($query) use ($search) {
+                            $query->where('code', 'LIKE', "%{$search}%");
+                        });
                     })
                     ->when($request->phone_number, function($query, $search) {
                         $query->where('phone_number', 'LIKE', "%{$search}%");
@@ -38,12 +44,22 @@ class SimcardController extends Controller
                         $query->where('telco_id', $search);
                     })
                     ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                        if ($search === 'vend_code') {
+                            $query->orderBy(
+                                \App\Models\Vend::select('code')
+                                    ->whereColumn('simcard_id', 'simcards.id')
+                                    ->limit(1),
+                                filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'
+                            );
+                        } else {
+                            $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                        }
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
             'telcos' => TelcoResource::collection(Telco::orderBy('name')->get()),
+            'vends' => \App\Models\Vend::with(['vendPrefix', 'customer'])->select('id', 'code', 'simcard_id', 'name', 'vend_prefix_id', 'customer_id')->orderBy('code')->get(),
         ]);
     }
 
@@ -54,7 +70,11 @@ class SimcardController extends Controller
             'telco_id' => 'required',
         ]);
 
-        Simcard::create($request->all());
+        $simcard = Simcard::create($request->except('vend_id'));
+
+        if ($request->vend_id) {
+            \App\Models\Vend::where('id', $request->vend_id)->update(['simcard_id' => $simcard->id]);
+        }
 
         return redirect()->route('simcards');
     }
@@ -67,7 +87,14 @@ class SimcardController extends Controller
         ]);
 
         $simcard = Simcard::findOrFail($zoneId);
-        $simcard->update($request->all());
+        $simcard->update($request->except('vend_id'));
+
+        if ($request->has('vend_id')) {
+            \App\Models\Vend::where('simcard_id', $simcard->id)->update(['simcard_id' => null]);
+            if ($request->vend_id) {
+                \App\Models\Vend::where('id', $request->vend_id)->update(['simcard_id' => $simcard->id]);
+            }
+        }
 
         return redirect()->route('simcards');
     }

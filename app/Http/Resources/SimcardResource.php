@@ -28,6 +28,10 @@ class SimcardResource extends JsonResource
             'termination_date' => $this->termination_date,
             'updatedBy' => UserResource::make($this->whenLoaded('updatedBy')),
             'updated_by' => $this->updated_by,
+            'vends' => $this->whenLoaded('vends'),
+            'vend_code' => $this->whenLoaded('vends', function() {
+                return $this->vends->pluck('code')->implode(', ');
+            }),
 
         ];
     }

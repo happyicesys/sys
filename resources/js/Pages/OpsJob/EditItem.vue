@@ -414,7 +414,7 @@
                       </tr>
                     </thead>
                     <tbody class="bg-white">
-                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? 'bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400' : (channel.is_upcoming_product ? 'border-b-2 border-r-2 border-l-2 border-dashed border-gray-400' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))]">
+                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))]">
                         <td class="whitespace py-5 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-left text-gray-800 text-center">
                           <div class="flex flex-col space-y-1">
                             <div class="flex items-center justify-center space-x-1">
@@ -464,7 +464,7 @@
                               </span>
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                              <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                              <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available && !channel.is_replaced && !channel.is_return_stock" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                                 <option v-for="n in channel.capacity + 1" :key="n-1" :value="(channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1)">{{ (channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1) }}</option>
                               </select>
                               <span v-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
@@ -689,7 +689,7 @@
                       </tr>
                     </thead>
                     <tbody class="bg-white">
-                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? 'bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400' : (channel.is_upcoming_product ? 'border-b-2 border-r-2 border-l-2 border-dashed border-gray-400' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))]">
+                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))]">
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-800">
                           <div class="flex flex-col items-center space-y-1">
                             <span>{{ channel.code }}</span>
@@ -740,7 +740,7 @@
                         </td>
 
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                          <select v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available">
+                          <select v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available && !channel.is_replaced && !channel.is_return_stock">
                             <option v-for="n in channel.capacity + 1" :key="n-1" :value="(channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1)">{{ (channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1) }}</option>
                           </select>
 
@@ -1249,24 +1249,40 @@ function loadingData() {
 
   const allChannels = props.opsJobItem.data.opsJobItemChannels
   channels.value = allChannels.map((opsJobItemChannel) => {
-    // Identify if this row is being replaced or removed (current slot product with upcoming counterpart, or removed entirely)
+    // Identify if this row is being replaced or removed.
+    // We prioritize the DB snapshot (allChannels) to ensure the UI visually matches the loaded rows.
     const is_replaced = (() => {
       if (opsJobItemChannel.is_upcoming_product) return false;
+      if (opsJobItem.value.stock_action_type !== 'implement_new_mapping') return false;
 
-      // check if it's being replaced by another counterpart mapped in this job
-      if (allChannels.some(u => u.is_upcoming_product && u.vend_channel_id == opsJobItemChannel.vend_channel_id)) return true;
+      // 1. Is there an upcoming row for this slot in the DB snapshot?
+      const upcomingRow = allChannels.find(u => u.is_upcoming_product && u.vend_channel_code == opsJobItemChannel.vend_channel_code);
 
-      // check if it's completely cleared off (stock action is implement mapping but no upcoming product for it)
-      if (opsJobItem.value && opsJobItem.value.stock_action_type === 'implement_new_mapping') {
-        const v = opsJobItem.value.vend;
-        if (v) {
-          const cMapping = v.productMapping;
-          const uMapping = cMapping?.upcomingProductMapping || v.upcomingProductMapping;
-          if (uMapping) {
-            const uItems = uMapping.productMappingItemsNormalSequence || [];
-            return !uItems.some(i => i.channel_code == opsJobItemChannel.vend_channel_code);
-          }
+      if (upcomingRow) {
+        // If there's an upcoming row but it's the SAME product (a stale generated row), treat as normal refill.
+        if (upcomingRow.product_id == opsJobItemChannel.product_id) {
+          return false;
         }
+        // Different product -> slot is definitively being replaced
+        return true;
+      }
+
+      // 2. If NO upcoming row in DB, check if the slot is being purely cleared off.
+      // We check the LIVE mapping to confirm it's no longer present.
+      const v = opsJobItem.value.vend;
+      if (!v) return false;
+
+      const cMapping = v.productMapping;
+      const uMapping = cMapping?.upcomingProductMapping || v.upcomingProductMapping;
+      if (!uMapping) return false;
+
+      // Key is 'productMappingItems' in the serialised JSON
+      const uItems = uMapping.productMappingItems || [];
+      const upcomingLiveItem = uItems.find(i => i.channel_code == opsJobItemChannel.vend_channel_code);
+
+      if (!upcomingLiveItem) {
+        // This slot has no entry in live upcoming mapping → being purely cleared off
+        return true;
       }
 
       return false;

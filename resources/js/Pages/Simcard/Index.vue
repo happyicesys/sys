@@ -22,9 +22,12 @@
           </Button>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-2">
           <SearchInput placeholderStr="Simcard Number" v-model="filters.code">
             Simcard Number
+          </SearchInput>
+          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
+            Machine ID
           </SearchInput>
           <SearchInput placeholderStr="Phone Number" v-model="filters.phone_number">
             Phone Number
@@ -110,6 +113,9 @@
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
                       Simcard Number
                     </TableHeadSort>
+                    <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
+                      Machine ID
+                    </TableHeadSort>
                     <TableHeadSort modelName="telco_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('telco_id')">
                       Telco
                     </TableHeadSort>
@@ -130,6 +136,9 @@
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-left">
                         {{ simcard.code }}
+                      </TableData>
+                      <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
+                        {{ simcard.vend_code }}
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
                         {{ simcard.telco.name }}
@@ -179,6 +188,7 @@
       v-if="showModal"
       :simcard="simcard"
       :telcos="telcos"
+      :vends="vends"
       :type="type"
       :showModal="showModal"
       @modalClose="onModalClose"
@@ -205,10 +215,12 @@ import { useToast } from "vue-toastification";
 const props = defineProps({
   simcards: Object,
   telcos: Object,
+  vends: Object,
 })
 
 const filters = ref({
   code: '',
+  vend_code: '',
   phone_number: '',
   msisdn: '',
   telco_id: '',

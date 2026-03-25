@@ -52,6 +52,25 @@
               </FormInput>
             </div>
           </div>
+          <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6 mt-3">
+            <div class="sm:col-span-6">
+              <label for="vend_id" class="flex justify-start text-sm font-medium text-gray-700">
+                Machine ID
+              </label>
+              <MultiSelect
+                v-model="form.vend_id"
+                :options="vendOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select Machine"
+                open-direction="bottom"
+                class="mt-1"
+                :searchable="true"
+              >
+              </MultiSelect>
+            </div>
+          </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
               <Button
@@ -91,6 +110,7 @@ import { useToast } from "vue-toastification";
 const props = defineProps({
   simcard: Object,
   telcos: Object,
+  vends: Array,
   type: String,
   showModal: Boolean,
 })
@@ -101,14 +121,30 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const telcoOptions = ref([])
+const vendOptions = ref([])
 const toast = useToast()
 
 onMounted(() => {
   telcoOptions.value = props.telcos.data.map((data) => {return {id: data.id, name: data.name}})
+  vendOptions.value = props.vends
+    .filter(v => typeof v.simcard_id === 'undefined' || v.simcard_id == null || (props.simcard && v.simcard_id == props.simcard.id))
+    .map(v => {
+      let prefix = v.vend_prefix && v.vend_prefix.name ? ' - ' + v.vend_prefix.name : '';
+      let vendName = v.name ? ' - ' + v.name : '';
+      let customerName = v.customer && v.customer.name ? ' - ' + v.customer.name : '';
+      return { id: v.id, name: '(' + v.code + ')' + prefix + vendName + customerName };
+    })
+
+  let defaultVend = null;
+  if (props.simcard && props.simcard.vends && props.simcard.vends.length > 0) {
+    defaultVend = vendOptions.value.find(v => v.id == props.simcard.vends[0].id);
+  }
+
   form.value = props.simcard ? useForm({
     ...props.simcard,
-    telco_id: telcoOptions.value.find((data) => data.id == props.simcard.telco_id)
-}) : useForm(getDefaultForm())
+    telco_id: telcoOptions.value.find((data) => data.id == props.simcard.telco_id),
+    vend_id: defaultVend
+  }) : useForm(getDefaultForm())
 
 })
 
@@ -118,6 +154,7 @@ function getDefaultForm() {
     phone_number: '',
     msisdn: '',
     telco_id: '',
+    vend_id: null,
   }
 }
 
@@ -129,7 +166,8 @@ function submit() {
     .transform((data) => {
       return {
         ...data,
-        telco_id: data.telco_id.id,
+        telco_id: data.telco_id ? data.telco_id.id : null,
+        vend_id: data.vend_id ? data.vend_id.id : null,
       }
     })
     .post('/simcards/store', {
@@ -150,7 +188,8 @@ function submit() {
     .transform((data) => {
       return {
         ...data,
-        telco_id: data.telco_id.id,
+        telco_id: data.telco_id ? data.telco_id.id : null,
+        vend_id: data.vend_id ? data.vend_id.id : null,
       }
     })
       .post('/simcards/' + form.value.id + '/update', {
