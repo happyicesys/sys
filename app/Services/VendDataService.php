@@ -326,7 +326,7 @@ class VendDataService
                   'processed' => json_encode($processedInput),
                   'ip_address' => $ipAddress,
                   'connection' => $connectionType,
-                  'type' => 'P:' . strlen($encodedOriginal),
+                  'type' => strlen($encodedOriginal),
                   'vend_code' => $vendCodeNum,
                   'created_at' => now(),
                   'updated_at' => now(),
@@ -335,7 +335,8 @@ class VendDataService
                 // MQTT: write directly — app()->terminating() never fires in CLI loop
                 if ($connectionType === 'mqtt') {
                   \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
-                } else {
+                }
+                else {
                   app()->terminating(function () use ($pLogData) {
                     \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
                   });
@@ -352,7 +353,7 @@ class VendDataService
 
       // MQTT heartbeat format: f=...&t=...&m=...&g=...&p= (empty p, no Type in processedInput)
       // This never enters the switch above, so catch it here
-      if (!isset($processedInput['Type']) && array_key_exists('p', (array)$originalInput)) {
+      if (!isset($processedInput['Type']) && isset($originalInput['p'])) {
         $vendCodeNum = (int)$vend->code;
         if ($vendCodeNum > 2000 && $vendCodeNum < 5000) {
           if (!Cache::has('p_log_started') && !Cache::has('p_log_active')) {
@@ -366,7 +367,7 @@ class VendDataService
               'processed' => null,
               'ip_address' => $ipAddress,
               'connection' => $connectionType,
-              'type' => 'P:' . strlen($encodedOriginalHb),
+              'type' => strlen($encodedOriginalHb),
               'vend_code' => $vendCodeNum,
               'created_at' => now(),
               'updated_at' => now(),
