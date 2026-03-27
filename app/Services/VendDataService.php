@@ -311,9 +311,28 @@ class VendDataService
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'P':
-            // if ($vend->code == '2357' or $vend->code == '2052') {
-            //   \Illuminate\Support\Facades\Log::info('P detected for vend code ' . $vend->code . ' at ' . now()->toDateTimeString(), ['originalInput' => $originalInput]);
-            // }
+            $vendCodeNum = (int)$vend->code;
+            if ($vendCodeNum > 2000 && $vendCodeNum < 5000) {
+              // First ping starts the 15-min window; all pings within it are recorded; stops automatically after
+              if (!Cache::has('p_log_active')) {
+                Cache::put('p_log_active', true, now()->addMinutes(15));
+              }
+              if (Cache::has('p_log_active')) {
+                $pLogData = [
+                  'value' => json_encode($originalInput),
+                  'processed' => json_encode($processedInput),
+                  'ip_address' => $ipAddress,
+                  'connection' => $connectionType,
+                  'type' => 'P',
+                  'vend_code' => $vendCodeNum,
+                  'created_at' => now(),
+                  'updated_at' => now(),
+                ];
+                app()->terminating(function () use ($pLogData) {
+                  \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
+                });
+              }
+            }
             SyncP::dispatch($processedInput, $vend)->onQueue('default');
             $saveVendData = false;
             break;
