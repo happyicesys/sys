@@ -313,24 +313,33 @@ class VendDataService
           case 'P':
             $vendCodeNum = (int)$vend->code;
             if ($vendCodeNum > 2000 && $vendCodeNum < 5000) {
-              // First ping starts the 15-min window; all pings within it are recorded; stops automatically after
-              if (!Cache::has('p_log_active')) {
+              // p_log_started = one-shot guard (24h), prevents restarts after 15-min window expires
+              // p_log_active  = the actual 15-min recording window
+              if (!Cache::has('p_log_started') && !Cache::has('p_log_active')) {
+                Cache::put('p_log_started', true, now()->addHours(24));
                 Cache::put('p_log_active', true, now()->addMinutes(15));
               }
               if (Cache::has('p_log_active')) {
+                $encodedOriginal = json_encode($originalInput);
                 $pLogData = [
-                  'value' => json_encode($originalInput),
+                  'value' => $encodedOriginal,
                   'processed' => json_encode($processedInput),
                   'ip_address' => $ipAddress,
                   'connection' => $connectionType,
-                  'type' => 'P',
+                  'type' => 'P:' . strlen($encodedOriginal),
                   'vend_code' => $vendCodeNum,
                   'created_at' => now(),
                   'updated_at' => now(),
                 ];
-                app()->terminating(function () use ($pLogData) {
+                // HTTP: defer write until after response is sent back to machine
+                // MQTT: write directly — app()->terminating() never fires in CLI loop
+                if ($connectionType === 'mqtt') {
                   \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
-                });
+                } else {
+                  app()->terminating(function () use ($pLogData) {
+                    \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
+                  });
+                }
               }
             }
             SyncP::dispatch($processedInput, $vend)->onQueue('default');
@@ -338,6 +347,31 @@ class VendDataService
             break;
           default:
             $saveVendData = true;
+        }
+      }
+
+      // MQTT heartbeat format: f=...&t=...&m=...&g=...&p= (empty p, no Type in processedInput)
+      // This never enters the switch above, so catch it here
+      if (!isset($processedInput['Type']) && array_key_exists('p', (array)$originalInput)) {
+        $vendCodeNum = (int)$vend->code;
+        if ($vendCodeNum > 2000 && $vendCodeNum < 5000) {
+          if (!Cache::has('p_log_started') && !Cache::has('p_log_active')) {
+            Cache::put('p_log_started', true, now()->addHours(24));
+            Cache::put('p_log_active', true, now()->addMinutes(15));
+          }
+          if (Cache::has('p_log_active')) {
+            $encodedOriginalHb = json_encode($originalInput);
+            \Illuminate\Support\Facades\DB::table('vend_data')->insert([
+              'value' => $encodedOriginalHb,
+              'processed' => null,
+              'ip_address' => $ipAddress,
+              'connection' => $connectionType,
+              'type' => 'P:' . strlen($encodedOriginalHb),
+              'vend_code' => $vendCodeNum,
+              'created_at' => now(),
+              'updated_at' => now(),
+            ]);
+          }
         }
       }
 
