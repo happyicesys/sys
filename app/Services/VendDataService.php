@@ -311,9 +311,9 @@ class VendDataService
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'P':
-            // if ($vend->code == '2783') {
-            //   \Illuminate\Support\Facades\Log::info('P detected for vend code 2783 at ' . now()->toDateTimeString());
-            // }
+            if ($vend->code == '2357' or $vend->code == '2052') {
+              \Illuminate\Support\Facades\Log::info('P detected for vend code ' . $vend->code . ' at ' . now()->toDateTimeString(), ['originalInput' => $originalInput]);
+            }
             SyncP::dispatch($processedInput, $vend)->onQueue('default');
             $saveVendData = false;
             break;
