@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+
 use App\Models\Customer;
 use App\Models\ModemUnit;
 use App\Models\Scopes\OperatorCustomerFilterScope;
@@ -47,7 +48,8 @@ class VendDataService
         $finalInput[$a] = $b;
       }
       $finalInput = collect($finalInput);
-    } else {
+    }
+    else {
       $finalInput = $input;
     }
     return $finalInput;
@@ -77,7 +79,8 @@ class VendDataService
               }
               if (substr($data, -1) == '!') {
                 $data = base64_decode(substr_replace($data, "=", -1));
-              } else {
+              }
+              else {
                 $data = base64_decode($data);
               }
               $processedDataArr['content'] = $data;
@@ -92,7 +95,8 @@ class VendDataService
 
         $processedDataArr['data'] = $jsonData;
 
-      } else {
+      }
+      else {
         $processedDataArr['data']['Vid'] = json_decode($processedDataArr['code'], true);
         $processedDataArr['data']['Type'] = 'CHANNEL';
         $processedDataArr['data']['channels'] = [];
@@ -149,7 +153,8 @@ class VendDataService
                 array_push($processedDataArr['data']['channels'], $channelArr);
               }
             }
-          } else {
+          }
+          else {
             // INT16U id;
             // INT8U Col_FaultCode;
             // INT8U Col_Capacity;
@@ -163,7 +168,8 @@ class VendDataService
             $i = 2;
             if ($processedDataArr['data']['label'] === 'S') {
               $i += 4;
-            } else {
+            }
+            else {
               $i += 2;
             }
             for ($j = 0; $j < $byteSize; $j++) {
@@ -201,7 +207,8 @@ class VendDataService
         }
       }
       $data = $processedDataArr['data'];
-    } else {
+    }
+    else {
       $data = $input;
     }
     return $data;
@@ -293,7 +300,7 @@ class VendDataService
             if ($vend->operator) {
               $operatorTimezone = $vend->operator->timezone;
             }
-            $response = isset($originalInput['f']) ?
+            $response = isset($originalInput['f']) ? 
               $originalInput['f'] . ',' . strlen(base64_encode('TIME' . Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s'))) . ',' . base64_encode('TIME' . Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s')) :
               true;
             break;
@@ -304,9 +311,9 @@ class VendDataService
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'P':
-            if ($vend->code == '4416') {
-              \Illuminate\Support\Facades\Log::info('P detected for vend code 4416 at ' . now()->toDateTimeString());
-            }
+            // if ($vend->code == '4416') {
+            //   \Illuminate\Support\Facades\Log::info('P detected for vend code 4416 at ' . now()->toDateTimeString());
+            // }
             SyncP::dispatch($processedInput, $vend)->onQueue('default');
             $saveVendData = false;
             break;
@@ -322,7 +329,7 @@ class VendDataService
       if ($connectionType == 'mqtt') {
         UpdateMqttLastUpdated::dispatch($vend->id)->onQueue('default');
 
-        $apkVer = (array) $vend->apk_ver_json;
+        $apkVer = (array)$vend->apk_ver_json;
         if ($apkVer && isset($apkVer['apkver']) && $apkVer['apkver'] >= 129) {
           PublishMqtt::dispatch('CM' . $vend->code, $response, 0)->onQueue('default');
         }
@@ -344,7 +351,7 @@ class VendDataService
       if (config('app.env') == 'production' && config('app.log_server_url') && config('app.log_server_access_token')) {
         SendHttpDataToLogServer::dispatch($originalInput)->onQueue('default');
       }
-      // CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
+    // CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
     }
 
     return response()->json($response);
