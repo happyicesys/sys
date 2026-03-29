@@ -129,6 +129,11 @@ class SettingController extends Controller
             ->leftJoin('vend_models', 'vend_models.id', '=', 'vends.vend_model_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->leftJoin('vend_serial_numbers', 'vend_serial_numbers.id', '=', 'vends.vend_serial_number_id')
+            ->leftJoin('addresses', function ($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                    ->where('addresses.type', '=', 2);
+            })
             ->filterIndex($request)
             ->select(
                 'customers.code AS customer_code',
@@ -174,6 +179,7 @@ class SettingController extends Controller
                 'vend_models.name AS vend_model_name',
                 'vend_prefixes.name AS vend_prefix_name',
                 'vend_serial_numbers.code AS vend_serial_number_code',
+                'addresses.postcode AS postcode',
             );
         $vends = $this->filterOperator($vends);
 

@@ -1646,6 +1646,15 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
+    public function update(Request $request, $id)
+    {
+        $opsJob = OpsJob::findOrFail($id);
+
+        $opsJob->update($request->all());
+
+        return redirect()->back();
+    }
+
     public function updateItem(Request $request, $id)
     {
         $opsJobItem = OpsJobItem::findOrFail($id);

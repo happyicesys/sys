@@ -53,6 +53,31 @@
               </div>
             </div>
 
+            <div class="sm:col-span-6">
+              <label for="remarks" class="flex justify-start text-sm font-medium text-gray-700">
+                Remarks
+              </label>
+              <div class="mt-1 flex flex-col items-end space-y-2">
+                <textarea
+                  id="remarks"
+                  name="remarks"
+                  rows="3"
+                  class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  v-model="opsJob.remarks"
+                ></textarea>
+                <Button
+                  type="button"
+                  @click.prevent="updateRemarks(opsJob)"
+                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                >
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Save
+                  </span>
+                </Button>
+              </div>
+            </div>
+
 
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
                 <div class="relative">
@@ -687,7 +712,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlayIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, CheckCircleIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlayIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -1098,6 +1123,22 @@ function updateSequence(opsJobItem) {
       sequence: opsJobItem.sequence,
     }))
     .post('/ops-jobs/items/' + opsJobItem.id + '/update', {
+    onSuccess: () => {
+    },
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+  })
+}
+
+function updateRemarks(opsJobData) {
+  form.value.clearErrors()
+  form.value
+    .transform((data) => ({
+      ...data,
+      remarks: opsJobData.remarks,
+    }))
+    .post('/ops-jobs/' + opsJobData.id + '/update', {
     onSuccess: () => {
     },
     preserveScroll: true,

@@ -34,6 +34,7 @@ class OpsJob extends Model
         'operator_id',
         'picked_at',
         'picked_by',
+        'remarks',
         'status',
         'stock_action_type',
         'updated_by',

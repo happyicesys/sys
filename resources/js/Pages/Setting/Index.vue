@@ -448,6 +448,9 @@
                         <SingleSortItem modelName="selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('selling_price_type', false)">
                           Ref Price
                         </SingleSortItem>
+                        <SingleSortItem modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
+                          Postcode
+                        </SingleSortItem>
                       </div>
                     </TableHead>
                     <TableHeadSort modelName="product_mapping_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('product_mapping_name')">
@@ -583,11 +586,16 @@
                               {{ vend.customer.name }}
                             </span>
                           </a>
-                          <div
-                            class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
-                            v-if="vend.customer && vend.customer.selling_price_type"
-                          >
-                            RP{{ vend.customer.selling_price_type }}
+                          <div class="flex flex-col space-y-1">
+                            <div
+                              class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
+                              v-if="vend.customer && vend.customer.selling_price_type"
+                            >
+                              RP{{ vend.customer.selling_price_type }}
+                            </div>
+                            <span v-if="vend.postcode" class="text-blue-800 font-semibold text-sm">
+                              {{ vend.postcode }}
+                            </span>
                           </div>
                           <span v-if="vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.deliveryProductMappingVends">
                             <div

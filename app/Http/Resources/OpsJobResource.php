@@ -70,6 +70,7 @@ class OpsJobResource extends JsonResource
             'refillable_amount' => isset($this->refillable_amount) ? $this->refillable_amount / 100 : 0,
             'refillable_count' => isset($this->refillable_count) ? $this->refillable_count : 0,
             'refill_amount' => isset($this->refill_amount) ? $this->refill_amount / 100 : 0,
+            'remarks' => $this->remarks,
             'stock_in_amount' => isset($this->stock_in_amount) ? $this->stock_in_amount / 100 : 0,
             'stock_in_count' => isset($this->stock_in_count) ? (int) $this->stock_in_count : 0,
             'stock_in_cost' => isset($this->stock_in_cost) ? $this->stock_in_cost / 100 : 0,
