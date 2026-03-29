@@ -861,6 +861,7 @@ class OpsJobController extends Controller
                 'createdBy',
                 'deliveredBy',
                 'opsJobItems.customer',
+                'opsJobItems.opsJobItemChannels.product',
                 'opsJobItems.opsJobItemChannels.vendChannel.product'
             ])
             ->find($id);
@@ -1781,7 +1782,7 @@ class OpsJobController extends Controller
 
         foreach ($upcomingItems as $uItem) {
             $cItem = $currentItems->where('channel_code', $uItem->channel_code)->first();
-            
+
             if ($cItem && $cItem->product_id != $uItem->product_id) {
                 // Product changed for this channel!
                 // 1. Find the existing Ojic (Current slot)
