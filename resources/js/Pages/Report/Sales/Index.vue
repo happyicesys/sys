@@ -269,15 +269,25 @@
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
                       ID
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Name
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead v-if="showVendCustomerCols">
+                      <div class="flex flex-col space-y-2">
+                        <SingleSortItem modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name')">
+                          Machine Prefix
+                        </SingleSortItem>
+                        <SingleSortItem modelName="product_mapping_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('product_mapping_name')">
+                          Product Mapping
+                        </SingleSortItem>
+                      </div>
+                    </TableHead>
+                    <TableHeadSort v-if="showVendCustomerCols" modelName="vend_model_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_model_name')">
                       Machine Model
-                    </TableHead>
-                    <TableHead v-if="showVendCustomerCols">
+                    </TableHeadSort>
+                    <TableHeadSort v-if="showVendCustomerCols" modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
                       Location Type
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHeadSort modelName="count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('count')">
                       Count
                     </TableHeadSort>
@@ -287,7 +297,7 @@
                   </tr>
                   <tr class="divide-x divide-gray-200">
                     <!-- <TableHead :colspan="tab.slug == 'vend' || tab.slug == 'customer' ? 5 : 3"> -->
-                    <TableHead :colspan="showVendCustomerCols ? 5 : 3">
+                    <TableHead :colspan="showVendCustomerCols ? 6 : 3">
                     </TableHead>
                     <TableData inputClass="text-right font-semibold">
                       {{totals['total_count'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
@@ -307,6 +317,12 @@
                       </TableData>
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-left">
                         {{ item.name }}
+                      </TableData>
+                      <TableData v-if="showVendCustomerCols" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-left">
+                        <div class="flex flex-col">
+                          <span>{{ item.vend_prefix_name || '' }}</span>
+                          <span class="text-xs text-gray-500">{{ item.product_mapping_name || '' }}</span>
+                        </div>
                       </TableData>
                       <TableData v-if="showVendCustomerCols" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-left">
                         {{ item.vend_model_name || '' }}
@@ -348,6 +364,7 @@ import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon } from '@heroicon
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
+import SingleSortItem from '@/Components/SingleSortItem.vue';
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import { ref, onMounted, computed, watch } from 'vue';
 

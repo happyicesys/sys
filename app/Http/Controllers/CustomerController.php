@@ -89,6 +89,7 @@ class CustomerController extends Controller
             'profile',
             'status',
             'tagBindings',
+            'vend.productMapping:id,name',
             'vend.vendPrefix',
             'zone'
         ])
@@ -100,6 +101,7 @@ class CustomerController extends Controller
             })
             ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
             ->leftJoin(DB::raw('
                 (
@@ -121,6 +123,7 @@ class CustomerController extends Controller
                 'customers.zone_id',
                 'operators.code as operator_code',
                 'operators.name as operator_name',
+                'product_mappings.name AS product_mapping_name',
                 'vc.total_full_load_amount',
                 'vends.code as vend_code',
                 'zones.name as zone_name',

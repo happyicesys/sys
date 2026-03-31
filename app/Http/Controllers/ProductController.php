@@ -16,6 +16,7 @@ use App\Models\Product;
 use App\Models\ProductUom;
 use App\Models\SellingPrice;
 use App\Models\Tag;
+use App\Models\UnitCost;
 use App\Models\Uom;
 use App\Models\OpsJobItemChannel;
 use App\Traits\GetUserTimezone;
@@ -465,7 +466,7 @@ class ProductController extends Controller
             }
         }
 
-        return redirect()->route('products');
+        return redirect()->back()->with('success', 'Product updated successfully');
     }
 
     public function toggleActivateDeactivate($productId)
@@ -476,7 +477,7 @@ class ProductController extends Controller
 
         $this->vendChannelService->syncAllVendChannelsJson($product->vendChannels->pluck('vend_id')->toArray());
 
-        return redirect()->route('products');
+        return redirect()->back();
     }
 
     public function toggleIsAvailable(Request $request)
@@ -513,7 +514,7 @@ class ProductController extends Controller
         $product = Product::findOrFail($productId);
         $product->delete();
 
-        return redirect()->route('products');
+        return redirect()->route('products')->with('success', 'Product deleted successfully');
     }
 
     public function deleteProductUom($productUomId)
@@ -538,7 +539,15 @@ class ProductController extends Controller
 
         $productUom->delete();
 
-        return redirect()->route('products');
+        return redirect()->back()->with('success', 'UOM deleted successfully');
+    }
+
+    public function deleteUnitCost($unitCostId)
+    {
+        $unitCost = UnitCost::findOrFail($unitCostId);
+        $unitCost->delete();
+
+        return redirect()->back()->with('success', 'Unit cost deleted successfully');
     }
 
     public function deleteSellingPrice($sellingPriceId)
@@ -546,7 +555,7 @@ class ProductController extends Controller
         $sellingPrice = SellingPrice::findOrFail($sellingPriceId);
         $sellingPrice->delete();
 
-        return redirect()->route('products');
+        return redirect()->back()->with('success', 'Selling price deleted successfully');
     }
 
     public function edit(Request $request, $productId)

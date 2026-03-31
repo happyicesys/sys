@@ -341,6 +341,9 @@
                       <span>
                         Machine Prefix
                       </span>
+                      <SingleSortItem modelName="product_mappings.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('product_mappings.name')">
+                        Product Mapping
+                      </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
@@ -458,6 +461,15 @@
                       </Link>
                       <span v-if="customer.vend && customer.vend.vendPrefix">
                         {{ customer.vend.vendPrefix.name }}
+                      </span>
+                      <span class="flex flex-col space-y-0.5" v-if="customer.vend">
+                        <a v-if="customer.vend.productMapping" :href="'/product-mappings/' + customer.vend.productMapping.id + '/edit'" target="_blank" class="text-blue-600 text-xs font-medium">
+                          {{ customer.vend.productMapping.name }}
+                        </a>
+                        <span v-else-if="customer.vend.product_mapping_name" class="text-xs">
+                          {{ customer.vend.product_mapping_name }}
+                        </span>
+
                       </span>
                     </div>
                   </TableData>

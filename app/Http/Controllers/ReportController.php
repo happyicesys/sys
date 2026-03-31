@@ -1545,14 +1545,16 @@ class ReportController extends Controller
             $data = [
                 'ID' => isset($item->code) ? $item->code : null,
                 'Name' => $item->name,
-                'Count' => $item->count,
-                'Amount' => $item->amount / 100,
             ];
 
             if ($type === 'vend' || $type === 'customer') {
+                $data['Machine Prefix'] = $item->vend_prefix_name;
                 $data['Machine Model'] = $item->vend_model_name;
                 $data['Location Type'] = $item->location_type_name;
             }
+
+            $data['Count'] = $item->count;
+            $data['Amount'] = $item->amount / 100;
 
             return $data;
         });
@@ -1570,7 +1572,6 @@ class ReportController extends Controller
                 ->leftJoin('vend_models', 'vend_models.id', '=', 'gm.vend_model_id')
                 ->leftJoin('vend_models as current_vend_models', 'vends.vend_model_id', '=', 'current_vend_models.id')
                 ->leftJoin('location_types', 'location_types.id', '=', 'gm.transaction_location_type_id')
-                ->leftJoin('vend_prefixes as current_vend_prefixes', 'vends.vend_prefix_id', '=', 'current_vend_prefixes.id')
                 ->leftJoin('categories as customer_categories', 'customers.category_id', '=', 'customer_categories.id');
 
             $countColumn = 'gm.sale_count';
@@ -1605,6 +1606,8 @@ class ReportController extends Controller
                         ->selectRaw('MAX(vends.code) as code')
                         ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (", IFNULL(current_vend_prefixes.name, \'\'),") - ", IFNULL(customers.name, \'\')) ELSE vends.name END) as name')
                         ->selectRaw('COALESCE(MAX(vend_models.name), MAX(current_vend_models.name)) as vend_model_name')
+                        ->selectRaw('MAX(current_vend_prefixes.name) as vend_prefix_name')
+                        ->selectRaw('MAX(product_mappings.name) as product_mapping_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
                     break;
                 case 'customers':
@@ -1613,6 +1616,8 @@ class ReportController extends Controller
                         ->selectRaw('MAX(gm.customer_id + 20000) as code')
                         ->selectRaw('MAX(CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\'), " - ", IFNULL(customers.name, \'\')) ELSE customers.name END) as name')
                         ->selectRaw('COALESCE(MAX(vend_models.name), MAX(current_vend_models.name)) as vend_model_name')
+                        ->selectRaw('MAX(current_vend_prefixes.name) as vend_prefix_name')
+                        ->selectRaw('MAX(product_mappings.name) as product_mapping_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
                     break;
             }
@@ -1646,6 +1651,8 @@ class ReportController extends Controller
                         ->selectRaw('MAX(vends.code) as code')
                         ->selectRaw('MAX(CASE WHEN customers.id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (", IFNULL(current_vend_prefixes.name, \'\'),") - ", IFNULL(customers.name, \'\')) ELSE vends.name END) as name')
                         ->selectRaw('COALESCE(MAX(vend_models.name), MAX(current_vend_models.name)) as vend_model_name')
+                        ->selectRaw('MAX(current_vend_prefixes.name) as vend_prefix_name')
+                        ->selectRaw('MAX(product_mappings.name) as product_mapping_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
                     break;
                 case 'customers':
@@ -1655,6 +1662,8 @@ class ReportController extends Controller
                         ->selectRaw('MAX(vr.customer_id + 20000) as code')
                         ->selectRaw('MAX(CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\'), " - ", IFNULL(customers.name, \'\')) ELSE customers.name END) as name')
                         ->selectRaw('COALESCE(MAX(vend_models.name), MAX(current_vend_models.name)) as vend_model_name')
+                        ->selectRaw('MAX(current_vend_prefixes.name) as vend_prefix_name')
+                        ->selectRaw('MAX(product_mappings.name) as product_mapping_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
                     break;
             }
@@ -1714,6 +1723,7 @@ class ReportController extends Controller
             ->leftJoin('location_types', 'vr.location_type_id', '=', 'location_types.id')
             ->leftJoin('vend_prefixes', 'vr.vend_prefix_id', '=', 'vend_prefixes.id')
             ->leftJoin('vend_prefixes as current_vend_prefixes', 'vends.vend_prefix_id', '=', 'current_vend_prefixes.id')
+            ->leftJoin('product_mappings', 'vends.product_mapping_id', '=', 'product_mappings.id')
             ->leftJoin('vend_models', 'vr.vend_model_id', '=', 'vend_models.id')
             ->leftJoin('categories', 'customers.category_id', '=', 'categories.id');
 
@@ -1752,6 +1762,8 @@ class ReportController extends Controller
             ->leftJoin('products', 'gm.product_id', '=', 'products.id')
             ->leftJoin('categories', 'gm.category_id', '=', 'categories.id')
             ->leftJoin('vend_prefixes', 'gm.vend_prefix_id', '=', 'vend_prefixes.id')
+            ->leftJoin('vend_prefixes as current_vend_prefixes', 'vends.vend_prefix_id', '=', 'current_vend_prefixes.id')
+            ->leftJoin('product_mappings', 'vends.product_mapping_id', '=', 'product_mappings.id')
             ->leftJoin('operators', 'operators.id', '=', 'gm.operator_id');
 
         $query = $this->filterGpMetricsReport(
@@ -1783,8 +1795,13 @@ class ReportController extends Controller
                     $q->whereIn('sc.operator_id', $ids);
             })
             ->when($request->vendPrefixes, function ($q, $ids) {
-                if (is_array($ids) && !in_array('all', $ids, true))
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    if (in_array('single-ud', $ids, true)) {
+                        $ids = array_unique(array_merge($ids, [56, 57, 58, 60, 63, 64, 76, 83]));
+                        $ids = array_values(array_diff($ids, ['single-ud']));
+                    }
                     $q->whereIn('sc.vend_prefix_id', $ids);
+                }
             })
             ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
                 if ($val !== 'all')
@@ -1799,6 +1816,32 @@ class ReportController extends Controller
                     elseif (count($codes) === 1)
                         $sq->where('v.code', 'LIKE', '%' . $codes[0] . '%');
                 });
+            })
+            ->when($request->customer, function ($q, $search) {
+                $q->where(function ($query) use ($search) {
+                    $query->whereExists(function ($sq) use ($search) {
+                        $sq->from('customers as c')
+                            ->whereColumn('c.id', 'sc.customer_id')
+                            ->where(function ($sub) use ($search) {
+                                $sub->where('c.virtual_customer_code', 'LIKE', "{$search}%")
+                                    ->orWhere('c.name', 'LIKE', "%{$search}%");
+                            });
+                    })
+                    ->orWhereExists(function ($sq) use ($search) {
+                        $sq->from('vend_prefixes as vp')
+                            ->whereColumn('vp.id', 'sc.vend_prefix_id')
+                            ->where('vp.name', 'LIKE', "{$search}%");
+                    });
+                });
+            })
+            ->when($request->products, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    $q->whereExists(function ($sq) use ($ids) {
+                        $sq->from('stock_count_items as sci_filter')
+                            ->whereColumn('sci_filter.stock_count_id', 'sc.id')
+                            ->whereIn('sci_filter.product_id', $ids);
+                    });
+                }
             });
 
         $coinQuery = $this->applyStockCountDateRange($coinQuery, $from, $to);
@@ -1912,8 +1955,13 @@ class ReportController extends Controller
                     $q->whereIn('sc.operator_id', $ids);
             })
             ->when($request->vendPrefixes, function ($q, $ids) {
-                if (is_array($ids) && !in_array('all', $ids, true))
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    if (in_array('single-ud', $ids, true)) {
+                        $ids = array_unique(array_merge($ids, [56, 57, 58, 60, 63, 64, 76, 83]));
+                        $ids = array_values(array_diff($ids, ['single-ud']));
+                    }
                     $q->whereIn('sc.vend_prefix_id', $ids);
+                }
             })
             ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
                 if ($val !== 'all')
@@ -1928,6 +1976,28 @@ class ReportController extends Controller
                     elseif (count($codes) === 1)
                         $sq->where('v.code', 'LIKE', '%' . $codes[0] . '%');
                 });
+            })
+            ->when($request->customer, function ($q, $search) {
+                $q->where(function ($query) use ($search) {
+                    $query->whereExists(function ($sq) use ($search) {
+                        $sq->from('customers as c')
+                            ->whereColumn('c.id', 'sc.customer_id')
+                            ->where(function ($sub) use ($search) {
+                                $sub->where('c.virtual_customer_code', 'LIKE', "{$search}%")
+                                    ->orWhere('c.name', 'LIKE', "%{$search}%");
+                            });
+                    })
+                    ->orWhereExists(function ($sq) use ($search) {
+                        $sq->from('vend_prefixes as vp')
+                            ->whereColumn('vp.id', 'sc.vend_prefix_id')
+                            ->where('vp.name', 'LIKE', "{$search}%");
+                    });
+                });
+            })
+            ->when($request->products, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    $q->whereIn('sci.product_id', $ids);
+                }
             });
 
         $perProductPerDay = $this->applyStockCountDateRange($perProductPerDay, $from, $to)
@@ -2873,6 +2943,10 @@ class ReportController extends Controller
             })
             ->when($request->vendPrefixes, function ($q, $ids) {
                 if (is_array($ids) && !in_array('all', $ids, true)) {
+                    if (in_array('single-ud', $ids, true)) {
+                        $ids = array_unique(array_merge($ids, [56, 57, 58, 60, 63, 64, 76, 83]));
+                        $ids = array_values(array_diff($ids, ['single-ud']));
+                    }
                     $q->whereIn('sc.vend_prefix_id', $ids);
                 }
             })
@@ -2886,11 +2960,29 @@ class ReportController extends Controller
                     : (array) $codes;
 
                 $q->whereExists(function ($sq) use ($codes) {
-                    $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
+                    $sq->from('vends as v')
+                        ->whereColumn('v.id', 'sc.vend_id');
                     if (count($codes) > 1)
                         $sq->whereIn('v.code', $codes);
                     elseif (count($codes) === 1)
                         $sq->where('v.code', 'LIKE', '%' . $codes[0] . '%');
+                });
+            })
+            ->when($request->customer, function ($q, $search) {
+                $q->where(function ($query) use ($search) {
+                    $query->whereExists(function ($sq) use ($search) {
+                        $sq->from('customers as c')
+                            ->whereColumn('c.id', 'sc.customer_id')
+                            ->where(function ($sub) use ($search) {
+                                $sub->where('c.virtual_customer_code', 'LIKE', "{$search}%")
+                                    ->orWhere('c.name', 'LIKE', "%{$search}%");
+                            });
+                    })
+                    ->orWhereExists(function ($sq) use ($search) {
+                        $sq->from('vend_prefixes as vp')
+                            ->whereColumn('vp.id', 'sc.vend_prefix_id')
+                            ->where('vp.name', 'LIKE', "{$search}%");
+                    });
                 });
             })
             ->when($request->products, function ($q, $ids) {
@@ -3016,6 +3108,10 @@ class ReportController extends Controller
             })
             ->when($request->vendPrefixes, function ($q, $ids) {
                 if (is_array($ids) && !in_array('all', $ids, true)) {
+                    if (in_array('single-ud', $ids, true)) {
+                        $ids = array_unique(array_merge($ids, [56, 57, 58, 60, 63, 64, 76, 83]));
+                        $ids = array_values(array_diff($ids, ['single-ud']));
+                    }
                     $q->whereIn('sc.vend_prefix_id', $ids);
                 }
             })
@@ -3029,12 +3125,39 @@ class ReportController extends Controller
                     : (array) $codes;
 
                 $q->whereExists(function ($sq) use ($codes) {
-                    $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
+                    $sq->from('vends as v')
+                        ->whereColumn('v.id', 'sc.vend_id');
                     if (count($codes) > 1)
                         $sq->whereIn('v.code', $codes);
                     elseif (count($codes) === 1)
                         $sq->where('v.code', 'LIKE', '%' . $codes[0] . '%');
                 });
+            })
+            ->when($request->customer, function ($q, $search) {
+                $q->where(function ($query) use ($search) {
+                    $query->whereExists(function ($sq) use ($search) {
+                        $sq->from('customers as c')
+                            ->whereColumn('c.id', 'sc.customer_id')
+                            ->where(function ($sub) use ($search) {
+                                $sub->where('c.virtual_customer_code', 'LIKE', "{$search}%")
+                                    ->orWhere('c.name', 'LIKE', "%{$search}%");
+                            });
+                    })
+                    ->orWhereExists(function ($sq) use ($search) {
+                        $sq->from('vend_prefixes as vp')
+                            ->whereColumn('vp.id', 'sc.vend_prefix_id')
+                            ->where('vp.name', 'LIKE', "{$search}%");
+                    });
+                });
+            })
+            ->when($request->products, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    $q->whereExists(function ($sq) use ($ids) {
+                        $sq->from('stock_count_items as sci_filter')
+                            ->whereColumn('sci_filter.stock_count_id', 'sc.id')
+                            ->whereIn('sci_filter.product_id', $ids);
+                    });
+                }
             });
 
         $kpisQuery = $this->applyStockCountDates($kpisQuery, $periods);

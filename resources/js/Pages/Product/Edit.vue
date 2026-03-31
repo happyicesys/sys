@@ -598,6 +598,19 @@ onMounted(() => {
   }) : useForm(getDefaultForm());
 });
 
+watch(() => props.product, (newProduct) => {
+  if (newProduct && newProduct.data) {
+    const updatedProduct = newProduct.data;
+    sellingPrices.value = updatedProduct.sellingPrices || [];
+    unitCosts.value = Array.isArray(updatedProduct.unitCosts) ? updatedProduct.unitCosts : [];
+    
+    // Also update priceTypeOptions to show only available types
+    priceTypeOptions.value = Object.entries(props.priceTypeOptions).map(([id, name]) => ({ id, name })).filter(priceTypeOption => {
+      return !sellingPrices.value.some(sellingPrice => sellingPrice.type === parseInt(priceTypeOption.id));
+    });
+  }
+}, { deep: true });
+
 function getDefaultForm() {
   return {
     category_id: '',
@@ -645,6 +658,8 @@ function submit() {
       })
       .post('/products/' + form.value.id + '/update', {
         onSuccess: () => {
+          const toast = useToast();
+          toast.success("Product updated successfully");
         },
         preserveScroll: true,
         preserveState: true,
@@ -655,6 +670,8 @@ function submit() {
 function toggleActivateDeactivate() {
   form.value.post('/products/' + form.value.id + '/toggle-activate-deactivate', {
     onSuccess: () => {
+      const toast = useToast();
+      toast.success("Product status updated successfully");
     },
     preserveState: true,
     replace: true,
@@ -677,7 +694,18 @@ function addUnitCost() {
 }
 
 function removeUnitCost(unitCost) {
-  unitCosts.value.splice(unitCosts.value.indexOf(unitCost), 1);
+  if (unitCost.id) {
+    router.delete('/products/unit-costs/' + unitCost.id, {
+      onSuccess: () => {
+        const toast = useToast();
+        toast.success("Unit cost deleted successfully");
+      },
+      preserveState: true,
+      replace: true,
+    });
+  } else {
+    unitCosts.value.splice(unitCosts.value.indexOf(unitCost), 1);
+  }
 }
 
 function addLanguage() {
@@ -708,16 +736,17 @@ function addSellingPrice() {
 
 function removeSellingPrice(sellingPrice) {
   if (sellingPrice.id) {
-    form.value.delete('/products/selling-prices/' + sellingPrice.id, {
+    router.delete('/products/selling-prices/' + sellingPrice.id, {
       onSuccess: () => {
+        const toast = useToast();
+        toast.success("Selling price deleted successfully");
       },
       preserveState: true,
-      resetOnSuccess: true,
       replace: true,
     });
   } else {
     sellingPrices.value.splice(sellingPrices.value.indexOf(sellingPrice), 1);
-    priceTypeOptions.value = priceTypeOptions.value.filter(priceTypeOption => {
+    priceTypeOptions.value = Object.entries(props.priceTypeOptions).map(([id, name]) => ({ id, name })).filter(priceTypeOption => {
       return !sellingPrices.value.some(sellingPrice => sellingPrice.type === priceTypeOption.id);
     });
   }

@@ -26,9 +26,9 @@ class ProductMovementController extends Controller
     {
         $this->middleware(['permission:read products']);
 
-        if (env('CMS_URL')) {
-            abort(404);
-        }
+        // if (env('CMS_URL')) {
+        //     abort(404);
+        // }
     }
 
     public function index(Request $request)

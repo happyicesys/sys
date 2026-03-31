@@ -726,6 +726,7 @@ const dayTitle = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
           locationType: filters.value.locationType.id,
           location_type_id: filters.value.locationType.id,
           operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
+          products: filters.value.products.map((product) => { return product.id }),
           numberPerPage: filters.value.numberPerPage.id,
           vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       }, {
@@ -754,6 +755,7 @@ function onExportExcelClicked() {
           currentFilterDate: filters.value.currentFilterDate?.id ?? null,
           location_type_id: filters.value.locationType.id,
           operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
+          products: filters.value.products.map((product) => { return product.id }),
           vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       },
       responseType: 'blob',

@@ -593,6 +593,9 @@
               <SingleSortItem modelName="vend_prefixes.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefixes.name', false)">
                 Machine Prefix
               </SingleSortItem>
+              <SingleSortItem modelName="product_mappings.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('product_mappings.name', false)">
+                Product Mapping
+              </SingleSortItem>
               <SingleSortItem modelName="customers.virtual_customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.virtual_customer_code')">
                 Customer
               </SingleSortItem>
@@ -763,6 +766,15 @@
               <div class="text-left">
                 {{ vend.vend_prefix_name }}
               </div>
+              <span class="flex flex-col space-y-0.5">
+                <a v-if="vend.productMapping" :href="'/product-mappings/' + vend.productMapping.id + '/edit'" target="_blank" class="text-blue-600 text-xs font-medium">
+                  {{ vend.productMapping.name }}
+                </a>
+                <span v-else-if="vend.product_mapping_name" class="text-xs">
+                  {{ vend.product_mapping_name }}
+                </span>
+
+              </span>
               <span v-if="vend.person_id" class="flex flex-col space-y-1">
                 <span v-if="permissions.includes('admin-access vend-machines')">
                   <a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">

@@ -217,7 +217,7 @@ class VendController extends Controller
             ->with([
                 'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform',
                 'vendConfig:id,name,version',
-                'upcomingProductMapping:id,name',
+                'productMapping:id,name',
             ])
             ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
@@ -522,15 +522,14 @@ class VendController extends Controller
                     'nextOpsJobItem.opsJob:id,code,date,delivered_by',
                     'nextOpsJobItem.opsJob.deliveredBy:id,name,username',
                     'nextOpsJobItem.vend:id,upcoming_product_mapping_id,product_mapping_id',
-                    'nextOpsJobItem.vend.upcomingProductMapping:id,name',
                     'nextOpsJobItem.vend.productMapping:id,upcoming_product_mapping_id,name',
-                    'nextOpsJobItem.vend.productMapping.upcomingProductMapping:id,name',
                     'nextOpsJobItem.opsJobItemChannels.vendChannel' => function ($query) {
                         $query->with([
                             'vend:id,server_price_type',
                         ]);
                     },
                     'vend.modemUnit',
+                    'vend.productMapping:id,name',
                     'vend.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
                     'vend.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
                     'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
