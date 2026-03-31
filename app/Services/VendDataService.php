@@ -48,8 +48,7 @@ class VendDataService
         $finalInput[$a] = $b;
       }
       $finalInput = collect($finalInput);
-    }
-    else {
+    } else {
       $finalInput = $input;
     }
     return $finalInput;
@@ -79,8 +78,7 @@ class VendDataService
               }
               if (substr($data, -1) == '!') {
                 $data = base64_decode(substr_replace($data, "=", -1));
-              }
-              else {
+              } else {
                 $data = base64_decode($data);
               }
               $processedDataArr['content'] = $data;
@@ -95,8 +93,7 @@ class VendDataService
 
         $processedDataArr['data'] = $jsonData;
 
-      }
-      else {
+      } else {
         $processedDataArr['data']['Vid'] = json_decode($processedDataArr['code'], true);
         $processedDataArr['data']['Type'] = 'CHANNEL';
         $processedDataArr['data']['channels'] = [];
@@ -153,8 +150,7 @@ class VendDataService
                 array_push($processedDataArr['data']['channels'], $channelArr);
               }
             }
-          }
-          else {
+          } else {
             // INT16U id;
             // INT8U Col_FaultCode;
             // INT8U Col_Capacity;
@@ -168,8 +164,7 @@ class VendDataService
             $i = 2;
             if ($processedDataArr['data']['label'] === 'S') {
               $i += 4;
-            }
-            else {
+            } else {
               $i += 2;
             }
             for ($j = 0; $j < $byteSize; $j++) {
@@ -207,8 +202,7 @@ class VendDataService
         }
       }
       $data = $processedDataArr['data'];
-    }
-    else {
+    } else {
       $data = $input;
     }
     return $data;
@@ -300,7 +294,7 @@ class VendDataService
             if ($vend->operator) {
               $operatorTimezone = $vend->operator->timezone;
             }
-            $response = isset($originalInput['f']) ? 
+            $response = isset($originalInput['f']) ?
               $originalInput['f'] . ',' . strlen(base64_encode('TIME' . Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s'))) . ',' . base64_encode('TIME' . Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s')) :
               true;
             break;
@@ -311,38 +305,38 @@ class VendDataService
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'P':
-            $vendCodeNum = (int)$vend->code;
-            if (in_array($vendCodeNum, [2191, 2776, 2242])) {
-              // p_log_started = one-shot guard (24h), prevents restarts after 15-min window expires
-              // p_log_active  = the actual 15-min recording window
-              if (!Cache::has('p_log_started') && !Cache::has('p_log_active')) {
-                Cache::put('p_log_started', true, now()->addHours(24));
-                Cache::put('p_log_active', true, now()->addMinutes(15));
-              }
-              if (Cache::has('p_log_active')) {
-                $encodedOriginal = json_encode($originalInput);
-                $pLogData = [
-                  'value' => $encodedOriginal,
-                  'processed' => json_encode($processedInput),
-                  'ip_address' => $ipAddress,
-                  'connection' => $connectionType,
-                  'type' => strlen($encodedOriginal),
-                  'vend_code' => $vendCodeNum,
-                  'created_at' => now(),
-                  'updated_at' => now(),
-                ];
-                // HTTP: defer write until after response is sent back to machine
-                // MQTT: write directly — app()->terminating() never fires in CLI loop
-                if ($connectionType === 'mqtt') {
-                  \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
-                }
-                else {
-                  app()->terminating(function () use ($pLogData) {
-                    \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
-                  });
-                }
-              }
-            }
+            // $vendCodeNum = (int)$vend->code;
+            // if ($vendCodeNum > 2000 && $vendCodeNum < 5000) {
+            //   // p_log_started = one-shot guard (24h), prevents restarts after 15-min window expires
+            //   // p_log_active  = the actual 15-min recording window
+            //   if (!Cache::has('p_log_started') && !Cache::has('p_log_active')) {
+            //     Cache::put('p_log_started', true, now()->addHours(24));
+            //     Cache::put('p_log_active', true, now()->addMinutes(15));
+            //   }
+            //   if (Cache::has('p_log_active')) {
+            //     $encodedOriginal = json_encode($originalInput);
+            //     $pLogData = [
+            //       'value' => $encodedOriginal,
+            //       'processed' => json_encode($processedInput),
+            //       'ip_address' => $ipAddress,
+            //       'connection' => $connectionType,
+            //       'type' => strlen($encodedOriginal),
+            //       'vend_code' => $vendCodeNum,
+            //       'created_at' => now(),
+            //       'updated_at' => now(),
+            //     ];
+            //     // HTTP: defer write until after response is sent back to machine
+            //     // MQTT: write directly — app()->terminating() never fires in CLI loop
+            //     if ($connectionType === 'mqtt') {
+            //       \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
+            //     }
+            //     else {
+            //       app()->terminating(function () use ($pLogData) {
+            //         \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
+            //       });
+            //     }
+            //   }
+            // }
             SyncP::dispatch($processedInput, $vend)->onQueue('default');
             $saveVendData = false;
             break;
@@ -353,28 +347,30 @@ class VendDataService
 
       // MQTT heartbeat format: f=...&t=...&m=...&g=...&p= (empty p, no Type in processedInput)
       // This never enters the switch above, so catch it here
-      if (!isset($processedInput['Type']) && isset($originalInput['p'])) {
-        $vendCodeNum = (int)$vend->code;
-        if (in_array($vendCodeNum, [2191, 2776, 2242])) {
-          if (!Cache::has('p_log_started') && !Cache::has('p_log_active')) {
-            Cache::put('p_log_started', true, now()->addHours(24));
-            Cache::put('p_log_active', true, now()->addMinutes(15));
-          }
-          if (Cache::has('p_log_active')) {
-            $encodedOriginalHb = json_encode($originalInput);
-            \Illuminate\Support\Facades\DB::table('vend_data')->insert([
-              'value' => $encodedOriginalHb,
-              'processed' => null,
-              'ip_address' => $ipAddress,
-              'connection' => $connectionType,
-              'type' => strlen($encodedOriginalHb),
-              'vend_code' => $vendCodeNum,
-              'created_at' => now(),
-              'updated_at' => now(),
-            ]);
-          }
-        }
-      }
+      /*
+       if (!isset($processedInput['Type']) && isset($originalInput['p'])) {
+       $vendCodeNum = (int)$vend->code;
+       if ($vendCodeNum > 2000 && $vendCodeNum < 5000) {
+       if (!Cache::has('p_log_started') && !Cache::has('p_log_active')) {
+       Cache::put('p_log_started', true, now()->addHours(24));
+       Cache::put('p_log_active', true, now()->addMinutes(15));
+       }
+       if (Cache::has('p_log_active')) {
+       $encodedOriginalHb = json_encode($originalInput);
+       \Illuminate\Support\Facades\DB::table('vend_data')->insert([
+       'value' => $encodedOriginalHb,
+       'processed' => null,
+       'ip_address' => $ipAddress,
+       'connection' => $connectionType,
+       'type' => strlen($encodedOriginalHb),
+       'vend_code' => $vendCodeNum,
+       'created_at' => now(),
+       'updated_at' => now(),
+       ]);
+       }
+       }
+       }
+       */
 
       if ($connectionType == 'http') {
         UpdateHttpLastUpdated::dispatch($vend->id)->onQueue('default');
@@ -383,7 +379,7 @@ class VendDataService
       if ($connectionType == 'mqtt') {
         UpdateMqttLastUpdated::dispatch($vend->id)->onQueue('default');
 
-        $apkVer = (array)$vend->apk_ver_json;
+        $apkVer = (array) $vend->apk_ver_json;
         if ($apkVer && isset($apkVer['apkver']) && $apkVer['apkver'] >= 129) {
           PublishMqtt::dispatch('CM' . $vend->code, $response, 0)->onQueue('default');
         }
@@ -405,7 +401,7 @@ class VendDataService
       if (config('app.env') == 'production' && config('app.log_server_url') && config('app.log_server_access_token')) {
         SendHttpDataToLogServer::dispatch($originalInput)->onQueue('default');
       }
-    // CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
+      // CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
     }
 
     return response()->json($response);
