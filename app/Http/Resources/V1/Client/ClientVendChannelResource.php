@@ -15,11 +15,12 @@ class ClientVendChannelResource extends JsonResource
     public function toArray($request)
     {
         return [
-            'code' => $this->code,
+            'channel_code' => $this->code,
             'qty' => $this->qty,
             'capacity' => $this->capacity,
             'price' => $this->amount/100,
-            'product' => ClientProductResource::make($this->whenLoaded('product')),
+            'product_id' => $this->whenLoaded('product', fn() => $this->product?->code),
+            'product_name' => $this->whenLoaded('product', fn() => $this->product?->name),
         ];
     }
 }

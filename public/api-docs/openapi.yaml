@@ -57,7 +57,7 @@ components:
     VendChannel:
       type: object
       properties:
-        code:
+        channel_code:
           type: string
           example: "10"
         qty:
@@ -70,23 +70,22 @@ components:
           type: number
           format: float
           example: 2.50
-        product:
-          type: object
-          properties:
-            code:
-              type: string
-              example: "P-001"
-            name:
-              type: string
-              example: "Cola 330ml"
+        product_id:
+          type: string
+          nullable: true
+          example: "P-001"
+        product_name:
+          type: string
+          nullable: true
+          example: "Cola 330ml"
 
     MachineStatus:
       type: object
       properties:
-        code:
+        vend_id:
           type: string
           example: "1001"
-        name:
+        vend_name:
           type: string
           example: "Mall Entrance A"
         is_online:
@@ -156,7 +155,7 @@ paths:
                   format: date
                   description: End date (YYYY-MM-DD). Max 12 months range.
                   example: "2023-10-31"
-                codes:
+                vend_ids:
                   type: string
                   description: Comma-separated list of machine codes.
                   example: "1001,1002"
@@ -208,7 +207,7 @@ paths:
             schema:
               type: object
               properties:
-                codes:
+                vend_ids:
                   type: string
                   description: Comma-separated list of machine codes.
                   example: "1001"

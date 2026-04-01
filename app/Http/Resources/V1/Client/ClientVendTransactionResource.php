@@ -16,7 +16,7 @@ class ClientVendTransactionResource extends JsonResource
     public function toArray($request)
     {
         return [
-            'amount' => number_format($this->amount/ 100, 2, '.', ','),
+            'amount' => number_format($this->amount / 100, 2, '.', ','),
             'order_id' => $this->order_id,
             'payment_method' => $this->paymentMethod?->name,
             'product_id' => isset($this->product) && $this->product ? $this->product->code : null,

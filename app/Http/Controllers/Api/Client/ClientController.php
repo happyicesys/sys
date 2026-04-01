@@ -31,8 +31,14 @@ class ClientController extends Controller
         }
 
         // Restrict filters to only allowed keys
-        $allowedFilters = ['codes', 'order_id', 'date_from', 'date_to', 'per_page', 'page'];
-        $cleanRequest = new Request($request->only($allowedFilters));
+        $allowedFilters = ['vend_ids', 'order_id', 'date_from', 'date_to', 'per_page', 'page'];
+        $input = $request->only($allowedFilters);
+        // Map public-facing 'vend_ids' to internal 'codes' used by shared filter scopes
+        if (isset($input['vend_ids'])) {
+            $input['codes'] = $input['vend_ids'];
+            unset($input['vend_ids']);
+        }
+        $cleanRequest = new Request($input);
 
         $perPage = $request->input('per_page', 50);
 
@@ -56,8 +62,14 @@ class ClientController extends Controller
         ]);
 
         // Restrict filters to only allowed keys
-        $allowedFilters = ['codes', 'per_page', 'page'];
-        $cleanRequest = new Request($request->only($allowedFilters));
+        $allowedFilters = ['vend_ids', 'per_page', 'page'];
+        $input = $request->only($allowedFilters);
+        // Map public-facing 'vend_ids' to internal 'codes' used by shared filter scopes
+        if (isset($input['vend_ids'])) {
+            $input['codes'] = $input['vend_ids'];
+            unset($input['vend_ids']);
+        }
+        $cleanRequest = new Request($input);
 
         $perPage = $request->input('per_page', 50);
 

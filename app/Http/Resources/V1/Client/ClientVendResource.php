@@ -18,9 +18,9 @@ class ClientVendResource extends JsonResource
     public function toArray($request)
     {
         return [
-            'code' => $this->code,
+            'vend_id' => $this->code,
             'last_updated_at' => $this->last_updated_at ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
-            'name' => $this->code . $this->when($this->relationLoaded('customer'), function () {
+            'vend_name' => $this->code . $this->when($this->relationLoaded('customer'), function () {
                 return $this->customer ? (' - ' . $this->customer->code . ' - ' . $this->customer->name) : ($this->name ? ' - ' . $this->name : '');
             }, function () {
                 return $this->name ? ' - ' . $this->name : '';
