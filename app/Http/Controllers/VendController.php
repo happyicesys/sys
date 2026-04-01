@@ -215,26 +215,45 @@ class VendController extends Controller
 
         $vends = Vend::query()
             ->with([
-                'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform',
-                'vendConfig:id,name,version',
+                'customer:id,name,code,person_id',
+                'customer.deliveryAddress',
+                'modemType',
+                'modemUnit',
                 'productMapping:id,name',
-            ])
-            ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
+                'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name'
+            ]);
+
+        $vends->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('modem_types', 'modem_types.id', '=', 'vends.modem_type_id')
-            ->leftJoin('modem_units', 'modem_units.id', '=', 'vends.modem_unit_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+            ->leftJoin('addresses', function ($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                    ->where('addresses.type', '=', 2);
+            })
             ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
-            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id');
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->leftJoin('modem_types', 'modem_types.id', '=', 'vends.modem_type_id')
+            ->leftJoin('modem_units', 'modem_units.id', '=', 'vends.modem_unit_id');
 
         $vends = $this->filterVendsDB($vends, $request);
-        $vends = $this->filterOperatorDB($vends, 'vends');
+        $vends = $this->filterOperatorDB($vends);
 
-        // Clone for count query (without expensive joins)
-        $countQuery = clone $vends;
-        $total = $countQuery->count();
+        // Subquery Joins for sorting columns
+        $needsVc = in_array($request->sortKey, ['total_full_load_amount', 'total_stock_amount', 'thirty_days_over_full_load_ratio']);
+        $needsVcCost = in_array($request->sortKey, ['total_stock_cost']);
+        $needsVcStock = in_array($request->sortKey, ['actual_stock_in_value', 'actual_stock_in_qty']);
+        $needsLastOpsJobs = in_array($request->sortKey, ['last_ops_job_acc_total_amount', 'last_ops_job_acc_total_count', 'last_ops_job_amount', 'last_ops_job_cash_amount', 'last_ops_job_count']);
+        $needsLastSecondOpsJobs = in_array($request->sortKey, ['last_second_ops_job_acc_total_amount', 'last_second_ops_job_acc_total_count', 'last_second_ops_job_amount', 'last_second_ops_job_cash_amount', 'last_second_ops_job_count']);
+        $needsNextOpsJobs = in_array($request->sortKey, ['next_ops_job_amount', 'next_ops_job_cash_amount', 'next_ops_job_count']);
+        $needsLastThirtyDaysStockIn = in_array($request->sortKey, ['last_thirty_days_stock_in_amount', 'last_thirty_days_stock_in_qty', 'thirty_days_stock_in_delta_amount', 'thirty_days_stock_in_delta_percent']);
+
+        $total = (clone $vends)->count();
+
 
         // Apply conditional joins for data retrieval
         $vends->when($needsVc, function ($query) {
@@ -415,10 +434,9 @@ class VendController extends Controller
             'modemUnitOptions' => ModemUnitResource::collection(
                 ModemUnit::orderBy('imei')->get()
             ),
-            'nextDeliveryDriverOptions' => Customer::query()
+            'nextDeliveryDriverOptions' => DB::table('customers')
                 ->where('cms_invoice_history->next_delivery_driver', '!=', null)
-                ->select('cms_invoice_history->next_delivery_driver AS name')
-                ->distinct()
+                ->selectRaw('DISTINCT cms_invoice_history->>"$.next_delivery_driver" AS name')
                 ->get(),
             'operatorOptions' => OperatorResource::collection(
                 Operator::with('logo')->orderBy('name')->get()
@@ -535,27 +553,33 @@ class VendController extends Controller
                     'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
                     'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name'
                 ])
-                ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-                ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-                ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-                ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-                ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-                ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
-                ->leftJoin('addresses', function ($query) {
-                    $query->on('addresses.modelable_id', '=', 'customers.id')
-                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                        ->where('addresses.type', '=', 2);
-                })
-                ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
-                ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id');
+                ->withCount(['vends AS active_vends_count' => function ($query) {
+                    $query->where('is_active', true);
+                }]);
 
-            $vends = $this->filterVendsDB($vends, $request);
-            $vends = $this->filterOperatorDB($vends, 'customers');
+        // Conditional Joins for performance
+        // Restore unconditional joins for required select columns
+        $vends->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+            ->leftJoin('addresses', function ($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                    ->where('addresses.type', '=', 2);
+            })
+            ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id');
 
-            // Clone for count query (without expensive joins)
-            $countQuery = clone $vends;
-            $total = $countQuery->count();
+        $vends = $this->filterVendsDB($vends, $request);
+        $vends = $this->filterOperatorDB($vends, 'customers');
+
+        $countQuery = clone $vends;
+        $total = $countQuery->count();
+
 
             $vends->when($needsVc, function ($query) {
                 $query->leftJoin(DB::raw('
@@ -3269,10 +3293,10 @@ class VendController extends Controller
             }
         }
 
-        if (in_array('last_ops_jobs', $types) && !empty($customerIds)) {
+        if ((in_array('last_ops_jobs', $types) || in_array('last_second_ops_jobs', $types)) && !empty($customerIds)) {
             $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
             $data = DB::select("
-                SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
+                SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count, oji.rn,
                     SUM(oji_c.actual_qty * vc.amount) AS amount,
                     SUM(oji_c.actual_qty) AS count
                 FROM (
@@ -3291,75 +3315,54 @@ class VendController extends Controller
                 INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
                 INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
                 INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
-                WHERE oji.rn = 1 AND oj.date < CURDATE() + INTERVAL 1 DAY
-                GROUP BY oji.customer_id
+                WHERE oji.rn IN (1, 2) AND oj.date < CURDATE() + INTERVAL 1 DAY
+                GROUP BY oji.customer_id, oji.rn
             ", $customerIds);
 
-            $keyedData = collect($data)->keyBy('customer_id');
+            $groupedData = collect($data)->groupBy('customer_id');
+
             foreach ($items as $item) {
                 $cid = $item->customer_id ?? $item->id;
-                if (isset($keyedData[$cid])) {
-                    $row = $keyedData[$cid];
-                    $item->last_ops_job_acc_total_amount = $row->acc_total_amount;
-                    $item->last_ops_job_acc_total_count = $row->acc_total_count;
-                    $item->last_ops_job_amount = $row->amount;
-                    $item->last_ops_job_cash_amount = $row->cash_amount;
-                    $item->last_ops_job_count = $row->count;
-                } else {
-                    $item->last_ops_job_acc_total_amount = null;
-                    $item->last_ops_job_acc_total_count = null;
-                    $item->last_ops_job_amount = null;
-                    $item->last_ops_job_cash_amount = null;
-                    $item->last_ops_job_count = null;
+                $customerData = $groupedData->get($cid);
+
+                // Last Ops Jobs
+                if (in_array('last_ops_jobs', $types)) {
+                    $row = $customerData?->firstWhere('rn', 1);
+                    if ($row) {
+                        $item->last_ops_job_acc_total_amount = $row->acc_total_amount;
+                        $item->last_ops_job_acc_total_count = $row->acc_total_count;
+                        $item->last_ops_job_amount = $row->amount;
+                        $item->last_ops_job_cash_amount = $row->cash_amount;
+                        $item->last_ops_job_count = $row->count;
+                    } else {
+                        $item->last_ops_job_acc_total_amount = null;
+                        $item->last_ops_job_acc_total_count = null;
+                        $item->last_ops_job_amount = null;
+                        $item->last_ops_job_cash_amount = null;
+                        $item->last_ops_job_count = null;
+                    }
+                }
+
+                // Last Second Ops Jobs
+                if (in_array('last_second_ops_jobs', $types)) {
+                    $row = $customerData?->firstWhere('rn', 2);
+                    if ($row) {
+                        $item->last_second_ops_job_acc_total_amount = $row->acc_total_amount;
+                        $item->last_second_ops_job_acc_total_count = $row->acc_total_count;
+                        $item->last_second_ops_job_amount = $row->amount;
+                        $item->last_second_ops_job_cash_amount = $row->cash_amount;
+                        $item->last_second_ops_job_count = $row->count;
+                    } else {
+                        $item->last_second_ops_job_acc_total_amount = null;
+                        $item->last_second_ops_job_acc_total_count = null;
+                        $item->last_second_ops_job_amount = null;
+                        $item->last_second_ops_job_cash_amount = null;
+                        $item->last_second_ops_job_count = null;
+                    }
                 }
             }
         }
 
-        if (in_array('last_second_ops_jobs', $types) && !empty($customerIds)) {
-            $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
-            $data = DB::select("
-                SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
-                    SUM(oji_c.actual_qty * vc.amount) AS amount,
-                    SUM(oji_c.actual_qty) AS count
-                FROM (
-                    SELECT
-                        id,
-                        customer_id,
-                        cash_amount,
-                        acc_total_amount,
-                        acc_total_count,
-                        ops_job_id,
-                        ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) as rn
-                    FROM ops_job_items
-                    WHERE status >= 3 AND status <> 99
-                    AND customer_id IN ($placeholders)
-                ) oji
-                INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
-                INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
-                INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
-                WHERE oji.rn = 2 AND oj.date < CURDATE() + INTERVAL 1 DAY
-                GROUP BY oji.customer_id
-            ", $customerIds);
-
-            $keyedData = collect($data)->keyBy('customer_id');
-            foreach ($items as $item) {
-                $cid = $item->customer_id ?? $item->id;
-                if (isset($keyedData[$cid])) {
-                    $row = $keyedData[$cid];
-                    $item->last_second_ops_job_acc_total_amount = $row->acc_total_amount;
-                    $item->last_second_ops_job_acc_total_count = $row->acc_total_count;
-                    $item->last_second_ops_job_amount = $row->amount;
-                    $item->last_second_ops_job_cash_amount = $row->cash_amount;
-                    $item->last_second_ops_job_count = $row->count;
-                } else {
-                    $item->last_second_ops_job_acc_total_amount = null;
-                    $item->last_second_ops_job_acc_total_count = null;
-                    $item->last_second_ops_job_amount = null;
-                    $item->last_second_ops_job_cash_amount = null;
-                    $item->last_second_ops_job_count = null;
-                }
-            }
-        }
 
         if (in_array('next_ops_jobs', $types) && !empty($customerIds)) {
             $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
