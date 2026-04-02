@@ -18,7 +18,7 @@ class OperatorTransactionFilterScope implements Scope
    */
   public function apply(Builder $builder, Model $model)
   {
-    if (auth()->check()) {
+    if (auth()->check() && auth()->user() instanceof \App\Models\User) {
       $operatorId = auth()->user()->operator_id;
       $isHappyIce = $operatorId == 1 ? true : false;
       if ($isHappyIce) {

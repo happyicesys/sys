@@ -13,7 +13,7 @@ class OperatorUserTransactionFilterScope implements Scope
      */
     public function apply(Builder $builder, Model $model): void
     {
-        if (auth()->check()) {
+        if (auth()->check() && auth()->user() instanceof \App\Models\User) {
             $vendIds = auth()->user()->vends->pluck('id');
             if ($vendIds->isNotEmpty()) {
                 $builder->whereIn('vend_transactions.vend_id', $vendIds);
