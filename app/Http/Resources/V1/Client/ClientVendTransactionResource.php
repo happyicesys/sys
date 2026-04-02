@@ -24,7 +24,7 @@ class ClientVendTransactionResource extends JsonResource
             'transaction_datetime' => $this->transaction_datetime?->toDatetimeString(),
             'vend_id' => $this->vend?->code,
             'vend_name' => $this->vend && $this->vend->customer ? $this->vend->customer->name : $this->vend?->name,
-            'channel' => $this->vendChannel?->code,
+            'channel_code' => $this->vendChannel?->code,
             'error' => $this->vendChannelError?->code,
         ];
     }
