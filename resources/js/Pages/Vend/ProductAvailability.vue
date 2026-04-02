@@ -73,6 +73,12 @@
                               Reset
                           </span>
                       </Button>
+                      <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-800 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click="onExcelExportClicked()"
+                      >
+                        <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true"/>
+                        <span>Export Excel</span>
+                      </Button>
                   </div>
                   <div class="flex flex-col gap-2 items-end">
                       <span class="text-xs text-gray-500 self-center">
@@ -290,7 +296,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon, CalendarIcon, ExclamationCircleIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon, CalendarIcon, ExclamationCircleIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
 import DatePicker from '@/Components/DatePicker.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import { onBeforeMount, onMounted, ref, watch } from 'vue';
@@ -496,5 +502,34 @@ function sortTable(key) {
 
 function resetFilters() {
   router.get(baseUrl.value)
+}
+
+function onExcelExportClicked() {
+  let operators = filters.value.operators.filter(op => op).map(op => op.id)
+  if (operators.includes('all')) {
+    operators = ['all']
+  }
+  axios({
+    method: 'get',
+    url: route('products-availability.export-excel'),
+    params: {
+      product_name: filters.value.product_name,
+      product_code: filters.value.product_code,
+      operators: operators,
+      is_available: filters.value.is_available ? filters.value.is_available.id : 'all',
+      productAvailableDate: filters.value.productAvailableDate,
+    },
+    responseType: 'blob',
+  }).then(response => {
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'Product_Availability_' + filters.value.productAvailableDate.replace(/-/g, '') + '_' + new Date().toISOString().slice(11,19).replace(/:/g,'') + '.xlsx')
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  }).catch(error => {
+    console.error('Export failed:', error)
+  })
 }
 </script>

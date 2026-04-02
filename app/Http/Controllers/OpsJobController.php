@@ -8,8 +8,9 @@ use App\Http\Resources\OpsJobResource;
 use App\Http\Resources\OpsJobItemResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
-use App\Jobs\SyncOpsJobTransactionCMS;
+use App\Jobs\PublishMqtt;
 use App\Jobs\SyncOpsJobItemTransactionItemCMS;
+use App\Jobs\SyncOpsJobTransactionCMS;
 use App\Models\Address;
 use App\Models\Operator;
 use App\Models\OpsJob;
@@ -651,6 +652,22 @@ class OpsJobController extends Controller
                                 'product_mapping_id' => $targetMappingId,
                                 'upcoming_product_mapping_id' => null,
                             ]);
+                        }
+
+                        // Auto push product info to machine if implement_new_mapping
+                        if($opsJobItem->stock_action_type === 'implement_new_mapping') {
+                            $fid = 1;
+                            $content = base64_encode(json_encode([
+                                'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
+                                'time' => Carbon::now()->timestamp,
+                                'action' => '',
+                                'mid' => $vend->code,
+                            ]));
+                            $contentLength = strlen($content);
+                            $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+                            $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+
+                            PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
                         }
                     }
                 }

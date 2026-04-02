@@ -30,6 +30,8 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ProductAvailabilityExport;
 
 class ProductController extends Controller
 {
@@ -391,6 +393,115 @@ class ProductController extends Controller
                 $products
             ),
         ]);
+    }
+
+    public function exportAvailability(Request $request)
+    {
+        // Re-run the same pipeline as availability()
+        if ($request->operators == null) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
+                    ]
+                ]);
+            } else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+
+        $request->merge([
+            'productAvailableDate' => $request->productAvailableDate ? $request->productAvailableDate : Carbon::today()->addDay()->toDateString(),
+        ]);
+
+        $userTimezone = $this->getUserTimezone();
+        $productAvailableDateStart = Carbon::parse($request->productAvailableDate, $userTimezone)->startOfDay()->setTimezone('UTC');
+        $productAvailableDateEnd = Carbon::parse($request->productAvailableDate, $userTimezone)->endOfDay()->setTimezone('UTC');
+
+        $products = Product::query()
+            ->with(['isAvailableUpdatedBy', 'latestUnitCost', 'productLimits' => function ($query) use ($request) {
+                $query->whereDate('date', $request->productAvailableDate);
+            }, 'productLimits.createdBy', 'thumbnail'])
+            ->when($request->operators, function ($query, $search) {
+                $search = is_array($search) ? $search : [$search];
+                if (!in_array('all', $search)) {
+                    $query->whereIn('operator_id', $search);
+                }
+            })
+            ->when($request->product_code, fn($q, $s) => $q->where('code', 'LIKE', "%{$s}%"))
+            ->when($request->product_name, fn($q, $s) => $q->where('name', 'LIKE', "%{$s}%"))
+            ->when($request->is_available !== null, function ($query) use ($request) {
+                if ($request->is_available !== 'all') {
+                    $query->where('is_available', filter_var($request->is_available, FILTER_VALIDATE_BOOLEAN));
+                }
+            })
+            ->select(['products.id', 'products.avg_seven_days_count', 'products.code', 'products.desc', 'products.name', 'products.is_available', 'products.is_available_updated_at', 'products.is_available_updated_by'])
+            ->where('is_active', true)
+            ->where('is_inventory', true)
+            ->orderBy('code', 'asc')
+            ->get();
+
+        $productIds = $products->pluck('id')->toArray();
+
+        $neededData = OpsJobItemChannel::query()
+            ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+            ->leftJoin('product_limits', function ($join) use ($request) {
+                $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
+                    ->whereDate('product_limits.date', '=', $request->productAvailableDate);
+            })
+            ->whereIn('ops_job_item_channels.product_id', $productIds)
+            ->whereBetween('ops_jobs.date', [$productAvailableDateStart, $productAvailableDateEnd])
+            ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+            ->groupBy('ops_job_item_channels.product_id')
+            ->selectRaw('ops_job_item_channels.product_id,
+                COALESCE(SUM(CASE WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN CASE WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0) WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN product_limits.qty - COALESCE(vend_channels.qty, 0) ELSE 0 END ELSE COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0) END), 0) as needed_qty')
+            ->get()->keyBy('product_id');
+
+        $notYetSyncData = OpsJobItemChannel::query()
+            ->join('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+            ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+            ->whereIn('ops_job_item_channels.product_id', $productIds)
+            ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+            ->whereNull('ops_job_items.cms_transaction_id')
+            ->groupBy('ops_job_item_channels.product_id')
+            ->selectRaw('ops_job_item_channels.product_id, SUM(ops_job_item_channels.picked_qty) as qty')
+            ->get()->keyBy('product_id');
+
+        $cmsQtyAvailableProducts = $this->cmsService->getCMSQtyAvailableApi();
+        $cmsQtyMap = [];
+        if ($cmsQtyAvailableProducts) {
+            foreach ($cmsQtyAvailableProducts as $item) {
+                if (isset($item['code'])) {
+                    $cmsQtyMap[$item['code']] = $item;
+                }
+            }
+        }
+
+        foreach ($products as $product) {
+            $product->needed_qty = $product->is_available ? ($neededData->get($product->id)?->needed_qty ?? 0) : 0;
+            $product->not_yet_sync_api_qty = $notYetSyncData->get($product->id)?->qty ?? 0;
+            $limit = $product->productLimits->first();
+            $product->max_ops_job_pick_limit = $limit ? $limit->qty : null;
+            if (isset($cmsQtyMap[$product->code])) {
+                $product->qty_available_pcs_api = $cmsQtyMap[$product->code]['qty'] ?? 0;
+                $product->net_available_qty_pcs_api = ($cmsQtyMap[$product->code]['qty'] ?? 0) - $product->not_yet_sync_api_qty;
+            } else {
+                $product->qty_available_pcs_api = 0;
+                $product->net_available_qty_pcs_api = 0 - $product->not_yet_sync_api_qty;
+            }
+        }
+
+        return Excel::download(
+            new ProductAvailabilityExport($products, $request->productAvailableDate),
+            'Product_Availability_' . str_replace('-', '', $request->productAvailableDate) . '_' . Carbon::now()->format('His') . '.xlsx'
+        );
     }
 
     public function update(Request $request, $productId)
