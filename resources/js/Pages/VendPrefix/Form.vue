@@ -229,7 +229,10 @@ function buildInitialUpcomingSelection(productMappings = []) {
 }
 
 function upcomingOptions() {
-  return productMappingOptions.value
+  return [
+    { id: '', value: '--- Clear ---' },
+    ...productMappingOptions.value
+  ]
 }
 
 function ensureUpcomingValid() {

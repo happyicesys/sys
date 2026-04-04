@@ -1470,6 +1470,30 @@
 								<span>
 									{{ operatorCountry.currency_symbol }}{{ vend.last_second_ops_job_acc_total_amount ? vend.last_second_ops_job_acc_total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }} ({{ vend.last_ops_job_acc_total_count ? vend.last_second_ops_job_acc_total_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }})
 								</span>
+								<!-- Stock Action Type Badges -->
+								<div
+									v-if="vend.lastSecondOpsJobItem.stock_action_type === 'implement_new_mapping'"
+									class="flex flex-col items-center mt-1 space-y-0.5"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-purple-100 text-purple-700 border-purple-300">
+										Implement New Mapping
+									</span>
+									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.lastSecondOpsJobItem.vend && (vend.lastSecondOpsJobItem.vend.upcomingProductMapping || (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping))">
+										{{ vend.lastSecondOpsJobItem.vend.productMapping ? vend.lastSecondOpsJobItem.vend.productMapping.name : '' }} 
+										<span v-if="(vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.lastSecondOpsJobItem.vend.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
+											&RightArrow;
+											{{ (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.lastSecondOpsJobItem.vend.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name : '') }}
+										</span>
+									</span>
+								</div>
+								<div
+									v-else-if="vend.lastSecondOpsJobItem.stock_action_type === 'return_stock'"
+									class="mt-1"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-orange-100 text-orange-700 border-orange-300">
+										Return Stock
+									</span>
+								</div>
 							</div>
 						</div>
 					</TableData>
@@ -1516,6 +1540,30 @@
 								<span>
 									{{ operatorCountry.currency_symbol }}{{ vend.last_ops_job_acc_total_amount ? vend.last_ops_job_acc_total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }} ({{ vend.last_ops_job_acc_total_count ? vend.last_ops_job_acc_total_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }})
 								</span>
+								<!-- Stock Action Type Badges -->
+								<div
+									v-if="vend.lastOpsJobItem.stock_action_type === 'implement_new_mapping'"
+									class="flex flex-col items-center mt-1 space-y-0.5"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-purple-100 text-purple-700 border-purple-300">
+										Implement New Mapping
+									</span>
+									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.lastOpsJobItem.vend && (vend.lastOpsJobItem.vend.upcomingProductMapping || (vend.lastOpsJobItem.vend.productMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping))">
+										{{ vend.lastOpsJobItem.vend.productMapping ? vend.lastOpsJobItem.vend.productMapping.name : '' }} 
+										<span v-if="(vend.lastOpsJobItem.vend.productMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.lastOpsJobItem.vend.upcomingProductMapping && vend.lastOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
+											&RightArrow;
+											{{ (vend.lastOpsJobItem.vend.productMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.lastOpsJobItem.vend.upcomingProductMapping && vend.lastOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.lastOpsJobItem.vend.upcomingProductMapping.name : '') }}
+										</span>
+									</span>
+								</div>
+								<div
+									v-else-if="vend.lastOpsJobItem.stock_action_type === 'return_stock'"
+									class="mt-1"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-orange-100 text-orange-700 border-orange-300">
+										Return Stock
+									</span>
+								</div>
 							</div>
 						</div>
 					</TableData>
@@ -1551,7 +1599,7 @@
 										</span>
 									</div>
 								</span>
-								<span class="flex flex-col space-y-1" v-if="vend.nextOpsJobItem.status < 3 && (vend.next_ops_job_amount > 0 || vend.next_ops_job_count > 0)"
+								<span class="flex flex-col space-y-1" v-if="vend.nextOpsJobItem.status == 2 && (vend.next_ops_job_amount > 0 || vend.next_ops_job_count > 0)"
 									:class="[vend.nextOpsJobItem.status == 4 ? 'text-green-700' : (vend.nextOpsJobItem.status == 98 ? 'text-red-700' : '')]">
 									<span>
 										{{ operatorCountry.currency_symbol }}{{ vend.next_ops_job_amount ? vend.next_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
@@ -1572,7 +1620,11 @@
 										Implement New Mapping
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.nextOpsJobItem.vend && (vend.nextOpsJobItem.vend.upcomingProductMapping || (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping))">
-										{{ vend.nextOpsJobItem.vend.upcomingProductMapping ? vend.nextOpsJobItem.vend.upcomingProductMapping.name : (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping ? vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name : '') }}
+										{{ vend.nextOpsJobItem.vend.productMapping ? vend.nextOpsJobItem.vend.productMapping.name : '' }} 
+										<span v-if="(vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.nextOpsJobItem.vend.upcomingProductMapping && vend.nextOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
+											&RightArrow;
+											{{ (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.nextOpsJobItem.vend.upcomingProductMapping && vend.nextOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.nextOpsJobItem.vend.upcomingProductMapping.name : '') }}
+										</span>
 									</span>
 								</div>
 								<div

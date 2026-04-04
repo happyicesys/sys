@@ -26,6 +26,7 @@ use App\Models\VendTransaction;
 use App\Traits\GetUserTimezone;
 use App\Services\MapService;
 use App\Services\OpsJobService;
+use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
@@ -41,6 +42,7 @@ class OpsJobController extends Controller
 
     protected $mapService;
     protected $opsJobService;
+    protected $productMappingService;
     protected $runningNumberService;
 
     public function __construct()
@@ -48,6 +50,7 @@ class OpsJobController extends Controller
         $this->middleware('auth');
         $this->mapService = new MapService();
         $this->opsJobService = new OpsJobService();
+        $this->productMappingService = new ProductMappingService();
         $this->runningNumberService = new RunningNumberService();
     }
 
@@ -652,23 +655,30 @@ class OpsJobController extends Controller
                                 'product_mapping_id' => $targetMappingId,
                                 'upcoming_product_mapping_id' => null,
                             ]);
+                            $vend->refresh();
                         }
+                    }
+                }
 
-                        // Auto push product info to machine if implement_new_mapping
-                        if($opsJobItem->stock_action_type === 'implement_new_mapping') {
-                            $fid = 1;
-                            $content = base64_encode(json_encode([
-                                'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
-                                'time' => Carbon::now()->timestamp,
-                                'action' => '',
-                                'mid' => $vend->code,
-                            ]));
-                            $contentLength = strlen($content);
-                            $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-                            $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+                // Auto push product info to machine if implement_new_mapping
+                if($opsJobItem->stock_action_type === 'implement_new_mapping') {
+                    $vend = $opsJobItem->vend;
+                    if ($vend) {
+                        $this->productMappingService->syncChannelsByVend($vend);
+                        \App\Jobs\Vend\SaveVendChannelsJson::dispatchSync($vend->id);
+                        
+                        $fid = 1;
+                        $content = base64_encode(json_encode([
+                            'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
+                            'time' => Carbon::now()->timestamp,
+                            'action' => '',
+                            'mid' => $vend->code,
+                        ]));
+                        $contentLength = strlen($content);
+                        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+                        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
 
-                            PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
-                        }
+                        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
                     }
                 }
 
@@ -836,20 +846,18 @@ class OpsJobController extends Controller
             ->select(
                 'vend_channels.product_id',
                 DB::raw("
-                    CAST(
-                        SUM(
-                            CASE
-                                WHEN ops_job_items.status = " . OpsJob::STATUS_PICKED . " THEN ops_job_item_channels.picked_qty
-                                WHEN ops_job_items.status >= " . OpsJob::STATUS_DELIVERED . " THEN ops_job_item_channels.actual_qty
-                                ELSE 0
-                            END
-                        ) AS UNSIGNED
+                    SUM(
+                        CASE
+                            WHEN ops_job_items.status = " . OpsJob::STATUS_PICKED . " THEN ops_job_item_channels.picked_qty
+                            WHEN ops_job_items.status >= " . OpsJob::STATUS_DELIVERED . " THEN ops_job_item_channels.actual_qty
+                            ELSE 0
+                        END
                     ) as topup_qty
                 ")
             )
             ->groupBy('vend_channels.product_id')
             ->orderBy('products.code')
-            ->having('topup_qty', '>', 0)
+            ->having('topup_qty', '<>', 0)
             ->get();
 
 
@@ -1621,7 +1629,7 @@ class OpsJobController extends Controller
                         'picked_qty' => 0, // optionally reset picked_qty too
                     ]);
 
-                    if ($channel->saved_picked_qty > 0) {
+                    if ($channel->saved_picked_qty != 0) {
                         ProductMovement::create([
                             'product_id' => $channel->product_id,
                             'type' => ProductMovement::TYPE_UNDO_PICKED,

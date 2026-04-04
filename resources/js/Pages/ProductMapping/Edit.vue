@@ -65,7 +65,7 @@
                   </label>
                   <MultiSelect
                     v-model="form.upcoming_product_mapping_id"
-                    :options="upcomingProductMappingOptions.data"
+                    :options="upcomingOptions"
                     trackBy="id"
                     valueProp="id"
                     label="name"
@@ -381,6 +381,7 @@ const operatorCountry = usePage().props.auth.operatorCountry
 const priceTypeOptions = ref([])
 const productOptions = ref([])
 const productMappingItems = ref([])
+const upcomingOptions = ref([])
 const toast = useToast()
 
 onMounted(() => {
@@ -390,6 +391,11 @@ onMounted(() => {
     ...Object.entries(props.priceTypeOptions).map(([id, name]) => ({id: id, name: name}))
   ]
   productOptions.value = props.products.data;
+
+  upcomingOptions.value = [
+    {id: '', name: '--- Clear ---'},
+    ...props.upcomingProductMappingOptions.data
+  ];
 
   productMappingItems.value = props.productMapping
   ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
@@ -479,7 +485,7 @@ function submit() {
       })),
       is_active: data.is_active.id,
       operator_id: data.operator_id?.id,
-      upcoming_product_mapping_id: data.upcoming_product_mapping_id?.id,
+      upcoming_product_mapping_id: data.upcoming_product_mapping_id ? data.upcoming_product_mapping_id.id : null,
     }))
     .post('/product-mappings/' + form.value.id + '/update', {
       onSuccess: () => {

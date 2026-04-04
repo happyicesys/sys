@@ -136,6 +136,7 @@ class ProductMappingService
                     $vendChannel->save();
                 }
             }
+            SaveVendChannelsJson::dispatch($vend->id)->onQueue('high');
         }
     }
 

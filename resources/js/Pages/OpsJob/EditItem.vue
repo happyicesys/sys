@@ -453,9 +453,12 @@
                               </span>
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
-                              <div v-if="channel.is_replaced || channel.is_return_stock" class="text-xs text-gray-500 italic py-2">
+                              <div v-if="channel.is_replaced" class="text-xs text-gray-500 italic py-2">
                                 N/A
                               </div>
+                              <select v-else-if="channel.is_return_stock" name="channel_picked" id="channel_picked_return" class="rounded text-orange-600" v-model="channel.picked">
+                                <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
+                              </select>
                               <select v-else name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                                 <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                               </select>
@@ -464,8 +467,8 @@
                               </span>
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                              <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available && !channel.is_replaced && !channel.is_return_stock" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
-                                <option v-for="n in channel.capacity + 1" :key="n-1" :value="(channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1)">{{ (channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1) }}</option>
+                              <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available && !channel.is_replaced && !channel.is_return_stock && channel.qty <= 0" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                                <option v-for="v in getRefillOptions(channel)" :key="v" :value="v">{{ v }}</option>
                               </select>
                               <span v-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
                                 <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-blue-600">
@@ -483,42 +486,52 @@
                         </td>
                         <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3">
                           <div class="flex flex-col space-y-1" v-if="opsJobItem.vendChannelRecord">
-                            <span>
-                              {{ channel.vmc_before_qty }}
-                            </span>
-                            <span>
-                              {{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}
-                            </span>
-                            <span :class="[channel.virtual_is_error && !channel.is_error_settle ? 'text-red-500' : (channel.virtual_is_error && channel.is_error_settle ? 'text-blue-500' : '')]">
-                              {{ channel.vmc_after_qty }}
-                            </span>
+                            <template v-if="!channel.is_replaced">
+                              <span>
+                                {{ channel.vmc_before_qty }}
+                              </span>
+                              <span>
+                                {{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}
+                              </span>
+                              <span :class="[channel.virtual_is_error && !channel.is_error_settle ? 'text-red-500' : (channel.virtual_is_error && channel.is_error_settle ? 'text-blue-500' : '')]">
+                                {{ channel.vmc_after_qty }}
+                              </span>
+                            </template>
+                            <template v-else>
+                              <span class="text-xs text-gray-500 italic py-2">N/A</span>
+                            </template>
                           </div>
                         </td>
                         <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
-                          <button type="button" class="rounded-full bg-red-500 p-1.5 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
-                          @click.prevent="isErrorSettleClicked(channel)"
-                          v-if="channel.virtual_is_error && !channel.is_error_settle"
-                          >
-                            <span class="text-white text-xs shadow-sm">
-                              Fix?
-                            </span>
-                          </button>
-
-                          <div class="flex flex-col space-y-1 items-center">
-                            <div
-                              class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit bg-green-500 text-white"
-                              v-if="channel.is_error_settle == 1"
+                          <template v-if="!channel.is_replaced">
+                            <button type="button" class="rounded-full bg-red-500 p-1.5 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+                            @click.prevent="isErrorSettleClicked(channel)"
+                            v-if="channel.virtual_is_error && !channel.is_error_settle"
                             >
-                              <div class="flex flex-col">
-                                  <span class="font-semibold grow-0">
-                                    Fixed
-                                  </span>
+                              <span class="text-white text-xs shadow-sm">
+                                Fix?
+                              </span>
+                            </button>
+
+                            <div class="flex flex-col space-y-1 items-center">
+                              <div
+                                class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit bg-green-500 text-white"
+                                v-if="channel.is_error_settle == 1"
+                              >
+                                <div class="flex flex-col">
+                                    <span class="font-semibold grow-0">
+                                      Fixed
+                                    </span>
+                                </div>
                               </div>
+                              <span class="text-xs text-gray-600" v-if="channel.is_error_settle && channel.error_settled_at_formatted">
+                                {{ channel.error_settled_at_formatted }}
+                              </span>
                             </div>
-                            <span class="text-xs text-gray-600" v-if="channel.is_error_settle && channel.error_settled_at_formatted">
-                              {{ channel.error_settled_at_formatted }}
-                            </span>
-                          </div>
+                          </template>
+                          <template v-else>
+                            <span class="text-xs text-gray-500 italic py-2">N/A</span>
+                          </template>
                         </td>
                       </tr>
                       <tr v-if="channels && channels.length" class="bg-gray-200 shadow-lg rounded">
@@ -727,9 +740,12 @@
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                           <div class="flex flex-col items-center justify-center">
-                            <div v-if="channel.is_replaced || channel.is_return_stock" class="text-xs text-gray-500 italic py-2">
+                            <div v-if="channel.is_replaced" class="text-xs text-gray-500 italic py-2">
                                N/A
                             </div>
+                            <select v-else-if="channel.is_return_stock" name="channel_picked" id="channel_picked_return" class="rounded w-fit text-orange-600" v-model="channel.picked">
+                              <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
+                            </select>
                             <select v-else name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                               <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                             </select>
@@ -740,8 +756,8 @@
                         </td>
 
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                          <select v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available && !channel.is_replaced && !channel.is_return_stock">
-                            <option v-for="n in channel.capacity + 1" :key="n-1" :value="(channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1)">{{ (channel.is_replaced || channel.is_return_stock) ? -(n-1) : (n-1) }}</option>
+                          <select v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available && !channel.is_replaced && !channel.is_return_stock && channel.qty <= 0">
+                            <option v-for="v in getRefillOptions(channel)" :key="v" :value="v">{{ v }}</option>
                           </select>
 
                           <span v-else-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
@@ -756,41 +772,53 @@
                           </span>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
-                          {{ channel.vmc_before_qty }}
+                          <span v-if="!channel.is_replaced">{{ channel.vmc_before_qty }}</span>
+                          <span v-else class="text-xs text-gray-500 italic">N/A</span>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
-                          {{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}
+                          <span v-if="!channel.is_replaced">{{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}</span>
+                          <span v-else class="text-xs text-gray-500 italic">N/A</span>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
-                          <span :class="[channel.virtual_is_error && !channel.is_error_settle ? 'text-red-500' : (channel.virtual_is_error && channel.is_error_settle ? 'text-blue-500' : '')]">
-                            {{ channel.vmc_after_qty }}
-                          </span>
+                          <template v-if="!channel.is_replaced">
+                            <span :class="[channel.virtual_is_error && !channel.is_error_settle ? 'text-red-500' : (channel.virtual_is_error && channel.is_error_settle ? 'text-blue-500' : '')]">
+                              {{ channel.vmc_after_qty }}
+                            </span>
+                          </template>
+                          <template v-else>
+                            <span class="text-xs text-gray-500 italic">N/A</span>
+                          </template>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
-                          <button type="button" class="rounded-full bg-red-500 p-1.5 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
-                          @click.prevent="isErrorSettleClicked(channel)"
-                          v-if="channel.virtual_is_error && !channel.is_error_settle"
-                          >
-                            <span class="text-white text-xs shadow-sm">
-                              Fix?
-                            </span>
-                          </button>
-
-                          <div class="flex flex-col space-y-1 items-center">
-                            <div
-                              class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit bg-green-500 text-white"
-                              v-if="channel.is_error_settle == 1"
+                          <template v-if="!channel.is_replaced">
+                            <button type="button" class="rounded-full bg-red-500 p-1.5 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+                            @click.prevent="isErrorSettleClicked(channel)"
+                            v-if="channel.virtual_is_error && !channel.is_error_settle"
                             >
-                              <div class="flex flex-col">
-                                  <span class="font-semibold grow-0">
-                                    Fixed
-                                  </span>
+                              <span class="text-white text-xs shadow-sm">
+                                Fix?
+                              </span>
+                            </button>
+
+                            <div class="flex flex-col space-y-1 items-center">
+                              <div
+                                class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit bg-green-500 text-white"
+                                v-if="channel.is_error_settle == 1"
+                              >
+                                <div class="flex flex-col">
+                                    <span class="font-semibold grow-0">
+                                      Fixed
+                                    </span>
+                                </div>
                               </div>
+                              <span class="text-xs text-gray-600" v-if="channel.is_error_settle && channel.error_settled_at_formatted">
+                                {{ channel.error_settled_at_formatted }}
+                              </span>
                             </div>
-                            <span class="text-xs text-gray-600" v-if="channel.is_error_settle && channel.error_settled_at_formatted">
-                              {{ channel.error_settled_at_formatted }}
-                            </span>
-                          </div>
+                          </template>
+                          <template v-else>
+                            <span class="text-xs text-gray-500 italic">N/A</span>
+                          </template>
                         </td>
                       </tr>
                       <tr v-if="channels && channels.length" class="bg-gray-200 shadow-lg rounded">
@@ -1299,7 +1327,10 @@ function loadingData() {
       pickedQty = opsJobItemChannel.picked_qty;
     } else {
       if (is_return_stock) {
-        pickedQty = 0;
+        // Restore previously saved negative qty if it exists, otherwise default to 0
+        pickedQty = (opsJobItemChannel.saved_picked_qty != null && opsJobItemChannel.saved_picked_qty <= 0)
+          ? opsJobItemChannel.saved_picked_qty
+          : 0;
       } else if (is_replaced) {
         pickedQty = -opsJobItemChannel.qty;
       } else {
@@ -1339,8 +1370,10 @@ function loadingData() {
     let refill = opsJobItemChannel.actual_qty;
     if (opsJobItem.value.status == 2 && (refill === null || refill === 0)) {
       if (is_return_stock) {
+        // Use pickedQty (the user-selected partial return) as the refill default.
+        // Fall back to full -currentQty only if pickedQty is still 0 (untouched).
         const currentQty = opsJobItemChannel.vendChannel ? opsJobItemChannel.vendChannel.qty : opsJobItemChannel.qty;
-        refill = -currentQty;
+        refill = pickedQty !== 0 ? pickedQty : -currentQty;
       } else if (is_replaced) {
         refill = -opsJobItemChannel.qty;
       } else {
@@ -1391,6 +1424,24 @@ function getDefaultForm() {
   }
 }
 
+// Refill options: original is_replaced/is_return_stock logic preserved;
+// normal channels get full range from -currentQty to +capacity so user can reduce stock.
+function getRefillOptions(channel) {
+  if (channel.is_replaced || channel.is_return_stock) {
+    // Original logic: 0 to -capacity (returning stock)
+    return Array.from({ length: channel.capacity + 1 }, (_, i) => -(i));
+  }
+  const negCount = Number(channel.qty) || 0;
+  // Unavailable products: can only withdraw (no positive restocking), cap at 0
+  const isUnavailable = channel.product && !channel.product.is_available;
+  const posCount = isUnavailable ? 0 : (Number(channel.capacity) || 0);
+  const options = [];
+  for (let v = -negCount; v <= posCount; v++) {
+    options.push(v);
+  }
+  return options;
+}
+
 // subtotals
 function getSubtotalNeeded() {
   return channels.value.filter(c => !c.is_replaced).reduce((acc, channel) => {
@@ -1437,19 +1488,19 @@ function getSubtotalVMCInventoryCount() {
 }
 
 function getSubtotalVMCBeforeQty() {
-  return channels.value.reduce((acc, channel) => {
+  return channels.value.filter(c => !c.is_replaced).reduce((acc, channel) => {
     return acc + Number(channel.vmc_before_qty);
   }, 0);
 }
 
 function getSubtotalVMCAfterQty() {
-  return channels.value.reduce((acc, channel) => {
+  return channels.value.filter(c => !c.is_replaced).reduce((acc, channel) => {
     return acc + Number(channel.vmc_after_qty);
   }, 0);
 }
 
 function getSubtotalVMCQty() {
-  return channels.value.reduce((acc, channel) => {
+  return channels.value.filter(c => !c.is_replaced).reduce((acc, channel) => {
     return acc + (Number(channel.vmc_after_qty) - Number(channel.vmc_before_qty));
   }, 0);
 }

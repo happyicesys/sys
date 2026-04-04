@@ -244,6 +244,9 @@
                                 Machine Prefix
                               </span>
                               <span>
+                                Mapping
+                              </span>
+                              <span>
                                 Job ID#
                               </span>
                               <span>
@@ -340,6 +343,9 @@
                               <span>
                                 {{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }}
                               </span>
+                              <span class="text-xs text-gray-500 font-medium whitespace-normal break-words max-w-24">
+                                {{ opsJobItem.vend && opsJobItem.vend.productMapping ? opsJobItem.vend.productMapping.name : '' }}
+                              </span>
                               <div>
                                 <!-- <Button
                                   class="bg-indigo-400 hover:bg-indigo-500 text-white text-xs font-medium"
@@ -410,7 +416,7 @@
                               </div>
                               <span>
                                 <span v-if="opsJobItem.customer && opsJobItem.customer.person_id">
-                                    {{ opsJobItem.customer.virtual_customer_code }} ({{ opsJobItem.customer.virtual_customer_prefix }})
+                                    {{ opsJobItem.customer.virtual_customer_code }} ({{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }})
                                     <br>
                                     {{ opsJobItem.customer.name }}
                                 </span>
