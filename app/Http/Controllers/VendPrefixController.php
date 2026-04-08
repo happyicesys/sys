@@ -248,23 +248,22 @@ class VendPrefixController extends Controller
                 continue;
             }
 
-            // Sync the pivot table (product_mapping_product_mapping)
-            $syncIds = $upcomingProductMappingId && $upcomingProductMappingId > 0
-                ? [$upcomingProductMappingId]
-                : [];
+            // Guard: upcoming mapping must not point to itself
+            $resolvedUpcomingId = ($upcomingProductMappingId && $upcomingProductMappingId > 0 && $upcomingProductMappingId !== $productMappingId)
+                ? $upcomingProductMappingId
+                : null;
 
+            // Sync the pivot table (product_mapping_product_mapping)
+            $syncIds = $resolvedUpcomingId ? [$resolvedUpcomingId] : [];
             $productMapping->upcomingProductMappings()->sync($syncIds);
 
             // Cascade: also directly set upcoming_product_mapping_id on the ProductMapping model
-            // VendPrefix's upcoming mapping overrides ProductMapping's own upcoming_product_mapping_id
-            $productMapping->upcoming_product_mapping_id = $upcomingProductMappingId && $upcomingProductMappingId > 0
-                ? $upcomingProductMappingId
-                : null;
+            $productMapping->upcoming_product_mapping_id = $resolvedUpcomingId;
             $productMapping->save();
 
             // Cascade to all bound vends as well
             foreach ($productMapping->vends as $vend) {
-                $vend->upcoming_product_mapping_id = $productMapping->upcoming_product_mapping_id;
+                $vend->upcoming_product_mapping_id = $resolvedUpcomingId;
                 $vend->save();
             }
         }
