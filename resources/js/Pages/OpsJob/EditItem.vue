@@ -479,7 +479,9 @@
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                               <span :class="[channel.product && channel.product.is_available ? (opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900') : 'text-gray-400']">
                                 <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
-                                {{ channel.qty }}
+                                <span :class="[(opsJobItem.status == 2 && channel.refill != 0) ? 'font-bold text-blue-600 transition-colors duration-300' : 'transition-colors duration-300']">
+                                  {{ Number(channel.qty) + (opsJobItem.status < 3 ? Number(channel.refill) : 0) }}
+                                </span>
                               </span>
                             </div>
                           </div>
@@ -767,8 +769,8 @@
                         <td
                           class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 2"
                           >
-                          <span>
-                            {{ channel.qty }}
+                          <span :class="[(opsJobItem.status == 2 && channel.refill != 0) ? 'font-bold text-blue-600 transition-colors duration-300' : 'transition-colors duration-300']">
+                            {{ Number(channel.qty) + (opsJobItem.status < 3 ? Number(channel.refill) : 0) }}
                           </span>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">

@@ -343,13 +343,24 @@ class ProductMappingController extends Controller
     {
         $request->validate([
             'name' => 'required',
-
+            'upcoming_product_mapping_id' => [
+                'nullable',
+                'not_in:' . $productMappingId,
+            ],
+        ], [
+            'upcoming_product_mapping_id.not_in' => 'Upcoming product mapping cannot be the same as the current product mapping.',
         ]);
         // $request->merge([
         //     'is_active' => filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN),
         // ]);
         $productMapping = ProductMapping::findOrFail($productMappingId);
         $productMapping->fill($request->all());
+
+        // Normalise empty string → null so the relationship is truly cleared
+        // (the frontend sends '' when the user picks "--- Clear ---")
+        if (empty($request->upcoming_product_mapping_id)) {
+            $productMapping->upcoming_product_mapping_id = null;
+        }
 
         if ($request->productMappingItems) {
             $productMapping->productMappingItems()->delete();
