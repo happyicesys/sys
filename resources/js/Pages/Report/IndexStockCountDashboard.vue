@@ -274,9 +274,16 @@ const qtyOptions = ref({
   scales: {
     x: { ticks: { min: 1, max: 31, stepSize: 1 } },
     y: { position: 'left', title: { display: true, text: 'Quantity (#)' }, beginAtZero: true },
+    y2: {
+      position: 'right',
+      title: { display: true, text: 'Machine Stock Balance (%)' },
+      min: 0,
+      max: 100,
+      grid: { drawOnChartArea: false },
+    },
   },
   plugins: {
-    title: { display: true, text: 'Stock Qty in Machine vs Warehouse by Day' },
+    title: { display: true, text: 'Stock Qty in Machine; Stock Qty in Warehouse; Machine Stock Balance %, by Day' },
     legend: { reverse: false },
     tooltip: {
       callbacks: {
@@ -414,6 +421,7 @@ function syncData() {
       type: 'bar',
       borderColor: hexToRGBA(warehouseColor, isCurrent ? 1 : 0.4),
       backgroundColor: hexToRGBA(warehouseColor, isCurrent ? 1 : 0.4),
+      yAxisID: 'y',
       spanGaps: false,
     })
 
@@ -424,6 +432,28 @@ function syncData() {
       borderColor: hexToRGBA(machineColor, isCurrent ? 1 : 0.4),
       backgroundColor: hexToRGBA(machineColor, isCurrent ? 1 : 0.4),
       borderWidth: 3,
+      tension: 0.25,
+      yAxisID: 'y',
+      spanGaps: false,
+    })
+
+    // Machine Stock Balance % on secondary axis
+    const balancePct = Array.from({ length: 31 }, (_, d) =>
+      monthRows.find(r => +r.day === d + 1)?.balance_percent ?? null
+    ).map(v => v == null ? null : Number(v))
+
+    const balanceColor = isCurrent ? '#ef4444' : '#3b82f6'   // red (current) / blue (prev)
+    qtyDatasets.value.push({
+      label: `${month} Machine Stock Balance %`,
+      data: balancePct,
+      type: 'line',
+      yAxisID: 'y2',
+      borderColor: hexToRGBA(balanceColor, isCurrent ? 1 : 0.7),
+      backgroundColor: hexToRGBA(balanceColor, isCurrent ? 0.15 : 0.1),
+      borderWidth: 2,
+      borderDash: [6, 4],
+      pointRadius: 3,
+      pointHoverRadius: 6,
       tension: 0.25,
       spanGaps: false,
     })

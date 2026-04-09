@@ -2016,6 +2016,105 @@ class ReportController extends Controller
             ->get()
             ->keyBy('d');
 
+        // ---- Balance % per day (average across all vends) ----
+        // Per vend per day: SUM(qty_vend) / vend_capacity * 100
+        // Vend capacity from current active vend_channels (capacity > 0)
+        $vendCapacitySub = DB::table('vend_channels')
+            ->where('is_active', true)
+            ->where('capacity', '>', 0)
+            ->groupBy('vend_id')
+            ->selectRaw('vend_id, SUM(capacity) as total_capacity');
+
+        // Rebuild filters for per-vend-per-day balance % subquery
+        $perVendPerDay = DB::table('stock_count_items as sci2')
+            ->join('stock_counts as sc2', 'sc2.id', '=', 'sci2.stock_count_id')
+            ->joinSub($vendCapacitySub, 'vc', 'vc.vend_id', '=', 'sc2.vend_id')
+            ->when($request->operators, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true))
+                    $q->whereIn('sc2.operator_id', $ids);
+            })
+            ->when($request->vendPrefixes, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    if (in_array('single-ud', $ids, true)) {
+                        $ids = array_unique(array_merge($ids, [56, 57, 58, 60, 63, 64, 76, 83]));
+                        $ids = array_values(array_diff($ids, ['single-ud']));
+                    }
+                    $q->whereIn('sc2.vend_prefix_id', $ids);
+                }
+            })
+            ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
+                if ($val !== 'all')
+                    $q->whereIn('sc2.location_type_id', (array) $val);
+            })
+            ->when($request->codes, function ($q, $codes) {
+                $codes = is_string($codes) ? array_values(array_filter(array_map('trim', explode(',', $codes)))) : (array) $codes;
+                $q->whereExists(function ($sq) use ($codes) {
+                    $sq->from('vends as v2')->whereColumn('v2.id', 'sc2.vend_id');
+                    if (count($codes) > 1)
+                        $sq->whereIn('v2.code', $codes);
+                    elseif (count($codes) === 1)
+                        $sq->where('v2.code', 'LIKE', '%' . $codes[0] . '%');
+                });
+            })
+            ->when($request->customer, function ($q, $search) {
+                $q->where(function ($query) use ($search) {
+                    $query->whereExists(function ($sq) use ($search) {
+                        $sq->from('customers as c2')
+                            ->whereColumn('c2.id', 'sc2.customer_id')
+                            ->where(function ($sub) use ($search) {
+                                $sub->where('c2.virtual_customer_code', 'LIKE', "{$search}%")
+                                    ->orWhere('c2.name', 'LIKE', "%{$search}%");
+                            });
+                    })
+                    ->orWhereExists(function ($sq) use ($search) {
+                        $sq->from('vend_prefixes as vp2')
+                            ->whereColumn('vp2.id', 'sc2.vend_prefix_id')
+                            ->where('vp2.name', 'LIKE', "{$search}%");
+                    });
+                });
+            });
+
+        $dateSql2 = "DATE(CONCAT(sc2.year,'-',LPAD(sc2.month,2,'0'),'-',LPAD(sc2.day,2,'0')))";
+        // Inline date range filter (applyStockCountDateRange hardcodes sc. alias; here we need sc2.)
+        $fromYear2 = (int) $from->year; $fromMonth2 = (int) $from->month; $fromDay2 = (int) $from->day;
+        $toYear2   = (int) $to->year;   $toMonth2   = (int) $to->month;   $toDay2   = (int) $to->day;
+        $perVendPerDay = $perVendPerDay->where(function ($between) use ($fromYear2, $fromMonth2, $fromDay2, $toYear2, $toMonth2, $toDay2) {
+            $between
+                ->where(function ($lower) use ($fromYear2, $fromMonth2, $fromDay2) {
+                    $lower->where('sc2.year', '>', $fromYear2)
+                        ->orWhere(function ($e) use ($fromYear2, $fromMonth2) {
+                            $e->where('sc2.year', $fromYear2)->where('sc2.month', '>', $fromMonth2);
+                        })
+                        ->orWhere(function ($e) use ($fromYear2, $fromMonth2, $fromDay2) {
+                            $e->where('sc2.year', $fromYear2)->where('sc2.month', $fromMonth2)->where('sc2.day', '>=', $fromDay2);
+                        });
+                })
+                ->where(function ($upper) use ($toYear2, $toMonth2, $toDay2) {
+                    $upper->where('sc2.year', '<', $toYear2)
+                        ->orWhere(function ($e) use ($toYear2, $toMonth2) {
+                            $e->where('sc2.year', $toYear2)->where('sc2.month', '<', $toMonth2);
+                        })
+                        ->orWhere(function ($e) use ($toYear2, $toMonth2, $toDay2) {
+                            $e->where('sc2.year', $toYear2)->where('sc2.month', $toMonth2)->where('sc2.day', '<=', $toDay2);
+                        });
+                });
+        })
+            ->groupBy(DB::raw($dateSql2), 'sc2.vend_id')
+            ->selectRaw("$dateSql2 as d")
+            ->selectRaw('sc2.vend_id')
+            ->selectRaw('SUM(sci2.qty_vend) as vend_qty')
+            ->selectRaw('MAX(vc.total_capacity) as vend_capacity')
+            ->selectRaw('CASE WHEN MAX(vc.total_capacity) > 0 THEN ROUND(SUM(sci2.qty_vend) / MAX(vc.total_capacity) * 100, 2) ELSE NULL END as vend_balance_pct');
+
+        $balanceRows = DB::query()
+            ->fromSub($perVendPerDay, 'pvd')
+            ->whereNotNull('pvd.vend_balance_pct')
+            ->groupBy('d')
+            ->selectRaw('d')
+            ->selectRaw('ROUND(AVG(vend_balance_pct), 2) as avg_balance_pct')
+            ->get()
+            ->keyBy('d');
+
         // Build continuous daily series
         $series = [];
         $cursor = $from->copy();
@@ -2026,6 +2125,7 @@ class ReportController extends Controller
             $day = (int) $cursor->day;
 
             $row = $rows->get($d);
+            $balanceRow = $balanceRows->get($d);
             $series[] = (object) [
                 'date' => $d,
                 'day' => $day,
@@ -2034,6 +2134,7 @@ class ReportController extends Controller
                 'year' => $y,
                 'machine_qty' => $row?->machine_qty ?? 0,
                 'warehouse_qty' => $row?->warehouse_qty ?? 0,
+                'balance_percent' => $balanceRow?->avg_balance_pct ?? null,
             ];
 
             $cursor->addDay();

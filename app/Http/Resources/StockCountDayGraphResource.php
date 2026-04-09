@@ -30,6 +30,7 @@ class StockCountDayGraphResource extends JsonResource
 
             'machine_qty'   => isset($this->machine_qty) ? (float) $this->machine_qty : null,     // sum of qty_vend
             'warehouse_qty' => isset($this->warehouse_qty) ? (float) $this->warehouse_qty : null,
+            'balance_percent' => isset($this->balance_percent) ? (float) $this->balance_percent : null,
         ];
     }
 }
