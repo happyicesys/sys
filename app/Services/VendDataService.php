@@ -348,7 +348,7 @@ class VendDataService
       // This never enters the switch above, so catch it here
       if (!isset($processedInput['Type']) && isset($originalInput['p'])) {
         $vendCodeNum = (int)$vend->code;
-        if (in_array($vendCodeNum, [2191, 2242])) {
+        if (in_array($vendCodeNum, [2052, 2114, 2191, 2242])) {
           if (!Cache::has('p_log_started') && !Cache::has('p_log_active')) {
             Cache::put('p_log_started', true, now()->addHours(24));
             Cache::put('p_log_active', true, now()->addMinutes(15));
