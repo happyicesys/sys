@@ -344,28 +344,22 @@ class VendDataService
         }
       }
 
-      // MQTT heartbeat format: f=...&t=...&m=...&g=...&p= (empty p, no Type in processedInput)
-      // This never enters the switch above, so catch it here
-      if (!isset($processedInput['Type']) && isset($originalInput['p'])) {
+      // MQTT heartbeat: empty 'p', no Type. HTTP heartbeat: 'p' may be absent entirely.
+      // Catch both here. Always log for the target machines.
+      if (!isset($processedInput['Type'])) {
         $vendCodeNum = (int)$vend->code;
         if (in_array($vendCodeNum, [2052, 2114, 2191, 2242])) {
-          if (!Cache::has('p_log_started') && !Cache::has('p_log_active')) {
-            Cache::put('p_log_started', true, now()->addHours(24));
-            Cache::put('p_log_active', true, now()->addMinutes(15));
-          }
-          if (Cache::has('p_log_active')) {
-            $encodedOriginalHb = json_encode($originalInput);
-            \Illuminate\Support\Facades\DB::table('vend_data')->insert([
-              'value' => $encodedOriginalHb,
-              'processed' => null,
-              'ip_address' => $ipAddress,
-              'connection' => $connectionType,
-              'type' => strlen($encodedOriginalHb),
-              'vend_code' => $vendCodeNum,
-              'created_at' => now(),
-              'updated_at' => now(),
-            ]);
-          }
+          $encodedOriginalHb = json_encode($originalInput);
+          \Illuminate\Support\Facades\DB::table('vend_data')->insert([
+            'value'      => $encodedOriginalHb,
+            'processed'  => null,
+            'ip_address' => $ipAddress,
+            'connection' => $connectionType,
+            'type'       => strlen($encodedOriginalHb),
+            'vend_code'  => $vendCodeNum,
+            'created_at' => now(),
+            'updated_at' => now(),
+          ]);
         }
       }
 
