@@ -367,6 +367,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/items/{itemID}/undo-cash-collected', [OpsJobController::class, 'undoItemCashCollected']);
         Route::post('/qty-list/status/{status}', [OpsJobController::class, 'qtyList']);
         Route::post('/{id}/sequence', [OpsJobController::class, 'saveSequence']);
+        Route::post('/items/{itemID}/sync-channels', [OpsJobController::class, 'syncItemChannels']);
     });
 
     Route::prefix('reports')->group(function () {

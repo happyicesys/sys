@@ -305,36 +305,20 @@ class VendDataService
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'P':
-            $vendCodeNum = (int)$vend->code;
-            if ($vendCodeNum == 2003) {
-              // p_log_started = one-shot guard (24h), prevents restarts after 15-min window expires
-              // p_log_active  = the actual 15-min recording window
-              if (!Cache::has('p_log_started') && !Cache::has('p_log_active')) {
-                Cache::put('p_log_started', true, now()->addHours(24));
-                Cache::put('p_log_active', true, now()->addMinutes(15));
-              }
-              if (Cache::has('p_log_active')) {
-                $encodedOriginal = json_encode($originalInput);
-                $pLogData = [
-                  'value' => $encodedOriginal,
-                  'processed' => json_encode($processedInput),
-                  'ip_address' => $ipAddress,
-                  'connection' => $connectionType,
-                  'type' => strlen($encodedOriginal),
-                  'vend_code' => $vendCodeNum,
-                  'created_at' => now(),
-                  'updated_at' => now(),
-                ];
-                // HTTP: defer write until after response is sent back to machine
-                // MQTT: write directly — app()->terminating() never fires in CLI loop
-                if ($connectionType === 'mqtt') {
-                  \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
-                } else {
-                  app()->terminating(function () use ($pLogData) {
-                    \Illuminate\Support\Facades\DB::table('vend_data')->insert($pLogData);
-                  });
-                }
-              }
+            $vendCodeNum = (int) $vend->code;
+            // Type 'P' is also considered a heartbeat for target machines
+            if (in_array($vendCodeNum, [2052, 2114, 2191, 2242])) {
+              $encodedOriginalHb = json_encode($originalInput);
+              \Illuminate\Support\Facades\DB::table('vend_data')->insert([
+                'value' => $encodedOriginalHb,
+                'processed' => null,
+                'ip_address' => $ipAddress,
+                'connection' => $connectionType,
+                'type' => strlen($encodedOriginalHb),
+                'vend_code' => $vendCodeNum,
+                'created_at' => now(),
+                'updated_at' => now(),
+              ]);
             }
             SyncP::dispatch($processedInput, $vend)->onQueue('default');
             $saveVendData = false;
@@ -347,16 +331,16 @@ class VendDataService
       // MQTT heartbeat: empty 'p', no Type. HTTP heartbeat: 'p' may be absent entirely.
       // Catch both here. Always log for the target machines.
       if (!isset($processedInput['Type'])) {
-        $vendCodeNum = (int)$vend->code;
+        $vendCodeNum = (int) $vend->code;
         if (in_array($vendCodeNum, [2052, 2114, 2191, 2242])) {
           $encodedOriginalHb = json_encode($originalInput);
           \Illuminate\Support\Facades\DB::table('vend_data')->insert([
-            'value'      => $encodedOriginalHb,
-            'processed'  => null,
+            'value' => $encodedOriginalHb,
+            'processed' => null,
             'ip_address' => $ipAddress,
             'connection' => $connectionType,
-            'type'       => strlen($encodedOriginalHb),
-            'vend_code'  => $vendCodeNum,
+            'type' => strlen($encodedOriginalHb),
+            'vend_code' => $vendCodeNum,
             'created_at' => now(),
             'updated_at' => now(),
           ]);

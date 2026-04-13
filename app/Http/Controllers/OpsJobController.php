@@ -931,6 +931,14 @@ class OpsJobController extends Controller
 
     public function edit(Request $request, $id)
     {
+        // Sync channels for all pending OpsJobItems before loading the page
+        OpsJobItem::where('ops_job_id', $id)
+            ->where('status', OpsJob::STATUS_PENDING)
+            ->get()
+            ->each(function ($opsJobItem) {
+                $this->syncPendingItemChannels($opsJobItem);
+            });
+
         $opsJob = OpsJob::query()
             ->with([
                 'createdBy:id,name', // Select only necessary columns
@@ -1214,6 +1222,13 @@ class OpsJobController extends Controller
     public function editItem(Request $request, $id)
     {
         $opsJob = OpsJobItem::findOrFail($id)->opsJob;
+
+        // Sync channels from latest vend_channels if item is still pending
+        $pendingCheck = OpsJobItem::where('id', $id)->where('status', OpsJob::STATUS_PENDING)->first();
+        if ($pendingCheck) {
+            $this->syncPendingItemChannels($pendingCheck);
+        }
+
         $opsJobItem = OpsJobItem::query()
             ->with([
                 'vend:id,customer_id,code,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id',
@@ -1979,6 +1994,63 @@ class OpsJobController extends Controller
         //     'next_invoice_date' => $opsJobItem->opsJob->date,
         //     'next_invoice_driver_id' => $opsJobItem->opsJob->delivered_by,
         // ]);
+    }
+
+    /**
+     * Sync the ops_job_item_channels for a pending OpsJobItem
+     * from the latest vend_channels. Only runs for STATUS_PENDING items.
+     * For items with a stock_action_type (implement_new_mapping / return_stock),
+     * the base channels are rebuilt first, then the action logic is re-applied on top.
+     */
+    private function syncPendingItemChannels(OpsJobItem $opsJobItem): void
+    {
+        if ($opsJobItem->status != OpsJob::STATUS_PENDING) {
+            return;
+        }
+
+        $vend = Vend::with('vendChannels')->find($opsJobItem->vend_id);
+        if (!$vend) {
+            return;
+        }
+
+        // Delete ALL existing channels (including any is_upcoming_product rows)
+        // and recreate base channels from latest vend_channels
+        $opsJobItem->opsJobItemChannels()->delete();
+
+        foreach ($vend->vendChannels as $vendChannel) {
+            $opsJobItem->opsJobItemChannels()->create([
+                'amount'            => $vendChannel->amount,
+                'ops_job_id'        => $opsJobItem->ops_job_id,
+                'product_id'        => $vendChannel->product_id ?? 0,
+                'vend_channel_code' => $vendChannel->code,
+                'vend_channel_id'   => $vendChannel->id,
+                'vend_code'         => $vend->code,
+                'actual_qty'        => 0,
+                'capacity'          => $vendChannel->capacity,
+                'picked_qty'        => 0,
+            ]);
+        }
+
+        // Re-apply the stock action logic on top of the fresh base channels
+        if ($opsJobItem->stock_action_type === 'implement_new_mapping') {
+            $this->applyNewMappingToItem($opsJobItem);
+        } elseif ($opsJobItem->stock_action_type === 'return_stock') {
+            $this->applyReturnStockToItem($opsJobItem);
+        }
+    }
+
+    /**
+     * Explicitly sync channels for a pending OpsJobItem (POST endpoint).
+     */
+    public function syncItemChannels(Request $request, $itemID)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($itemID);
+
+        if ($opsJobItem->status == OpsJob::STATUS_PENDING) {
+            $this->syncPendingItemChannels($opsJobItem);
+        }
+
+        return redirect()->back()->with('success', 'Channels synced successfully.');
     }
 
     private function generateUniqueOpsJobCode(string $errorField): string
