@@ -128,6 +128,7 @@ class ReportController extends Controller
         //     $request->merge(['date_to' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
         // }
 
+        $shouldAutoload = $request->boolean('autoload', false);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'amount';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
@@ -155,16 +156,23 @@ class ReportController extends Controller
                 break;
         }
 
-        $items = $this->getSalesQuery($request, $modelName);
-        $totals = $this->getSalesReportTotals($items);
-        $items = $items->when($request->sortKey, function ($query, $search) use ($request) {
-            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
-        });
-
-        $items = $items->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-            ->withQueryString();
+        if ($shouldAutoload) {
+            $items = $this->getSalesQuery($request, $modelName);
+            $totals = $this->getSalesReportTotals($items);
+            $items = $items->when($request->sortKey, function ($query, $search) use ($request) {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+            });
+            $items = $items->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                ->withQueryString();
+        } else {
+            $items = new LengthAwarePaginator([], 0, $numberPerPage, 1, [
+                'path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(),
+            ]);
+            $totals = ['total_count' => 0, 'total_amount' => 0.0];
+        }
 
         return Inertia::render('Report/Sales/Index', [
+            'autoLoad' => $shouldAutoload,
             'categories' => CategoryResource::collection(
                 Category::where('classname', $categoryClassName)->orderBy('name')->get()
             ),

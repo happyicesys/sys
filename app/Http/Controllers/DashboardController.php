@@ -44,33 +44,45 @@ class DashboardController extends Controller
     {
         $this->setDefaultOperators($request);
 
-        // Fetch testing vend IDs once and reuse across all queries
-        $testingVendIds = \DB::table('vends')
-            ->where('is_testing', true)
-            ->pluck('id')
-            ->toArray();
+        $shouldAutoload = $request->boolean('autoload', false);
 
         $bestPerformerLimit = (int) $request->input('best_performer_limit', $request->input('performer_limit', 20));
         $bestPerformerLimit = max(1, min(50, $bestPerformerLimit));
         $worstPerformerLimit = (int) $request->input('worst_performer_limit', 20);
         $worstPerformerLimit = max(1, min(50, $worstPerformerLimit));
-        $dayGraph = $this->getDayGraph($request, $testingVendIds);
-        $productGraph = $this->getProductGraph($request);
-        $bestPerformer = $this->getBestPerformer($request, $bestPerformerLimit, $testingVendIds);
-        $worstPerformer = $this->getWorstPerformer($request, $worstPerformerLimit, $testingVendIds);
-        $vendCount = $this->getVendCount($request, $testingVendIds);
-        $monthGraphData = $this->getMonthGraphData($request, $testingVendIds);
-        // $monthGraphData = Cache::remember(
-        //     'month_graph_data_' . auth()->id(),
-        //     300, // cache duration in seconds (5 minutes)
-        //     fn () => $this->getMonthGraphData($request)
-        // );
 
-        $activeMachineGraphData = $this->getActiveMachineGraphData($request, $testingVendIds);
-        $monthlyAnalytics = $this->getMonthlyAnalytics($request);
+        if ($shouldAutoload) {
+            // Fetch testing vend IDs once and reuse across all queries
+            $testingVendIds = \DB::table('vends')
+                ->where('is_testing', true)
+                ->pluck('id')
+                ->toArray();
+
+            $dayGraph = $this->getDayGraph($request, $testingVendIds);
+            $productGraph = $this->getProductGraph($request);
+            $bestPerformer = $this->getBestPerformer($request, $bestPerformerLimit, $testingVendIds);
+            $worstPerformer = $this->getWorstPerformer($request, $worstPerformerLimit, $testingVendIds);
+            $vendCount = $this->getVendCount($request, $testingVendIds);
+            $monthGraphData = $this->getMonthGraphData($request, $testingVendIds);
+            $activeMachineGraphData = $this->getActiveMachineGraphData($request, $testingVendIds);
+            $monthlyAnalytics = $this->getMonthlyAnalytics($request);
+            $salesComparisonGraphData = $this->getSalesComparisonGraph($request, $testingVendIds);
+        } else {
+            $emptyCollection = collect([]);
+            $dayGraph = $emptyCollection;
+            $productGraph = $emptyCollection;
+            $bestPerformer = $emptyCollection;
+            $worstPerformer = $emptyCollection;
+            $vendCount = 0;
+            $monthGraphData = [];
+            $activeMachineGraphData = [];
+            $monthlyAnalytics = [];
+            $salesComparisonGraphData = [];
+        }
 
         return Inertia::render('Dashboard', [
             'activeMachineGraphData' => $activeMachineGraphData,
+            'autoLoad' => $shouldAutoload,
             'dayGraphData' => VendTransactionGraphResource::collection($dayGraph),
             'locationTypeOptions' => OptionResource::collection(
                 LocationType::toBase()->select('id', 'name')->orderBy('sequence')->get()
@@ -93,7 +105,7 @@ class DashboardController extends Controller
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),
-            'salesComparisonGraphData' => $this->getSalesComparisonGraph($request, $testingVendIds),
+            'salesComparisonGraphData' => $salesComparisonGraphData,
         ]);
     }
 

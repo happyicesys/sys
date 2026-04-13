@@ -138,7 +138,11 @@
                     </div>
 
 
-                    <div class="p-1 py-4 bg-white border-b border-gray-200 flex flex-col space-y-6">
+                    <div v-if="!hasSearched" class="mt-2 mb-4 mx-4 rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
+                        Use the available filters and click <span class="font-semibold">Search</span> to load performance data.
+                    </div>
+
+                    <div v-if="hasSearched" class="p-1 py-4 bg-white border-b border-gray-200 flex flex-col space-y-6">
                         <p class="text-center p-2">
                             {{ (filters && filters.operator ? filters.operator.name : operator.name)  }}
                         </p>
@@ -530,6 +534,7 @@
 
     const props = defineProps({
         activeMachineGraphData: Object,
+        autoLoad: Boolean,
         dayGraphData: Object,
         locationTypeOptions: Object,
         monthGraphData: Object,
@@ -589,7 +594,8 @@
     const operatorCountry = usePage().props.auth.operatorCountry
     const operatorOptions = ref([])
     const permissions = usePage().props.auth.permissions
-    const showFilters = ref(false)
+    const hasSearched = ref(props.autoLoad ?? false)
+    const showFilters = ref(!hasSearched.value)
     const tabs = ref([
         { name: 'Location Type', slug: 'location-type', current: true, href: '#' },
         { name: 'Operator', slug: 'operator', current: false, href: '#' },
@@ -958,7 +964,9 @@
 			...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	    ]
         generateMonthYearOptions();
-        syncDashboardData()
+        if (props.autoLoad) {
+            syncDashboardData()
+        }
     })
 
     onMounted(() => {
@@ -1002,6 +1010,7 @@
         return {
             ...filters.value,
             ...overrides,
+            autoload: true,
             locationType: locationType && locationType.id ? locationType.id : '',
             location_type_id: locationType && locationType.id ? locationType.id : '',
             operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
@@ -1027,6 +1036,7 @@
                     //     preserveState: true,
                     //     preserveScroll: true,
                     // })
+                    hasSearched.value = true
                     syncDashboardData()
                 },
             }

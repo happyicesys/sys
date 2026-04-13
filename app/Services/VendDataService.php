@@ -7,19 +7,19 @@ use App\Models\ModemUnit;
 use App\Models\Scopes\OperatorCustomerFilterScope;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
-use App\Models\VendData;
-use App\Models\VendJob;
+// use App\Models\VendData;
+// use App\Models\VendJob;
 use App\Jobs\PublishMqtt;
 use App\Jobs\SendHttpDataToLogServer;
 use App\Jobs\SyncAcbVmcPa;
 use App\Jobs\SyncAcbStatus;
-use App\Jobs\SyncDeliveryPlatformMenu;
-use App\Jobs\SyncIsMqttVend;
+// use App\Jobs\SyncDeliveryPlatformMenu;
+// use App\Jobs\SyncIsMqttVend;
 use App\Jobs\SyncP;
 use App\Jobs\UpdateHttpLastUpdated;
 use App\Jobs\UpdateModemLastUpdated;
 use App\Jobs\CreateVendData;
-use App\Jobs\Vend\CreateVendStatistics;
+// use App\Jobs\Vend\CreateVendStatistics;
 use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
@@ -32,7 +32,7 @@ use App\Jobs\Vend\UpdateVendStatistics;
 use App\Jobs\Vend\SyncFeatureApkSetting;
 use App\Jobs\Vend\SyncJobApkSetting;
 use Carbon\Carbon;
-use PhpMqtt\Client\Facades\MQTT;
+// use PhpMqtt\Client\Facades\MQTT;
 use Illuminate\Support\Facades\Cache;
 
 class VendDataService
@@ -212,7 +212,7 @@ class VendDataService
   {
     $response = isset($originalInput['f']) ? $originalInput['f'] . ',4,MQ==' : true;
     $saveVendData = true;
-    $requiredMd5 = false;
+    // $requiredMd5 = false;
 
     if (isset($originalInput['m'])) {
       // Optimize query by removing global scope (runs in unauthenticated context)
@@ -307,19 +307,19 @@ class VendDataService
           case 'P':
             $vendCodeNum = (int) $vend->code;
             // Type 'P' is also considered a heartbeat for target machines
-            if (in_array($vendCodeNum, [2052, 2114, 2191, 2242])) {
-              $encodedOriginalHb = json_encode($originalInput);
-              \Illuminate\Support\Facades\DB::table('vend_data')->insert([
-                'value' => $encodedOriginalHb,
-                'processed' => null,
-                'ip_address' => $ipAddress,
-                'connection' => $connectionType,
-                'type' => strlen($encodedOriginalHb),
-                'vend_code' => $vendCodeNum,
-                'created_at' => now(),
-                'updated_at' => now(),
-              ]);
-            }
+            // if (in_array($vendCodeNum, [2052, 2114, 2191, 2242])) {
+            //   $encodedOriginalHb = json_encode($originalInput);
+            //   \Illuminate\Support\Facades\DB::table('vend_data')->insert([
+            //     'value' => $encodedOriginalHb,
+            //     'processed' => null,
+            //     'ip_address' => $ipAddress,
+            //     'connection' => $connectionType,
+            //     'type' => strlen($encodedOriginalHb),
+            //     'vend_code' => $vendCodeNum,
+            //     'created_at' => now(),
+            //     'updated_at' => now(),
+            //   ]);
+            // }
             SyncP::dispatch($processedInput, $vend)->onQueue('default');
             $saveVendData = false;
             break;
@@ -330,22 +330,22 @@ class VendDataService
 
       // MQTT heartbeat: empty 'p', no Type. HTTP heartbeat: 'p' may be absent entirely.
       // Catch both here. Always log for the target machines.
-      if (!isset($processedInput['Type'])) {
-        $vendCodeNum = (int) $vend->code;
-        if (in_array($vendCodeNum, [2052, 2114, 2191, 2242])) {
-          $encodedOriginalHb = json_encode($originalInput);
-          \Illuminate\Support\Facades\DB::table('vend_data')->insert([
-            'value' => $encodedOriginalHb,
-            'processed' => null,
-            'ip_address' => $ipAddress,
-            'connection' => $connectionType,
-            'type' => strlen($encodedOriginalHb),
-            'vend_code' => $vendCodeNum,
-            'created_at' => now(),
-            'updated_at' => now(),
-          ]);
-        }
-      }
+      // if (!isset($processedInput['Type'])) {
+      //   $vendCodeNum = (int) $vend->code;
+      //   if (in_array($vendCodeNum, [2052, 2114, 2191, 2242])) {
+      //     $encodedOriginalHb = json_encode($originalInput);
+      //     \Illuminate\Support\Facades\DB::table('vend_data')->insert([
+      //       'value' => $encodedOriginalHb,
+      //       'processed' => null,
+      //       'ip_address' => $ipAddress,
+      //       'connection' => $connectionType,
+      //       'type' => strlen($encodedOriginalHb),
+      //       'vend_code' => $vendCodeNum,
+      //       'created_at' => now(),
+      //       'updated_at' => now(),
+      //     ]);
+      //   }
+      // }
 
       if ($connectionType == 'http') {
         UpdateHttpLastUpdated::dispatch($vend->id)->onQueue('default');

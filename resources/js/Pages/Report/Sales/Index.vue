@@ -257,7 +257,11 @@
         </div>
       </div>
 
-      <div class="mt-6 flex flex-col">
+      <div v-if="!hasSearched" class="mt-4 rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
+        Use the available filters and click <span class="font-semibold">Search</span> to load sales data.
+      </div>
+
+      <div v-if="hasSearched" class="mt-6 flex flex-col">
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll m-2">
             <table class="min-w-full border-separate" style="border-spacing: 0">
@@ -369,6 +373,7 @@ import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import { ref, onMounted, computed, watch } from 'vue';
 
 const props = defineProps({
+  autoLoad: Boolean,
   categories: Object,
   categoryGroups: Object,
   items: Object,
@@ -405,6 +410,7 @@ const filters = ref({
   visited: false,
 })
 const booleanOptions = ref([])
+const hasSearched = ref(props.autoLoad ?? false)
 const loading = ref(false)
 const locationTypeOptions = ref([])
 const reportDateOptions = ref([])
@@ -512,6 +518,7 @@ onMounted(() => {
 function onSearchFilterUpdated() {
   router.get(currentUrl.value, {
       ...filters.value,
+      autoload: true,
       currentFilterDate: filters.value.currentFilterDate.id,
       is_binded_customer: filters.value.is_binded_customer.id,
       location_type_id: filters.value.location_type_id.id,
@@ -523,6 +530,9 @@ function onSearchFilterUpdated() {
   }, {
       preserveState: true,
       replace: true,
+      onSuccess: () => {
+          hasSearched.value = true
+      },
   })
 }
 
