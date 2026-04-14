@@ -459,15 +459,15 @@
                               <select v-else-if="channel.is_return_stock" name="channel_picked" id="channel_picked_return" class="rounded text-orange-600" v-model="channel.picked">
                                 <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
                               </select>
-                              <select v-else name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
-                                <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                              <select v-else name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" v-if="opsJobItem.status < 2">
+                                <option v-for="v in getPickOptions(channel)" :key="v" :value="v">{{ v }}</option>
                               </select>
                               <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
                                 capped ({{ channel.picked_limit }})
                               </span>
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                              <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available && !channel.is_replaced && !channel.is_return_stock && channel.qty <= 0" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                              <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                                 <option v-for="v in getRefillOptions(channel)" :key="v" :value="v">{{ v }}</option>
                               </select>
                               <span v-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
@@ -748,8 +748,8 @@
                             <select v-else-if="channel.is_return_stock" name="channel_picked" id="channel_picked_return" class="rounded w-fit text-orange-600" v-model="channel.picked">
                               <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
                             </select>
-                            <select v-else name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
-                              <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                            <select v-else name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" v-if="opsJobItem.status < 2">
+                              <option v-for="v in getPickOptions(channel)" :key="v" :value="v">{{ v }}</option>
                             </select>
                             <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
                               capped ({{ channel.picked_limit }})
@@ -758,7 +758,7 @@
                         </td>
 
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                          <select v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available && !channel.is_replaced && !channel.is_return_stock && channel.qty <= 0">
+                          <select v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill">
                             <option v-for="v in getRefillOptions(channel)" :key="v" :value="v">{{ v }}</option>
                           </select>
 
@@ -1324,6 +1324,7 @@ function loadingData() {
 
     // picked logic
     // picked logic
+    const finalProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
     let pickedQty = 0;
     if (opsJobItem.value.status >= 2) {
       pickedQty = opsJobItemChannel.picked_qty;
@@ -1362,8 +1363,8 @@ function loadingData() {
       }
 
       // Double-check availability for final pick qty (skip for is_replaced/is_return_stock where we intentionally clear)
-      const finalProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
-      if (finalProduct && !finalProduct.is_available && !is_replaced && !is_return_stock) {
+      // Only apply when status < 2 (not yet picked) — do NOT overwrite DB-loaded picked_qty for already picked/stocked-in items
+      if (opsJobItem.value.status < 2 && finalProduct && !finalProduct.is_available && !is_replaced && !is_return_stock) {
         pickedQty = 0;
       }
     }
@@ -1383,7 +1384,6 @@ function loadingData() {
       }
     }
 
-    const finalProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
     if (opsJobItem.value.status < 3 && finalProduct && !finalProduct.is_available && !is_replaced && !is_return_stock) {
       refill = 0;
     }
@@ -1428,15 +1428,26 @@ function getDefaultForm() {
 
 // Refill options: original is_replaced/is_return_stock logic preserved;
 // normal channels get full range from -currentQty to +capacity so user can reduce stock.
+// Unavailable products also get the full range (both negative and positive).
 function getRefillOptions(channel) {
   if (channel.is_replaced || channel.is_return_stock) {
     // Original logic: 0 to -capacity (returning stock)
     return Array.from({ length: channel.capacity + 1 }, (_, i) => -(i));
   }
   const negCount = Number(channel.qty) || 0;
-  // Unavailable products: can only withdraw (no positive restocking), cap at 0
-  const isUnavailable = channel.product && !channel.product.is_available;
-  const posCount = isUnavailable ? 0 : (Number(channel.capacity) || 0);
+  const posCount = Number(channel.capacity) || 0;
+  const options = [];
+  for (let v = -negCount; v <= posCount; v++) {
+    options.push(v);
+  }
+  return options;
+}
+
+// Pick options: range from -currentQty to +capacity so user can select
+// both negative and positive values even when the product is unavailable.
+function getPickOptions(channel) {
+  const negCount = Number(channel.qty) || 0;
+  const posCount = Number(channel.capacity) || 0;
   const options = [];
   for (let v = -negCount; v <= posCount; v++) {
     options.push(v);
