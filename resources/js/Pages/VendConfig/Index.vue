@@ -376,6 +376,7 @@ onMounted(() => {
 			{id: 'active', value: 'Active'},
 			{id: 'inactive', value: 'Not Active'},
 			{id: 'disposed', value: 'Disposed'},
+      {id: 'sold', value: 'Sold'},
 	]
 
   filters.value.is_active = booleanOptions.value[0]

@@ -549,10 +549,16 @@ trait HasFilter
                             $query->where('vends.is_active', true)->where('vends.is_testing', false);
                             break;
                         case 'inactive':
-                            $query->where('vends.is_active', false)->where('vends.is_testing', false);
+                            $query->where('vends.is_active', false)
+                                  ->where('vends.is_testing', false)
+                                  ->where('vends.is_disposed', false)
+                                  ->where('vends.is_sold', false);
                             break;
                         case 'disposed':
                             $query->where('vends.is_disposed', true);
+                            break;
+                        case 'sold':
+                            $query->where('vends.is_sold', true);
                             break;
                     }
                 }

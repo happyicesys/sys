@@ -451,6 +451,7 @@ onMounted(() => {
 			{id: 'active', value: 'Active'},
 			{id: 'inactive', value: 'Not Active'},
 			{id: 'disposed', value: 'Disposed'},
+      {id: 'sold', value: 'Sold'},
 	]
   filters.value.numberPerPage = numberPerPageOptions.value[0];
   filters.value.vend_config_id = vendConfigOptions.value[0];

@@ -54,30 +54,33 @@ class VendConfigController extends Controller
                                     case 'disposed':
                                         $query->where('is_disposed', true);
                                         break;
+                                    case 'sold':
+                                        $query->where('is_sold', true);
+                                        break;
                                 }
                             }
                         },
                     ])
-                    ->when($request->is_active, function($query, $search) {
+                    ->when($request->is_active, function ($query, $search) {
                         // dd(filter_var($search, FILTER_VALIDATE_BOOLEAN));
                         $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                     })
-                    ->when($request->name, function($query, $search) {
+                    ->when($request->name, function ($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->when($request->vendPrefixes, function($query, $search) {
-                        $query->whereHas('vendPrefixes', function($query) use ($search) {
-                            if(in_array('single-ud', $search)) {
+                    ->when($request->vendPrefixes, function ($query, $search) {
+                        $query->whereHas('vendPrefixes', function ($query) use ($search) {
+                            if (in_array('single-ud', $search)) {
                                 $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
                                 unset($search[array_search('single-ud', $search)]);
                             }
                             $query->whereIn('vend_prefix_id', $search);
                         });
                     })
-                    ->when($request->vendStatus, function($query, $search) {
-                        if($search != 'all') {
-                            $query->whereHas('vends', function($query) use ($search) {
-                                switch($search) {
+                    ->when($request->vendStatus, function ($query, $search) {
+                        if ($search != 'all') {
+                            $query->whereHas('vends', function ($query) use ($search) {
+                                switch ($search) {
                                     case 'disposed':
                                         $query->where('is_disposed', true);
                                         break;
@@ -90,17 +93,20 @@ class VendConfigController extends Controller
                                     case 'inactive':
                                         $query->where('is_active', false);
                                         break;
+                                    case 'sold':
+                                        $query->where('is_sold', true);
+                                        break;
                                 }
                             });
                         }
                     })
-                    ->when($request->version, function($query, $search) {
-                        if($search !== 'all') {
+                    ->when($request->version, function ($query, $search) {
+                        if ($search !== 'all') {
                             $query->where('version', $search);
                         }
                     })
-                    ->when($request->sortKey, function($query, $search) use ($request) {
-                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($request->sortKey, function ($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     })
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
@@ -134,7 +140,7 @@ class VendConfigController extends Controller
             'vendConfigCompatibleWith',
             'vendPrefixes',
         ])
-        ->findOrFail($id);
+            ->findOrFail($id);
 
         return Inertia::render('VendConfig/Edit', [
             'vendConfig' => VendConfigResource::make($model),

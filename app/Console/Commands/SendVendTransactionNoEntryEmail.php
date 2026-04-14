@@ -30,6 +30,7 @@ class SendVendTransactionNoEntryEmail extends Command
             ->where('is_active', true)
             ->where('is_disposed', false)
             ->where('is_testing', false)
+            ->where('is_sold', false)
             ->get();
 
         if ($vends->isEmpty()) {
@@ -73,7 +74,7 @@ class SendVendTransactionNoEntryEmail extends Command
 
             $this->alertEmailService->sendVendTransactionNoEntryNotificationMail(
                 $operator,
-                $vendSummaries->map(fn ($summary) => Arr::except($summary, ['operator_id']))
+                $vendSummaries->map(fn($summary) => Arr::except($summary, ['operator_id']))
             );
         }
 

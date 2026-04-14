@@ -307,6 +307,7 @@ class VendController extends Controller
             'vends.is_active AS vend_is_active',
             'vends.is_door_open',
             'vends.is_disposed',
+            'vends.is_sold',
             'vends.is_mqtt',
             'vends.is_mqtt_active',
             'vends.is_online',
@@ -782,6 +783,7 @@ class VendController extends Controller
                 'vends.firmware_ver',
                 'vends.is_door_open',
                 'vends.is_disposed',
+                'vends.is_sold',
                 'vends.is_mqtt',
                 'vends.is_mqtt_active',
                 'vends.is_online',
@@ -2660,6 +2662,7 @@ class VendController extends Controller
                         'is_active' => false,
                         'is_testing' => true,
                         'is_disposed' => false,
+                        'is_sold' => false,
                     ]);
                     break;
                 case 'active':
@@ -2667,6 +2670,7 @@ class VendController extends Controller
                         'is_active' => true,
                         'is_testing' => false,
                         'is_disposed' => false,
+                        'is_sold' => false,
                     ]);
                     break;
                 case 'inactive':
@@ -2674,6 +2678,7 @@ class VendController extends Controller
                         'is_active' => false,
                         'is_testing' => false,
                         'is_disposed' => false,
+                        'is_sold' => false,
                     ]);
                     break;
                 case 'disposed':
@@ -2681,6 +2686,15 @@ class VendController extends Controller
                         'is_active' => false,
                         'is_testing' => false,
                         'is_disposed' => true,
+                        'is_sold' => false,
+                    ]);
+                    break;
+                case 'sold':
+                    $request->merge([
+                        'is_active' => false,
+                        'is_testing' => false,
+                        'is_disposed' => false,
+                        'is_sold' => true,
                     ]);
                     break;
             }
@@ -2735,6 +2749,7 @@ class VendController extends Controller
             'modem_unit_id' => $request->modem_unit_id,
             'is_active' => $request->is_active,
             'is_disposed' => $request->is_disposed,
+            'is_sold' => $request->is_sold,
             'is_testing' => $request->is_testing,
             'is_fan_enabled' => $request->is_fan_enabled === 'true' || $request->is_fan_enabled === true,
             // 'is_using_server_price' => $request->is_using_server_price,
@@ -2760,7 +2775,12 @@ class VendController extends Controller
         // }
 
         if ($isProductMappingChanged and $vend->product_mapping_id) {
+            $vend->binded_at = Carbon::now();
+            $vend->save();
             $this->productMappingService->syncChannels($vend->product_mapping_id);
+        } else if ($isProductMappingChanged and !$vend->product_mapping_id) {
+            $vend->binded_at = null;
+            $vend->save();
         }
 
         if ($request->operator_id != $vend->operator_id) {
@@ -3101,6 +3121,7 @@ class VendController extends Controller
         
         $newProductMapping = ProductMapping::find($newMappingId);
         $vend->upcoming_product_mapping_id = $newProductMapping ? $newProductMapping->upcoming_product_mapping_id : null;
+        $vend->binded_at = Carbon::now();
         
         $vend->save();
 
@@ -3116,6 +3137,7 @@ class VendController extends Controller
         $vend = Vend::with('vendPrefix')->findOrFail($id);
         $vend->product_mapping_id = $validated['upcoming_product_mapping_id'];
         $vend->upcoming_product_mapping_id = null;
+        $vend->binded_at = Carbon::now();
         $vend->save();
 
         if ($vend->vendPrefix) {

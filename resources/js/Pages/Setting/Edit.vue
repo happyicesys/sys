@@ -36,11 +36,14 @@
                 <span v-if="!vend.is_testing && vend.is_active">
                   Active
                 </span>
-                <span v-if="!vend.is_testing && !vend.is_active && !vend.is_disposed">
+                <span v-if="!vend.is_testing && !vend.is_active && !vend.is_disposed && !vend.is_sold">
                   Not Active
                 </span>
                 <span v-if="vend.is_disposed">
                   Disposed
+                </span>
+                <span v-if="vend.is_sold">
+                  Sold
                 </span>
               </div>
               <!-- <span v-if="vend.delivery_product_mapping_vends" v-for="(deliveryProductMappingVend, index) in vend.delivery_product_mapping_vends">
@@ -1354,6 +1357,7 @@ const statusOptions = ref([
     {id: 'active', value: 'Active'},
     {id: 'inactive', value: 'Inactive'},
     {id: 'disposed', value: 'Disposed'},
+    {id: 'sold', value: 'Sold'},
 ])
 
 const cashlessTerminalOptions = ref([])
@@ -1577,7 +1581,7 @@ onMounted(() => {
     server_price_type: props.vend.server_price_type ? serverPriceTypeOptions.value.find(serverPriceType => serverPriceType.id == props.vend.server_price_type) : null,
     is_fan_enabled: (props.vend.is_fan_enabled === false || props.vend.is_fan_enabled === 0 || props.vend.is_fan_enabled === '0' || props.vend.is_fan_enabled === 'false') ? {id: 'false', value: 'No'} : {id: 'true', value: 'Yes'},
     simcard_id: props.vend.simcard_id ? simcardOptions.value.find(simcard => simcard.id == props.vend.simcard_id) : null,
-    status: statusOptions.value.find(status => status.id == (props.vend.is_disposed == 1 ? 'disposed' : (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive'))),
+    status: statusOptions.value.find(status => status.id == (props.vend.is_sold == 1 ? 'sold' : (props.vend.is_disposed == 1 ? 'disposed' : (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')))),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id == props.vend.operator_id) : null : null,
     trigger_log_date: moment().format('YYYY-MM-DD'),
     upcoming_product_mapping_id: computeUpcomingSelection(props.vend.upcoming_product_mapping_id),

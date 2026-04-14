@@ -170,7 +170,10 @@
                       Channel - Product
                     </TableHead>
                     <TableHead>
-                      Binded Vending Machines
+                      <div class="flex flex-col space-y-1">
+                        <span>Binded Vending Machines</span>
+                        <span class="text-black font-normal text-xs">(binded date)</span>
+                      </div>
                     </TableHead>
                     <TableHead>
                       Menu
@@ -264,23 +267,23 @@
                                       <a :class="[vend.customer && vend.customer.person_id && vend.customer.is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'">
                                           {{ vend.customer.virtual_customer_code }} ({{ vend.vendPrefix ? vend.vendPrefix.name : '' }})
                                           <br>
-                                          {{ vend.customer.name }}
+                                          {{ vend.customer.name }} <span class="text-black text-xs" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                       </a>
                                   </span>
                                   <span v-else>
                                       {{ vend.customer.virtual_customer_code }} ({{ vend.vendPrefix ? vend.vendPrefix.name : '' }})
                                       <br>
-                                      {{ vend.customer.name }}
+                                      {{ vend.customer.name }} <span class="text-black text-xs" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                   </span>
                               </span>
                               <span v-else-if="vend.customer && !vend.customer.person_id">
                                   <span v-if="permissions.includes('admin-access vends')" :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
                                       <!-- <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'"> -->
-                                          {{ vend.customer.name }}
+                                          {{ vend.customer.name }} <span class="text-black text-xs" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                       <!-- </a> -->
                                   </span>
                                   <span v-else :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
-                                      {{ vend.customer.name }}
+                                      {{ vend.customer.name }} <span class="text-black text-xs" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                   </span>
                               </span>
                             </li>
@@ -416,6 +419,7 @@ import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import moment from 'moment';
 
 const props = defineProps({
   cmsEndpoint: String,
@@ -474,6 +478,7 @@ onMounted(() => {
 			{id: 'active', value: 'Active'},
 			{id: 'inactive', value: 'Not Active'},
 			{id: 'disposed', value: 'Disposed'},
+      {id: 'sold', value: 'Sold'},
 	]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]

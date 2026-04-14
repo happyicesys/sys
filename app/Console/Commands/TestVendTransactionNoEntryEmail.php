@@ -42,7 +42,8 @@ class TestVendTransactionNoEntryEmail extends Command
             ->with(['operator:id,name,code', 'customer:id,code,name', 'vendPrefix:id,name', 'alertSetting'])
             ->where('is_active', true)
             ->where('is_disposed', false)
-            ->where('is_testing', false);
+            ->where('is_testing', false)
+            ->where('is_sold', false);
 
         if ($operatorId !== null) {
             $query->where('operator_id', $operatorId);
@@ -69,7 +70,7 @@ class TestVendTransactionNoEntryEmail extends Command
             return self::FAILURE;
         }
 
-        $byOperator = $qualified->groupBy(fn (array $summary) => $summary['operator_id'] ?? 'global');
+        $byOperator = $qualified->groupBy(fn(array $summary) => $summary['operator_id'] ?? 'global');
         $sentCount = 0;
 
         foreach ($byOperator as $operatorKey => $vendSummaries) {
@@ -82,7 +83,7 @@ class TestVendTransactionNoEntryEmail extends Command
                 : Operator::find((int) $operatorKey);
 
             $payload = $vendSummaries
-                ->map(fn ($summary) => Arr::except($summary, ['operator_id']))
+                ->map(fn($summary) => Arr::except($summary, ['operator_id']))
                 ->values()
                 ->all();
 
@@ -108,7 +109,7 @@ class TestVendTransactionNoEntryEmail extends Command
     protected function parseVendCodes(?string $raw)
     {
         return collect(explode(',', (string) $raw))
-            ->map(fn ($code) => trim($code))
+            ->map(fn($code) => trim($code))
             ->filter();
     }
 }

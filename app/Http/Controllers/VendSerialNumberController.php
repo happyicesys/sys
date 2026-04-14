@@ -169,6 +169,7 @@ class VendSerialNumberController extends Controller
                     END as vend_lcd_monitor'),
                 DB::raw('
                     CASE
+                    WHEN vends.is_sold = true THEN "Sold"
                     WHEN vends.is_disposed = true THEN "Disposed"
                     WHEN vends.is_testing = true THEN "Factory (JB)"
                     WHEN vends.is_active = true THEN "Active"

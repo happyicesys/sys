@@ -72,10 +72,13 @@ class VendSerialNumber extends Model
                     $query->where('vends.is_testing', true);
                 }else if($search === 'disposed') {
                     $query->where('vends.is_disposed', true);
+                }else if($search === 'sold') {
+                    $query->where('vends.is_sold', true);
                 }else {
                     $query->where('vends.is_active', false)
                         ->where('vends.is_testing', false)
-                        ->where('vends.is_disposed', false);
+                        ->where('vends.is_disposed', false)
+                        ->where('vends.is_sold', false);
                 }
             }
         })

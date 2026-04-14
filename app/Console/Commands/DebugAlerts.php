@@ -41,6 +41,7 @@ class DebugAlerts extends Command
             ->where('is_active', true)
             ->where('is_disposed', false)
             ->where('is_testing', false)
+            ->where('is_sold', false)
             ->get();
 
         $this->info("Total Active Vends Scanned: " . $vends->count());

@@ -1479,7 +1479,7 @@
 										Implement New Mapping
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.lastSecondOpsJobItem.vend && (vend.lastSecondOpsJobItem.vend.upcomingProductMapping || (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping))">
-										{{ vend.lastSecondOpsJobItem.vend.productMapping ? vend.lastSecondOpsJobItem.vend.productMapping.name : '' }} 
+										{{ vend.lastSecondOpsJobItem.vend.productMapping ? vend.lastSecondOpsJobItem.vend.productMapping.name : '' }}
 										<span v-if="(vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.lastSecondOpsJobItem.vend.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
 											&RightArrow;
 											{{ (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.lastSecondOpsJobItem.vend.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name : '') }}
@@ -1549,7 +1549,7 @@
 										Implement New Mapping
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.lastOpsJobItem.vend && (vend.lastOpsJobItem.vend.upcomingProductMapping || (vend.lastOpsJobItem.vend.productMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping))">
-										{{ vend.lastOpsJobItem.vend.productMapping ? vend.lastOpsJobItem.vend.productMapping.name : '' }} 
+										{{ vend.lastOpsJobItem.vend.productMapping ? vend.lastOpsJobItem.vend.productMapping.name : '' }}
 										<span v-if="(vend.lastOpsJobItem.vend.productMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.lastOpsJobItem.vend.upcomingProductMapping && vend.lastOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
 											&RightArrow;
 											{{ (vend.lastOpsJobItem.vend.productMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.lastOpsJobItem.vend.upcomingProductMapping && vend.lastOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.lastOpsJobItem.vend.upcomingProductMapping.name : '') }}
@@ -1620,7 +1620,7 @@
 										Implement New Mapping
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.nextOpsJobItem.vend && (vend.nextOpsJobItem.vend.upcomingProductMapping || (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping))">
-										{{ vend.nextOpsJobItem.vend.productMapping ? vend.nextOpsJobItem.vend.productMapping.name : '' }} 
+										{{ vend.nextOpsJobItem.vend.productMapping ? vend.nextOpsJobItem.vend.productMapping.name : '' }}
 										<span v-if="(vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.nextOpsJobItem.vend.upcomingProductMapping && vend.nextOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
 											&RightArrow;
 											{{ (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.nextOpsJobItem.vend.upcomingProductMapping && vend.nextOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.nextOpsJobItem.vend.upcomingProductMapping.name : '') }}
@@ -1957,14 +1957,14 @@
 								</span>
 								<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-									:class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-blue-200' : 'bg-red-200')]"
+									:class="[vend.is_sold ? 'bg-yellow-200' : (vend.is_testing ? 'bg-gray-200' : (vend.vend_is_active ? 'bg-blue-200' : (vend.is_disposed ? 'bg-red-300' : 'bg-red-200')))]"
 								>
 										<div class="flex flex-col">
 												<span class="font-bold">
 													Machine
 												</span>
 												<span>
-														{{vend.is_testing ? 'Testing' : (vend.is_active ? 'Active' : 'Not Active')}}
+														{{vend.is_sold ? 'Sold' : (vend.is_testing ? 'Testing' : (vend.vend_is_active ? 'Active' : (vend.is_disposed ? 'Disposed' : 'Not Active')))}}
 												</span>
 										</div>
 
@@ -2328,6 +2328,7 @@ isActiveFactoryOptions.value = [
 		{id: '2', value: 'Active'},
 		{id: '3', value: 'Not Active'},
 		{id: '4', value: 'Disposed'},
+		{id: '5', value: 'Sold'},
 ]
 locationTypeOptions.value = [
 		{id: 'all', value: 'All'},
@@ -2348,6 +2349,7 @@ statusOptions.value = [
 		{id: 'active', value: 'Active'},
 		{id: 'inactive', value: 'Not Active'},
 		{id: 'disposed', value: 'Disposed'},
+		{id: 'sold', value: 'Sold'},
 ]
 vendConfigOptions.value = [
 		{id: 'all', value: 'All'},
@@ -2568,13 +2570,13 @@ const getAlertLabel = (alert) => {
 
 	if (alert.group === 'no_transactions') return '4';
 	if (alert.group === 'error_code') return '5';
-	
+
 	return map[alert.type] || map[alert.group] || null;
 };
 
 const getAlertTooltip = (alert) => {
 	let header = '';
-	
+
 	if (alert.group === 'no_transactions') {
 		header = '(4) Alert on Lost of Transaction/Sales';
 	} else if (alert.group === 'connectivity') {
@@ -2593,26 +2595,26 @@ const getAlertTooltip = (alert) => {
 			header = '(3) Preventive maintenance / Temp raise alert';
 		}
 	}
-	
+
 	const parts = [];
 	if (header) parts.push(`<b>${header}</b>`);
-	
+
 	// Add subtitle (label)
 	if (alert.label) {
 		parts.push(alert.label);
 	}
-	
+
 	// Add duration if available
 	const duration = (alert.duration && String(alert.duration).toLowerCase() !== 'null' && String(alert.duration).toLowerCase() !== 'null hours') ? alert.duration : null;
 	if (duration) {
 		parts.push(`Duration: ${duration}`);
 	}
-	
+
 	// Add occurred at if available
 	if (alert.occurred_at) {
 		parts.push(`Since: ${moment(alert.occurred_at).format('DD MMM YY, HH:mm')}`);
 	}
-	
+
 	return {
 		content: parts.join('<br>'),
 		html: true

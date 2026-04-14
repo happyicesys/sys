@@ -469,6 +469,7 @@ onMounted(() => {
 			{id: 'active', value: 'Active'},
 			{id: 'inactive', value: 'Not Active'},
 			{id: 'disposed', value: 'Disposed'},
+			{id: 'sold', value: 'Sold'},
 	]
   vendConfigOptions.value = [
       {id: 'all', value: 'All'},
@@ -506,6 +507,8 @@ function getStatusClass(status) {
       return 'text-center'
     case 'Disposed':
       return 'bg-red-300 text-center'
+    case 'Sold':
+      return 'bg-yellow-300 text-center'
     default:
       return 'text-center'
   }

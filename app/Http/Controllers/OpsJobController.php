@@ -654,6 +654,7 @@ class OpsJobController extends Controller
                             $vend->update([
                                 'product_mapping_id' => $targetMappingId,
                                 'upcoming_product_mapping_id' => null,
+                                'binded_at' => Carbon::now(),
                             ]);
                             $vend->refresh();
                         }

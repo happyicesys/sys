@@ -1170,11 +1170,11 @@
             <div class="flex flex-col space-y-1">
               <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                  :class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
+                  :class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : (vend.is_sold ? 'bg-yellow-200' : (vend.is_disposed ? 'bg-red-300' : 'bg-red-200')))]"
               >
                   <div class="flex flex-col">
                       <span class="font-bold">
-                          {{vend.is_disposed ? 'Disposed' : (vend.is_testing ? 'Factory (JB)' : (vend.is_active ? 'Active' : 'Not Active'))}}
+                          {{vend.is_sold ? 'Sold' : (vend.is_disposed ? 'Disposed' : (vend.is_testing ? 'Factory (JB)' : (vend.is_active ? 'Active' : 'Not Active')))}}
                       </span>
                   </div>
 
@@ -1692,6 +1692,7 @@ isActiveFactoryOptions.value = [
     {id: '2', value: 'Active'},
     {id: '3', value: 'Not Active'},
     {id: '4', value: 'Disposed'},
+    {id: '5', value: 'Sold'},
 ]
 lcdMonitorOptions.value = [
     { id: 'undefined', value: 'Undefined'},
@@ -1736,6 +1737,7 @@ if(authUser.is_production_status_only) {
     {id: 'active', value: 'Active'},
     {id: 'inactive', value: 'Not Active'},
     {id: 'disposed', value: 'Disposed'},
+    {id: 'sold', value: 'Sold'},
   ]
 }
 

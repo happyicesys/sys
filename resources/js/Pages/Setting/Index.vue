@@ -638,11 +638,11 @@
                         <div class="flex flex-col space-y-1">
                           <div
                             class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                            :class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
+                            :class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : (vend.is_sold ? 'bg-yellow-200' : (vend.is_disposed ? 'bg-red-300' : 'bg-red-200')))]"
                           >
                             <div class="flex flex-col">
                               <span class="font-bold">
-                                {{vend.is_testing ? 'Factory (JB)' : (vend.is_active ? 'Active' : 'Not Active')}}
+                                {{vend.is_sold ? 'Sold' : (vend.is_disposed ? 'Disposed' : (vend.is_testing ? 'Factory (JB)' : (vend.is_active ? 'Active' : 'Not Active')))}}
                               </span>
                             </div>
                           </div>
@@ -1064,6 +1064,7 @@ const filters = ref({
     {id: 'active', value: 'Active'},
     {id: 'inactive', value: 'Inactive'},
     {id: 'disposed', value: 'Disposed'},
+    {id: 'sold', value: 'Sold'},
 ])
 const historyModalOpen = ref(false)
 const historyVend = ref(null)

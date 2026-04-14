@@ -95,6 +95,9 @@ class ProductMappingController extends Controller
                             case 'inactive':
                                 $query->where('is_active', false);
                                 break;
+                            case 'sold':
+                                $query->where('is_sold', true);
+                                break;
                         }
                     });
                 }
@@ -120,6 +123,9 @@ class ProductMappingController extends Controller
                         case 'inactive':
                             $query->where('vends.is_active', false);
                             break;
+                        case 'sold':
+                            $query->where('vends.is_sold', true);
+                            break;
                     }
                 }
             })
@@ -140,7 +146,7 @@ class ProductMappingController extends Controller
                     'productMappingItemsNormalSequence.product:id,code,name,is_active',
                     'productMappingItemsNormalSequence.product.thumbnail',
                     'vends' => function ($query) use ($request) {
-                        $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed');
+                        $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed', 'binded_at', 'updated_at');
 
                         if ($request->vendStatus and $request->vendStatus !== 'all') {
                             switch ($request->vendStatus) {
@@ -155,6 +161,9 @@ class ProductMappingController extends Controller
                                     break;
                                 case 'inactive':
                                     $query->where('is_active', false);
+                                    break;
+                                case 'sold':
+                                    $query->where('is_sold', true);
                                     break;
                             }
                         }
@@ -311,7 +320,7 @@ class ProductMappingController extends Controller
             'productMappingItemsNormalSequence.product:id,code,name,is_active',
             'upcomingProductMappings',
             'upcomingProductMapping',
-            'vends:id,code,name,product_mapping_id,customer_id,vend_prefix_id',
+            'vends:id,code,name,product_mapping_id,customer_id,vend_prefix_id,binded_at,updated_at',
             'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
             'vends.vendPrefix:id,name',
         ])->findOrFail($id);
@@ -477,22 +486,41 @@ class ProductMappingController extends Controller
     public function bindVends(Request $request, $productMappingId)
     {
         $productMapping = ProductMapping::findOrFail($productMappingId);
-        $this->unbindProductFromChannels($productMapping->vends);
-
-        $productMapping->vends()->update([
-            'product_mapping_id' => null,
-            'upcoming_product_mapping_id' => null
-        ]);
         
-        if ($request->productMappingVends) {
-            foreach ($request->productMappingVends as $vendData) {
-                $vend = Vend::findOrFail($vendData['id']);
-                $vend->product_mapping_id = $productMapping->id;
-                $vend->upcoming_product_mapping_id = $productMapping->upcoming_product_mapping_id;
-                $vend->save();
-            }
+        $requestedVendIds = collect($request->productMappingVends)->pluck('id')->toArray();
+        $existingVends = $productMapping->vends;
+        $existingVendIds = $existingVends->pluck('id')->toArray();
+
+        $vendsToRemoveIds = array_diff($existingVendIds, $requestedVendIds);
+        $vendsToAddIds = array_diff($requestedVendIds, $existingVendIds);
+        $vendsToKeepIds = array_intersect($existingVendIds, $requestedVendIds);
+
+        // 1. Unbind removed vends
+        if (!empty($vendsToRemoveIds)) {
+            $vendsToRemove = Vend::whereIn('id', $vendsToRemoveIds)->get();
+            $this->unbindProductFromChannels($vendsToRemove);
+            Vend::whereIn('id', $vendsToRemoveIds)->update([
+                'product_mapping_id' => null,
+                'upcoming_product_mapping_id' => null,
+                'binded_at' => null
+            ]);
         }
-        $productMapping->save();
+
+        // 2. Add new vends
+        if (!empty($vendsToAddIds)) {
+            Vend::whereIn('id', $vendsToAddIds)->update([
+                'product_mapping_id' => $productMapping->id,
+                'upcoming_product_mapping_id' => $productMapping->upcoming_product_mapping_id,
+                'binded_at' => now()
+            ]);
+        }
+
+        // 3. Keep existing vends, only update upcoming mapping in case mapping itself changed
+        if (!empty($vendsToKeepIds)) {
+            Vend::whereIn('id', $vendsToKeepIds)->update([
+                'upcoming_product_mapping_id' => $productMapping->upcoming_product_mapping_id
+            ]);
+        }
 
         $this->productMappingService->syncChannels($productMapping->id);
 

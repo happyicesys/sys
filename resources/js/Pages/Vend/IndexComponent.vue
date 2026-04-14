@@ -1601,6 +1601,7 @@ onMounted(() => {
       {id: '2', value: 'Active'},
       {id: '3', value: 'Not Active'},
       {id: '4', value: 'Disposed'},
+      {id: '5', value: 'Sold'},
   ]
   locationTypeOptions.value = [
       {id: 'all', value: 'All'},
@@ -1621,6 +1622,7 @@ onMounted(() => {
         {id: 'active', value: 'Active'},
         {id: 'inactive', value: 'Not Active'},
         {id: 'disposed', value: 'Disposed'},
+        {id: 'sold', value: 'Sold'},
     ]
 
     vendPrefixOptions.value = [
