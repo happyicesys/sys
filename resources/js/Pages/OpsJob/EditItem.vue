@@ -1362,11 +1362,6 @@ function loadingData() {
         }
       }
 
-      // Double-check availability for final pick qty (skip for is_replaced/is_return_stock where we intentionally clear)
-      // Only apply when status < 2 (not yet picked) — do NOT overwrite DB-loaded picked_qty for already picked/stocked-in items
-      if (opsJobItem.value.status < 2 && finalProduct && !finalProduct.is_available && !is_replaced && !is_return_stock) {
-        pickedQty = 0;
-      }
     }
 
     // Default refill (Stock In) logic
@@ -1384,9 +1379,6 @@ function loadingData() {
       }
     }
 
-    if (opsJobItem.value.status < 3 && finalProduct && !finalProduct.is_available && !is_replaced && !is_return_stock) {
-      refill = 0;
-    }
 
     return {
       ...opsJobItemChannel.vendChannel,
