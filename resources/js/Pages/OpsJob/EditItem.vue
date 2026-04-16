@@ -441,7 +441,7 @@
                               </span>
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 1">
-                              <span class="flex flex-col space-y-1" :class="[channel.product && channel.product.is_available ? (channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
+                              <span class="flex flex-col space-y-1" :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? (channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
                                 <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10" v-if="!channel.is_replaced">picked</span>
                                 <span class="inline-flex items-center rounded-full bg-red-50 px-1 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-700/10" v-else>return</span>
                                 <span>
@@ -470,14 +470,14 @@
                               <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                                 <option v-for="v in getRefillOptions(channel)" :key="v" :value="v">{{ v }}</option>
                               </select>
-                              <span v-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
+                              <span v-if="opsJobItem.status > 2" :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
                                 <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-blue-600">
                                 </ArrowRightEndOnRectangleIcon>
                                 {{ channel.refill }}
                               </span>
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                              <span :class="[channel.product && channel.product.is_available ? (opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900') : 'text-gray-400']">
+                              <span :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? (opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900') : 'text-gray-400']">
                                 <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
                                 <span :class="[(opsJobItem.status == 2 && channel.refill != 0) ? 'font-bold text-blue-600 transition-colors duration-300' : 'transition-colors duration-300']">
                                   {{ Number(channel.qty) + (opsJobItem.status < 3 ? Number(channel.refill) : 0) }}
@@ -730,7 +730,7 @@
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[channel.is_replaced ? 'line-through text-gray-400' : (channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400')]">
                           {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" v-if="opsJobItem.status > 1" :class="[channel.product && channel.product.is_available ? ((channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked)) ? 'text-red-500' : ((channel.picked > (channel.capacity - channel.before_picked)) ? 'text-sky-600' : 'text-gray-900')) : 'text-gray-400']">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" v-if="opsJobItem.status > 1" :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? ((channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked)) ? 'text-red-500' : ((channel.picked > (channel.capacity - channel.before_picked)) ? 'text-sky-600' : 'text-gray-900')) : 'text-gray-400']">
                           <div class="flex flex-col space-y-1 items-center">
                             <span>
                               {{ channel.picked }}
@@ -762,12 +762,12 @@
                             <option v-for="v in getRefillOptions(channel)" :key="v" :value="v">{{ v }}</option>
                           </select>
 
-                          <span v-else-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
+                          <span v-else-if="opsJobItem.status > 2" :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
                             {{ channel.refill }}
                           </span>
                         </td>
                         <td
-                          class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 2"
+                          class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 2"
                           >
                           <span :class="[(opsJobItem.status == 2 && channel.refill != 0) ? 'font-bold text-blue-600 transition-colors duration-300' : 'transition-colors duration-300']">
                             {{ Number(channel.qty) + (opsJobItem.status < 3 ? Number(channel.refill) : 0) }}
