@@ -10,6 +10,7 @@ use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OptionResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductDBResource;
+use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductStockCountResource;
 use App\Http\Resources\SalesReportResource;
@@ -26,6 +27,7 @@ use App\Http\Resources\VendSnapshotDBResource;
 use App\Http\Resources\VendTransactionGraphResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
+use App\Models\ProductMapping;
 use App\Models\Customer;
 use App\Models\LocationType;
 use App\Models\Operator;
@@ -181,6 +183,9 @@ class ReportController extends Controller
             ),
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
+            ),
+            'productMappingOptions' => ProductMappingResource::collection(
+                ProductMapping::orderBy('name')->get()
             ),
             'reportDateOptions' => $this->getReportDateOptions(),
             'operators' => OperatorResource::collection(
@@ -1561,7 +1566,12 @@ class ReportController extends Controller
                 $data['Location Type'] = $item->location_type_name;
             }
 
-            $data['Count'] = $item->count;
+            $data['Count (Success Only)'] = $item->count;
+
+            if ($type === 'product') {
+                $data['Count (Error Only)'] = isset($item->error_count) ? (int)$item->error_count : 0;
+            }
+
             $data['Amount'] = $item->amount / 100;
 
             return $data;

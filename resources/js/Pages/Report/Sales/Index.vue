@@ -160,6 +160,23 @@
 						>
 						</MultiSelect>
 					</div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Product Mapping
+            </label>
+            <MultiSelect
+              v-model="filters.productMappings"
+              :options="productMappingOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              mode="tags"
+            >
+            </MultiSelect>
+          </div>
           <div v-if="filters.currentFilterDate.id != '-1'">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Filter Date
@@ -387,6 +404,7 @@ const props = defineProps({
   categoryGroups: Object,
   items: Object,
   locationTypeOptions: Object,
+  productMappingOptions: Object,
   reportDateOptions: Object,
   operators: Object,
   totals: [Array, Object],
@@ -410,6 +428,7 @@ const filters = ref({
   operators: [],
   product_code: '',
   product_name: '',
+  productMappings: [],
   sortKey: '',
   sortBy: false,
   numberPerPage: 30,
@@ -422,6 +441,7 @@ const booleanOptions = ref([])
 const hasSearched = ref(props.autoLoad ?? false)
 const loading = ref(false)
 const locationTypeOptions = ref([])
+const productMappingOptions = ref([])
 const reportDateOptions = ref([])
 const operatorOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
@@ -504,6 +524,10 @@ onMounted(() => {
         {id: 'single-ud', value: 'Single UD'},
         ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
+  productMappingOptions.value = [
+      {id: 'all', value: 'All'},
+      ...props.productMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
   filters.value.currentFilterDate = reportDateOptions.value[0]
   filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
   filters.value.location_type_id = locationTypeOptions.value[0]
@@ -525,6 +549,9 @@ onMounted(() => {
   filters.value.vendModels = [
     vendModelOptions.value[0]
   ]
+  filters.value.productMappings = [
+    productMappingOptions.value[0]
+  ]
 
 })
 
@@ -537,6 +564,7 @@ function onSearchFilterUpdated() {
       location_type_id: filters.value.location_type_id.id,
       operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
       numberPerPage: filters.value.numberPerPage.id,
+      productMappings: filters.value.productMappings.map((pm) => { return pm.id }),
       vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
       vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
       vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
@@ -574,6 +602,7 @@ function onExportExcelClicked() {
             is_binded_customer: filters.value.is_binded_customer.id,
             location_type_id: filters.value.location_type_id.id,
             operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
+            productMappings: filters.value.productMappings.map((pm) => { return pm.id }),
             vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
             vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
             vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),

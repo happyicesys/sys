@@ -267,6 +267,13 @@ trait HasFilter
                     }
                     $query->whereIn('gm.vend_prefix_id', $search);
                 }
+            })
+            ->when($request->productMappings, function ($query, $search) {
+                $ids = is_array($search) ? $search : [$search];
+                $ids = array_filter($ids, fn($value) => $value !== null && $value !== '');
+                if (!in_array('all', $ids, true) && !empty($ids)) {
+                    $query->whereIn('vends.product_mapping_id', $ids);
+                }
             });
 
         return $query;
@@ -367,6 +374,13 @@ trait HasFilter
                 $ids = array_filter($ids, fn($value) => $value !== null && $value !== '');
                 if (!in_array('all', $ids, true) && !empty($ids)) {
                     $query->whereIn('vr.vend_prefix_id', $ids);
+                }
+            })
+            ->when($request->productMappings, function ($query, $search) {
+                $ids = is_array($search) ? $search : [$search];
+                $ids = array_filter($ids, fn($value) => $value !== null && $value !== '');
+                if (!in_array('all', $ids, true) && !empty($ids)) {
+                    $query->whereIn('vends.product_mapping_id', $ids);
                 }
             });
     }
