@@ -214,6 +214,18 @@
                                                 <span class="text-[10px] text-gray-500 mt-1" v-if="product.isAvailableUpdatedBy">
                                                     {{ product.isAvailableUpdatedBy.name }} ({{ product.is_available_updated_at }})
                                                 </span>
+                                                <div class="mt-2 flex flex-col w-full">
+                                                    <textarea
+                                                        v-model="product.remarks"
+                                                        @change="onRemarksChanged(product)"
+                                                        rows="1"
+                                                        class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 p-1 mt-1 block w-full"
+                                                        placeholder="Remarks"
+                                                    ></textarea>
+                                                    <span class="text-[10px] text-gray-500 mt-1" v-if="product.remarksUpdatedBy">
+                                                      {{ product.remarksUpdatedBy.name }} ({{ moment(product.remarks_updated_at).format('YYMMDD hh:mma') }})
+                                                    </span>
+                                                </div>
                                             </div>
                                         </td>
                                         <td class="whitespace-nowrap py-1 pl-1 pr-1 text-xs font-medium sm:py-4 sm:pl-6 sm:pr-3 sm:text-sm text-center border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
@@ -589,6 +601,18 @@ const onMaxOpsJobPickLimitSelected = (id, max_ops_job_pick_limit) => {
   })
   .catch(error => {
     console.error('Error updating max_ops_job_pick_limit:', error);
+  });
+}
+
+const onRemarksChanged = (product) => {
+  axios.post(route('products-availability.update-remarks', product.id), {
+    remarks: product.remarks,
+  })
+  .then(response => {
+    router.reload({ only: ['products'] })
+  })
+  .catch(error => {
+    console.error('Error updating remarks:', error);
   });
 }
 

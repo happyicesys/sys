@@ -293,7 +293,10 @@
                       Location Type
                     </TableHeadSort>
                     <TableHeadSort modelName="count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('count')">
-                      Count
+                      Count (Success Only)
+                    </TableHeadSort>
+                    <TableHeadSort v-if="showProductErrorCol" modelName="error_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count')">
+                      Count (Error Only)
                     </TableHeadSort>
                     <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount')">
                       Amount
@@ -305,6 +308,9 @@
                     </TableHead>
                     <TableData inputClass="text-right font-semibold">
                       {{totals['total_count'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    </TableData>
+                    <TableData v-if="showProductErrorCol" inputClass="text-right font-semibold">
+                      {{(totals['total_error_count'] ?? 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                     </TableData>
                     <TableData inputClass="text-right font-semibold">
                       {{totals['total_amount'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
@@ -337,6 +343,9 @@
 
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ item.count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                      </TableData>
+                      <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
+                        {{ (item.error_count || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </TableData>
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
@@ -442,6 +451,10 @@ const currentTab = computed(() =>
 
 const showVendCustomerCols = computed(() =>
   ['vend', 'customer'].includes(currentTab.value.slug)
+);
+
+const showProductErrorCol = computed(() =>
+  currentTab.value.slug === 'product'
 );
 
 watch(currentPath, (p) => { currentUrl.value = p; });

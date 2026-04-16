@@ -1218,6 +1218,7 @@ class VendController extends Controller
                 'type',
                 'value',
             )
+            ->orderBy('created_at', 'asc')
             ->get();
 
         $fans = [];
@@ -1237,6 +1238,7 @@ class VendController extends Controller
                 'type',
                 'value',
             )
+            ->orderBy('created_at', 'asc')
             ->get();
 
         $vendAlertLogs = VendLog::where('vend_id', $vendId)

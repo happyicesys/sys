@@ -35,9 +35,9 @@ class ProductAvailabilityExport implements FromCollection, WithHeadings, WithMap
             'Daily Sold Qty (avg 7d)',
             'Qty in Warehouse (API)',
             'Picked Qty (not yet sync)',
-            'Remaining Qty',
             'To Pick Qty (' . $this->planningDate . ')',
             'Capped Qty per Channel',
+            'Remarks',
         ];
     }
 
@@ -57,6 +57,7 @@ class ProductAvailabilityExport implements FromCollection, WithHeadings, WithMap
             $product->net_available_qty_pcs_api ?? 0,
             $product->needed_qty ?? 0,
             $product->max_ops_job_pick_limit ?? 'No',
+            $product->remarks ?? '',
         ];
     }
 
@@ -73,6 +74,7 @@ class ProductAvailabilityExport implements FromCollection, WithHeadings, WithMap
             'H' => 18,
             'I' => 22,
             'J' => 22,
+            'K' => 30,
         ];
     }
 

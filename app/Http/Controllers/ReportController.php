@@ -168,7 +168,7 @@ class ReportController extends Controller
             $items = new LengthAwarePaginator([], 0, $numberPerPage, 1, [
                 'path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(),
             ]);
-            $totals = ['total_count' => 0, 'total_amount' => 0.0];
+            $totals = ['total_count' => 0, 'total_amount' => 0.0, 'total_error_count' => 0];
         }
 
         return Inertia::render('Report/Sales/Index', [
@@ -1590,7 +1590,8 @@ class ReportController extends Controller
                     $transactionsQuery
                         ->selectRaw('gm.product_id as id')
                         ->selectRaw('MAX(products.code) as code')
-                        ->selectRaw('MAX(products.name) as name');
+                        ->selectRaw('MAX(products.name) as name')
+                        ->selectRaw('SUM(gm.error_count) AS error_count');
                     break;
                 case 'categories':
                     $transactionsQuery
@@ -3419,9 +3420,13 @@ class ReportController extends Controller
             $total_amount = $item->sum(function ($item) {
                 return $item->amount / 100;
             });
+            $total_error_count = $item->sum(function ($item) {
+                return isset($item->error_count) ? $item->error_count : 0;
+            });
             return [
                 'total_count' => $total_count,
                 'total_amount' => $total_amount,
+                'total_error_count' => $total_error_count,
             ];
         });
     }

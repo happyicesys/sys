@@ -434,6 +434,7 @@ class ProductMovementController extends Controller
         return Product::query()
             ->with([
                 'isAvailableUpdatedBy',
+                'remarksUpdatedBy',
                 'latestUnitCost',
                 'productLimits' => function ($query) use ($request) {
                     $query->whereDate('date', $request->productAvailableDate);
@@ -467,6 +468,9 @@ class ProductMovementController extends Controller
                 'products.is_available',
                 'products.is_available_updated_at',
                 'products.is_available_updated_by',
+                'products.remarks',
+                'products.remarks_updated_at',
+                'products.remarks_updated_by',
             ])
             ->where('is_active', true)
             ->where('is_inventory', true)

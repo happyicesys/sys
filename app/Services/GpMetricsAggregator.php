@@ -75,6 +75,8 @@ class GpMetricsAggregator
             ->selectRaw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END as is_binded_customer')
             ->selectRaw('SUM(' . $singleCountExpression . ') as sale_count')
             ->selectRaw('COUNT(*) as transaction_count')
+            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN {$singleCountExpression} ELSE 0 END) as success_count")
+            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NOT NULL AND (vend_channel_errors.code IS NULL OR vend_channel_errors.code NOT IN (0, 6)) THEN {$singleCountExpression} ELSE 0 END) as error_count")
             ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN $singleAmountExpression ELSE 0 END) as amount_cents")
             ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN ($singleRevenueExpression) ELSE 0 END) as revenue_cents")
             ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN ($singleGrossProfitExpression) ELSE 0 END) as gross_profit_cents")
@@ -142,6 +144,8 @@ class GpMetricsAggregator
             ->selectRaw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END as is_binded_customer')
             ->selectRaw('SUM(1) as sale_count')
             ->selectRaw('COUNT(DISTINCT vend_transaction_items.vend_transaction_id) as transaction_count')
+            ->selectRaw('SUM(1) as success_count')
+            ->selectRaw('0 as error_count')
             ->selectRaw("SUM($adjustedAmountExpr) as amount_cents")
             ->selectRaw("SUM($adjustedRevenueExpr) as revenue_cents")
             ->selectRaw("SUM($adjustedRevenueExpr - (COALESCE(vend_transaction_items.unit_cost, 0) * 100)) as gross_profit_cents")
@@ -182,6 +186,8 @@ class GpMetricsAggregator
                 'metrics.is_binded_customer',
                 'metrics.sale_count',
                 'metrics.transaction_count',
+                'metrics.success_count',
+                'metrics.error_count',
                 'metrics.amount_cents',
                 'metrics.revenue_cents',
                 'metrics.gross_profit_cents',
@@ -212,6 +218,8 @@ class GpMetricsAggregator
             ->chunk($chunkSize, function ($rows) use ($now, $dayStart) {
                 $payload = $rows->map(function ($row) use ($now) {
                     $data = get_object_vars($row);
+                    // success_count and error_count are live-only columns not stored in gp_metrics
+                    unset($data['success_count'], $data['error_count']);
                     $data['created_at'] = $now;
                     $data['updated_at'] = $now;
                     return $data;

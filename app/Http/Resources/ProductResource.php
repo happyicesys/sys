@@ -26,6 +26,8 @@ class ProductResource extends JsonResource
                 'full_name' => $this->code . ' - ' . $this->name . ' ' . $this->desc,
             ],
             'remarks' => $this->remarks,
+            'remarks_updated_at' => $this->remarks_updated_at,
+            'remarksUpdatedBy' => UserResource::make($this->whenLoaded('remarksUpdatedBy')),
             'desc' => $this->desc,
             'is_active' => $this->is_active ? true : false,
             'is_available' => $this->is_available ? true : false,

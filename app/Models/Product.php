@@ -54,6 +54,8 @@ class Product extends Model
         'operator_id',
         'product_sub_category_id',
         'remarks',
+        'remarks_updated_at',
+        'remarks_updated_by',
         'translated_names_json',
     ];
 
@@ -61,6 +63,7 @@ class Product extends Model
         'max_ops_job_pick_limit_json' => 'json',
         'translated_names_json' => 'json',
         'is_available_updated_at' => 'datetime',
+        'remarks_updated_at' => 'datetime',
         'is_active' => 'boolean',
         'is_available' => 'boolean',
         'is_commission' => 'boolean',
@@ -94,6 +97,11 @@ class Product extends Model
     public function isAvailableUpdatedBy()
     {
         return $this->belongsTo(User::class, 'is_available_updated_by');
+    }
+
+    public function remarksUpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'remarks_updated_by');
     }
 
     public function latestUnitCost()

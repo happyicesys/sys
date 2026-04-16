@@ -23,6 +23,7 @@ class SalesReportResource extends JsonResource
             'vend_prefix_name' => isset($this->vend_prefix_name) ? $this->vend_prefix_name : null,
             'product_mapping_name' => isset($this->product_mapping_name) ? $this->product_mapping_name : null,
             'count' => isset($this->count) ? $this->count : 0,
+            'error_count' => isset($this->error_count) ? (int)$this->error_count : 0,
             'amount' => isset($this->amount) ? $this->amount/100 : 0,
         ];
     }

@@ -194,6 +194,18 @@
                         <span class="text-[10px] text-gray-500 mt-1" v-if="product.isAvailableUpdatedBy">
                           {{ product.isAvailableUpdatedBy.name }} ({{ product.is_available_updated_at }})
                         </span>
+                        <div class="mt-2 flex flex-col w-full">
+                            <textarea
+                                v-model="product.remarks"
+                                @change="onRemarksChanged(product)"
+                                rows="1"
+                                class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 p-1 mt-1 block w-full"
+                                placeholder="Remarks"
+                            ></textarea>
+                            <span class="text-[10px] text-gray-500 mt-1" v-if="product.remarksUpdatedBy">
+                              {{ product.remarksUpdatedBy.name }} ({{ moment(product.remarks_updated_at).format('YYMMDD hh:mma') }})
+                            </span>
+                        </div>
                       </div>
                     </td>
                     <td class="p-1 sm:p-3 text-center text-xs sm:text-sm font-medium border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
@@ -477,6 +489,21 @@ function onMaxOpsJobPickLimitSelected(id, max_ops_job_pick_limit) {
   })
   .catch(error => {
     console.error('Error updating max_ops_job_pick_limit:', error);
+  });
+}
+
+function onRemarksChanged(product) {
+  axios.post('/products/availability/update-remarks/' + product.id, {
+    remarks: product.remarks,
+  })
+  .then(response => {
+    // Optionally update silently if the backend doesn't return the new product record
+    // We already have the v-model bound, but we might want to refresh the remarksUpdatedBy
+    // We can do a router reload or manual update if we return the user.
+    router.reload({ only: ['products'] })
+  })
+  .catch(error => {
+    console.error('Error updating remarks:', error);
   });
 }
 

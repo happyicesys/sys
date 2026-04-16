@@ -585,9 +585,9 @@ plugins: {
   },
 },
 interaction: {
-  mode: 'index',
+  mode: 'nearest',
   intersect: false,
-  axis: 'x',
+  axis: 'xy',
 },
 events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
 })
@@ -756,6 +756,8 @@ function getVendTempsData() {
         }
       });
 
+      vendTempsDataByType.sort((a, b) => a.ts - b.ts);
+
       lastTempValue[type] = vendTempsDataByType[vendTempsDataByType.length - 1].value;
       const resultArr = [...vendTempsDataByType];
       const FIVE_MINS_MS = 5 * 60 * 1000;
@@ -804,6 +806,9 @@ function getVendTempsData() {
       if (vendFansDataByType.length === 0) return;
 
       vendFansDataByType.forEach(vf => vf.ts = vf.ts || moment(vf.created_at).valueOf());
+
+      vendFansDataByType.sort((a, b) => a.ts - b.ts);
+
       const resultArr = [...vendFansDataByType];
       const FIVE_MINS_MS = 5 * 60 * 1000;
 

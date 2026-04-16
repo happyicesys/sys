@@ -220,6 +220,7 @@ class ProductController extends Controller
         $products = Product::query()
             ->with([
                 'isAvailableUpdatedBy',
+                'remarksUpdatedBy',
                 'latestUnitCost',
                 'productLimits' => function ($query) use ($request) {
                     $query->whereDate('date', $request->productAvailableDate);
@@ -253,6 +254,9 @@ class ProductController extends Controller
                 'products.is_available',
                 'products.is_available_updated_at',
                 'products.is_available_updated_by',
+                'products.remarks',
+                'products.remarks_updated_at',
+                'products.remarks_updated_by',
             ])
             ->where('is_active', true)
             ->where('is_inventory', true)
@@ -423,7 +427,7 @@ class ProductController extends Controller
         $productAvailableDateEnd = Carbon::parse($request->productAvailableDate, $userTimezone)->endOfDay()->setTimezone('UTC');
 
         $products = Product::query()
-            ->with(['isAvailableUpdatedBy', 'latestUnitCost', 'productLimits' => function ($query) use ($request) {
+            ->with(['isAvailableUpdatedBy', 'remarksUpdatedBy', 'latestUnitCost', 'productLimits' => function ($query) use ($request) {
                 $query->whereDate('date', $request->productAvailableDate);
             }, 'productLimits.createdBy', 'thumbnail'])
             ->when($request->operators, function ($query, $search) {
@@ -439,7 +443,7 @@ class ProductController extends Controller
                     $query->where('is_available', filter_var($request->is_available, FILTER_VALIDATE_BOOLEAN));
                 }
             })
-            ->select(['products.id', 'products.avg_seven_days_count', 'products.code', 'products.desc', 'products.name', 'products.is_available', 'products.is_available_updated_at', 'products.is_available_updated_by'])
+            ->select(['products.id', 'products.avg_seven_days_count', 'products.code', 'products.desc', 'products.name', 'products.is_available', 'products.is_available_updated_at', 'products.is_available_updated_by', 'products.remarks', 'products.remarks_updated_at', 'products.remarks_updated_by'])
             ->where('is_active', true)
             ->where('is_inventory', true)
             ->orderBy('code', 'asc')
@@ -600,6 +604,17 @@ class ProductController extends Controller
         $product->save();
 
         $this->vendChannelService->syncAllVendChannelsJson($product->vendChannels->pluck('vend_id')->toArray());
+    }
+
+    public function updateRemarks(Request $request, $productId)
+    {
+        $product = Product::findOrFail($productId);
+        $product->remarks = $request->remarks;
+        $product->remarks_updated_by = auth()->user()->id;
+        $product->remarks_updated_at = Carbon::now();
+        $product->save();
+
+        return redirect()->back();
     }
 
     public function bindUom(Request $request, $productId)

@@ -36,6 +36,7 @@ class ProductMovementExport implements FromCollection, WithHeadings, WithMapping
             'Total Incoming',
             'Total Delivered',
             'Calculated Warehouse Qty',
+            'Remarks',
         ];
     }
 
@@ -51,6 +52,7 @@ class ProductMovementExport implements FromCollection, WithHeadings, WithMapping
             $product->total_movements_qty ?? 0,
             $product->total_delivered_qty ?? 0,
             $calculatedWarehouseQty ?? 0,
+            $product->remarks ?? '',
         ];
     }
 
@@ -64,6 +66,7 @@ class ProductMovementExport implements FromCollection, WithHeadings, WithMapping
             'E' => 15,
             'F' => 15,
             'G' => 20,
+            'H' => 30,
         ];
     }
 
