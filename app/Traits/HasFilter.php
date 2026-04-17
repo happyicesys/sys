@@ -775,18 +775,24 @@ trait HasFilter
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
                     $inputSearch = explode("->", $search);
+                    $direction = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+
                     if (
                         $search === 'totals_json->three_days_error_rate' or
                         $search === 'totals_json->seven_days_error_rate' or
                         $search === 'totals_json->vend_records_amount_average_day' or
                         $search === 'thirty_days_stock_in_delta_percent'
                     ) {
-                        $query->orderByRaw('(CAST(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                        $query->orderByRaw('(CAST(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")) AS DECIMAL(10,2))) ' . $direction);
+                        $query->orderBy($search, $direction);
+                    } elseif ($search === 'totals_json->today_amount') {
+                        // Use the stored generated column instead of JSON extraction — allows
+                        // MySQL to use idx_customers_active_today_amount and skip filesort.
+                        $query->orderBy('customers.today_amount_sort', $direction);
                     } else {
-                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . $direction);
+                        $query->orderBy($search, $direction);
                     }
-
-                    $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 } else {
                     if ($search == 'balance_percent' or $search == 'out_of_stock_sku_percent') {
                         $excludedModelIds = \App\Models\VendModel::where('is_sortable', false)->pluck('id')->toArray();

@@ -595,6 +595,8 @@ class VendController extends Controller
             '), 'vc.vend_id', '=', 'vends.id');
             })
                 ->when($needsVcCost, function ($query) {
+                    // Removed the products bridge join — vend_channels.product_id links
+                    // directly to unit_costs.product_id (saves one PK lookup per row).
                     $query->leftJoin(DB::raw('
                 (
                     SELECT
@@ -603,9 +605,7 @@ class VendController extends Controller
                     FROM
                         vend_channels
                     INNER JOIN
-                        products ON vend_channels.product_id = products.id
-                    INNER JOIN
-                        unit_costs ON products.id = unit_costs.product_id
+                        unit_costs ON vend_channels.product_id = unit_costs.product_id
                     WHERE
                         unit_costs.is_current = true
                     AND vend_channels.is_active = true
@@ -616,6 +616,9 @@ class VendController extends Controller
             '), 'vc_cost.vend_id', '=', 'vends.id');
                 })
                 ->when($needsVcStock, function ($query) use ($request) {
+                    // Replaced ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY id DESC) with
+                    // MAX(id) GROUP BY — reads entirely from the covering index on product_limits
+                    // (date, product_id, id) without materialising all rows first.
                     $query->leftJoin(DB::raw('
                 (
                     SELECT
@@ -648,14 +651,14 @@ class VendController extends Controller
                     INNER JOIN
                         products ON vend_channels.product_id = products.id
                     LEFT JOIN (
-                            SELECT id, product_id, qty, date
-                            FROM (
-                                SELECT id, product_id, qty, date,
-                                    ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY id DESC) as rn
+                            SELECT pl.product_id, pl.qty, pl.id
+                            FROM product_limits AS pl
+                            INNER JOIN (
+                                SELECT product_id, MAX(id) AS max_id
                                 FROM product_limits
-                                WHERE date = "' . $request->productAvailableDate . '"
-                            ) pl_inner
-                            WHERE rn = 1
+                                WHERE `date` = "' . $request->productAvailableDate . '"
+                                GROUP BY product_id
+                            ) AS latest_pl ON pl.id = latest_pl.max_id
                         ) AS product_limits ON products.id = product_limits.product_id
                     WHERE
                         products.is_available = true
@@ -3300,9 +3303,11 @@ class VendController extends Controller
         }
 
         if (in_array('vc_cost', $types) && !empty($vendIds)) {
+            // products join removed — vend_channels.product_id links directly to
+            // unit_costs.product_id with no filtering on products itself, so the
+            // intermediate join was pure overhead (an extra PK lookup per row).
             $vcCostData = DB::table('vend_channels')
-                ->join('products', 'vend_channels.product_id', '=', 'products.id')
-                ->join('unit_costs', 'products.id', '=', 'unit_costs.product_id')
+                ->join('unit_costs', 'vend_channels.product_id', '=', 'unit_costs.product_id')
                 ->select('vend_channels.vend_id', DB::raw('SUM(vend_channels.qty * unit_costs.cost) as total_stock_cost'))
                 ->where('unit_costs.is_current', true)
                 ->where('vend_channels.is_active', true)
