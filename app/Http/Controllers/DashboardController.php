@@ -65,12 +65,19 @@ class DashboardController extends Controller
         $worstPerformerLimit = (int) $request->input('worst_performer_limit', 20);
         $worstPerformerLimit = max(1, min(50, $worstPerformerLimit));
 
+        // Fetch months once — reused by getMonthlyAnalytics() and the Inertia render
+        // to avoid firing two identical "select * from months" queries per request.
+        $allMonths = Month::all();
+
         if ($shouldAutoload) {
-            // Fetch testing vend IDs once and reuse across all queries
-            $testingVendIds = \DB::table('vends')
-                ->where('is_testing', true)
-                ->pluck('id')
-                ->toArray();
+            // Cache testing vend IDs for 5 min. VendController::update() busts this
+            // key whenever is_testing changes, so staleness is bounded.
+            $testingVendIds = Cache::remember('testing_vend_ids', 300, function () {
+                return \DB::table('vends')
+                    ->where('is_testing', true)
+                    ->pluck('id')
+                    ->toArray();
+            });
 
             $dayGraph = $this->getDayGraph($request, $testingVendIds);
             $productGraph = $this->getProductGraph($request);
@@ -79,7 +86,7 @@ class DashboardController extends Controller
             $vendCount = $this->getVendCount($request, $testingVendIds);
             $monthGraphData = $this->getMonthGraphData($request, $testingVendIds);
             $activeMachineGraphData = $this->getActiveMachineGraphData($request, $testingVendIds);
-            $monthlyAnalytics = $this->getMonthlyAnalytics($request);
+            $monthlyAnalytics = $this->getMonthlyAnalytics($request, $allMonths);
             $salesComparisonGraphData = $this->getSalesComparisonGraph($request, $testingVendIds);
         } else {
             $emptyCollection = collect([]);
@@ -102,7 +109,7 @@ class DashboardController extends Controller
                 LocationType::toBase()->select('id', 'name')->orderBy('sequence')->get()
             ),
             'monthGraphData' => $monthGraphData,
-            'months' => MonthResource::collection(Month::all()),
+            'months' => MonthResource::collection($allMonths),
             'monthsByModel' => $monthlyAnalytics,
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
@@ -149,29 +156,31 @@ class DashboardController extends Controller
         //     unset($periods['next_month']);
         // }
 
-        $query = VendRecord::query()
-            ->filterIndex($request)
-            ->whereNotIn('vend_id', $testingVendIds)
-            ->select(
-                DB::raw('SUM(total_amount) as amount'),
-                DB::raw('DAY(date) as day'),
-                DB::raw('MONTH(date) as month'),
-                DB::raw('YEAR(date) as year')
-            )
-            ->groupBy('year', 'month', 'day');
+        $cacheKey = $this->makeCacheKey('sales_comparison_graph', $request);
+        $results = Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds, $periods) {
+            $query = VendRecord::query()
+                ->filterIndex($request)
+                ->whereNotIn('vend_id', $testingVendIds)
+                ->select(
+                    DB::raw('SUM(total_amount) as amount'),
+                    DB::raw('DAY(date) as day'),
+                    DB::raw('MONTH(date) as month'),
+                    DB::raw('YEAR(date) as year')
+                )
+                ->groupBy('year', 'month', 'day');
 
-        // Build where clause for all periods
-        $query->where(function ($q) use ($periods) {
-            foreach ($periods as $key => $date) {
-                $q->orWhere(function ($subQ) use ($date) {
-                    $subQ->whereYear('date', $date->year)
-                        ->whereMonth('date', $date->month);
-                });
-            }
+            // Build where clause for all periods
+            $query->where(function ($q) use ($periods) {
+                foreach ($periods as $key => $date) {
+                    $q->orWhere(function ($subQ) use ($date) {
+                        $subQ->whereYear('date', $date->year)
+                            ->whereMonth('date', $date->month);
+                    });
+                }
+            });
+
+            return $query->get();
         });
-
-
-        $results = $query->get();
 
         // Initialize structure
         // Weather service disabled — was causing 5-10 s of latency (6 calls × ~1-2 s each).
@@ -453,11 +462,14 @@ class DashboardController extends Controller
 
     private function getVendCount(Request $request, array $testingVendIds)
     {
-        return VendRecord::query()
-            ->filterIndex($request)
-            ->whereDate('date', Carbon::yesterday())
-            ->whereNotIn('vend_id', $testingVendIds)
-            ->count();
+        $cacheKey = $this->makeCacheKey('vend_count', $request);
+        return Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds) {
+            return VendRecord::query()
+                ->filterIndex($request)
+                ->whereDate('date', Carbon::yesterday())
+                ->whereNotIn('vend_id', $testingVendIds)
+                ->count();
+        });
     }
 
     private function getMonthGraphData(Request $request, array $testingVendIds)
@@ -475,6 +487,24 @@ class DashboardController extends Controller
             $compareMonth = Carbon::today()->month;
         }
 
+        $cacheKey = $this->makeCacheKey('month_graph', $request);
+        $monthGraph = Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds, $lastYear, $thisYear) {
+            return VendRecord::query()
+                ->whereBetween('date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
+                ->filterIndex($request)
+                ->whereNotIn('vend_id', $testingVendIds)
+                ->groupBy('year', 'month')
+                ->select(
+                    DB::raw('MONTH(date) as month'),
+                    DB::raw('MONTHNAME(date) as month_name'),
+                    DB::raw('YEAR(date) as year'),
+                    DB::raw('SUM(total_amount) as amount'),
+                    DB::raw('SUM(total_count) as count')
+                )
+                ->orderBy('month', 'asc')
+                ->get();
+        });
+
         $monthsArrInit = [];
         foreach ([$lastYear->year, $thisYear->year] as $year) {
             for ($i = 1; $i <= 12; $i++) {
@@ -490,21 +520,6 @@ class DashboardController extends Controller
                 ];
             }
         }
-
-        $monthGraph = VendRecord::query()
-            ->whereBetween('date', [$lastYear->startOfDay(), $thisYear->endOfDay()])
-            ->filterIndex($request)
-            ->whereNotIn('vend_id', $testingVendIds)
-            ->groupBy('year', 'month')
-            ->select(
-                DB::raw('MONTH(date) as month'),
-                DB::raw('MONTHNAME(date) as month_name'),
-                DB::raw('YEAR(date) as year'),
-                DB::raw('SUM(total_amount) as amount'),
-                DB::raw('SUM(total_count) as count')
-            )
-            ->orderBy('month', 'asc')
-            ->get();
 
         foreach ($monthGraph as $month) {
             $monthsArrInit[$month->year][$month->month]['amount'] = $month->amount / 100;
@@ -552,16 +567,20 @@ class DashboardController extends Controller
             ->whereBetween('date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
             ->groupBy('year', 'month');
 
-        // Get testing vend IDs + vends with null customer_id
-        $excludeVendIds = \DB::table('vends')
-            ->where(function ($q) {
-                $q->where('is_testing', true)
-                    ->orWhereNull('customer_id');
-            })
-            ->pluck('id')
-            ->toArray();
+        // Cache for 5 min. VendController::update() busts both keys on save.
+        $excludeVendIds = Cache::remember('exclude_vend_ids_for_active_machine', 300, function () {
+            return \DB::table('vends')
+                ->where(function ($q) {
+                    $q->where('is_testing', true)
+                        ->orWhereNull('customer_id');
+                })
+                ->pluck('id')
+                ->toArray();
+        });
 
-        $activeMachineGraph = DB::table('vend_records')
+        $cacheKey = $this->makeCacheKey('active_machine_graph', $request);
+        $activeMachineGraph = Cache::remember($cacheKey, 300, function () use ($request, $excludeVendIds, $latestSub, $lastYear, $thisYear) {
+        return DB::table('vend_records')
             ->joinSub($latestSub, 'latest', function ($join) {
                 $join->on('vend_records.date', '=', 'latest.latest_date')
                     ->on('vend_records.year', '=', 'latest.year')
@@ -645,6 +664,7 @@ class DashboardController extends Controller
             ->orderBy('year', 'asc')
             ->orderBy('month', 'asc')
             ->get();
+        }); // end Cache::remember for active_machine_graph
 
         foreach ($activeMachineGraph as $activeMachine) {
             $activeMonths[$activeMachine->year][$activeMachine->month]['count'] = $activeMachine->count;
@@ -654,7 +674,7 @@ class DashboardController extends Controller
     }
 
 
-    private function getMonthlyAnalytics(Request $request)
+    private function getMonthlyAnalytics(Request $request, $allMonths = null)
     {
         if ($request->month_year) {
             $baseDate = Carbon::createFromFormat('Y-m', $request->month_year);
@@ -692,7 +712,8 @@ class DashboardController extends Controller
 
         $monthsByModel = [];
         // keyBy() gives O(1) lookup — replaces the O(items × 12) nested foreach.
-        $months = Month::all()->keyBy('number');
+        // Use the pre-fetched $allMonths if available (avoids a duplicate DB query).
+        $months = ($allMonths ?? Month::all())->keyBy('number');
 
         foreach ($items as $item) {
             $month = $months->get($item->month);
@@ -716,6 +737,23 @@ class DashboardController extends Controller
         return collect($monthsByModel)->sortKeys();
     }
 
+
+    /**
+     * Build a stable, user-scoped cache key from the active request filters.
+     * Extra scalar values (e.g. a date range) can be passed in $extra.
+     */
+    private function makeCacheKey(string $name, Request $request, array $extra = []): string
+    {
+        return $name . '_' . auth()->id() . '_' . md5(json_encode(array_merge([
+            $request->operators,
+            $request->customer,
+            $request->codes,
+            $request->vendModels,
+            $request->vendPrefixes,
+            $request->locationType,
+            $request->month_year,
+        ], $extra)));
+    }
 
     private function getModelName($monthlyTypeName)
     {

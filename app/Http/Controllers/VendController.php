@@ -2785,6 +2785,12 @@ class VendController extends Controller
             'vend_vend_config_version' => $request->vend_vend_config_version,
         ]);
 
+        // Bust dashboard vend-ID caches whenever a vend is saved, so that changes
+        // to is_testing or customer_id are reflected within the next page load
+        // rather than waiting for the 5-minute TTL to expire.
+        Cache::forget('testing_vend_ids');
+        Cache::forget('exclude_vend_ids_for_active_machine');
+
         // if($request->modem_unit_imei) {
         //     $vend->modemUnit()->update([
         //         'imei' => $request->modem_unit_imei,
