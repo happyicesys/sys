@@ -56,7 +56,12 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
             'vendChannels.latestOpsJobItemChannel',
             'vendChannels.vendChannelErrorLogs.vendChannelError',
             'vendChannelsWithoutClaw',
-        ])->findOrFail($this->vendId);
+        ])->find($this->vendId);
+
+        if (!$vend) {
+            // Vend no longer exists (may have been deleted), skip silently
+            return;
+        }
 
         $vendChannelsWithoutClaw = $vend->vendChannelsWithoutClaw;
         $vendChannels = $vend->vendChannels;
