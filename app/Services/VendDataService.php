@@ -215,11 +215,20 @@ class VendDataService
     // $requiredMd5 = false;
 
     if (isset($originalInput['m'])) {
-      // Optimize query by removing global scope (runs in unauthenticated context)
-      // and lazy loading customer (only needed in specific condition below)
-      $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)
-        ->where('code', $originalInput['m'])
-        ->first();
+      // Cache vend lookup by code — the same machine posts many times per minute
+      // and the code→vend mapping rarely changes. We only cache on hit (not null)
+      // so modem-code fallback below still runs for unknown codes.
+      $vendCode = $originalInput['m'];
+      $vendCacheKey = 'vend_by_code_' . $vendCode;
+      $vend = Cache::get($vendCacheKey);
+      if (!$vend) {
+        $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)
+          ->where('code', $vendCode)
+          ->first();
+        if ($vend) {
+          Cache::put($vendCacheKey, $vend, now()->addMinutes(5));
+        }
+      }
 
       if (!$vend) {
         $modem = ModemUnit::whereRaw("TRIM(LEADING '0' FROM RIGHT(imei, 6)) = ?", [$originalInput['m']])
@@ -234,9 +243,11 @@ class VendDataService
         return $response;
       }
 
-      // Lazy load customer only when needed (without global scope for performance)
+      // Select only id + totals_json — we only check nullability, no need to
+      // fetch the entire customer row (which may include large JSON blobs).
       if ($vend->customer_id) {
         $customer = Customer::withoutGlobalScope(OperatorCustomerFilterScope::class)
+          ->select('id', 'totals_json')
           ->find($vend->customer_id);
         if ($customer && !$customer->totals_json) {
           SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
@@ -354,8 +365,13 @@ class VendDataService
       if ($connectionType == 'mqtt') {
         UpdateMqttLastUpdated::dispatch($vend->id)->onQueue('default');
 
-        $apkVer = (array) $vend->apk_ver_json;
-        if ($apkVer && isset($apkVer['apkver']) && $apkVer['apkver'] >= 129) {
+        // Fetch apk_ver_json fresh (not from the cached model) — it changes when
+        // the machine sends PWRON and UpdateApkVersion updates the DB. Using a
+        // stale cached value here would cause incorrect MQTT publish decisions.
+        $freshApkVer = (array) Vend::withoutGlobalScope(OperatorVendFilterScope::class)
+          ->where('id', $vend->id)
+          ->value('apk_ver_json');
+        if ($freshApkVer && isset($freshApkVer['apkver']) && $freshApkVer['apkver'] >= 129) {
           PublishMqtt::dispatch('CM' . $vend->code, $response, 0)->onQueue('default');
         }
       }

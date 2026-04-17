@@ -3326,13 +3326,19 @@ class VendController extends Controller
             $vcStockData = DB::table('vend_channels')
                 ->join('products', 'vend_channels.product_id', '=', 'products.id')
                 ->leftJoinSub(function ($query) {
-                    $query->select('id', 'product_id', 'qty', 'date')
-                        ->fromSub(function ($query) {
-                            $query->select('id', 'product_id', 'qty', 'date', DB::raw('ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY id DESC) as rn'))
-                                ->from('product_limits')
-                                ->where('date', DB::raw('CURDATE() + INTERVAL 1 DAY'));
-                        }, 'pl_inner')
-                        ->where('rn', 1);
+                    // Replace ROW_NUMBER() window function with a MAX(id) GROUP BY approach.
+                    // The idx_date_product_created index covers (date, product_id) so the
+                    // MAX(id) aggregation reads entirely from the index without heap access
+                    // (InnoDB stores the PK in every secondary index leaf node). The old
+                    // ROW_NUMBER() approach materialised all rows for tomorrow, ran a filesort
+                    // within each product_id partition, then filtered to rn = 1 — all
+                    // avoidable for a simple "latest record per group" operation.
+                    $query->select('pl.product_id', 'pl.qty', 'pl.id')
+                        ->from('product_limits as pl')
+                        ->join(
+                            DB::raw('(SELECT product_id, MAX(id) AS max_id FROM product_limits WHERE `date` = CURDATE() + INTERVAL 1 DAY GROUP BY product_id) AS latest_pl'),
+                            'pl.id', '=', DB::raw('latest_pl.max_id')
+                        );
                 }, 'product_limits', 'products.id', '=', 'product_limits.product_id')
                 ->select(
                     'vend_channels.vend_id',
@@ -3361,28 +3367,44 @@ class VendController extends Controller
 
         if ((in_array('last_ops_jobs', $types) || in_array('last_second_ops_jobs', $types)) && !empty($customerIds)) {
             $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
+            // LATERAL + LIMIT replaces the ROW_NUMBER() window function.
+            // The old approach materialised ALL completed ops_job_items for the given customers
+            // before filtering to rn IN (1,2), forcing a full filesort of potentially thousands
+            // of rows. With LATERAL, MySQL processes each customer independently: it backward-
+            // scans idx_oji_cust_created (customer_id, created_at) and stops after the first
+            // matching row, returning at most 2 rows per customer (~100 rows total vs. thousands).
             $data = DB::select("
-                SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count, oji.rn,
+                SELECT
+                    top2.customer_id,
+                    top2.cash_amount,
+                    top2.acc_total_amount,
+                    top2.acc_total_count,
+                    top2.rn,
                     SUM(oji_c.actual_qty * vc.amount) AS amount,
                     SUM(oji_c.actual_qty) AS count
-                FROM (
-                    SELECT
-                        id,
-                        customer_id,
-                        cash_amount,
-                        acc_total_amount,
-                        acc_total_count,
-                        ops_job_id,
-                        ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) as rn
-                    FROM ops_job_items
-                    WHERE status >= 3 AND status <> 99
-                    AND customer_id IN ($placeholders)
-                ) oji
-                INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
+                FROM (SELECT DISTINCT customer_id FROM ops_job_items WHERE customer_id IN ($placeholders)) AS cust
+                CROSS JOIN LATERAL (
+                    (
+                        SELECT id, customer_id, cash_amount, acc_total_amount, acc_total_count, ops_job_id, 1 AS rn
+                        FROM ops_job_items
+                        WHERE customer_id = cust.customer_id AND status >= 3 AND status <> 99
+                        ORDER BY created_at DESC
+                        LIMIT 1 OFFSET 0
+                    )
+                    UNION ALL
+                    (
+                        SELECT id, customer_id, cash_amount, acc_total_amount, acc_total_count, ops_job_id, 2 AS rn
+                        FROM ops_job_items
+                        WHERE customer_id = cust.customer_id AND status >= 3 AND status <> 99
+                        ORDER BY created_at DESC
+                        LIMIT 1 OFFSET 1
+                    )
+                ) AS top2
+                INNER JOIN ops_job_item_channels oji_c ON top2.id = oji_c.ops_job_item_id
                 INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
-                INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
-                WHERE oji.rn IN (1, 2) AND oj.date < CURDATE() + INTERVAL 1 DAY
-                GROUP BY oji.customer_id, oji.rn
+                INNER JOIN ops_jobs oj ON top2.ops_job_id = oj.id
+                WHERE oj.date < CURDATE() + INTERVAL 1 DAY
+                GROUP BY top2.customer_id, top2.rn
             ", $customerIds);
 
             $groupedData = collect($data)->groupBy('customer_id');
