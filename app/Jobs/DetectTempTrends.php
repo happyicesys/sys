@@ -76,11 +76,28 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $this->checkStockouts($vend);
             $this->analyzeFrozenT2($vend, $existingAlerts);
             $this->analyzePreventiveMaintenance($vend, $existingAlerts);
+            $this->updateT1Lowest48h($vend);
         }
 
         if ($vend->isDirty()) {
             $vend->save();
         }
+    }
+
+    /**
+     * Compute and store the lowest raw T1 value in the last 48 hours.
+     * Stores raw integer (divide by 10 for °C). Sets NULL when no data exists.
+     */
+    private function updateT1Lowest48h(\App\Models\Vend $vend): void
+    {
+        $lowest = DB::table('vend_temps')
+            ->where('vend_id', $vend->id)
+            ->where('type', VendTemp::TYPE_CHAMBER)
+            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+            ->where('created_at', '>=', now()->subHours(48))
+            ->min('value');
+
+        $vend->t1_lowest_48h = $lowest !== null ? (int) $lowest : null;
     }
 
     private function analyzeFrozenT2(\App\Models\Vend $vend, $existingAlerts): void

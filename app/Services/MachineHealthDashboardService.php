@@ -839,21 +839,27 @@ class MachineHealthDashboardService
         $now = Carbon::now();
         $limit = $filters['machine_limit'];
 
-        $anySales = $this->buildNoTxnList('last_vend_transaction_at', $thresholds['any'], $filters, $now, $limit);
-        $cashSales = $this->buildNoTxnList('last_cash_vend_transaction_at', $thresholds['cash'], $filters, $now, $limit, 'cash');
-        $cardSales = $this->buildNoTxnList('last_card_vend_transaction_at', $thresholds['card'], $filters, $now, $limit, 'card');
-        $qrSales = $this->buildNoTxnList('last_txn_src_at', $thresholds['qr'], $filters, $now, $limit, 'qr');
-        $digitalScreenSales = $this->buildNoTxnList('last_txn_src_at', $thresholds['digitalscreen'], $filters, $now, $limit, 'digitalscreen');
+        // Fetch raw Vend model collections (no eager-loading yet)
+        $anySalesModels = $this->buildNoTxnList('last_vend_transaction_at', $thresholds['any'], $filters, $now, $limit);
+        $cashSalesModels = $this->buildNoTxnList('last_cash_vend_transaction_at', $thresholds['cash'], $filters, $now, $limit, 'cash');
+        $cardSalesModels = $this->buildNoTxnList('last_card_vend_transaction_at', $thresholds['card'], $filters, $now, $limit, 'card');
+        $qrSalesModels = $this->buildNoTxnList('last_txn_src_at', $thresholds['qr'], $filters, $now, $limit, 'qr');
+        $digitalScreenSalesModels = $this->buildNoTxnList('last_txn_src_at', $thresholds['digitalscreen'], $filters, $now, $limit, 'digitalscreen');
 
-        $allVendIds = collect()
-            ->merge($anySales->pluck('vend_id'))
-            ->merge($cashSales->pluck('vend_id'))
-            ->merge($cardSales->pluck('vend_id'))
-            ->merge($qrSales->pluck('vend_id'))
-            ->merge($digitalScreenSales->pluck('vend_id'))
-            ->unique()
-            ->values()
-            ->all();
+        // Load relations once across every single object instance in all lists to prevent lazy-loading N+1.
+        // We use array_merge to ensure we don't overwrite duplicate models per-vend-id like merge() does.
+        $allModelsArray = array_merge(
+            $anySalesModels->all(),
+            $cashSalesModels->all(),
+            $cardSalesModels->all(),
+            $qrSalesModels->all(),
+            $digitalScreenSalesModels->all()
+        );
+
+        $allModels = new \Illuminate\Database\Eloquent\Collection($allModelsArray);
+        $allModels->loadMissing(['customer:id,name,code', 'operator:id,name,code', 'vendPrefix:id,name']);
+
+        $allVendIds = $allModels->pluck('id')->unique()->values()->all();
 
         $l30dSales = [];
         if (!empty($allVendIds)) {
@@ -867,29 +873,46 @@ class MachineHealthDashboardService
                 ->all();
         }
 
-        $injectSales = function (Collection $items) use ($l30dSales) {
-            return $items->map(function ($item) use ($l30dSales) {
-                $item['l30d_sales'] = (int) ($l30dSales[$item['vend_id']] ?? 0);
-                return $item;
-            })->all();
+        $transformList = function (Collection $models, int $threshold) use ($l30dSales): array {
+            return $models->map(function (Vend $vend) use ($threshold, $l30dSales) {
+                $lastTransaction = $vend->last_transaction_at ? Carbon::parse($vend->last_transaction_at) : null;
+
+                return array_merge(
+                    $this->baseVendInfo($vend),
+                    [
+                        'hours_since' => (float) $vend->hours_since,
+                        'last_transaction_at' => $lastTransaction?->toIso8601String(),
+                        'threshold_hours' => $threshold,
+                        'acb_vmc_pa_json' => $vend->acb_vmc_pa_json,
+                        'parameter_json' => $vend->parameter_json,
+                        'l30d_sales' => (int) ($l30dSales[$vend->id] ?? 0),
+                    ]
+                );
+            })->values()->all();
         };
 
         return [
             'thresholds' => $thresholds,
-            'any_sales' => $injectSales($anySales),
-            'cash_sales' => $injectSales($cashSales),
-            'card_sales' => $injectSales($cardSales),
-            'qr_sales' => $injectSales($qrSales),
-            'digitalscreen_sales' => $injectSales($digitalScreenSales),
+            'any_sales' => $transformList($anySalesModels, $thresholds['any']),
+            'cash_sales' => $transformList($cashSalesModels, $thresholds['cash']),
+            'card_sales' => $transformList($cardSalesModels, $thresholds['card']),
+            'qr_sales' => $transformList($qrSalesModels, $thresholds['qr']),
+            'digitalscreen_sales' => $transformList($digitalScreenSalesModels, $thresholds['digitalscreen']),
         ];
     }
 
+    /**
+     * Fetches raw Vend models for a no-transaction list WITHOUT eager-loading relations.
+     * Relations are loaded in bulk by the caller (getNoTransactionMetrics) to avoid
+     * duplicate queries across the 5 separate list types.
+     */
     private function buildNoTxnList(string $column, int $threshold, array $filters, Carbon $now, int $limit, ?string $type = null): Collection
     {
         $nowSql = $now->toDateTimeString();
         $hoursExpr = "ROUND(TIMESTAMPDIFF(MINUTE, {$column}, '{$nowSql}') / 60, 2)";
 
         $query = $this->baseVendQuery($filters)
+            ->without(['customer', 'operator', 'vendPrefix']) // Relations loaded in bulk by caller
             ->select([
                 'id',
                 'code',
@@ -920,21 +943,8 @@ class MachineHealthDashboardService
                 ->where('acb_vmc_pa_json->QRCode', 1);
         }
 
-        return $query->get()
-            ->map(function (Vend $vend) use ($threshold) {
-                $lastTransaction = $vend->last_transaction_at ? Carbon::parse($vend->last_transaction_at) : null;
-
-                return array_merge(
-                    $this->baseVendInfo($vend),
-                    [
-                        'hours_since' => (float) $vend->hours_since,
-                        'last_transaction_at' => $lastTransaction?->toIso8601String(),
-                        'threshold_hours' => $threshold,
-                        'acb_vmc_pa_json' => $vend->acb_vmc_pa_json,
-                        'parameter_json' => $vend->parameter_json,
-                    ]
-                );
-            });
+        // Return raw Vend models; transformation happens in getNoTransactionMetrics
+        return $query->get();
     }
 
     private function baseVendQuery(array $filters): EloquentBuilder

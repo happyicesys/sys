@@ -236,13 +236,11 @@ class ReportController extends Controller
         ]);
 
         $vendIds = $request->vend_ids;
-        \Log::info('activeMachineHealthAlerts Request IDs: ' . json_encode($vendIds));
-        
+
         // Fetch codes to filter the dashboard data
         $vends = Vend::whereIn('id', $vendIds)->orWhereIn('customer_id', $vendIds)->get();
         $machineCodes = $vends->pluck('code')->toArray();
         $resolvedVendIds = $vends->pluck('id')->toArray();
-        \Log::info('Resolved Machine Codes: ' . json_encode($machineCodes));
 
         // Create a mapping of found vends for double-keying the response
         $idMap = [];
@@ -263,17 +261,19 @@ class ReportController extends Controller
         $alertsByVend = [];
 
         // Helper to add alert with double-keying
-        $addAlert = function($vid, $alert) use (&$alertsByVend, $idMap) {
-            if (!isset($alertsByVend[$vid])) $alertsByVend[$vid] = [];
+        $addAlert = function ($vid, $alert) use (&$alertsByVend, $idMap) {
+            if (!isset($alertsByVend[$vid]))
+                $alertsByVend[$vid] = [];
             $alertsByVend[$vid][] = $alert;
-            
+
             // Also key by customer_id if different and provided in the request
             $cid = $idMap[$vid] ?? null;
-            if ($cid && (string)$cid !== (string)$vid) {
-                if (!isset($alertsByVend[$cid])) $alertsByVend[$cid] = [];
+            if ($cid && (string) $cid !== (string) $vid) {
+                if (!isset($alertsByVend[$cid]))
+                    $alertsByVend[$cid] = [];
                 // Check for duplicates before adding to cid
                 $isDup = false;
-                foreach($alertsByVend[$cid] as $existing) {
+                foreach ($alertsByVend[$cid] as $existing) {
                     if ($existing['group'] === $alert['group'] && $existing['type'] === $alert['type']) {
                         $isDup = true;
                         break;
@@ -388,7 +388,7 @@ class ReportController extends Controller
                 if (isset($dashboardData['no_transactions'][$key])) {
                     foreach ($dashboardData['no_transactions'][$key] as $row) {
                         $vid = $row['vend_id'];
-                        
+
                         $label = $title;
                         if (isset($thresholds[$key])) {
                             $label .= " ({$thresholds[$key]}hr)";
@@ -413,7 +413,7 @@ class ReportController extends Controller
                     foreach ($group['rows'] as $row) {
                         $vid = $row['vend_id'];
                         if (isset($row['events']) && count($row['events']) > 0) {
-                            foreach($row['events'] as $ev) {
+                            foreach ($row['events'] as $ev) {
                                 $addAlert($vid, [
                                     'group' => 'error_code',
                                     'type' => 'error_code_' . $ev['error_code'],
@@ -1569,7 +1569,7 @@ class ReportController extends Controller
             $data['Count (Success Only)'] = $item->count;
 
             if ($type === 'product') {
-                $data['Count (Error Only)'] = isset($item->error_count) ? (int)$item->error_count : 0;
+                $data['Count (Error Only)'] = isset($item->error_count) ? (int) $item->error_count : 0;
             }
 
             $data['Amount'] = $item->amount / 100;
@@ -1846,11 +1846,11 @@ class ReportController extends Controller
                                     ->orWhere('c.name', 'LIKE', "%{$search}%");
                             });
                     })
-                    ->orWhereExists(function ($sq) use ($search) {
-                        $sq->from('vend_prefixes as vp')
-                            ->whereColumn('vp.id', 'sc.vend_prefix_id')
-                            ->where('vp.name', 'LIKE', "{$search}%");
-                    });
+                        ->orWhereExists(function ($sq) use ($search) {
+                            $sq->from('vend_prefixes as vp')
+                                ->whereColumn('vp.id', 'sc.vend_prefix_id')
+                                ->where('vp.name', 'LIKE', "{$search}%");
+                        });
                 });
             })
             ->when($request->products, function ($q, $ids) {
@@ -2006,11 +2006,11 @@ class ReportController extends Controller
                                     ->orWhere('c.name', 'LIKE', "%{$search}%");
                             });
                     })
-                    ->orWhereExists(function ($sq) use ($search) {
-                        $sq->from('vend_prefixes as vp')
-                            ->whereColumn('vp.id', 'sc.vend_prefix_id')
-                            ->where('vp.name', 'LIKE', "{$search}%");
-                    });
+                        ->orWhereExists(function ($sq) use ($search) {
+                            $sq->from('vend_prefixes as vp')
+                                ->whereColumn('vp.id', 'sc.vend_prefix_id')
+                                ->where('vp.name', 'LIKE', "{$search}%");
+                        });
                 });
             })
             ->when($request->products, function ($q, $ids) {
@@ -2085,18 +2085,22 @@ class ReportController extends Controller
                                     ->orWhere('c2.name', 'LIKE', "%{$search}%");
                             });
                     })
-                    ->orWhereExists(function ($sq) use ($search) {
-                        $sq->from('vend_prefixes as vp2')
-                            ->whereColumn('vp2.id', 'sc2.vend_prefix_id')
-                            ->where('vp2.name', 'LIKE', "{$search}%");
-                    });
+                        ->orWhereExists(function ($sq) use ($search) {
+                            $sq->from('vend_prefixes as vp2')
+                                ->whereColumn('vp2.id', 'sc2.vend_prefix_id')
+                                ->where('vp2.name', 'LIKE', "{$search}%");
+                        });
                 });
             });
 
         $dateSql2 = "DATE(CONCAT(sc2.year,'-',LPAD(sc2.month,2,'0'),'-',LPAD(sc2.day,2,'0')))";
         // Inline date range filter (applyStockCountDateRange hardcodes sc. alias; here we need sc2.)
-        $fromYear2 = (int) $from->year; $fromMonth2 = (int) $from->month; $fromDay2 = (int) $from->day;
-        $toYear2   = (int) $to->year;   $toMonth2   = (int) $to->month;   $toDay2   = (int) $to->day;
+        $fromYear2 = (int) $from->year;
+        $fromMonth2 = (int) $from->month;
+        $fromDay2 = (int) $from->day;
+        $toYear2 = (int) $to->year;
+        $toMonth2 = (int) $to->month;
+        $toDay2 = (int) $to->day;
         $perVendPerDay = $perVendPerDay->where(function ($between) use ($fromYear2, $fromMonth2, $fromDay2, $toYear2, $toMonth2, $toDay2) {
             $between
                 ->where(function ($lower) use ($fromYear2, $fromMonth2, $fromDay2) {
@@ -3098,11 +3102,11 @@ class ReportController extends Controller
                                     ->orWhere('c.name', 'LIKE', "%{$search}%");
                             });
                     })
-                    ->orWhereExists(function ($sq) use ($search) {
-                        $sq->from('vend_prefixes as vp')
-                            ->whereColumn('vp.id', 'sc.vend_prefix_id')
-                            ->where('vp.name', 'LIKE', "{$search}%");
-                    });
+                        ->orWhereExists(function ($sq) use ($search) {
+                            $sq->from('vend_prefixes as vp')
+                                ->whereColumn('vp.id', 'sc.vend_prefix_id')
+                                ->where('vp.name', 'LIKE', "{$search}%");
+                        });
                 });
             })
             ->when($request->products, function ($q, $ids) {
@@ -3263,11 +3267,11 @@ class ReportController extends Controller
                                     ->orWhere('c.name', 'LIKE', "%{$search}%");
                             });
                     })
-                    ->orWhereExists(function ($sq) use ($search) {
-                        $sq->from('vend_prefixes as vp')
-                            ->whereColumn('vp.id', 'sc.vend_prefix_id')
-                            ->where('vp.name', 'LIKE', "{$search}%");
-                    });
+                        ->orWhereExists(function ($sq) use ($search) {
+                            $sq->from('vend_prefixes as vp')
+                                ->whereColumn('vp.id', 'sc.vend_prefix_id')
+                                ->where('vp.name', 'LIKE', "{$search}%");
+                        });
                 });
             })
             ->when($request->products, function ($q, $ids) {

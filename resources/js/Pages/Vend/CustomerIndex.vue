@@ -2486,7 +2486,9 @@ if(urlParams.has('channel_codes')) {
 	hydrateMulti('vendPrefixes', vendPrefixOptions.value, 'vendPrefixes');
 	hydrateMulti('zones', zoneOptions.value, 'zones');
 
-	if(urlParams.has('codes') || urlParams.has('channel_codes')) {
+	// Only auto-search if codes/channel_codes are non-empty AND the server hasn't already
+	// loaded data (autoload=true means the server already ran the query — no need to re-fetch)
+	if((urlParams.get('codes') || urlParams.get('channel_codes')) && !urlParams.get('autoload')) {
 		onSearchFilterUpdated();
 	}
 })

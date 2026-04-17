@@ -79,19 +79,10 @@ class CustomerController extends Controller
         $className = get_class(new Customer());
 
         $customers = Customer::with([
-            'attachments',
-            'category',
-            'category.categoryGroup',
-            'contact',
             'deliveryAddress',
-            'firstTransaction',
-            'operator',
-            'profile',
-            'status',
             'tagBindings',
             'vend.productMapping:id,name',
             'vend.vendPrefix',
-            'zone'
         ])
             ->leftJoin('addresses', function ($query) {
                 $query->on('addresses.modelable_id', '=', 'customers.id')
