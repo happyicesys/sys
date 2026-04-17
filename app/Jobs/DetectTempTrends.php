@@ -17,6 +17,10 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
     // Prevent duplicate jobs for same vend for 10 minutes
     public $uniqueFor = 600;
 
+    // Allow up to 3 attempts so a silent worker kill (OOM/crash) doesn't permanently
+    // lose health monitoring for a vend. The real failure will surface on attempt 2 or 3.
+    public int $tries = 3;
+
     public function uniqueId()
     {
         return $this->targetVendId ? $this->targetVendId . '-' . ($this->isFullScan ? 'full' : 'light') : 'global';
@@ -44,12 +48,17 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
     public function handle(): void
     {
         if (!$this->targetVendId) {
+            $offset = 0;
             \App\Models\Vend::where('is_active', true)
                 ->where('is_testing', false)
                 ->select('id')
-                ->chunk(100, function ($vends) {
+                ->chunk(100, function ($vends) use (&$offset) {
                     foreach ($vends as $vend) {
-                        self::dispatch($vend->id, true);
+                        // Stagger by 4 seconds each to spread ~573 jobs over ~38 minutes
+                        // instead of dumping them all at once and flooding the low queue.
+                        self::dispatch($vend->id, true)
+                            ->delay(now()->addSeconds($offset * 4));
+                        $offset++;
                     }
                 });
             return;
@@ -70,13 +79,24 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $this->checkConnectivity($vend);
 
         if ($this->isFullScan) {
-            $this->analyzeTrend($vend, VendTemp::TYPE_CHAMBER, VendSmartAlert::TYPE_RISING_T1, $existingAlerts);
-            $this->analyzeTrend($vend, VendTemp::TYPE_EVAPORATOR, VendSmartAlert::TYPE_RISING_T2, $existingAlerts);
+            // Single pre-fetch for the 48 h temp window shared by analyzeTrend (×2) and
+            // updateT1Lowest48h — collapses 5 individual DB queries into one round-trip.
+            // Sorted by value ASC so per-window minimums can be found with a plain first().
+            $trendRecords = VendTemp::where('vend_id', $vend->id)
+                ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
+                ->where('created_at', '>=', now()->subHours(48))
+                ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+                ->orderBy('value', 'asc')
+                ->orderBy('created_at', 'asc')
+                ->get(['type', 'value', 'created_at']);
+
+            $this->analyzeTrend($vend, VendTemp::TYPE_CHAMBER, VendSmartAlert::TYPE_RISING_T1, $existingAlerts, $trendRecords);
+            $this->analyzeTrend($vend, VendTemp::TYPE_EVAPORATOR, VendSmartAlert::TYPE_RISING_T2, $existingAlerts, $trendRecords);
             $this->checkNoTransactions($vend);
             $this->checkStockouts($vend);
             $this->analyzeFrozenT2($vend, $existingAlerts);
             $this->analyzePreventiveMaintenance($vend, $existingAlerts);
-            $this->updateT1Lowest48h($vend);
+            $this->updateT1Lowest48h($vend, $trendRecords);
         }
 
         if ($vend->isDirty()) {
@@ -88,14 +108,19 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
      * Compute and store the lowest raw T1 value in the last 48 hours.
      * Stores raw integer (divide by 10 for °C). Sets NULL when no data exists.
      */
-    private function updateT1Lowest48h(\App\Models\Vend $vend): void
+    private function updateT1Lowest48h(\App\Models\Vend $vend, $prefetchedRecords = null): void
     {
-        $lowest = DB::table('vend_temps')
-            ->where('vend_id', $vend->id)
-            ->where('type', VendTemp::TYPE_CHAMBER)
-            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
-            ->where('created_at', '>=', now()->subHours(48))
-            ->min('value');
+        if ($prefetchedRecords !== null) {
+            // Re-use the shared 48 h pre-fetch — no extra DB query needed.
+            $lowest = $prefetchedRecords->where('type', VendTemp::TYPE_CHAMBER)->min('value');
+        } else {
+            $lowest = DB::table('vend_temps')
+                ->where('vend_id', $vend->id)
+                ->where('type', VendTemp::TYPE_CHAMBER)
+                ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+                ->where('created_at', '>=', now()->subHours(48))
+                ->min('value');
+        }
 
         $vend->t1_lowest_48h = $lowest !== null ? (int) $lowest : null;
     }
@@ -341,30 +366,40 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         }
     }
 
-    private function analyzeTrend(\App\Models\Vend $vend, int $tempType, string $alertType, $existingAlerts): void
+    private function analyzeTrend(\App\Models\Vend $vend, int $tempType, string $alertType, $existingAlerts, $prefetchedRecords = null): void
     {
         $now = now();
         $windowCurrentStart = $now->copy()->subHours(24);
         $windowPrevStart = $now->copy()->subHours(48);
 
-        // Optimized: Instead of hydrating thousands of models and sorting in PHP,
-        // we query for the lowest records directly from the database to reduce memory and execution time.
-        $currRecord = VendTemp::where('vend_id', $vend->id)
-            ->where('type', $tempType)
-            ->where('created_at', '>=', $windowCurrentStart)
-            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
-            ->orderBy('value', 'asc')
-            ->orderBy('created_at', 'asc')
-            ->first();
+        if ($prefetchedRecords !== null) {
+            // Use the shared 48 h pre-fetch (sorted value ASC) — no extra DB queries needed.
+            // first() on a value-sorted collection returns the record with the minimum value
+            // in the window, matching what the original orderBy('value','asc')->first() did.
+            $typeRecords = $prefetchedRecords->where('type', $tempType);
+            $currRecord = $typeRecords->first(fn($r) => $r->created_at->gte($windowCurrentStart));
+            $prevRecord = $typeRecords->first(
+                fn($r) => $r->created_at->gte($windowPrevStart) && $r->created_at->lt($windowCurrentStart)
+            );
+        } else {
+            // Fallback for callers that don't supply pre-fetched records (e.g. VendDataService).
+            $currRecord = VendTemp::where('vend_id', $vend->id)
+                ->where('type', $tempType)
+                ->where('created_at', '>=', $windowCurrentStart)
+                ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+                ->orderBy('value', 'asc')
+                ->orderBy('created_at', 'asc')
+                ->first();
 
-        $prevRecord = VendTemp::where('vend_id', $vend->id)
-            ->where('type', $tempType)
-            ->where('created_at', '>=', $windowPrevStart)
-            ->where('created_at', '<', $windowCurrentStart)
-            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
-            ->orderBy('value', 'asc')
-            ->orderBy('created_at', 'asc')
-            ->first();
+            $prevRecord = VendTemp::where('vend_id', $vend->id)
+                ->where('type', $tempType)
+                ->where('created_at', '>=', $windowPrevStart)
+                ->where('created_at', '<', $windowCurrentStart)
+                ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+                ->orderBy('value', 'asc')
+                ->orderBy('created_at', 'asc')
+                ->first();
+        }
 
         $curr = $currRecord?->value;
         $prev = $prevRecord?->value;
