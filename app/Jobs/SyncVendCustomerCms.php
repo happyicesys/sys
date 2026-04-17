@@ -210,10 +210,10 @@ class SyncVendCustomerCms implements ShouldQueue
                     ]);
                 }
 
-                if ($this->vendID and Vend::find($this->vendID)) {
+                if ($this->vendID and ($vend = Vend::find($this->vendID))) {
                     $beginDate = isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
 
-                    $vend = Vend::findOrFail($this->vendID);
+                    // $vend is already loaded from the find() check above — no second query needed
 
                     if ($vend && $customer) {
                         $isExisting = Vend::where('customer_id', $customer->id)->first();

@@ -39,16 +39,22 @@ class SyncAvgSalesQtyProducts implements ShouldQueue
             $counts = VendTransactionSalesAggregator::productTotals($startDate, $endDate, null, true)
                 ->pluck('total_count', 'product_id');
 
-            // Step 2: Loop through products in chunks
+            // Step 2: Loop through products in chunks, batch-write dirty rows per chunk
             Product::chunk(50, function ($products) use ($counts) {
+                $updates = [];
                 foreach ($products as $product) {
-                    $count = $counts[$product->id] ?? 0;
-                    $avg = $count / 7;
-
-                    $product->avg_seven_days_count = $avg;
-                    if ($product->isDirty()) {
-                        $product->save();
+                    $avg = ($counts[$product->id] ?? 0) / 7;
+                    if ($product->avg_seven_days_count != $avg) {
+                        $updates[] = [
+                            'id'                    => $product->id,
+                            'avg_seven_days_count'  => $avg,
+                            'updated_at'            => now(),
+                        ];
                     }
+                }
+                if (!empty($updates)) {
+                    // Single INSERT … ON DUPLICATE KEY UPDATE per chunk instead of one save() per product
+                    Product::upsert($updates, ['id'], ['avg_seven_days_count', 'updated_at']);
                 }
             });
 

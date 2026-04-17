@@ -26,17 +26,27 @@ class SyncVoucherStatus implements ShouldQueue
             ->where('date_to', '<', $today)
             ->get();
 
-        foreach ($vouchers as $voucher) {
-            $voucher->status = Voucher::STATUS_EXPIRED;
-
-            foreach ($voucher->voucherItems as $voucherItem) {
-                if ($voucherItem->status !== Voucher::STATUS_REDEEMED) {
-                    $voucherItem->status = Voucher::STATUS_EXPIRED;
-                    $voucherItem->save();
-                }
-            }
-
-            $voucher->save();
+        if ($vouchers->isEmpty()) {
+            return;
         }
+
+        // Batch-expire all non-redeemed voucher items in a single query
+        $itemIds = $vouchers
+            ->flatMap(fn($v) => $v->voucherItems)
+            ->where('status', '!=', Voucher::STATUS_REDEEMED)
+            ->pluck('id');
+
+        if ($itemIds->isNotEmpty()) {
+            VoucherItem::whereIn('id', $itemIds)->update([
+                'status'     => Voucher::STATUS_EXPIRED,
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Batch-expire all fetched vouchers in a single query
+        Voucher::whereIn('id', $vouchers->pluck('id'))->update([
+            'status'     => Voucher::STATUS_EXPIRED,
+            'updated_at' => now(),
+        ]);
     }
 }

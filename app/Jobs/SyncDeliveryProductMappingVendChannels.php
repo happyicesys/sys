@@ -12,9 +12,17 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class SyncDeliveryProductMappingVendChannels implements ShouldQueue
+class SyncDeliveryProductMappingVendChannels implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    // Deduplicate rapid dispatches for the same mapping vend within 60 seconds
+    public $uniqueFor = 60;
+
+    public function uniqueId(): string
+    {
+        return 'delivery_mapping_vend_' . $this->deliveryProductMappingVend->id;
+    }
 
     protected $deliveryProductMappingVend;
     protected $deliveryProductMappingService;
@@ -32,11 +40,21 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue
      */
     public function handle(): void
     {
-        if($this->deliveryProductMappingVend->vend->vendChannels()->exists()) {
-            foreach($this->deliveryProductMappingVend->vend->vendChannels as $vendChannel) {
-              if($this->deliveryProductMappingVend->deliveryProductMapping->deliveryProductMappingItems()->exists()) {
+        // Eager-load all needed relations upfront to avoid N+1 lazy loads inside the nested loops
+        $this->deliveryProductMappingVend->load([
+            'vend.vendChannels',
+            'deliveryProductMapping.deliveryProductMappingItems',
+        ]);
+
+        // Cache references to avoid repeated property traversal
+        $vend = $this->deliveryProductMappingVend->vend;
+        $deliveryProductMapping = $this->deliveryProductMappingVend->deliveryProductMapping;
+
+        if($vend->vendChannels->isNotEmpty()) {
+            foreach($vend->vendChannels as $vendChannel) {
+              if($deliveryProductMapping->deliveryProductMappingItems->isNotEmpty()) {
                 // create the existing vend channel data from android with local created template channel info
-                foreach($this->deliveryProductMappingVend->deliveryProductMapping->deliveryProductMappingItems as $item) {
+                foreach($deliveryProductMapping->deliveryProductMappingItems as $item) {
                   if($item->channel_code === $vendChannel->code) {
                     $deliveryProductMappingVendChannel = DeliveryProductMappingVendChannel::query()
                       ->where('delivery_product_mapping_item_id', $item->id)
@@ -48,7 +66,7 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue
                     if($deliveryProductMappingVendChannel) {
                       $deliveryProductMappingVendChannel->update([
                         'amount' => $item->amount,
-                        'delivery_product_mapping_id' => $this->deliveryProductMappingVend->deliveryProductMapping->id,
+                        'delivery_product_mapping_id' => $deliveryProductMapping->id,
                         // if template and reserved logic checking is true, consider active for delivery platform channel item
                         'is_active' =>
                           $this->deliveryProductMappingVend->is_active and
@@ -58,11 +76,11 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue
                             $deliveryProductMappingVendChannel)['status'] ?
                           true : false,
                         'qty' => $item->qty,
-                        'reserved_percent' => $deliveryProductMappingVendChannel->reserved_percent ? $deliveryProductMappingVendChannel->reserved_percent : $item->deliveryProductMapping->reserved_percent,
-                        'reserved_qty' => $deliveryProductMappingVendChannel->reserved_qty ? $deliveryProductMappingVendChannel->reserved_qty : $item->deliveryProductMapping->reserved_qty,
+                        'reserved_percent' => $deliveryProductMappingVendChannel->reserved_percent ? $deliveryProductMappingVendChannel->reserved_percent : $deliveryProductMapping->reserved_percent,
+                        'reserved_qty' => $deliveryProductMappingVendChannel->reserved_qty ? $deliveryProductMappingVendChannel->reserved_qty : $deliveryProductMapping->reserved_qty,
                         'vend_channel_code' => $vendChannel->code,
-                        'vend_code' => $vendChannel->vend->code,
-                        'vend_id' => $vendChannel->vend->id,
+                        'vend_code' => $vend->code,
+                        'vend_id' => $vend->id,
                       ]);
                     } else {
                       // create new if not found
@@ -71,7 +89,7 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue
                         'delivery_product_mapping_vend_id' => $this->deliveryProductMappingVend->id,
                         'vend_channel_id' => $vendChannel->id,
                         'amount' => $item->amount,
-                        'delivery_product_mapping_id' => $this->deliveryProductMappingVend->deliveryProductMapping->id,
+                        'delivery_product_mapping_id' => $deliveryProductMapping->id,
                         // if template and reserved logic checking is true, consider active for delivery platform channel item
                         'is_active' =>
                           $this->deliveryProductMappingVend->is_active and
@@ -81,11 +99,11 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue
                             $this->deliveryProductMappingVend)['status'] ?
                           true : false,
                         'qty' => $item->qty,
-                        'reserved_percent' => $item->deliveryProductMapping->reserved_percent,
-                        'reserved_qty' => $item->deliveryProductMapping->reserved_qty,
+                        'reserved_percent' => $deliveryProductMapping->reserved_percent,
+                        'reserved_qty' => $deliveryProductMapping->reserved_qty,
                         'vend_channel_code' => $vendChannel->code,
-                        'vend_code' => $vendChannel->vend->code,
-                        'vend_id' => $vendChannel->vend->id,
+                        'vend_code' => $vend->code,
+                        'vend_id' => $vend->id,
                       ]);
                     }
                   }

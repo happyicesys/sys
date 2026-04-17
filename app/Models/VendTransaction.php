@@ -181,12 +181,13 @@ class VendTransaction extends Model
             ->when($request->codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
                     $search = array_map('trim', explode(',', $search));
-                    $query->whereHas('vend', function ($query) use ($search) {
-                        $query->whereIn('code', $search);
+                    // Use whereIn subquery instead of whereHas to avoid correlated EXISTS subquery
+                    $query->whereIn('vend_transactions.vend_id', function ($q) use ($search) {
+                        $q->select('id')->from('vends')->whereIn('code', $search);
                     });
                 } else {
-                    $query->whereHas('vend', function ($query) use ($search) {
-                        $query->where('code', 'LIKE', "%{$search}%");
+                    $query->whereIn('vend_transactions.vend_id', function ($q) use ($search) {
+                        $q->select('id')->from('vends')->where('code', 'LIKE', "%{$search}%");
                     });
                 }
             })

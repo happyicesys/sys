@@ -36,7 +36,13 @@ class SaveStockCount implements ShouldQueue
         $dateObj = Carbon::parse($this->date);
 
         // Sales (assumed in cents)
-        $vendTransactions = $vend->vendTransactions()->whereDate('created_at', $dateObj)->get();
+        // Use a range instead of whereDate() — DATE() wraps prevent index usage on timestamp columns
+        $vendTransactions = $vend->vendTransactions()
+            ->whereBetween('created_at', [
+                $dateObj->copy()->startOfDay(),
+                $dateObj->copy()->endOfDay(),
+            ])
+            ->get();
         $cashSalesCents    = (int) $vendTransactions->where('payment_method_id', 1)->sum('amount');
         $cashlessSalesCents= (int) $vendTransactions->where('payment_method_id', '!=', 1)->sum('amount');
 

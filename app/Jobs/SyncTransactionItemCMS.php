@@ -37,7 +37,12 @@ class SyncTransactionItemCMS implements ShouldQueue
 
         $this->endpoint = $baseUrl . '/api/transactions/deals';
 
-        $customer = Customer::findOrFail($this->customerID);
+        $customer = Customer::with(['vend.vendChannels.product'])->find($this->customerID);
+
+        if (!$customer) {
+            // Customer no longer exists (may have been deleted), skip silently
+            return;
+        }
 
         if ($customer->cms_invoice_history and isset($customer->cms_invoice_history['next_transaction_id'])) {
             $data = [

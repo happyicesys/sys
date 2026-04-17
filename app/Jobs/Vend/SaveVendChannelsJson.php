@@ -173,7 +173,7 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
         return ProductLimit::query()
             ->select('product_id', 'qty', 'is_created_by_system', 'created_at')
             ->whereIn('product_id', $productIds)
-            ->whereDate('date', $tomorrow)
+            ->where('date', $tomorrow->toDateString())
             ->orderBy('product_id')
             ->orderByDesc('created_at')
             ->get()

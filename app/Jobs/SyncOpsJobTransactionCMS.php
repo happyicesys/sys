@@ -52,6 +52,14 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
         $data = $this->data;
         $opsJobItem = $this->opsJobItem;
 
+        // Eager-load all relations accessed in the loop to prevent N+1 queries
+        $opsJobItem->loadMissing([
+            'customer',
+            'opsJobItemChannels.vendChannel',
+            'opsJobItemChannels.product',
+            'attachments',
+        ]);
+
         if ($opsJobItem->customer && $opsJobItem->customer->person_id) {
             $data['customers'][$opsJobItem->customer->person_id] = [
                 'attachments' => [],
