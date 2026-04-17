@@ -251,19 +251,23 @@ class VendController extends Controller
         $needsLastSecondOpsJobs = in_array($request->sortKey, ['last_second_ops_job_acc_total_amount', 'last_second_ops_job_acc_total_count', 'last_second_ops_job_amount', 'last_second_ops_job_cash_amount', 'last_second_ops_job_count']);
         $needsNextOpsJobs = in_array($request->sortKey, ['next_ops_job_amount', 'next_ops_job_cash_amount', 'next_ops_job_count']);
         $needsLastThirtyDaysStockIn = in_array($request->sortKey, ['last_thirty_days_stock_in_amount', 'last_thirty_days_stock_in_qty', 'thirty_days_stock_in_delta_amount', 'thirty_days_stock_in_delta_percent']);
+        $needsT1Lowest = ($request->sortKey === 't1_lowest_48h');
 
         $total = (clone $vends)->count();
 
-        $vends->leftJoin(DB::raw('
-            (
-                SELECT vend_id, MIN(value) as t1_lowest_48h 
-                FROM vend_temps 
-                WHERE type = 1 
-                AND value != 32767 
-                AND created_at >= NOW() - INTERVAL 48 HOUR 
-                GROUP BY vend_id
-            ) AS vt_lowest
-        '), 'vt_lowest.vend_id', '=', 'vends.id');
+        // Only join vend_temps subquery when sorting by t1_lowest_48h (expensive full-table scan)
+        if ($needsT1Lowest) {
+            $vends->leftJoin(DB::raw('
+                (
+                    SELECT vend_id, MIN(value) as t1_lowest_48h
+                    FROM vend_temps
+                    WHERE type = 1
+                    AND value != 32767
+                    AND created_at >= NOW() - INTERVAL 48 HOUR
+                    GROUP BY vend_id
+                ) AS vt_lowest
+            '), 'vt_lowest.vend_id', '=', 'vends.id');
+        }
 
         // Apply conditional joins for data retrieval
         $vends->when($needsVc, function ($query) {
@@ -302,7 +306,6 @@ class VendController extends Controller
         $selectColumns = [
             'vends.id AS id',
             'vends.id AS vend_id',
-            'vt_lowest.t1_lowest_48h',
             'vends.amount_average_day',
             'vends.begin_date',
             'vends.code',
@@ -381,6 +384,10 @@ class VendController extends Controller
             $selectColumns[] = 'vc_cost.total_stock_cost';
         }
 
+        if ($needsT1Lowest) {
+            $selectColumns[] = 'vt_lowest.t1_lowest_48h';
+        }
+
         $vends->select($selectColumns);
 
         $page = Paginator::resolveCurrentPage() ?: 1;
@@ -393,12 +400,14 @@ class VendController extends Controller
             'query' => $request->query(),
         ]);
 
-        if (!$needsVc || !$needsVcCost) {
+        if (!$needsVc || !$needsVcCost || !$needsT1Lowest) {
             $types = [];
             if (!$needsVc)
                 $types[] = 'vc';
             if (!$needsVcCost)
                 $types[] = 'vc_cost';
+            if (!$needsT1Lowest)
+                $types[] = 't1_lowest';
             $this->loadAggregates($vends->getCollection(), $types);
         }
 
@@ -531,6 +540,7 @@ class VendController extends Controller
         $needsLastSecondOpsJobs = in_array($sortKey, ['last_second_ops_job_acc_total_amount', 'last_second_ops_job_acc_total_count', 'last_second_ops_job_amount', 'last_second_ops_job_cash_amount', 'last_second_ops_job_count']);
         $needsNextOpsJobs = in_array($sortKey, ['next_ops_job_amount', 'next_ops_job_cash_amount', 'next_ops_job_count']);
         $needsLastThirtyDaysStockIn = in_array($sortKey, ['last_thirty_days_stock_in_amount', 'last_thirty_days_stock_in_qty', 'thirty_days_stock_in_delta_amount', 'thirty_days_stock_in_delta_percent']);
+        $needsT1Lowest = ($sortKey === 't1_lowest_48h');
 
         $shouldAutoload = $request->boolean('autoload', false);
         $perPage = $request->numberPerPage === 'All' ? 10000 : $request->numberPerPage;
@@ -602,16 +612,19 @@ class VendController extends Controller
         $countQuery = clone $vends;
         $total = $countQuery->count();
 
-        $vends->leftJoin(DB::raw('
-            (
-                SELECT vend_id, MIN(value) as t1_lowest_48h 
-                FROM vend_temps 
-                WHERE type = 1 
-                AND value != 32767 
-                AND created_at >= NOW() - INTERVAL 48 HOUR 
-                GROUP BY vend_id
-            ) AS vt_lowest
-        '), 'vt_lowest.vend_id', '=', 'vends.id');
+        // Only join vend_temps subquery when sorting by t1_lowest_48h (very expensive full-table scan)
+        if ($needsT1Lowest) {
+            $vends->leftJoin(DB::raw('
+                (
+                    SELECT vend_id, MIN(value) as t1_lowest_48h
+                    FROM vend_temps
+                    WHERE type = 1
+                    AND value != 32767
+                    AND created_at >= NOW() - INTERVAL 48 HOUR
+                    GROUP BY vend_id
+                ) AS vt_lowest
+            '), 'vt_lowest.vend_id', '=', 'vends.id');
+        }
 
 
             $vends->when($needsVc, function ($query) {
@@ -793,7 +806,6 @@ class VendController extends Controller
             $selectColumns = [
                 'customers.id AS id',
                 'vends.id AS vend_id',
-                'vt_lowest.t1_lowest_48h',
                 'vends.amount_average_day',
                 'vends.code',
                 'vends.acb_vmc_pa_json',
@@ -913,6 +925,10 @@ class VendController extends Controller
                 ');
             }
 
+            if ($needsT1Lowest) {
+                $selectColumns[] = 'vt_lowest.t1_lowest_48h';
+            }
+
             $vends->select($selectColumns);
 
             $page = Paginator::resolveCurrentPage() ?: 1;
@@ -925,7 +941,7 @@ class VendController extends Controller
                 'query' => $request->query(),
             ]);
 
-            if (!$needsVc || !$needsVcCost || !$needsVcStock || !$needsLastOpsJobs || !$needsLastSecondOpsJobs || !$needsNextOpsJobs || !$needsLastThirtyDaysStockIn) {
+            if (!$needsVc || !$needsVcCost || !$needsVcStock || !$needsLastOpsJobs || !$needsLastSecondOpsJobs || !$needsNextOpsJobs || !$needsLastThirtyDaysStockIn || !$needsT1Lowest) {
                 $types = [];
                 if (!$needsVc)
                     $types[] = 'vc';
@@ -941,6 +957,8 @@ class VendController extends Controller
                     $types[] = 'next_ops_jobs';
                 if (!$needsLastThirtyDaysStockIn)
                     $types[] = 'last_thirty_days_stock_in';
+                if (!$needsT1Lowest)
+                    $types[] = 't1_lowest';
 
                 $this->loadAggregates($vends->getCollection(), $types);
             }
@@ -3287,6 +3305,25 @@ class VendController extends Controller
                     $item->total_stock_amount = 0;
                     $item->total_full_load_amount = 0;
                 }
+            }
+        }
+
+        if (in_array('t1_lowest', $types) && !empty($vendIds)) {
+            $t1LowestData = DB::table('vend_temps')
+                ->select('vend_id', DB::raw('MIN(value) as t1_lowest_48h'))
+                ->whereIn('vend_id', $vendIds)
+                ->where('type', 1)
+                ->where('value', '!=', 32767)
+                ->where('created_at', '>=', DB::raw('NOW() - INTERVAL 48 HOUR'))
+                ->groupBy('vend_id')
+                ->get()
+                ->keyBy('vend_id');
+
+            foreach ($items as $item) {
+                $vid = $item->vend_id ?? $item->id;
+                $item->t1_lowest_48h = isset($t1LowestData[$vid])
+                    ? $t1LowestData[$vid]->t1_lowest_48h
+                    : null;
             }
         }
 

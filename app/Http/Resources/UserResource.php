@@ -28,7 +28,7 @@ class UserResource extends JsonResource
             'phone_number' => $this->phone_number,
             'roles' => $this->whenLoaded('roles'),
             'role_id' =>  $this->when($this->relationLoaded('roles'), function() {
-                return $this->roles()->first();
+                return $this->roles->first();
             }),
             'role_name' => isset($this->role_name) ? $this->role_name : '',
             'vends' => VendResource::collection($this->whenLoaded('vends')),
