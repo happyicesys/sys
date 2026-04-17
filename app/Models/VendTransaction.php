@@ -178,14 +178,19 @@ class VendTransaction extends Model
             ->when($request->apk_ver, function ($query, $search) {
                 $query->where('vend_transactions.meta_json->apk_ver', 'LIKE', "%{$search}%");
             })
-            ->when($request->codes, function ($query, $search) {
-                if (strpos($search, ',') !== false) {
+            ->when($request->codes, function ($query, $search) use ($request) {
+                // Use pre-resolved IDs when available (set by DashboardController) to skip the subquery.
+                if ($request->has('_resolved_vend_ids')) {
+                    $query->whereIn('vend_transactions.vend_id', $request->input('_resolved_vend_ids', []));
+                } elseif (strpos($search, ',') !== false) {
                     $search = array_map('trim', explode(',', $search));
                     // Use whereIn subquery instead of whereHas to avoid correlated EXISTS subquery
                     $query->whereIn('vend_transactions.vend_id', function ($q) use ($search) {
                         $q->select('id')->from('vends')->whereIn('code', $search);
                     });
                 } else {
+                    // Keep LIKE for non-dashboard callers that may expect partial matching.
+                    // Dashboard always hits the pre-resolved-IDs branch above.
                     $query->whereIn('vend_transactions.vend_id', function ($q) use ($search) {
                         $q->select('id')->from('vends')->where('code', 'LIKE', "%{$search}%");
                     });

@@ -168,7 +168,21 @@ return [
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
-            'queue' => ['high', 'default', 'low'],
+            'queue' => ['high', 'default'],
+            'balance' => 'auto',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 1200,
+            'nice' => 0,
+        ],
+        // Dedicated supervisor for low-priority batch jobs (e.g. DetectTempTrends).
+        // Keeps a separate worker pool so low queue is never starved by high/default traffic.
+        'supervisor-low' => [
+            'connection' => 'redis',
+            'queue' => ['low'],
             'balance' => 'auto',
             'maxProcesses' => 1,
             'maxTime' => 0,
@@ -183,15 +197,23 @@ return [
     'environments' => [
         'production' => [
             'supervisor-1' => [
-                'maxProcesses' => 20,
+                'maxProcesses' => 15,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
-            ]
+            ],
+            'supervisor-low' => [
+                'maxProcesses' => 8,
+                'balanceMaxShift' => 2,
+                'balanceCooldown' => 3,
+            ],
         ],
 
         'local' => [
             'supervisor-1' => [
-                'maxProcesses' => 4,
+                'maxProcesses' => 3,
+            ],
+            'supervisor-low' => [
+                'maxProcesses' => 2,
             ],
         ],
     ],

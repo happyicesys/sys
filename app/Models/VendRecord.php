@@ -89,15 +89,19 @@ class VendRecord extends Model
                 $query->whereRaw('1 = 0');
             }
         })
-            ->when($request->codes, function ($query, $search) {
-                if (strpos($search, ',') !== false) {
-                    $search = array_map('trim', explode(',', $search));
+            ->when($request->codes, function ($query, $search) use ($request) {
+                // Use pre-resolved IDs when available (set by DashboardController) to avoid
+                // firing a subquery against vends on every chart query.
+                if ($request->has('_resolved_vend_ids')) {
+                    $query->whereIn('vend_id', $request->input('_resolved_vend_ids', []));
                 } else {
-                    $search = [$search];
+                    $codes = strpos($search, ',') !== false
+                        ? array_map('trim', explode(',', $search))
+                        : [$search];
+                    $query->whereIn('vend_id', function ($query) use ($codes) {
+                        $query->select('id')->from('vends')->whereIn('code', $codes);
+                    });
                 }
-                $query->whereIn('vend_id', function ($query) use ($search) {
-                    $query->select('id')->from('vends')->whereIn('code', $search);
-                });
             })
             ->when($request->is_binded_customer, function ($query, $search) {
                 if ($search != 'all') {

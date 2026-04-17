@@ -215,32 +215,65 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
         $now = now();
         $calc24h = $now->copy()->subHours(24);
         $calc72h = $now->copy()->subHours(72);
+        $calc14d = $now->copy()->subDays(14);
 
-        // Combined query for both 24h and 72h ranges for chamber AND evaporator
+        // Single query covering both 24h and 72h windows for chamber + evaporator.
+        // Also pre-fetches:
+        //   - last_good_at: most recent reading <= each threshold (for duration calc)
+        //   - min_t1_24_at / min_t1_72_at: timestamp when T1 hit its window minimum
+        // This avoids 2 extra per-vend DB hits inside checkLowestStats when an alert fires.
+        $thresholds = [-21, -20, -19];
+        $threshRaws = array_map(fn($t) => $t * $scale, $thresholds); // [-210, -200, -190]
+
         $stats = VendTemp::where('vend_id', $vend->id)
             ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
-            ->where('created_at', '>=', $calc72h)
+            ->where('created_at', '>=', $calc14d)
             ->selectRaw('
                 type,
                 MIN(CASE WHEN created_at >= ? THEN value END) as min_24,
-                MIN(value) as min_72
-            ', [$calc24h])
+                MIN(CASE WHEN created_at >= ? THEN value END) as min_72,
+                MAX(CASE WHEN value <= ? AND created_at >= ? THEN created_at END) as last_good_sev1_at,
+                MAX(CASE WHEN value <= ? AND created_at >= ? THEN created_at END) as last_good_sev2_at,
+                MAX(CASE WHEN value <= ? AND created_at >= ? THEN created_at END) as last_good_sev3_at
+            ', [
+                $calc24h,
+                $calc72h,
+                $threshRaws[0], $calc14d,
+                $threshRaws[1], $calc14d,
+                $threshRaws[2], $calc14d,
+            ])
             ->groupBy('type')
             ->get()
             ->keyBy('type');
 
-        $this->checkLowestStats($vend->id, 24, [-21, -20, -19], VendSmartAlert::TYPE_LOWEST_24H_ABOVE, $scale, $existingAlerts, [
-            VendTemp::TYPE_CHAMBER => $stats->get(VendTemp::TYPE_CHAMBER)?->min_24,
-            VendTemp::TYPE_EVAPORATOR => $stats->get(VendTemp::TYPE_EVAPORATOR)?->min_24
-        ]);
+        // Fetch T1 min-value timestamps in a second targeted query (cannot be computed
+        // alongside the grouped stats above without a correlated subquery).
+        $minT1Timestamps = DB::table('vend_temps')
+            ->where('vend_id', $vend->id)
+            ->where('type', VendTemp::TYPE_CHAMBER)
+            ->where('created_at', '>=', $calc72h)
+            ->selectRaw('
+                MAX(CASE WHEN value = ? AND created_at >= ? THEN created_at END) as min_t1_24_at,
+                MAX(CASE WHEN value = ? THEN created_at END) as min_t1_72_at
+            ', [
+                $stats->get(VendTemp::TYPE_CHAMBER)?->min_24 ?? PHP_INT_MAX,
+                $calc24h,
+                $stats->get(VendTemp::TYPE_CHAMBER)?->min_72 ?? PHP_INT_MAX,
+            ])
+            ->first();
 
-        $this->checkLowestStats($vend->id, 72, [-21, -20, -19], VendSmartAlert::TYPE_LOWEST_72H_ABOVE, $scale, $existingAlerts, [
+        $this->checkLowestStats($vend->id, 24, $thresholds, VendSmartAlert::TYPE_LOWEST_24H_ABOVE, $scale, $existingAlerts, [
+            VendTemp::TYPE_CHAMBER => $stats->get(VendTemp::TYPE_CHAMBER)?->min_24,
+            VendTemp::TYPE_EVAPORATOR => $stats->get(VendTemp::TYPE_EVAPORATOR)?->min_24,
+        ], $stats, $minT1Timestamps?->min_t1_24_at);
+
+        $this->checkLowestStats($vend->id, 72, $thresholds, VendSmartAlert::TYPE_LOWEST_72H_ABOVE, $scale, $existingAlerts, [
             VendTemp::TYPE_CHAMBER => $stats->get(VendTemp::TYPE_CHAMBER)?->min_72,
-            VendTemp::TYPE_EVAPORATOR => $stats->get(VendTemp::TYPE_EVAPORATOR)?->min_72
-        ]);
+            VendTemp::TYPE_EVAPORATOR => $stats->get(VendTemp::TYPE_EVAPORATOR)?->min_72,
+        ], $stats, $minT1Timestamps?->min_t1_72_at);
     }
 
-    private function checkLowestStats($vendId, $hours, $thresholds, $alertType, $scale, $existingAlerts, $minValues)
+    private function checkLowestStats($vendId, $hours, $thresholds, $alertType, $scale, $existingAlerts, $minValues, $stats = null, $minT1At = null)
     {
         $minT1 = $minValues[VendTemp::TYPE_CHAMBER] ?? null;
         $minT2 = $minValues[VendTemp::TYPE_EVAPORATOR] ?? null;
@@ -260,28 +293,33 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             $sev = 1;
 
         if ($sev > 0) {
-            $activeThreshold = $thresholds[$sev - 1];
-            $threshRaw = $activeThreshold * $scale;
+            // Use pre-fetched last_good_at from the stats query when available,
+            // falling back to a DB query only if stats weren't passed in.
+            $lastGoodAt = null;
+            if ($stats !== null) {
+                $sevKey = "last_good_sev{$sev}_at";
+                $chamberLastGood = $stats->get(VendTemp::TYPE_CHAMBER)?->$sevKey;
+                $evapLastGood = $stats->get(VendTemp::TYPE_EVAPORATOR)?->$sevKey;
+                // Pick the most recent across both sensor types
+                if ($chamberLastGood && $evapLastGood) {
+                    $lastGoodAt = max($chamberLastGood, $evapLastGood);
+                } else {
+                    $lastGoodAt = $chamberLastGood ?? $evapLastGood;
+                }
+            } else {
+                $activeThreshold = $thresholds[$sev - 1];
+                $threshRaw = $activeThreshold * $scale;
+                $lastGoodAt = VendTemp::where('vend_id', $vendId)
+                    ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
+                    ->where('value', '<=', $threshRaw)
+                    ->where('created_at', '>=', now()->subDays(14))
+                    ->latest('created_at')
+                    ->value('created_at');
+            }
 
-            // Date of last good status (only check if an alert is triggered)
-            $lastGood = VendTemp::where('vend_id', $vendId)
-                ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
-                ->where('value', '<=', $threshRaw)
-                ->where('created_at', '>=', now()->subDays(14))
-                ->latest('created_at')
-                ->value('created_at');
-
-            $duration = $lastGood
-                ? now()->diffInMinutes($lastGood)
+            $duration = $lastGoodAt
+                ? now()->diffInMinutes($lastGoodAt)
                 : $hours * 60;
-
-            // Find timestamp of T1's min value in the window
-            $minT1At = VendTemp::where('vend_id', $vendId)
-                ->where('type', VendTemp::TYPE_CHAMBER)
-                ->where('created_at', '>=', now()->subHours($hours))
-                ->where('value', $minT1)
-                ->latest('created_at')
-                ->value('created_at');
 
             $minTimestamp = $minT1At ? \Carbon\Carbon::parse($minT1At)->toIso8601String() : now()->toIso8601String();
 

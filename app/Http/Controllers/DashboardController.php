@@ -44,6 +44,20 @@ class DashboardController extends Controller
     {
         $this->setDefaultOperators($request);
 
+        // Pre-resolve vend IDs from machine codes once here so every downstream
+        // query can use a direct whereIn instead of firing its own subquery against
+        // the vends table repeatedly (would otherwise run ~7 identical lookups).
+        if ($request->codes) {
+            $codesArr = strpos($request->codes, ',') !== false
+                ? array_map('trim', explode(',', $request->codes))
+                : [$request->codes];
+            $resolvedVendIds = \DB::table('vends')
+                ->whereIn('code', $codesArr)
+                ->pluck('id')
+                ->toArray();
+            $request->merge(['_resolved_vend_ids' => $resolvedVendIds]);
+        }
+
         $shouldAutoload = $request->boolean('autoload', false);
 
         $bestPerformerLimit = (int) $request->input('best_performer_limit', $request->input('performer_limit', 20));
@@ -539,9 +553,12 @@ class DashboardController extends Controller
             }
         }
 
-        // Subquery: latest date per (year, month)
+        // Subquery: latest date per (year, month).
+        // Scoping by the same date range the outer query uses prevents a full table scan —
+        // the MAX(date) per month is the same whether we scan all history or just these 2 years.
         $latestSub = DB::table('vend_records')
             ->selectRaw('MAX(date) as latest_date, year, month')
+            ->whereBetween('date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
             ->groupBy('year', 'month');
 
         // Get testing vend IDs + vends with null customer_id
@@ -559,7 +576,7 @@ class DashboardController extends Controller
                     ->on('vend_records.year', '=', 'latest.year')
                     ->on('vend_records.month', '=', 'latest.month');
             })
-            ->whereBetween('vend_records.date', [$lastYear->startOfDay(), $thisYear->endOfDay()])
+            ->whereBetween('vend_records.date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
             ->whereNotIn('vend_records.vend_id', $excludeVendIds)
             ->when(method_exists(new \App\Models\VendRecord, 'scopeFilterIndex'), function ($query) use ($request) {
                 // Apply filterIndex() scope only if it exists
@@ -568,8 +585,11 @@ class DashboardController extends Controller
             ->when($request->operators, function ($query) use ($request) {
                 $query->whereIn('vend_records.operator_id', $request->operators);
             })
-            ->when($request->codes, function ($query, $search) {
-                if (strpos($search, ',') !== false) {
+            ->when($request->codes, function ($query, $search) use ($request) {
+                // Use pre-resolved IDs when available to avoid a repeated subquery.
+                if ($request->has('_resolved_vend_ids')) {
+                    $query->whereIn('vend_records.vend_id', $request->input('_resolved_vend_ids', []));
+                } elseif (strpos($search, ',') !== false) {
                     $search = array_map('trim', explode(',', $search));
                     $query->whereIn('vend_records.vend_id', function ($subQuery) use ($search) {
                         $subQuery->select('id')
@@ -580,7 +600,7 @@ class DashboardController extends Controller
                     $query->whereIn('vend_records.vend_id', function ($subQuery) use ($search) {
                         $subQuery->select('id')
                             ->from('vends')
-                            ->where('code', 'like', '%' . $search . '%');
+                            ->where('code', 'LIKE', "%{$search}%");
                     });
                 }
             })
