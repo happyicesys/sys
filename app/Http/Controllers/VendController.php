@@ -943,76 +943,97 @@ class VendController extends Controller
             ];
         }
 
-        // Cache all option queries to reduce database calls
-        $driverOptions = UserResource::collection(
-            User::with('roles')->orderBy('name')->get()
+        // Cache static dropdown options — same pattern as transactionIndex (line ~2034).
+        // These rarely change; cache for 24h. Products and drivers get shorter TTLs.
+        $ttl        = 86400; // 24 h — truly static lookups
+        $driverTtl  = 1800;  // 30 min — users can be added/modified
+        $productTtl = 300;   // 5 min  — is_available toggles more often
+
+        $deliveryPlatformOptions = Cache::remember('delivery_platform_options', $ttl, fn() =>
+            DeliveryPlatformResource::collection(DeliveryPlatform::orderBy('name')->get())->resolve()
         );
 
-        $products = Product::query()
-            ->with(['thumbnail', 'isAvailableUpdatedBy'])
-            ->when($request->operators, function ($query, $search) {
-                $query->whereIn('operator_id', $search);
-            })
-            ->select('id', 'code', 'desc', 'name', 'is_available', 'is_available_updated_at', 'is_available_updated_by')
-            ->where('is_active', true)
-            ->where('is_inventory', true)
-            ->orderBy('code')
-            ->get();
+        $locationTypeOptions = Cache::remember('location_type_options', $ttl, fn() =>
+            LocationTypeResource::collection(LocationType::orderBy('sequence')->get())->resolve()
+        );
 
-        // Pre-load all options to avoid N+1 queries
-        $deliveryPlatformOptions = DeliveryPlatformResource::collection(
-            DeliveryPlatform::orderBy('name')->get()
+        $operatorOptions = Cache::remember('operator_options', $ttl, fn() =>
+            OperatorResource::collection(Operator::orderBy('name')->get())->resolve()
         );
-        $locationTypeOptions = LocationTypeResource::collection(
-            LocationType::orderBy('sequence')->get()
+
+        $vendChannelErrors = Cache::remember('vend_channel_errors', $ttl, fn() =>
+            VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get())->resolve()
         );
-        $operatorOptions = OperatorResource::collection(
-            Operator::orderBy('name')->get()
+
+        $vendConfigOptions = Cache::remember('vend_config_options', $ttl, fn() =>
+            VendConfigResource::collection(VendConfig::orderBy('name')->get())->resolve()
         );
-        $vendChannelErrors = VendChannelErrorResource::collection(
-            VendChannelError::orderBy('code')->get()
+
+        $vendContractOptions = Cache::remember('vend_contract_options', $ttl, fn() =>
+            VendContractResource::collection(VendContract::orderBy('name')->get())->resolve()
         );
-        $vendContractOptions = VendContractResource::collection(
-            VendContract::orderBy('name')->get()
+
+        $vendModelOptions = Cache::remember('vend_model_options', $ttl, fn() =>
+            VendModelResource::collection(VendModel::orderBy('name')->get())->resolve()
         );
-        $vendModelOptions = VendModelResource::collection(
-            VendModel::orderBy('name')->get()
+
+        // VendPrefix: active-only filter, so uses its own cache key
+        $vendPrefixOptions = Cache::remember('vend_prefix_active_options', $ttl, fn() =>
+            VendPrefixResource::collection(
+                VendPrefix::whereHas('vends', fn($q) => $q->where('is_active', true))->orderBy('name')->get()
+            )->resolve()
         );
-        $vendPrefixOptions = VendPrefixResource::collection(
-            VendPrefix::whereHas('vends', fn($q) => $q->where('is_active', true))
-                ->orderBy('name')
-                ->get()
+
+        $zoneOptions = Cache::remember('zone_options', $ttl, fn() =>
+            ZoneResource::collection(Zone::orderBy('name')->get())->resolve()
         );
-        $zoneOptions = ZoneResource::collection(
-            Zone::orderBy('name')->get()
+
+        // Drivers: cache per-site (not operator-scoped) with a shorter TTL
+        $driverOptions = Cache::remember('customer_driver_options', $driverTtl, fn() =>
+            UserResource::collection(User::with('roles')->orderBy('name')->get())->resolve()
         );
+
+        // Products: operator-scoped (is_available can toggle), short TTL
+        $operatorIds = array_values(array_filter((array) $request->operators));
+        sort($operatorIds);
+        $productCacheKey = 'customer_product_options_' . implode('_', $operatorIds);
+        $productOptions = Cache::remember($productCacheKey, $productTtl, function () use ($request) {
+            return ProductResource::collection(
+                Product::query()
+                    ->with(['thumbnail', 'isAvailableUpdatedBy'])
+                    ->when($request->operators, fn($q, $ops) => $q->whereIn('operator_id', $ops))
+                    ->select('id', 'code', 'desc', 'name', 'is_available', 'is_available_updated_at', 'is_available_updated_by')
+                    ->where('is_active', true)
+                    ->where('is_inventory', true)
+                    ->orderBy('code')
+                    ->get()
+            )->resolve();
+        });
 
         return Inertia::render('Vend/CustomerIndex', [
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'dayOptions' => Customer::DAYS_MAPPING,
-            'deliveryPlatformOptions' => $deliveryPlatformOptions,
+            'deliveryPlatformOptions' => ['data' => $deliveryPlatformOptions],
             'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
-            'driverOptions' => $driverOptions,
+            'driverOptions' => ['data' => $driverOptions],
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
             'indexType' => $request->indexType,
             'autoLoad' => $shouldAutoload,
-            'locationTypeOptions' => $locationTypeOptions,
+            'locationTypeOptions' => ['data' => $locationTypeOptions],
             'mapApiKey' => $mapApiKey,
-            'nextDeliveryDriverOptions' => $driverOptions,
-            'operatorOptions' => $operatorOptions,
-            'productOptions' => ProductResource::collection($products),
+            'nextDeliveryDriverOptions' => ['data' => $driverOptions],
+            'operatorOptions' => ['data' => $operatorOptions],
+            'productOptions' => ['data' => $productOptions],
             'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
-            'vendChannelErrors' => $vendChannelErrors,
-            'vendConfigOptions' => VendConfigResource::collection(
-                VendConfig::orderBy('name')->get()
-            ),
-            'vendContractOptions' => $vendContractOptions,
-            'vendModelOptions' => $vendModelOptions,
-            'vendPrefixOptions' => $vendPrefixOptions,
-            'zoneOptions' => $zoneOptions,
+            'vendChannelErrors' => ['data' => $vendChannelErrors],
+            'vendConfigOptions' => ['data' => $vendConfigOptions],
+            'vendContractOptions' => ['data' => $vendContractOptions],
+            'vendModelOptions' => ['data' => $vendModelOptions],
+            'vendPrefixOptions' => ['data' => $vendPrefixOptions],
+            'zoneOptions' => ['data' => $zoneOptions],
         ]);
     }
 
