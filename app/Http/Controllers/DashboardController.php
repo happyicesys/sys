@@ -25,7 +25,7 @@ use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
-// use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -173,12 +173,9 @@ class DashboardController extends Controller
 
         $results = $query->get();
 
-        $operator = auth()->user()->operator;
-        $lat = $operator->address?->latitude ?? 1.3521;
-        $lng = $operator->address?->longitude ?? 103.8198;
-
-
         // Initialize structure
+        // Weather service disabled — was causing 5-10 s of latency (6 calls × ~1-2 s each).
+        // Re-enable by restoring getDailyWeatherForRange() calls per period.
         $data = [];
         foreach ($periods as $key => $date) {
             $daysInMonth = $date->daysInMonth;
@@ -189,11 +186,6 @@ class DashboardController extends Controller
                 'month' => $date->month,
                 'weather_icons' => [],
             ];
-
-            $periodStart = $date->copy()->startOfMonth();
-            $periodEnd = $date->copy()->endOfMonth();
-            $weatherData = $this->weatherService->getDailyWeatherForRange($periodStart, $periodEnd, $lat, $lng);
-
 
             // Initialize days based on actual days in month
             for ($day = 1; $day <= $daysInMonth; $day++) {
@@ -207,8 +199,7 @@ class DashboardController extends Controller
                 } else {
                     $data[$key]['data'][$day] = 0;
                 }
-                $data[$key]['weather_icons'][$day] = $weatherData[$checkDate->format('Y-m-d')] ?? null;
-
+                $data[$key]['weather_icons'][$day] = null; // weather disabled
             }
         }
 
@@ -237,13 +228,16 @@ class DashboardController extends Controller
     {
         if (!$request->operators || (is_array($request->operators) && in_array('all', $request->operators))) {
             if (auth()->user()->operator->code == 'HIPL') {
+                // Single query instead of 4 separate first() calls.
+                $operatorMap = Operator::whereIn('code', ['HIMD', 'LEA', 'HIESG', 'UL-ST'])
+                    ->pluck('id', 'code');
                 $request->merge([
                     'operators' => [
                         auth()->user()->operator_id,
-                        Operator::where('code', 'HIMD')->first()?->id,
-                        Operator::where('code', 'LEA')->first()?->id,
-                        Operator::where('code', 'HIESG')->first()?->id,
-                        Operator::where('code', 'UL-ST')->first()?->id,
+                        $operatorMap->get('HIMD'),
+                        $operatorMap->get('LEA'),
+                        $operatorMap->get('HIESG'),
+                        $operatorMap->get('UL-ST'),
                     ]
                 ]);
             } else {
@@ -332,14 +326,10 @@ class DashboardController extends Controller
 
         $dayGraph = $this->fillEmptyDates($dayGraph, $day_date_from->copy()->subMonth(), $day_date_to);
 
-        $operator = auth()->user()->operator;
-        $lat = $operator->address?->latitude ?? 1.3521;
-        $lng = $operator->address?->longitude ?? 103.8198;
-        $weatherData = $this->weatherService->getDailyWeatherForRange($day_date_from->copy()->subMonth(), $day_date_to, $lat, $lng);
-
+        // Weather service disabled — was causing 5-10 s delay per call.
+        // Re-enable by restoring the getDailyWeatherForRange() call below.
         foreach ($dayGraph as $day) {
-            $d = $day->date instanceof \Carbon\Carbon ? $day->date->format('Y-m-d') : $day->date;
-            $day->weather_icon = $weatherData[$d] ?? null;
+            $day->weather_icon = null;
         }
 
         return $dayGraph;
@@ -347,25 +337,26 @@ class DashboardController extends Controller
 
     private function fillEmptyDates($dayGraph, $startDate, $endDate)
     {
+        // Build an O(1) lookup keyed by "month-day" so we don't scan the entire
+        // collection for every date in the range (was O(n²), now O(n)).
+        $existingKeys = [];
+        foreach ($dayGraph as $graphDayValue) {
+            $existingKeys[$graphDayValue->month . '-' . $graphDayValue->day] = true;
+        }
+
         $currentDate = $startDate->copy();
         while ($currentDate->lte($endDate)) {
-            $found = false;
-            foreach ($dayGraph as $graphDayValue) {
-                if ($graphDayValue->day === $currentDate->day && $graphDayValue->month === $currentDate->month) {
-                    $found = true;
-                    break;
-                }
-            }
-
-            if (!$found) {
+            $key = $currentDate->month . '-' . $currentDate->day;
+            if (!isset($existingKeys[$key])) {
                 $newModel = new VendRecord();
                 $newModel->amount = 0;
                 $newModel->count = 0;
                 $newModel->date = $currentDate->copy()->startOfDay();
-                $newModel->day = $currentDate->copy()->day;
-                $newModel->month = $currentDate->copy()->month;
-                $newModel->month_name = $currentDate->copy()->format('F Y');
+                $newModel->day = $currentDate->day;
+                $newModel->month = $currentDate->month;
+                $newModel->month_name = $currentDate->format('F Y');
                 $dayGraph->push($newModel);
+                $existingKeys[$key] = true; // prevent duplicate inserts
             }
 
             $currentDate->addDay();
@@ -682,49 +673,43 @@ class DashboardController extends Controller
             'monthlyTypeName' => $request->monthlyTypeName ?? 'location-type'
         ]);
 
-        // Generate a unique cache key based on request filters
-        // $cacheKey = 'monthly_analytics_' . auth()->id() . '_' . md5(json_encode([
-        //     $request->monthlyDateFrom,
-        //     $request->monthlyDateTo,
-        //     $request->monthlyTypeName,
-        //     $request->operators,
-        //     $request->locationType,
-        //     $request->vendPrefixes,
-        //     $request->customer,
-        // ]));
-
-        // Use Cache::remember to store for 5 minutes (adjustable)
-        // $items = Cache::remember($cacheKey, 300, function () use ($request) {
-        //     $modelName = $this->getModelName($request->monthlyTypeName);
-        //     return $this->getMonthlySalesQuery($request, $modelName)->get();
-        // });
+        // Cache the expensive full-year double-join query for 5 minutes.
+        // Use ->format() on the Carbon dates so microseconds don't break the key.
+        $cacheKey = 'monthly_analytics_' . auth()->id() . '_' . md5(json_encode([
+            $monthlyDateFrom->format('Y-m-d'),
+            $monthlyDateTo->format('Y-m-d'),
+            $request->monthlyTypeName,
+            $request->operators,
+            $request->locationType,
+            $request->vendPrefixes,
+            $request->customer,
+        ]));
 
         $modelName = $this->getModelName($request->monthlyTypeName);
-        $items = $this->getMonthlySalesQuery($request, $modelName)->get();
+        $items = Cache::remember($cacheKey, 300, function () use ($request, $modelName) {
+            return $this->getMonthlySalesQuery($request, $modelName)->get();
+        });
 
         $monthsByModel = [];
-        $months = Month::all();
+        // keyBy() gives O(1) lookup — replaces the O(items × 12) nested foreach.
+        $months = Month::all()->keyBy('number');
 
         foreach ($items as $item) {
-            foreach ($months as $month) {
-                if ($item->id && $item->month == $month->number) {
-                    $monthsByModel[$item->name][$month->number] = [
-                        'current' => $currentMonthNumber == $month->number,
-                        'month_short_name' => $month->short_name,
-                        'amount' => $item->amount ? $item->amount / 100 : 0,
-                        'vend_count' => $item->count ?? 0,
-                        'average' => $item->average ? $item->average / 100 : 0,
-                    ];
-                }
-                if (!$item->id && $item->month == $month->number) {
-                    $monthsByModel['Undefined'][$month->number] = [
-                        'current' => $currentMonthNumber == $month->number,
-                        'month_short_name' => $month->short_name,
-                        'amount' => $item->amount ? $item->amount / 100 : 0,
-                        'vend_count' => $item->count ?? 0,
-                        'average' => $item->average ? $item->average / 100 : 0,
-                    ];
-                }
+            $month = $months->get($item->month);
+            if (!$month) {
+                continue;
+            }
+            $entry = [
+                'current' => $currentMonthNumber == $item->month,
+                'month_short_name' => $month->short_name,
+                'amount' => $item->amount ? $item->amount / 100 : 0,
+                'vend_count' => $item->count ?? 0,
+                'average' => $item->average ? $item->average / 100 : 0,
+            ];
+            if ($item->id) {
+                $monthsByModel[$item->name][$item->month] = $entry;
+            } else {
+                $monthsByModel['Undefined'][$item->month] = $entry;
             }
         }
 
