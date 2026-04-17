@@ -66,7 +66,7 @@ class OpsJobItemResource extends JsonResource
             'stock_in_amount' => isset($this->stock_in_amount) ? $this->stock_in_amount / 100 : 0,
             'stock_in_count' => isset($this->stock_in_count) ? $this->stock_in_count : 0,
             'temp_cash_amount_from_vmc' => isset($this->temp_cash_amount_from_vmc) ? $this->temp_cash_amount_from_vmc : null,
-            'total_cash_amount' => isset($total_cash_amount) ? $this->total_cash_amount : 0,
+            'total_cash_amount' => isset($this->total_cash_amount) ? $this->total_cash_amount / 100 : 0,
             'total_cash_amount_from_vmc' => isset($this->total_cash_amount_from_vmc) ? $this->total_cash_amount_from_vmc / 100 : 0,
             'delivered_by' => UserResource::make($this->whenLoaded('deliveredBy')),
             'notes' => $this->notes,

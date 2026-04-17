@@ -108,9 +108,17 @@ class VendChannel extends Model
     // attributes
     public function getServerAmountAttribute()
     {
-        $serverPriceType = $this->vend?->server_price_type;
+        if (!$this->vend_id || !$this->product_id) {
+            return null;
+        }
 
-        if (!$serverPriceType || !$this->product_id) {
+        // Avoid lazy-loading the full Vend model (SELECT * fetches all JSON columns)
+        // just to read one tiny integer. Query only the column we need.
+        $serverPriceType = DB::table('vends')
+            ->where('id', $this->vend_id)
+            ->value('server_price_type');
+
+        if (!$serverPriceType) {
             return null;
         }
 

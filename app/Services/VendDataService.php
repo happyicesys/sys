@@ -243,14 +243,36 @@ class VendDataService
         return $response;
       }
 
-      // Select only id + totals_json — we only check nullability, no need to
-      // fetch the entire customer row (which may include large JSON blobs).
+      // Check whether the customer's totals_json has been initialised.
+      // This is a one-time trigger: once SyncVendTransactionTotalsJson runs
+      // and populates totals_json, the column never goes null again.
+      //
+      // Without caching, every vend POST (machines ping every few seconds)
+      // did a PK lookup on `customers` just to read totals_json — even though
+      // it is almost always non-null. The 590ms Telescope spike was this query
+      // hitting I/O pressure or catching a write lock from the sync job.
+      //
+      // Strategy:
+      //   - Cache HIT  → totals_json is already initialised; skip the DB query.
+      //   - Cache MISS → query DB once.
+      //       • Non-null  → mark initialised in cache (24 h TTL), no dispatch.
+      //       • Null      → dispatch the sync job; do NOT cache (keep querying
+      //                     until the job populates it, then the next request
+      //                     will cache the initialised state).
       if ($vend->customer_id) {
-        $customer = Customer::withoutGlobalScope(OperatorCustomerFilterScope::class)
-          ->select('id', 'totals_json')
-          ->find($vend->customer_id);
-        if ($customer && !$customer->totals_json) {
-          SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+        $totalsInitKey = 'customer_totals_init_' . $vend->customer_id;
+        if (!Cache::has($totalsInitKey)) {
+          $customer = Customer::withoutGlobalScope(OperatorCustomerFilterScope::class)
+            ->select('id', 'totals_json')
+            ->find($vend->customer_id);
+          if ($customer) {
+            if (!$customer->totals_json) {
+              SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+            } else {
+              // totals_json is populated — cache this permanently-true fact.
+              Cache::put($totalsInitKey, true, now()->addHours(24));
+            }
+          }
         }
       }
 

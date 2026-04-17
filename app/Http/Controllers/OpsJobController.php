@@ -983,6 +983,15 @@ class OpsJobController extends Controller
                         'verified_at',
                         'verified_by',
                         'stock_action_type',
+                        // Stored columns aliased to the names the resource/frontend expect.
+                        // Previously these were computed via 6 correlated self-join subqueries of the form
+                        // SELECT SUM(col) FROM ops_job_items WHERE id = X — which always returned exactly
+                        // one row and were therefore equivalent to reading the column directly.
+                        'acc_total_amount as acc_vend_transactions_amount',
+                        'acc_total_count as acc_vend_transactions_count',
+                        'acc_total_cash_amount as acc_vend_transactions_cash_amount',
+                        'acc_total_cashless_amount as acc_vend_transactions_cashless_amount',
+                        'acc_total_promo_amount as acc_vend_transactions_promo_amount',
                     ]);
 
                     $query->selectRaw('
@@ -1022,14 +1031,15 @@ class OpsJobController extends Controller
                      JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
                      LEFT JOIN products ON vend_channels.product_id = products.id
                      LEFT JOIN (
-                        SELECT id, product_id, qty, date
-                        FROM (
-                            SELECT id, product_id, qty, date,
-                                ROW_NUMBER() OVER (PARTITION BY product_id, date ORDER BY id DESC) as rn
+                        SELECT pl.id, pl.product_id, pl.qty
+                        FROM product_limits AS pl
+                        INNER JOIN (
+                            SELECT product_id, MAX(id) AS max_id
                             FROM product_limits
-                        ) pl_inner
-                        WHERE rn = 1
-                     ) AS pl ON products.id = pl.product_id AND pl.date = (SELECT date FROM ops_jobs WHERE ops_jobs.id = ops_job_items.ops_job_id)
+                            WHERE date = (SELECT date FROM ops_jobs WHERE ops_jobs.id = ops_job_items.ops_job_id)
+                            GROUP BY product_id
+                        ) AS latest_pl ON pl.id = latest_pl.max_id
+                     ) AS pl ON products.id = pl.product_id
                      WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
                      AND vend_channels.is_active = 1
                      AND vend_channels.capacity > 0
@@ -1048,14 +1058,15 @@ class OpsJobController extends Controller
                      JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
                      LEFT JOIN products ON vend_channels.product_id = products.id
                      LEFT JOIN (
-                        SELECT id, product_id, qty, date
-                        FROM (
-                            SELECT id, product_id, qty, date,
-                                ROW_NUMBER() OVER (PARTITION BY product_id, date ORDER BY id DESC) as rn
+                        SELECT pl.id, pl.product_id, pl.qty
+                        FROM product_limits AS pl
+                        INNER JOIN (
+                            SELECT product_id, MAX(id) AS max_id
                             FROM product_limits
-                        ) pl_inner
-                        WHERE rn = 1
-                     ) AS pl ON products.id = pl.product_id AND pl.date = (SELECT date FROM ops_jobs WHERE ops_jobs.id = ops_job_items.ops_job_id)
+                            WHERE date = (SELECT date FROM ops_jobs WHERE ops_jobs.id = ops_job_items.ops_job_id)
+                            GROUP BY product_id
+                        ) AS latest_pl ON pl.id = latest_pl.max_id
+                     ) AS pl ON products.id = pl.product_id
                      WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
                      AND vend_channels.is_active = 1
                      AND vend_channels.capacity > 0
@@ -1095,47 +1106,13 @@ class OpsJobController extends Controller
                      AND ops_job_items.status <> ?
                     ) as stock_in_count', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED]);
 
-                    $query->selectRaw('(
-                    SELECT SUM(oj_items.acc_total_amount)
-                    FROM ops_job_items oj_items
-                    WHERE oj_items.id = ops_job_items.id
-                    ) as acc_vend_transactions_amount');
-
-                    $query->selectRaw('(
-                    SELECT SUM(oj_items.acc_total_count)
-                    FROM ops_job_items oj_items
-                    WHERE oj_items.id = ops_job_items.id
-                    ) as acc_vend_transactions_count');
-
-                    $query->selectRaw('(
-                        SELECT SUM(oj_items.acc_total_cash_amount)
-                        FROM ops_job_items oj_items
-                        WHERE oj_items.id = ops_job_items.id
-                    ) as acc_vend_transactions_cash_amount');
-
-                    $query->selectRaw('(
-                    SELECT SUM(oj_items.cash_amount)
-                    FROM ops_job_items oj_items
-                    WHERE oj_items.id = ops_job_items.id
-                    ) as total_cash_amount');
-
-                    // $query->selectRaw('(
-                    //     SELECT SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(vend_channel_records.before_statis_json, "$.CashAmt")) AS DECIMAL(10, 2)))
-                    //     FROM ops_job_items oj_items
-                    //     JOIN vend_channel_records ON vend_channel_records.id = oj_items.vend_channel_record_id
-                    //     WHERE oj_items.id = ops_job_items.id
-                    // ) as total_cash_amount_from_vmc');
-                    $query->selectRaw('(
-                    SELECT SUM(oj_items.temp_cash_amount_from_vmc)
-                    FROM ops_job_items oj_items
-                    WHERE oj_items.id = ops_job_items.id
-                ) as total_cash_amount_from_vmc');
-
-                    $query->selectRaw('(
-                    SELECT SUM(oj_items.cash_amount) - SUM(oj_items.temp_cash_amount_from_vmc)
-                    FROM ops_job_items oj_items
-                    WHERE oj_items.id = ops_job_items.id
-                ) as delta_cash_amount');
+                    // Previously 6 correlated self-join subqueries of the form:
+                    //   SELECT SUM(col) FROM ops_job_items WHERE id = X
+                    // which always return exactly the column value of the current row.
+                    // Replaced with direct column reads / simple expressions — zero extra queries.
+                    $query->selectRaw('cash_amount as total_cash_amount');
+                    $query->selectRaw('temp_cash_amount_from_vmc as total_cash_amount_from_vmc');
+                    $query->selectRaw('(cash_amount - temp_cash_amount_from_vmc) as delta_cash_amount');
 
                     $query->selectRaw('
                     (SELECT delivery_address.postcode
@@ -1172,7 +1149,6 @@ class OpsJobController extends Controller
                 'opsJobItems.vend.upcomingProductMapping.productMappingItemsNormalSequence.product',
                 'opsJobItems.cmsTransactionBy',
                 'opsJobItems.customer.deliveryAddress',
-                'opsJobItems.opsJobItemChannels.vendChannel.product.thumbnail',
                 'opsJobItems.remarksUpdatedBy:id,name',
                 'opsJobItems.vend.vendPrefix',
                 'opsJobItems.pickedBy:id,name',
@@ -1185,13 +1161,52 @@ class OpsJobController extends Controller
             ])
             ->findOrFail($id);
 
+        // Load opsJobItemChannels in a single query keyed on ops_job_id rather than
+        // letting Laravel eager-load via ops_job_item_id IN (...).
+        //
+        // The two-level eager load 'opsJobItems.opsJobItemChannels' produces:
+        //   SELECT * FROM ops_job_item_channels WHERE ops_job_item_id IN (id1, id2, ..., idN)
+        // That's N index seeks (one per item) + N heap-access rounds → 524ms.
+        //
+        // ops_job_item_channels stores ops_job_id directly with a single-column index
+        // (added at table creation). A single WHERE ops_job_id = ? is one range scan
+        // that hits contiguous leaf pages → near-instant for any realistic job size.
+        //
+        // After loading, we group by ops_job_item_id and set the relation on each item
+        // so the rest of the code (resources, Vue) sees the same nested structure.
+        $channelsByItemId = OpsJobItemChannel::where('ops_job_id', $opsJob->id)
+            ->with(['vendChannel.product.thumbnail'])
+            ->get()
+            ->groupBy('ops_job_item_id');
+
+        $opsJob->opsJobItems->each(function ($item) use ($channelsByItemId) {
+            $item->setRelation(
+                'opsJobItemChannels',
+                $channelsByItemId->get($item->id, collect())
+            );
+        });
+
+        // Two-step approach instead of a correlated NOT EXISTS subquery.
+        //
+        // Old approach: NOT EXISTS (SELECT * FROM ops_job_items WHERE vend_id = vends.id AND ops_job_id = ?)
+        // MySQL evaluated this per-vend with no index on vend_id — effectively a full table scan
+        // of ops_job_items for every vend row → 1700ms.
+        //
+        // New approach:
+        //   Step 1 — fetch the small set of vend_ids already in this job (one indexed query).
+        //   Step 2 — exclude those ids from the vend list using NOT IN (resolved via PK).
+        //
+        // Also replaced has('customer') EXISTS check with whereNotNull: since customer_id is a
+        // FK with referential integrity, a non-null customer_id guarantees the customer exists,
+        // making the correlated EXISTS on customers unnecessary.
+        $vendIdsInJob = OpsJobItem::where('ops_job_id', $opsJob->id)
+            ->pluck('vend_id');
+
         $unbindedVendOptions = Vend::query()
-            ->select(['id', 'customer_id', 'operator_id', 'code']) // Select necessary columns
-            ->with(['customer:id,name']) // Select necessary columns
-            ->has('customer')
-            ->whereDoesntHave('opsJobItems', function ($query) use ($opsJob) {
-                $query->where('ops_job_id', $opsJob->id);
-            })
+            ->select(['id', 'customer_id', 'operator_id', 'code'])
+            ->with(['customer:id,name'])
+            ->whereNotNull('customer_id')
+            ->when($vendIdsInJob->isNotEmpty(), fn($q) => $q->whereNotIn('id', $vendIdsInJob))
             ->get();
 
         return Inertia::render('OpsJob/Edit', [
