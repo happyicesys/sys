@@ -254,6 +254,16 @@ class VendController extends Controller
 
         $total = (clone $vends)->count();
 
+        $vends->leftJoin(DB::raw('
+            (
+                SELECT vend_id, MIN(value) as t1_lowest_48h 
+                FROM vend_temps 
+                WHERE type = 1 
+                AND value != 32767 
+                AND created_at >= NOW() - INTERVAL 48 HOUR 
+                GROUP BY vend_id
+            ) AS vt_lowest
+        '), 'vt_lowest.vend_id', '=', 'vends.id');
 
         // Apply conditional joins for data retrieval
         $vends->when($needsVc, function ($query) {
@@ -292,6 +302,7 @@ class VendController extends Controller
         $selectColumns = [
             'vends.id AS id',
             'vends.id AS vend_id',
+            'vt_lowest.t1_lowest_48h',
             'vends.amount_average_day',
             'vends.begin_date',
             'vends.code',
@@ -591,6 +602,17 @@ class VendController extends Controller
         $countQuery = clone $vends;
         $total = $countQuery->count();
 
+        $vends->leftJoin(DB::raw('
+            (
+                SELECT vend_id, MIN(value) as t1_lowest_48h 
+                FROM vend_temps 
+                WHERE type = 1 
+                AND value != 32767 
+                AND created_at >= NOW() - INTERVAL 48 HOUR 
+                GROUP BY vend_id
+            ) AS vt_lowest
+        '), 'vt_lowest.vend_id', '=', 'vends.id');
+
 
             $vends->when($needsVc, function ($query) {
                 $query->leftJoin(DB::raw('
@@ -771,6 +793,7 @@ class VendController extends Controller
             $selectColumns = [
                 'customers.id AS id',
                 'vends.id AS vend_id',
+                'vt_lowest.t1_lowest_48h',
                 'vends.amount_average_day',
                 'vends.code',
                 'vends.acb_vmc_pa_json',

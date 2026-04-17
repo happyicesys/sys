@@ -685,6 +685,12 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last Updated Timestamp <br> (every 3 mins)', html: true }"></ExclamationCircleIcon>
 							</div>
+							<div class="flex justify-center items-center mt-2">
+								<SingleSortItem modelName="t1_lowest_48h" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('t1_lowest_48h', true)">
+									T1 lowest L48hr
+								</SingleSortItem>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Lowest T1 Temp Last 48h <br> Red: > -18c <br> Blue: -21c to -18c <br> Green: < -21c', html: true }"></ExclamationCircleIcon>
+							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="temp_diff" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_diff', true)">
 									&Delta;T1-T2
@@ -1140,6 +1146,13 @@
 							</a>
 							<span class="mt-1">
 									{{ vend.temp_updated_at }}
+							</span>
+							<span
+									class="mt-1 text-xs font-semibold"
+									:class="[vend.is_active || vend.is_testing ? (vend.t1_lowest_48h > -18 ? 'text-red-600' : (vend.t1_lowest_48h < -21 ? 'text-green-600' : 'text-blue-600')) : 'text-gray-400' ]"
+									v-if="vend.t1_lowest_48h !== null && vend.t1_lowest_48h !== undefined"
+							>
+									{{ vend.t1_lowest_48h }}
 							</span>
 							<span
 									class="mt-1"

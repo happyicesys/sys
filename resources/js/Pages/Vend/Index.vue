@@ -615,6 +615,12 @@
               <SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
                 Updated
               </SingleSortItem>
+              <div class="flex justify-center items-center mt-2 mb-2">
+                <SingleSortItem modelName="t1_lowest_48h" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('t1_lowest_48h', true)">
+                  T1 lowest L48hr
+                </SingleSortItem>
+                <ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Lowest T1 Temp Last 48h <br> Red: > -18c <br> Blue: -21c to -18c <br> Green: < -21c', html: true }"></ExclamationCircleIcon>
+              </div>
               <span>
                 &Delta;T1-T2
               </span>
@@ -878,6 +884,13 @@
               </a>
               <span class="mt-1">
                   {{ vend.temp_updated_at }}
+              </span>
+              <span
+                  class="mt-1 text-xs font-semibold"
+                  :class="[vend.is_active || vend.is_testing ? (vend.t1_lowest_48h > -18 ? 'text-red-600' : (vend.t1_lowest_48h < -21 ? 'text-green-600' : 'text-blue-600')) : 'text-gray-400' ]"
+                  v-if="vend.t1_lowest_48h !== null && vend.t1_lowest_48h !== undefined"
+              >
+                  {{ vend.t1_lowest_48h }}
               </span>
               <span
                   class="mt-1"
@@ -1502,7 +1515,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
   import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import VendLogModal from '@/Components/VendLogModal.vue';
-import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
   import TableHead from '@/Components/TableHead.vue';
   import TableData from '@/Components/TableData.vue';
   import TableHeadSort from '@/Components/TableHeadSort.vue';
