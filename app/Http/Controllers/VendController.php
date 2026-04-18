@@ -582,6 +582,23 @@ class VendController extends Controller
         $countQuery = clone $vends;
         $total = $countQuery->count();
 
+        // Pre-fetch operator customer IDs once (~1 ms, indexed) so the ROW_NUMBER
+        // sort subqueries can drive into ops_job_items with an explicit IN list.
+        // An INNER JOIN to customers lets MySQL pick the wrong join order (full
+        // ops_job_items scan → join → filter) — an IN list forces BKA probes via
+        // idx_oji_cust_created (customer_id, created_at) and eliminates the ambiguity.
+        $sortOperatorIds = collect((array)$request->operators)->filter()->map(fn($v) => (int)$v)->all();
+        $sortCustomerIn = '0'; // safe default — matches nothing
+        if (($needsLastOpsJobs || $needsLastSecondOpsJobs || $needsLastThirtyDaysStockIn) && $sortOperatorIds) {
+            $scopedIds = DB::table('customers')
+                ->whereIn('operator_id', $sortOperatorIds)
+                ->pluck('id')
+                ->map(fn($v) => (int)$v)
+                ->all();
+            if ($scopedIds) {
+                $sortCustomerIn = implode(',', $scopedIds);
+            }
+        }
 
             $vends->when($needsVc, function ($query) {
                 $query->leftJoin(DB::raw('
@@ -669,25 +686,10 @@ class VendController extends Controller
                 ) AS vc_stock
             '), 'vc_stock.vend_id', '=', 'vends.id');
                 })
-                ->when($needsLastOpsJobs, function ($query) use ($request) {
-                    // ROW_NUMBER scoped to the current operator's customers only.
-                    //
-                    // LATERAL was tried (one index seek per customer) but with 1 400+ customers
-                    // in the HIPL group the per-row correlated-subquery overhead dominated:
-                    // O(N_customers × ~38ms) = 53 000ms vs the target <5 000ms.
-                    //
-                    // ROW_NUMBER on ALL ops_job_items was the original problem (materialises
-                    // the entire table, filesort, ~20 000ms).
-                    //
-                    // This version: INNER JOIN customers inside the ranking subquery filters
-                    // ops_job_items to only the rows that belong to this operator's customers.
-                    // Cost reduces from O(all_rows) to O(operator_customers × avg_jobs_per_customer),
-                    // which is orders of magnitude smaller for a single-operator view.
-                    $operatorIds = collect((array)$request->operators)->filter()->map(fn($v) => (int)$v)->all();
-                    $operatorJoin = $operatorIds
-                        ? 'INNER JOIN customers cust_scope ON oji_inner.customer_id = cust_scope.id AND cust_scope.operator_id IN (' . implode(',', $operatorIds) . ')'
-                        : '';
-
+                ->when($needsLastOpsJobs, function ($query) use ($sortCustomerIn) {
+                    // Pre-fetched operator customer IDs are injected as a hard IN list so MySQL
+                    // always drives into ops_job_items via idx_oji_cust_created (customer_id,
+                    // created_at) using BKA — no join-order ambiguity, no full table scan.
                     $query->leftJoin(DB::raw("(
                 SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
                     SUM(ojic.actual_qty * vc.amount) AS amount,
@@ -697,8 +699,8 @@ class VendController extends Controller
                            oji_inner.acc_total_amount, oji_inner.acc_total_count, oji_inner.ops_job_id,
                            ROW_NUMBER() OVER (PARTITION BY oji_inner.customer_id ORDER BY oji_inner.created_at DESC) AS rn
                     FROM ops_job_items oji_inner
-                    {$operatorJoin}
-                    WHERE oji_inner.status >= 3 AND oji_inner.status <> 99
+                    WHERE oji_inner.customer_id IN ({$sortCustomerIn})
+                    AND oji_inner.status >= 3 AND oji_inner.status <> 99
                 ) oji
                 INNER JOIN ops_job_item_channels ojic ON oji.id = ojic.ops_job_item_id
                 INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
@@ -707,13 +709,8 @@ class VendController extends Controller
                 GROUP BY oji.customer_id
             ) AS last_ops_jobs"), 'last_ops_jobs.customer_id', '=', 'customers.id');
                 })
-                ->when($needsLastSecondOpsJobs, function ($query) use ($request) {
-                    // Same operator-scoped ROW_NUMBER as last_ops_jobs but rn = 2.
-                    $operatorIds = collect((array)$request->operators)->filter()->map(fn($v) => (int)$v)->all();
-                    $operatorJoin = $operatorIds
-                        ? 'INNER JOIN customers cust_scope ON oji_inner.customer_id = cust_scope.id AND cust_scope.operator_id IN (' . implode(',', $operatorIds) . ')'
-                        : '';
-
+                ->when($needsLastSecondOpsJobs, function ($query) use ($sortCustomerIn) {
+                    // Same IN-list approach as last_ops_jobs, rn = 2.
                     $query->leftJoin(DB::raw("(
                 SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
                     SUM(ojic.actual_qty * vc.amount) AS amount,
@@ -723,8 +720,8 @@ class VendController extends Controller
                            oji_inner.acc_total_amount, oji_inner.acc_total_count, oji_inner.ops_job_id,
                            ROW_NUMBER() OVER (PARTITION BY oji_inner.customer_id ORDER BY oji_inner.created_at DESC) AS rn
                     FROM ops_job_items oji_inner
-                    {$operatorJoin}
-                    WHERE oji_inner.status >= 3 AND oji_inner.status <> 99
+                    WHERE oji_inner.customer_id IN ({$sortCustomerIn})
+                    AND oji_inner.status >= 3 AND oji_inner.status <> 99
                 ) oji
                 INNER JOIN ops_job_item_channels ojic ON oji.id = ojic.ops_job_item_id
                 INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
@@ -754,21 +751,9 @@ class VendController extends Controller
                     ) AS next_ops_jobs
             '), 'next_ops_jobs.customer_id', '=', 'customers.id');
                 })
-                ->when($needsLastThirtyDaysStockIn, function ($query) use ($request) {
-                    // Start from ops_jobs with the date filter first (idx_oj_date covers this),
-                    // then join inward. Previously the query drove from ops_job_item_channels
-                    // (full scan) and filtered ops_jobs late — the date predicate couldn't
-                    // reduce the row count until after most of the work was done.
-                    // Starting from ops_jobs lets MySQL seek to just the last 30 days of jobs
-                    // and join outward to a small result set.
-                    //
-                    // Operator scoping: INNER JOIN customers reduces ops_job_items to only
-                    // the current operator's customers, same pattern as last_ops_jobs/last_second_ops_jobs.
-                    $operatorIds = collect((array)$request->operators)->filter()->map(fn($v) => (int)$v)->all();
-                    $operatorJoin = $operatorIds
-                        ? 'INNER JOIN customers cust_scope ON oji.customer_id = cust_scope.id AND cust_scope.operator_id IN (' . implode(',', $operatorIds) . ')'
-                        : '';
-
+                ->when($needsLastThirtyDaysStockIn, function ($query) use ($sortCustomerIn) {
+                    // Drive from ops_jobs (date filter via idx_oj_date first) then filter
+                    // ops_job_items to the operator's customers via the pre-fetched IN list.
                     $query->leftJoin(
                         DB::raw("(
                 SELECT SUM(ojic.actual_qty) AS qty,
@@ -776,8 +761,8 @@ class VendController extends Controller
                        oji.customer_id
                 FROM ops_jobs oj
                 INNER JOIN ops_job_items oji ON oji.ops_job_id = oj.id
+                    AND oji.customer_id IN ({$sortCustomerIn})
                     AND oji.status >= 3 AND oji.status <> 99
-                {$operatorJoin}
                 INNER JOIN ops_job_item_channels ojic ON ojic.ops_job_item_id = oji.id
                 INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
                 WHERE oj.date BETWEEN CURDATE() - INTERVAL 29 DAY AND CURDATE()

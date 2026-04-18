@@ -320,13 +320,18 @@ class DebugCustomerIndexPerformance extends Command
             ", [$productAvailableDate]);
         });
 
-        // ── 12. Conditional sort subquery: last_ops_jobs (operator-scoped ROW_NUMBER) ───
-        // LATERAL was tried but O(N_customers × ~38ms) ≈ 53 000ms for HIPL's 1 400+ customers.
-        // ROW_NUMBER on all ops_job_items was the original problem (~20 000ms, full filesort).
-        // Operator-scoped: INNER JOIN customers inside the ranking subquery filters to only
-        // the current operator's customers → O(operator_customers × avg_history) — much smaller.
-        $this->bench('Sort subquery: last_ops_jobs — operator-scoped ROW_NUMBER rn=1 (operator customers)', function () use ($operatorIds) {
-            $operatorIn = implode(',', $operatorIds);
+        // ── 12. Conditional sort subquery: last_ops_jobs (pre-fetched IN list) ─────────────
+        // Pre-fetch operator customer IDs in PHP (one fast indexed query) then embed them as
+        // a hard IN list — MySQL uses BKA probes via idx_oji_cust_created (customer_id,
+        // created_at) rather than risking an incorrect join order with an INNER JOIN.
+        $benchCustomerIds = DB::table('customers')
+            ->whereIn('operator_id', $operatorIds)
+            ->pluck('id')
+            ->map(fn($v) => (int)$v)
+            ->all();
+        $benchCustomerIn = $benchCustomerIds ? implode(',', $benchCustomerIds) : '0';
+
+        $this->bench('Sort subquery: last_ops_jobs — pre-fetched IN list ROW_NUMBER rn=1 (' . count($benchCustomerIds) . ' customers)', function () use ($benchCustomerIn) {
             return DB::select("
                 SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
                     SUM(ojic.actual_qty * vc.amount) AS amount, SUM(ojic.actual_qty) AS count
@@ -335,9 +340,8 @@ class DebugCustomerIndexPerformance extends Command
                            oji_inner.acc_total_amount, oji_inner.acc_total_count, oji_inner.ops_job_id,
                            ROW_NUMBER() OVER (PARTITION BY oji_inner.customer_id ORDER BY oji_inner.created_at DESC) AS rn
                     FROM ops_job_items oji_inner
-                    INNER JOIN customers cust_scope ON oji_inner.customer_id = cust_scope.id
-                        AND cust_scope.operator_id IN ({$operatorIn})
-                    WHERE oji_inner.status >= 3 AND oji_inner.status <> 99
+                    WHERE oji_inner.customer_id IN ({$benchCustomerIn})
+                    AND oji_inner.status >= 3 AND oji_inner.status <> 99
                 ) oji
                 INNER JOIN ops_job_item_channels ojic ON oji.id = ojic.ops_job_item_id
                 INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
@@ -347,9 +351,8 @@ class DebugCustomerIndexPerformance extends Command
             ");
         });
 
-        // ── 13. Conditional sort subquery: last_second_ops_jobs (operator-scoped ROW_NUMBER) ──
-        $this->bench('Sort subquery: last_second_ops_jobs — operator-scoped ROW_NUMBER rn=2 (operator customers)', function () use ($operatorIds) {
-            $operatorIn = implode(',', $operatorIds);
+        // ── 13. Conditional sort subquery: last_second_ops_jobs (pre-fetched IN list) ───────
+        $this->bench('Sort subquery: last_second_ops_jobs — pre-fetched IN list ROW_NUMBER rn=2 (' . count($benchCustomerIds) . ' customers)', function () use ($benchCustomerIn) {
             return DB::select("
                 SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
                     SUM(ojic.actual_qty * vc.amount) AS amount, SUM(ojic.actual_qty) AS count
@@ -358,9 +361,8 @@ class DebugCustomerIndexPerformance extends Command
                            oji_inner.acc_total_amount, oji_inner.acc_total_count, oji_inner.ops_job_id,
                            ROW_NUMBER() OVER (PARTITION BY oji_inner.customer_id ORDER BY oji_inner.created_at DESC) AS rn
                     FROM ops_job_items oji_inner
-                    INNER JOIN customers cust_scope ON oji_inner.customer_id = cust_scope.id
-                        AND cust_scope.operator_id IN ({$operatorIn})
-                    WHERE oji_inner.status >= 3 AND oji_inner.status <> 99
+                    WHERE oji_inner.customer_id IN ({$benchCustomerIn})
+                    AND oji_inner.status >= 3 AND oji_inner.status <> 99
                 ) oji
                 INNER JOIN ops_job_item_channels ojic ON oji.id = ojic.ops_job_item_id
                 INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
@@ -392,19 +394,17 @@ class DebugCustomerIndexPerformance extends Command
         });
 
         // ── 15. Conditional sort subquery: last_thirty_days_stock_in ─────────
-        // Drives from ops_jobs (idx_oj_date) so the date filter narrows rows first,
-        // then INNER JOIN customers scopes to operator's customers only.
-        $this->bench('Sort subquery: last_thirty_days_stock_in — ops_jobs-first + operator-scoped (operator customers)', function () use ($operatorIds) {
-            $operatorIn = implode(',', $operatorIds);
+        // Drive from ops_jobs (date filter via idx_oj_date), then filter ops_job_items
+        // to operator's customers via the pre-fetched IN list inline on the join.
+        $this->bench('Sort subquery: last_thirty_days_stock_in — ops_jobs-first + pre-fetched IN list (' . count($benchCustomerIds) . ' customers)', function () use ($benchCustomerIn) {
             return DB::select("
                 SELECT SUM(ojic.actual_qty) AS qty,
                        SUM(ojic.actual_qty * vc.amount) AS amount,
                        oji.customer_id
                 FROM ops_jobs oj
                 INNER JOIN ops_job_items oji ON oji.ops_job_id = oj.id
+                    AND oji.customer_id IN ({$benchCustomerIn})
                     AND oji.status >= 3 AND oji.status <> 99
-                INNER JOIN customers cust_scope ON oji.customer_id = cust_scope.id
-                    AND cust_scope.operator_id IN ({$operatorIn})
                 INNER JOIN ops_job_item_channels ojic ON ojic.ops_job_item_id = oji.id
                 INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
                 WHERE oj.date BETWEEN CURDATE() - INTERVAL 29 DAY AND CURDATE()
