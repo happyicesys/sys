@@ -510,7 +510,11 @@ class DashboardController extends Controller
 
         $cacheKey = $this->makeCacheKey('month_graph', $request);
         $monthGraph = Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds, $lastYear, $thisYear) {
+            // USE INDEX hint: force MySQL to use idx_operator_date_vend (operator_id, date, vend_id).
+            // Without this hint, MySQL may pick idx_vend_operator_date (vend_id-leading) for the
+            // NOT IN exclusion filter, causing 63 separate range scans instead of one — 50s vs <1s.
             return VendRecord::query()
+                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
                 ->whereBetween('date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
                 ->filterIndex($request)
                 ->whereNotIn('vend_id', $testingVendIds)
@@ -601,7 +605,9 @@ class DashboardController extends Controller
 
         $cacheKey = $this->makeCacheKey('active_machine_graph', $request);
         $activeMachineGraph = Cache::remember($cacheKey, 300, function () use ($request, $excludeVendIds, $latestSub, $lastYear, $thisYear) {
-        return DB::table('vend_records')
+        // USE INDEX hint: same reason as getMonthGraphData — force idx_operator_date_vend
+        // so NOT IN on vend_id doesn't trigger the catastrophic 63-range-scan path.
+        return DB::table(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
             ->joinSub($latestSub, 'latest', function ($join) {
                 $join->on('vend_records.date', '=', 'latest.latest_date')
                     ->on('vend_records.year', '=', 'latest.year')
