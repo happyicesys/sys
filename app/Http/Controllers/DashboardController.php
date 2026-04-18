@@ -180,6 +180,7 @@ class DashboardController extends Controller
         $cacheKey = $this->makeCacheKey('sales_comparison_graph', $request);
         $results = Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds, $periods) {
             $query = VendRecord::query()
+                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
                 ->filterIndex($request)
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->select(
@@ -288,6 +289,7 @@ class DashboardController extends Controller
         }
 
         $dayGraph = VendRecord::query()
+            ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
             ->whereBetween('date', [$day_date_from->copy()->subMonth()->startOfDay(), $day_date_to->copy()->endOfDay()])
             ->filterIndex($request)
             ->whereNotIn('vend_id', $testingVendIds);
@@ -444,6 +446,7 @@ class DashboardController extends Controller
     private function getBestPerformer(Request $request, int $limit, array $testingVendIds)
     {
         return VendRecord::query()
+            ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
             ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name,customer_id,vend_prefix_id', 'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend.vendPrefix:id,name'])
             ->filterIndex($request)
             ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
@@ -464,6 +467,7 @@ class DashboardController extends Controller
     private function getWorstPerformer(Request $request, int $limit, array $testingVendIds)
     {
         return VendRecord::query()
+            ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
             ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name,customer_id,vend_prefix_id', 'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend.vendPrefix:id,name'])
             ->filterIndex($request)
             ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
@@ -486,6 +490,7 @@ class DashboardController extends Controller
         $cacheKey = $this->makeCacheKey('vend_count', $request);
         return Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds) {
             return VendRecord::query()
+                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
                 ->filterIndex($request)
                 ->whereDate('date', Carbon::yesterday())
                 ->whereNotIn('vend_id', $testingVendIds)
@@ -874,6 +879,7 @@ class DashboardController extends Controller
 
         // Subquery: daily active vend count per id (location_type_id/operator) & date
         $dailyActive = VendRecord::query()
+            ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
             ->selectRaw('vend_records.location_type_id as location_type_id')
             ->selectRaw('vend_records.operator_id as operator_id')
             ->selectRaw('vend_records.date as date')
@@ -894,6 +900,7 @@ class DashboardController extends Controller
         }
 
         $query = VendRecord::query()
+            ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
             ->selectRaw('vend_records.month')
             ->selectRaw('SUM(vend_records.total_amount) as amount')
             ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as vend_count')
