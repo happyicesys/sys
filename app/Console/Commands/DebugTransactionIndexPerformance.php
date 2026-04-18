@@ -74,15 +74,31 @@ class DebugTransactionIndexPerformance extends Command
                 ->count();
         });
 
-        // ── 2. Paginated records query ────────────────────────────────────────
-        // Mirrors the $recordsQuery->forPage(1, $perPage)->get() path.
-        // Includes all left joins and select columns from transactionIndex.
+        // ── 2. Paginated records — DEFERRED JOIN (production pattern) ────────
+        // Step A: fetch page IDs from lightweight base query (no joins → index-only scan).
+        // Step B: join only for those N rows → O(page_size × joins) not O(all_rows × joins).
         $rowCount = null;
-        $this->bench("Main paginated GET (page 1, {$perPage} rows, sort: transaction_datetime)", function () use ($operatorIds, $dateFrom, $dateTo, $perPage, &$rowCount) {
+        $pageIdsForBench = [];
+        $this->bench("Deferred join — step A: fetch {$perPage} IDs (index-only, no joins)", function () use ($operatorIds, $dateFrom, $dateTo, $perPage, &$pageIdsForBench) {
+            $pageIdsForBench = DB::table('vend_transactions')
+                ->whereIn('operator_id', $operatorIds)
+                ->where('transaction_datetime', '>=', $dateFrom)
+                ->where('transaction_datetime', '<=', $dateTo)
+                ->orderBy('transaction_datetime', 'desc')
+                ->limit($perPage)
+                ->pluck('id')
+                ->all();
+            return collect($pageIdsForBench);
+        });
+
+        $this->bench("Deferred join — step B: fetch {$perPage} rows with all joins (whereIn IDs)", function () use ($pageIdsForBench, &$rowCount) {
+            if (empty($pageIdsForBench)) {
+                $rowCount = 0;
+                return collect();
+            }
+            $idList = implode(',', array_map('intval', $pageIdsForBench));
             $rows = VendTransaction::query()
-                ->whereIn('vend_transactions.operator_id', $operatorIds)
-                ->where('vend_transactions.transaction_datetime', '>=', $dateFrom)
-                ->where('vend_transactions.transaction_datetime', '<=', $dateTo)
+                ->whereIn('vend_transactions.id', $pageIdsForBench)
                 ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
                 ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
                 ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
@@ -119,8 +135,7 @@ class DebugTransactionIndexPerformance extends Command
                     'vend_transactions.items_json',
                     'vend_transactions.label_json',
                 ])
-                ->orderBy('vend_transactions.transaction_datetime', 'desc')
-                ->forPage(1, $perPage)
+                ->orderByRaw("FIELD(vend_transactions.id, {$idList})")
                 ->get();
             $rowCount = $rows->count();
             return $rows;
@@ -128,23 +143,22 @@ class DebugTransactionIndexPerformance extends Command
         $this->line("  → {$rowCount} rows returned");
         $this->newLine();
 
-        // ── 3. Totals aggregation query ───────────────────────────────────────
-        // Mirrors the $totals = VendTransaction::query()->...->first() path.
-        // This is the most complex query — CASE expressions + 4 joins.
-        $this->bench('Totals aggregation (CASE SUMs + payment_methods, vend_channel_errors, delivery_platform_orders joins)', function () use ($operatorIds, $dateFrom, $dateTo) {
-            return VendTransaction::query()
+        // ── 3. Totals aggregation — whereNotIn testing vends (production pattern) ──
+        // Eliminates INNER JOIN vends (was forcing scan of all matching rows × vends table).
+        // Instead: pre-fetch testing vend IDs once, push as IN list → index probe per ID.
+        $testingVendIds = DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int)$v)->all();
+        $this->bench('Totals aggregation (whereNotIn testing vends, no vends JOIN)', function () use ($operatorIds, $dateFrom, $dateTo, $testingVendIds) {
+            $q = VendTransaction::query()
                 ->whereIn('vend_transactions.operator_id', $operatorIds)
                 ->where('vend_transactions.transaction_datetime', '>=', $dateFrom)
                 ->where('vend_transactions.transaction_datetime', '<=', $dateTo)
                 ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
-                ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
-                ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-                ->where(function ($query) {
-                    $query->whereNull('vends.is_testing')
-                        ->orWhere('vends.is_testing', false);
-                })
-                ->select([
+                ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id');
+            if (!empty($testingVendIds)) {
+                $q->whereNotIn('vend_transactions.vend_id', $testingVendIds);
+            }
+            return $q->select([
                     DB::raw('CAST(COUNT(CASE WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
                     DB::raw('COUNT(*) AS total_count'),
                     DB::raw('ROUND(COALESCE(SUM(CASE WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
@@ -156,20 +170,18 @@ class DebugTransactionIndexPerformance extends Command
                 ->first();
         });
 
-        // ── 4. Item totals query (is_multiple transactions) ───────────────────
+        // ── 4. Item totals — whereNotIn testing vends (production pattern) ───
         // Mirrors the $itemTotals = VendTransaction::query()->...->first() path.
-        $this->bench('Item totals (is_multiple=true + vend_transaction_items join)', function () use ($operatorIds, $dateFrom, $dateTo) {
-            return VendTransaction::query()
+        $this->bench('Item totals (whereNotIn testing vends, vend_transaction_items join)', function () use ($operatorIds, $dateFrom, $dateTo, $testingVendIds) {
+            $q = VendTransaction::query()
                 ->whereIn('vend_transactions.operator_id', $operatorIds)
                 ->where('vend_transactions.transaction_datetime', '>=', $dateFrom)
                 ->where('vend_transactions.transaction_datetime', '<=', $dateTo)
-                ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-                ->where('is_multiple', true)
-                ->where(function ($query) {
-                    $query->whereNull('vends.is_testing')
-                        ->orWhere('vends.is_testing', false);
-                })
-                ->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
+                ->where('is_multiple', true);
+            if (!empty($testingVendIds)) {
+                $q->whereNotIn('vend_transactions.vend_id', $testingVendIds);
+            }
+            return $q->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
                 ->select([
                     DB::raw('COUNT(*) as total_items'),
                     DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IN (0,6) OR vend_transaction_items.vend_channel_error_code IS NULL) THEN 1 END) as success_items')

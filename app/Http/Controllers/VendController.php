@@ -1861,55 +1861,74 @@ class VendController extends Controller
 
         $totalTransactions = (clone $baseQuery)->count();
 
-        $recordsQuery = (clone $baseQuery)
-            ->with([
-                'vendTransactionItems.product',
-                'vendTransactionItems.vendChannelError',
-            ])
-            ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
-            ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-            ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
-            ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
-            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
-            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
-            ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-            ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
-            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vend_transactions.vend_prefix_id')
-            ->select(
-                'vend_transactions.id',
-                'vend_transactions.order_id',
-                'vend_transactions.transaction_datetime',
-                'vends.code AS vend_code',
-                'vend_prefixes.name AS vend_prefix_name',
-                'customers.code AS customer_code',
-                'customers.name AS customer_name',
-                'customers.person_id',
-                'customers.virtual_customer_prefix',
-                'customers.virtual_customer_code',
-                'operators.code AS operator_code',
-                'vend_transactions.vend_channel_code',
-                'products.code AS product_code',
-                'products.name AS product_name',
-                'vend_channels.amount AS vend_channel_amount',
-                'vend_channels.amount2 AS vend_channel_amount2',
-                'vend_transactions.amount',
-                'payment_methods.name AS payment_method_name',
-                'vend_channel_errors.desc AS vend_channel_error_desc',
-                'vend_channel_errors.code AS vend_channel_error_code',
-                'vend_contracts.name AS vend_contract_name',
-                'vend_transactions.interface_type',
-                'vend_transactions.is_multiple',
-                'vend_transactions.is_refunded',
-                'vend_transactions.is_payment_received',
-                'vend_transactions.items_json',
-                'vend_transactions.meta_json',
-                'vend_transactions.vend_transaction_json',
-                'vend_transactions.label_json'
-            );
-
-        $records = $recordsQuery
+        // Deferred join: get the page's transaction IDs from the lightweight base
+        // query first (operator + date filter + ORDER BY + LIMIT, no extra joins),
+        // then fetch only those rows with the full join set.
+        //
+        // Without this, MySQL applies all 8 joins to every matching row before
+        // limiting: O(all_rows × joins) → ~21 s for 2 700 rows.
+        // With deferred join: ID fetch is O(all_rows via index), join fetch is
+        // O(page_size × joins) → target <500 ms total.
+        $pageIds = (clone $baseQuery)
             ->forPage($currentPage, $perPage)
-            ->get();
+            ->pluck('vend_transactions.id')
+            ->all();
+
+        if (empty($pageIds)) {
+            $records = collect();
+        } else {
+            // FIELD() preserves the sort order established by the ID-fetch step,
+            // so no re-sorting is needed regardless of the active sort key.
+            $idList = implode(',', array_map('intval', $pageIds));
+            $records = VendTransaction::query()
+                ->with([
+                    'vendTransactionItems.product',
+                    'vendTransactionItems.vendChannelError',
+                ])
+                ->whereIn('vend_transactions.id', $pageIds)
+                ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+                ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+                ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+                ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
+                ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
+                ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+                ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+                ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
+                ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vend_transactions.vend_prefix_id')
+                ->select(
+                    'vend_transactions.id',
+                    'vend_transactions.order_id',
+                    'vend_transactions.transaction_datetime',
+                    'vends.code AS vend_code',
+                    'vend_prefixes.name AS vend_prefix_name',
+                    'customers.code AS customer_code',
+                    'customers.name AS customer_name',
+                    'customers.person_id',
+                    'customers.virtual_customer_prefix',
+                    'customers.virtual_customer_code',
+                    'operators.code AS operator_code',
+                    'vend_transactions.vend_channel_code',
+                    'products.code AS product_code',
+                    'products.name AS product_name',
+                    'vend_channels.amount AS vend_channel_amount',
+                    'vend_channels.amount2 AS vend_channel_amount2',
+                    'vend_transactions.amount',
+                    'payment_methods.name AS payment_method_name',
+                    'vend_channel_errors.desc AS vend_channel_error_desc',
+                    'vend_channel_errors.code AS vend_channel_error_code',
+                    'vend_contracts.name AS vend_contract_name',
+                    'vend_transactions.interface_type',
+                    'vend_transactions.is_multiple',
+                    'vend_transactions.is_refunded',
+                    'vend_transactions.is_payment_received',
+                    'vend_transactions.items_json',
+                    'vend_transactions.meta_json',
+                    'vend_transactions.vend_transaction_json',
+                    'vend_transactions.label_json'
+                )
+                ->orderByRaw("FIELD(vend_transactions.id, {$idList})")
+                ->get();
+        }
 
         // Resolve labels in PHP to avoid expensive JSON_TABLE join per row
         $tagIds = $records->pluck('label_json')->flatten()->unique()->filter();
@@ -1934,17 +1953,20 @@ class VendController extends Controller
             ]
         );
 
+        // Pre-fetch testing vend IDs once (cached 1h) so the totals + item-totals
+        // queries can filter with a cheap whereNotIn instead of an INNER JOIN on vends.
+        // The JOIN forced MySQL to scan vends for every matching transaction row (~21k ops).
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
+            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int)$v)->all()
+        );
+
         // Optimize: Split totals calculation into two queries to avoid expensive subquery join
         $totals = VendTransaction::query()
             ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
-            ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request, true)
-            ->where(function ($query) {
-                $query->whereNull('vends.is_testing')
-                    ->orWhere('vends.is_testing', false);
-            })
+            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->select([
                 DB::raw('CAST(COUNT(CASE
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
@@ -2038,13 +2060,9 @@ class VendController extends Controller
 
         // Calculate item totals for multiple transactions
         $itemTotals = VendTransaction::query()
-            ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request, true)
             ->where('is_multiple', true)
-            ->where(function ($query) {
-                $query->whereNull('vends.is_testing')
-                    ->orWhere('vends.is_testing', false);
-            })
+            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
             ->select([
                 DB::raw('COUNT(*) as total_items'),
