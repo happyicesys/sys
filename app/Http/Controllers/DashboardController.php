@@ -191,13 +191,17 @@ class DashboardController extends Controller
                 )
                 ->groupBy('year', 'month', 'day');
 
-            // Build where clause for all periods
+            // Build where clause for all periods.
+            // Use whereBetween per period (start/end of month) instead of whereYear()/whereMonth()
+            // because YEAR(date) and MONTH(date) are function calls on the column — MySQL cannot
+            // use any index on `date` when a function wraps it. whereBetween generates a plain
+            // range predicate (date >= X AND date <= Y) that the date index can seek directly.
             $query->where(function ($q) use ($periods) {
                 foreach ($periods as $key => $date) {
-                    $q->orWhere(function ($subQ) use ($date) {
-                        $subQ->whereYear('date', $date->year)
-                            ->whereMonth('date', $date->month);
-                    });
+                    $q->orWhereBetween('date', [
+                        $date->copy()->startOfMonth()->startOfDay(),
+                        $date->copy()->endOfMonth()->endOfDay(),
+                    ]);
                 }
             });
 
@@ -489,10 +493,12 @@ class DashboardController extends Controller
     {
         $cacheKey = $this->makeCacheKey('vend_count', $request);
         return Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds) {
+            // whereBetween instead of whereDate() — whereDate() wraps the column in DATE()
+            // which disables index seeks. whereBetween generates a plain range MySQL can index.
             return VendRecord::query()
                 ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
                 ->filterIndex($request)
-                ->whereDate('date', Carbon::yesterday())
+                ->whereBetween('date', [Carbon::yesterday()->startOfDay(), Carbon::yesterday()->endOfDay()])
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->count();
         });

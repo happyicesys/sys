@@ -142,9 +142,11 @@ class DebugDashboardPerformance extends Command
 
         // ── 6. getVendCount ───────────────────────────────────────────────
         $this->bench('getVendCount (count yesterday\'s records)', function () use ($request, $testingVendIds, $noCache) {
+            // whereBetween instead of whereDate(): DATE(col) = X disables index, range does not.
             $run = fn() => VendRecord::query()
+                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
                 ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))
-                ->whereDate('date', Carbon::yesterday())
+                ->whereBetween('date', [Carbon::yesterday()->startOfDay(), Carbon::yesterday()->endOfDay()])
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->count();
 
@@ -158,6 +160,7 @@ class DebugDashboardPerformance extends Command
             $lastYear = $baseDate->copy()->subYear()->startOfYear();
 
             $run = fn() => VendRecord::query()
+                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
                 ->whereBetween('date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
                 ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))
                 ->whereNotIn('vend_id', $testingVendIds)
@@ -235,13 +238,16 @@ class DebugDashboardPerformance extends Command
                 $baseDate->copy()->subYear()->addMonth(),
             ];
 
+            // whereBetween per period instead of whereYear()/whereMonth(): function calls on
+            // the date column prevent index use. A plain range predicate can use the date index.
             $run = fn() => VendRecord::query()
+                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
                 ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->select(DB::raw('SUM(total_amount) as amount'), DB::raw('DAY(date) as day'), DB::raw('MONTH(date) as month'), DB::raw('YEAR(date) as year'))
                 ->groupBy('year', 'month', 'day')
                 ->where(fn($q) => collect($periods)->each(fn($d) =>
-                    $q->orWhere(fn($s) => $s->whereYear('date', $d->year)->whereMonth('date', $d->month))
+                    $q->orWhereBetween('date', [$d->copy()->startOfMonth()->startOfDay(), $d->copy()->endOfMonth()->endOfDay()])
                 ))
                 ->get();
 
