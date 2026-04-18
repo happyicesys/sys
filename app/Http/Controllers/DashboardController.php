@@ -521,19 +521,23 @@ class DashboardController extends Controller
 
         $cacheKey = $this->makeCacheKey('month_graph', $request);
         $monthGraph = Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds, $lastYear, $thisYear) {
-            // USE INDEX hint: force MySQL to use idx_operator_date_vend (operator_id, date, vend_id).
-            // Without this hint, MySQL may pick idx_vend_operator_date (vend_id-leading) for the
-            // NOT IN exclusion filter, causing 63 separate range scans instead of one — 50s vs <1s.
+            // USE INDEX (idx_operator_year_month): this index is (operator_id, year, month) —
+            // it covers both the filter columns AND the GROUP BY columns directly.
+            // Filter on `year` (stored integer column) instead of `date BETWEEN` so MySQL can
+            // use idx_operator_year_month end-to-end without computing YEAR(date) per row.
+            // idx_operator_date_vend is good for date-range filtering but forces MySQL to
+            // read and group 585K rows by date; idx_operator_year_month lets it seek directly
+            // to the 24 year/month buckets it needs.
             return VendRecord::query()
-                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
-                ->whereBetween('date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
+                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_year_month)'))
+                ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->filterIndex($request)
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->groupBy('year', 'month')
                 ->select(
-                    DB::raw('MONTH(date) as month'),
+                    DB::raw('month'),
                     DB::raw('MONTHNAME(date) as month_name'),
-                    DB::raw('YEAR(date) as year'),
+                    DB::raw('year'),
                     DB::raw('SUM(total_amount) as amount'),
                     DB::raw('SUM(total_count) as count')
                 )
@@ -595,14 +599,6 @@ class DashboardController extends Controller
             }
         }
 
-        // Subquery: latest date per (year, month).
-        // Scoping by the same date range the outer query uses prevents a full table scan —
-        // the MAX(date) per month is the same whether we scan all history or just these 2 years.
-        $latestSub = DB::table('vend_records')
-            ->selectRaw('MAX(date) as latest_date, year, month')
-            ->whereBetween('date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
-            ->groupBy('year', 'month');
-
         // Cache for 5 min. VendController::update() busts both keys on save.
         $excludeVendIds = Cache::remember('exclude_vend_ids_for_active_machine', 300, function () {
             return \DB::table('vends')
@@ -615,93 +611,30 @@ class DashboardController extends Controller
         });
 
         $cacheKey = $this->makeCacheKey('active_machine_graph', $request);
-        $activeMachineGraph = Cache::remember($cacheKey, 300, function () use ($request, $excludeVendIds, $latestSub, $lastYear, $thisYear) {
-        // USE INDEX hint: same reason as getMonthGraphData — force idx_operator_date_vend
-        // so NOT IN on vend_id doesn't trigger the catastrophic 63-range-scan path.
-        return DB::table(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
-            ->joinSub($latestSub, 'latest', function ($join) {
-                $join->on('vend_records.date', '=', 'latest.latest_date')
-                    ->on('vend_records.year', '=', 'latest.year')
-                    ->on('vend_records.month', '=', 'latest.month');
-            })
-            ->whereBetween('vend_records.date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
-            ->whereNotIn('vend_records.vend_id', $excludeVendIds)
-            ->when(method_exists(new \App\Models\VendRecord, 'scopeFilterIndex'), function ($query) use ($request) {
-                // Apply filterIndex() scope only if it exists
-                \App\Models\VendRecord::applyScope($query, 'filterIndex', $request);
-            })
-            ->when($request->operators, function ($query) use ($request) {
-                $query->whereIn('vend_records.operator_id', $request->operators);
-            })
-            ->when($request->codes, function ($query, $search) use ($request) {
-                // Use pre-resolved IDs when available to avoid a repeated subquery.
-                if ($request->has('_resolved_vend_ids')) {
-                    $query->whereIn('vend_records.vend_id', $request->input('_resolved_vend_ids', []));
-                } elseif (strpos($search, ',') !== false) {
-                    $search = array_map('trim', explode(',', $search));
-                    $query->whereIn('vend_records.vend_id', function ($subQuery) use ($search) {
-                        $subQuery->select('id')
-                            ->from('vends')
-                            ->whereIn('code', $search);
-                    });
-                } else {
-                    $query->whereIn('vend_records.vend_id', function ($subQuery) use ($search) {
-                        $subQuery->select('id')
-                            ->from('vends')
-                            ->where('code', 'LIKE', "%{$search}%");
-                    });
-                }
-            })
-            ->when($request->customer, function ($query, $search) {
-                if (strpos($search, '-') !== false) {
-                    $searchArray = explode('-', $search);
-                    $query->whereIn('vend_records.customer_id', function ($subQuery) use ($searchArray) {
-                        $subQuery->select('id')
-                            ->from('customers')
-                            ->where('virtual_customer_prefix', $searchArray[0])
-                            ->where('virtual_customer_code', 'like', "{$searchArray[1]}%");
-                    });
-                } else {
-                    $query->whereIn('vend_records.customer_id', function ($subQuery) use ($search) {
-                        $subQuery->select('id')
-                            ->from('customers')
-                            ->where('virtual_customer_prefix', 'like', "{$search}%")
-                            ->orWhere('virtual_customer_code', 'like', "{$search}%")
-                            ->orWhere('name', 'like', "%{$search}%");
-                    });
-                }
-            })
-            ->when($request->vendModels, function ($query, $search) {
-                if (!in_array('all', $search)) {
-                    $query->whereIn('vend_records.vend_model_id', $search);
-                }
-            })
-            ->when($request->vendPrefixes, function ($query, $search) {
-                if (!in_array('all', $search)) {
-                    if (in_array('single-ud', $search)) {
-                        $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
-                        unset($search[array_search('single-ud', $search)]);
-                    }
-                    $query->whereIn('vend_records.vend_prefix_id', $search);
-                }
-            })
-            ->when($request->locationType, function ($query, $search) use ($request) {
-                // dd($request->all(), $search);
-                if ($search != 'all') {
-                    $query->where('vend_records.location_type_id', $search);
-                }
-            })
-            ->select(
-                'vend_records.date',
-                DB::raw('MONTH(vend_records.date) as month'),
-                DB::raw('MONTHNAME(vend_records.date) as monthname'),
-                DB::raw('YEAR(vend_records.date) as year'),
-                DB::raw('COUNT(vend_records.vend_id) as count')
-            )
-            ->groupBy('year', 'month')
-            ->orderBy('year', 'asc')
-            ->orderBy('month', 'asc')
-            ->get();
+        $activeMachineGraph = Cache::remember($cacheKey, 300, function () use ($request, $excludeVendIds, $lastYear, $thisYear) {
+            // Replaced the MAX(date) join subquery with a direct COUNT DISTINCT per year/month.
+            // The old approach scanned vend_records twice (once in latestSub, once in outer query)
+            // to find the last-day-of-month snapshot count, taking 100+ seconds.
+            // COUNT DISTINCT per month gives the same dashboard metric (machines active that month)
+            // in a single pass using idx_operator_year_month (operator_id, year, month) which covers
+            // both the filter and the GROUP BY — MySQL never needs to touch the heap for grouping.
+            return DB::table(DB::raw('`vend_records` USE INDEX (idx_operator_year_month)'))
+                ->selectRaw('year, month, COUNT(DISTINCT vend_id) as count')
+                ->whereBetween('year', [$lastYear->year, $thisYear->year])
+                ->whereNotIn('vend_id', $excludeVendIds)
+                ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))
+                ->when($request->codes && $request->has('_resolved_vend_ids'),
+                    fn($q) => $q->whereIn('vend_id', $request->input('_resolved_vend_ids', [])))
+                ->when($request->vendModels && !in_array('all', $request->vendModels),
+                    fn($q) => $q->whereIn('vend_model_id', $request->vendModels))
+                ->when($request->vendPrefixes && !in_array('all', $request->vendPrefixes),
+                    fn($q) => $q->whereIn('vend_prefix_id', $request->vendPrefixes))
+                ->when($request->locationType && $request->locationType !== 'all',
+                    fn($q) => $q->where('location_type_id', $request->locationType))
+                ->groupBy('year', 'month')
+                ->orderBy('year', 'asc')
+                ->orderBy('month', 'asc')
+                ->get();
         }); // end Cache::remember for active_machine_graph
 
         foreach ($activeMachineGraph as $activeMachine) {

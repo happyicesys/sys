@@ -154,25 +154,26 @@ class DebugDashboardPerformance extends Command
         });
 
         // ── 7. getMonthGraphData ──────────────────────────────────────────
-        $this->bench('getMonthGraphData (2-year GROUP BY month)', function () use ($request, $testingVendIds, $monthYear, $noCache) {
+        $this->bench('getMonthGraphData (2-year GROUP BY month, idx_operator_year_month)', function () use ($request, $testingVendIds, $monthYear, $noCache) {
             $baseDate = Carbon::createFromFormat('Y-m', $monthYear);
             $thisYear = $baseDate->copy()->endOfYear();
             $lastYear = $baseDate->copy()->subYear()->startOfYear();
 
+            // Filter on `year` (stored integer) so idx_operator_year_month covers filter + GROUP BY.
             $run = fn() => VendRecord::query()
-                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
-                ->whereBetween('date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
+                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_year_month)'))
+                ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->groupBy('year', 'month')
-                ->select(DB::raw('MONTH(date) as month'), DB::raw('YEAR(date) as year'), DB::raw('SUM(total_amount) as amount'))
+                ->select(DB::raw('month'), DB::raw('year'), DB::raw('SUM(total_amount) as amount'))
                 ->get();
 
             return $noCache ? $run() : Cache::remember('dbg_month_graph', 300, $run);
         });
 
         // ── 8. getActiveMachineGraphData ──────────────────────────────────
-        $this->bench('getActiveMachineGraphData (2-year join subquery)', function () use ($request, $monthYear, $noCache) {
+        $this->bench('getActiveMachineGraphData (2-year COUNT DISTINCT, idx_operator_year_month)', function () use ($request, $monthYear, $noCache) {
             $baseDate = Carbon::createFromFormat('Y-m', $monthYear);
             $thisYear = $baseDate->copy()->endOfYear();
             $lastYear = $baseDate->copy()->subYear()->startOfYear();
@@ -183,22 +184,14 @@ class DebugDashboardPerformance extends Command
                     DB::table('vends')->where(fn($q) => $q->where('is_testing', true)->orWhereNull('customer_id'))->pluck('id')->toArray()
                   );
 
-            $latestSub = DB::table('vend_records')
-                ->selectRaw('MAX(date) as latest_date, year, month')
-                ->whereBetween('date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
-                ->groupBy('year', 'month');
-
-            return DB::table('vend_records')
-                ->joinSub($latestSub, 'latest', fn($j) =>
-                    $j->on('vend_records.date', '=', 'latest.latest_date')
-                      ->on('vend_records.year', '=', 'latest.year')
-                      ->on('vend_records.month', '=', 'latest.month')
-                )
-                ->whereBetween('vend_records.date', [$lastYear->copy()->startOfDay(), $thisYear->copy()->endOfDay()])
-                ->whereNotIn('vend_records.vend_id', $excludeVendIds)
-                ->when($request->operators, fn($q) => $q->whereIn('vend_records.operator_id', $request->operators))
-                ->select(DB::raw('MONTH(vend_records.date) as month'), DB::raw('YEAR(vend_records.date) as year'), DB::raw('COUNT(vend_records.vend_id) as count'))
+            // Direct COUNT DISTINCT per year/month — no MAX(date) join subquery scanning the table twice.
+            return DB::table(DB::raw('`vend_records` USE INDEX (idx_operator_year_month)'))
+                ->selectRaw('year, month, COUNT(DISTINCT vend_id) as count')
+                ->whereBetween('year', [$lastYear->year, $thisYear->year])
+                ->whereNotIn('vend_id', $excludeVendIds)
+                ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))
                 ->groupBy('year', 'month')
+                ->orderBy('year')->orderBy('month')
                 ->get();
         });
 
