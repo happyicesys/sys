@@ -70,6 +70,9 @@ class DashboardController extends Controller
         $allMonths = Month::all();
 
         if ($shouldAutoload) {
+            $t = microtime(true);
+            \Log::info('[Dashboard] start');
+
             // Cache testing vend IDs for 5 min. VendController::update() busts this
             // key whenever is_testing changes, so staleness is bounded.
             $testingVendIds = Cache::remember('testing_vend_ids', 300, function () {
@@ -78,16 +81,34 @@ class DashboardController extends Controller
                     ->pluck('id')
                     ->toArray();
             });
+            \Log::info('[Dashboard] testingVendIds: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
 
             $dayGraph = $this->getDayGraph($request, $testingVendIds);
+            \Log::info('[Dashboard] getDayGraph: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+
             $productGraph = $this->getProductGraph($request);
+            \Log::info('[Dashboard] getProductGraph: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+
             $bestPerformer = $this->getBestPerformer($request, $bestPerformerLimit, $testingVendIds);
+            \Log::info('[Dashboard] getBestPerformer: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+
             $worstPerformer = $this->getWorstPerformer($request, $worstPerformerLimit, $testingVendIds);
+            \Log::info('[Dashboard] getWorstPerformer: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+
             $vendCount = $this->getVendCount($request, $testingVendIds);
+            \Log::info('[Dashboard] getVendCount: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+
             $monthGraphData = $this->getMonthGraphData($request, $testingVendIds);
+            \Log::info('[Dashboard] getMonthGraphData: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+
             $activeMachineGraphData = $this->getActiveMachineGraphData($request, $testingVendIds);
+            \Log::info('[Dashboard] getActiveMachineGraphData: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+
             $monthlyAnalytics = $this->getMonthlyAnalytics($request, $allMonths);
+            \Log::info('[Dashboard] getMonthlyAnalytics: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+
             $salesComparisonGraphData = $this->getSalesComparisonGraph($request, $testingVendIds);
+            \Log::info('[Dashboard] getSalesComparisonGraph: ' . round((microtime(true) - $t) * 1000) . 'ms');
         } else {
             $emptyCollection = collect([]);
             $dayGraph = $emptyCollection;
