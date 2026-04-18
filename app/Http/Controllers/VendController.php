@@ -670,56 +670,52 @@ class VendController extends Controller
             '), 'vc_stock.vend_id', '=', 'vends.id');
                 })
                 ->when($needsLastOpsJobs, function ($query) {
-                    $query->leftJoin(DB::raw('
-                (
-                    SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
-                        SUM(oji_c.actual_qty * vc.amount) AS amount,
-                        SUM(oji_c.actual_qty) AS count
-                    FROM (
-                        SELECT
-                            id,
-                            customer_id,
-                            cash_amount,
-                            acc_total_amount,
-                            acc_total_count,
-                            ops_job_id,
-                            ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) as rn
-                        FROM ops_job_items
-                        WHERE status >= 3 AND status <> 99
-                    ) oji
-                    INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
-                    INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
+                    // LATERAL replaces ROW_NUMBER() OVER (PARTITION BY customer_id …).
+                    // The old approach materialised ALL completed ops_job_items (potentially
+                    // millions of rows) and applied a filesort before filtering rn=1.
+                    // LATERAL runs one index seek per customer row in the outer query:
+                    //   idx_oji_cust_created (customer_id, created_at) → seek to customer_id,
+                    //   scan backwards on created_at, stop at LIMIT 1 after the status check.
+                    // Cost: O(num_customers × ~5ms) instead of O(all ops_job_items).
+                    $query->leftJoin(DB::raw('LATERAL (
+                SELECT oji_top.cash_amount, oji_top.acc_total_amount, oji_top.acc_total_count,
+                    SUM(ojic.actual_qty * vc.amount) AS amount,
+                    SUM(ojic.actual_qty) AS count
+                FROM (
+                    SELECT oji.id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count
+                    FROM ops_job_items oji
                     INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
-                    WHERE oji.rn = 1 AND oj.date < CURDATE() + INTERVAL 1 DAY
-                    GROUP BY oji.customer_id
-                ) AS last_ops_jobs
-            '), 'last_ops_jobs.customer_id', '=', 'customers.id');
+                    WHERE oji.customer_id = customers.id
+                    AND oji.status >= 3 AND oji.status <> 99
+                    AND oj.date < CURDATE() + INTERVAL 1 DAY
+                    ORDER BY oji.created_at DESC
+                    LIMIT 1
+                ) AS oji_top
+                INNER JOIN ops_job_item_channels ojic ON oji_top.id = ojic.ops_job_item_id
+                INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
+                GROUP BY oji_top.cash_amount, oji_top.acc_total_amount, oji_top.acc_total_count
+            ) AS last_ops_jobs'), DB::raw('1'), '=', DB::raw('1'));
                 })
                 ->when($needsLastSecondOpsJobs, function ($query) {
-                    $query->leftJoin(DB::raw('
-                (
-                    SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
-                        SUM(oji_c.actual_qty * vc.amount) AS amount,
-                        SUM(oji_c.actual_qty) AS count
-                    FROM (
-                        SELECT
-                            id,
-                            customer_id,
-                            cash_amount,
-                            acc_total_amount,
-                            acc_total_count,
-                            ops_job_id,
-                            ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) as rn
-                        FROM ops_job_items
-                        WHERE status >= 3 AND status <> 99
-                    ) oji
-                    INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
-                    INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
+                    // Same LATERAL pattern as last_ops_jobs but LIMIT 1 OFFSET 1 (2nd latest job).
+                    $query->leftJoin(DB::raw('LATERAL (
+                SELECT oji_top.cash_amount, oji_top.acc_total_amount, oji_top.acc_total_count,
+                    SUM(ojic.actual_qty * vc.amount) AS amount,
+                    SUM(ojic.actual_qty) AS count
+                FROM (
+                    SELECT oji.id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count
+                    FROM ops_job_items oji
                     INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
-                    WHERE oji.rn = 2 AND oj.date < CURDATE() + INTERVAL 1 DAY
-                    GROUP BY oji.customer_id
-                ) AS last_second_ops_jobs
-            '), 'last_second_ops_jobs.customer_id', '=', 'customers.id');
+                    WHERE oji.customer_id = customers.id
+                    AND oji.status >= 3 AND oji.status <> 99
+                    AND oj.date < CURDATE() + INTERVAL 1 DAY
+                    ORDER BY oji.created_at DESC
+                    LIMIT 1 OFFSET 1
+                ) AS oji_top
+                INNER JOIN ops_job_item_channels ojic ON oji_top.id = ojic.ops_job_item_id
+                INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
+                GROUP BY oji_top.cash_amount, oji_top.acc_total_amount, oji_top.acc_total_count
+            ) AS last_second_ops_jobs'), DB::raw('1'), '=', DB::raw('1'));
                 })
                 ->when($needsNextOpsJobs, function ($query) {
                     $query->leftJoin(DB::raw('
@@ -743,19 +739,24 @@ class VendController extends Controller
             '), 'next_ops_jobs.customer_id', '=', 'customers.id');
                 })
                 ->when($needsLastThirtyDaysStockIn, function ($query) {
+                    // Start from ops_jobs with the date filter first (idx_oj_date covers this),
+                    // then join inward. Previously the query drove from ops_job_item_channels
+                    // (full scan) and filtered ops_jobs late — the date predicate couldn't
+                    // reduce the row count until after most of the work was done.
+                    // Starting from ops_jobs lets MySQL seek to just the last 30 days of jobs
+                    // and join outward to a small result set.
                     $query->leftJoin(
                         DB::raw('(
-                SELECT SUM(ops_job_item_channels.actual_qty) AS qty,
-                       SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
-                       ops_job_items.customer_id
-                FROM ops_job_item_channels
-                INNER JOIN vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
-                INNER JOIN ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
-                INNER JOIN ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
-                WHERE ops_job_items.status >= 3
-                AND ops_job_items.status <> 99
-                AND ops_jobs.date BETWEEN CURDATE() - INTERVAL 29 DAY AND CURDATE()
-                GROUP BY ops_job_items.customer_id
+                SELECT SUM(ojic.actual_qty) AS qty,
+                       SUM(ojic.actual_qty * vc.amount) AS amount,
+                       oji.customer_id
+                FROM ops_jobs oj
+                INNER JOIN ops_job_items oji ON oji.ops_job_id = oj.id
+                    AND oji.status >= 3 AND oji.status <> 99
+                INNER JOIN ops_job_item_channels ojic ON ojic.ops_job_item_id = oji.id
+                INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
+                WHERE oj.date BETWEEN CURDATE() - INTERVAL 29 DAY AND CURDATE()
+                GROUP BY oji.customer_id
             ) AS last_thirty_days_stock_in'),
                         'last_thirty_days_stock_in.customer_id',
                         '=',
@@ -3378,44 +3379,40 @@ class VendController extends Controller
 
         if ((in_array('last_ops_jobs', $types) || in_array('last_second_ops_jobs', $types)) && !empty($customerIds)) {
             $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
-            // LATERAL + LIMIT replaces the ROW_NUMBER() window function.
-            // The old approach materialised ALL completed ops_job_items for the given customers
-            // before filtering to rn IN (1,2), forcing a full filesort of potentially thousands
-            // of rows. With LATERAL, MySQL processes each customer independently: it backward-
-            // scans idx_oji_cust_created (customer_id, created_at) and stops after the first
-            // matching row, returning at most 2 rows per customer (~100 rows total vs. thousands).
+            // ROW_NUMBER() on a pre-filtered customer set replaces the CROSS JOIN LATERAL approach.
+            //
+            // The old LATERAL query used an outer "SELECT DISTINCT customer_id FROM ops_job_items
+            // WHERE customer_id IN (?)" + per-customer correlated subqueries with UNION ALL. Despite
+            // idx_oji_cust_created covering the lookups, MySQL's LATERAL execution overhead per
+            // customer (correlated subquery setup + UNION ALL materialisation) was ~180ms/customer,
+            // totalling 9s for 50 customers.
+            //
+            // The new approach: the inner ROW_NUMBER() subquery fetches only rows belonging to the
+            // 50 known customer IDs (idx_oji_cust_created seeks to each customer_id, backward-scans
+            // created_at to rank completed jobs). The outer filter rn <= 2 keeps at most 100 rows
+            // total, making the subsequent channel joins trivial.
             $data = DB::select("
                 SELECT
-                    top2.customer_id,
-                    top2.cash_amount,
-                    top2.acc_total_amount,
-                    top2.acc_total_count,
-                    top2.rn,
-                    SUM(oji_c.actual_qty * vc.amount) AS amount,
-                    SUM(oji_c.actual_qty) AS count
-                FROM (SELECT DISTINCT customer_id FROM ops_job_items WHERE customer_id IN ($placeholders)) AS cust
-                CROSS JOIN LATERAL (
-                    (
-                        SELECT id, customer_id, cash_amount, acc_total_amount, acc_total_count, ops_job_id, 1 AS rn
-                        FROM ops_job_items
-                        WHERE customer_id = cust.customer_id AND status >= 3 AND status <> 99
-                        ORDER BY created_at DESC
-                        LIMIT 1 OFFSET 0
-                    )
-                    UNION ALL
-                    (
-                        SELECT id, customer_id, cash_amount, acc_total_amount, acc_total_count, ops_job_id, 2 AS rn
-                        FROM ops_job_items
-                        WHERE customer_id = cust.customer_id AND status >= 3 AND status <> 99
-                        ORDER BY created_at DESC
-                        LIMIT 1 OFFSET 1
-                    )
-                ) AS top2
-                INNER JOIN ops_job_item_channels oji_c ON top2.id = oji_c.ops_job_item_id
-                INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
-                INNER JOIN ops_jobs oj ON top2.ops_job_id = oj.id
-                WHERE oj.date < CURDATE() + INTERVAL 1 DAY
-                GROUP BY top2.customer_id, top2.rn
+                    base.customer_id,
+                    base.cash_amount,
+                    base.acc_total_amount,
+                    base.acc_total_count,
+                    base.rn,
+                    SUM(ojic.actual_qty * vc.amount) AS amount,
+                    SUM(ojic.actual_qty) AS count
+                FROM (
+                    SELECT oji.id, oji.customer_id, oji.cash_amount, oji.acc_total_amount,
+                           oji.acc_total_count, oji.ops_job_id,
+                           ROW_NUMBER() OVER (PARTITION BY oji.customer_id ORDER BY oji.created_at DESC) AS rn
+                    FROM ops_job_items oji
+                    WHERE oji.customer_id IN ($placeholders)
+                    AND oji.status >= 3 AND oji.status <> 99
+                ) AS base
+                INNER JOIN ops_job_item_channels ojic ON base.id = ojic.ops_job_item_id
+                INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
+                INNER JOIN ops_jobs oj ON base.ops_job_id = oj.id
+                WHERE base.rn <= 2 AND oj.date < CURDATE() + INTERVAL 1 DAY
+                GROUP BY base.customer_id, base.rn
             ", $customerIds);
 
             $groupedData = collect($data)->groupBy('customer_id');
@@ -3504,19 +3501,26 @@ class VendController extends Controller
         }
 
         if (in_array('last_thirty_days_stock_in', $types) && !empty($customerIds)) {
-            $data = DB::table('ops_job_item_channels')
+            // Drive the join from ops_jobs (idx_oj_date narrows to the 30-day window first),
+            // then join outward to ops_job_items → channels. Previously the query started from
+            // ops_job_item_channels and the date filter couldn't reduce rows until late in the
+            // join chain. The customer_id IN filter is applied on ops_job_items where
+            // idx_oji_cust_status_job can satisfy the status + ops_job_id join key.
+            $data = DB::table('ops_jobs')
+                ->join('ops_job_items', function ($join) use ($customerIds) {
+                    $join->on('ops_job_items.ops_job_id', '=', 'ops_jobs.id')
+                        ->where('ops_job_items.status', '>=', 3)
+                        ->where('ops_job_items.status', '<>', 99)
+                        ->whereIn('ops_job_items.customer_id', $customerIds);
+                })
+                ->join('ops_job_item_channels', 'ops_job_item_channels.ops_job_item_id', '=', 'ops_job_items.id')
                 ->join('vend_channels', 'ops_job_item_channels.vend_channel_id', '=', 'vend_channels.id')
-                ->join('ops_job_items', 'ops_job_item_channels.ops_job_item_id', '=', 'ops_job_items.id')
-                ->join('ops_jobs', 'ops_job_items.ops_job_id', '=', 'ops_jobs.id')
                 ->select(
                     'ops_job_items.customer_id',
                     DB::raw('SUM(ops_job_item_channels.actual_qty) AS qty'),
                     DB::raw('SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount')
                 )
-                ->where('ops_job_items.status', '>=', 3)
-                ->where('ops_job_items.status', '<>', 99)
                 ->whereBetween('ops_jobs.date', [DB::raw('CURDATE() - INTERVAL 29 DAY'), DB::raw('CURDATE()')])
-                ->whereIn('ops_job_items.customer_id', $customerIds)
                 ->groupBy('ops_job_items.customer_id')
                 ->get()
                 ->keyBy('customer_id');
