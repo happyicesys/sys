@@ -521,15 +521,11 @@ class DashboardController extends Controller
 
         $cacheKey = $this->makeCacheKey('month_graph', $request);
         $monthGraph = Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds, $lastYear, $thisYear) {
-            // USE INDEX (idx_operator_year_month): this index is (operator_id, year, month) —
-            // it covers both the filter columns AND the GROUP BY columns directly.
-            // Filter on `year` (stored integer column) instead of `date BETWEEN` so MySQL can
-            // use idx_operator_year_month end-to-end without computing YEAR(date) per row.
-            // idx_operator_date_vend is good for date-range filtering but forces MySQL to
-            // read and group 585K rows by date; idx_operator_year_month lets it seek directly
-            // to the 24 year/month buckets it needs.
+            // USE INDEX (idx_vr_monthly_summary): covering index (operator_id, year, month,
+            // vend_id, total_amount, total_count). MySQL resolves the entire query — filter,
+            // NOT IN on vend_id, GROUP BY, and SUM — from the index alone with zero heap reads.
             return VendRecord::query()
-                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_year_month)'))
+                ->from(DB::raw('`vend_records` USE INDEX (idx_vr_monthly_summary)'))
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->filterIndex($request)
                 ->whereNotIn('vend_id', $testingVendIds)
@@ -612,13 +608,10 @@ class DashboardController extends Controller
 
         $cacheKey = $this->makeCacheKey('active_machine_graph', $request);
         $activeMachineGraph = Cache::remember($cacheKey, 300, function () use ($request, $excludeVendIds, $lastYear, $thisYear) {
-            // Replaced the MAX(date) join subquery with a direct COUNT DISTINCT per year/month.
-            // The old approach scanned vend_records twice (once in latestSub, once in outer query)
-            // to find the last-day-of-month snapshot count, taking 100+ seconds.
-            // COUNT DISTINCT per month gives the same dashboard metric (machines active that month)
-            // in a single pass using idx_operator_year_month (operator_id, year, month) which covers
-            // both the filter and the GROUP BY — MySQL never needs to touch the heap for grouping.
-            return DB::table(DB::raw('`vend_records` USE INDEX (idx_operator_year_month)'))
+            // idx_vr_monthly_summary (operator_id, year, month, vend_id, total_amount, total_count)
+            // is a covering index: vend_id is included so NOT IN and COUNT DISTINCT resolve
+            // entirely within the index with zero heap reads.
+            return DB::table(DB::raw('`vend_records` USE INDEX (idx_vr_monthly_summary)'))
                 ->selectRaw('year, month, COUNT(DISTINCT vend_id) as count')
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->whereNotIn('vend_id', $excludeVendIds)

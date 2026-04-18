@@ -159,9 +159,10 @@ class DebugDashboardPerformance extends Command
             $thisYear = $baseDate->copy()->endOfYear();
             $lastYear = $baseDate->copy()->subYear()->startOfYear();
 
-            // Filter on `year` (stored integer) so idx_operator_year_month covers filter + GROUP BY.
+            // idx_vr_monthly_summary (operator_id, year, month, vend_id, total_amount, total_count)
+            // is a covering index — entire query resolves with zero heap reads.
             $run = fn() => VendRecord::query()
-                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_year_month)'))
+                ->from(DB::raw('`vend_records` USE INDEX (idx_vr_monthly_summary)'))
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))
                 ->whereNotIn('vend_id', $testingVendIds)
@@ -184,8 +185,8 @@ class DebugDashboardPerformance extends Command
                     DB::table('vends')->where(fn($q) => $q->where('is_testing', true)->orWhereNull('customer_id'))->pluck('id')->toArray()
                   );
 
-            // Direct COUNT DISTINCT per year/month — no MAX(date) join subquery scanning the table twice.
-            return DB::table(DB::raw('`vend_records` USE INDEX (idx_operator_year_month)'))
+            // idx_vr_monthly_summary covers vend_id — COUNT DISTINCT and NOT IN resolve with zero heap reads.
+            return DB::table(DB::raw('`vend_records` USE INDEX (idx_vr_monthly_summary)'))
                 ->selectRaw('year, month, COUNT(DISTINCT vend_id) as count')
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->whereNotIn('vend_id', $excludeVendIds)
