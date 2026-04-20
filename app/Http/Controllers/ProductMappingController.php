@@ -506,11 +506,16 @@ class ProductMappingController extends Controller
             ]);
         }
 
+        // Guard: upcoming must never equal the product mapping's own ID when cascading to vends
+        $safeUpcomingId = ($productMapping->upcoming_product_mapping_id != $productMapping->id)
+            ? $productMapping->upcoming_product_mapping_id
+            : null;
+
         // 2. Add new vends
         if (!empty($vendsToAddIds)) {
             Vend::whereIn('id', $vendsToAddIds)->update([
                 'product_mapping_id' => $productMapping->id,
-                'upcoming_product_mapping_id' => $productMapping->upcoming_product_mapping_id,
+                'upcoming_product_mapping_id' => $safeUpcomingId,
                 'binded_at' => now()
             ]);
         }
@@ -518,7 +523,7 @@ class ProductMappingController extends Controller
         // 3. Keep existing vends, only update upcoming mapping in case mapping itself changed
         if (!empty($vendsToKeepIds)) {
             Vend::whereIn('id', $vendsToKeepIds)->update([
-                'upcoming_product_mapping_id' => $productMapping->upcoming_product_mapping_id
+                'upcoming_product_mapping_id' => $safeUpcomingId
             ]);
         }
 

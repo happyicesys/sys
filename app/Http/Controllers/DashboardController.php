@@ -521,11 +521,13 @@ class DashboardController extends Controller
 
         $cacheKey = $this->makeCacheKey('month_graph', $request);
         $monthGraph = Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds, $lastYear, $thisYear) {
-            // USE INDEX (idx_vr_monthly_summary): covering index (operator_id, year, month,
-            // vend_id, total_amount, total_count). MySQL resolves the entire query — filter,
-            // NOT IN on vend_id, GROUP BY, and SUM — from the index alone with zero heap reads.
+            // After migration 2026_04_18_200000 runs, idx_vr_monthly_summary
+            // (operator_id, year, month, vend_id, total_amount, total_count) is a
+            // covering index — MySQL resolves the entire query with zero heap reads.
+            // No USE INDEX hint needed: MySQL's optimizer prefers the covering index
+            // automatically, and falls back to idx_operator_year_month safely before
+            // the migration runs (avoids full-table-scan from a missing-index hint).
             return VendRecord::query()
-                ->from(DB::raw('`vend_records` USE INDEX (idx_vr_monthly_summary)'))
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->filterIndex($request)
                 ->whereNotIn('vend_id', $testingVendIds)
@@ -608,10 +610,11 @@ class DashboardController extends Controller
 
         $cacheKey = $this->makeCacheKey('active_machine_graph', $request);
         $activeMachineGraph = Cache::remember($cacheKey, 300, function () use ($request, $excludeVendIds, $lastYear, $thisYear) {
-            // idx_vr_monthly_summary (operator_id, year, month, vend_id, total_amount, total_count)
-            // is a covering index: vend_id is included so NOT IN and COUNT DISTINCT resolve
-            // entirely within the index with zero heap reads.
-            return DB::table(DB::raw('`vend_records` USE INDEX (idx_vr_monthly_summary)'))
+            // After migration 2026_04_18_200000 runs, idx_vr_monthly_summary covers vend_id
+            // so NOT IN and COUNT DISTINCT resolve entirely within the index with zero heap reads.
+            // No USE INDEX hint: MySQL auto-selects the covering index when it exists, falls back
+            // to idx_operator_year_month before migration (avoids full scan from missing-index hint).
+            return DB::table('vend_records')
                 ->selectRaw('year, month, COUNT(DISTINCT vend_id) as count')
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->whereNotIn('vend_id', $excludeVendIds)

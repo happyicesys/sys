@@ -64,24 +64,13 @@
                         Ref Price({{ vend.customer ? vend.customer.selling_price_type : vend.selling_price_type }})
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Group
-                      </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Error
-                      </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Error Rate
+                        <br>
+                        1d
                         <br>
                         3d
                         <br>
                         7d
-                      </th>
-                      <th
-                        scope="col"
-                        class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
-                        v-if="channels.some(channel => 'sku_code' in channel)"
-                      >
-                        Product Code
                       </th>
                       <th
                         scope="col"
@@ -171,34 +160,17 @@
                         <!-- {{ channel.product && channel.product.selling_prices[0] ? (channel.product.selling_prices[0].amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }} -->
                         {{ channel.ref_price ? (channel.ref_price).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
-                        {{ channel.discount_group }}
-                      </td>
-                      <td class="py-1 pl-1 pr-1 text-xs font-medium sm:pl-1 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
-                        <span
-                          v-if="channel.vendChannelErrorLogs
-                                && channel.vendChannelErrorLogs[0]
-                                && channel.vendChannelErrorLogs[0].is_error_cleared == 0"
-                        >
-                            <div
-                              :class="[
-                                  channel.vendChannelErrorLogs[0].code == 4 ||
-                                  channel.vendChannelErrorLogs[0].code == 5 ||
-                                  channel.vendChannelErrorLogs[0].code == 7 ?
-                                  ' text-blue-800' :
-                                  ' text-red-800'
-                                  ]">
-                              <span class="font-bold">
-                              ({{ channel.vendChannelErrorLogs[0].code }})
-                              </span>
-                              <div>
-                                {{channel.vendChannelErrorLogs[0].created_at}}
-                              </div>
-                            </div>
-                        </span>
-                      </td>
                       <td class="py-1 pl-1 pr-1 text-xs font-medium sm:pl-1 text-center">
-                        <div class="flex flex-col space-y-3 w-full hover:cursor-pointer" @click="onChannelErrorClicked(channel)">
+                        <div class="flex flex-col space-y-2 w-full hover:cursor-pointer" @click="onChannelErrorClicked(channel)">
+                            <span
+                            v-if="channel.error_rate_json && 'one_day_error_rate' in channel.error_rate_json"
+                            :class="[
+                                channel.is_active ?
+                                (channel.error_rate_json.one_day_error_rate >= 3 ? 'text-red-700' : 'text-green-700') :
+                                'text-gray-400'
+                            ]">
+                              ({{channel.error_rate_json['one_day_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{channel.error_rate_json['one_day_total_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+                            </span>
                             <span
                             v-if="channel.error_rate_json && 'three_days_error_rate' in channel.error_rate_json"
                             :class="[
@@ -206,7 +178,6 @@
                                 (channel.error_rate_json.three_days_error_rate >= 3 ? 'text-red-700' : 'text-green-700') :
                                 'text-gray-400'
                             ]">
-                              {{channel.error_rate_json['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
                               ({{channel.error_rate_json['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{channel.error_rate_json['three_days_total_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                             </span>
                             <span
@@ -216,18 +187,9 @@
                                 (channel.error_rate_json['seven_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
                                 'text-gray-400'
                             ]">
-                                {{channel.error_rate_json['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
-                                ({{channel.error_rate_json['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{channel.error_rate_json['seven_days_total_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
-
+                              ({{channel.error_rate_json['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{channel.error_rate_json['seven_days_total_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                             </span>
                         </div>
-                      </td>
-                      <td
-                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center"
-                        :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']"
-                        v-if="channels.some(channel => 'sku_code' in channel)"
-                      >
-                        {{ channel.sku_code }}
                       </td>
                       <td
                         class="whitespace-nowrap py-4 pl-4 pr-3 text-xs font-medium sm:pl-6 text-center"

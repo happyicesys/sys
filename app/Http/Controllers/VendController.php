@@ -1877,9 +1877,22 @@ class VendController extends Controller
         if (empty($pageIds)) {
             $records = collect();
         } else {
-            // FIELD() preserves the sort order established by the ID-fetch step,
-            // so no re-sorting is needed regardless of the active sort key.
-            $idList = implode(',', array_map('intval', $pageIds));
+            // Re-apply the same ORDER BY as the ID-fetch step.
+            // FIELD(id, v1, v2, ...) was previously used here but degrades to
+            // O(n²) comparisons when page size is large ("All" = 10 000 rows).
+            // Since step B joins all the same tables, applying the same sort key
+            // produces identical ordering with O(n log n) cost instead.
+            //
+            // NOTE: sort key must be table-qualified here because the join set
+            // introduces columns with the same name (e.g. vend_channels.amount).
+            $sortKey = $request->sortKey ?: 'transaction_datetime';
+            // Map bare column names to their qualified form to avoid ambiguity.
+            $qualifiedSortKey = match (true) {
+                str_contains($sortKey, '.') || str_contains($sortKey, '->') => $sortKey,
+                default => 'vend_transactions.' . $sortKey,
+            };
+            $sortDir = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+
             $records = VendTransaction::query()
                 ->with([
                     'vendTransactionItems.product',
@@ -1926,7 +1939,7 @@ class VendController extends Controller
                     'vend_transactions.vend_transaction_json',
                     'vend_transactions.label_json'
                 )
-                ->orderByRaw("FIELD(vend_transactions.id, {$idList})")
+                ->orderBy($qualifiedSortKey, $sortDir)
                 ->get();
         }
 
@@ -2751,10 +2764,24 @@ class VendController extends Controller
 
         if ($request->product_mapping_id != $vend->product_mapping_id) {
             $newProductMapping = ProductMapping::find($request->product_mapping_id);
+            $newUpcomingId = $newProductMapping ? $newProductMapping->upcoming_product_mapping_id : null;
+            // Guard: upcoming must never equal the new product_mapping_id (Gap 1 fix)
+            if ($newUpcomingId == $request->product_mapping_id) {
+                $newUpcomingId = null;
+            }
             $request->merge([
-                'upcoming_product_mapping_id' => $newProductMapping ? $newProductMapping->upcoming_product_mapping_id : null,
+                'upcoming_product_mapping_id' => $newUpcomingId,
             ]);
             $isProductMappingChanged = true;
+        }
+
+        // Guard: upcoming must never equal the current product_mapping_id (Gap 2 fix —
+        // covers the case where product_mapping_id did NOT change but upcoming was sent raw)
+        if (
+            $request->upcoming_product_mapping_id &&
+            $request->upcoming_product_mapping_id == $request->product_mapping_id
+        ) {
+            $request->merge(['upcoming_product_mapping_id' => null]);
         }
 
         if ($request->modem_type_id == null) {
@@ -3168,12 +3195,17 @@ class VendController extends Controller
     public function replaceProductMapping($id)
     {
         $vend = Vend::findOrFail($id);
-        
+
         $newMappingId = $vend->upcoming_product_mapping_id;
         $vend->product_mapping_id = $newMappingId;
-        
+
         $newProductMapping = ProductMapping::find($newMappingId);
-        $vend->upcoming_product_mapping_id = $newProductMapping ? $newProductMapping->upcoming_product_mapping_id : null;
+        $newUpcomingId = $newProductMapping ? $newProductMapping->upcoming_product_mapping_id : null;
+        // Guard: upcoming must never equal the newly-set product_mapping_id (Gap 3 fix)
+        if ($newUpcomingId == $newMappingId) {
+            $newUpcomingId = null;
+        }
+        $vend->upcoming_product_mapping_id = $newUpcomingId;
         $vend->binded_at = Carbon::now();
         
         $vend->save();

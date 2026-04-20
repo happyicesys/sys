@@ -297,6 +297,7 @@ class SyncVendChannels implements ShouldQueue
     {
         $sixDaysAgo = Carbon::today()->subDays(6)->startOfDay()->toDateTimeString();
         $twoDaysAgo = Carbon::today()->subDays(2)->startOfDay()->toDateTimeString();
+        $todayStart = Carbon::today()->startOfDay()->toDateTimeString();
 
         $singleData = \App\Models\VendTransaction::query()
             ->where('vend_id', $vendId)
@@ -308,8 +309,10 @@ class SyncVendChannels implements ShouldQueue
                 COUNT(id) as seven_days_total_count,
                 COUNT(CASE WHEN vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as seven_days_error_count,
                 COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as three_days_total_count,
-                COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as three_days_error_count
-            ', [$twoDaysAgo, $twoDaysAgo])
+                COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as three_days_error_count,
+                COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as one_day_total_count,
+                COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as one_day_error_count
+            ', [$twoDaysAgo, $twoDaysAgo, $todayStart, $todayStart])
             ->groupBy('vend_channel_id')
             ->get()
             ->keyBy('vend_channel_id');
@@ -325,8 +328,10 @@ class SyncVendChannels implements ShouldQueue
                 COUNT(vend_transaction_items.id) as seven_days_total_count,
                 COUNT(CASE WHEN vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as seven_days_error_count,
                 COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? THEN vend_transaction_items.id ELSE NULL END) as three_days_total_count,
-                COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as three_days_error_count
-            ', [$twoDaysAgo, $twoDaysAgo])
+                COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as three_days_error_count,
+                COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? THEN vend_transaction_items.id ELSE NULL END) as one_day_total_count,
+                COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as one_day_error_count
+            ', [$twoDaysAgo, $twoDaysAgo, $todayStart, $todayStart])
             ->groupBy('vend_transaction_items.vend_channel_id')
             ->get()
             ->keyBy('vend_channel_id');
@@ -346,6 +351,8 @@ class SyncVendChannels implements ShouldQueue
         $sevenDaysError = ($singleData->seven_days_error_count ?? 0) + ($multiData->seven_days_error_count ?? 0);
         $threeDaysTotal = ($singleData->three_days_total_count ?? 0) + ($multiData->three_days_total_count ?? 0);
         $threeDaysError = ($singleData->three_days_error_count ?? 0) + ($multiData->three_days_error_count ?? 0);
+        $oneDayTotal = ($singleData->one_day_total_count ?? 0) + ($multiData->one_day_total_count ?? 0);
+        $oneDayError = ($singleData->one_day_error_count ?? 0) + ($multiData->one_day_error_count ?? 0);
 
         return [
             'seven_days_total_count' => $sevenDaysTotal,
@@ -354,6 +361,9 @@ class SyncVendChannels implements ShouldQueue
             'three_days_total_count' => $threeDaysTotal,
             'three_days_error_count' => $threeDaysError,
             'three_days_error_rate' => $threeDaysTotal > 0 ? round(($threeDaysError / $threeDaysTotal) * 100, 2) : 0,
+            'one_day_total_count' => $oneDayTotal,
+            'one_day_error_count' => $oneDayError,
+            'one_day_error_rate' => $oneDayTotal > 0 ? round(($oneDayError / $oneDayTotal) * 100, 2) : 0,
         ];
     }
 

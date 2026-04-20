@@ -244,7 +244,7 @@
                                 Machine Prefix
                               </span>
                               <span>
-                                Upcoming Product Mapping
+                                Product Mapping
                               </span>
                               <span>
                                 Job ID#
@@ -343,8 +343,8 @@
                               <span>
                                 {{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }}
                               </span>
-                              <span class="flex flex-col text-xs font-medium whitespace-normal break-words max-w-24 mt-1" v-if="opsJobItem.vend && opsJobItem.vend.upcoming_product_mapping_id">
-                                <span class="text-gray-500">{{ opsJobItem.vend.productMapping ? opsJobItem.vend.productMapping.name : '' }}</span>
+                              <span class="flex flex-col text-xs font-medium whitespace-normal break-words max-w-24 mt-1" v-if="opsJobItem.vend && opsJobItem.vend.productMapping">
+                                <span class="text-gray-500">{{ opsJobItem.vend.productMapping.name }}</span>
                                 <span class="text-red-500" v-if="opsJobItem.vend.upcomingProductMapping">
                                   ({{ opsJobItem.vend.upcomingProductMapping.name }})
                                 </span>

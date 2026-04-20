@@ -757,7 +757,7 @@
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
             <div class="flex flex-col space-y-1">
-              <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
+              <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="hover:underline">
                 {{ vend.code }}
               </Link>
               <div
@@ -766,24 +766,24 @@
               >
                 {{ vend.label_name }}
               </div>
-              <div class="text-left" v-if="vend.vend_config_name">
+              <div class="text-left text-gray-800" v-if="vend.vend_config_name">
                 {{ vend.vend_config_name }}
               </div>
-              <div class="text-left">
+              <div class="text-left text-blue-700 cursor-default select-none">
                 {{ vend.vend_prefix_name }}
               </div>
               <span class="flex flex-col space-y-0.5">
-                <a v-if="vend.productMapping" :href="'/product-mappings/' + vend.productMapping.id + '/edit'" target="_blank" class="text-blue-600 text-xs font-medium">
+                <a v-if="vend.productMapping" :href="'/product-mappings/' + vend.productMapping.id + '/edit'" target="_blank" class="text-gray-800 text-xs font-medium underline decoration-gray-400 underline-offset-2">
                   {{ vend.productMapping.name }}
                 </a>
-                <span v-else-if="vend.product_mapping_name" class="text-xs">
+                <span v-else-if="vend.product_mapping_name" class="text-xs text-gray-800">
                   {{ vend.product_mapping_name }}
                 </span>
 
               </span>
               <span v-if="vend.person_id" class="flex flex-col space-y-1">
                 <span v-if="permissions.includes('admin-access vend-machines')">
-                  <a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
+                  <a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" class="hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
                     {{ vend.virtual_customer_code }}<br>
                     {{ vend.customer_name }}
                   </a>
@@ -808,10 +808,10 @@
               </span>
               <span v-else-if="!vend.person_id">
                 <span v-if="permissions.includes('admin-access vend-machines')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-                  <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">{{ vend.customer_name }}</a>
+                  <a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">{{ vend.customer_name }}</a>
                 </span>
                 <span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-                  <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">{{ vend.customer_name }}</a>
+                  <a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">{{ vend.customer_name }}</a>
                 </span>
               </span>
               <div
