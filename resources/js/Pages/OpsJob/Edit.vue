@@ -10,7 +10,7 @@
             <div
               v-if="opsJob.stock_action_type"
               class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit uppercase"
-              :class="opsJob.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
+              :class="opsJob.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : opsJob.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700 border-teal-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
             >
               <span class="font-semibold grow-0">
                 {{ opsJob.stock_action_type.replace(/_/g, ' ') }}
@@ -394,10 +394,10 @@
                                 </div>
                                 <div
                                     class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-bold border w-fit"
-                                    :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'"
+                                    :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700' : opsJobItem.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700'"
                                     v-if="opsJobItem.stock_action_type"
                                 >
-                                    {{ opsJobItem.stock_action_type == 'implement_new_mapping' ? 'Implement New Mapping' : 'Return Stock' }}
+                                    {{ opsJobItem.stock_action_type == 'implement_new_mapping' ? 'Implement New Mapping' : opsJobItem.stock_action_type == 'return_stock' ? 'Return Stock' : 'Onsite Adjustment' }}
                                 </div>
                                 <span v-if="opsJobItem.status_at" class="text-xs font-medium text-gray-600">
                                   {{ opsJobItem.status_at }}

@@ -1770,7 +1770,7 @@ class OpsJobController extends Controller
 
         if ($stockActionType === 'implement_new_mapping') {
             $this->applyNewMappingToItem($opsJobItem);
-        } elseif ($stockActionType === 'return_stock') {
+        } elseif ($stockActionType === 'return_stock' || $stockActionType === 'onsite_adjustment') {
             // Remove any upcoming products first
             $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
             $this->applyReturnStockToItem($opsJobItem);
@@ -1798,6 +1798,9 @@ class OpsJobController extends Controller
             $item->update(['stock_action_type' => $request->stock_action_type]);
             if ($request->stock_action_type === 'implement_new_mapping') {
                 $this->applyNewMappingToItem($item);
+            } elseif ($request->stock_action_type === 'return_stock' || $request->stock_action_type === 'onsite_adjustment') {
+                $item->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
+                $this->applyReturnStockToItem($item);
             } else {
                 $item->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
             }

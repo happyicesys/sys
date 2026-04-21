@@ -46,7 +46,7 @@
             </div>
             <div
                 class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit capitalize"
-                :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
+                :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : opsJobItem.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700 border-teal-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
                 v-if="opsJobItem.stock_action_type"
             >
                 {{ opsJobItem.stock_action_type.replace(/_/g, ' ') }}
@@ -81,6 +81,11 @@
                         <MenuItem v-slot="{ active }">
                           <button type="button" @click="onUpdateStockAction('return_stock')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm']">
                             Return Stock
+                          </button>
+                        </MenuItem>
+                        <MenuItem v-slot="{ active }">
+                          <button type="button" @click="onUpdateStockAction('onsite_adjustment')" :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm']">
+                            Onsite Adjustment
                           </button>
                         </MenuItem>
                         <MenuItem v-slot="{ active }" v-if="opsJobItem.stock_action_type">
@@ -456,7 +461,7 @@
                               <div v-if="channel.is_replaced" class="text-xs text-gray-500 italic py-2">
                                 N/A
                               </div>
-                              <select v-else-if="channel.is_return_stock" name="channel_picked" id="channel_picked_return" class="rounded text-orange-600" v-model="channel.picked">
+                              <select v-else-if="channel.is_return_stock || channel.is_onsite_adjustment" name="channel_picked" id="channel_picked_return" class="rounded" :class="channel.is_onsite_adjustment ? 'text-teal-600' : 'text-orange-600'" v-model="channel.picked">
                                 <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
                               </select>
                               <select v-else name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" v-if="opsJobItem.status < 2">
@@ -1157,7 +1162,7 @@
                 <span class="flex space-x-1 items-center">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Save
+                    Save & Freeze 'To Pick Qty'
                   </span>
                 </span>
               </Button>
@@ -1322,6 +1327,10 @@ function loadingData() {
     const is_return_stock = !opsJobItemChannel.is_upcoming_product &&
                             opsJobItem.value.stock_action_type === 'return_stock';
 
+    // Onsite Adjustment: same as return stock but Stock In defaults to 0 (not -currentQty)
+    const is_onsite_adjustment = !opsJobItemChannel.is_upcoming_product &&
+                                  opsJobItem.value.stock_action_type === 'onsite_adjustment';
+
     // picked logic
     // picked logic
     const finalProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
@@ -1329,7 +1338,7 @@ function loadingData() {
     if (opsJobItem.value.status >= 2) {
       pickedQty = opsJobItemChannel.picked_qty;
     } else {
-      if (is_return_stock) {
+      if (is_return_stock || is_onsite_adjustment) {
         // Restore previously saved negative qty if it exists, otherwise default to 0
         pickedQty = (opsJobItemChannel.saved_picked_qty != null && opsJobItemChannel.saved_picked_qty <= 0)
           ? opsJobItemChannel.saved_picked_qty
@@ -1372,6 +1381,9 @@ function loadingData() {
         // Fall back to full -currentQty only if pickedQty is still 0 (untouched).
         const currentQty = opsJobItemChannel.vendChannel ? opsJobItemChannel.vendChannel.qty : opsJobItemChannel.qty;
         refill = pickedQty !== 0 ? pickedQty : -currentQty;
+      } else if (is_onsite_adjustment) {
+        // Onsite Adjustment: Stock In always defaults to 0
+        refill = 0;
       } else if (is_replaced) {
         refill = -opsJobItemChannel.qty;
       } else {
@@ -1387,6 +1399,7 @@ function loadingData() {
       is_upcoming_product: opsJobItemChannel.is_upcoming_product,
       is_replaced: is_replaced,
       is_return_stock: is_return_stock,
+      is_onsite_adjustment: is_onsite_adjustment,
       vend_channel_id: opsJobItemChannel.vend_channel_id,
       error_settled_at_formatted: opsJobItemChannel.error_settled_at_formatted,
       is_error_settle: opsJobItemChannel.is_error_settle,
@@ -1423,7 +1436,7 @@ function getDefaultForm() {
 // Unavailable products also get the full range (both negative and positive).
 function getRefillOptions(channel) {
   if (channel.is_replaced || channel.is_return_stock) {
-    // Original logic: 0 to -capacity (returning stock)
+    // Return stock: 0 to -capacity (negative-only range)
     return Array.from({ length: channel.capacity + 1 }, (_, i) => -(i));
   }
   const negCount = Number(channel.qty) || 0;
