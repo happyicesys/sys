@@ -464,25 +464,32 @@ class SettingController extends Controller
             'productMappingOptions' => ProductMappingResource::collection(
                 ProductMapping::withoutGlobalScopes()
                     ->with(['upcomingProductMapping', 'productMappingItems.product.thumbnail'])
-                    ->where(function($query) {
-                        $query->where('operator_id', auth()->user()->operator_id)
-                              ->orWhereNull('operator_id');
-                    })
-                    ->when($request->vend_prefix_id, function($query) use ($request, $vend) {
-                        $query->where(function ($q) use ($request, $vend) {
-                            $q->whereHas('vendPrefixes', function($q2) use ($request) {
-                                $q2->where('vend_prefixes.id', $request->vend_prefix_id);
+                    ->where(function($query) use ($request, $vend) {
+                        // Normal selectable options: match operator + prefix filter + active
+                        $query->where(function($normalQ) use ($request) {
+                            $normalQ->where(function($opQ) {
+                                $opQ->where('operator_id', auth()->user()->operator_id)
+                                    ->orWhereNull('operator_id');
                             });
-                            $q->orWhere('name', 'N/A');
-                            if ($vend && $vend->product_mapping_id) {
-                                $q->orWhere('id', $vend->product_mapping_id);
+                            if ($request->vend_prefix_id) {
+                                $normalQ->where(function($prefixQ) use ($request) {
+                                    $prefixQ->whereHas('vendPrefixes', function($q) use ($request) {
+                                        $q->where('vend_prefixes.id', $request->vend_prefix_id);
+                                    });
+                                    $prefixQ->orWhere('name', 'N/A');
+                                });
                             }
-                            if ($vend && $vend->upcoming_product_mapping_id) {
-                                $q->orWhere('id', $vend->upcoming_product_mapping_id);
-                            }
+                            $normalQ->where('is_active', 1);
                         });
+                        // Always include the vend's currently assigned mappings regardless of
+                        // operator, prefix, or active status — so they always appear in the dropdown.
+                        if ($vend && $vend->product_mapping_id) {
+                            $query->orWhere('id', $vend->product_mapping_id);
+                        }
+                        if ($vend && $vend->upcoming_product_mapping_id) {
+                            $query->orWhere('id', $vend->upcoming_product_mapping_id);
+                        }
                     })
-                    ->where('is_active', 1)
                     ->orderByRaw("CASE WHEN name = 'N/A' AND operator_id IS NULL THEN 1 ELSE 0 END ASC")
                     ->orderBy('name')
                     ->get()

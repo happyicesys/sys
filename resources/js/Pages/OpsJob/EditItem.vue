@@ -750,7 +750,7 @@
                             <div v-if="channel.is_replaced" class="text-xs text-gray-500 italic py-2">
                                N/A
                             </div>
-                            <select v-else-if="channel.is_return_stock" name="channel_picked" id="channel_picked_return" class="rounded w-fit text-orange-600" v-model="channel.picked">
+                            <select v-else-if="channel.is_return_stock || channel.is_onsite_adjustment" name="channel_picked" :id="channel.is_onsite_adjustment ? 'channel_picked_onsite' : 'channel_picked_return'" class="rounded w-fit" :class="channel.is_onsite_adjustment ? 'text-teal-600' : 'text-orange-600'" v-model="channel.picked">
                               <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
                             </select>
                             <select v-else name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" v-if="opsJobItem.status < 2">

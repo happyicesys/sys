@@ -731,6 +731,29 @@
               </div>
             <hr class="sm:col-span-6">
 
+            <!-- Validation error summary — always visible when save fails -->
+            <div
+              id="vend-error-summary"
+              v-if="form && form.errors && Object.keys(form.errors).length > 0"
+              class="sm:col-span-6 rounded-md border border-red-300 bg-red-50 p-4"
+            >
+              <div class="flex items-start space-x-2">
+                <ExclamationCircleIcon class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                <div class="flex-1">
+                  <p class="text-sm font-semibold text-red-700 mb-1">Please fix the following errors before saving:</p>
+                  <ul class="list-disc list-inside space-y-0.5">
+                    <li
+                      v-for="(message, field) in form.errors"
+                      :key="field"
+                      class="text-sm text-red-600"
+                    >
+                      {{ message }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
             <div class="sm:col-span-6">
               <span class="flex space-x-1">
                 <Button
@@ -1304,7 +1327,7 @@ import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon, XMarkIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
 import { useToast } from "vue-toastification";
@@ -2159,8 +2182,18 @@ function saveVend(vendID) {
       });
     },
     onError: (errors) => {
-      toast.error("Failed, Please Try Again", {
-        timeout: 3000
+      const errorCount = Object.keys(errors).length;
+      toast.error(
+        errorCount === 1
+          ? `1 validation error — see details below`
+          : `${errorCount} validation errors — see details below`,
+        { timeout: 5000 }
+      );
+      nextTick(() => {
+        const el = document.getElementById('vend-error-summary');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       });
     },
     preserveState: true,
