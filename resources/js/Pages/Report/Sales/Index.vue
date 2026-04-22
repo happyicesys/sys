@@ -312,8 +312,11 @@
                     <TableHeadSort modelName="count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('count')">
                       Count (Success Only)
                     </TableHeadSort>
-                    <TableHeadSort v-if="showProductErrorCol" modelName="error_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count')">
-                      Count (Error Only)
+                    <TableHeadSort v-if="showProductErrorCol" modelName="error_count_no_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_no_4_5')">
+                      Count (Error Exclude #4 and #5)
+                    </TableHeadSort>
+                    <TableHeadSort v-if="showProductErrorCol" modelName="error_count_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_4_5')">
+                      Count (Error #4 and #5)
                     </TableHeadSort>
                     <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount')">
                       Amount
@@ -327,7 +330,10 @@
                       {{totals['total_count'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                     </TableData>
                     <TableData v-if="showProductErrorCol" inputClass="text-right font-semibold">
-                      {{(totals['total_error_count'] ?? 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                      {{(totals['total_error_count_no_4_5'] ?? 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    </TableData>
+                    <TableData v-if="showProductErrorCol" inputClass="text-right font-semibold">
+                      {{(totals['total_error_count_4_5'] ?? 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                     </TableData>
                     <TableData inputClass="text-right font-semibold">
                       {{totals['total_amount'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
@@ -362,7 +368,10 @@
                         {{ item.count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </TableData>
                       <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
-                        {{ (item.error_count || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                        {{ (item.error_count_no_4_5 || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                      </TableData>
+                      <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
+                        {{ (item.error_count_4_5 || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </TableData>
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}

@@ -1748,6 +1748,56 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
+    public function batchUpdateItems(Request $request)
+    {
+        $request->validate([
+            'item_ids'     => 'required|array|min:1',
+            'item_ids.*'   => 'integer|exists:ops_job_items,id',
+            'delivered_by' => 'required|integer',
+            'date'         => 'required|date',
+        ]);
+
+        // Resolve the target OpsJob ONCE before the loop.
+        // - operator_id is included in the search key so we never accidentally
+        //   land on another operator's job.
+        // - getRunningCode() is only called here, not on every iteration, so
+        //   we don't burn running numbers unnecessarily.
+        $targetOpsJob = OpsJob::firstOrCreate(
+            [
+                'date'         => $request->date,
+                'delivered_by' => $request->delivered_by,
+                'operator_id'  => auth()->user()->operator_id,
+            ],
+            [
+                'code'       => $this->runningNumberService->getRunningCode(new OpsJob()),
+                'created_by' => auth()->id(),
+                'updated_by' => auth()->id(),
+                'updated_at' => Carbon::now(),
+            ]
+        );
+
+        foreach ($request->item_ids as $itemId) {
+            $opsJobItem = OpsJobItem::findOrFail($itemId);
+
+            // Skip items that are already on the target job
+            if ($opsJobItem->ops_job_id === $targetOpsJob->id) {
+                continue;
+            }
+
+            $opsJobItem->update([
+                'ops_job_id' => $targetOpsJob->id,
+                'updated_at' => Carbon::now(),
+                'updated_by' => auth()->id(),
+            ]);
+
+            $opsJobItem->opsJobItemChannels()->update([
+                'ops_job_id' => $targetOpsJob->id,
+            ]);
+        }
+
+        return redirect()->back();
+    }
+
     public function undoItemCashCollected(Request $request, $opsJobItemID)
     {
         $opsJobItem = OpsJobItem::findOrFail($opsJobItemID);

@@ -349,6 +349,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/sort', [OpsJobController::class, 'sortItems']);
         Route::post('/assign', [OpsJobController::class, 'assign']);
         Route::post('/{id}/item/create', [OpsJobController::class, 'createItem']);
+        Route::post('/items/batch-update', [OpsJobController::class, 'batchUpdateItems']);
         Route::post('/items/{itemId}/update', [OpsJobController::class, 'updateItem']);
         Route::post('/items/{itemId}/update/remarks', [OpsJobController::class, 'updateItemRemarks']);
         Route::post('/items/{itemId}/update/stock-action', [OpsJobController::class, 'updateStockAction']);

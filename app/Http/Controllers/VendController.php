@@ -2039,8 +2039,8 @@ class VendController extends Controller
 
                 DB::raw('COUNT(*) AS total_count'),
 
-                // Count of single items (where is_multiple = 0)
-                DB::raw('CAST(SUM(CASE WHEN is_multiple = 0 THEN 1 ELSE 0 END) AS SIGNED) as single_qty'),
+                // Count of single items (where is_multiple = 0), excluding error codes #4 and #5
+                DB::raw('CAST(SUM(CASE WHEN is_multiple = 0 AND (vend_channel_errors.code IS NULL OR vend_channel_errors.code NOT IN (4, 5)) THEN 1 ELSE 0 END) AS SIGNED) as single_qty'),
                 // Count of successful single items
                 DB::raw('CAST(SUM(CASE
                     WHEN is_multiple = 0 AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
@@ -2078,7 +2078,7 @@ class VendController extends Controller
             ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
             ->select([
-                DB::raw('COUNT(*) as total_items'),
+                DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IS NULL OR vend_transaction_items.vend_channel_error_code NOT IN (4, 5)) THEN 1 END) as total_items'),
                 DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IN (0,6) OR vend_transaction_items.vend_channel_error_code IS NULL) THEN 1 END) as success_items')
             ])
             ->first();

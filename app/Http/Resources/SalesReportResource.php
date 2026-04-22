@@ -24,6 +24,8 @@ class SalesReportResource extends JsonResource
             'product_mapping_name' => isset($this->product_mapping_name) ? $this->product_mapping_name : null,
             'count' => isset($this->count) ? $this->count : 0,
             'error_count' => isset($this->error_count) ? (int)$this->error_count : 0,
+            'error_count_no_4_5' => isset($this->error_count_no_4_5) ? (int)$this->error_count_no_4_5 : 0,
+            'error_count_4_5' => isset($this->error_count_4_5) ? (int)$this->error_count_4_5 : 0,
             'amount' => isset($this->amount) ? $this->amount/100 : 0,
         ];
     }

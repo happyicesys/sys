@@ -170,7 +170,7 @@ class ReportController extends Controller
             $items = new LengthAwarePaginator([], 0, $numberPerPage, 1, [
                 'path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(),
             ]);
-            $totals = ['total_count' => 0, 'total_amount' => 0.0, 'total_error_count' => 0];
+            $totals = ['total_count' => 0, 'total_amount' => 0.0, 'total_error_count' => 0, 'total_error_count_no_4_5' => 0, 'total_error_count_4_5' => 0];
         }
 
         return Inertia::render('Report/Sales/Index', [
@@ -1569,7 +1569,8 @@ class ReportController extends Controller
             $data['Count (Success Only)'] = $item->count;
 
             if ($type === 'product') {
-                $data['Count (Error Only)'] = isset($item->error_count) ? (int) $item->error_count : 0;
+                $data['Count (Error Exclude #4 and #5)'] = isset($item->error_count_no_4_5) ? (int) $item->error_count_no_4_5 : 0;
+                $data['Count (Error #4 and #5)'] = isset($item->error_count_4_5) ? (int) $item->error_count_4_5 : 0;
             }
 
             $data['Amount'] = $item->amount / 100;
@@ -1601,7 +1602,9 @@ class ReportController extends Controller
                         ->selectRaw('gm.product_id as id')
                         ->selectRaw('MAX(products.code) as code')
                         ->selectRaw('MAX(products.name) as name')
-                        ->selectRaw('SUM(gm.error_count) AS error_count');
+                        ->selectRaw('SUM(gm.error_count) AS error_count')
+                        ->selectRaw('SUM(gm.error_count_no_4_5) AS error_count_no_4_5')
+                        ->selectRaw('SUM(gm.error_count_4_5) AS error_count_4_5');
                     break;
                 case 'categories':
                     $transactionsQuery
@@ -3437,10 +3440,18 @@ class ReportController extends Controller
             $total_error_count = $item->sum(function ($item) {
                 return isset($item->error_count) ? $item->error_count : 0;
             });
+            $total_error_count_no_4_5 = $item->sum(function ($item) {
+                return isset($item->error_count_no_4_5) ? $item->error_count_no_4_5 : 0;
+            });
+            $total_error_count_4_5 = $item->sum(function ($item) {
+                return isset($item->error_count_4_5) ? $item->error_count_4_5 : 0;
+            });
             return [
                 'total_count' => $total_count,
                 'total_amount' => $total_amount,
                 'total_error_count' => $total_error_count,
+                'total_error_count_no_4_5' => $total_error_count_no_4_5,
+                'total_error_count_4_5' => $total_error_count_4_5,
             ];
         });
     }

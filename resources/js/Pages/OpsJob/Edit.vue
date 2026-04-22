@@ -176,6 +176,40 @@
                       <span>Route Planning</span>
                     </span>
                   </a>
+
+                  <!-- Batch Assign Driver -->
+                  <template v-if="permissions.includes('update operations') && opsJob.opsJobItems && opsJob.opsJobItems.some(item => item.status < 3)">
+                    <!-- Active: green when items selected -->
+                    <Button
+                      v-if="batchMode && selectedItemIds.length > 0"
+                      type="button"
+                      class="inline-flex space-x-1 items-center rounded-md bg-green-500 hover:bg-green-600 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm w-fit h-fit"
+                      @click.prevent="onBatchAssignDriverClicked"
+                    >
+                      <UserGroupIcon class="h-4 w-4" aria-hidden="true" />
+                      <span>Batch Assign Driver ({{ selectedItemIds.length }})</span>
+                    </Button>
+                    <!-- Batch mode on, none selected: show cancel hint -->
+                    <Button
+                      v-else-if="batchMode && selectedItemIds.length === 0"
+                      type="button"
+                      class="inline-flex space-x-1 items-center rounded-md bg-orange-400 hover:bg-orange-500 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm w-fit h-fit"
+                      @click.prevent="onBatchAssignDriverClicked"
+                    >
+                      <XMarkIcon class="h-4 w-4" aria-hidden="true" />
+                      <span>Cancel Batch</span>
+                    </Button>
+                    <!-- Default: enter batch mode -->
+                    <Button
+                      v-else
+                      type="button"
+                      class="inline-flex space-x-1 items-center rounded-md bg-purple-500 hover:bg-purple-600 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm w-fit h-fit"
+                      @click.prevent="onBatchAssignDriverClicked"
+                    >
+                      <UserGroupIcon class="h-4 w-4" aria-hidden="true" />
+                      <span>Batch Assign Driver</span>
+                    </Button>
+                  </template>
                 </div>
                 <div class="flex flex-col space-y-1">
                   <span class="text-gray-500">
@@ -345,8 +379,9 @@
                               </span>
                               <span class="flex flex-col text-xs font-medium whitespace-normal break-words max-w-24 mt-1" v-if="opsJobItem.vend && opsJobItem.vend.productMapping">
                                 <span class="text-gray-500">{{ opsJobItem.vend.productMapping.name }}</span>
-                                <span class="text-red-500" v-if="opsJobItem.vend.upcomingProductMapping">
-                                  ({{ opsJobItem.vend.upcomingProductMapping.name }})
+                                <span class="flex items-center justify-center gap-1 mt-0.5" v-if="opsJobItem.vend.upcomingProductMapping || (opsJobItem.vend.productMapping && opsJobItem.vend.productMapping.upcomingProductMapping)">
+                                  <span class="bg-purple-100 text-purple-700 text-xs font-medium px-1.5 py-0.5 rounded">New</span>
+                                  <span class="text-red-500 text-xs font-medium">{{ (opsJobItem.vend.upcomingProductMapping || opsJobItem.vend.productMapping.upcomingProductMapping).name }}</span>
                                 </span>
                               </span>
                               <div>
@@ -581,20 +616,32 @@
                             </div>
                           </td>
                           <td class="whitespace-nowrap py-4 px-1 text-sm text-center">
-                            <Button
-                              class="bg-blue-500 hover:bg-blue-600 text-white"
-                              :class="[opsJobItem.status >= 3 ? 'opacity-50 cursor-not-allowed' : '']"
-                              @click.prevent="onChangeDriverClicked(opsJobItem)"
-                              v-if="permissions.includes('update operations') && opsJobItem.status < 3"
-                              :disabled="opsJobItem.status >= 3"
-                            >
-                              <div class="flex space-x-2 items-center">
-                                <ArrowsRightLeftIcon class="h-3 w-3"></ArrowsRightLeftIcon>
-                                <span>
-                                  Driver
-                                </span>
-                              </div>
-                            </Button>
+                            <!-- Batch mode: show checkbox for eligible items -->
+                            <template v-if="batchMode && permissions.includes('update operations')">
+                              <input
+                                v-if="opsJobItem.status < 3"
+                                type="checkbox"
+                                class="h-5 w-5 rounded border-gray-300 text-green-600 cursor-pointer accent-green-500"
+                                :value="opsJobItem.id"
+                                v-model="selectedItemIds"
+                              />
+                              <span v-else class="text-xs text-gray-400">—</span>
+                            </template>
+                            <!-- Normal mode: individual driver button -->
+                            <template v-else>
+                              <Button
+                                class="bg-blue-500 hover:bg-blue-600 text-white"
+                                :class="[opsJobItem.status >= 3 ? 'opacity-50 cursor-not-allowed' : '']"
+                                @click.prevent="onChangeDriverClicked(opsJobItem)"
+                                v-if="permissions.includes('update operations') && opsJobItem.status < 3"
+                                :disabled="opsJobItem.status >= 3"
+                              >
+                                <div class="flex space-x-2 items-center">
+                                  <ArrowsRightLeftIcon class="h-3 w-3"></ArrowsRightLeftIcon>
+                                  <span>Driver</span>
+                                </div>
+                              </Button>
+                            </template>
                           </td>
                         </tr>
                         <tr v-if="!opsJob.opsJobItems || !opsJob.opsJobItems.length">
@@ -688,6 +735,17 @@
   >
   </ChangeDriver>
 
+  <BatchChangeDriver
+    v-if="showBatchChangeDriverModal"
+    :opsJob="opsJob"
+    :selectedItemIds="selectedItemIds"
+    :showModal="showBatchChangeDriverModal"
+    :userOptions="userOptions"
+    @modalClose="onBatchChangeDriverModalClosed"
+    @statusUpdated="onBatchAssignSuccess"
+  >
+  </BatchChangeDriver>
+
   <MapMarker
     v-if="showMapMarkerModal"
     :customers="customerModel"
@@ -713,6 +771,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import BatchChangeDriver from '@/Pages/OpsJob/BatchChangeDriver.vue';
 import Channel from '@/Pages/OpsJob/Channel.vue';
 import ChangeDriver from '@/Pages/OpsJob/ChangeDriver.vue';
 import MapMarker from '@/Components/MapMarker.vue';
@@ -721,7 +780,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, CheckCircleIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlayIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, CheckCircleIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlayIcon, PlusCircleIcon, TrashIcon, UserGroupIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -752,6 +811,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 
+const batchMode = ref(false)
 const customerModel = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
 const opsJob = ref([])
@@ -759,6 +819,8 @@ const opsJobItemModel = ref([])
 const permissions = usePage().props.auth.permissions
 const pickLists = ref([])
 const pickListType = ref(1)
+const selectedItemIds = ref([])
+const showBatchChangeDriverModal = ref(false)
 const showChannelModal = ref(false)
 const showChangeDriverModal = ref(false)
 const showMapMarkerModal = ref(false)
@@ -904,6 +966,31 @@ function onChangeDriverClicked(obj) {
 
 function onChangeDriverModalClosed() {
   showChangeDriverModal.value = false
+}
+
+function onBatchAssignDriverClicked() {
+  if (!batchMode.value) {
+    // Enter batch mode
+    batchMode.value = true
+    selectedItemIds.value = []
+  } else if (selectedItemIds.value.length === 0) {
+    // Exit batch mode if nothing selected yet (acts as Cancel)
+    batchMode.value = false
+  } else {
+    // Open batch modal
+    showBatchChangeDriverModal.value = true
+  }
+}
+
+function onBatchChangeDriverModalClosed() {
+  showBatchChangeDriverModal.value = false
+}
+
+function onBatchAssignSuccess() {
+  // Reset batch state then reload
+  batchMode.value = false
+  selectedItemIds.value = []
+  statusUpdated()
 }
 
 function onDeleteClicked() {
