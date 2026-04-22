@@ -594,7 +594,18 @@ class OpsJobController extends Controller
                     'refillable_count' => $stats ? $stats->refillable_count : 0,
                 ]);
 
-                if ($request->channels) {
+                $stockActionType = $opsJobItem->stock_action_type;
+                $isAutoPickAction = $stockActionType === 'return_stock' || $stockActionType === 'onsite_adjustment';
+
+                if ($isAutoPickAction) {
+                    // For return_stock and onsite_adjustment, no warehouse picking is needed.
+                    // Set all channel picked_qty to 0 and move straight to Picked.
+                    $opsJobItem->opsJobItemChannels()->update([
+                        'picked_before_qty' => DB::raw('qty'),
+                        'picked_qty' => 0,
+                        'saved_picked_qty' => 0,
+                    ]);
+                } elseif ($request->channels) {
                     foreach ($request->channels as $channel) {
                         $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                         $opsJobItemChannel->update([
@@ -1586,6 +1597,7 @@ class OpsJobController extends Controller
     public function deleteItem($id)
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
+        $opsJobId = $opsJobItem->ops_job_id;
 
         if ($opsJobItem->cms_transaction_id) {
             $this->opsJobService->deleteJobItemCMSTransaction($id);
@@ -1597,7 +1609,7 @@ class OpsJobController extends Controller
 
         $opsJobItem->delete();
 
-        return redirect()->back();
+        return redirect('/ops-jobs/' . $opsJobId . '/edit');
     }
 
     public function syncOpsJobItem(Request $request, $opsJobItemID)
@@ -1824,6 +1836,41 @@ class OpsJobController extends Controller
             // Remove any upcoming products first
             $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
             $this->applyReturnStockToItem($opsJobItem);
+
+            // No warehouse picking needed — auto-advance to Picked immediately
+            if ($opsJobItem->status == OpsJob::STATUS_PENDING) {
+                $stats = DB::table('ops_job_item_channels as ojic')
+                    ->join('ops_jobs as oj', 'oj.id', '=', DB::raw($opsJobItem->ops_job_id))
+                    ->join('vend_channels as vc', 'ojic.vend_channel_id', '=', 'vc.id')
+                    ->leftJoin('products as p', 'vc.product_id', '=', 'p.id')
+                    ->leftJoin(DB::raw('(
+                        SELECT id, product_id, qty, date
+                        FROM (
+                            SELECT id, product_id, qty, date,
+                                ROW_NUMBER() OVER (PARTITION BY product_id, date ORDER BY id DESC) as rn
+                            FROM product_limits
+                        ) pl_inner
+                        WHERE rn = 1
+                    ) AS pl'), function ($join) {
+                        $join->on('p.id', '=', 'pl.product_id')
+                            ->on('pl.date', '=', 'oj.date');
+                    })
+                    ->where('ojic.ops_job_item_id', $opsJobItem->id)
+                    ->selectRaw('
+                        SUM(CASE WHEN p.is_available = 1 THEN GREATEST(CASE WHEN pl.id AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(vc.qty, 0)) ELSE (vc.capacity - COALESCE(vc.qty, 0)) END, 0) ELSE 0 END * vc.amount) as refillable_amount,
+                        SUM(CASE WHEN p.is_available = 1 THEN GREATEST(CASE WHEN pl.id AND pl.qty < vc.capacity THEN (pl.qty - COALESCE(vc.qty, 0)) ELSE (vc.capacity - COALESCE(vc.qty, 0)) END, 0) ELSE 0 END) as refillable_count
+                    ')->first();
+
+                $opsJobItem->update([
+                    'status' => OpsJob::STATUS_PICKED,
+                    'picked_by' => auth()->id(),
+                    'picked_at' => Carbon::now(),
+                    'undo_picked_at' => null,
+                    'undo_picked_by' => null,
+                    'refillable_amount' => $stats ? $stats->refillable_amount : 0,
+                    'refillable_count' => $stats ? $stats->refillable_count : 0,
+                ]);
+            }
         } else {
             // Remove any upcoming products if we are clearing or changing action
             $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();

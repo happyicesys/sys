@@ -1116,12 +1116,25 @@
                   type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
                   @click="onUndoStatusClicked(opsJobItem.id)"
-                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations')"
+                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && opsJobItem.stock_action_type !== 'return_stock' && opsJobItem.stock_action_type !== 'onsite_adjustment'"
               >
                 <span class="flex space-x-1 items-center">
                   <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
                   <span>
                     Undo Picked
+                  </span>
+                </span>
+              </Button>
+              <Button
+                  type="button"
+                  class="px-2 py-2 mt-2 ml-1 text-md flex space-x-1 bg-red-500 hover:bg-red-700 text-white w-full md:w-fit"
+                  @click="onDeleteClicked()"
+                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && (opsJobItem.stock_action_type === 'return_stock' || opsJobItem.stock_action_type === 'onsite_adjustment')"
+              >
+                <span class="flex space-x-1 items-center">
+                  <TrashIcon class="w-4 h-4"></TrashIcon>
+                  <span>
+                    Delete
                   </span>
                 </span>
               </Button>
@@ -1157,7 +1170,7 @@
                   type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-gray-300 hover:bg-gray-400 text-gray-800 w-full md:w-fit"
                   @click="onSaveClicked()"
-                  v-if="opsJobItem.status == 1"
+                  v-if="opsJobItem.status == 1 && opsJobItem.stock_action_type !== 'return_stock' && opsJobItem.stock_action_type !== 'onsite_adjustment'"
               >
                 <span class="flex space-x-1 items-center">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
@@ -1547,7 +1560,10 @@ function onConfirmClicked() {
   let confirmText = '';
 
   if(form.value.status == 1) {
-    confirmText = 'Are you sure you want to Picked? ';
+    const isAutoPickAction = opsJobItem.value.stock_action_type === 'return_stock' || opsJobItem.value.stock_action_type === 'onsite_adjustment';
+    confirmText = isAutoPickAction
+      ? 'Are you sure you want to mark as Picked? (No stock picking required for this action) '
+      : 'Are you sure you want to Picked? ';
     isConfirm = true;
   }
 
@@ -1846,6 +1862,19 @@ function onUpdateStockAction(type) {
           loadingData()
         }
       })
+    }
+  })
+}
+
+function onDeleteClicked() {
+  const approval = confirm('Are you sure you want to delete this job item? This action cannot be undone.');
+  if (!approval) return;
+
+  router.delete('/ops-jobs/items/' + opsJobItem.value.id, {}, {
+    onSuccess: () => {
+      toast.success("Job item deleted successfully", {
+        timeout: 3000
+      });
     }
   })
 }
