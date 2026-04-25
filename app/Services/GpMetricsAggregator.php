@@ -80,6 +80,7 @@ class GpMetricsAggregator
             ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NOT NULL AND (vend_channel_errors.code IS NULL OR vend_channel_errors.code NOT IN (0, 4, 5, 6)) THEN {$singleCountExpression} ELSE 0 END) as error_count_no_4_5")
             ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NOT NULL AND vend_channel_errors.code IN (4, 5) THEN {$singleCountExpression} ELSE 0 END) as error_count_4_5")
             ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN $singleAmountExpression ELSE 0 END) as amount_cents")
+            ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN $singleAmountExpression ELSE 0 END) as txn_amount_cents")
             ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN ($singleRevenueExpression) ELSE 0 END) as revenue_cents")
             ->selectRaw("SUM(CASE WHEN vend_transactions.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN ($singleGrossProfitExpression) ELSE 0 END) as gross_profit_cents")
             ->selectRaw('SUM(' . $singleUnitCostExpression . ') as unit_cost_cents')
@@ -117,11 +118,27 @@ class GpMetricsAggregator
 
         $adjustedRevenueExpr = "COALESCE(vend_transactions.revenue, vend_transactions.amount, 0) / NULLIF(vti_sum.total_count, 0)";
 
+        // Per-(transaction, product) item count — used to attribute the full transaction amount
+        // exactly once per transaction per product, regardless of how many items of that product
+        // are in the basket. This ensures txn_amount_cents matches the transaction page totals.
+        $productCountSub = DB::table('vend_transaction_items as pc_vti')
+            ->leftJoin('vend_channels as pc_vc', 'pc_vc.id', '=', 'pc_vti.vend_channel_id')
+            ->select(
+                'pc_vti.vend_transaction_id',
+                DB::raw('COALESCE(pc_vti.product_id, pc_vc.product_id) as product_id'),
+                DB::raw('COUNT(*) as product_item_count')
+            )
+            ->groupBy('pc_vti.vend_transaction_id', DB::raw('COALESCE(pc_vti.product_id, pc_vc.product_id)'));
+
         $multi = DB::table('vend_transaction_items')
             ->join('vend_transactions', 'vend_transaction_items.vend_transaction_id', '=', 'vend_transactions.id')
             ->leftJoinSub($multiSub, 'vti_sum', 'vend_transactions.id', '=', 'vti_sum.vend_transaction_id')
-            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('vend_channels', 'vend_transaction_items.vend_channel_id', '=', 'vend_channels.id')
+            ->leftJoinSub($productCountSub, 'pcs_count', function ($join) {
+                $join->on('pcs_count.vend_transaction_id', '=', 'vend_transactions.id')
+                     ->on('pcs_count.product_id', '=', DB::raw('COALESCE(vend_transaction_items.product_id, vend_channels.product_id)'));
+            })
+            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
@@ -151,6 +168,11 @@ class GpMetricsAggregator
             ->selectRaw('0 as error_count_no_4_5')
             ->selectRaw('0 as error_count_4_5')
             ->selectRaw("SUM($adjustedAmountExpr) as amount_cents")
+            // txn_amount_cents: full transaction amount counted exactly once per transaction per product.
+            // Dividing vend_transactions.amount by the number of same-product items in each transaction,
+            // then summing, attributes the full basket total once per transaction — matching the
+            // transaction page which also sums vend_transactions.amount per matching transaction.
+            ->selectRaw('ROUND(SUM(vend_transactions.amount / NULLIF(pcs_count.product_item_count, 0))) as txn_amount_cents')
             ->selectRaw("SUM($adjustedRevenueExpr) as revenue_cents")
             ->selectRaw("SUM($adjustedRevenueExpr - (COALESCE(vend_transaction_items.unit_cost, 0) * 100)) as gross_profit_cents")
             ->selectRaw('SUM(COALESCE(vend_transaction_items.unit_cost, 0) * 100) as unit_cost_cents')
@@ -195,6 +217,7 @@ class GpMetricsAggregator
                 'metrics.error_count_no_4_5',
                 'metrics.error_count_4_5',
                 'metrics.amount_cents',
+                'metrics.txn_amount_cents',
                 'metrics.revenue_cents',
                 'metrics.gross_profit_cents',
                 'metrics.unit_cost_cents',
@@ -224,8 +247,8 @@ class GpMetricsAggregator
             ->chunk($chunkSize, function ($rows) use ($now, $dayStart) {
                 $payload = $rows->map(function ($row) use ($now) {
                     $data = get_object_vars($row);
-                    // success_count and error_count* are live-only columns not stored in gp_metrics
-                    unset($data['success_count'], $data['error_count'], $data['error_count_no_4_5'], $data['error_count_4_5']);
+                    // success_count, error_count* and txn_amount_cents are live-only columns not stored in gp_metrics
+                    unset($data['success_count'], $data['error_count'], $data['error_count_no_4_5'], $data['error_count_4_5'], $data['txn_amount_cents']);
                     $data['created_at'] = $now;
                     $data['updated_at'] = $now;
                     return $data;

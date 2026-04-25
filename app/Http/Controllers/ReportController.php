@@ -1594,7 +1594,12 @@ class ReportController extends Controller
                 ->leftJoin('categories as customer_categories', 'customers.category_id', '=', 'customer_categories.id');
 
             $countColumn = 'gm.sale_count';
-            $amountColumn = 'gm.amount_cents';
+            // Products tab: use ROUND(amount_cents) — prorated per item, whole cents, correct grand total.
+            // Other tabs with product filter: use txn_amount_cents — full basket amount per transaction,
+            // so each row exactly matches what the transaction page shows when filtered by that product.
+            $amountColumn = ($className === 'products')
+                ? 'ROUND(gm.amount_cents)'
+                : 'gm.txn_amount_cents';
 
             switch ($className) {
                 case 'products':
@@ -2191,8 +2196,19 @@ class ReportController extends Controller
         if ($factStart->lte($endOfLastMonth)) {
             $effectiveFactEnd = $factEndCandidate->min($endOfLastMonth);
             if ($effectiveFactEnd->gte($factStart)) {
+                // Insert NULL placeholder for txn_amount_cents (a live-only column) immediately
+                // after amount_cents to match the column order produced by buildRawQuery.
+                $amountIdx = array_search('amount_cents', $columns);
+                $gpMetricsColumns = $amountIdx !== false
+                    ? array_merge(
+                        array_slice($columns, 0, $amountIdx + 1),
+                        [DB::raw('NULL as txn_amount_cents')],
+                        array_slice($columns, $amountIdx + 1)
+                    )
+                    : array_merge($columns, [DB::raw('NULL as txn_amount_cents')]);
+
                 $queries[] = DB::table('gp_metrics')
-                    ->select($columns)
+                    ->select($gpMetricsColumns)
                     ->whereBetween('txn_date', [$factStart->toDateString(), $effectiveFactEnd->toDateString()]);
             }
         }

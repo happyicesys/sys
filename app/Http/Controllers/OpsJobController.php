@@ -811,6 +811,83 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
+    public function addChannel(Request $request, $id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        // Guard: only allowed in pending status with no stock action
+        if ($opsJobItem->status != OpsJob::STATUS_PENDING || $opsJobItem->stock_action_type) {
+            return redirect()->back()->with('error', 'Cannot add channel in current state.');
+        }
+
+        $channelCode = $request->channel_code;
+        $pickedQty = (int) $request->picked_qty;
+
+        // Find the VendChannel belonging to this vend
+        $vendChannel = VendChannel::where('vend_id', $opsJobItem->vend_id)
+            ->where('code', $channelCode)
+            ->first();
+
+        if (!$vendChannel) {
+            return redirect()->back()->with('error', 'Vend channel not found.');
+        }
+
+        // Prevent duplicates
+        $exists = $opsJobItem->opsJobItemChannels()
+            ->where('vend_channel_id', $vendChannel->id)
+            ->where('is_upcoming_product', false)
+            ->exists();
+
+        if ($exists) {
+            return redirect()->back()->with('error', 'Channel already added to this job.');
+        }
+
+        // Resolve product_id: VendChannel may have no product assigned yet if the slot
+        // was just physically activated. Fall back to the product mapping item so the
+        // thumbnail and product name always show correctly.
+        $productId = $vendChannel->product_id ?? 0;
+        if (!$productId) {
+            $vend = $opsJobItem->vend()->with('productMapping.productMappingItems')->first();
+            $mappingItem = $vend?->productMapping?->productMappingItems
+                ->firstWhere('channel_code', $channelCode);
+            $productId = $mappingItem?->product_id ?? 0;
+        }
+
+        // Create OpsJobItemChannel snapshot (same pattern as createOpsJobItem)
+        $opsJobItem->opsJobItemChannels()->create([
+            'amount'           => $vendChannel->amount,
+            'ops_job_id'       => $opsJobItem->ops_job_id,
+            'ops_job_item_id'  => $opsJobItem->id,
+            'product_id'       => $productId,
+            'vend_channel_code' => $vendChannel->code,
+            'vend_channel_id'  => $vendChannel->id,
+            'vend_code'        => $opsJobItem->vend->code,
+            'actual_qty'       => 0,
+            'capacity'         => $vendChannel->capacity,
+            'qty'              => $vendChannel->qty,
+            'picked_qty'       => 0,
+            'saved_picked_qty' => $pickedQty,
+            'is_upcoming_product' => false,
+        ]);
+
+        return redirect()->back()->with('success', 'Channel added successfully.');
+    }
+
+    public function deleteChannel(Request $request, $itemChannelId)
+    {
+        $opsJobItemChannel = \App\Models\OpsJobItemChannel::findOrFail($itemChannelId);
+        $opsJobItem = $opsJobItemChannel->opsJobItem;
+
+        // Guard: only allowed in pending status with no stock action
+        if ($opsJobItem->status != OpsJob::STATUS_PENDING || $opsJobItem->stock_action_type) {
+            return redirect()->back()->with('error', 'Cannot delete channel in current state.');
+        }
+
+        $opsJobItemChannel->delete();
+
+        return redirect()->back()->with('success', 'Channel removed successfully.');
+    }
+
     public function saveItem(Request $request, $id)
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
@@ -1245,6 +1322,7 @@ class OpsJobController extends Controller
             ->with([
                 'vend:id,customer_id,code,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id',
                 'vend.productMapping.productMappingItemsNormalSequence.product',
+                'vend.productMapping.productMappingItemsNormalSequence.product.thumbnail',
                 'vend.productMapping.upcomingProductMapping.productMappingItemsNormalSequence.product',
                 'vend.upcomingProductMapping.productMappingItemsNormalSequence.product',
                 'cmsTransactionBy',
@@ -1882,6 +1960,40 @@ class OpsJobController extends Controller
         }
 
         return redirect()->back()->with('success', 'Stock Action updated successfully.');
+    }
+
+    public function undoStockAction(Request $request, $id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        // Only allow undo when in Picked status with return_stock or onsite_adjustment
+        if (
+            $opsJobItem->status != OpsJob::STATUS_PICKED ||
+            !in_array($opsJobItem->stock_action_type, ['return_stock', 'onsite_adjustment'])
+        ) {
+            return redirect()->back()->with('error', 'Cannot undo stock action for this item.');
+        }
+
+        // Clear stock action and revert to Pending
+        $opsJobItem->update([
+            'stock_action_type' => null,
+            'status' => OpsJob::STATUS_PENDING,
+            'picked_by' => null,
+            'picked_at' => null,
+            'undo_picked_by' => auth()->id(),
+            'undo_picked_at' => Carbon::now(),
+            'refillable_amount' => null,
+            'refillable_count' => null,
+        ]);
+
+        // Reset all channel picked quantities back to null (normal pending state)
+        $opsJobItem->opsJobItemChannels()->update([
+            'picked_qty' => null,
+            'saved_picked_qty' => null,
+            'picked_before_qty' => null,
+        ]);
+
+        return redirect()->back()->with('success', 'Stock action cleared and item reverted to Pending.');
     }
 
     public function updateJobStockAction(Request $request, $id)

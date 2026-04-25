@@ -28,6 +28,7 @@
 
 <script setup>
 import Multiselect from '@vueform/multiselect';
+import '@vueform/multiselect/themes/default.css';
 import { ref, watch } from 'vue';
 
 const emit = defineEmits(['update:modelValue', 'selected']);
@@ -98,7 +99,6 @@ function onDeselected(data) {
 }
 </script>
 
-<style src="@vueform/multiselect/themes/default.css"></style>
 <style>
 .multiselect {
   width: 100% !important;

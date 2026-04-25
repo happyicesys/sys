@@ -40,11 +40,11 @@ class CreateFVMBackDate extends Command
     public function handle()
     {
         $data = [
-            ['vend' => 1802, 'cash' => 299.00, 'cashless' => 253.15],
-            ['vend' => 1806, 'cash' => 115.00, 'cashless' => 210.52],
-            ['vend' => 1808, 'cash' => 102.00, 'cashless' => 174.39],
-            ['vend' => 1809, 'cash' => 499.50, 'cashless' => 0.00],
-            ['vend' => 1810, 'cash' => 0.00, 'cashless' => 384.84],
+            ['vend' => 1802, 'cash' => 0.00, 'cashless' => 871.39],
+            ['vend' => 1806, 'cash' => 101.10, 'cashless' => 15.83],
+            ['vend' => 1808, 'cash' => 94.00, 'cashless' => 214.67],
+            ['vend' => 1809, 'cash' => 549.00, 'cashless' => 0.00],
+            ['vend' => 1810, 'cash' => 0.00, 'cashless' => 224.85],
         ];
 
 

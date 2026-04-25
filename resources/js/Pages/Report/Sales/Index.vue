@@ -313,10 +313,10 @@
                       Count (Success Only)
                     </TableHeadSort>
                     <TableHeadSort v-if="showProductErrorCol" modelName="error_count_no_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_no_4_5')">
-                      Count (Error Exclude #4 and #5)
+                      Count (Error #3, #6, #7, #9)<br>Likely Stock Lost
                     </TableHeadSort>
                     <TableHeadSort v-if="showProductErrorCol" modelName="error_count_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_4_5')">
-                      Count (Error #4 and #5)
+                      Count (Error #4, #5)<br>Unlikely Stock Lost as Motor Not Turning
                     </TableHeadSort>
                     <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount')">
                       Amount
@@ -346,7 +346,12 @@
                         {{ items.meta.from + itemIndex }}
                       </TableData>
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-center">
-                        {{ item.code }}
+                        <Link
+                          v-if="currentTab.slug === 'vend'"
+                          :href="`/vends/customers?codes=${item.code}&autoload=true`"
+                          class="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                        >{{ item.code }}</Link>
+                        <span v-else>{{ item.code }}</span>
                       </TableData>
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-left">
                         {{ item.name }}

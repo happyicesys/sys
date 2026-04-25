@@ -440,10 +440,20 @@
                         <td class="whitespace py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center">
                           <div class="flex flex-col space-y-2 items-center justify-center px-1.5">
                             <div class="flex space-x-2 items-center">
-                              <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span>
-                              <span :class="[channel.is_replaced ? 'line-through text-gray-400' : (channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400')]">
-                                {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
-                              </span>
+                              <template v-if="channel.capacity > 0">
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span>
+                                <span :class="[channel.is_replaced ? 'line-through text-gray-400' : (channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400')]">
+                                  {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
+                                </span>
+                              </template>
+                              <template v-else>
+                                <div class="flex items-center justify-center space-x-1">
+                                  <span class="inline-flex items-center rounded-full bg-green-50 px-1 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-700/10">New</span>
+                                  <button type="button" @click.prevent="onDeleteChannel(channel)" v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type" class="text-red-500 hover:text-red-700" title="Remove Channel">
+                                    <TrashIcon class="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </template>
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 1">
                               <span class="flex flex-col space-y-1" :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? (channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
@@ -485,7 +495,7 @@
                               <span :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? (opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900') : 'text-gray-400']">
                                 <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
                                 <span :class="[(opsJobItem.status == 2 && channel.refill != 0) ? 'font-bold text-blue-600 transition-colors duration-300' : 'transition-colors duration-300']">
-                                  {{ Number(channel.qty) + (opsJobItem.status < 3 ? Number(channel.refill) : 0) }}
+                                  {{ Number(channel.qty) + Number(channel.refill) }}
                                 </span>
                               </span>
                             </div>
@@ -590,6 +600,67 @@
                           </div>
                         </td>
                         <td v-if="opsJobItem.status >= 3"></td>
+                      </tr>
+                      <!-- Add Channel row (mobile) — pending status, no stock action, channels exist in mapping -->
+                      <tr v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type && availableChannels.length > 0">
+                        <td colspan="10" class="py-3 px-4 bg-gray-50 border-t border-dashed border-gray-300">
+                          <div v-if="!showAddChannel" class="flex justify-center">
+                            <button
+                              type="button"
+                              class="inline-flex items-center space-x-1 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                              @click="showAddChannel = true"
+                            >
+                              <PlusCircleIcon class="w-5 h-5 text-blue-500" />
+                              <span>Add Channel</span>
+                            </button>
+                          </div>
+                          <div v-else class="flex flex-col space-y-3">
+                            <div class="flex flex-wrap gap-3 items-center justify-center">
+                              <select
+                                v-model="newChannelCode"
+                                class="rounded border-gray-300 text-sm"
+                              >
+                                <option :value="null">— Select channel —</option>
+                                <option v-for="ch in availableChannels" :key="ch.channel_code" :value="ch.channel_code">
+                                  #{{ ch.channel_code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
+                                </option>
+                              </select>
+                              <!-- Product preview -->
+                              <div v-if="selectedNewChannel && selectedNewChannel.product" class="flex items-center space-x-2">
+                                <img
+                                  v-if="selectedNewChannel.product.thumbnail"
+                                  :src="selectedNewChannel.product.thumbnail.full_url"
+                                  class="h-10 w-10 rounded-lg object-cover ring-1 ring-gray-200"
+                                  alt=""
+                                />
+                                <span class="text-xs font-medium text-gray-700">{{ selectedNewChannel.product.name }}</span>
+                              </div>
+                              <!-- To Pick Qty -->
+                              <div class="flex items-center space-x-1">
+                                <span class="text-xs text-gray-500">Pick Qty:</span>
+                                <select v-model="newChannelPickedQty" class="rounded border-gray-300 text-sm">
+                                  <option v-for="n in 31" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div class="flex justify-center space-x-2">
+                              <button
+                                type="button"
+                                class="rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
+                                @click="onAddChannel"
+                              >
+                                Add
+                              </button>
+                              <button
+                                type="button"
+                                class="rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
+                                @click="showAddChannel = false; newChannelCode = null; newChannelPickedQty = 5"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -733,7 +804,17 @@
                           </span>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[channel.is_replaced ? 'line-through text-gray-400' : (channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400')]">
-                          {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
+                          <template v-if="channel.capacity > 0">
+                            {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
+                          </template>
+                          <template v-else>
+                            <div class="flex items-center justify-center space-x-1">
+                              <span class="inline-flex items-center rounded-full bg-green-50 px-1 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-700/10">New</span>
+                              <button type="button" @click.prevent="onDeleteChannel(channel)" v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type" class="text-red-500 hover:text-red-700" title="Remove Channel">
+                                <TrashIcon class="w-4 h-4" />
+                              </button>
+                            </div>
+                          </template>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" v-if="opsJobItem.status > 1" :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? ((channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked)) ? 'text-red-500' : ((channel.picked > (channel.capacity - channel.before_picked)) ? 'text-sky-600' : 'text-gray-900')) : 'text-gray-400']">
                           <div class="flex flex-col space-y-1 items-center">
@@ -775,7 +856,7 @@
                           class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 2"
                           >
                           <span :class="[(opsJobItem.status == 2 && channel.refill != 0) ? 'font-bold text-blue-600 transition-colors duration-300' : 'transition-colors duration-300']">
-                            {{ Number(channel.qty) + (opsJobItem.status < 3 ? Number(channel.refill) : 0) }}
+                            {{ Number(channel.qty) + Number(channel.refill) }}
                           </span>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
@@ -875,6 +956,63 @@
                           {{ getSubtotalVMCAfterQty() }}
                         </td>
                         <td v-if="opsJobItem.status >= 3"></td>
+                      </tr>
+                      <!-- Add Channel row (desktop) — pending status, no stock action, unmapped channels available -->
+                      <tr v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type && availableChannels.length > 0">
+                        <td colspan="15" class="py-3 px-4 bg-gray-50 border-t border-dashed border-gray-300">
+                          <div v-if="!showAddChannel" class="flex justify-start">
+                            <button
+                              type="button"
+                              class="inline-flex items-center space-x-1 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                              @click="showAddChannel = true"
+                            >
+                              <PlusCircleIcon class="w-5 h-5 text-blue-500" />
+                              <span>Add Channel</span>
+                            </button>
+                          </div>
+                          <div v-else class="flex flex-wrap gap-4 items-center">
+                            <select
+                              v-model="newChannelCode"
+                              class="rounded border-gray-300 text-sm"
+                            >
+                              <option :value="null">— Select channel —</option>
+                              <option v-for="ch in availableChannels" :key="ch.channel_code" :value="ch.channel_code">
+                                #{{ ch.channel_code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
+                              </option>
+                            </select>
+                            <!-- Product preview -->
+                            <div v-if="selectedNewChannel && selectedNewChannel.product" class="flex items-center space-x-2">
+                              <img
+                                v-if="selectedNewChannel.product.thumbnail"
+                                :src="selectedNewChannel.product.thumbnail.full_url"
+                                class="h-12 w-12 rounded-lg object-cover ring-1 ring-gray-200"
+                                alt=""
+                              />
+                              <span class="text-sm font-medium text-gray-700">{{ selectedNewChannel.product.name }}</span>
+                            </div>
+                            <!-- To Pick Qty -->
+                            <div class="flex items-center space-x-2">
+                              <span class="text-sm text-gray-500">Pick Qty:</span>
+                              <select v-model="newChannelPickedQty" class="rounded border-gray-300 text-sm">
+                                <option v-for="n in 31" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
+                              </select>
+                            </div>
+                            <button
+                              type="button"
+                              class="rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
+                              @click="onAddChannel"
+                            >
+                              Add
+                            </button>
+                            <button
+                              type="button"
+                              class="rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
+                              @click="showAddChannel = false; newChannelCode = null; newChannelPickedQty = 5"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -1127,6 +1265,19 @@
               </Button>
               <Button
                   type="button"
+                  class="px-2 py-2 mt-2 ml-1 text-md flex space-x-1 bg-orange-400 hover:bg-orange-500 text-white w-full md:w-fit"
+                  @click="onUndoStockActionClicked()"
+                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && (opsJobItem.stock_action_type === 'return_stock' || opsJobItem.stock_action_type === 'onsite_adjustment')"
+              >
+                <span class="flex space-x-1 items-center">
+                  <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
+                  <span>
+                    Undo Stock Action & Picked
+                  </span>
+                </span>
+              </Button>
+              <Button
+                  type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md flex space-x-1 bg-red-500 hover:bg-red-700 text-white w-full md:w-fit"
                   @click="onDeleteClicked()"
                   v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations') && (opsJobItem.stock_action_type === 'return_stock' || opsJobItem.stock_action_type === 'onsite_adjustment')"
@@ -1263,8 +1414,8 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
-import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ChevronDownIcon, ComputerDesktopIcon, FlagIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue'
+import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ChevronDownIcon, ComputerDesktopIcon, FlagIcon, PlusCircleIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ref, computed, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { ArrowPathRoundedSquareIcon } from '@heroicons/vue/24/outline';
@@ -1278,6 +1429,31 @@ const opsJobItem = ref([])
 const permissions = usePage().props.auth.permissions
 const toast = useToast()
 const vend = ref([])
+
+// Add-channel state (only visible when status==1 & no stock_action_type)
+const showAddChannel = ref(false)
+const newChannelCode = ref(null)
+const newChannelPickedQty = ref(5)
+
+// Channels in product mapping that are NOT already in the job (capacity=0, driver activated them)
+const availableChannels = computed(() => {
+  console.log('[availableChannels] vend:', vend.value)
+  console.log('[availableChannels] productMapping:', vend.value?.productMapping)
+  console.log('[availableChannels] productMappingItems:', vend.value?.productMapping?.productMappingItems)
+  console.log('[availableChannels] channels codes:', channels.value.map(c => String(c.code)))
+  if (!vend.value?.productMapping?.productMappingItems) return []
+  const existingCodes = new Set(channels.value.map(c => String(c.code)))
+  const result = vend.value.productMapping.productMappingItems.filter(
+    item => !existingCodes.has(String(item.channel_code))
+  )
+  console.log('[availableChannels] result:', result)
+  return result
+})
+
+const selectedNewChannel = computed(() => {
+  if (!newChannelCode.value) return null
+  return availableChannels.value.find(c => String(c.channel_code) === String(newChannelCode.value)) || null
+})
 
 const form = ref(
   useForm(getDefaultForm())
@@ -1433,6 +1609,16 @@ function loadingData() {
       virtual_is_error: opsJobItemChannel.virtual_is_error,
     }
   })
+
+  // Manually-added channels (capacity=0, qty=0) always go to the bottom so they
+  // don't disrupt the main channel order (which is sorted by channel code).
+  channels.value.sort((a, b) => {
+    const aIsNew = Number(a.capacity) === 0 && Number(a.qty) === 0
+    const bIsNew = Number(b.capacity) === 0 && Number(b.qty) === 0
+    if (aIsNew && !bIsNew) return 1
+    if (!aIsNew && bIsNew) return -1
+    return 0
+  })
 }
 
 function getDefaultForm() {
@@ -1452,6 +1638,10 @@ function getRefillOptions(channel) {
     // Return stock: 0 to -capacity (negative-only range)
     return Array.from({ length: channel.capacity + 1 }, (_, i) => -(i));
   }
+  // Manually-added channels (capacity=0, qty=0): allow 0–30 for stock-in
+  if (Number(channel.capacity) === 0 && Number(channel.qty) === 0) {
+    return Array.from({ length: 31 }, (_, i) => i); // 0 to 30
+  }
   const negCount = Number(channel.qty) || 0;
   const posCount = Number(channel.capacity) || 0;
   const options = [];
@@ -1463,7 +1653,12 @@ function getRefillOptions(channel) {
 
 // Pick options: range from -currentQty to +capacity so user can select
 // both negative and positive values even when the product is unavailable.
+// For manually-added channels (capacity=0 at vend level), allow 0–30 to let
+// the driver pick stock into the freshly-activated slot.
 function getPickOptions(channel) {
+  if (Number(channel.capacity) === 0 && Number(channel.qty) === 0) {
+    return Array.from({ length: 31 }, (_, i) => i); // 0 to 30
+  }
   const negCount = Number(channel.qty) || 0;
   const posCount = Number(channel.capacity) || 0;
   const options = [];
@@ -1551,6 +1746,55 @@ function isErrorSettleClicked(channel) {
         }
         return c
       })
+    }
+  })
+}
+
+function onAddChannel() {
+  if (!newChannelCode.value) {
+    toast.error("Please select a channel.", { timeout: 3000 })
+    return
+  }
+  router.post('/ops-jobs/items/' + opsJobItem.value.id + '/add-channel', {
+    channel_code: newChannelCode.value,
+    picked_qty: newChannelPickedQty.value,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Channel added successfully", { timeout: 3000 })
+      showAddChannel.value = false
+      newChannelCode.value = null
+      newChannelPickedQty.value = 5
+      router.reload({
+        only: ['opsJobItem'],
+        replace: true,
+        preserveState: true,
+        onSuccess: () => loadingData()
+      })
+    },
+    onError: () => {
+      toast.error("Failed to add channel. Please try again.", { timeout: 3000 })
+    }
+  })
+}
+
+function onDeleteChannel(channel) {
+  const approval = confirm(`Are you sure you want to remove channel #${channel.code}?`);
+  if (!approval) return;
+
+  router.delete('/ops-jobs/item-channels/' + channel.id, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Channel removed successfully", { timeout: 3000 })
+      router.reload({
+        only: ['opsJobItem'],
+        replace: true,
+        preserveState: true,
+        onSuccess: () => loadingData()
+      })
+    },
+    onError: () => {
+      toast.error("Failed to remove channel. Please try again.", { timeout: 3000 })
     }
   })
 }
@@ -1861,6 +2105,26 @@ function onUpdateStockAction(type) {
         onSuccess: page => {
           loadingData()
         }
+      })
+    }
+  })
+}
+
+function onUndoStockActionClicked() {
+  const approval = confirm('Are you sure? This will clear the stock action and revert the item back to Pending status.');
+  if (!approval) return;
+
+  router.post('/ops-jobs/items/' + opsJobItem.value.id + '/undo-stock-action', {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Stock action cleared, item reverted to Pending", {
+        timeout: 3000
+      });
+      router.reload({
+        only: ['opsJobItem'],
+        replace: true,
+        preserveState: true,
+        onSuccess: () => loadingData()
       })
     }
   })

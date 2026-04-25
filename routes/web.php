@@ -353,6 +353,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/items/{itemId}/update', [OpsJobController::class, 'updateItem']);
         Route::post('/items/{itemId}/update/remarks', [OpsJobController::class, 'updateItemRemarks']);
         Route::post('/items/{itemId}/update/stock-action', [OpsJobController::class, 'updateStockAction']);
+        Route::post('/items/{itemId}/undo-stock-action', [OpsJobController::class, 'undoStockAction']);
         Route::post('/items/{itemID}/toggle/is-ignore-limit', [OpsJobController::class, 'toggleIsIgnoreLimit']);
         Route::post('/{id}/create-cms-empty-invoices', [OpsJobController::class, 'createCmsEmptyInvoices']);
         Route::post('/{id}/sync-cms-invoices', [OpsJobController::class, 'syncCmsInvoices']);
@@ -362,6 +363,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/items/{itemId}/confirm', [OpsJobController::class, 'confirmItem']);
         Route::post('/items/{itemId}/verify', [OpsJobController::class, 'verifyItem']);
         Route::post('/items/{itemID}/save', [OpsJobController::class, 'saveItem']);
+        Route::post('/items/{itemID}/add-channel', [OpsJobController::class, 'addChannel']);
+        Route::delete('/item-channels/{itemChannelId}', [OpsJobController::class, 'deleteChannel']);
         Route::post('/item-channels/{itemChannelId}/settle-error', [OpsJobController::class, 'settleItemChannelError']);
         Route::post('/items/{itemID}/upload-attachments', [OpsJobController::class, 'uploadItemAttachments']);
         Route::post('/items/{itemID}/cash-collected', [OpsJobController::class, 'itemCashCollected']);
