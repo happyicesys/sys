@@ -54,6 +54,8 @@ class CreateFVMBackDate extends Command
             foreach ($data as $vend) {
                 $dailyCash = 0;
                 $dailyCashless = 0;
+                $cashRemainder = 0;
+                $cashlessRemainder = 0;
 
                 if ($cash = $vend['cash'] * 100) {
                     // Calculate basic division and remainder for cash
