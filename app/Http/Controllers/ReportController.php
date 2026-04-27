@@ -56,6 +56,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Log;
 use Rap2hpoutre\FastExcel\FastExcel;
 
 class ReportController extends Controller
@@ -159,13 +160,39 @@ class ReportController extends Controller
         }
 
         if ($shouldAutoload) {
+            $t0 = microtime(true);
+
             $items = $this->getSalesQuery($request, $modelName);
+
+            $t1 = microtime(true);
+            Log::channel('single')->info('[SalesReport] query built', [
+                'type'       => $type,
+                'date_from'  => $request->date_from,
+                'date_to'    => $request->date_to,
+                'build_ms'   => round(($t1 - $t0) * 1000),
+                'sql'        => $items->toSql(),
+                'bindings'   => $items->getBindings(),
+            ]);
+
             $totals = $this->getSalesReportTotals($items);
+
+            $t2 = microtime(true);
+            Log::channel('single')->info('[SalesReport] totals fetched', [
+                'totals_ms' => round(($t2 - $t1) * 1000),
+            ]);
+
             $items = $items->when($request->sortKey, function ($query, $search) use ($request) {
                 $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
             });
             $items = $items->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                 ->withQueryString();
+
+            $t3 = microtime(true);
+            Log::channel('single')->info('[SalesReport] paginate done', [
+                'paginate_ms' => round(($t3 - $t2) * 1000),
+                'total_ms'    => round(($t3 - $t0) * 1000),
+                'rows'        => $items->total(),
+            ]);
         } else {
             $items = new LengthAwarePaginator([], 0, $numberPerPage, 1, [
                 'path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(),
@@ -1783,19 +1810,33 @@ class ReportController extends Controller
     {
         $today = Carbon::today()->setTimezone($this->getUserTimezone());
 
+        // ── diagnostic: log routing decision ──────────────────────────────────
+        $gpMetricsCount = DB::table('gp_metrics')
+            ->whereBetween('txn_date', [$start->toDateString(), $end->toDateString()])
+            ->count();
+
         if ($end->lt($today)) {
-            // Entire range is historical — query the pre-aggregated gp_metrics table.
-            // This is dramatically faster than scanning raw vend_transactions for past weeks/months.
+            $path = 'historical (gp_metrics)';
             $rawQuery = GpMetricsAggregator::buildHistoricalQuery($start, $end);
         } elseif ($start->gte($today)) {
-            // Entire range is today or future — use live transaction aggregation.
+            $path = 'live (buildRawQuery)';
             $rawQuery = GpMetricsAggregator::buildRawQuery($start, $end);
         } else {
-            // Range spans historical days AND today: union pre-aggregated history with live today.
+            $path = 'mixed (gp_metrics UNION buildRawQuery)';
             $historical = GpMetricsAggregator::buildHistoricalQuery($start, $today->copy()->subDay());
             $live = GpMetricsAggregator::buildRawQuery($today, $end);
             $rawQuery = $historical->unionAll($live);
         }
+
+        Log::channel('single')->info('[SalesReport] baseVendTransactionMetricsQuery', [
+            'path'             => $path,
+            'start'            => $start->toIso8601String(),
+            'end'              => $end->toIso8601String(),
+            'today'            => $today->toIso8601String(),
+            'user_timezone'    => $this->getUserTimezone(),
+            'gp_metrics_rows'  => $gpMetricsCount,
+        ]);
+        // ─────────────────────────────────────────────────────────────────────
 
         $dataset = DB::query()->fromSub($rawQuery, 'gm');
 
