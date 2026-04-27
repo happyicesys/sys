@@ -2255,7 +2255,13 @@ class VendController extends Controller
         ]);
         // dd($request->all());
 
-        $baseQuery = VendTransaction::query()
+        // Lightweight ID-only query — same filters, no heavy SELECT columns.
+        // Ordering by vend_transactions.id (PK) is index-only and avoids the
+        // slow transaction_datetime sort on a large range.
+        $userVendIds = $user->vends()->exists() ? $user->vends->pluck('id') : null;
+
+        $idQuery = VendTransaction::query()
+            ->select('vend_transactions.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
@@ -2266,22 +2272,28 @@ class VendController extends Controller
             ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-            ->when($user->vends()->exists(), function ($query) use ($user) {
-                $query->whereIn('vend_transactions.vend_id', $user->vends->pluck('id'));
+            ->when($userVendIds !== null, function ($query) use ($userVendIds) {
+                $query->whereIn('vend_transactions.vend_id', $userVendIds);
             })
-            ->filterTransactionIndex($request);
+            ->filterTransactionIndex($request, true) // skip sort — we impose our own
+            ->orderBy('vend_transactions.id');
 
-        $totalRows = $baseQuery->count();
+        // Collect IDs in order to determine per-chunk keyset boundaries.
+        // For 2-week windows this is well within memory limits (a few MB of ints).
+        $allIds = $idQuery->pluck('vend_transactions.id');
+        $totalRows = $allIds->count();
         $chunkSize = 20000;
 
         if ($totalRows <= $chunkSize) {
-            // ✅ Small export, dispatch direct CSV (no zip)
+            // ✅ Small export — dispatch single job (already uses cursor-safe chunk())
             ExportVendTransactionCsv::dispatch($job->id, $request->all(), $user->id);
         } else {
-            // ✅ Large export, split into chunks
-            $totalChunks = ceil($totalRows / $chunkSize);
+            // ✅ Large export — split by ID boundaries so each job uses whereBetween,
+            //    never OFFSET. This avoids the MySQL scan-and-discard problem AND the
+            //    bug where Laravel's chunk() internally overrides skip/take via forPage().
+            $chunks = $allIds->chunk($chunkSize);
 
-            for ($i = 0; $i < $totalChunks; $i++) {
+            foreach ($chunks as $i => $chunkIds) {
                 ExportJobChunk::create([
                     'export_job_id' => $job->id,
                     'chunk_index' => $i,
@@ -2293,7 +2305,9 @@ class VendController extends Controller
                     $request->all(),
                     $user->id,
                     $i,
-                    $chunkSize
+                    $chunkSize,
+                    $chunkIds->first(), // minId — keyset lower bound
+                    $chunkIds->last(),  // maxId — keyset upper bound
                 );
             }
         }

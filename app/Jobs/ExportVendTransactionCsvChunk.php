@@ -25,20 +25,25 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 1;
+    public $timeout = 1800; // 30-minute hard cap
 
     protected $chunkIndex;
     protected $chunkSize;
     protected $jobId;
     protected $requestData;
     protected $userID;
+    protected $minId; // keyset lower bound (inclusive)
+    protected $maxId; // keyset upper bound (inclusive)
 
-    public function __construct($jobId, array $requestData, $userID = null, $chunkIndex, $chunkSize)
+    public function __construct($jobId, array $requestData, $userID = null, $chunkIndex, $chunkSize, $minId = null, $maxId = null)
     {
         $this->chunkIndex = $chunkIndex;
         $this->chunkSize = $chunkSize;
         $this->jobId = $jobId;
         $this->requestData = $requestData;
         $this->userID = $userID;
+        $this->minId = $minId;
+        $this->maxId = $maxId;
     }
 
     public function handle()
@@ -154,8 +159,16 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                     DB::raw('vend_transactions.label_json AS label_ids_json'),
                 ])
                 ->orderBy('vend_transactions.id')
-                ->skip($this->chunkIndex * $this->chunkSize)
-                ->take($this->chunkSize)
+                // Keyset pagination: use ID boundaries set by the controller so we
+                // never rely on OFFSET (which MySQL must scan-and-discard, and which
+                // Laravel's chunk() internally overrides anyway via forPage()).
+                ->when($this->minId !== null && $this->maxId !== null, function ($q) {
+                    $q->whereBetween('vend_transactions.id', [$this->minId, $this->maxId]);
+                }, function ($q) {
+                    // Legacy fallback for any jobs already in-queue without ID bounds
+                    $q->skip($this->chunkIndex * $this->chunkSize)
+                      ->take($this->chunkSize);
+                })
                 ->chunk(500, function ($transactions) use ($stream) {
                     $transactionIds = $transactions->pluck('id');
 

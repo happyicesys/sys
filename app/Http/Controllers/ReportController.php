@@ -1781,7 +1781,23 @@ class ReportController extends Controller
 
     private function baseVendTransactionMetricsQuery($request, Carbon $start, Carbon $end, ?string $locationTypeColumn = null): Builder
     {
-        $dataset = DB::query()->fromSub(GpMetricsAggregator::buildRawQuery($start, $end), 'gm');
+        $today = Carbon::today()->setTimezone($this->getUserTimezone());
+
+        if ($end->lt($today)) {
+            // Entire range is historical — query the pre-aggregated gp_metrics table.
+            // This is dramatically faster than scanning raw vend_transactions for past weeks/months.
+            $rawQuery = GpMetricsAggregator::buildHistoricalQuery($start, $end);
+        } elseif ($start->gte($today)) {
+            // Entire range is today or future — use live transaction aggregation.
+            $rawQuery = GpMetricsAggregator::buildRawQuery($start, $end);
+        } else {
+            // Range spans historical days AND today: union pre-aggregated history with live today.
+            $historical = GpMetricsAggregator::buildHistoricalQuery($start, $today->copy()->subDay());
+            $live = GpMetricsAggregator::buildRawQuery($today, $end);
+            $rawQuery = $historical->unionAll($live);
+        }
+
+        $dataset = DB::query()->fromSub($rawQuery, 'gm');
 
         $query = $dataset
             ->leftJoin('vends', 'gm.vend_id', '=', 'vends.id')

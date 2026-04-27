@@ -225,6 +225,51 @@ class GpMetricsAggregator
     }
 
     /**
+     * Build a query from the pre-aggregated gp_metrics table for historical (past) dates.
+     * Much faster than buildRawQuery() since it reads a small, indexed, pre-aggregated table
+     * instead of scanning raw vend_transactions.
+     *
+     * Returns the same column shape as buildRawQuery() so it can be used as a drop-in
+     * replacement in baseVendTransactionMetricsQuery() for all-historical date ranges.
+     *
+     * @param  Carbon  $start
+     * @param  Carbon  $end
+     * @return Builder
+     */
+    public static function buildHistoricalQuery(Carbon $start, Carbon $end): Builder
+    {
+        return DB::table('gp_metrics')
+            ->whereBetween('txn_date', [$start->toDateString(), $end->toDateString()])
+            ->select([
+                'txn_date',
+                'operator_id',
+                'vend_id',
+                'customer_id',
+                'category_id',
+                'category_group_id',
+                'customer_location_type_id',
+                'transaction_location_type_id',
+                'vend_prefix_id',
+                'vend_contract_id',
+                'vend_model_id',
+                'product_id',
+                'is_multiple',
+                'is_binded_customer',
+                'sale_count',
+                'transaction_count',
+                'success_count',
+                'error_count',
+                'error_count_no_4_5',
+                'error_count_4_5',
+                'amount_cents',
+                DB::raw('amount_cents as txn_amount_cents'),
+                'revenue_cents',
+                'gross_profit_cents',
+                'unit_cost_cents',
+            ]);
+    }
+
+    /**
      * Persist metrics for a specific day into the gp_metrics table.
      *
      * @param  Carbon  $day
@@ -247,8 +292,8 @@ class GpMetricsAggregator
             ->chunk($chunkSize, function ($rows) use ($now, $dayStart) {
                 $payload = $rows->map(function ($row) use ($now) {
                     $data = get_object_vars($row);
-                    // success_count, error_count* and txn_amount_cents are live-only columns not stored in gp_metrics
-                    unset($data['success_count'], $data['error_count'], $data['error_count_no_4_5'], $data['error_count_4_5'], $data['txn_amount_cents']);
+                    // txn_amount_cents is a live-only derived column, not stored in gp_metrics
+                    unset($data['txn_amount_cents']);
                     $data['created_at'] = $now;
                     $data['updated_at'] = $now;
                     return $data;
