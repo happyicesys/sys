@@ -432,6 +432,23 @@
 						>
 						</MultiSelect>
 				</div>
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+						<label for="text" class="block text-sm font-medium text-gray-700">
+								Product Mapping
+						</label>
+						<MultiSelect
+								v-model="filters.productMappings"
+								:options="productMappingOptions"
+								trackBy="id"
+								valueProp="id"
+								label="value"
+								placeholder="Select"
+								open-direction="bottom"
+								mode="tags"
+								class="mt-1"
+						>
+						</MultiSelect>
+				</div>
 			</div>
 
 			<div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -2156,6 +2173,7 @@ font-size:13px;
 			mapApiKey: String,
 			nextDeliveryDriverOptions: [Array, Object],
 			operatorOptions: Object,
+			productMappingOptions: Object,
 			productOptions: Object,
 			sellingPriceTypeOptions: [Array, Object],
 			totals: [Array, Object],
@@ -2211,6 +2229,7 @@ font-size:13px;
 			vendRecordsThirtyDaysAmountAverageLessThan: '',
 			sortBy: true,
 			numberPerPage: '',
+			productMappings: [],
 			vendConfigs: [],
 			vendContracts: [],
 			visited: true,
@@ -2240,6 +2259,7 @@ font-size:13px;
 	const numberPerPageOptions = ref([])
 	const operatorOptions = ref([])
 	const pickLists = ref([])
+	const productMappingOptions = ref([])
 	const sellingPriceTypeOptions = ref([])
 	const showAllFilters = ref(false)
 	const showChannelOverviewModal = ref(false)
@@ -2387,6 +2407,11 @@ zoneOptions.value = [
 		...props.zoneOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
+productMappingOptions.value = [
+		{id: 'all', value: 'All'},
+		...props.productMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
+]
+
 filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
 filters.value.is_active = booleanOptions.value[1]
 filters.value.deviceType = deviceTypeOptions.value[0]
@@ -2480,6 +2505,7 @@ if(urlParams.has('channel_codes')) {
 	hydrateMulti('frequency_per_week_status', frequencyPerWeekOptions.value, 'frequency_per_week_status');
 	hydrateMulti('operators', operatorOptions.value, 'operators');
 	hydrateMulti('preferredDays', dayOptions.value, 'preferredDays');
+	hydrateMulti('productMappings', productMappingOptions.value, 'productMappings');
 	hydrateMulti('vendConfigs', vendConfigOptions.value, 'vendConfigs');
 	hydrateMulti('vendContracts', vendContractOptions.value, 'vendContracts');
 	hydrateMulti('vendModels', vendModelOptions.value, 'vendModels');
@@ -2807,6 +2833,7 @@ function onSearchFilterUpdated() {
 			// is_testing: filters.value.is_testing.id,
 			status: filters.value.status.id,
 			// vend_prefix_id: filters.value.vend_prefix_id.id,
+			productMappings: filters.value.productMappings.map((pm) => { return pm.id }),
 			vendConfigs: filters.value.vendConfigs.map(vc => vc.id),
 			vendContracts: filters.value.vendContracts.map(vc => vc.id),
 			vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),

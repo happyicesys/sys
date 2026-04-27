@@ -19,6 +19,7 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentGatewayLogResource;
 use App\Http\Resources\PaymentGatewayResource;
 use App\Http\Resources\PaymentMethodResource;
+use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\TagResource;
 use App\Http\Resources\UserResource;
@@ -1002,6 +1003,10 @@ class VendController extends Controller
             ZoneResource::collection(Zone::orderBy('name')->get())->resolve()
         );
 
+        $productMappingOptions = Cache::remember('product_mapping_options', $ttl, fn() =>
+            ProductMappingResource::collection(ProductMapping::orderBy('name')->get())->resolve()
+        );
+
         // Drivers: cache per-site (not operator-scoped) with a shorter TTL
         $driverOptions = Cache::remember('customer_driver_options', $driverTtl, fn() =>
             UserResource::collection(User::with('roles')->orderBy('name')->get())->resolve()
@@ -1043,6 +1048,7 @@ class VendController extends Controller
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => ['data' => $vendChannelErrors],
+            'productMappingOptions' => ['data' => $productMappingOptions],
             'vendConfigOptions' => ['data' => $vendConfigOptions],
             'vendContractOptions' => ['data' => $vendContractOptions],
             'vendModelOptions' => ['data' => $vendModelOptions],

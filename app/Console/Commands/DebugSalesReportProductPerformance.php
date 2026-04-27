@@ -225,7 +225,7 @@ class DebugSalesReportProductPerformance extends Command
             ->selectRaw('SUM(gm.error_count_4_5) AS error_count_4_5')
             ->selectRaw('SUM(gm.sale_count) AS count')
             ->selectRaw('SUM(ROUND(gm.amount_cents)) AS amount')
-            ->groupBy('id');
+            ->groupBy(DB::raw('gm.product_id'));
 
         return $query;
     }

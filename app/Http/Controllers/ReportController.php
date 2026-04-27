@@ -1637,22 +1637,26 @@ class ReportController extends Controller
                         ->selectRaw('SUM(gm.error_count) AS error_count')
                         ->selectRaw('SUM(gm.error_count_no_4_5) AS error_count_no_4_5')
                         ->selectRaw('SUM(gm.error_count_4_5) AS error_count_4_5');
+                    $groupByExpr = 'gm.product_id';
                     break;
                 case 'categories':
                     $transactionsQuery
                         ->selectRaw('customers.category_id as id')
                         ->selectRaw('MAX(customer_categories.name) as name');
+                    $groupByExpr = 'customers.category_id';
                     break;
                 case 'location_types':
                     $transactionsQuery
                         ->selectRaw('gm.transaction_location_type_id as id')
                         ->selectRaw('MAX(location_types.name) as name');
+                    $groupByExpr = 'gm.transaction_location_type_id';
                     break;
                 case 'operators':
                     $transactionsQuery
                         ->selectRaw('gm.operator_id as id')
                         ->selectRaw('MAX(operators.code) as code')
                         ->selectRaw('MAX(operators.name) as name');
+                    $groupByExpr = 'gm.operator_id';
                     break;
                 case 'vends':
                     $transactionsQuery
@@ -1663,6 +1667,7 @@ class ReportController extends Controller
                         ->selectRaw('MAX(current_vend_prefixes.name) as vend_prefix_name')
                         ->selectRaw('MAX(product_mappings.name) as product_mapping_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
+                    $groupByExpr = 'gm.vend_id';
                     break;
                 case 'customers':
                     $transactionsQuery
@@ -1673,7 +1678,10 @@ class ReportController extends Controller
                         ->selectRaw('MAX(current_vend_prefixes.name) as vend_prefix_name')
                         ->selectRaw('MAX(product_mappings.name) as product_mapping_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
+                    $groupByExpr = 'gm.customer_id';
                     break;
+                default:
+                    $groupByExpr = 'gm.product_id';
             }
         } else {
             $transactionsQuery = $this->baseVendRecordsQuery($request, $start, $end);
@@ -1686,17 +1694,20 @@ class ReportController extends Controller
                     $transactionsQuery
                         ->selectRaw('customers.category_id as id')
                         ->selectRaw('MAX(categories.name) as name');
+                    $groupByExpr = 'customers.category_id';
                     break;
                 case 'location_types':
                     $transactionsQuery
                         ->selectRaw('vr.location_type_id as id')
                         ->selectRaw('MAX(location_types.name) as name');
+                    $groupByExpr = 'vr.location_type_id';
                     break;
                 case 'operators':
                     $transactionsQuery
                         ->selectRaw('vr.operator_id as id')
                         ->selectRaw('MAX(operators.code) as code')
                         ->selectRaw('MAX(operators.name) as name');
+                    $groupByExpr = 'vr.operator_id';
                     break;
                 case 'vends':
                     $transactionsQuery
@@ -1708,6 +1719,7 @@ class ReportController extends Controller
                         ->selectRaw('MAX(current_vend_prefixes.name) as vend_prefix_name')
                         ->selectRaw('MAX(product_mappings.name) as product_mapping_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
+                    $groupByExpr = 'vr.vend_id';
                     break;
                 case 'customers':
                     $transactionsQuery
@@ -1719,14 +1731,17 @@ class ReportController extends Controller
                         ->selectRaw('MAX(current_vend_prefixes.name) as vend_prefix_name')
                         ->selectRaw('MAX(product_mappings.name) as product_mapping_name')
                         ->selectRaw('MAX(location_types.name) as location_type_name');
+                    $groupByExpr = 'vr.customer_id';
                     break;
+                default:
+                    $groupByExpr = 'vr.vend_id';
             }
         }
 
         $transactionsQuery
             ->selectRaw('SUM(' . $countColumn . ') AS count')
             ->selectRaw('SUM(' . $amountColumn . ') AS amount')
-            ->groupBy('id');
+            ->groupBy(DB::raw($groupByExpr));
 
         return $transactionsQuery;
     }
