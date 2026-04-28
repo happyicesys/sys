@@ -822,6 +822,7 @@ class OpsJobController extends Controller
 
         $channelCode = $request->channel_code;
         $pickedQty = (int) $request->picked_qty;
+        $replaceChannelId = $request->replace_channel_id ? (int) $request->replace_channel_id : null;
 
         // Find the VendChannel belonging to this vend
         $vendChannel = VendChannel::where('vend_id', $opsJobItem->vend_id)
@@ -842,6 +843,17 @@ class OpsJobController extends Controller
             return redirect()->back()->with('error', 'Channel already added to this job.');
         }
 
+        // Validate the channel to be replaced (if provided)
+        $replacedChannel = null;
+        if ($replaceChannelId) {
+            $replacedChannel = $opsJobItem->opsJobItemChannels()
+                ->where('id', $replaceChannelId)
+                ->first();
+            if (!$replacedChannel) {
+                return redirect()->back()->with('error', 'Channel to be replaced not found in this job.');
+            }
+        }
+
         // Resolve product_id: VendChannel may have no product assigned yet if the slot
         // was just physically activated. Fall back to the product mapping item so the
         // thumbnail and product name always show correctly.
@@ -853,21 +865,30 @@ class OpsJobController extends Controller
             $productId = $mappingItem?->product_id ?? 0;
         }
 
+        // If replacing an existing channel, mark it as manually replaced and reset its pick qty to 0
+        if ($replacedChannel) {
+            $replacedChannel->update([
+                'is_manually_replaced' => true,
+                'saved_picked_qty'     => 0,
+            ]);
+        }
+
         // Create OpsJobItemChannel snapshot (same pattern as createOpsJobItem)
         $opsJobItem->opsJobItemChannels()->create([
-            'amount'           => $vendChannel->amount,
-            'ops_job_id'       => $opsJobItem->ops_job_id,
-            'ops_job_item_id'  => $opsJobItem->id,
-            'product_id'       => $productId,
-            'vend_channel_code' => $vendChannel->code,
-            'vend_channel_id'  => $vendChannel->id,
-            'vend_code'        => $opsJobItem->vend->code,
-            'actual_qty'       => 0,
-            'capacity'         => $vendChannel->capacity,
-            'qty'              => $vendChannel->qty,
-            'picked_qty'       => 0,
-            'saved_picked_qty' => $pickedQty,
-            'is_upcoming_product' => false,
+            'amount'                              => $vendChannel->amount,
+            'ops_job_id'                          => $opsJobItem->ops_job_id,
+            'ops_job_item_id'                     => $opsJobItem->id,
+            'product_id'                          => $productId,
+            'vend_channel_code'                   => $vendChannel->code,
+            'vend_channel_id'                     => $vendChannel->id,
+            'vend_code'                           => $opsJobItem->vend->code,
+            'actual_qty'                          => 0,
+            'capacity'                            => $vendChannel->capacity,
+            'qty'                                 => $vendChannel->qty,
+            'picked_qty'                          => 0,
+            'saved_picked_qty'                    => $pickedQty,
+            'is_upcoming_product'                 => false,
+            'replaces_ops_job_item_channel_id'    => $replacedChannel?->id,
         ]);
 
         return redirect()->back()->with('success', 'Channel added successfully.');
@@ -881,6 +902,17 @@ class OpsJobController extends Controller
         // Guard: only allowed in pending status with no stock action
         if ($opsJobItem->status != OpsJob::STATUS_PENDING || $opsJobItem->stock_action_type) {
             return redirect()->back()->with('error', 'Cannot delete channel in current state.');
+        }
+
+        // If this channel was replacing another, clear the is_manually_replaced flag on the original channel
+        if ($opsJobItemChannel->replaces_ops_job_item_channel_id) {
+            $originalChannel = \App\Models\OpsJobItemChannel::find($opsJobItemChannel->replaces_ops_job_item_channel_id);
+            if ($originalChannel) {
+                $originalChannel->update([
+                    'is_manually_replaced' => false,
+                    'saved_picked_qty'     => null,
+                ]);
+            }
         }
 
         $opsJobItemChannel->delete();

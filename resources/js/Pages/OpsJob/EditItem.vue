@@ -419,13 +419,15 @@
                       </tr>
                     </thead>
                     <tbody class="bg-white">
-                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))]">
+                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channel.is_manually_replaced ? 'bg-orange-50 border-2 border-dashed border-orange-300' + (channels[channelIndex + 1] && channels[channelIndex + 1].replaces_channel_id == channel.id ? ' border-b-0' : '') : (channel.replaces_channel_id ? 'border-2 border-dashed border-orange-300 border-t-0' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))))]">
                         <td class="whitespace py-5 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-left text-gray-800 text-center">
                           <div class="flex flex-col space-y-1">
                             <div class="flex items-center justify-center space-x-1">
                               <span>#{{ channel.code }}</span>
                               <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">Upcoming</span>
                               <span v-if="channel.is_replaced" class="inline-flex items-center rounded bg-gray-100 px-1 py-0.5 text-[10px] font-bold text-gray-700 ring-1 ring-inset ring-gray-700/10">Current</span>
+                              <span v-if="channel.is_manually_replaced" class="inline-flex items-center rounded bg-orange-100 px-1 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10">To Replace</span>
+                              <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">Replacing</span>
                             </div>
                             <div class="flex items-center justify-center" >
                               <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
@@ -471,6 +473,9 @@
                               <div v-if="channel.is_replaced" class="text-xs text-gray-500 italic py-2">
                                 N/A
                               </div>
+                              <select v-else-if="channel.is_manually_replaced" name="channel_picked" id="channel_picked_manually_replaced" class="rounded text-orange-600" v-model="channel.picked">
+                                <option v-for="n in channel.qty + 1" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
+                              </select>
                               <select v-else-if="channel.is_return_stock || channel.is_onsite_adjustment" name="channel_picked" :id="channel.is_onsite_adjustment ? 'channel_picked_onsite' : 'channel_picked_return'" class="rounded" :class="channel.is_onsite_adjustment ? 'text-teal-600' : 'text-orange-600'" v-model="channel.picked">
                                 <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
                               </select>
@@ -616,6 +621,7 @@
                           </div>
                           <div v-else class="flex flex-col space-y-3">
                             <div class="flex flex-wrap gap-3 items-center justify-center">
+                              <!-- New channel selector -->
                               <select
                                 v-model="newChannelCode"
                                 class="rounded border-gray-300 text-sm"
@@ -643,6 +649,16 @@
                                 </select>
                               </div>
                             </div>
+                            <!-- Channel to be Replaced (optional) -->
+                            <div class="flex flex-wrap gap-2 items-center justify-center border border-dashed border-orange-300 rounded-md px-3 py-2 bg-orange-50">
+                              <span class="text-xs text-orange-700 font-medium whitespace-nowrap">Channel to Replace (optional):</span>
+                              <select v-model="replaceChannelId" class="rounded border-orange-300 text-sm text-orange-700">
+                                <option :value="null">— None —</option>
+                                <option v-for="ch in channels.filter(c => !c.is_manually_replaced && !c.replaces_channel_id)" :key="ch.id" :value="ch.id">
+                                  #{{ ch.code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
+                                </option>
+                              </select>
+                            </div>
                             <div class="flex justify-center space-x-2">
                               <button
                                 type="button"
@@ -654,7 +670,7 @@
                               <button
                                 type="button"
                                 class="rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
-                                @click="showAddChannel = false; newChannelCode = null; newChannelPickedQty = 5"
+                                @click="showAddChannel = false; newChannelCode = null; newChannelPickedQty = 5; replaceChannelId = null"
                               >
                                 Cancel
                               </button>
@@ -780,12 +796,14 @@
                       </tr>
                     </thead>
                     <tbody class="bg-white">
-                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))]">
+                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channel.is_manually_replaced ? 'bg-orange-50 border-2 border-dashed border-orange-300' + (channels[channelIndex + 1] && channels[channelIndex + 1].replaces_channel_id == channel.id ? ' border-b-0' : '') : (channel.replaces_channel_id ? 'border-2 border-dashed border-orange-300 border-t-0' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))))]">
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-800">
                           <div class="flex flex-col items-center space-y-1">
                             <span>{{ channel.code }}</span>
                             <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">Upcoming</span>
                             <span v-if="channel.is_replaced" class="inline-flex items-center rounded bg-gray-100 px-1 py-0.5 text-[10px] font-bold text-gray-700 ring-1 ring-inset ring-gray-700/10">Current</span>
+                            <span v-if="channel.is_manually_replaced" class="inline-flex items-center rounded bg-orange-100 px-1 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10">To Replace</span>
+                            <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">Replacing</span>
                           </div>
                         </td>
                         <td class="whitespace-nowrap text-sm  font-semibold text-gray-800 text-center">
@@ -831,6 +849,9 @@
                             <div v-if="channel.is_replaced" class="text-xs text-gray-500 italic py-2">
                                N/A
                             </div>
+                            <select v-else-if="channel.is_manually_replaced" name="channel_picked" id="channel_picked_manually_replaced" class="rounded w-fit text-orange-600" v-model="channel.picked">
+                              <option v-for="n in channel.qty + 1" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
+                            </select>
                             <select v-else-if="channel.is_return_stock || channel.is_onsite_adjustment" name="channel_picked" :id="channel.is_onsite_adjustment ? 'channel_picked_onsite' : 'channel_picked_return'" class="rounded w-fit" :class="channel.is_onsite_adjustment ? 'text-teal-600' : 'text-orange-600'" v-model="channel.picked">
                               <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
                             </select>
@@ -970,47 +991,61 @@
                               <span>Add Channel</span>
                             </button>
                           </div>
-                          <div v-else class="flex flex-wrap gap-4 items-center">
-                            <select
-                              v-model="newChannelCode"
-                              class="rounded border-gray-300 text-sm"
-                            >
-                              <option :value="null">— Select channel —</option>
-                              <option v-for="ch in availableChannels" :key="ch.channel_code" :value="ch.channel_code">
-                                #{{ ch.channel_code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
-                              </option>
-                            </select>
-                            <!-- Product preview -->
-                            <div v-if="selectedNewChannel && selectedNewChannel.product" class="flex items-center space-x-2">
-                              <img
-                                v-if="selectedNewChannel.product.thumbnail"
-                                :src="selectedNewChannel.product.thumbnail.full_url"
-                                class="h-12 w-12 rounded-lg object-cover ring-1 ring-gray-200"
-                                alt=""
-                              />
-                              <span class="text-sm font-medium text-gray-700">{{ selectedNewChannel.product.name }}</span>
-                            </div>
-                            <!-- To Pick Qty -->
-                            <div class="flex items-center space-x-2">
-                              <span class="text-sm text-gray-500">Pick Qty:</span>
-                              <select v-model="newChannelPickedQty" class="rounded border-gray-300 text-sm">
-                                <option v-for="n in 31" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
+                          <div v-else class="flex flex-col gap-3">
+                            <!-- Row 1: new channel selector + product preview + pick qty + actions -->
+                            <div class="flex flex-wrap gap-4 items-center">
+                              <select
+                                v-model="newChannelCode"
+                                class="rounded border-gray-300 text-sm"
+                              >
+                                <option :value="null">— Select channel —</option>
+                                <option v-for="ch in availableChannels" :key="ch.channel_code" :value="ch.channel_code">
+                                  #{{ ch.channel_code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
+                                </option>
                               </select>
+                              <!-- Product preview -->
+                              <div v-if="selectedNewChannel && selectedNewChannel.product" class="flex items-center space-x-2">
+                                <img
+                                  v-if="selectedNewChannel.product.thumbnail"
+                                  :src="selectedNewChannel.product.thumbnail.full_url"
+                                  class="h-12 w-12 rounded-lg object-cover ring-1 ring-gray-200"
+                                  alt=""
+                                />
+                                <span class="text-sm font-medium text-gray-700">{{ selectedNewChannel.product.name }}</span>
+                              </div>
+                              <!-- To Pick Qty -->
+                              <div class="flex items-center space-x-2">
+                                <span class="text-sm text-gray-500">Pick Qty:</span>
+                                <select v-model="newChannelPickedQty" class="rounded border-gray-300 text-sm">
+                                  <option v-for="n in 31" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
+                                </select>
+                              </div>
+                              <button
+                                type="button"
+                                class="rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
+                                @click="onAddChannel"
+                              >
+                                Add
+                              </button>
+                              <button
+                                type="button"
+                                class="rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
+                                @click="showAddChannel = false; newChannelCode = null; newChannelPickedQty = 5; replaceChannelId = null"
+                              >
+                                Cancel
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              class="rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
-                              @click="onAddChannel"
-                            >
-                              Add
-                            </button>
-                            <button
-                              type="button"
-                              class="rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
-                              @click="showAddChannel = false; newChannelCode = null; newChannelPickedQty = 5"
-                            >
-                              Cancel
-                            </button>
+                            <!-- Row 2: Channel to be Replaced (optional) -->
+                            <div class="flex flex-wrap gap-2 items-center border border-dashed border-orange-300 rounded-md px-3 py-2 bg-orange-50 w-fit">
+                              <span class="text-sm text-orange-700 font-medium">Channel to Replace <span class="font-normal text-orange-500">(optional)</span>:</span>
+                              <select v-model="replaceChannelId" class="rounded border-orange-300 text-sm text-orange-700">
+                                <option :value="null">— None —</option>
+                                <option v-for="ch in channels.filter(c => !c.is_manually_replaced && !c.replaces_channel_id)" :key="ch.id" :value="ch.id">
+                                  #{{ ch.code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
+                                </option>
+                              </select>
+                              <span v-if="replaceChannelId" class="text-xs text-orange-600 italic">Pick qty for that channel will default to 0</span>
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -1434,6 +1469,7 @@ const vend = ref([])
 const showAddChannel = ref(false)
 const newChannelCode = ref(null)
 const newChannelPickedQty = ref(5)
+const replaceChannelId = ref(null)
 
 // Channels in product mapping that are NOT already in the job (capacity=0, driver activated them)
 const availableChannels = computed(() => {
@@ -1520,6 +1556,10 @@ function loadingData() {
     const is_onsite_adjustment = !opsJobItemChannel.is_upcoming_product &&
                                   opsJobItem.value.stock_action_type === 'onsite_adjustment';
 
+    // Manually Replaced: this channel is being replaced by a newly-added channel
+    const is_manually_replaced = !opsJobItemChannel.is_upcoming_product &&
+                                  !!opsJobItemChannel.is_manually_replaced;
+
     // picked logic
     // picked logic
     const finalProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
@@ -1532,6 +1572,9 @@ function loadingData() {
         pickedQty = (opsJobItemChannel.saved_picked_qty != null && opsJobItemChannel.saved_picked_qty <= 0)
           ? opsJobItemChannel.saved_picked_qty
           : 0;
+      } else if (is_manually_replaced) {
+        // Manually replaced: pick qty defaults to 0 (driver shouldn't pick from this channel)
+        pickedQty = opsJobItemChannel.saved_picked_qty !== null ? opsJobItemChannel.saved_picked_qty : 0;
       } else if (is_replaced) {
         pickedQty = -opsJobItemChannel.qty;
       } else {
@@ -1573,6 +1616,9 @@ function loadingData() {
       } else if (is_onsite_adjustment) {
         // Onsite Adjustment: Stock In always defaults to 0
         refill = 0;
+      } else if (is_manually_replaced) {
+        // Manually replaced: stock-in should remove the existing qty (negative)
+        refill = -opsJobItemChannel.qty;
       } else if (is_replaced) {
         refill = -opsJobItemChannel.qty;
       } else {
@@ -1587,8 +1633,10 @@ function loadingData() {
       amount: opsJobItemChannel.amount || opsJobItemChannel.vendChannel.amount,
       is_upcoming_product: opsJobItemChannel.is_upcoming_product,
       is_replaced: is_replaced,
+      is_manually_replaced: is_manually_replaced,
       is_return_stock: is_return_stock,
       is_onsite_adjustment: is_onsite_adjustment,
+      replaces_channel_id: opsJobItemChannel.replaces_ops_job_item_channel_id || null,
       vend_channel_id: opsJobItemChannel.vend_channel_id,
       error_settled_at_formatted: opsJobItemChannel.error_settled_at_formatted,
       is_error_settle: opsJobItemChannel.is_error_settle,
@@ -1612,13 +1660,29 @@ function loadingData() {
 
   // Manually-added channels (capacity=0, qty=0) always go to the bottom so they
   // don't disrupt the main channel order (which is sorted by channel code).
+  // Exception: channels with a replaces_channel_id go right after the channel they replace.
   channels.value.sort((a, b) => {
-    const aIsNew = Number(a.capacity) === 0 && Number(a.qty) === 0
-    const bIsNew = Number(b.capacity) === 0 && Number(b.qty) === 0
-    if (aIsNew && !bIsNew) return 1
-    if (!aIsNew && bIsNew) return -1
+    // Channels with a replacement link: keep them after their parent (handled below)
+    const aIsNewNoReplace = Number(a.capacity) === 0 && Number(a.qty) === 0 && !a.replaces_channel_id
+    const bIsNewNoReplace = Number(b.capacity) === 0 && Number(b.qty) === 0 && !b.replaces_channel_id
+    if (aIsNewNoReplace && !bIsNewNoReplace) return 1
+    if (!aIsNewNoReplace && bIsNewNoReplace) return -1
     return 0
   })
+
+  // Re-position channels that replace another: insert them immediately after their replaced channel
+  const replacementChannels = channels.value.filter(c => c.replaces_channel_id)
+  for (const replacement of replacementChannels) {
+    const currentIdx = channels.value.indexOf(replacement)
+    if (currentIdx === -1) continue
+    channels.value.splice(currentIdx, 1)
+    const replacedIdx = channels.value.findIndex(c => c.id === replacement.replaces_channel_id)
+    if (replacedIdx !== -1) {
+      channels.value.splice(replacedIdx + 1, 0, replacement)
+    } else {
+      channels.value.push(replacement)
+    }
+  }
 }
 
 function getDefaultForm() {
@@ -1758,6 +1822,7 @@ function onAddChannel() {
   router.post('/ops-jobs/items/' + opsJobItem.value.id + '/add-channel', {
     channel_code: newChannelCode.value,
     picked_qty: newChannelPickedQty.value,
+    replace_channel_id: replaceChannelId.value || null,
   }, {
     preserveScroll: true,
     onSuccess: () => {
@@ -1765,6 +1830,7 @@ function onAddChannel() {
       showAddChannel.value = false
       newChannelCode.value = null
       newChannelPickedQty.value = 5
+      replaceChannelId.value = null
       router.reload({
         only: ['opsJobItem'],
         replace: true,

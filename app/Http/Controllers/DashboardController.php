@@ -627,6 +627,32 @@ class DashboardController extends Controller
                     fn($q) => $q->whereIn('vend_prefix_id', $request->vendPrefixes))
                 ->when($request->locationType && $request->locationType !== 'all',
                     fn($q) => $q->where('location_type_id', $request->locationType))
+                ->when($request->customer, fn($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
+                    $subQ->select('id')
+                        ->from('customers')
+                        ->where('virtual_customer_prefix', 'LIKE', "{$request->customer}%")
+                        ->orWhere('virtual_customer_code', 'LIKE', "{$request->customer}%")
+                        ->orWhere('name', 'LIKE', "%{$request->customer}%");
+                }))
+                ->when($request->categories, fn($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
+                    $subQ->select('id')->from('customers')->whereIn('category_id', $request->categories);
+                }))
+                ->when($request->categoryGroups, fn($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
+                    $subQ->select('id')->from('customers')->whereIn('category_id', function ($catQ) use ($request) {
+                        $catQ->select('id')->from('categories')->whereIn('category_group_id', $request->categoryGroups);
+                    });
+                }))
+                ->when($request->is_binded_customer && $request->is_binded_customer !== 'all', function ($q) use ($request) {
+                    if ($request->is_binded_customer === 'true') {
+                        $q->whereIn('vend_id', function ($subQ) {
+                            $subQ->select('id')->from('vends')->whereNotNull('customer_id');
+                        });
+                    } else {
+                        $q->whereIn('vend_id', function ($subQ) {
+                            $subQ->select('id')->from('vends')->whereNull('customer_id');
+                        });
+                    }
+                })
                 ->groupBy('year', 'month')
                 ->orderBy('year', 'asc')
                 ->orderBy('month', 'asc')
