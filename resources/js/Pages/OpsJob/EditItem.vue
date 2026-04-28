@@ -426,8 +426,8 @@
                               <span>#{{ channel.code }}</span>
                               <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">Upcoming</span>
                               <span v-if="channel.is_replaced" class="inline-flex items-center rounded bg-gray-100 px-1 py-0.5 text-[10px] font-bold text-gray-700 ring-1 ring-inset ring-gray-700/10">Current</span>
-                              <span v-if="channel.is_manually_replaced" class="inline-flex items-center rounded bg-orange-100 px-1 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10">To Replace</span>
-                              <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">Replacing</span>
+                              <span v-if="channel.is_manually_replaced" class="inline-flex items-center rounded bg-orange-100 px-1 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10">Current</span>
+                              <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">To Be</span>
                             </div>
                             <div class="flex items-center justify-center" >
                               <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
@@ -609,14 +609,14 @@
                       <!-- Add Channel row (mobile) — pending status, no stock action, channels exist in mapping -->
                       <tr v-if="opsJobItem.status == 1 && !opsJobItem.stock_action_type && availableChannels.length > 0">
                         <td colspan="10" class="py-3 px-4 bg-gray-50 border-t border-dashed border-gray-300">
-                          <div v-if="!showAddChannel" class="flex justify-center">
+                          <div v-if="!showAddChannel" class="flex justify-start">
                             <button
                               type="button"
                               class="inline-flex items-center space-x-1 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                               @click="showAddChannel = true"
                             >
                               <PlusCircleIcon class="w-5 h-5 text-blue-500" />
-                              <span>Add Channel</span>
+                              <span>Add New SKU</span>
                             </button>
                           </div>
                           <div v-else class="flex flex-col space-y-3">
@@ -626,7 +626,7 @@
                                 v-model="newChannelCode"
                                 class="rounded border-gray-300 text-sm"
                               >
-                                <option :value="null">— Select channel —</option>
+                                <option :value="null">— New SKU —</option>
                                 <option v-for="ch in availableChannels" :key="ch.channel_code" :value="ch.channel_code">
                                   #{{ ch.channel_code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
                                 </option>
@@ -651,7 +651,7 @@
                             </div>
                             <!-- Channel to be Replaced (optional) -->
                             <div class="flex flex-wrap gap-2 items-center justify-center border border-dashed border-orange-300 rounded-md px-3 py-2 bg-orange-50">
-                              <span class="text-xs text-orange-700 font-medium whitespace-nowrap">Channel to Replace (optional):</span>
+                              <span class="text-xs text-orange-700 font-medium whitespace-nowrap">To replace current # (optional):</span>
                               <select v-model="replaceChannelId" class="rounded border-orange-300 text-sm text-orange-700">
                                 <option :value="null">— None —</option>
                                 <option v-for="ch in channels.filter(c => !c.is_manually_replaced && !c.replaces_channel_id)" :key="ch.id" :value="ch.id">
@@ -802,8 +802,8 @@
                             <span>{{ channel.code }}</span>
                             <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">Upcoming</span>
                             <span v-if="channel.is_replaced" class="inline-flex items-center rounded bg-gray-100 px-1 py-0.5 text-[10px] font-bold text-gray-700 ring-1 ring-inset ring-gray-700/10">Current</span>
-                            <span v-if="channel.is_manually_replaced" class="inline-flex items-center rounded bg-orange-100 px-1 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10">To Replace</span>
-                            <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">Replacing</span>
+                            <span v-if="channel.is_manually_replaced" class="inline-flex items-center rounded bg-orange-100 px-1 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10">Current</span>
+                            <span v-if="channel.replaces_channel_id" class="inline-flex items-center rounded bg-green-100 px-1 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-700/10">To Be</span>
                           </div>
                         </td>
                         <td class="whitespace-nowrap text-sm  font-semibold text-gray-800 text-center">
@@ -988,7 +988,7 @@
                               @click="showAddChannel = true"
                             >
                               <PlusCircleIcon class="w-5 h-5 text-blue-500" />
-                              <span>Add Channel</span>
+                              <span>Add New SKU</span>
                             </button>
                           </div>
                           <div v-else class="flex flex-col gap-3">
@@ -998,7 +998,7 @@
                                 v-model="newChannelCode"
                                 class="rounded border-gray-300 text-sm"
                               >
-                                <option :value="null">— Select channel —</option>
+                                <option :value="null">— New SKU —</option>
                                 <option v-for="ch in availableChannels" :key="ch.channel_code" :value="ch.channel_code">
                                   #{{ ch.channel_code }}{{ ch.product ? ' — ' + ch.product.name : '' }}
                                 </option>
@@ -1037,7 +1037,7 @@
                             </div>
                             <!-- Row 2: Channel to be Replaced (optional) -->
                             <div class="flex flex-wrap gap-2 items-center border border-dashed border-orange-300 rounded-md px-3 py-2 bg-orange-50 w-fit">
-                              <span class="text-sm text-orange-700 font-medium">Channel to Replace <span class="font-normal text-orange-500">(optional)</span>:</span>
+                              <span class="text-sm text-orange-700 font-medium">To replace current # <span class="font-normal text-orange-500">(optional)</span>:</span>
                               <select v-model="replaceChannelId" class="rounded border-orange-300 text-sm text-orange-700">
                                 <option :value="null">— None —</option>
                                 <option v-for="ch in channels.filter(c => !c.is_manually_replaced && !c.replaces_channel_id)" :key="ch.id" :value="ch.id">
