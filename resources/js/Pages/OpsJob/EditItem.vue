@@ -1617,8 +1617,10 @@ function loadingData() {
         // Onsite Adjustment: Stock In always defaults to 0
         refill = 0;
       } else if (is_manually_replaced) {
-        // Manually replaced: stock-in should remove the existing qty (negative)
-        refill = -opsJobItemChannel.qty;
+        // Manually replaced: use live vendChannel.qty so that any sales since job creation
+        // are reflected in the default stock-in value (e.g. qty was 25, one sold → now -24)
+        const liveQty = opsJobItemChannel.vendChannel ? opsJobItemChannel.vendChannel.qty : opsJobItemChannel.qty;
+        refill = -liveQty;
       } else if (is_replaced) {
         refill = -opsJobItemChannel.qty;
       } else {

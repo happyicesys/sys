@@ -992,10 +992,9 @@ class VendController extends Controller
             VendModelResource::collection(VendModel::orderBy('name')->get())->resolve()
         );
 
-        // VendPrefix: active-only filter, so uses its own cache key
-        $vendPrefixOptions = Cache::remember('vend_prefix_active_options', $ttl, fn() =>
+        $vendPrefixOptions = Cache::remember('vend_prefix_options', $ttl, fn() =>
             VendPrefixResource::collection(
-                VendPrefix::whereHas('vends', fn($q) => $q->where('is_active', true))->orderBy('name')->get()
+                VendPrefix::orderBy('name')->get()
             )->resolve()
         );
 
