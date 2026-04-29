@@ -217,7 +217,7 @@ class VendResource extends JsonResource
             'vend_serial_number_id' => isset($this->vend_serial_number_id) ? $this->vend_serial_number_id : null,
             'vend_serial_number_code' => isset($this->vend_serial_number_code) ? $this->vend_serial_number_code : null,
             'vend_vend_config_version' => $this->vend_vend_config_version,
-            'vendThreeDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendThreeDaysErrorTransactions')),
+            'vendTwoDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendTwoDaysErrorTransactions')),
             'vendTransactionTotalsJson' => isset($this->vend_transaction_totals_json) ? $this->vend_transaction_totals_json : null,
             'vendSevenDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendSevenDaysErrorTransactions')),
             'vend_id' => isset($this->vend_id) ? $this->vend_id : null,

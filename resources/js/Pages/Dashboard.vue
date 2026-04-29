@@ -149,7 +149,22 @@
 
                         <div class="border rounded-md p-4 bg-gray-50">
                             <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-lg font-medium text-gray-900">Historical Analysis</h3>
+                                <div class="flex items-center space-x-3">
+                                    <h3 class="text-lg font-medium text-gray-900">Historical Analysis</h3>
+                                    <!-- Years toggle -->
+                                    <div class="flex rounded-md overflow-hidden border border-gray-300 shadow-sm text-sm font-medium">
+                                        <button
+                                            @click="() => { if (yearsBack !== 2) { yearsBack = 2; onSearchFilterUpdated(); } }"
+                                            :class="yearsBack === 2 ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                                            class="px-3 py-1.5 transition-colors"
+                                        >2 Yrs</button>
+                                        <button
+                                            @click="() => { if (yearsBack !== 3) { yearsBack = 3; onSearchFilterUpdated(); } }"
+                                            :class="yearsBack === 3 ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                                            class="px-3 py-1.5 border-l border-gray-300 transition-colors"
+                                        >3 Yrs</button>
+                                    </div>
+                                </div>
                                 <div class="flex space-x-2 items-center">
                                     <span class="text-gray-700 font-medium">Chosen Month</span>
                                     <select v-model="filters.monthYear" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
@@ -574,6 +589,7 @@
     const componentKey3 = ref(0);
     const componentKey4 = ref(0);
     const componentKey5 = ref(0);
+    const yearsBack = ref(2);
     const forceRerender1 = () => {
         componentKey1.value += 1;
     };
@@ -1020,6 +1036,7 @@
             best_performer_limit: performerLimit.value,
             worst_performer_limit: worstPerformerLimit.value,
             month_year: filters.value.monthYear,
+            years_back: yearsBack.value,
         };
     }
 
@@ -1221,8 +1238,10 @@
         const yearKeys = Object.keys(years).sort(sortByMonthYear);
         yearKeys.forEach((month, monthIndex) => {
             const isCurrent = monthIndex === yearKeys.length - 1;
-            const barColor = isCurrent ? '#ef4444' : '#3b82f6';
-            const lineColor = isCurrent ? '#4b5563' : '#15803d'; // Dark Grey for current, Darker Green for others
+            const isOldest = monthIndex === 0 && yearKeys.length >= 3;
+            // Current year = red, oldest year (3yr mode) = orange, middle year = blue
+            const barColor = isCurrent ? '#ef4444' : (isOldest ? '#f97316' : '#3b82f6');
+            const lineColor = isCurrent ? '#4b5563' : (isOldest ? '#9a3412' : '#15803d');
             const countData = Object.values(years[month]).map((data, index) => {
                 if (moment(month, 'YYYY').month(index).endOf('month').isAfter(moment(), 'month')) {
                     return null
@@ -1284,7 +1303,9 @@
         const activeYearKeys = Object.keys(activeYears).sort(sortByMonthYear);
         activeYearKeys.forEach((activeMonth, activeMonthIndex) => {
             const isCurrent = activeMonthIndex === activeYearKeys.length - 1;
-            const color = isCurrent ? '#ef4444' : '#3b82f6';
+            const isOldest = activeMonthIndex === 0 && activeYearKeys.length >= 3;
+            // Current year = red, oldest year (3yr mode) = orange, middle year = blue
+            const color = isCurrent ? '#ef4444' : (isOldest ? '#f97316' : '#3b82f6');
             const countData = Object.values(activeYears[activeMonth]).map((data) => {return data.count});
 
             activeMachineGraphDatasets.value.push({
@@ -1303,23 +1324,31 @@
         if (salesComparisonGraphData.value) {
             let labels = [];
 
-            // Data arrays for the 4 datasets
+            // Data arrays for the datasets
             let prevMonthData = [];
             let currMonthData = [];
             let nextMonthData = [];
             let lastYearData = [];
+            let twoYearsAgoData = [];
 
             let prevMonthIcons = [];
             let currMonthIcons = [];
             let nextMonthIcons = [];
 
+            const hasTwoYearsAgo = !!(
+                salesComparisonGraphData.value.two_years_ago_same_month ||
+                salesComparisonGraphData.value.two_years_ago_prev_month ||
+                salesComparisonGraphData.value.two_years_ago_next_month
+            );
+
             // Helper to process a period
-            const processPeriod = (periodKey, lastYearKey, targetDataArray) => {
+            const processPeriod = (periodKey, lastYearKey, twoYearsAgoKey, targetDataArray) => {
                 if (!salesComparisonGraphData.value[periodKey]) return;
 
                 const currentData = salesComparisonGraphData.value[periodKey].data;
                 const currentIcons = salesComparisonGraphData.value[periodKey].weather_icons || [];
                 const lastData = salesComparisonGraphData.value[lastYearKey]?.data || [];
+                const twoYearsData = twoYearsAgoKey ? (salesComparisonGraphData.value[twoYearsAgoKey]?.data || []) : [];
                 const monthLabel = salesComparisonGraphData.value[periodKey].label; // e.g., "Dec 2023"
 
                 const length = Math.max(currentData.length, lastData.length);
@@ -1347,8 +1376,10 @@
                     // 3. Add to Last Year Data (always continuous)
                     lastYearData.push(lastData[i] !== undefined ? lastData[i] : null);
 
-                    // 4. Add Label
-                    // If it's the middle day, add the Month Year
+                    // 4. Add to Two Years Ago Data (always continuous when present)
+                    twoYearsAgoData.push(twoYearsData[i] !== undefined ? twoYearsData[i] : null);
+
+                    // 5. Add Label — middle day shows the Month Year label
                     if (i + 1 === middleDay) {
                         labels.push([i + 1, monthLabel]);
                     } else {
@@ -1363,6 +1394,7 @@
                 currMonthData.push(null);
                 nextMonthData.push(null);
                 lastYearData.push(null);
+                twoYearsAgoData.push(null);
                 prevMonthIcons.push(null);
                 currMonthIcons.push(null);
                 nextMonthIcons.push(null);
@@ -1371,7 +1403,7 @@
 
             // 1. Prev Month
             if (salesComparisonGraphData.value.prev_month) {
-                processPeriod('prev_month', 'last_year_prev_month', prevMonthData);
+                processPeriod('prev_month', 'last_year_prev_month', hasTwoYearsAgo ? 'two_years_ago_prev_month' : null, prevMonthData);
             }
 
             // Spacer
@@ -1379,7 +1411,7 @@
 
             // 2. Current Month
             if (salesComparisonGraphData.value.current_month) {
-                processPeriod('current_month', 'last_year_same_month', currMonthData);
+                processPeriod('current_month', 'last_year_same_month', hasTwoYearsAgo ? 'two_years_ago_same_month' : null, currMonthData);
             }
 
             // Spacer
@@ -1387,7 +1419,7 @@
 
             // 3. Next Month
             if (salesComparisonGraphData.value.next_month) {
-                processPeriod('next_month', 'last_year_next_month', nextMonthData);
+                processPeriod('next_month', 'last_year_next_month', hasTwoYearsAgo ? 'two_years_ago_next_month' : null, nextMonthData);
             }
 
             salesComparisonGraphLabels.value = labels;
@@ -1456,6 +1488,25 @@
                 spanGaps: true,
                 order: 1,
             });
+
+            // Dataset 5: 2 Years Ago (Purple) — only shown in 3yr mode
+            if (hasTwoYearsAgo) {
+                salesComparisonGraphDatasets.value.push({
+                    label: '2 Years Ago (' + operatorCountry.currency_symbol + ') ' + formatCurrency(sumData(twoYearsAgoData)),
+                    data: twoYearsAgoData,
+                    borderColor: 'rgba(168, 85, 247, 1)', // Purple
+                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                    borderWidth: 2,
+                    type: 'line',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointHitRadius: 20,
+                    spanGaps: true,
+                    order: 1,
+                });
+            }
         }
 
         forceRerender1()

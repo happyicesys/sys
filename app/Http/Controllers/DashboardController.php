@@ -160,8 +160,9 @@ class DashboardController extends Controller
         }
 
         $today = Carbon::today()->setTimezone($this->getUserTimezone());
+        $yearsBack = max(2, min(3, (int) ($request->years_back ?? 2)));
 
-        // Define the 6 periods
+        // Define the 6 base periods (2-year view)
         $periods = [
             'current_month' => $baseDate->copy(),
             'prev_month' => $baseDate->copy()->subMonth(),
@@ -170,6 +171,13 @@ class DashboardController extends Controller
             'last_year_prev_month' => $baseDate->copy()->subYear()->subMonth(),
             'last_year_next_month' => $baseDate->copy()->subYear()->addMonth(),
         ];
+
+        // Add 3-year periods when requested
+        if ($yearsBack >= 3) {
+            $periods['two_years_ago_same_month'] = $baseDate->copy()->subYears(2);
+            $periods['two_years_ago_prev_month']  = $baseDate->copy()->subYears(2)->subMonth();
+            $periods['two_years_ago_next_month']  = $baseDate->copy()->subYears(2)->addMonth();
+        }
 
         // Filter out future "next month" - REMOVED to always show 3 months
         // $includeNextMonth = !$periods['next_month']->isFuture();
@@ -506,15 +514,17 @@ class DashboardController extends Controller
 
     private function getMonthGraphData(Request $request, array $testingVendIds)
     {
+        $yearsBack = max(2, min(3, (int) ($request->years_back ?? 2)));
+
         if ($request->month_year) {
             $baseDate = Carbon::createFromFormat('Y-m', $request->month_year);
             $thisYear = $baseDate->copy()->endOfYear();
-            $lastYear = $baseDate->copy()->subYear()->startOfYear();
+            $lastYear = $baseDate->copy()->subYears($yearsBack - 1)->startOfYear();
             $compareYear = $baseDate->year;
             $compareMonth = $baseDate->month;
         } else {
             $thisYear = Carbon::today()->endOfYear();
-            $lastYear = Carbon::today()->subYear()->startOfYear();
+            $lastYear = Carbon::today()->subYears($yearsBack - 1)->startOfYear();
             $compareYear = Carbon::today()->year;
             $compareMonth = Carbon::today()->month;
         }
@@ -544,7 +554,7 @@ class DashboardController extends Controller
         });
 
         $monthsArrInit = [];
-        foreach ([$lastYear->year, $thisYear->year] as $year) {
+        foreach (range($lastYear->year, $thisYear->year) as $year) {
             for ($i = 1; $i <= 12; $i++) {
                 if ($year == $compareYear && $i > $compareMonth) {
                     continue;
@@ -569,21 +579,23 @@ class DashboardController extends Controller
 
     private function getActiveMachineGraphData(Request $request, array $testingVendIds)
     {
+        $yearsBack = max(2, min(3, (int) ($request->years_back ?? 2)));
+
         if ($request->month_year) {
             $baseDate = Carbon::createFromFormat('Y-m', $request->month_year);
             $thisYear = $baseDate->copy()->endOfYear();
-            $lastYear = $baseDate->copy()->subYear()->startOfYear();
+            $lastYear = $baseDate->copy()->subYears($yearsBack - 1)->startOfYear();
             $compareYear = $baseDate->year;
             $compareMonth = $baseDate->month;
         } else {
             $thisYear = Carbon::today()->endOfYear();
-            $lastYear = Carbon::today()->subYear()->startOfYear();
+            $lastYear = Carbon::today()->subYears($yearsBack - 1)->startOfYear();
             $compareYear = Carbon::today()->year;
             $compareMonth = Carbon::today()->month;
         }
 
         $activeMonths = [];
-        foreach ([$lastYear->year, $thisYear->year] as $year) {
+        foreach (range($lastYear->year, $thisYear->year) as $year) {
             for ($i = 1; $i <= 12; $i++) {
                 if ($year == $compareYear && $i > $compareMonth) {
                     continue;
@@ -745,6 +757,7 @@ class DashboardController extends Controller
             $request->vendPrefixes,
             $request->locationType,
             $request->month_year,
+            $request->years_back,
         ], $extra)));
     }
 

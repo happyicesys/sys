@@ -22,7 +22,7 @@ class SyncChannelErrorRates extends Command
      *
      * @var string
      */
-    protected $description = 'Manually re-sync historical 1d, 3d and 7d multi-transaction error rates for vend channels';
+    protected $description = 'Manually re-sync historical 1d, 2d and 7d multi-transaction error rates for vend channels';
 
     /**
      * Execute the console command.
@@ -47,7 +47,7 @@ class SyncChannelErrorRates extends Command
         $bar = $this->output->createProgressBar(count($vends));
 
         $sixDaysAgo = \Carbon\Carbon::today()->subDays(6)->startOfDay()->toDateTimeString();
-        $twoDaysAgo = \Carbon\Carbon::today()->subDays(2)->startOfDay()->toDateTimeString();
+        $oneDayAgo = \Carbon\Carbon::today()->subDays(1)->startOfDay()->toDateTimeString();
         $todayStart = \Carbon\Carbon::today()->startOfDay()->toDateTimeString();
 
         foreach ($vends as $vend) {
@@ -66,11 +66,11 @@ class SyncChannelErrorRates extends Command
                     ->selectRaw('
                         COUNT(id) as seven_days_total_count,
                         COUNT(CASE WHEN vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as seven_days_error_count,
-                        COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as three_days_total_count,
-                        COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as three_days_error_count,
+                        COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as two_days_total_count,
+                        COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as two_days_error_count,
                         COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as one_day_total_count,
                         COUNT(CASE WHEN transaction_datetime >= ? AND vend_channel_error_id IS NOT NULL AND vend_channel_error_id NOT IN (1) THEN 1 END) as one_day_error_count
-                    ', [$twoDaysAgo, $twoDaysAgo, $todayStart, $todayStart])
+                    ', [$oneDayAgo, $oneDayAgo, $todayStart, $todayStart])
                     ->first();
 
                 $multiData = \App\Models\VendTransactionItem::query()
@@ -81,17 +81,17 @@ class SyncChannelErrorRates extends Command
                     ->selectRaw('
                         COUNT(vend_transaction_items.id) as seven_days_total_count,
                         COUNT(CASE WHEN vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as seven_days_error_count,
-                        COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? THEN vend_transaction_items.id ELSE NULL END) as three_days_total_count,
-                        COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as three_days_error_count,
+                        COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? THEN vend_transaction_items.id ELSE NULL END) as two_days_total_count,
+                        COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as two_days_error_count,
                         COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? THEN vend_transaction_items.id ELSE NULL END) as one_day_total_count,
                         COUNT(CASE WHEN vend_transactions.transaction_datetime >= ? AND vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code != "0" THEN 1 END) as one_day_error_count
-                    ', [$twoDaysAgo, $twoDaysAgo, $todayStart, $todayStart])
+                    ', [$oneDayAgo, $oneDayAgo, $todayStart, $todayStart])
                     ->first();
 
                 $sevenDaysTotal = ($singleData->seven_days_total_count ?? 0) + ($multiData->seven_days_total_count ?? 0);
                 $sevenDaysError = ($singleData->seven_days_error_count ?? 0) + ($multiData->seven_days_error_count ?? 0);
-                $threeDaysTotal = ($singleData->three_days_total_count ?? 0) + ($multiData->three_days_total_count ?? 0);
-                $threeDaysError = ($singleData->three_days_error_count ?? 0) + ($multiData->three_days_error_count ?? 0);
+                $twoDaysTotal = ($singleData->two_days_total_count ?? 0) + ($multiData->two_days_total_count ?? 0);
+                $twoDaysError = ($singleData->two_days_error_count ?? 0) + ($multiData->two_days_error_count ?? 0);
                 $oneDayTotal = ($singleData->one_day_total_count ?? 0) + ($multiData->one_day_total_count ?? 0);
                 $oneDayError = ($singleData->one_day_error_count ?? 0) + ($multiData->one_day_error_count ?? 0);
 
@@ -99,9 +99,9 @@ class SyncChannelErrorRates extends Command
                     'seven_days_total_count' => $sevenDaysTotal,
                     'seven_days_error_count' => $sevenDaysError,
                     'seven_days_error_rate' => $sevenDaysTotal > 0 ? round(($sevenDaysError / $sevenDaysTotal) * 100, 2) : 0,
-                    'three_days_total_count' => $threeDaysTotal,
-                    'three_days_error_count' => $threeDaysError,
-                    'three_days_error_rate' => $threeDaysTotal > 0 ? round(($threeDaysError / $threeDaysTotal) * 100, 2) : 0,
+                    'two_days_total_count' => $twoDaysTotal,
+                    'two_days_error_count' => $twoDaysError,
+                    'two_days_error_rate' => $twoDaysTotal > 0 ? round(($twoDaysError / $twoDaysTotal) * 100, 2) : 0,
                     'one_day_total_count' => $oneDayTotal,
                     'one_day_error_count' => $oneDayError,
                     'one_day_error_rate' => $oneDayTotal > 0 ? round(($oneDayError / $oneDayTotal) * 100, 2) : 0,

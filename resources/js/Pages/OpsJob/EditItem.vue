@@ -613,13 +613,13 @@
                             <button
                               type="button"
                               class="inline-flex items-center space-x-1 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                              @click="showAddChannel = true"
+                              @click="openAddChannel"
                             >
                               <PlusCircleIcon class="w-5 h-5 text-blue-500" />
                               <span>Add New SKU</span>
                             </button>
                           </div>
-                          <div v-else class="flex flex-col space-y-3">
+                          <div v-else ref="addChannelFormRefMobile" class="flex flex-col space-y-3">
                             <div class="flex flex-wrap gap-3 items-center justify-center">
                               <!-- New channel selector -->
                               <select
@@ -650,7 +650,7 @@
                               </div>
                             </div>
                             <!-- Channel to be Replaced (optional) -->
-                            <div class="flex flex-wrap gap-2 items-center justify-center border border-dashed border-orange-300 rounded-md px-3 py-2 bg-orange-50">
+                            <div ref="replaceRowRefMobile" class="flex flex-wrap gap-2 items-center justify-center border border-dashed border-orange-300 rounded-md px-3 py-2 bg-orange-50">
                               <span class="text-xs text-orange-700 font-medium whitespace-nowrap">To replace current # (optional):</span>
                               <select v-model="replaceChannelId" class="rounded border-orange-300 text-sm text-orange-700">
                                 <option :value="null">— None —</option>
@@ -985,13 +985,13 @@
                             <button
                               type="button"
                               class="inline-flex items-center space-x-1 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                              @click="showAddChannel = true"
+                              @click="openAddChannel"
                             >
                               <PlusCircleIcon class="w-5 h-5 text-blue-500" />
                               <span>Add New SKU</span>
                             </button>
                           </div>
-                          <div v-else class="flex flex-col gap-3">
+                          <div v-else ref="addChannelFormRefDesktop" class="flex flex-col gap-3">
                             <!-- Row 1: new channel selector + product preview + pick qty + actions -->
                             <div class="flex flex-wrap gap-4 items-center">
                               <select
@@ -1036,7 +1036,7 @@
                               </button>
                             </div>
                             <!-- Row 2: Channel to be Replaced (optional) -->
-                            <div class="flex flex-wrap gap-2 items-center border border-dashed border-orange-300 rounded-md px-3 py-2 bg-orange-50 w-fit">
+                            <div ref="replaceRowRefDesktop" class="flex flex-wrap gap-2 items-center border border-dashed border-orange-300 rounded-md px-3 py-2 bg-orange-50 w-fit">
                               <span class="text-sm text-orange-700 font-medium">To replace current # <span class="font-normal text-orange-500">(optional)</span>:</span>
                               <select v-model="replaceChannelId" class="rounded border-orange-300 text-sm text-orange-700">
                                 <option :value="null">— None —</option>
@@ -1450,7 +1450,7 @@ import SingleSortItem from '@/Components/SingleSortItem.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ChevronDownIcon, ComputerDesktopIcon, FlagIcon, PlusCircleIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { ArrowPathRoundedSquareIcon } from '@heroicons/vue/24/outline';
@@ -1470,6 +1470,10 @@ const showAddChannel = ref(false)
 const newChannelCode = ref(null)
 const newChannelPickedQty = ref(5)
 const replaceChannelId = ref(null)
+const addChannelFormRefMobile = ref(null)
+const addChannelFormRefDesktop = ref(null)
+const replaceRowRefMobile = ref(null)
+const replaceRowRefDesktop = ref(null)
 
 // Channels in product mapping that are NOT already in the job (capacity=0, driver activated them)
 const availableChannels = computed(() => {
@@ -1813,6 +1817,22 @@ function isErrorSettleClicked(channel) {
         return c
       })
     }
+  })
+}
+
+function openAddChannel() {
+  showAddChannel.value = true
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      // Scroll the orange "To replace" row into view — it's always below the current
+      // viewport so block:'nearest' can only scroll DOWN, never up
+      const mobileRow = replaceRowRefMobile.value
+      const desktopRow = replaceRowRefDesktop.value
+      const el = (mobileRow && mobileRow.getBoundingClientRect().height > 0)
+        ? mobileRow
+        : desktopRow
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
   })
 }
 

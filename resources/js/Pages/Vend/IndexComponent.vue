@@ -565,8 +565,8 @@
                     </TableHeadSort>
                     <TableHead>
                         Error Rate
-                        <SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', false)">
-                            3d
+                        <SingleSortItem modelName="totals_json->two_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->two_days_error_rate', false)">
+                            2d
                         </SingleSortItem>
                         <SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', false)">
                             7d
@@ -859,14 +859,14 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex flex-col space-y-3 w-full">
                             <span
-                            v-if="vend.vendTransactionTotalsJson && 'three_days_error_rate' in vend.vendTransactionTotalsJson"
+                            v-if="vend.vendTransactionTotalsJson && 'two_days_error_rate' in vend.vendTransactionTotalsJson"
                             :class="[
                                 vend.is_active || vend.is_testing ?
-                                (vend.vendTransactionTotalsJson['three_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
+                                (vend.vendTransactionTotalsJson['two_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
                                 'text-gray-400'
                             ]">
-                                {{vend.vendTransactionTotalsJson['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
-                                ({{vend.vendTransactionTotalsJson['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['three_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+                                {{vend.vendTransactionTotalsJson['two_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
+                                ({{vend.vendTransactionTotalsJson['two_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['two_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                             </span>
                             <span
                             v-if="vend.vendTransactionTotalsJson && 'seven_days_error_rate' in vend.vendTransactionTotalsJson"

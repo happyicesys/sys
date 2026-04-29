@@ -782,10 +782,10 @@
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Today error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
-								<SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', false)">
-									3d Rate
+								<SingleSortItem modelName="totals_json->two_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->two_days_error_rate', false)">
+									2d Rate
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 3 days error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 2 days error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', false)">
@@ -1345,14 +1345,14 @@
 									({{vend.vendTransactionTotalsJson['one_day_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['one_day_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 							</span>
 							<span
-							v-if="vend.vendTransactionTotalsJson && 'three_days_error_rate' in vend.vendTransactionTotalsJson"
+							v-if="vend.vendTransactionTotalsJson && 'two_days_error_rate' in vend.vendTransactionTotalsJson"
 							:class="[
 									vend.is_active || vend.is_testing ?
-									(vend.vendTransactionTotalsJson['three_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
+									(vend.vendTransactionTotalsJson['two_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
 									'text-gray-400'
 							]">
-									{{vend.vendTransactionTotalsJson['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
-									({{vend.vendTransactionTotalsJson['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['three_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+									{{vend.vendTransactionTotalsJson['two_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
+									({{vend.vendTransactionTotalsJson['two_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['two_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 							</span>
 							<span
 							v-if="vend.vendTransactionTotalsJson && 'seven_days_error_rate' in vend.vendTransactionTotalsJson"

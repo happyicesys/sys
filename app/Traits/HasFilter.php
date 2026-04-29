@@ -785,7 +785,7 @@ trait HasFilter
                     $direction = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
                     if (
-                        $search === 'totals_json->three_days_error_rate' or
+                        $search === 'totals_json->two_days_error_rate' or
                         $search === 'totals_json->seven_days_error_rate' or
                         $search === 'totals_json->vend_records_amount_average_day' or
                         $search === 'thirty_days_stock_in_delta_percent'

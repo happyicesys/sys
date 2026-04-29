@@ -641,9 +641,9 @@ class Vend extends Model
             ->orderBy('response_at', 'desc');
     }
 
-    public function vendThreeDaysErrorTransactions()
+    public function vendTwoDaysErrorTransactions()
     {
-        return $this->daysVendTransactions(2, 0)->isError();
+        return $this->daysVendTransactions(1, 0)->isError();
     }
 
     public function vendSevenDaysErrorTransactions()
@@ -1082,7 +1082,7 @@ class Vend extends Model
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
                     $inputSearch = explode("->", $search);
-                    if ($search === 'totals_json->three_days_error_rate' or $search === 'totals_json->seven_days_error_rate') {
+                    if ($search === 'totals_json->two_days_error_rate' or $search === 'totals_json->seven_days_error_rate') {
                         $query->orderByRaw('(CAST(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     } else {
                         $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));

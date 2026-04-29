@@ -95,9 +95,9 @@ class VendChannel extends Model
             ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 
-    public function vendThreeDaysErrorTransactions()
+    public function vendTwoDaysErrorTransactions()
     {
-        return $this->daysVendTransactions(2, 0)->isError()->latest();
+        return $this->daysVendTransactions(1, 0)->isError()->latest();
     }
 
     public function vendSevenDaysErrorTransactions()

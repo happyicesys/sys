@@ -68,7 +68,7 @@
                         <br>
                         1d
                         <br>
-                        3d
+                        2d
                         <br>
                         7d
                       </th>
@@ -172,13 +172,13 @@
                               ({{channel.error_rate_json['one_day_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{channel.error_rate_json['one_day_total_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                             </span>
                             <span
-                            v-if="channel.error_rate_json && 'three_days_error_rate' in channel.error_rate_json"
+                            v-if="channel.error_rate_json && 'two_days_error_rate' in channel.error_rate_json"
                             :class="[
                                 channel.is_active ?
-                                (channel.error_rate_json.three_days_error_rate >= 3 ? 'text-red-700' : 'text-green-700') :
+                                (channel.error_rate_json.two_days_error_rate >= 3 ? 'text-red-700' : 'text-green-700') :
                                 'text-gray-400'
                             ]">
-                              ({{channel.error_rate_json['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{channel.error_rate_json['three_days_total_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+                              ({{channel.error_rate_json['two_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{channel.error_rate_json['two_days_total_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                             </span>
                             <span
                             v-if="channel.error_rate_json && 'seven_days_error_rate' in channel.error_rate_json"
