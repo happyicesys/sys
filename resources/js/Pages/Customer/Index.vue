@@ -433,7 +433,7 @@
                       </SingleSortItem>
                     </div>
                   </TableHead>
-                  <TableHead>Contract Details</TableHead>
+                  <TableHead>Placement Contract Detail</TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-2">
                       <span>

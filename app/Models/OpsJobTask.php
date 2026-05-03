@@ -26,7 +26,7 @@ class OpsJobTask extends Model
     ];
 
     protected $casts = [
-        'sequence' => 'integer',
+        'sequence' => 'float',
         'value'    => 'integer',
         'qty'      => 'integer',
         'latitude' => 'float',

@@ -25,7 +25,7 @@ class OpsJobTaskController extends Controller
             'ref_url'        => 'nullable|url|max:2048',
             'value'          => 'nullable|numeric|min:0',
             'qty'            => 'nullable|integer|min:0',
-            'sequence'       => 'nullable|integer|min:1',
+            'sequence'       => 'nullable|numeric|min:0.1',
         ]);
 
         $coords = $this->mapService->geocodePostcodeSG($data['postcode']);
@@ -65,7 +65,7 @@ class OpsJobTaskController extends Controller
             'ref_url'        => 'nullable|url|max:2048',
             'value'          => 'nullable|numeric|min:0',
             'qty'            => 'nullable|integer|min:0',
-            'sequence'       => 'nullable|integer|min:1',
+            'sequence'       => 'nullable|numeric|min:0.1',
         ]);
 
         // Re-geocode only if postcode changed or coords are missing
@@ -99,7 +99,7 @@ class OpsJobTaskController extends Controller
         $task = OpsJobTask::findOrFail($taskId);
 
         $data = $request->validate([
-            'sequence' => 'nullable|integer|min:1',
+            'sequence' => 'nullable|numeric|min:0.1',
         ]);
 
         $task->update([

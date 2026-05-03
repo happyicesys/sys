@@ -148,21 +148,30 @@
                     </DatePicker>
                   </div>
 
-                  <!-- Contract Details Section -->
-                  <div class="sm:col-span-6 pt-4 mt-3 mb-2">
+                  <!-- Placement Contract Detail Section -->
+                  <div class="sm:col-span-6 pt-4 mt-3 mb-1">
                     <div class="relative">
                       <div class="absolute inset-0 flex items-center" aria-hidden="true">
                         <div class="w-full border-t border-gray-300"></div>
                       </div>
                       <div class="relative flex justify-start">
-                        <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Contract Details </span>
+                        <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Placement Contract Detail </span>
                       </div>
                     </div>
+                  </div>
+                  <!-- Audit info -->
+                  <div class="sm:col-span-6 mb-2" v-if="customer.contract_detail_updated_at">
+                    <span class="text-xs text-gray-600 italic">
+                      Last Updated by: {{ customer.contract_detail_updated_by?.name ?? '—' }}, {{ formatDatetime(customer.contract_detail_updated_at) }}
+                    </span>
                   </div>
 
                   <!-- Commission Type (single-select radio styled as checkboxes) -->
                   <div class="sm:col-span-6">
-                    <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">Commission</label>
+                    <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">
+                      Commission
+                      <span class="ml-1 text-red-500 text-xs font-normal">(choose 1 only)</span>
+                    </label>
                     <div class="flex flex-wrap gap-x-6 gap-y-2">
                       <label
                         v-for="opt in commissionTypeOptions"
@@ -199,6 +208,7 @@
                       <label class="flex justify-start text-sm font-medium text-gray-700">
                         {{ commissionValueLabel }}
                         <span class="ml-1 text-gray-400 text-xs font-normal">({{ isPsCommission ? '%' : 'Amount' }})</span>
+                        <span class="ml-1 text-red-500">*</span>
                       </label>
                       <div class="mt-1 relative rounded-md shadow-sm">
                         <div
@@ -233,6 +243,7 @@
                       <label class="flex justify-start text-sm font-medium text-gray-700">
                         Utility Amount
                         <span class="ml-1 text-gray-400 text-xs font-normal">(Amount)</span>
+                        <span class="ml-1 text-red-500">*</span>
                       </label>
                       <div class="mt-1 relative rounded-md shadow-sm">
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -258,6 +269,7 @@
                     <label class="flex justify-start text-sm font-medium text-gray-700">
                       PS Term
                       <span class="ml-1 text-gray-400 text-xs font-normal">(%)</span>
+                      <span class="ml-1 text-red-500">*</span>
                     </label>
                     <div class="mt-1 relative rounded-md shadow-sm">
                       <input
@@ -278,24 +290,26 @@
                     </div>
                   </div>
 
-                  <!-- Contract Until + Auto Renewal (same row) -->
-                  <div class="sm:col-span-3">
-                    <DatePicker v-model="form.contract_until" :error="form.errors['customer.contract_until']">
-                      Contract Until
-                    </DatePicker>
-                  </div>
-                  <div class="sm:col-span-3 flex flex-col justify-end pb-1">
-                    <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">Auto Renewal</label>
-                    <div class="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="contract_auto_renewal"
-                        v-model="form.contract_auto_renewal"
-                        class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <label for="contract_auto_renewal" class="text-sm text-gray-600 cursor-pointer">
-                        {{ form.contract_auto_renewal ? 'Yes' : 'No' }}
-                      </label>
+                  <!-- Contract Until + Auto Renewal — always on their own row -->
+                  <div class="sm:col-span-6 grid grid-cols-6 gap-4">
+                    <div class="col-span-6 sm:col-span-3">
+                      <DatePicker v-model="form.contract_until" :error="form.errors['customer.contract_until']">
+                        Contract Until
+                      </DatePicker>
+                    </div>
+                    <div class="col-span-6 sm:col-span-3 flex flex-col justify-end pb-1">
+                      <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">Auto Renewal</label>
+                      <div class="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="contract_auto_renewal"
+                          v-model="form.contract_auto_renewal"
+                          class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <label for="contract_auto_renewal" class="text-sm text-gray-600 cursor-pointer">
+                          {{ form.contract_auto_renewal ? 'Yes' : 'No' }}
+                        </label>
+                      </div>
                     </div>
                   </div>
 
@@ -962,7 +976,7 @@ const sellingPriceTypeOptions = ref([]);
 const vendOptions = ref([]);
 const zoneOptions = ref([]);
 
-// ── Contract Details ──────────────────────────────────────────────────────────
+// ── Placement Contract Detail ─────────────────────────────────────────────────
 const commissionTypeOptions = [
   { id: 'F',     label: 'F: Free Placement' },
   { id: 'S',     label: 'S: Subsidized Plan' },

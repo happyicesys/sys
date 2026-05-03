@@ -80,6 +80,9 @@ class CustomerResource extends JsonResource
             'contract_auto_renewal' => $this->contract_auto_renewal ?? false,
             'contract_min_commitment_period' => $this->contract_min_commitment_period,
             'contract_notice_period' => $this->contract_notice_period,
+            'contract_detail_updated_at' => $this->contract_detail_updated_at ? Carbon::parse($this->contract_detail_updated_at)->setTimezone($this->getUserTimezone())->format('Y-m-d h:i a') : null,
+            'contract_detail_updated_by' => $this->contract_detail_updated_by,
+            'contract_detail_updated_by_name' => $this->contractDetailUpdatedBy ? $this->contractDetailUpdatedBy->name : null,
         ];
     }
 }

@@ -865,7 +865,8 @@
               </label>
               <input
                 type="number"
-                min="1"
+                min="0.1"
+                step="any"
                 v-model="taskForm.sequence"
                 class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
                 placeholder="Leave blank to append"
@@ -1616,7 +1617,7 @@ function submitTask() {
 
   taskFormProcessing.value = true
   const payload = {
-    sequence: taskForm.value.sequence !== '' ? parseInt(taskForm.value.sequence) : null,
+    sequence: taskForm.value.sequence !== '' ? parseFloat(taskForm.value.sequence) : null,
     task_name: taskForm.value.task_name.trim(),
     address: taskForm.value.address.trim(),
     postcode: taskForm.value.postcode.trim(),
@@ -1678,7 +1679,7 @@ function deleteTask(task) {
 
 function updateTaskSequence(task) {
   axios.post('/ops-jobs/tasks/' + task.id + '/update-sequence', {
-    sequence: task.sequence !== '' ? parseInt(task.sequence) : null,
+    sequence: task.sequence !== '' ? parseFloat(task.sequence) : null,
   }).catch(error => {
     console.error('Failed to update task sequence', error)
   })

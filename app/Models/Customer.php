@@ -56,6 +56,7 @@ class Customer extends Model
         'begin_date' => 'datetime',
         'contract_auto_renewal' => 'boolean',
         'contract_until' => 'date',
+        'contract_detail_updated_at' => 'datetime',
         'cms_invoice_history' => 'json',
         'person_json' => 'json',
         'last_invoice_date' => 'datetime',
@@ -131,6 +132,8 @@ class Customer extends Model
         'contract_auto_renewal',
         'contract_min_commitment_period',
         'contract_notice_period',
+        'contract_detail_updated_at',
+        'contract_detail_updated_by',
     ];
 
     // mutator
@@ -286,6 +289,11 @@ class Customer extends Model
     public function vendTransactions()
     {
         return $this->hasMany(VendTransaction::class);
+    }
+
+    public function contractDetailUpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'contract_detail_updated_by');
     }
 
     public function zone()

@@ -273,6 +273,7 @@ class CustomerController extends Controller
                     $query->where('type', $type);
                 },
                 'vend.vendChannels.product.thumbnail',
+                'contractDetailUpdatedBy:id,name',
                 'zone',
             ])
             ->find($id);
@@ -572,6 +573,31 @@ class CustomerController extends Controller
             ];
 
             $request->validate($contractRules);
+
+            // Detect if any contract detail field changed → log audit
+            $contractFields = [
+                'contract_commission_type', 'contract_commission_value', 'contract_commission_value2',
+                'contract_ps_term', 'contract_until', 'contract_auto_renewal',
+                'contract_min_commitment_period', 'contract_notice_period',
+            ];
+            $contractChanged = false;
+            foreach ($contractFields as $field) {
+                $incoming = $requestCustomerArr[$field] ?? null;
+                $existing = $customer->{$field};
+                // normalise for comparison
+                if ($existing instanceof \Carbon\Carbon) {
+                    $existing = $existing->toDateString();
+                }
+                if ((string) $incoming !== (string) $existing) {
+                    $contractChanged = true;
+                    break;
+                }
+            }
+            if ($contractChanged) {
+                $requestCustomerArr['contract_detail_updated_at'] = now();
+                $requestCustomerArr['contract_detail_updated_by'] = auth()->id();
+                $request->merge(['customer' => $requestCustomerArr]);
+            }
 
             $customer->update($request->customer);
 
