@@ -27,6 +27,12 @@ class DeliveryPlatformCampaignItemVendResource extends JsonResource
             'settings_json' => $this->settings_json,
             'settings_label' => $this->settings_label,
             'settings_name' => $this->settings_name,
+            'submission_error' => $this->when(
+                !$this->is_submitted && is_array($this->submission_response_json),
+                fn () => $this->submission_response_json['data']['message']
+                    ?? $this->submission_response_json['message']
+                    ?? null
+            ),
         ];
     }
 }

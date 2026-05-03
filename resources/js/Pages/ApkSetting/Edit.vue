@@ -925,9 +925,9 @@
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                           <div class="flex flex-col space-y-1">
                             <div class="flex flex-col">
-                              <span class="font-semibold">
+                              <a :href="'/campaigns/' + campaign.id + '/edit'" target="_blank" class="font-semibold text-blue-600 hover:text-blue-800 hover:underline">
                                 {{ campaign.name }}
-                              </span>
+                              </a>
                               <span class="text-xs text-gray-500" v-if="campaign.slug">
                                 {{ campaign.slug }}
                               </span>

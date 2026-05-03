@@ -36,7 +36,7 @@ class StoreVendsRecord implements ShouldQueue
         $itemsSub = DB::table('vend_transaction_items as vti')
             ->select(
                 'vend_transaction_id',
-                DB::raw('SUM(COALESCE(vti.unit_cost, 0) * 100) as total_cost'),
+                DB::raw('SUM(COALESCE(vti.unit_cost, 0)) as total_cost'),
                 DB::raw('COUNT(CASE WHEN NOT (vti.vend_channel_error_code IN (0, 6) OR vti.vend_channel_error_code IS NULL) THEN 1 ELSE NULL END) as item_error_count'),
                 DB::raw('COUNT(CASE WHEN vti.vend_channel_error_code IN (0, 6) OR vti.vend_channel_error_code IS NULL THEN 1 ELSE NULL END) as success_item_count'),
                 DB::raw('COUNT(*) as total_item_count')

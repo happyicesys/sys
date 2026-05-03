@@ -72,6 +72,14 @@ class CustomerResource extends JsonResource
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vends' => VendResource::collection($this->whenLoaded('vends')),
             'vendTransactionTotalsJson' => $this->totals_json,
+            'contract_commission_type' => $this->contract_commission_type,
+            'contract_commission_value' => $this->contract_commission_value,
+            'contract_commission_value2' => $this->contract_commission_value2,
+            'contract_ps_term' => $this->contract_ps_term,
+            'contract_until' => $this->contract_until ? $this->contract_until->toDateString() : null,
+            'contract_auto_renewal' => $this->contract_auto_renewal ?? false,
+            'contract_min_commitment_period' => $this->contract_min_commitment_period,
+            'contract_notice_period' => $this->contract_notice_period,
         ];
     }
 }

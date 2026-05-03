@@ -147,6 +147,203 @@
                       Begin Date
                     </DatePicker>
                   </div>
+
+                  <!-- Contract Details Section -->
+                  <div class="sm:col-span-6 pt-4 mt-3 mb-2">
+                    <div class="relative">
+                      <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="w-full border-t border-gray-300"></div>
+                      </div>
+                      <div class="relative flex justify-start">
+                        <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Contract Details </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Commission Type (single-select radio styled as checkboxes) -->
+                  <div class="sm:col-span-6">
+                    <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">Commission</label>
+                    <div class="flex flex-wrap gap-x-6 gap-y-2">
+                      <label
+                        v-for="opt in commissionTypeOptions"
+                        :key="opt.id"
+                        class="flex items-center gap-2 cursor-pointer select-none"
+                      >
+                        <input
+                          type="radio"
+                          name="contract_commission_type"
+                          :value="opt.id"
+                          v-model="form.contract_commission_type"
+                          class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          @change="onCommissionTypeChange"
+                        />
+                        <span class="text-sm text-gray-700">{{ opt.label }}</span>
+                      </label>
+                      <button
+                        type="button"
+                        v-if="form.contract_commission_type"
+                        @click="clearCommissionType"
+                        class="text-xs text-red-500 hover:text-red-700 underline self-center"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div class="text-sm text-red-600 mt-1" v-if="form.errors.contract_commission_type">
+                      {{ form.errors.contract_commission_type }}
+                    </div>
+                  </div>
+
+                  <!-- Commission Value field (hidden for Free Placement & when nothing selected) -->
+                  <template v-if="form.contract_commission_type && form.contract_commission_type !== 'F'">
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700">
+                        {{ commissionValueLabel }}
+                        <span class="ml-1 text-gray-400 text-xs font-normal">({{ isPsCommission ? '%' : 'Amount' }})</span>
+                      </label>
+                      <div class="mt-1 relative rounded-md shadow-sm">
+                        <div
+                          v-if="!isPsCommission"
+                          class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
+                        >
+                          <span class="text-gray-500 sm:text-sm">$</span>
+                        </div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          :max="isPsCommission ? 100 : undefined"
+                          v-model="form.contract_commission_value"
+                          :class="['shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md', !isPsCommission ? 'pl-7' : 'pr-8']"
+                          :placeholder="isPsCommission ? 'e.g. 30' : 'e.g. 100.00'"
+                        />
+                        <div
+                          v-if="isPsCommission"
+                          class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
+                        >
+                          <span class="text-gray-500 sm:text-sm">%</span>
+                        </div>
+                      </div>
+                      <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_commission_value']">
+                        {{ form.errors['customer.contract_commission_value'] }}
+                      </div>
+                    </div>
+
+                    <!-- Second value: Utility Amount (only for PS+U and PSORU) -->
+                    <div class="sm:col-span-3" v-if="hasTwoValues">
+                      <label class="flex justify-start text-sm font-medium text-gray-700">
+                        Utility Amount
+                        <span class="ml-1 text-gray-400 text-xs font-normal">(Amount)</span>
+                      </label>
+                      <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                          <span class="text-gray-500 sm:text-sm">$</span>
+                        </div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          v-model="form.contract_commission_value2"
+                          class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md pl-7"
+                          placeholder="e.g. 50.00"
+                        />
+                      </div>
+                      <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_commission_value2']">
+                        {{ form.errors['customer.contract_commission_value2'] }}
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- PS Term % (only for PS / PS+U / PSORU) -->
+                  <div class="sm:col-span-3" v-if="showPsTerm">
+                    <label class="flex justify-start text-sm font-medium text-gray-700">
+                      PS Term
+                      <span class="ml-1 text-gray-400 text-xs font-normal">(%)</span>
+                    </label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        v-model="form.contract_ps_term"
+                        class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md pr-8"
+                        placeholder="Default 100"
+                      />
+                      <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                        <span class="text-gray-500 sm:text-sm">%</span>
+                      </div>
+                    </div>
+                    <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_ps_term']">
+                      {{ form.errors['customer.contract_ps_term'] }}
+                    </div>
+                  </div>
+
+                  <!-- Contract Until + Auto Renewal (same row) -->
+                  <div class="sm:col-span-3">
+                    <DatePicker v-model="form.contract_until" :error="form.errors['customer.contract_until']">
+                      Contract Until
+                    </DatePicker>
+                  </div>
+                  <div class="sm:col-span-3 flex flex-col justify-end pb-1">
+                    <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">Auto Renewal</label>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="contract_auto_renewal"
+                        v-model="form.contract_auto_renewal"
+                        class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <label for="contract_auto_renewal" class="text-sm text-gray-600 cursor-pointer">
+                        {{ form.contract_auto_renewal ? 'Yes' : 'No' }}
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Minimum Contract Period + Notice Period (same row) -->
+                  <div class="sm:col-span-3">
+                    <label class="flex justify-start text-sm font-medium text-gray-700">
+                      Minimum Contract Period
+                      <span class="ml-1 text-gray-400 text-xs font-normal">(months)</span>
+                    </label>
+                    <div class="mt-1">
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        v-model="form.contract_min_commitment_period"
+                        class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                        placeholder="e.g. 12"
+                      />
+                    </div>
+                    <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_min_commitment_period']">
+                      {{ form.errors['customer.contract_min_commitment_period'] }}
+                    </div>
+                  </div>
+                  <div class="sm:col-span-3">
+                    <label class="flex justify-start text-sm font-medium text-gray-700">
+                      Notice Period
+                      <span class="ml-1 text-gray-400 text-xs font-normal">(months)</span>
+                    </label>
+                    <div class="mt-1">
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        v-model="form.contract_notice_period"
+                        class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                        placeholder="e.g. 1"
+                      />
+                    </div>
+                    <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_notice_period']">
+                      {{ form.errors['customer.contract_notice_period'] }}
+                    </div>
+                  </div>
+
+                  <!-- end Contract Details -->
+                  <div class="sm:col-span-6 mt-3 mb-2">
+                    <div class="w-full border-t border-gray-200"></div>
+                  </div>
+
                   <div class="sm:col-span-3">
                     <FormInput v-model="form.power_socket_key_number" :error="form.errors.power_socket_key_number"> Power Socket Key Num </FormInput>
                   </div>
@@ -724,7 +921,7 @@ import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, MinusCircleIcon, StopCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
@@ -764,6 +961,59 @@ const vendChannels = ref([]);
 const sellingPriceTypeOptions = ref([]);
 const vendOptions = ref([]);
 const zoneOptions = ref([]);
+
+// ── Contract Details ──────────────────────────────────────────────────────────
+const commissionTypeOptions = [
+  { id: 'F',     label: 'F: Free Placement' },
+  { id: 'S',     label: 'S: Subsidized Plan' },
+  { id: 'R',     label: 'R: Fix Rental' },
+  { id: 'U',     label: 'U: Utility only' },
+  { id: 'PS',    label: 'PS: Profit sharing only' },
+  { id: 'PS+U',  label: 'PS + U' },
+  { id: 'PSORU', label: 'PS OR U (whichever higher)' },
+];
+
+const PS_TYPES   = ['PS', 'PS+U', 'PSORU'];
+const TWO_VAL_TYPES = ['PS+U', 'PSORU'];
+
+const isPsCommission = computed(() => PS_TYPES.includes(form.value.contract_commission_type));
+const hasTwoValues   = computed(() => TWO_VAL_TYPES.includes(form.value.contract_commission_type));
+const showPsTerm     = computed(() => isPsCommission.value);
+
+const commissionValueLabel = computed(() => {
+  switch (form.value.contract_commission_type) {
+    case 'S':     return 'Subsidized Amount';
+    case 'R':     return 'Fix Rental Amount';
+    case 'U':     return 'Utility Amount';
+    case 'PS':
+    case 'PS+U':
+    case 'PSORU': return 'Commission';
+    default:      return 'Value';
+  }
+});
+
+function onCommissionTypeChange() {
+  // Clear value fields that no longer apply when type changes
+  if (form.value.contract_commission_type === 'F') {
+    form.value.contract_commission_value  = null;
+    form.value.contract_commission_value2 = null;
+    form.value.contract_ps_term           = null;
+  }
+  if (!TWO_VAL_TYPES.includes(form.value.contract_commission_type)) {
+    form.value.contract_commission_value2 = null;
+  }
+  if (!PS_TYPES.includes(form.value.contract_commission_type)) {
+    form.value.contract_ps_term = null;
+  }
+}
+
+function clearCommissionType() {
+  form.value.contract_commission_type   = null;
+  form.value.contract_commission_value  = null;
+  form.value.contract_commission_value2 = null;
+  form.value.contract_ps_term           = null;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function getDefaultForm() {
   return {
@@ -809,6 +1059,14 @@ function getDefaultForm() {
     },
     vend_id: '',
     zone_id: '',
+    contract_commission_type: null,
+    contract_commission_value: null,
+    contract_commission_value2: null,
+    contract_ps_term: null,
+    contract_until: null,
+    contract_auto_renewal: false,
+    contract_min_commitment_period: null,
+    contract_notice_period: null,
   };
 }
 
@@ -892,6 +1150,14 @@ onMounted(() => {
     preferred_visit_days_json: { ...initialPreferredVisitDays, ...props.customer.preferred_visit_days_json },
     selling_price_type: props.customer && props.customer.selling_price_type ? sellingPriceTypeOptions.value.find(option => option.id == props.customer.selling_price_type) : sellingPriceTypeOptions.value.find(option => option.value === 'RP2'),
     zone_id: props.customer && props.customer.zone_id ? zoneOptions.value.find(zone => zone.id === props.customer.zone_id) : null,
+    contract_commission_type: props.customer ? (props.customer.contract_commission_type ?? null) : null,
+    contract_commission_value: props.customer ? (props.customer.contract_commission_value ?? null) : null,
+    contract_commission_value2: props.customer ? (props.customer.contract_commission_value2 ?? null) : null,
+    contract_ps_term: props.customer ? (props.customer.contract_ps_term ?? null) : null,
+    contract_until: props.customer ? (props.customer.contract_until ?? null) : null,
+    contract_auto_renewal: props.customer ? (props.customer.contract_auto_renewal ?? false) : false,
+    contract_min_commitment_period: props.customer ? (props.customer.contract_min_commitment_period ?? null) : null,
+    contract_notice_period: props.customer ? (props.customer.contract_notice_period ?? null) : null,
   }) : useForm(getDefaultForm());
 
   vendChannels.value = props.customer && props.customer.vend ? props.customer.vend.vend_channels : [];
@@ -981,6 +1247,15 @@ function saveCustomer(customerID) {
       selling_price_type: data.selling_price_type ? data.selling_price_type.id : null,
       vend_id: data.vend_id ? data.vend_id.id : null,
       zone_id: data.zone_id ? data.zone_id.id : null,
+      // Contract details
+      contract_commission_type: data.contract_commission_type || null,
+      contract_commission_value: data.contract_commission_value !== null && data.contract_commission_value !== '' ? parseFloat(data.contract_commission_value) : null,
+      contract_commission_value2: data.contract_commission_value2 !== null && data.contract_commission_value2 !== '' ? parseFloat(data.contract_commission_value2) : null,
+      contract_ps_term: data.contract_ps_term !== null && data.contract_ps_term !== '' ? parseFloat(data.contract_ps_term) : null,
+      contract_until: data.contract_until && data.contract_until !== 'Invalid date' ? data.contract_until : null,
+      contract_auto_renewal: data.contract_auto_renewal ?? false,
+      contract_min_commitment_period: data.contract_min_commitment_period !== null && data.contract_min_commitment_period !== '' ? parseInt(data.contract_min_commitment_period) : null,
+      contract_notice_period: data.contract_notice_period !== null && data.contract_notice_period !== '' ? parseInt(data.contract_notice_period) : null,
     }
   })).post('/customers/' + customerID + '/update', {
     onSuccess: () => {

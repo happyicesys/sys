@@ -16,6 +16,7 @@ use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\OpsJobItem;
 use App\Models\OpsJobItemChannel;
+use App\Models\OpsJobTask;
 use App\Models\ProductMovement;
 use App\Models\User;
 use App\Models\Vend;
@@ -227,11 +228,26 @@ class OpsJobController extends Controller
                 ->get()
                 ->keyBy('ops_job_id');
 
-            // 3. Merge Data
+            // 3. Task Stats Aggregation (count, value sum in cents, qty sum)
+            $taskStats = DB::table('ops_job_tasks')
+                ->whereIn('ops_job_id', $opsJobIds)
+                ->selectRaw('
+                    ops_job_id,
+                    COUNT(*) as ops_job_tasks_count,
+                    SUM(value) as tasks_value_sum,
+                    SUM(COALESCE(qty, 0)) as tasks_qty_sum
+                ')
+                ->groupBy('ops_job_id')
+                ->get()
+                ->keyBy('ops_job_id');
+
+            // 4. Merge Data
             foreach ($opsJobs as $job) {
                 $iStat = $itemStats->get($job->id);
                 $cStat = $channelStats->get($job->id);
+                $tStat = $taskStats->get($job->id);
 
+                $job->ops_job_tasks_count = (int) ($tStat?->ops_job_tasks_count ?? 0);
                 $job->ops_job_items_count = $iStat?->ops_job_items_count ?? 0;
                 $job->ops_job_items_delivered_count = $iStat?->ops_job_items_delivered_count ?? 0;
                 $job->ops_job_items_picked_count = $iStat?->ops_job_items_picked_count ?? 0;
@@ -246,8 +262,9 @@ class OpsJobController extends Controller
                 $job->acc_vend_transactions_count = $iStat?->acc_vend_transactions_count ?? 0;
                 $job->cms_transaction_count = $iStat?->cms_transaction_count ?? 0;
 
-                $job->refillable_amount = ($iStat?->refillable_amount_frozen ?? 0) + ($cStat?->live_refillable_amount ?? 0);
-                $job->refillable_count = ($iStat?->refillable_count_frozen ?? 0) + ($cStat?->live_refillable_count ?? 0);
+                // refillable_amount is in cents; tasks.value is also stored in cents
+                $job->refillable_amount = ($iStat?->refillable_amount_frozen ?? 0) + ($cStat?->live_refillable_amount ?? 0) + ($tStat?->tasks_value_sum ?? 0);
+                $job->refillable_count = ($iStat?->refillable_count_frozen ?? 0) + ($cStat?->live_refillable_count ?? 0) + ($tStat?->tasks_qty_sum ?? 0);
                 $job->picked_amount = $cStat?->picked_amount ?? 0;
                 $job->picked_count = $cStat?->picked_count ?? 0;
                 $job->picked_cost = $cStat?->picked_cost ?? 0;
@@ -1277,7 +1294,9 @@ class OpsJobController extends Controller
                 'opsJobItems.completedBy:id,name',
                 'opsJobItems.vendChannelRecord',
                 'opsJobItems.verifiedBy',
-                'updatedBy:id,name'
+                'updatedBy:id,name',
+                // Tasks: simple indexed query, ordered by sequence
+                'opsJobTasks' => fn($q) => $q->with('createdBy:id,name')->orderByRaw('ISNULL(sequence), sequence ASC'),
             ])
             ->findOrFail($id);
 
@@ -1525,29 +1544,62 @@ class OpsJobController extends Controller
 
     public function renumberItems(Request $request, $id)
     {
-
-
         $opsJob = OpsJob::findOrFail($id);
 
-        $opsJobItems = collect($request->opsJobItems);
-        $ids = $opsJobItems->pluck('id')->toArray(); // Extract the ids in the provided order
+        // ---------------------------------------------------------------
+        // Build a merged ordered list from the request.
+        // Each entry has: { type: 'item'|'task', id: int }
+        // The frontend sends them in the desired final sequence order.
+        //
+        // Legacy format (opsJobItems only) is still supported so existing
+        // callers (Route.vue) don't break before they are updated.
+        // ---------------------------------------------------------------
 
-        $opsJob->opsJobItems()
-            ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')') // Use FIELD to order by the provided id sequence
-            ->get()
-            ->each(function ($opsJobItem, $index) {
-                $opsJobItem->update([
-                    'sequence' => $index + 1,
-                ]);
-            });
+        $mergedOrder = collect($request->mergedOrder ?? []);
 
-        // $sequence = 1;
-        // foreach($opsJob->opsJobItems as $opsJobItem) {
-        //     $opsJobItem->update([
-        //         'sequence' => $sequence,
-        //     ]);
-        //     $sequence++;
-        // }
+        if ($mergedOrder->isNotEmpty()) {
+            // New unified format
+            $sequence = 1;
+            foreach ($mergedOrder as $entry) {
+                if (($entry['type'] ?? '') === 'task') {
+                    OpsJobTask::where('id', $entry['id'])
+                        ->where('ops_job_id', $opsJob->id) // safety: only own tasks
+                        ->update(['sequence' => $sequence]);
+                } else {
+                    OpsJobItem::where('id', $entry['id'])
+                        ->where('ops_job_id', $opsJob->id) // safety: only own items
+                        ->update(['sequence' => $sequence]);
+                }
+                $sequence++;
+            }
+        } else {
+            // Legacy: only opsJobItems provided
+            $opsJobItems = collect($request->opsJobItems ?? []);
+            $ids = $opsJobItems->pluck('id')->filter()->toArray();
+
+            if (!empty($ids)) {
+                $opsJob->opsJobItems()
+                    ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')')
+                    ->get()
+                    ->each(function ($opsJobItem, $index) {
+                        $opsJobItem->update(['sequence' => $index + 1]);
+                    });
+            }
+
+            // Also renumber tasks after items when using legacy format
+            $opsJobTasks = collect($request->opsJobTasks ?? []);
+            $taskIds = $opsJobTasks->pluck('id')->filter()->toArray();
+
+            if (!empty($taskIds)) {
+                $startSeq = count($ids) + 1;
+                $opsJob->opsJobTasks()
+                    ->orderByRaw('FIELD(id, ' . implode(',', $taskIds) . ')')
+                    ->get()
+                    ->each(function ($task, $index) use ($startSeq) {
+                        $task->update(['sequence' => $startSeq + $index]);
+                    });
+            }
+        }
 
         return redirect()->back();
     }
@@ -1577,7 +1629,9 @@ class OpsJobController extends Controller
                 'opsJobItems.customer.deliveryAddress',
                 'opsJobItems.opsJobItemChannels',
                 'opsJobItems.statusBy',
-                'opsJobItems.vend.vendPrefix'
+                'opsJobItems.vend.vendPrefix',
+                // Tasks are loaded separately; Route.vue merges them into the items array
+                'opsJobTasks' => fn($q) => $q->orderByRaw('ISNULL(sequence), sequence ASC'),
             ])
             ->find($id);
 
@@ -1588,15 +1642,11 @@ class OpsJobController extends Controller
                 Address::where('type', '100')
                     ->latest()
                     ->get()
-                // ->merge($opsJobAddresses)
-                // ->unique('id')
             ),
             'originAddresses' => AddressResource::collection(
                 Address::where('type', '90')
                     ->latest()
                     ->get()
-                // ->merge($opsJobAddresses)
-                // ->unique('id')
             ),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => OpsJobResource::make($opsJob),
@@ -1607,8 +1657,29 @@ class OpsJobController extends Controller
     {
         $opsJob = OpsJob::findOrFail($id);
 
+        // New unified path: mergedOrder with type markers
+        if ($request->has('mergedOrder') && is_array($request->mergedOrder)) {
+            foreach ($request->mergedOrder as $entry) {
+                if (($entry['type'] ?? '') === 'task') {
+                    OpsJobTask::where('id', $entry['id'])
+                        ->where('ops_job_id', $opsJob->id)
+                        ->update(['sequence' => $entry['generated_sequence']]);
+                } else {
+                    OpsJobItem::where('id', $entry['id'])
+                        ->where('ops_job_id', $opsJob->id)
+                        ->update(['sequence' => $entry['generated_sequence']]);
+                }
+            }
+            return redirect()->back();
+        }
+
+        // Legacy path: opsJobItems array only
         foreach ($request->opsJobItems as $opsJobItemRequest) {
             if (isset($opsJobItemRequest['isOpsJobItem']) and $opsJobItemRequest['isOpsJobItem'] == false) {
+                continue;
+            }
+            // Skip synthetic task entries injected by Route.vue
+            if (isset($opsJobItemRequest['_isTask']) and $opsJobItemRequest['_isTask'] == true) {
                 continue;
             }
             $opsJobItem = OpsJobItem::findOrFail($opsJobItemRequest['id']);
@@ -1873,17 +1944,23 @@ class OpsJobController extends Controller
     public function batchUpdateItems(Request $request)
     {
         $request->validate([
-            'item_ids'     => 'required|array|min:1',
+            'item_ids'     => 'nullable|array',
             'item_ids.*'   => 'integer|exists:ops_job_items,id',
+            'task_ids'     => 'nullable|array',
+            'task_ids.*'   => 'integer|exists:ops_job_tasks,id',
             'delivered_by' => 'required|integer',
             'date'         => 'required|date',
         ]);
 
+        // At least one of item_ids or task_ids must be present
+        $itemIds = $request->input('item_ids', []);
+        $taskIds = $request->input('task_ids', []);
+
+        if (empty($itemIds) && empty($taskIds)) {
+            return redirect()->back()->withErrors(['item_ids' => 'At least one item or task must be selected.']);
+        }
+
         // Resolve the target OpsJob ONCE before the loop.
-        // - operator_id is included in the search key so we never accidentally
-        //   land on another operator's job.
-        // - getRunningCode() is only called here, not on every iteration, so
-        //   we don't burn running numbers unnecessarily.
         $targetOpsJob = OpsJob::firstOrCreate(
             [
                 'date'         => $request->date,
@@ -1898,10 +1975,10 @@ class OpsJobController extends Controller
             ]
         );
 
-        foreach ($request->item_ids as $itemId) {
+        // Move regular job items
+        foreach ($itemIds as $itemId) {
             $opsJobItem = OpsJobItem::findOrFail($itemId);
 
-            // Skip items that are already on the target job
             if ($opsJobItem->ops_job_id === $targetOpsJob->id) {
                 continue;
             }
@@ -1914,6 +1991,21 @@ class OpsJobController extends Controller
 
             $opsJobItem->opsJobItemChannels()->update([
                 'ops_job_id' => $targetOpsJob->id,
+            ]);
+        }
+
+        // Move tasks
+        foreach ($taskIds as $taskId) {
+            $task = OpsJobTask::findOrFail($taskId);
+
+            if ($task->ops_job_id === $targetOpsJob->id) {
+                continue;
+            }
+
+            $task->update([
+                'ops_job_id' => $targetOpsJob->id,
+                'updated_by' => auth()->id(),
+                'updated_at' => Carbon::now(),
             ]);
         }
 

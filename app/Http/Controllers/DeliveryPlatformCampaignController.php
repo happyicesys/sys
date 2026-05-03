@@ -315,11 +315,37 @@ class DeliveryPlatformCampaignController extends Controller
     public function submitPlatform($id)
     {
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
-        // $this->deliveryPlatformCampaignService->syncItemVends($deliveryPlatformCampaign);
 
-        $this->deliveryPlatformCampaignService->syncCampaigns($deliveryPlatformCampaign);
+        $results       = $this->deliveryPlatformCampaignService->syncCampaigns($deliveryPlatformCampaign);
+        $submittedCount = count($results['submitted']);
+        $failedCount    = count($results['failed']);
 
-        return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id]);
+        // Nothing was pending (all already submitted or inactive)
+        if ($submittedCount === 0 && $failedCount === 0) {
+            return redirect()
+                ->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id])
+                ->with('info', 'No pending campaigns to submit — all are already submitted or inactive.');
+        }
+
+        // At least one failure
+        if ($failedCount > 0) {
+            $failureDetails = collect($results['failed'])
+                ->map(fn($f) => "[{$f['vend_code']}]: {$f['error']}")
+                ->implode(' | ');
+
+            $message = $submittedCount > 0
+                ? "{$submittedCount} submitted successfully, {$failedCount} failed — {$failureDetails}"
+                : "{$failedCount} failed — {$failureDetails}";
+
+            return redirect()
+                ->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id])
+                ->with('error', $message);
+        }
+
+        // All succeeded
+        return redirect()
+            ->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id])
+            ->with('success', "{$submittedCount} campaign(s) submitted to Grab successfully.");
     }
 
     public function destroy($id)

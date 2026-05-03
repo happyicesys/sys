@@ -788,6 +788,7 @@ trait HasFilter
                         $search === 'totals_json->two_days_error_rate' or
                         $search === 'totals_json->seven_days_error_rate' or
                         $search === 'totals_json->vend_records_amount_average_day' or
+                        $search === 'totals_json->thirty_days_gross_profit' or
                         $search === 'thirty_days_stock_in_delta_percent'
                     ) {
                         $query->orderByRaw('(CAST(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")) AS DECIMAL(10,2))) ' . $direction);

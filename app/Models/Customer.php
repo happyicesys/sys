@@ -54,6 +54,8 @@ class Customer extends Model
     protected $casts = [
         'account_manager_json' => 'json',
         'begin_date' => 'datetime',
+        'contract_auto_renewal' => 'boolean',
+        'contract_until' => 'date',
         'cms_invoice_history' => 'json',
         'person_json' => 'json',
         'last_invoice_date' => 'datetime',
@@ -121,6 +123,14 @@ class Customer extends Model
         'virtual_customer_code',
         'virtual_customer_prefix',
         'zone_id',
+        'contract_commission_type',
+        'contract_commission_value',
+        'contract_commission_value2',
+        'contract_ps_term',
+        'contract_until',
+        'contract_auto_renewal',
+        'contract_min_commitment_period',
+        'contract_notice_period',
     ];
 
     // mutator
@@ -442,7 +452,8 @@ class Customer extends Model
                         $search === 'vend_transaction_totals_json->vend_records_amount_latest' or
                         $search === 'vend_transaction_totals_json->vend_records_amount_average_day' or
                         $search === 'vend_transaction_totals_json->vend_records_thirty_days_amount_average' or
-                        $search === 'vend_transaction_totals_json->vend_records_thirty_days_amount'
+                        $search === 'vend_transaction_totals_json->vend_records_thirty_days_amount' or
+                        $search === 'vend_transaction_totals_json->thirty_days_gross_profit'
                     ) {
                         $query->orderByRaw('(CAST(json_unquote(json_extract(`' . 'totals_json' . '`, "$.' . $inputSearch[1] . '")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     } else {

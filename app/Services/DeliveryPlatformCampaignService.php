@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Jobs\CreateDeliveryPlatformCampaign;
 use App\Jobs\CreateVendData;
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatforms\Grab;
@@ -104,15 +103,75 @@ class DeliveryPlatformCampaignService
     }
   }
 
-  public function syncCampaigns(DeliveryPlatformCampaign $deliveryPlatformCampaign)
+  public function syncCampaigns(DeliveryPlatformCampaign $deliveryPlatformCampaign): array
   {
-      if($deliveryPlatformCampaign->deliveryPlatformCampaignItemVends()->exists()) {
-          foreach($deliveryPlatformCampaign->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
-            if(!$deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->is_active) {
-              CreateDeliveryPlatformCampaign::dispatch($deliveryPlatformCampaignItemVend)->onQueue('default');
-            }
+      $results = ['submitted' => [], 'failed' => [], 'skipped' => []];
+
+      // Eager-load all relationships needed by validation + createCampaign/mapGrabCampaignParam
+      // so we don't fire N+1 queries while iterating.
+      $deliveryPlatformCampaign->load([
+          'deliveryPlatformCampaignItemVends.deliveryProductMappingVend',
+          'deliveryPlatformCampaignItemVends.deliveryPlatformCampaign.deliveryPlatformOperator.deliveryPlatform',
+          'deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
+      ]);
+
+      $itemVends = $deliveryPlatformCampaign->deliveryPlatformCampaignItemVends;
+
+      if ($itemVends->isEmpty()) {
+          return $results;
+      }
+
+      foreach ($itemVends as $itemVend) {
+          // Skip already-submitted or inactive records
+          if ($itemVend->is_submitted || !$itemVend->is_active) {
+              $results['skipped'][] = $itemVend->vend_code;
+              continue;
+          }
+
+          // Pre-flight validation before hitting the Grab API
+          $validationErrors = [];
+          if (empty($itemVend->deliveryProductMappingVend?->platform_ref_id)) {
+              $validationErrors[] = 'missing Grab merchant ID (platform_ref_id)';
+          }
+          if (empty($itemVend->datetime_to)) {
+              $validationErrors[] = 'missing End Date';
+          }
+          if (!isset($itemVend->settings_json['value'])) {
+              $validationErrors[] = 'missing promo value';
+          }
+
+          if (!empty($validationErrors)) {
+              $results['failed'][] = [
+                  'vend_code' => $itemVend->vend_code,
+                  'error'     => implode(', ', $validationErrors),
+              ];
+              continue;
+          }
+
+          try {
+              $response = $this->createCampaign($itemVend);
+              if ($response) {
+                  $results['submitted'][] = $itemVend->vend_code;
+              } else {
+                  // createCampaign returns null on failure; read the saved response for the reason
+                  $savedResponse = $itemVend->fresh()->submission_response_json;
+                  $errorMessage  = $savedResponse['data']['message']
+                      ?? $savedResponse['message']
+                      ?? 'Grab API returned an error';
+                  $results['failed'][] = [
+                      'vend_code' => $itemVend->vend_code,
+                      'error'     => $errorMessage,
+                  ];
+              }
+          } catch (\Exception $e) {
+              $results['failed'][] = [
+                  'vend_code' => $itemVend->vend_code,
+                  'error'     => $e->getMessage(),
+              ];
           }
       }
+
+      return $results;
   }
 
   public function syncItemVends(DeliveryPlatformCampaign $deliveryPlatformCampaign)
@@ -143,7 +202,7 @@ class DeliveryPlatformCampaignService
       'name' => $model->settings_label,
       'quotas' => [
         'totalCount' => $model->settings_json['totalCount'] && $model->settings_json['totalCount'] != null ? intval($model->settings_json['totalCount']) : null,
-        'totalCountPerUser' => $model->settings_json['totalCountPerUser'] && $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] != null ? intval($model->settings_json['totalCountPerUser']) : null,
+        'totalCountPerUser' => $model->settings_json['totalCountPerUser'] && $model->settings_json['totalCountPerUser'] != null ? intval($model->settings_json['totalCountPerUser']) : null,
       ],
       'conditions' => [
         'startTime' => Carbon::parse($model->datetime_from)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),

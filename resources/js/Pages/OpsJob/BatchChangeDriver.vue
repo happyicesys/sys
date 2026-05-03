@@ -7,7 +7,11 @@
           <span class="text-sm text-gray-500">
             Reassign
             <span class="font-semibold text-blue-700">{{ selectedItemIds.length }}</span>
-            job(s) to a new driver / date
+            job(s)
+            <span v-if="selectedTaskIds && selectedTaskIds.length > 0" class="text-teal-700">
+              + <span class="font-semibold">{{ selectedTaskIds.length }}</span> task(s)
+            </span>
+            to a new driver / date
           </span>
         </div>
       </template>
@@ -65,7 +69,7 @@
                 >
                   <span class="flex space-x-1 items-center">
                     <CheckCircleIcon class="w-5 h-5" />
-                    <span>Assign {{ selectedItemIds.length }} Job(s)</span>
+                    <span>Assign {{ selectedItemIds.length + (selectedTaskIds?.length ?? 0) }} Item(s)</span>
                   </span>
                 </Button>
               </div>
@@ -90,6 +94,10 @@ import { useToast } from 'vue-toastification';
 const props = defineProps({
   opsJob: Object,
   selectedItemIds: {
+    type: Array,
+    default: () => [],
+  },
+  selectedTaskIds: {
     type: Array,
     default: () => [],
   },
@@ -120,12 +128,14 @@ function submit() {
   form.value
     .transform((data) => ({
       item_ids: props.selectedItemIds,
+      task_ids: props.selectedTaskIds ?? [],
       delivered_by: data.delivered_by.id ?? data.delivered_by,
       date: data.date,
     }))
     .post('/ops-jobs/items/batch-update', {
       onSuccess: () => {
-        toast.success(`Successfully assigned ${props.selectedItemIds.length} job(s)`, {
+        const total = props.selectedItemIds.length + (props.selectedTaskIds?.length ?? 0)
+        toast.success(`Successfully assigned ${total} item(s)`, {
           timeout: 3000,
         });
         emit('statusUpdated');

@@ -322,6 +322,41 @@ let markers = []; // Array to store map markers
 let renderers = []; // Array to store all DirectionsRenderer instances
 
 onMounted(() => {
+  // Merge tasks into opsJobItems as synthetic entries so all existing
+  // map / routing functions work without modification.
+  // Tasks carry their own lat/lng (geocoded at creation) and we build
+  // a compatible customer.deliveryAddress structure.
+  if (Array.isArray(props.opsJob.data?.opsJobTasks)) {
+    const taskItems = props.opsJob.data.opsJobTasks
+      .filter(task => task.latitude && task.longitude)
+      .map(task => ({
+        id: task.id,
+        _isTask: true,
+        sequence: task.sequence,
+        delivery_postcode: task.postcode,
+        remarks: null,
+        status: 1, // treat as pending so renumber / routing picks them up
+        vend: { code: '[task] ' + task.task_name },
+        customer: {
+          id: null,
+          name: task.task_name,
+          ops_note: task.ops_note || null,
+          deliveryAddress: {
+            id: 'task_' + task.id,
+            latitude: task.latitude,
+            longitude: task.longitude,
+            full_address: task.address,
+            postcode: task.postcode,
+            map_url: null,
+          },
+        },
+      }))
+    opsJob.value.opsJobItems = [
+      ...(opsJob.value.opsJobItems || []),
+      ...taskItems,
+    ]
+  }
+
   originAddressOptions.value = [
     ...(Array.isArray(props.originAddresses?.data) ? props.originAddresses.data.map(address => ({
       id: address.id,
@@ -331,10 +366,12 @@ onMounted(() => {
       longitude: address.longitude,
       is_ops_job_item: false,
     })) : []),
-    ...(Array.isArray(props.opsJob.data?.opsJobItems) ? props.opsJob.data.opsJobItems.map(jobItem => ({
+    ...(Array.isArray(props.opsJob.data?.opsJobItems) ? props.opsJob.data.opsJobItems
+      .filter(jobItem => jobItem.customer?.deliveryAddress?.latitude && jobItem.customer?.deliveryAddress?.longitude)
+      .map(jobItem => ({
         id: jobItem.customer.deliveryAddress.id,
-        name: jobItem.vend.code,
-        full_address: (jobItem.vend.code ? '(' + jobItem.vend.code + ' - ' + jobItem.customer.name + ') ' : '') + jobItem.customer.deliveryAddress.full_address,
+        name: jobItem.vend?.code || jobItem.customer.name,
+        full_address: (jobItem.vend?.code ? '(' + jobItem.vend.code + ' - ' + jobItem.customer.name + ') ' : '(' + jobItem.customer.name + ') ') + jobItem.customer.deliveryAddress.full_address,
         latitude: jobItem.customer.deliveryAddress.latitude,
         longitude: jobItem.customer.deliveryAddress.longitude,
         is_ops_job_item: true,
@@ -373,8 +410,19 @@ const cleanOpsJobItems = opsJob.value.opsJobItems.map(item => {
   };
 });
 
+// Build a mergedOrder from generated_sequence for tasks and items combined
+const mergedOrder = opsJob.value.opsJobItems
+  .filter(item => !item.isOrigin && item.generated_sequence != null)
+  .sort((a, b) => a.generated_sequence - b.generated_sequence)
+  .map(item => ({
+    type: item._isTask ? 'task' : 'item',
+    id: item.id,
+    generated_sequence: item.generated_sequence,
+  }))
+
 axios.post('/ops-jobs/' + opsJob.value.id + '/sequence', {
-  opsJobItems: cleanOpsJobItems // Use cleanOpsJobItems
+  opsJobItems: cleanOpsJobItems, // kept for backward compat with saveSequence()
+  mergedOrder,
 })
 .then(response => {
   location.reload()
@@ -403,30 +451,19 @@ function getDefaultForm() {
 }
 
 function onRenumberItemsClicked() {
-  // Clean opsJobItems and ensure only serializable data is passed
-  const cleanOpsJobItems = opsJob.value.opsJobItems.map(item => ({
-    id: item.id,
-    sequence: item.sequence,
-    generated_sequence: item.generated_sequence,
-    customer: {
-      id: item.customer.id, // Only pass simple data
-      name: item.customer.name,
-      deliveryAddress: {
-        id: item.customer.deliveryAddress.id,
-        latitude: item.customer.deliveryAddress.latitude,
-        longitude: item.customer.deliveryAddress.longitude,
-        full_address: item.customer.deliveryAddress.full_address
-      }
-    },
-    vend: item.vend ? { code: item.vend.code } : null,
-    isOrigin: item.isOrigin,
-    isOpsJobItem: item.isOpsJobItem,
-  }));
+  // Build the unified ordered list (items + tasks) in current display order.
+  // Tasks were merged in as synthetic entries with _isTask flag.
+  const mergedOrder = opsJob.value.opsJobItems
+    .filter(item => !item.isOrigin) // exclude temporary origin markers
+    .map(item => ({
+      type: item._isTask ? 'task' : 'item',
+      id: item.id,
+    }))
 
   axios({
       method: 'POST',
       url: '/ops-jobs/' + opsJob.value.id + '/renumber',
-      data: {opsJobItems: cleanOpsJobItems},
+      data: { mergedOrder },
   }).then(response => {
       toast.success("Successfully Renumbered", {
         timeout: 3000
@@ -557,24 +594,34 @@ function addMarkers() {
         if (!isNaN(lat) && !isNaN(lng)) {
           const position = new google.maps.LatLng(lat, lng);
 
+          const isTask = !!jobItem._isTask;
           const marker = new google.maps.Marker({
             position,
             map,
             label: {
-              text: String(jobItem.vend.code), // Using custom sequence
+              text: String(jobItem.vend.code),
               color: "#000000",
               fontSize: "14px",
               fontWeight: "bold",
             },
           });
 
+          const infoWindowContent = isTask
+            ? `<div>
+                <span style="font-size:11px;color:#000000;font-weight:bold;">[task]</span><br>
+                <span style="font-weight:600;">${jobItem.customer?.name ?? ''}</span><br>
+                <p>${jobItem.customer.deliveryAddress.full_address || jobItem.customer.deliveryAddress.postcode}</p>
+                <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" style="color:#2563eb;font-weight:500;text-decoration:underline;">View on Google Maps</a>
+              </div>`
+            : `<div>
+                <span style="font-weight:bold;">${jobItem.vend ? jobItem.vend.code : ''}</span><br>
+                <span style="font-weight:500;">${jobItem.customer?.name ?? ''}</span><br>
+                <p>${jobItem.customer.deliveryAddress.full_address ? jobItem.customer.deliveryAddress.full_address : jobItem.customer.deliveryAddress.postcode}</p>
+                <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" style="color:#2563eb;font-weight:500;text-decoration:underline;">View on Google Maps</a>
+              </div>`;
+
           const infoWindow = new google.maps.InfoWindow({
-            content: `<div>
-              <span class="font-bold">${jobItem.vend ? jobItem.vend.code : ''}</span><br>
-              <span class="font-medium">${jobItem.customer?.name}</span><br>
-              <p>${jobItem.customer.deliveryAddress.full_address ? jobItem.customer.deliveryAddress.full_address : jobItem.customer.deliveryAddress.postcode}</p>
-              <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
-            </div>`,
+            content: infoWindowContent,
           });
 
           marker.addListener('click', () => {

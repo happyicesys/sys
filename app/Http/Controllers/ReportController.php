@@ -85,6 +85,10 @@ class ReportController extends Controller
         'is_binded_customer',
         'sale_count',
         'transaction_count',
+        'success_count',
+        'error_count',
+        'error_count_no_4_5',
+        'error_count_4_5',
         'amount_cents',
         'revenue_cents',
         'gross_profit_cents',
@@ -197,7 +201,7 @@ class ReportController extends Controller
             $items = new LengthAwarePaginator([], 0, $numberPerPage, 1, [
                 'path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(),
             ]);
-            $totals = ['total_count' => 0, 'total_amount' => 0.0, 'total_error_count' => 0, 'total_error_count_no_4_5' => 0, 'total_error_count_4_5' => 0];
+            $totals = ['total_count' => 0, 'total_amount' => 0.0, 'total_error_count' => 0, 'total_error_count_no_4_5' => 0, 'total_error_count_4_5' => 0, 'total_channel_availability' => 0];
         }
 
         return Inertia::render('Report/Sales/Index', [
@@ -1598,6 +1602,7 @@ class ReportController extends Controller
             if ($type === 'product') {
                 $data['Count (Error Exclude #4 and #5)'] = isset($item->error_count_no_4_5) ? (int) $item->error_count_no_4_5 : 0;
                 $data['Count (Error #4 and #5)'] = isset($item->error_count_4_5) ? (int) $item->error_count_4_5 : 0;
+                $data['Channel Availability'] = isset($item->channel_availability) ? (int) $item->channel_availability : null;
             }
 
             $data['Amount'] = $item->amount / 100;
@@ -1630,13 +1635,25 @@ class ReportController extends Controller
 
             switch ($className) {
                 case 'products':
+                    // Join pre-aggregated channel availability for the selected date range.
+                    // product_vend_channels stores one row per (product_id, date) with the
+                    // count of active channels at 00:08 that day.  We SUM across the range
+                    // so "Last Month" accumulates 30 daily snapshots per product.
+                    $pvcSub = DB::table('product_vend_channels')
+                        ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+                        ->selectRaw('product_id, SUM(channel_count) AS channel_availability')
+                        ->groupBy('product_id');
+
                     $transactionsQuery
+                        ->leftJoinSub($pvcSub, 'pvc', 'pvc.product_id', '=', 'gm.product_id')
                         ->selectRaw('gm.product_id as id')
                         ->selectRaw('MAX(products.code) as code')
                         ->selectRaw('MAX(products.name) as name')
                         ->selectRaw('SUM(gm.error_count) AS error_count')
                         ->selectRaw('SUM(gm.error_count_no_4_5) AS error_count_no_4_5')
-                        ->selectRaw('SUM(gm.error_count_4_5) AS error_count_4_5');
+                        ->selectRaw('SUM(gm.error_count_4_5) AS error_count_4_5')
+                        ->selectRaw('MAX(pvc.channel_availability) AS channel_availability');
+                    $countColumn = 'gm.sale_count - gm.error_count_4_5'; // Exclude error #4 and #5 from Count (Success Only)
                     $groupByExpr = 'gm.product_id';
                     break;
                 case 'categories':
@@ -3534,12 +3551,16 @@ class ReportController extends Controller
             $total_error_count_4_5 = $item->sum(function ($item) {
                 return isset($item->error_count_4_5) ? $item->error_count_4_5 : 0;
             });
+            $total_channel_availability = $item->sum(function ($item) {
+                return isset($item->channel_availability) ? (int)$item->channel_availability : 0;
+            });
             return [
                 'total_count' => $total_count,
                 'total_amount' => $total_amount,
                 'total_error_count' => $total_error_count,
                 'total_error_count_no_4_5' => $total_error_count_no_4_5,
                 'total_error_count_4_5' => $total_error_count_4_5,
+                'total_channel_availability' => $total_channel_availability,
             ];
         });
     }

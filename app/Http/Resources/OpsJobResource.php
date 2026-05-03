@@ -6,6 +6,7 @@ use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\OpsJobTaskResource;
 
 class OpsJobResource extends JsonResource
 {
@@ -53,7 +54,9 @@ class OpsJobResource extends JsonResource
             'deliveredBy' => UserResource::make($this->whenLoaded('deliveredBy')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'opsJobItems' => OpsJobItemResource::collection($this->whenLoaded('opsJobItems')),
+            'opsJobTasks' => OpsJobTaskResource::collection($this->whenLoaded('opsJobTasks')),
             'ops_job_items_count' => isset($this->ops_job_items_count) ? (int) $this->ops_job_items_count : 0,
+            'ops_job_tasks_count' => isset($this->ops_job_tasks_count) ? (int) $this->ops_job_tasks_count : 0,
             'ops_job_items_delivered_count' => isset($this->ops_job_items_delivered_count) ? (int) $this->ops_job_items_delivered_count : 0,
             'ops_job_items_delivered_count_percentage' => isset($this->ops_job_items_delivered_count_percentage) ? round($this->ops_job_items_delivered_count_percentage) : 0,
             'ops_job_items_picked_count' => isset($this->ops_job_items_picked_count) ? (int) $this->ops_job_items_picked_count : 0,

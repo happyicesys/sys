@@ -318,6 +318,9 @@
                     <TableHeadSort v-if="showProductErrorCol" modelName="error_count_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_4_5')">
                       Count (Error #4, #5)<br>Unlikely Stock Lost as Motor Not Turning
                     </TableHeadSort>
+                    <TableHeadSort v-if="showProductErrorCol" modelName="channel_availability" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('channel_availability')">
+                      Channel Availability<br><span class="font-normal text-xs">(Total active channels × days)</span>
+                    </TableHeadSort>
                     <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount')">
                       Amount
                     </TableHeadSort>
@@ -334,6 +337,9 @@
                     </TableData>
                     <TableData v-if="showProductErrorCol" inputClass="text-right font-semibold">
                       {{(totals['total_error_count_4_5'] ?? 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    </TableData>
+                    <TableData v-if="showProductErrorCol" inputClass="text-right font-semibold">
+                      {{(totals['total_channel_availability'] ?? 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                     </TableData>
                     <TableData inputClass="text-right font-semibold">
                       {{totals['total_amount'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
@@ -377,6 +383,12 @@
                       </TableData>
                       <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ (item.error_count_4_5 || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                      </TableData>
+                      <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
+                        <span v-if="item.channel_availability !== null && item.channel_availability !== undefined">
+                          {{ item.channel_availability.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                        </span>
+                        <span v-else class="text-gray-400 text-xs">—</span>
                       </TableData>
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}

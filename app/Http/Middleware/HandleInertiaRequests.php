@@ -90,6 +90,11 @@ class HandleInertiaRequests extends Middleware
             'smallLogoUrl' => $smallLogoUrl ?: $logoUrl,
             'defaultLogoUrl' => $defaultLogoUrl,
             'isCmsUrlSet' => !empty(env('CMS_URL')),
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error'   => fn () => $request->session()->get('error'),
+                'info'    => fn () => $request->session()->get('info'),
+            ],
         ]);
     }
 }

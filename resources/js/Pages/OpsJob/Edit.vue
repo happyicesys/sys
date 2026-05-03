@@ -111,7 +111,7 @@
                 </div>
               </div>
 
-              <div class="sm:col-span-1">
+              <div class="sm:col-span-1 flex space-x-2">
                 <Button
                 type="button"
                 @click="addOpsJobItem()"
@@ -179,19 +179,19 @@
 
                   <!-- Batch Assign Driver -->
                   <template v-if="permissions.includes('update operations') && opsJob.opsJobItems && opsJob.opsJobItems.some(item => item.status < 3)">
-                    <!-- Active: green when items selected -->
+                    <!-- Active: green when items/tasks selected -->
                     <Button
-                      v-if="batchMode && selectedItemIds.length > 0"
+                      v-if="batchMode && (selectedItemIds.length > 0 || selectedTaskIds.length > 0)"
                       type="button"
                       class="inline-flex space-x-1 items-center rounded-md bg-green-500 hover:bg-green-600 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm w-fit h-fit"
                       @click.prevent="onBatchAssignDriverClicked"
                     >
                       <UserGroupIcon class="h-4 w-4" aria-hidden="true" />
-                      <span>Batch Assign Driver ({{ selectedItemIds.length }})</span>
+                      <span>Batch Assign Driver ({{ selectedItemIds.length + selectedTaskIds.length }})</span>
                     </Button>
                     <!-- Batch mode on, none selected: show cancel hint -->
                     <Button
-                      v-else-if="batchMode && selectedItemIds.length === 0"
+                      v-else-if="batchMode && selectedItemIds.length === 0 && selectedTaskIds.length === 0"
                       type="button"
                       class="inline-flex space-x-1 items-center rounded-md bg-orange-400 hover:bg-orange-500 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm w-fit h-fit"
                       @click.prevent="onBatchAssignDriverClicked"
@@ -210,12 +210,23 @@
                       <span>Batch Assign Driver</span>
                     </Button>
                   </template>
+
+                  <!-- New Task -->
+                  <Button
+                    v-if="permissions.includes('update operations')"
+                    type="button"
+                    @click="openNewTaskModal()"
+                    class="inline-flex space-x-1 items-center rounded-md bg-violet-500 hover:bg-violet-600 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm w-fit h-fit"
+                  >
+                    <PlusCircleIcon class="h-4 w-4" aria-hidden="true" />
+                    <span>New Task</span>
+                  </Button>
                 </div>
                 <div class="flex flex-col space-y-1">
                   <span class="text-gray-500">
                     Total of
                     <span class="text-gray-800">
-                      {{ opsJob.opsJobItems ? opsJob.opsJobItems.length : 0 }}
+                      {{ (opsJob.opsJobItems ? opsJob.opsJobItems.length : 0) + (opsJob.opsJobTasks ? opsJob.opsJobTasks.length : 0) }}
                     </span>
                     Job(s)
                   </span>
@@ -354,55 +365,148 @@
 
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob.opsJobItems" :key="opsJobItem.id" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <!-- ── Task rows ────────────────────────────────────── -->
+                        <template v-for="(row, rowIndex) in mergedRows" :key="row._key">
+                        <tr v-if="row._isTask" :class="rowIndex % 2 === 0 ? 'bg-violet-50' : 'bg-violet-100'">
+                          <!-- Sequence -->
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            <!-- {{ opsJobItemIndex + 1 }} -->
+                            <div class="flex items-center justify-center">
+                              <input
+                                type="text"
+                                class="shadow-sm focus:ring-violet-500 focus:border-violet-500 block w-fit text-sm border-violet-300 rounded-md max-w-14 text-center"
+                                v-model.lazy="row.sequence"
+                                @change="onSequenceChange(row)"
+                              />
+                            </div>
+                          </td>
+                          <!-- Task name / badge -->
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            <div class="flex flex-col space-y-2 max-w-24">
+                              <span class="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold bg-violet-600 text-white w-fit mx-auto">TASK</span>
+                              <span class="text-violet-800 font-semibold break-words">{{ row.task_name }}</span>
+                              <a
+                                v-if="row.ref_url"
+                                :href="row.ref_url"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center justify-center gap-1 text-xs text-blue-600 hover:text-blue-800 underline break-all"
+                              >
+                                <LinkIcon class="h-3 w-3 flex-shrink-0" />
+                                <span>Link</span>
+                              </a>
+                            </div>
+                          </td>
+                          <!-- Created at / postcode / ops note -->
+                          <td class="whitespace py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            <div class="flex flex-col space-y-1 max-w-40">
+                              <span v-if="row.created_at" class="text-xs font-medium text-gray-600">
+                                {{ row.created_at }}
+                                <span v-if="row.created_by_name">({{ row.created_by_name }})</span>
+                              </span>
+                              <span class="text-xs text-gray-500">{{ row.postcode }}</span>
+                              <span class="text-left font-medium bg-gray-200 py-1 px-1 rounded" v-if="row.ops_note">
+                                {{ row.ops_note }}
+                              </span>
+                            </div>
+                          </td>
+                          <!-- Value -->
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
+                            <div class="flex flex-col space-y-2 text-center" v-if="row.value || row.qty != null">
+                              <span class="text-indigo-800">
+                                <div class="flex space-x-1 px-5 justify-center">
+                                  <span>
+                                    {{ operatorCountry.currency_symbol }}{{ parseFloat(row.value || 0).toLocaleString(undefined, { minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent, maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent }) }} <br>
+                                    ({{ row.qty ?? 0 }})
+                                  </span>
+                                </div>
+                              </span>
+                            </div>
+                            <span v-else class="text-gray-400">—</span>
+                          </td>
+                          <!-- Cash collected — N/A for tasks -->
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm text-center text-gray-400">—</td>
+                          <!-- Address -->
+                          <td class="whitespace-pre-line py-4 px-1 text-sm text-left">
+                            <div class="flex flex-col space-y-1 break-words max-w-32 md:max-w-52">
+                              <span>{{ row.address }}</span>
+                            </div>
+                          </td>
+                          <!-- Action -->
+                          <td class="whitespace-nowrap py-4 px-1 text-sm text-center">
+                            <template v-if="batchMode && permissions.includes('update operations')">
+                              <input
+                                type="checkbox"
+                                class="h-5 w-5 rounded border-violet-300 text-violet-600 cursor-pointer accent-violet-500"
+                                :value="row.id"
+                                v-model="selectedTaskIds"
+                              />
+                            </template>
+                            <template v-else>
+                              <div class="flex flex-col space-y-1 items-center" v-if="permissions.includes('update operations')">
+                                <Button
+                                  class="bg-blue-500 hover:bg-blue-600 text-white"
+                                  @click.prevent="onTaskDriverClicked(row)"
+                                >
+                                  <div class="flex space-x-2 items-center">
+                                    <ArrowsRightLeftIcon class="h-3 w-3" />
+                                    <span>Driver</span>
+                                  </div>
+                                </Button>
+                                <Button
+                                  class="bg-violet-500 hover:bg-violet-600 text-white"
+                                  @click.prevent="openEditTaskModal(row)"
+                                >
+                                  <div class="flex space-x-2 items-center">
+                                    <PencilSquareIcon class="h-3 w-3" />
+                                    <span>Edit</span>
+                                  </div>
+                                </Button>
+                              </div>
+                            </template>
+                          </td>
+                        </tr>
+                        <!-- ── Regular item rows ───────────────────────────── -->
+                        <tr v-else :class="rowIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             <div class="flex items-center justify-center">
                               <input
                                 type="text"
                                 class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md max-w-14 text-center"
-                                v-model="opsJobItem.sequence"
-                                :disabled="opsJobItem.status >= 3"
-                                @input="updateSequence(opsJobItem)"
+                                v-model.lazy="row.sequence"
+                                :disabled="row.status >= 3"
+                                @change="onSequenceChange(row)"
                                 />
                             </div>
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <div class="flex flex-col space-y-2 max-w-24">
-                              <Link :href="'/vends/customers?codes=' + opsJobItem.vend.code" class="text-blue-700" v-if="opsJobItem && opsJobItem.vend">
+                              <Link :href="'/vends/customers?codes=' + row.vend.code" class="text-blue-700" v-if="row && row.vend">
                                 <span>
-                                  {{ opsJobItem.vend.code }}
+                                  {{ row.vend.code }}
                                 </span>
                               </Link>
                               <span>
-                                {{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }}
+                                {{ row.vend && row.vend.vendPrefix ? row.vend.vendPrefix.name : '' }}
                               </span>
-                              <span class="flex flex-col text-xs font-medium whitespace-normal break-words max-w-24 mt-1" v-if="opsJobItem.vend && opsJobItem.vend.productMapping">
-                                <span class="text-gray-500">{{ opsJobItem.vend.productMapping.name }}</span>
-                                <span class="flex items-center justify-center gap-1 mt-0.5" v-if="opsJobItem.vend.upcomingProductMapping || (opsJobItem.vend.productMapping && opsJobItem.vend.productMapping.upcomingProductMapping)">
+                              <span class="flex flex-col text-xs font-medium whitespace-normal break-words max-w-24 mt-1" v-if="row.vend && row.vend.productMapping">
+                                <span class="text-gray-500">{{ row.vend.productMapping.name }}</span>
+                                <span class="flex items-center justify-center gap-1 mt-0.5" v-if="row.vend.upcomingProductMapping || (row.vend.productMapping && row.vend.productMapping.upcomingProductMapping)">
                                   <span class="bg-purple-100 text-purple-700 text-xs font-medium px-1.5 py-0.5 rounded">New</span>
-                                  <span class="text-red-500 text-xs font-medium">{{ (opsJobItem.vend.upcomingProductMapping || opsJobItem.vend.productMapping.upcomingProductMapping).name }}</span>
+                                  <span class="text-red-500 text-xs font-medium">{{ (row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).name }}</span>
                                 </span>
                               </span>
                               <div>
-                                <!-- <Button
-                                  class="bg-indigo-400 hover:bg-indigo-500 text-white text-xs font-medium"
-                                  @click.prevent="onChannelClicked(opsJobItem)"
-                                  v-if="permissions.includes('update operations')"
-                                >
-                                  {{ opsJobItem.ref_id }}
-                                </Button> -->
-                                <Link :href="'/ops-jobs/items/' + opsJobItem.id + '/edit'">
+                                <Link :href="'/ops-jobs/items/' + row.id + '/edit'">
                                   <Button
                                     class="bg-indigo-400 hover:bg-indigo-500 text-white text-xs font-medium"
                                     v-if="permissions.includes('update operations')"
                                   >
-                                    {{ opsJobItem.ref_id }}
+                                    {{ row.ref_id }}
                                   </Button>
                                 </Link>
                               </div>
                               <div class="text-left text-red-800">
-                                {{ opsJobItem.remarks }}
+                                {{ row.remarks }}
                               </div>
                             </div>
                           </td>
@@ -412,61 +516,61 @@
                                 <div class="flex space-x-1">
                                   <div
                                       class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
-                                      :class="statusClass(opsJobItem.status)"
+                                      :class="statusClass(row.status)"
                                   >
                                       <div class="flex flex-col">
                                           <span class="font-semibold grow-0">
-                                            {{ opsJobItem.status_name }}
+                                            {{ row.status_name }}
                                           </span>
                                       </div>
                                   </div>
                                   <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 h-fit"
-                                  :class="[opsJobItem.attachments && opsJobItem.attachments.length ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
-                                  v-if="opsJobItem.status >= 3"
+                                  :class="[row.attachments && row.attachments.length ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
+                                  v-if="row.status >= 3"
                                   >
                                     <PaperClipIcon class="w-4 h-4"></PaperClipIcon>
                                   </span>
                                 </div>
                                 <div
                                     class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-bold border w-fit"
-                                    :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700' : opsJobItem.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700'"
-                                    v-if="opsJobItem.stock_action_type"
+                                    :class="row.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700' : row.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700'"
+                                    v-if="row.stock_action_type"
                                 >
-                                    {{ opsJobItem.stock_action_type == 'implement_new_mapping' ? 'Implement New Mapping' : opsJobItem.stock_action_type == 'return_stock' ? 'Return Stock' : 'Onsite Adjustment' }}
+                                    {{ row.stock_action_type == 'implement_new_mapping' ? 'Implement New Mapping' : row.stock_action_type == 'return_stock' ? 'Return Stock' : 'Onsite Adjustment' }}
                                 </div>
-                                <span v-if="opsJobItem.status_at" class="text-xs font-medium text-gray-600">
-                                  {{ opsJobItem.status_at }}
-                                  <span v-if="opsJobItem.statusBy">
-                                    ({{ opsJobItem.statusBy.name }})
+                                <span v-if="row.status_at" class="text-xs font-medium text-gray-600">
+                                  {{ row.status_at }}
+                                  <span v-if="row.statusBy">
+                                    ({{ row.statusBy.name }})
                                   </span>
                                 </span>
                               </div>
                               <div
                                   class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
-                                  :class="opsJobItemChannelErrorCheck(opsJobItem) == 2 ? 'bg-red-500 text-white' : (opsJobItemChannelErrorCheck(opsJobItem) == 1 ? 'bg-green-500 text-white' : '')"
-                                  v-if="opsJobItem.status >= 3"
+                                  :class="opsJobItemChannelErrorCheck(row) == 2 ? 'bg-red-500 text-white' : (opsJobItemChannelErrorCheck(row) == 1 ? 'bg-green-500 text-white' : '')"
+                                  v-if="row.status >= 3"
                               >
                                   <div class="flex flex-col">
                                       <span class="font-semibold grow-0">
-                                        {{ opsJobItemChannelErrorCheck(opsJobItem) == 2 ? 'Not tally havent fixed' : (opsJobItemChannelErrorCheck(opsJobItem) == 1 ? 'Not tally fixed' : 'All tally') }}
+                                        {{ opsJobItemChannelErrorCheck(row) == 2 ? 'Not tally havent fixed' : (opsJobItemChannelErrorCheck(row) == 1 ? 'Not tally fixed' : 'All tally') }}
                                       </span>
                                   </div>
                               </div>
                               <span>
-                                <span v-if="opsJobItem.customer && opsJobItem.customer.person_id">
-                                    {{ opsJobItem.customer.virtual_customer_code }} ({{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }})
+                                <span v-if="row.customer && row.customer.person_id">
+                                    {{ row.customer.virtual_customer_code }} ({{ row.vend && row.vend.vendPrefix ? row.vend.vendPrefix.name : '' }})
                                     <br>
-                                    {{ opsJobItem.customer.name }}
+                                    {{ row.customer.name }}
                                 </span>
                                 <span v-else>
-                                  <span v-if="opsJobItem.customer && opsJobItem.customer.code">
-                                    {{ opsJobItem.customer.code }} <br>
+                                  <span v-if="row.customer && row.customer.code">
+                                    {{ row.customer.code }} <br>
                                   </span>
-                                  {{ opsJobItem.customer && opsJobItem.customer.name ? opsJobItem.customer.name : ''}}
+                                  {{ row.customer && row.customer.name ? row.customer.name : ''}}
                                 </span>
                               </span>
                               <span>
-                                <a :href="cmsBaseUrl + '/transaction/' + opsJobItem.cms_transaction_id + '/edit'" v-if="opsJobItem.cms_transaction_id">
+                                <a :href="cmsBaseUrl + '/transaction/' + row.cms_transaction_id + '/edit'" v-if="row.cms_transaction_id">
                                   <div
                                       class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs bg-indigo-100 text-indigo-800"
                                   >
@@ -478,23 +582,23 @@
                                   </div>
                                 </a>
                               </span>
-                              <span v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress">
+                              <span v-if="row.customer && row.customer.deliveryAddress">
                                 <div class="flex space-x-2 items-center font-medium text-xs">
-                                  <span class="flex space-x-1 items-center" v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress">
+                                  <span class="flex space-x-1 items-center" v-if="row.customer && row.customer.deliveryAddress">
                                     <span>
                                       <Button
                                       type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
-                                      @click="onMapMarkerClicked(opsJobItem)"
-                                      v-if="opsJobItem.customer.deliveryAddress && opsJobItem.customer.deliveryAddress.latitude && opsJobItem.customer.deliveryAddress.longitude"
+                                      @click="onMapMarkerClicked(row)"
+                                      v-if="row.customer.deliveryAddress && row.customer.deliveryAddress.latitude && row.customer.deliveryAddress.longitude"
                                       >
                                         <MapPinIcon class="h-3 w-3" aria-hidden="true"/>
                                       </Button>
                                     </span>
                                     <a
-                                      :href="opsJobItem.customer && opsJobItem.customer.deliveryAddress && opsJobItem.customer.deliveryAddress.map_url
-                                        ? opsJobItem.customer.deliveryAddress.map_url
-                                        : (opsJobItem.customer.deliveryAddress.latitude && opsJobItem.customer.deliveryAddress.longitude
-                                          ? 'https://www.google.com/maps/search/?api=1&query=' + opsJobItem.customer.deliveryAddress.latitude + ',' + opsJobItem.customer.deliveryAddress.longitude
+                                      :href="row.customer && row.customer.deliveryAddress && row.customer.deliveryAddress.map_url
+                                        ? row.customer.deliveryAddress.map_url
+                                        : (row.customer.deliveryAddress.latitude && row.customer.deliveryAddress.longitude
+                                          ? 'https://www.google.com/maps/search/?api=1&query=' + row.customer.deliveryAddress.latitude + ',' + row.customer.deliveryAddress.longitude
                                           : '')"
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -505,124 +609,101 @@
                                     </a>
                                   </span>
                                   <span>
-                                    <!-- {{ opsJobItem.customer.deliveryAddress.postcode }} -->
-                                    {{ opsJobItem.delivery_postcode }}
+                                    {{ row.delivery_postcode }}
                                   </span>
                                 </div>
                               </span>
                               <span class="text-left font-medium bg-gray-200 py-1 px-1 rounded">
-                                {{ opsJobItem.customer ? opsJobItem.customer.ops_note : '' }}
+                                {{ row.customer ? row.customer.ops_note : '' }}
                               </span>
                             </div>
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
                             <div class="flex flex-col space-y-2 text-center">
-                              <span class="text-indigo-800" v-if="opsJobItem.refillable_amount !== null">
+                              <span class="text-indigo-800" v-if="row.refillable_amount !== null">
                                 <div class="flex space-x-1 px-5 justify-center">
                                   <span>
-                                    {{ operatorCountry.currency_symbol }}{{ opsJobItem.refillable_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
-                                  ({{ opsJobItem.refillable_count }})
+                                    {{ operatorCountry.currency_symbol }}{{ row.refillable_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                  ({{ row.refillable_count }})
                                   </span>
                                 </div>
                               </span>
-                              <div class="flex space-x-1 px-5 justify-center" v-if="opsJobItem.status >= 2">
-                                <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">P</span> -->
+                              <div class="flex space-x-1 px-5 justify-center" v-if="row.status >= 2">
                                 <span>
-                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
-                                  ({{ opsJobItem.picked_count }})
+                                  {{ operatorCountry.currency_symbol }}{{ row.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                  ({{ row.picked_count }})
                                 </span>
                               </div>
-                              <span :class="[opsJobItem.stock_in_amount == opsJobItem.picked_amount ? 'text-green-600' : (opsJobItem.stock_in_amount < opsJobItem.picked_amount ? 'text-red-600' : 'text-blue-600')]" v-if="opsJobItem.status >= 3">
+                              <span :class="[row.stock_in_amount == row.picked_amount ? 'text-green-600' : (row.stock_in_amount < row.picked_amount ? 'text-red-600' : 'text-blue-600')]" v-if="row.status >= 3">
                                 <div class="flex space-x-1 px-5 justify-center">
-                                  <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">SI</span> -->
                                 <span>
-                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
-                                ({{ opsJobItem.stock_in_count }})
+                                  {{ operatorCountry.currency_symbol }}{{ row.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                ({{ row.stock_in_count }})
                                 </span>
                                 </div>
                               </span>
-                              <span v-if="opsJobItem.status >= 3">
+                              <span v-if="row.status >= 3">
                                 <div class="flex space-x-1 px-5 justify-center">
-                                  <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">SO</span> -->
                                   <span>
-                                    {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
-                                  ({{ opsJobItem.acc_vend_transactions_count }})
+                                    {{ operatorCountry.currency_symbol }}{{ row.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                  ({{ row.acc_vend_transactions_count }})
                                   </span>
                                 </div>
                               </span>
                             </div>
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
-                            <div class="flex flex-col space-y-2 text-center" v-if="opsJobItem.status >= 3">
+                            <div class="flex flex-col space-y-2 text-center" v-if="row.status >= 3">
                               <div class="flex space-x-2 px-6 justify-center">
-                                <!-- <span class="text-blue-600 flex items-center">
-                                  $
-                                  <ArrowLeftEndOnRectangleIcon class="w-4 h-4 text-blue-600">
-                                  </ArrowLeftEndOnRectangleIcon>
-                                </span> -->
                                 <span>
-                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.cash_amount !== null ? opsJobItem.cash_amount.toLocaleString(undefined, { minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent, maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent }) : 0 }}
-                                  <!-- {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount.toLocaleString(undefined, { minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent, maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent }) }} -->
+                                  {{ operatorCountry.currency_symbol }}{{ row.cash_amount !== null ? row.cash_amount.toLocaleString(undefined, { minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent, maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent }) : 0 }}
                                 </span>
                               </div>
                               <span>
                                 <div class="flex space-x-2 px-6 justify-center">
-                                  <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$VMC</span> -->
-                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                  {{ operatorCountry.currency_symbol }}{{ row.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </div>
                               </span>
-                              <span :class="[opsJobItem.delta_cash_amount == 0 ? 'text-green-600' : (opsJobItem.delta_cash_amount < 0 ? 'text-red-600' : 'text-blue-600')]">
+                              <span :class="[row.delta_cash_amount == 0 ? 'text-green-600' : (row.delta_cash_amount < 0 ? 'text-red-600' : 'text-blue-600')]">
                                 <div class="flex space-x-2 px-6 justify-center">
-                                  <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$Adj</span> -->
-                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                  {{ operatorCountry.currency_symbol }}{{ row.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </div>
                               </span>
-
-                              <span :class="[opsJobItem.acc_vend_transactions_cash_amount == opsJobItem.cash_amount ? 'text-green-600' : 'text-red-600']">
+                              <span :class="[row.acc_vend_transactions_cash_amount == row.cash_amount ? 'text-green-600' : 'text-red-600']">
                                 <div class="flex space-x-2 px-6 justify-center">
-                                  <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$Adj</span> -->
-                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                  {{ operatorCountry.currency_symbol }}{{ row.acc_vend_transactions_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </div>
                               </span>
                             </div>
                           </td>
                           <td class="whitespace-pre-line py-4 px-1 text-sm text-left">
-                            <div class="flex flex-col space-y-2 break-words max-w-32 md:max-w-52" v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress">
+                            <div class="flex flex-col space-y-2 break-words max-w-32 md:max-w-52" v-if="row.customer && row.customer.deliveryAddress">
                               <span>
-                                <a :href="opsJobItem.customer.deliveryAddress.map_url" v-if="opsJobItem.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank">
-                                  {{ opsJobItem.customer.deliveryAddress.full_address }}
+                                <a :href="row.customer.deliveryAddress.map_url" v-if="row.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank">
+                                  {{ row.customer.deliveryAddress.full_address }}
                                 </a>
                                 <span v-else>
-                                  {{ opsJobItem.customer.deliveryAddress.full_address }}
+                                  {{ row.customer.deliveryAddress.full_address }}
                                 </span>
                               </span>
-                              <span v-if="!opsJobItem.customer.deliveryAddress.full_address">
-                                <a :href="opsJobItem.customer.deliveryAddress.map_url" v-if="opsJobItem.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank">
-                                  {{ opsJobItem.customer.deliveryAddress.postcode }}
+                              <span v-if="!row.customer.deliveryAddress.full_address">
+                                <a :href="row.customer.deliveryAddress.map_url" v-if="row.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank">
+                                  {{ row.customer.deliveryAddress.postcode }}
                                 </a>
                                 <span v-else>
-                                  {{ opsJobItem.customer.deliveryAddress.postcode }}
+                                  {{ row.customer.deliveryAddress.postcode }}
                                 </span>
                               </span>
-                              <!-- <span>
-                                <Button
-                                type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-2 text-xs text-sky-800 flex space-x-1 w-fit"
-                                @click="onMapMarkerClicked(opsJobItem)"
-                                v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress && opsJobItem.customer.deliveryAddress.latitude && opsJobItem.customer.deliveryAddress.longitude"
-                                >
-                                  <MapPinIcon class="h-4 w-4" aria-hidden="true"/>
-                                </Button>
-                              </span> -->
                             </div>
                           </td>
                           <td class="whitespace-nowrap py-4 px-1 text-sm text-center">
                             <!-- Batch mode: show checkbox for eligible items -->
                             <template v-if="batchMode && permissions.includes('update operations')">
                               <input
-                                v-if="opsJobItem.status < 3"
+                                v-if="row.status < 3"
                                 type="checkbox"
                                 class="h-5 w-5 rounded border-gray-300 text-green-600 cursor-pointer accent-green-500"
-                                :value="opsJobItem.id"
+                                :value="row.id"
                                 v-model="selectedItemIds"
                               />
                               <span v-else class="text-xs text-gray-400">—</span>
@@ -631,10 +712,10 @@
                             <template v-else>
                               <Button
                                 class="bg-blue-500 hover:bg-blue-600 text-white"
-                                :class="[opsJobItem.status >= 3 ? 'opacity-50 cursor-not-allowed' : '']"
-                                @click.prevent="onChangeDriverClicked(opsJobItem)"
-                                v-if="permissions.includes('update operations') && opsJobItem.status < 3"
-                                :disabled="opsJobItem.status >= 3"
+                                :class="[row.status >= 3 ? 'opacity-50 cursor-not-allowed' : '']"
+                                @click.prevent="onChangeDriverClicked(row)"
+                                v-if="permissions.includes('update operations') && row.status < 3"
+                                :disabled="row.status >= 3"
                               >
                                 <div class="flex space-x-2 items-center">
                                   <ArrowsRightLeftIcon class="h-3 w-3"></ArrowsRightLeftIcon>
@@ -644,7 +725,8 @@
                             </template>
                           </td>
                         </tr>
-                        <tr v-if="!opsJob.opsJobItems || !opsJob.opsJobItems.length">
+                        </template><!-- end mergedRows v-for -->
+                        <tr v-if="!mergedRows.length">
                           <td colspan="11" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
                             No Records Found
                           </td>
@@ -739,6 +821,7 @@
     v-if="showBatchChangeDriverModal"
     :opsJob="opsJob"
     :selectedItemIds="selectedItemIds"
+    :selectedTaskIds="selectedTaskIds"
     :showModal="showBatchChangeDriverModal"
     :userOptions="userOptions"
     @modalClose="onBatchChangeDriverModalClosed"
@@ -765,6 +848,166 @@
   >
   </PickList>
 
+  <!-- ── Task Create / Edit Modal ─────────────────────────── -->
+  <Teleport to="body">
+    <Modal :open="showTaskModal" @modalClose="closeTaskModal">
+      <template #header>
+        <span class="text-base font-semibold">{{ editingTask ? 'Edit Task' : 'New Task' }}</span>
+      </template>
+      <template #default>
+        <form @submit.prevent="submitTask">
+          <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
+
+            <!-- Sequence (optional) -->
+            <div class="sm:col-span-6">
+              <label class="flex justify-start text-sm font-medium text-gray-700">
+                Sequence <span class="text-gray-400 ml-1 text-xs">(optional)</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                v-model="taskForm.sequence"
+                class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
+                placeholder="Leave blank to append"
+              />
+            </div>
+
+            <!-- Task Name -->
+            <div class="sm:col-span-6">
+              <label class="flex justify-start text-sm font-medium text-gray-700">
+                Task Name <span class="text-red-500 ml-0.5">*</span>
+              </label>
+              <input
+                type="text"
+                v-model="taskForm.task_name"
+                class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
+                :class="taskFormErrors.task_name ? 'border-red-400' : ''"
+                placeholder="e.g. Collect key from security"
+              />
+              <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.task_name">{{ taskFormErrors.task_name }}</p>
+            </div>
+
+            <!-- Postcode + Address (same row) -->
+            <div class="sm:col-span-2">
+              <label class="flex justify-start text-sm font-medium text-gray-700">
+                Postcode <span class="text-red-500 ml-0.5">*</span>
+              </label>
+              <input
+                type="text"
+                v-model="taskForm.postcode"
+                maxlength="6"
+                class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
+                :class="taskFormErrors.postcode ? 'border-red-400' : ''"
+                placeholder="6-digit postcode"
+              />
+              <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.postcode">{{ taskFormErrors.postcode }}</p>
+            </div>
+
+            <div class="sm:col-span-4">
+              <label class="flex justify-start text-sm font-medium text-gray-700">
+                Address <span class="text-red-500 ml-0.5">*</span>
+              </label>
+              <input
+                type="text"
+                v-model="taskForm.address"
+                class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
+                :class="taskFormErrors.address ? 'border-red-400' : ''"
+                placeholder="Full address"
+              />
+              <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.address">{{ taskFormErrors.address }}</p>
+            </div>
+
+            <!-- Amount + Qty (same row) -->
+            <div class="sm:col-span-3">
+              <label class="flex justify-start text-sm font-medium text-gray-700">
+                Amount <span class="text-gray-400 ml-1 text-xs">(optional)</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                v-model="taskForm.value"
+                class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
+                :class="taskFormErrors.value ? 'border-red-400' : ''"
+                placeholder="0.00"
+              />
+              <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.value">{{ taskFormErrors.value }}</p>
+            </div>
+
+            <div class="sm:col-span-3">
+              <label class="flex justify-start text-sm font-medium text-gray-700">
+                Qty <span class="text-gray-400 ml-1 text-xs">(optional)</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                v-model="taskForm.qty"
+                class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
+                :class="taskFormErrors.qty ? 'border-red-400' : ''"
+                placeholder="e.g. 5"
+              />
+              <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.qty">{{ taskFormErrors.qty }}</p>
+            </div>
+
+            <!-- Ops Note -->
+            <div class="sm:col-span-6">
+              <label class="flex justify-start text-sm font-medium text-gray-700">
+                Ops Note <span class="text-gray-400 ml-1 text-xs">(optional)</span>
+              </label>
+              <textarea
+                rows="2"
+                v-model="taskForm.ops_note"
+                class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
+                placeholder="Any special instructions..."
+              ></textarea>
+            </div>
+
+            <!-- Ref URL -->
+            <div class="sm:col-span-6">
+              <label class="flex justify-start text-sm font-medium text-gray-700">
+                Ref URL <span class="text-gray-400 ml-1 text-xs">(optional)</span>
+              </label>
+              <input
+                type="text"
+                v-model="taskForm.ref_url"
+                class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
+                :class="taskFormErrors.ref_url ? 'border-red-400' : ''"
+                placeholder="https:// or www."
+              />
+              <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.ref_url">{{ taskFormErrors.ref_url }}</p>
+            </div>
+
+            <!-- Submit / Delete row -->
+            <div class="sm:col-span-6 flex justify-between pt-2">
+              <Button
+                v-if="editingTask"
+                type="button"
+                class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                :class="taskFormProcessing ? 'opacity-50 cursor-not-allowed' : ''"
+                :disabled="taskFormProcessing"
+                @click.prevent="deleteTask(editingTask)"
+              >
+                <TrashIcon class="w-4 h-4" />
+                <span>Delete</span>
+              </Button>
+              <div v-else />
+              <Button
+                type="submit"
+                class="bg-violet-500 hover:bg-violet-600 text-white flex space-x-1"
+                :class="taskFormProcessing ? 'opacity-50 cursor-not-allowed' : ''"
+                :disabled="taskFormProcessing"
+              >
+                <CheckCircleIcon class="w-4 h-4" />
+                <span>{{ editingTask ? 'Update Task' : 'Create Task' }}</span>
+              </Button>
+            </div>
+          </div>
+        </form>
+      </template>
+    </Modal>
+  </Teleport>
+
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -772,6 +1015,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import BatchChangeDriver from '@/Pages/OpsJob/BatchChangeDriver.vue';
+import Modal from '@/Components/Modal.vue';
 import Channel from '@/Pages/OpsJob/Channel.vue';
 import ChangeDriver from '@/Pages/OpsJob/ChangeDriver.vue';
 import MapMarker from '@/Components/MapMarker.vue';
@@ -780,8 +1024,8 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, CheckCircleIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlayIcon, PlusCircleIcon, TrashIcon, UserGroupIcon, XMarkIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue'
+import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, CheckCircleIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, LinkIcon, MapIcon, MapPinIcon, PaperClipIcon, PencilSquareIcon, PlayIcon, PlusCircleIcon, TrashIcon, UserGroupIcon, XMarkIcon } from '@heroicons/vue/20/solid';
+import { ref, computed, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
@@ -820,7 +1064,22 @@ const permissions = usePage().props.auth.permissions
 const pickLists = ref([])
 const pickListType = ref(1)
 const selectedItemIds = ref([])
+const selectedTaskIds = ref([])
 const showBatchChangeDriverModal = ref(false)
+const showTaskModal = ref(false)
+const editingTask = ref(null)
+const taskFormProcessing = ref(false)
+const taskFormErrors = ref({})
+const taskForm = ref({
+  sequence: '',
+  task_name: '',
+  address: '',
+  postcode: '',
+  ops_note: '',
+  ref_url: '',
+  value: '',
+  qty: '',
+})
 const showChannelModal = ref(false)
 const showChangeDriverModal = ref(false)
 const showMapMarkerModal = ref(false)
@@ -841,6 +1100,31 @@ onMounted(() => {
   userOptions.value = [
     ...props.userOptions.data.map((data) => {return {id: data.id, value: data.name + (data.roles && data.roles.length > 0 ? ' (' + data.roles[0].name + ')' : '')}})
   ]
+})
+
+// ----------------------------------------------------------------
+// Merged and sorted list of job items + tasks for the table display.
+// We annotate the original reactive objects (not copies) so that
+// v-model on sequence works correctly against the reactive source.
+// ----------------------------------------------------------------
+const mergedRows = computed(() => {
+  const items = (opsJob.value.opsJobItems || []).map(item => {
+    item._isTask = false
+    item._key = 'item_' + item.id
+    return item
+  })
+  const tasks = (opsJob.value.opsJobTasks || []).map(task => {
+    task._isTask = true
+    task._key = 'task_' + task.id
+    return task
+  })
+  return [...items, ...tasks].sort((a, b) => {
+    const seqA = (a.sequence != null) ? a.sequence : Infinity
+    const seqB = (b.sequence != null) ? b.sequence : Infinity
+    if (seqA !== seqB) return seqA - seqB
+    // Stable sort: items before tasks for same sequence
+    return a._isTask ? 1 : -1
+  })
 })
 
 function getDefaultForm() {
@@ -968,12 +1252,20 @@ function onChangeDriverModalClosed() {
   showChangeDriverModal.value = false
 }
 
+function onTaskDriverClicked(task) {
+  // Open the batch change driver modal with just this task pre-selected
+  selectedItemIds.value = []
+  selectedTaskIds.value = [task.id]
+  showBatchChangeDriverModal.value = true
+}
+
 function onBatchAssignDriverClicked() {
   if (!batchMode.value) {
     // Enter batch mode
     batchMode.value = true
     selectedItemIds.value = []
-  } else if (selectedItemIds.value.length === 0) {
+    selectedTaskIds.value = []
+  } else if (selectedItemIds.value.length === 0 && selectedTaskIds.value.length === 0) {
     // Exit batch mode if nothing selected yet (acts as Cancel)
     batchMode.value = false
   } else {
@@ -990,6 +1282,7 @@ function onBatchAssignSuccess() {
   // Reset batch state then reload
   batchMode.value = false
   selectedItemIds.value = []
+  selectedTaskIds.value = []
   statusUpdated()
 }
 
@@ -1094,10 +1387,15 @@ function onPickListModalClose() {
 
 function onRenumberItemsClicked() {
   form.value.clearErrors()
+  // Build the unified ordered list in current display sequence
+  const mergedOrder = mergedRows.value.map(row => ({
+    type: row._isTask ? 'task' : 'item',
+    id: row.id,
+  }))
   form.value
     .transform((data) => ({
       ...data,
-      opsJobItems: opsJob.value.opsJobItems,
+      mergedOrder,
     }))
     .post('/ops-jobs/' + opsJob.value.id + '/renumber', {
     onSuccess: () => {
@@ -1211,6 +1509,16 @@ function statusUpdated() {
   })
 }
 
+// Fires once when the user commits the sequence field (blur / Tab / Enter)
+// v-model.lazy ensures row.sequence is already updated before this runs
+function onSequenceChange(row) {
+  if (row._isTask) {
+    updateTaskSequence(row)
+  } else {
+    updateSequence(row)
+  }
+}
+
 function updateSequence(opsJobItem) {
   form.value.clearErrors()
   form.value
@@ -1243,6 +1551,137 @@ function updateRemarks(opsJobData) {
   })
 }
 
+// ----------------------------------------------------------------
+// Task modal functions
+// ----------------------------------------------------------------
+function openNewTaskModal() {
+  editingTask.value = null
+  taskForm.value = {
+    sequence: '',
+    task_name: '',
+    address: '',
+    postcode: '',
+    ops_note: '',
+    ref_url: '',
+    value: '',
+    qty: '',
+  }
+  taskFormErrors.value = {}
+  showTaskModal.value = true
+}
 
+function openEditTaskModal(task) {
+  editingTask.value = task
+  taskForm.value = {
+    sequence: task.sequence ?? '',
+    task_name: task.task_name || '',
+    address: task.address || '',
+    postcode: task.postcode || '',
+    ops_note: task.ops_note || '',
+    ref_url: task.ref_url || '',
+    value: task.value ?? '',
+    qty: task.qty ?? '',
+  }
+  taskFormErrors.value = {}
+  showTaskModal.value = true
+}
+
+function closeTaskModal() {
+  showTaskModal.value = false
+  editingTask.value = null
+  taskFormErrors.value = {}
+}
+
+function submitTask() {
+  taskFormErrors.value = {}
+  // Client-side validation
+  if (!taskForm.value.task_name?.trim()) {
+    taskFormErrors.value.task_name = 'Task name is required.'
+  }
+  if (!taskForm.value.address?.trim()) {
+    taskFormErrors.value.address = 'Address is required.'
+  }
+  if (!taskForm.value.postcode?.trim()) {
+    taskFormErrors.value.postcode = 'Postcode is required.'
+  } else if (!/^\d{6}$/.test(taskForm.value.postcode.trim())) {
+    taskFormErrors.value.postcode = 'Postcode must be a 6-digit number.'
+  }
+  if (taskForm.value.value !== '' && taskForm.value.value !== null) {
+    const val = parseFloat(taskForm.value.value)
+    if (isNaN(val) || val < 0) {
+      taskFormErrors.value.value = 'Must be a non-negative number.'
+    }
+  }
+  if (Object.keys(taskFormErrors.value).length > 0) return
+
+  taskFormProcessing.value = true
+  const payload = {
+    sequence: taskForm.value.sequence !== '' ? parseInt(taskForm.value.sequence) : null,
+    task_name: taskForm.value.task_name.trim(),
+    address: taskForm.value.address.trim(),
+    postcode: taskForm.value.postcode.trim(),
+    ops_note: taskForm.value.ops_note?.trim() || null,
+    ref_url: (() => {
+      const raw = taskForm.value.ref_url?.trim()
+      if (!raw) return null
+      if (!/^https?:\/\//i.test(raw)) return 'https://' + raw
+      return raw
+    })(),
+    value: (taskForm.value.value !== '' && taskForm.value.value !== null)
+      ? parseFloat(taskForm.value.value)
+      : 0,
+    qty: (taskForm.value.qty !== '' && taskForm.value.qty !== null)
+      ? parseInt(taskForm.value.qty)
+      : null,
+  }
+
+  const url = editingTask.value
+    ? '/ops-jobs/tasks/' + editingTask.value.id + '/update'
+    : '/ops-jobs/' + opsJob.value.id + '/tasks'
+
+  axios.post(url, payload)
+    .then(() => {
+      toast.success(editingTask.value ? 'Task updated' : 'Task created', { timeout: 3000 })
+      closeTaskModal()
+      statusUpdated()
+    })
+    .catch(error => {
+      if (error.response?.data?.errors) {
+        const serverErrors = {}
+        Object.keys(error.response.data.errors).forEach(k => {
+          serverErrors[k] = Array.isArray(error.response.data.errors[k])
+            ? error.response.data.errors[k][0]
+            : error.response.data.errors[k]
+        })
+        taskFormErrors.value = serverErrors
+      } else {
+        toast.error('Failed to save task', { timeout: 3000 })
+      }
+    })
+    .finally(() => {
+      taskFormProcessing.value = false
+    })
+}
+
+function deleteTask(task) {
+  if (!confirm('Are you sure to delete this task?')) return
+  closeTaskModal()
+  axios.delete('/ops-jobs/tasks/' + task.id)
+    .then(() => {
+      toast.success('Task deleted', { timeout: 3000 })
+      statusUpdated()
+    })
+    .catch(() => {
+      toast.error('Failed to delete task', { timeout: 3000 })
+    })
+}
+
+function updateTaskSequence(task) {
+  axios.post('/ops-jobs/tasks/' + task.id + '/update-sequence', {
+    sequence: task.sequence !== '' ? parseInt(task.sequence) : null,
+  }).catch(error => {
+    console.error('Failed to update task sequence', error)
+  })
+}
 
 </script>

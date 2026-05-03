@@ -291,6 +291,19 @@
                 <BackspaceIcon class="h-4 w-4" aria-hidden="true" />
                 <span>Reset</span>
               </Button>
+              <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
+                @click.prevent="onExportExcelClicked()">
+                <div class="flex space-x-1">
+                  <div>
+                    <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
+                    <svg v-if="loading" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-green-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                      <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                    </svg>
+                  </div>
+                  <span>Export Excel</span>
+                </div>
+              </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
@@ -413,6 +426,14 @@
                       </SingleSortItem>
                     </div>
                   </TableHead>
+                  <TableHead>
+                    <div class="flex flex-col space-y-2">
+                      <SingleSortItem modelName="vend_transaction_totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->thirty_days_gross_profit', true)">
+                        Gross Margin S$ (Last30d)
+                      </SingleSortItem>
+                    </div>
+                  </TableHead>
+                  <TableHead>Contract Details</TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-2">
                       <span>
@@ -670,6 +691,62 @@
                     inputClass="text-center"
                   >
                     <div class="flex flex-col space-y-2">
+                      <span
+                        v-if="customer.vendTransactionTotalsJson && 'thirty_days_gross_profit' in customer.vendTransactionTotalsJson"
+                        :class="[
+                          customer.vendTransactionTotalsJson['thirty_days_gross_profit'] > 0 ? 'text-green-700' : 'text-red-700'
+                        ]"
+                      >
+                        {{ operatorCountry.currency_symbol }}{{ (customer.vendTransactionTotalsJson['thirty_days_gross_profit'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                      </span>
+                    </div>
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-left min-w-32"
+                  >
+                    <div class="flex flex-col space-y-1 text-xs">
+                      <span v-if="customer.contract_commission_type">
+                        <span class="font-semibold text-gray-500">Type:</span>
+                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded font-medium bg-indigo-100 text-indigo-800">{{ customer.contract_commission_type }}</span>
+                      </span>
+                      <span v-if="customer.contract_commission_value != null && customer.contract_commission_type">
+                        <span class="font-semibold text-gray-500">Val:</span>
+                        <span class="ml-1" v-if="['PS', 'PS+U', 'PSORU'].includes(customer.contract_commission_type)">{{ customer.contract_commission_value }}%</span>
+                        <span class="ml-1" v-else>${{ Number(customer.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}</span>
+                      </span>
+                      <span v-if="customer.contract_commission_value2 != null && ['PS+U', 'PSORU'].includes(customer.contract_commission_type)">
+                        <span class="font-semibold text-gray-500">Val2:</span>
+                        <span class="ml-1">{{ customer.contract_commission_value2 }}</span>
+                      </span>
+                      <span v-if="customer.contract_ps_term != null">
+                        <span class="font-semibold text-gray-500">PS%:</span>
+                        <span class="ml-1">{{ customer.contract_ps_term }}%</span>
+                      </span>
+                      <span v-if="customer.contract_until">
+                        <span class="font-semibold text-gray-500">Until:</span>
+                        <span class="ml-1" :class="[new Date(customer.contract_until) < new Date() ? 'text-red-600 font-semibold' : 'text-green-700']">{{ customer.contract_until }}</span>
+                      </span>
+                      <span v-if="customer.contract_auto_renewal">
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800 border border-yellow-300">Auto Renewal</span>
+                      </span>
+                      <span v-if="customer.contract_min_commitment_period">
+                        <span class="font-semibold text-gray-500">Min:</span>
+                        <span class="ml-1">{{ customer.contract_min_commitment_period }}mo</span>
+                      </span>
+                      <span v-if="customer.contract_notice_period">
+                        <span class="font-semibold text-gray-500">NP:</span>
+                        <span class="ml-1">{{ customer.contract_notice_period }}mo</span>
+                      </span>
+                    </div>
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    <div class="flex flex-col space-y-2">
                       <span>
                         <div
                           class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-green-300"
@@ -748,13 +825,14 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, ExclamationCircleIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, BackspaceIcon, ExclamationCircleIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
+import moment from 'moment';
 
 const props = defineProps({
   customers: Object,
@@ -798,6 +876,7 @@ const filters = ref({
 });
 const activeOptions = ref([]);
 const authOperator = usePage().props.auth.operator;
+const loading = ref(false);
 const dayOptions = ref([]);
 const showModal = ref(false);
 const booleanOptions = ref([]);
@@ -999,5 +1078,35 @@ function sortTable(sortKey) {
 
 function onModalClose() {
   showModal.value = false;
+}
+
+function onExportExcelClicked() {
+  loading.value = true;
+  axios({
+    method: 'get',
+    url: '/customers/excel',
+    params: {
+      ...filters.value,
+      frequency_per_week_status: filters.value.frequency_per_week_status?.id,
+      is_binded_vend: filters.value.is_binded_vend?.id,
+      is_cms: filters.value.is_cms?.id,
+      is_active: filters.value.is_active?.id,
+      location_types: filters.value.location_types.map((locationType) => locationType.id),
+      operators: filters.value.operators.filter(o => o).map((o) => o.id),
+      preferredDays: filters.value.preferredDays.map((d) => d.id),
+      selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
+      vend_model_id: filters.value.vend_model_id?.id,
+      vendConfigs: filters.value.vendConfigs.map((vc) => vc.id),
+      vendPrefixes: filters.value.vendPrefixes.map((vp) => vp.id),
+      zones: filters.value.zones.map((z) => z.id),
+    },
+    responseType: 'blob',
+  }).then(response => {
+    fileDownload(response.data, 'Customers' + moment().format('YYMMDDHHmmss') + '.xlsx');
+  }).catch(error => {
+    console.log(error);
+  }).finally(() => {
+    loading.value = false;
+  });
 }
 </script>

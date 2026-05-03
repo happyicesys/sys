@@ -26,6 +26,7 @@ class SalesReportResource extends JsonResource
             'error_count' => isset($this->error_count) ? (int)$this->error_count : 0,
             'error_count_no_4_5' => isset($this->error_count_no_4_5) ? (int)$this->error_count_no_4_5 : 0,
             'error_count_4_5' => isset($this->error_count_4_5) ? (int)$this->error_count_4_5 : 0,
+            'channel_availability' => isset($this->channel_availability) ? (int)$this->channel_availability : null,
             'amount' => isset($this->amount) ? $this->amount/100 : 0,
         ];
     }

@@ -495,7 +495,11 @@
                                 <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-center">
                                   <div class="flex flex-col space-y-1 max-w-fit">
                                     <span class="flex justify-between items-center gap-x-0.5 rounded-md px-2 py-1 text-sm font-medium"
-                                    :class="[deliveryPlatformCampaignItemVend.platform_ref_id ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700']"
+                                    :class="[
+                                      deliveryPlatformCampaignItemVend.is_submitted
+                                        ? 'bg-green-100 text-green-700'
+                                        : (deliveryPlatformCampaignItemVend.submission_error ? 'bg-red-100 text-red-700' : 'bg-yellow-50 text-yellow-700')
+                                    ]"
                                     v-for="deliveryPlatformCampaignItemVend in deliveryProductMappingVend.deliveryPlatformCampaignItemVends">
                                       <span class="flex flex-col justify-start">
                                         <span class="text-blue-700">
@@ -506,6 +510,18 @@
                                         </span>
                                         <span class="text-xs">
                                           End: {{ deliveryPlatformCampaignItemVend.datetime_to }}
+                                        </span>
+                                        <!-- Submission status badge -->
+                                        <span class="mt-1 text-xs font-semibold">
+                                          <span v-if="deliveryPlatformCampaignItemVend.is_submitted" class="text-green-700">
+                                            ✓ Submitted (ID: {{ deliveryPlatformCampaignItemVend.platform_ref_id }})
+                                          </span>
+                                          <span v-else-if="deliveryPlatformCampaignItemVend.submission_error" class="text-red-700">
+                                            ✗ Failed: {{ deliveryPlatformCampaignItemVend.submission_error }}
+                                          </span>
+                                          <span v-else class="text-yellow-600">
+                                            ⏳ Pending submission
+                                          </span>
                                         </span>
                                       </span>
                                       <button type="button" class="group -mr-1 h-4 w-4 rounded-sm hover:bg-blue-700/20 ">
@@ -892,10 +908,17 @@ function submitCampaign(id) {
   }
   router.post('/delivery-platform-campaigns/' + id + '/submit-platform', {}, {
       onSuccess: () => {
-        toast.success("Campaign submitted to platform successfully", { timeout: 3000 })
+        const flash = usePage().props.flash
+        if (flash?.success) {
+          toast.success(flash.success, { timeout: 5000 })
+        } else if (flash?.error) {
+          toast.error(flash.error, { timeout: 10000 })
+        } else if (flash?.info) {
+          toast.info(flash.info, { timeout: 5000 })
+        }
       },
       onError: () => {
-        toast.error("Failed to submit campaign to platform", { timeout: 3000 })
+        toast.error("Failed to reach server — please try again.", { timeout: 5000 })
       },
       preserveState: false,
       preserveScroll: true,

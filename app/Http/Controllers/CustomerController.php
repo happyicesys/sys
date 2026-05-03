@@ -37,6 +37,7 @@ use App\Models\VendPrefix;
 use App\Models\Zone;
 use App\Services\HistoryService;
 use App\Services\MapService;
+use App\Traits\ExportOptimizationTrait;
 use App\Traits\HasFilter;
 use App\Traits\SearchAddress;
 use Carbon\Carbon;
@@ -45,10 +46,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Rap2hpoutre\FastExcel\FastExcel;
 
 class CustomerController extends Controller
 {
-    use HasFilter, SearchAddress;
+    use ExportOptimizationTrait, HasFilter, SearchAddress;
 
     protected $historyService;
     protected $mapService;
@@ -547,6 +549,30 @@ class CustomerController extends Controller
             }
         } else {
             // dd('here1111', $request->all());
+
+            // Contract detail conditional validation (all nullable, validate when filled)
+            $commissionType = $requestCustomerArr['contract_commission_type'] ?? null;
+            $psTypes = ['PS', 'PS+U', 'PSORU'];
+            $twoValueTypes = ['PS+U', 'PSORU'];
+
+            $contractRules = [
+                'customer.contract_commission_type'        => 'nullable|in:F,S,R,U,PS,PS+U,PSORU',
+                'customer.contract_commission_value'       => [
+                    'nullable',
+                    'numeric',
+                    'min:0',
+                    ...($commissionType && in_array($commissionType, $psTypes) ? ['max:100'] : []),
+                ],
+                'customer.contract_commission_value2'      => 'nullable|numeric|min:0',
+                'customer.contract_ps_term'                => 'nullable|numeric|min:0|max:100',
+                'customer.contract_until'                  => 'nullable|date',
+                'customer.contract_auto_renewal'           => 'nullable|boolean',
+                'customer.contract_min_commitment_period'  => 'nullable|integer|min:0',
+                'customer.contract_notice_period'          => 'nullable|integer|min:0',
+            ];
+
+            $request->validate($contractRules);
+
             $customer->update($request->customer);
 
             if ($request->customer['contact'] && isset($request->customer['contact']['name'])) {
@@ -641,5 +667,148 @@ class CustomerController extends Controller
             ]);
         }
         return true;
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $request->merge([
+            'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
+            'is_cms' => $request->is_cms ? $request->is_cms : 'all',
+            'is_active' => $request->is_active ? $request->is_active : 'true',
+            'sortKey' => $request->sortKey ? $request->sortKey : 'customers.id',
+            'sortBy' => $request->sortBy ? $request->sortBy : 'false',
+        ]);
+
+        $operatorCountry = auth()->user()->operator->country;
+        $divisor = pow(10, $operatorCountry->currency_exponent ?? 2);
+
+        $query = Customer::query()
+            ->with([
+                'deliveryAddress',
+                'tagBindings',
+                'vend.vendPrefix',
+            ])
+            ->leftJoin('addresses', function ($join) {
+                $join->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\\Models\\Customer')
+                    ->where('addresses.type', '=', 2)
+                    ->limit(1);
+            })
+            ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
+            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+            ->leftJoin(DB::raw('
+                (
+                    SELECT vend_id, SUM(amount * capacity) AS total_full_load_amount
+                    FROM vend_channels
+                    WHERE is_active = true
+                    AND capacity > 0
+                    GROUP BY vend_id
+                ) AS vc
+            '), 'vc.vend_id', '=', 'vends.id')
+            ->select(
+                'addresses.postcode as postcode',
+                'customers.*',
+                'customers.id',
+                'customers.begin_date as begin_date',
+                'customers.frequency_per_week_status',
+                'customers.operator_id',
+                'customers.zone_id',
+                'operators.code as operator_code',
+                'vends.code as vend_code',
+                'zones.name as zone_name',
+                'vc.total_full_load_amount',
+                DB::raw('
+                    (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.vend_records_thirty_days_amount_average")) * 30 / 100) /
+                    (vc.total_full_load_amount / 100) AS thirty_days_over_full_load_ratio
+                ')
+            )
+            ->filterIndex($request);
+
+        $query = $this->filterOperator($query);
+
+        $commissionTypeLabels = [
+            'F'     => 'Free Placement',
+            'S'     => 'Subsidized Plan',
+            'R'     => 'Fix Rental',
+            'U'     => 'Utility Only',
+            'PS'    => 'Profit Sharing Only',
+            'PS+U'  => 'PS + Utility',
+            'PSORU' => 'PS OR Utility (whichever higher)',
+        ];
+
+        return (new FastExcel($this->exportWithCursor($query)))->download(
+            $this->formatExportFilename('Customers', 'xlsx'),
+            function ($customer) use ($divisor, $commissionTypeLabels) {
+                $totals = $customer->totals_json ?? [];
+
+                $lifetimeSales      = isset($totals['vend_records_amount_latest'])
+                    ? round($totals['vend_records_amount_latest'] / $divisor, 2) : null;
+                $avgSalesDay        = isset($totals['vend_records_amount_average_day'])
+                    ? round($totals['vend_records_amount_average_day'] / $divisor, 2) : null;
+                $avgDailySales30d   = isset($totals['vend_records_thirty_days_amount_average'])
+                    ? round($totals['vend_records_thirty_days_amount_average'] / $divisor, 2) : null;
+                $sales30d           = isset($totals['vend_records_thirty_days_amount'])
+                    ? round($totals['vend_records_thirty_days_amount'] / $divisor, 2) : null;
+                $grossMargin30d     = isset($totals['thirty_days_gross_profit'])
+                    ? round($totals['thirty_days_gross_profit'] / $divisor, 2) : null;
+                $fullLoadValue      = isset($customer->total_full_load_amount)
+                    ? round($customer->total_full_load_amount / 100, 2) : null;
+                $ratio30dOverFullLoad = isset($customer->thirty_days_over_full_load_ratio)
+                    ? round($customer->thirty_days_over_full_load_ratio, 4) : null;
+
+                $contractType = $customer->contract_commission_type;
+                $contractTypeLabel = $contractType
+                    ? ($contractType . ': ' . ($commissionTypeLabels[$contractType] ?? $contractType))
+                    : null;
+
+                // Label the value column based on type for clarity
+                $contractValueLabel = match($contractType) {
+                    'S'             => 'Subsidized Amt',
+                    'R'             => 'Fix Rental Amt',
+                    'U'             => 'Utility Amt',
+                    'PS', 'PS+U', 'PSORU' => 'Commission (%)',
+                    default         => null,
+                };
+
+                return [
+                    // ── Identity ──────────────────────────────────────────────
+                    'Customer ID'                   => $customer->id + 20000,
+                    'Customer Name'                 => $customer->name,
+                    'Machine ID'                    => $customer->vend_code,
+                    'Machine Prefix'                => $customer->vend?->vendPrefix?->name,
+                    'Delivery Address'              => $customer->deliveryAddress?->full_address,
+                    'Postcode'                      => $customer->postcode,
+                    'Tags'                          => $customer->tagBindings?->pluck('name')->implode(', '),
+                    'Refilling Route'               => $customer->zone_name,
+                    'Status'                        => $customer->is_active ? 'Active' : 'Not Active',
+                    'Operator'                      => $customer->operator_code,
+                    'Ref Price Type'                => 'RP' . $customer->selling_price_type,
+                    'Begin Date'                    => $customer->begin_date
+                                                        ? Carbon::parse($customer->begin_date)->format('Y-m-d') : null,
+
+                    // ── Sales & Performance ───────────────────────────────────
+                    'Lifetime Sales'                => $lifetimeSales,
+                    'Avg Sales/Day'                 => $avgSalesDay,
+                    'AvgDailySales (Last30d)'       => $avgDailySales30d,
+                    'Sales (Last30d)'               => $sales30d,
+                    'Gross Margin (Last30d)'        => $grossMargin30d,
+                    'Full Load Value'               => $fullLoadValue,
+                    'Avg30dSales / Full Load'       => $ratio30dOverFullLoad,
+
+                    // ── Contract ──────────────────────────────────────────────
+                    'Contract Type'                 => $contractTypeLabel,
+                    'Contract Value Label'          => $contractValueLabel,
+                    'Contract Value'                => $customer->contract_commission_value,
+                    'Contract Value 2'              => $customer->contract_commission_value2,
+                    'PS Term (%)'                   => $customer->contract_ps_term,
+                    'Contract Until'                => $customer->contract_until
+                                                        ? Carbon::parse($customer->contract_until)->format('Y-m-d') : null,
+                    'Auto Renewal'                  => $customer->contract_auto_renewal ? 'Yes' : 'No',
+                    'Min Commitment (months)'       => $customer->contract_min_commitment_period,
+                    'Notice Period (months)'        => $customer->contract_notice_period,
+                ];
+            }
+        );
     }
 }

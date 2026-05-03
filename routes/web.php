@@ -27,6 +27,7 @@ use App\Http\Controllers\ModemUnitController;
 use App\Http\Controllers\OauthController;
 use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\OpsJobController;
+use App\Http\Controllers\OpsJobTaskController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductMovementController;
@@ -178,6 +179,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/update', [CustomerController::class, 'update']);
         Route::post('/{id}/toggle-activation', [CustomerController::class, 'toggleActivation']);
         Route::delete('/{id}', [CustomerController::class, 'delete']);
+        Route::get('/excel', [CustomerController::class, 'exportExcel']);
         Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
         Route::post('/{id}/upload-attachments', [CustomerController::class, 'uploadAttachment']);
         Route::post('/{id}/upload-photos', [CustomerController::class, 'uploadPhoto']);
@@ -371,6 +373,12 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/items/{itemID}/undo-cash-collected', [OpsJobController::class, 'undoItemCashCollected']);
         Route::post('/qty-list/status/{status}', [OpsJobController::class, 'qtyList']);
         Route::post('/{id}/sequence', [OpsJobController::class, 'saveSequence']);
+
+        // Task routes
+        Route::post('/{id}/tasks', [OpsJobTaskController::class, 'store']);
+        Route::post('/tasks/{taskId}/update', [OpsJobTaskController::class, 'update']);
+        Route::post('/tasks/{taskId}/update-sequence', [OpsJobTaskController::class, 'updateSequence']);
+        Route::delete('/tasks/{taskId}', [OpsJobTaskController::class, 'destroy']);
     });
 
     Route::prefix('reports')->group(function () {

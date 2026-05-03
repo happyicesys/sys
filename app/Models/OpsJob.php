@@ -66,6 +66,11 @@ class OpsJob extends Model
         return $this->hasMany(OpsJobItem::class);
     }
 
+    public function opsJobTasks()
+    {
+        return $this->hasMany(OpsJobTask::class);
+    }
+
     public function pickedBy()
     {
         return $this->belongsTo(User::class, 'picked_by');

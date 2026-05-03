@@ -925,6 +925,9 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '30dSales = 30 x Avg Daily Sales (Last30d) <br> Red: < 1 <br> Green: > 2', html: true }"></ExclamationCircleIcon>
 							</div>
+							<SingleSortItem modelName="totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_gross_profit', true)">
+								L30d Gross Margin S$
+							</SingleSortItem>
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
@@ -1725,6 +1728,12 @@
 							</span>
 							<span :class="[vend.thirty_days_over_full_load_ratio < 1 ? 'text-red-600' : (vend.thirty_days_over_full_load_ratio > 2 ? 'text-green-600' : 'text-gray-800')]">
 								{{(vend.thirty_days_over_full_load_ratio).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+							</span>
+							<span
+								v-if="vend.vendTransactionTotalsJson && 'thirty_days_gross_profit' in vend.vendTransactionTotalsJson"
+								:class="[vend.vendTransactionTotalsJson['thirty_days_gross_profit'] > 0 ? 'text-green-700' : 'text-red-700']"
+							>
+								{{ operatorCountry.currency_symbol }}{{ (vend.vendTransactionTotalsJson['thirty_days_gross_profit'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
 						</div>
 					</TableData>
