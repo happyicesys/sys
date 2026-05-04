@@ -319,7 +319,7 @@
                             {{ opsJob.deliveredBy ? opsJob.deliveredBy.name : '' }}
                           </span>
                           <span>
-                            {{ opsJob.ops_job_items_count + (opsJob.ops_job_tasks_count || 0) }}
+                            {{ opsJob.ops_job_items_count }}
                           </span>
                           <span class="text-indigo-800 font-semibold text-xs text-nowrap" v-if="opsJob.refillable_amount !== null">
                              {{ operatorCountry.currency_symbol }}{{ opsJob.refillable_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}

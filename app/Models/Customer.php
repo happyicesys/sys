@@ -39,6 +39,10 @@ class Customer extends Model
     const ADDRESS_TYPE_BILLING = 1;
     const ADDRESS_TYPE_DELIVERY = 2;
 
+    const FILE_TYPE_ATTACHMENT = 1;
+    const FILE_TYPE_PHOTO = 2;
+    const FILE_TYPE_CONTRACT = 3;
+
     const STATUSES_MAPPING = [
         self::STATUS_NEW => 'New',
         self::STATUS_PENDING => 'Pending',
@@ -151,6 +155,11 @@ class Customer extends Model
     public function attachments()
     {
         return $this->morphMany(Attachment::class, 'modelable')->where('type', 1)->orderBy('sequence');
+    }
+
+    public function contracts()
+    {
+        return $this->morphMany(Attachment::class, 'modelable')->where('type', self::FILE_TYPE_CONTRACT)->latest();
     }
 
     public function billingAddress()

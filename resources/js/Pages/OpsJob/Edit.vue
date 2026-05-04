@@ -396,9 +396,18 @@
                               </a>
                             </div>
                           </td>
-                          <!-- Created at / postcode / ops note -->
+                          <!-- Status / Created at / postcode / ops note -->
                           <td class="whitespace py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <div class="flex flex-col space-y-1 max-w-40">
+                              <!-- Status badge -->
+                              <button
+                                type="button"
+                                class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit cursor-pointer"
+                                :class="taskStatusClass(row.status)"
+                                @click.prevent="openTaskStatusModal(row)"
+                              >
+                                {{ row.status_name || 'Pending' }}
+                              </button>
                               <span v-if="row.created_at" class="text-xs font-medium text-gray-600">
                                 {{ row.created_at }}
                                 <span v-if="row.created_by_name">({{ row.created_by_name }})</span>
@@ -848,6 +857,65 @@
   >
   </PickList>
 
+  <!-- ── Task Status Modal ──────────────────────────────────── -->
+  <Teleport to="body">
+    <Modal :open="showTaskStatusModal" @modalClose="closeTaskStatusModal">
+      <template #header>
+        <div class="flex items-center space-x-2">
+          <span class="text-base font-semibold">{{ statusTask?.task_name }}</span>
+          <span
+            class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border"
+            :class="taskStatusClass(statusTask?.status)"
+          >{{ statusTask?.status_name || 'Pending' }}</span>
+        </div>
+      </template>
+      <template #default>
+        <div class="space-y-3 px-1">
+          <!-- Picked by -->
+          <div v-if="statusTask?.status >= 2 && statusTask?.picked_by_name" class="flex space-x-2 text-sm">
+            <span class="font-medium text-gray-700 w-28 shrink-0">Picked By</span>
+            <span class="text-gray-600">{{ statusTask.picked_by_name }} ({{ statusTask.picked_at }})</span>
+          </div>
+          <!-- Completed by -->
+          <div v-if="statusTask?.status >= 3 && statusTask?.completed_by_name" class="flex space-x-2 text-sm">
+            <span class="font-medium text-gray-700 w-28 shrink-0">Completed By</span>
+            <span class="text-gray-600">{{ statusTask.completed_by_name }} ({{ statusTask.completed_at }})</span>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="flex justify-between pt-3 border-t border-gray-100">
+            <!-- Undo button (left) -->
+            <Button
+              v-if="statusTask?.status >= 2"
+              type="button"
+              class="bg-orange-400 hover:bg-orange-500 text-white flex space-x-1"
+              :class="taskStatusProcessing ? 'opacity-50 cursor-not-allowed' : ''"
+              :disabled="taskStatusProcessing"
+              @click.prevent="undoTaskStatus(statusTask)"
+            >
+              <ArrowUturnLeftIcon class="w-4 h-4" />
+              <span>{{ statusTask?.status === 2 ? 'Undo Picked' : 'Undo Completed' }}</span>
+            </Button>
+            <div v-else />
+
+            <!-- Advance button (right) -->
+            <Button
+              v-if="statusTask?.status < 3"
+              type="button"
+              class="text-white flex space-x-1"
+              :class="[statusTask?.status === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600', taskStatusProcessing ? 'opacity-50 cursor-not-allowed' : '']"
+              :disabled="taskStatusProcessing"
+              @click.prevent="advanceTaskStatus(statusTask)"
+            >
+              <CheckCircleIcon class="w-4 h-4" />
+              <span>{{ statusTask?.status === 1 ? 'Mark as Picked' : 'Mark as Completed' }}</span>
+            </Button>
+          </div>
+        </div>
+      </template>
+    </Modal>
+  </Teleport>
+
   <!-- ── Task Create / Edit Modal ─────────────────────────── -->
   <Teleport to="body">
     <Modal :open="showTaskModal" @modalClose="closeTaskModal">
@@ -857,6 +925,23 @@
       <template #default>
         <form @submit.prevent="submitTask">
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
+
+            <!-- Status badge only (edit mode) -->
+            <div class="sm:col-span-6" v-if="editingTask">
+              <div class="flex flex-wrap items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
+                <span class="text-sm font-medium text-gray-700">Status:</span>
+                <span
+                  class="inline-flex justify-center items-center rounded px-2 py-0.5 text-xs font-medium border"
+                  :class="taskStatusClass(editingTask.status)"
+                >{{ editingTask.status_name || 'Pending' }}</span>
+                <span v-if="editingTask.status >= 2 && editingTask.picked_by_name" class="text-xs text-gray-500">
+                  · Picked by <span class="font-medium text-gray-700">{{ editingTask.picked_by_name }}</span> ({{ editingTask.picked_at }})
+                </span>
+                <span v-if="editingTask.status >= 3 && editingTask.completed_by_name" class="text-xs text-gray-500">
+                  · Completed by <span class="font-medium text-gray-700">{{ editingTask.completed_by_name }}</span> ({{ editingTask.completed_at }})
+                </span>
+              </div>
+            </div>
 
             <!-- Sequence (optional) -->
             <div class="sm:col-span-6">
@@ -979,8 +1064,9 @@
               <p class="text-xs text-red-500 mt-0.5" v-if="taskFormErrors.ref_url">{{ taskFormErrors.ref_url }}</p>
             </div>
 
-            <!-- Submit / Delete row -->
-            <div class="sm:col-span-6 flex justify-between pt-2">
+            <!-- Submit / Delete / Status row -->
+            <div class="sm:col-span-6 flex justify-between items-center pt-2 gap-2">
+              <!-- Left: Delete -->
               <Button
                 v-if="editingTask"
                 type="button"
@@ -993,15 +1079,46 @@
                 <span>Delete</span>
               </Button>
               <div v-else />
-              <Button
-                type="submit"
-                class="bg-violet-500 hover:bg-violet-600 text-white flex space-x-1"
-                :class="taskFormProcessing ? 'opacity-50 cursor-not-allowed' : ''"
-                :disabled="taskFormProcessing"
-              >
-                <CheckCircleIcon class="w-4 h-4" />
-                <span>{{ editingTask ? 'Update Task' : 'Create Task' }}</span>
-              </Button>
+
+              <!-- Right: Undo + Status advance + Update -->
+              <div class="flex items-center gap-2">
+                <!-- Undo -->
+                <Button
+                  v-if="editingTask && editingTask.status >= 2"
+                  type="button"
+                  class="bg-orange-400 hover:bg-orange-500 text-white flex space-x-1"
+                  :class="taskStatusProcessing ? 'opacity-50 cursor-not-allowed' : ''"
+                  :disabled="taskStatusProcessing"
+                  @click.prevent="undoTaskStatusInline(editingTask)"
+                >
+                  <ArrowUturnLeftIcon class="w-4 h-4" />
+                  <span>{{ editingTask.status === 2 ? 'Undo Picked' : 'Undo Completed' }}</span>
+                </Button>
+
+                <!-- Advance status (Picked / Completed) -->
+                <Button
+                  v-if="editingTask && editingTask.status < 3"
+                  type="button"
+                  class="flex space-x-1 text-white"
+                  :class="[editingTask.status === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600', taskStatusProcessing ? 'opacity-50 cursor-not-allowed' : '']"
+                  :disabled="taskStatusProcessing"
+                  @click.prevent="advanceTaskStatusInline(editingTask)"
+                >
+                  <CheckCircleIcon class="w-4 h-4" />
+                  <span>{{ editingTask.status === 1 ? 'Picked' : 'Completed' }}</span>
+                </Button>
+
+                <!-- Update Task -->
+                <Button
+                  type="submit"
+                  class="bg-violet-500 hover:bg-violet-600 text-white flex space-x-1"
+                  :class="taskFormProcessing ? 'opacity-50 cursor-not-allowed' : ''"
+                  :disabled="taskFormProcessing"
+                >
+                  <CheckCircleIcon class="w-4 h-4" />
+                  <span>{{ editingTask ? 'Update Task' : 'Create Task' }}</span>
+                </Button>
+              </div>
             </div>
           </div>
         </form>
@@ -1068,8 +1185,11 @@ const selectedItemIds = ref([])
 const selectedTaskIds = ref([])
 const showBatchChangeDriverModal = ref(false)
 const showTaskModal = ref(false)
+const showTaskStatusModal = ref(false)
 const editingTask = ref(null)
+const statusTask = ref(null)
 const taskFormProcessing = ref(false)
+const taskStatusProcessing = ref(false)
 const taskFormErrors = ref({})
 const taskForm = ref({
   sequence: '',
@@ -1550,6 +1670,96 @@ function updateRemarks(opsJobData) {
     preserveState: true,
     replace: true,
   })
+}
+
+// ----------------------------------------------------------------
+// Task status helpers
+// ----------------------------------------------------------------
+function taskStatusClass(status) {
+  switch (status) {
+    case 1: return 'bg-blue-400 text-white border-blue-400'
+    case 2: return 'bg-yellow-400 text-gray-800 border-yellow-400'
+    case 3: return 'bg-green-400 text-gray-800 border-green-400'
+    default: return 'bg-blue-400 text-white border-blue-400'
+  }
+}
+
+function openTaskStatusModal(task) {
+  statusTask.value = task
+  showTaskStatusModal.value = true
+}
+
+function closeTaskStatusModal() {
+  showTaskStatusModal.value = false
+  statusTask.value = null
+}
+
+function _applyTaskUpdate(updatedTask) {
+  // Patch the reactive task in opsJob.opsJobTasks in-place so the table
+  // updates without a full page reload
+  const tasks = opsJob.value.opsJobTasks || []
+  const idx = tasks.findIndex(t => t.id === updatedTask.id)
+  if (idx !== -1) {
+    Object.assign(tasks[idx], updatedTask)
+    // Also keep statusTask in sync if the modal is still open
+    if (statusTask.value?.id === updatedTask.id) {
+      Object.assign(statusTask.value, updatedTask)
+    }
+  }
+}
+
+function advanceTaskStatus(task) {
+  if (!task) return
+  taskStatusProcessing.value = true
+  axios.post('/ops-jobs/tasks/' + task.id + '/update-status')
+    .then(res => {
+      toast.success('Status updated', { timeout: 3000 })
+      _applyTaskUpdate(res.data.task)
+    })
+    .catch(() => toast.error('Failed to update status', { timeout: 3000 }))
+    .finally(() => { taskStatusProcessing.value = false })
+}
+
+function undoTaskStatus(task) {
+  if (!task) return
+  if (!confirm('Undo status change?')) return
+  taskStatusProcessing.value = true
+  axios.post('/ops-jobs/tasks/' + task.id + '/undo-status')
+    .then(res => {
+      toast.success('Status undone', { timeout: 3000 })
+      _applyTaskUpdate(res.data.task)
+    })
+    .catch(() => toast.error('Failed to undo status', { timeout: 3000 }))
+    .finally(() => { taskStatusProcessing.value = false })
+}
+
+// Inline variants used inside the Edit Task modal — also patch editingTask ref
+function advanceTaskStatusInline(task) {
+  if (!task) return
+  taskStatusProcessing.value = true
+  axios.post('/ops-jobs/tasks/' + task.id + '/update-status')
+    .then(res => {
+      toast.success('Status updated', { timeout: 3000 })
+      _applyTaskUpdate(res.data.task)
+      // patch editingTask so the modal badge + info refreshes immediately
+      Object.assign(editingTask.value, res.data.task)
+    })
+    .catch(() => toast.error('Failed to update status', { timeout: 3000 }))
+    .finally(() => { taskStatusProcessing.value = false })
+}
+
+function undoTaskStatusInline(task) {
+  if (!task) return
+  if (!confirm('Undo status change?')) return
+  taskStatusProcessing.value = true
+  axios.post('/ops-jobs/tasks/' + task.id + '/undo-status')
+    .then(res => {
+      toast.success('Status undone', { timeout: 3000 })
+      _applyTaskUpdate(res.data.task)
+      Object.assign(editingTask.value, res.data.task)
+    })
+    .catch(() => toast.error('Failed to undo status', { timeout: 3000 }))
+    .finally(() => { taskStatusProcessing.value = false })
 }
 
 // ----------------------------------------------------------------

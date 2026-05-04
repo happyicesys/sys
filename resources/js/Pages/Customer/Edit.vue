@@ -169,7 +169,7 @@
                   <!-- Commission Type (single-select radio styled as checkboxes) -->
                   <div class="sm:col-span-6">
                     <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">
-                      Commission
+                      Location Fees
                       <span class="ml-1 text-red-500 text-xs font-normal">(choose 1 only)</span>
                     </label>
                     <div class="flex flex-wrap gap-x-6 gap-y-2">
@@ -279,7 +279,7 @@
                         max="100"
                         v-model="form.contract_ps_term"
                         class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md pr-8"
-                        placeholder="Default 100"
+                        placeholder="e.g. 70"
                       />
                       <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
                         <span class="text-gray-500 sm:text-sm">%</span>
@@ -351,6 +351,80 @@
                     <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_notice_period']">
                       {{ form.errors['customer.contract_notice_period'] }}
                     </div>
+                  </div>
+
+                  <!-- Attach Contract -->
+                  <div class="sm:col-span-6 mt-2">
+                    <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">
+                      Attach Contract
+                    </label>
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2" v-if="customer.id">
+                      <input
+                        ref="contractFileInput"
+                        type="file"
+                        multiple
+                        class="block w-full text-sm text-gray-700 border border-gray-300 rounded-md file:mr-3 file:py-1.5 file:px-3 file:rounded-l-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        @change="onContractFilesSelected"
+                      />
+                      <Button
+                        type="button"
+                        class="text-white flex items-center space-x-1 whitespace-nowrap"
+                        :class="(!pendingContractFiles.length || isUploadingContract) ? 'cursor-not-allowed bg-gray-400' : 'cursor-pointer bg-green-500 hover:bg-green-600'"
+                        :disabled="!pendingContractFiles.length || isUploadingContract"
+                        @click.prevent="uploadContractFiles"
+                      >
+                        <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                        <span>{{ isUploadingContract ? 'Uploading...' : 'Upload' }}</span>
+                      </Button>
+                    </div>
+                    <div class="text-xs text-gray-500 italic mt-1" v-if="!customer.id">
+                      Save the customer first to attach contract file(s).
+                    </div>
+
+                    <!-- Slim list of attached contracts -->
+                    <ul role="list" class="mt-2 divide-y divide-gray-100 bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-md" v-if="customer.id">
+                      <li
+                        v-for="(item, idx) in contracts"
+                        :key="item.id"
+                        class="flex items-center justify-between gap-x-3 px-3 py-2 hover:bg-gray-50"
+                      >
+                        <div class="flex items-center min-w-0 gap-x-2 flex-1">
+                          <span class="text-xs text-gray-500 w-6 text-right shrink-0">{{ idx + 1 }}.</span>
+                          <a
+                            :href="item.full_url"
+                            target="_blank"
+                            class="text-sm text-blue-600 hover:text-blue-800 truncate"
+                            :title="item.name"
+                          >
+                            {{ item.name || ('Contract ' + (idx + 1)) }}
+                          </a>
+                          <span class="text-xs text-gray-400 hidden sm:inline whitespace-nowrap">
+                            {{ formatDatetime(item.created_at) }}
+                          </span>
+                        </div>
+                        <div class="flex items-center gap-x-1 shrink-0">
+                          <a
+                            :href="item.full_url"
+                            target="_blank"
+                            class="rounded-full bg-gray-100 hover:bg-gray-200 p-1.5 text-gray-700"
+                            title="Download / View"
+                          >
+                            <ArrowDownTrayIcon class="h-4 w-4"></ArrowDownTrayIcon>
+                          </a>
+                          <button
+                            type="button"
+                            class="rounded-full bg-red-100 hover:bg-red-200 p-1.5 text-red-700"
+                            @click.prevent="deleteContract(item.id)"
+                            title="Delete"
+                          >
+                            <TrashIcon class="h-4 w-4"></TrashIcon>
+                          </button>
+                        </div>
+                      </li>
+                      <li v-if="!contracts || !contracts.length" class="px-3 py-2 text-xs text-gray-500 italic">
+                        No contracts attached
+                      </li>
+                    </ul>
                   </div>
 
                   <!-- end Contract Details -->
@@ -933,7 +1007,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, MinusCircleIcon, StopCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, MinusCircleIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 import { ref, computed, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -975,6 +1049,12 @@ const vendChannels = ref([]);
 const sellingPriceTypeOptions = ref([]);
 const vendOptions = ref([]);
 const zoneOptions = ref([]);
+
+// ── Contract attachments (slim file field) ────────────────────────────────────
+const contracts = ref([]);
+const contractFileInput = ref(null);
+const pendingContractFiles = ref([]);
+const isUploadingContract = ref(false);
 
 // ── Placement Contract Detail ─────────────────────────────────────────────────
 const commissionTypeOptions = [
@@ -1018,6 +1098,9 @@ function onCommissionTypeChange() {
   }
   if (!PS_TYPES.includes(form.value.contract_commission_type)) {
     form.value.contract_ps_term = null;
+  } else if (form.value.contract_ps_term === null || form.value.contract_ps_term === '') {
+    // default PS Term to 70 when first selecting a PS-type option
+    form.value.contract_ps_term = 70;
   }
 }
 
@@ -1182,6 +1265,8 @@ onMounted(() => {
   }));
 
   customerVendBindings.value = props.customer ? props.customer.customer_vend_bindings : [];
+
+  contracts.value = props.customer && props.customer.contracts ? props.customer.contracts : [];
 });
 
 function compareSellingPrice(channel) {
@@ -1420,6 +1505,80 @@ function unbindCustomerDeactivate(vendID) {
         preserveState: true,
         replace: true,
       })
+}
+
+function onContractFilesSelected(e) {
+  pendingContractFiles.value = Array.from(e.target.files || []);
+}
+
+async function uploadContractFiles() {
+  if (!pendingContractFiles.value.length) {
+    return;
+  }
+  if (!customer.value || !customer.value.id) {
+    toast.error('Save the customer first before uploading contracts', { timeout: 3000 });
+    return;
+  }
+
+  isUploadingContract.value = true;
+  const url = '/customers/' + customer.value.id + '/upload-contracts';
+  let failed = 0;
+
+  for (const file of pendingContractFiles.value) {
+    const fd = new FormData();
+    fd.append('files', file);
+    try {
+      await axios.post(url, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    } catch (err) {
+      console.error('Contract upload failed for', file.name, err);
+      failed++;
+    }
+  }
+
+  pendingContractFiles.value = [];
+  if (contractFileInput.value) {
+    contractFileInput.value.value = '';
+  }
+
+  router.reload({
+    only: ['customer'],
+    data: { id: form.value.id },
+    replace: true,
+    preserveState: true,
+    onSuccess: () => {
+      contracts.value = props.customer && props.customer.contracts ? props.customer.contracts : [];
+      isUploadingContract.value = false;
+      if (failed > 0) {
+        toast.error(failed + ' file(s) failed to upload', { timeout: 3000 });
+      } else {
+        toast.success('Contract uploaded successfully', { timeout: 3000 });
+      }
+    },
+    onError: () => {
+      isUploadingContract.value = false;
+      toast.error('Failed to refresh contract list, please reload', { timeout: 3000 });
+    },
+  });
+}
+
+function deleteContract(id) {
+  const approval = confirm('Delete this contract attachment?');
+  if (!approval) {
+    return;
+  }
+  router.delete('/attachments/' + id, {
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: () => {
+      contracts.value = contracts.value.filter(c => c.id !== id);
+      toast.success('Contract deleted', { timeout: 3000 });
+    },
+    onError: () => {
+      toast.error('Delete failed, please try again', { timeout: 3000 });
+    },
+  });
 }
 
 function downloadVendSnapshot(vendSnapshotId) {

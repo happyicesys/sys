@@ -183,6 +183,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
         Route::post('/{id}/upload-attachments', [CustomerController::class, 'uploadAttachment']);
         Route::post('/{id}/upload-photos', [CustomerController::class, 'uploadPhoto']);
+        Route::post('/{id}/upload-contracts', [CustomerController::class, 'uploadContract']);
         Route::post('/{id}/bind-vend', [CustomerController::class, 'bindVend']);
         Route::get('/{id}/selling-prices/type/{type}', [CustomerController::class, 'getProductSellingPrices']);
         Route::post('/sync-cms-invoice-items', [CustomerController::class, 'syncCmsInvoiceItems']);
@@ -378,6 +379,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/tasks', [OpsJobTaskController::class, 'store']);
         Route::post('/tasks/{taskId}/update', [OpsJobTaskController::class, 'update']);
         Route::post('/tasks/{taskId}/update-sequence', [OpsJobTaskController::class, 'updateSequence']);
+        Route::post('/tasks/{taskId}/update-status', [OpsJobTaskController::class, 'updateStatus']);
+        Route::post('/tasks/{taskId}/undo-status', [OpsJobTaskController::class, 'undoStatus']);
         Route::delete('/tasks/{taskId}', [OpsJobTaskController::class, 'destroy']);
     });
 

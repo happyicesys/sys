@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\OpsJobTaskResource;
 use App\Models\OpsJob;
 use App\Models\OpsJobTask;
 use App\Services\MapService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class OpsJobTaskController extends Controller
@@ -108,6 +110,68 @@ class OpsJobTaskController extends Controller
         ]);
 
         return response()->json(['success' => true]);
+    }
+
+    public function updateStatus(int $taskId)
+    {
+        $task = OpsJobTask::findOrFail($taskId);
+
+        switch ($task->status) {
+            case OpsJobTask::STATUS_PENDING:
+                $task->status     = OpsJobTask::STATUS_PICKED;
+                $task->picked_at  = Carbon::now();
+                $task->picked_by  = auth()->id();
+                break;
+
+            case OpsJobTask::STATUS_PICKED:
+                $task->status        = OpsJobTask::STATUS_COMPLETED;
+                $task->completed_at  = Carbon::now();
+                $task->completed_by  = auth()->id();
+                break;
+        }
+
+        $task->updated_by = auth()->id();
+        $task->save();
+
+        return response()->json([
+            'success' => true,
+            'task'    => new OpsJobTaskResource(
+                $task->load('createdBy', 'pickedBy', 'completedBy')
+            ),
+        ]);
+    }
+
+    public function undoStatus(int $taskId)
+    {
+        $task = OpsJobTask::findOrFail($taskId);
+
+        switch ($task->status) {
+            case OpsJobTask::STATUS_PICKED:
+                $task->status          = OpsJobTask::STATUS_PENDING;
+                $task->undo_picked_at  = Carbon::now();
+                $task->undo_picked_by  = auth()->id();
+                $task->picked_at       = null;
+                $task->picked_by       = null;
+                break;
+
+            case OpsJobTask::STATUS_COMPLETED:
+                $task->status             = OpsJobTask::STATUS_PICKED;
+                $task->undo_completed_at  = Carbon::now();
+                $task->undo_completed_by  = auth()->id();
+                $task->completed_at       = null;
+                $task->completed_by       = null;
+                break;
+        }
+
+        $task->updated_by = auth()->id();
+        $task->save();
+
+        return response()->json([
+            'success' => true,
+            'task'    => new OpsJobTaskResource(
+                $task->load('createdBy', 'pickedBy', 'completedBy')
+            ),
+        ]);
     }
 
     public function destroy(int $taskId)

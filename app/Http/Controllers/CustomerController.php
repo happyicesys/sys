@@ -245,6 +245,7 @@ class CustomerController extends Controller
         $customer = Customer::query()
             ->with([
                 'attachments',
+                'contracts',
                 'billingAddress',
                 'category',
                 'category.categoryGroup',
@@ -690,6 +691,26 @@ class CustomerController extends Controller
                 'type' => 2,
                 'full_url' => $url,
                 'local_url' => $dir . '/' . $fileName,
+            ]);
+        }
+        return true;
+    }
+
+    public function uploadContract(Request $request, $id)
+    {
+        $customer = Customer::findOrFail($id);
+
+        if ($request->files) {
+            $files = $request->file('files');
+            $dir = 'sys/customers/contracts';
+            $storedPath = $files->storePublicly($dir);
+            $fileName = pathinfo($files->getClientOriginalName(), PATHINFO_FILENAME);
+            $url = Storage::url($storedPath);
+            $customer->contracts()->create([
+                'name' => $fileName,
+                'type' => Customer::FILE_TYPE_CONTRACT,
+                'full_url' => $url,
+                'local_url' => $dir . '/' . basename($storedPath),
             ]);
         }
         return true;

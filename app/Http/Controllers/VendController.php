@@ -788,6 +788,7 @@ class VendController extends Controller
                 'vends.temp_updated_at',
                 'vends.coin_amount',
                 'vends.firmware_ver',
+                'vends.is_active AS vend_is_active',
                 'vends.is_door_open',
                 'vends.is_disposed',
                 'vends.is_sold',

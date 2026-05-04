@@ -228,14 +228,16 @@ class OpsJobController extends Controller
                 ->get()
                 ->keyBy('ops_job_id');
 
-            // 3. Task Stats Aggregation (count, value sum in cents, qty sum)
+            // 3. Task Stats Aggregation (count, value sum in cents, qty sum, status counts)
             $taskStats = DB::table('ops_job_tasks')
                 ->whereIn('ops_job_id', $opsJobIds)
                 ->selectRaw('
                     ops_job_id,
                     COUNT(*) as ops_job_tasks_count,
                     SUM(value) as tasks_value_sum,
-                    SUM(COALESCE(qty, 0)) as tasks_qty_sum
+                    SUM(COALESCE(qty, 0)) as tasks_qty_sum,
+                    SUM(CASE WHEN status >= 2 THEN 1 ELSE 0 END) as tasks_picked_count,
+                    SUM(CASE WHEN status >= 3 THEN 1 ELSE 0 END) as tasks_completed_count
                 ')
                 ->groupBy('ops_job_id')
                 ->get()
@@ -248,9 +250,9 @@ class OpsJobController extends Controller
                 $tStat = $taskStats->get($job->id);
 
                 $job->ops_job_tasks_count = (int) ($tStat?->ops_job_tasks_count ?? 0);
-                $job->ops_job_items_count = $iStat?->ops_job_items_count ?? 0;
-                $job->ops_job_items_delivered_count = $iStat?->ops_job_items_delivered_count ?? 0;
-                $job->ops_job_items_picked_count = $iStat?->ops_job_items_picked_count ?? 0;
+                $job->ops_job_items_count = ($iStat?->ops_job_items_count ?? 0) + $job->ops_job_tasks_count;
+                $job->ops_job_items_delivered_count = ($iStat?->ops_job_items_delivered_count ?? 0) + (int) ($tStat?->tasks_completed_count ?? 0);
+                $job->ops_job_items_picked_count = ($iStat?->ops_job_items_picked_count ?? 0) + (int) ($tStat?->tasks_picked_count ?? 0);
                 $job->ops_job_items_verified_count = $iStat?->ops_job_items_verified_count ?? 0;
                 $job->total_cash_amount = $iStat?->total_cash_amount ?? 0;
                 $job->total_cash_amount_from_vmc = $iStat?->total_cash_amount_from_vmc ?? 0;
@@ -1296,7 +1298,7 @@ class OpsJobController extends Controller
                 'opsJobItems.verifiedBy',
                 'updatedBy:id,name',
                 // Tasks: simple indexed query, ordered by sequence
-                'opsJobTasks' => fn($q) => $q->with('createdBy:id,name')->orderByRaw('ISNULL(sequence), sequence ASC'),
+                'opsJobTasks' => fn($q) => $q->with('createdBy:id,name', 'pickedBy:id,name', 'completedBy:id,name')->orderByRaw('ISNULL(sequence), sequence ASC'),
             ])
             ->findOrFail($id);
 
