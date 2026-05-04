@@ -1143,7 +1143,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
 import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, CheckCircleIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, LinkIcon, MapIcon, MapPinIcon, PaperClipIcon, PencilSquareIcon, PlayIcon, PlusCircleIcon, TrashIcon, UserGroupIcon, XMarkIcon } from '@heroicons/vue/20/solid';
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
@@ -1211,6 +1211,7 @@ const userOptions = ref([])
 
 onMounted(() => {
   opsJob.value = props.opsJob.data
+  rebuildMergedRows()
 
   unbindedVendOptions.value = props.unbindedVendOptions.data.map(vend => {
     return {
@@ -1227,8 +1228,22 @@ onMounted(() => {
 // Merged and sorted list of job items + tasks for the table display.
 // We annotate the original reactive objects (not copies) so that
 // v-model on sequence works correctly against the reactive source.
+//
+// IMPORTANT: This is intentionally a ref (not a computed) so that
+// editing the Job Sequence input does NOT immediately re-sort the
+// rows on blur — the user only wants the new sequence value saved.
+// The list is rebuilt only when:
+//   (a) opsJob is re-fetched / replaced (page refresh, filter change,
+//       Renumber click, add / delete item, etc.), or
+//   (b) we explicitly call rebuildMergedRows().
 // ----------------------------------------------------------------
-const mergedRows = computed(() => {
+const mergedRows = ref([])
+
+function rebuildMergedRows() {
+  if (!opsJob.value) {
+    mergedRows.value = []
+    return
+  }
   const items = (opsJob.value.opsJobItems || []).map(item => {
     item._isTask = false
     item._key = 'item_' + item.id
@@ -1239,13 +1254,22 @@ const mergedRows = computed(() => {
     task._key = 'task_' + task.id
     return task
   })
-  return [...items, ...tasks].sort((a, b) => {
+  mergedRows.value = [...items, ...tasks].sort((a, b) => {
     const seqA = (a.sequence != null) ? a.sequence : Infinity
     const seqB = (b.sequence != null) ? b.sequence : Infinity
     if (seqA !== seqB) return seqA - seqB
     // Stable sort: items before tasks for same sequence
     return a._isTask ? 1 : -1
   })
+}
+
+// Rebuild whenever the entire opsJob object is replaced (e.g. after
+// router.reload / form.post that reassigns opsJob.value). Mutating
+// row.sequence in-place will NOT trigger this watcher, which is
+// exactly what we want — typing in the sequence input must not
+// reorder the visible rows.
+watch(opsJob, () => {
+  rebuildMergedRows()
 })
 
 function getDefaultForm() {
