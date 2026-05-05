@@ -151,9 +151,16 @@ const managementItems = [
         subtitles: []
     },
     {
-        title: 'Find Menu (fr Customer); Find Setting Chart (fr Machine)',
-        link: '',
-        subtitles: []
+        title: 'Change to new SKU and Mapping',
+        link: 'https://youtu.be/kCXIEQUFINI',
+        subtitles: [
+            'Create new Mapping. Replicate from current Mapping, replace old sku with new sku',
+            'Link Current Mapping to New Mapping',
+            'Implementation of New Mapping: Job > Stock Action > Implement New Mapping',
+            'Picker: Pick goods including the new sku',
+            'Driver refill to machine. Return old sku to warehouse',
+            'Digital screen will updated with new sku'
+        ]
     }
 ];
 

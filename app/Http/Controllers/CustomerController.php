@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CountryResource;
+use App\Http\Resources\CustomerPeriodSummaryResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
@@ -22,6 +23,7 @@ use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
+use App\Models\CustomerContractLog;
 use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\OpsJobItem;
@@ -176,6 +178,471 @@ class CustomerController extends Controller
             'vendPrefixOptions' => $optionsService->vendPrefixes(),
             'zoneOptions' => $optionsService->zones(),
         ]);
+    }
+
+    /**
+     * Customer Management > Summary subtab.
+     *
+     * Reads pre-aggregated rows from customer_period_summaries (refreshed
+     * nightly by ProcessCustomerSummaryMonth) and applies the same
+     * customer-level filters as the Customer Index page, plus a Period Report
+     * filter (current | last_12_months | all).
+     */
+    public function summary(Request $request)
+    {
+        // Capture the summary-page sort fields BEFORE merging defaults — these
+        // belong to customer_period_summaries (year_month, sales_cents, ...).
+        // We must NOT let them flow into Customer::filterIndex(), which would
+        // try to ORDER BY those columns on the customers table.
+        $summarySortKey = $request->sortKey ?: 'year_month';
+        $summarySortBy = $request->sortBy ?: 'false';
+
+        $request->merge([
+            'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
+            'is_cms' => $request->is_cms ? $request->is_cms : 'all',
+            'is_active' => $request->is_active ? $request->is_active : 'true',
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
+            'period_report' => $request->period_report ?: 'current',
+            // Strip sortKey/sortBy so filterIndex doesn't apply them to the
+            // customers table. We'll apply them to the summaries query below.
+            'sortKey' => null,
+            'sortBy' => null,
+        ]);
+
+        // Resolve period range based on period_report option.
+        // Current        : just the current calendar month (one row per customer)
+        // Last 12 months : 12 most recent FINISHED months (excludes current)
+        // All            : earliest known month → current month inclusive
+        $today = \Carbon\Carbon::today();
+        $currentMonthStart = $today->copy()->startOfMonth();
+
+        switch ($request->period_report) {
+            case 'last_12_months':
+                $rangeEnd = $currentMonthStart->copy()->subMonthNoOverflow(); // last finished month
+                $rangeStart = $rangeEnd->copy()->subMonthsNoOverflow(11);     // 12 months back from rangeEnd
+                $rangeStart = $rangeStart->startOfMonth();
+                $rangeEnd = $rangeEnd->startOfMonth();
+                break;
+
+            case 'all':
+                $earliest = \Illuminate\Support\Facades\DB::table('customer_period_summaries')->min('year_month');
+                $rangeStart = $earliest
+                    ? \Carbon\Carbon::parse($earliest)->startOfMonth()
+                    : $currentMonthStart->copy();
+                $rangeEnd = $currentMonthStart->copy();
+                break;
+
+            case 'current':
+            default:
+                $rangeStart = $currentMonthStart->copy();
+                $rangeEnd = $currentMonthStart->copy();
+                break;
+        }
+
+        // Reuse the Customer Index filter scope to determine which customers
+        // qualify, then join the pre-aggregated summary rows for the period.
+        $customerIdsQuery = Customer::query()
+            ->select('customers.id')
+            ->leftJoin('addresses', function ($q) {
+                $q->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\\Models\\Customer')
+                    ->where('addresses.type', '=', 2)
+                    ->limit(1);
+            })
+            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->filterIndex($request);
+
+        $customerIdsQuery = $this->filterOperator($customerIdsQuery);
+        $customerIds = $customerIdsQuery->pluck('customers.id')->unique()->values();
+
+        // Sortable columns. machine_id / machine_prefix sort by the customer's
+        // latest-bound vend (resolved via scalar subqueries below).
+        $sortKey = in_array($summarySortKey, [
+            'year_month', 'sales_cents', 'gross_earning_cents',
+            'location_fees_cents', 'location_earning_cents', 'location_earning_rate',
+            'transaction_count', 'customer_id',
+            'machine_id', 'machine_prefix',
+        ], true) ? $summarySortKey : 'year_month';
+        $sortDirection = filter_var($summarySortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+
+        // "Current" = one row per customer for the current month (the stored
+        // per-month grain is already what we want to render).
+        // "Last 12 months" / "All" = ONE row per customer covering the whole
+        // window — aggregate the stored per-month rows into a single virtual
+        // row using SUMs. This matches the user's mental model of the filter:
+        // "show me one number per customer for this period".
+        $isAggregated = in_array($request->period_report, ['last_12_months', 'all'], true);
+
+        $eagerLoads = [
+            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date',
+            'customer.operator:id,code,name',
+            'customer.tagBindings.tag:id,name',
+            'customer.deliveryAddress',
+            'customer.locationType:id,name',
+            'customer.vend:id,customer_id,code,vend_prefix_id',
+            'customer.vend.vendPrefix:id,name',
+        ];
+
+        if ($isAggregated) {
+            // Aggregated query: GROUP BY customer_id, SUM the cents columns.
+            // location_earning_rate is recomputed from the SUMs (NOT the
+            // average of monthly rates — that would be statistically wrong).
+            // Contract snapshot fields use MAX() — for the "current contract"
+            // snapshot pattern we use today, MAX/MIN/ANY all return the same
+            // value since every per-month row has the same snapshot.
+            $summariesQuery = \App\Models\CustomerPeriodSummary::query()
+                ->with($eagerLoads)
+                ->selectRaw(
+                    'MIN(id) AS id,
+                     customer_id,
+                     MAX(operator_id) AS operator_id,
+                     MIN(`year_month`) AS `year_month`,
+                     MIN(period_start) AS period_start,
+                     MAX(period_end) AS period_end,
+                     0 AS is_current_month,
+                     MAX(as_of_date) AS as_of_date,
+                     SUM(sales_cents) AS sales_cents,
+                     SUM(gross_earning_cents) AS gross_earning_cents,
+                     SUM(location_fees_cents) AS location_fees_cents,
+                     SUM(location_earning_cents) AS location_earning_cents,
+                     CASE WHEN SUM(sales_cents) > 0
+                          THEN ROUND(SUM(location_earning_cents) / SUM(sales_cents), 4)
+                          ELSE 0 END AS location_earning_rate,
+                     SUM(transaction_count) AS transaction_count,
+                     MAX(vend_count) AS vend_count,
+                     MAX(contract_commission_type) AS contract_commission_type,
+                     MAX(contract_commission_value) AS contract_commission_value,
+                     MAX(contract_commission_value2) AS contract_commission_value2,
+                     MAX(contract_ps_term) AS contract_ps_term'
+                )
+                ->whereIn('customer_id', $customerIds)
+                ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+                ->groupBy('customer_id');
+        } else {
+            $summariesQuery = \App\Models\CustomerPeriodSummary::query()
+                ->with($eagerLoads)
+                ->whereIn('customer_id', $customerIds)
+                ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+        }
+
+        // For machine_id / machine_prefix sorting, attach a scalar subquery
+        // that picks the latest-bound vend per customer (mirrors the
+        // Customer::vend() relation: latest by begin_date, then created_at).
+        if ($sortKey === 'machine_id') {
+            $summariesQuery->orderByRaw(
+                '(SELECT v.code FROM vends v
+                  WHERE v.customer_id = customer_period_summaries.customer_id
+                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) ' . $sortDirection
+            );
+        } elseif ($sortKey === 'machine_prefix') {
+            $summariesQuery->orderByRaw(
+                '(SELECT vp.name FROM vends v
+                  LEFT JOIN vend_prefixes vp ON vp.id = v.vend_prefix_id
+                  WHERE v.customer_id = customer_period_summaries.customer_id
+                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) ' . $sortDirection
+            );
+        } else {
+            // For aggregated queries the SUM/MIN columns are aliased into the
+            // same names — orderBy on the alias works against MySQL.
+            $summariesQuery->orderBy($sortKey, $sortDirection);
+        }
+        $summariesQuery->orderBy('customer_id', 'asc');
+
+        $summaries = $summariesQuery;
+
+        $summaries = $summaries
+            ->paginate(
+                $request->numberPerPage === 'All' ? 10000 : (int) $request->numberPerPage
+            )
+            ->withQueryString();
+
+        // For aggregated views ("Last 12 months" / "All"), period_start /
+        // period_end on each row come from MIN/MAX of the customer's STORED
+        // monthly rows, so a customer who only had transactions in 1 of the
+        // 12 months would show that single month as the period — misleading.
+        // Override with the actual reporting window, clamped by the customer's
+        // begin_date (in case they started mid-window) and termination_date.
+        if ($isAggregated) {
+            $this->clampAggregatedPeriodBounds($summaries->getCollection(), $rangeStart, $rangeEnd);
+        }
+
+        $className = get_class(new Customer());
+        $optionsService = app(\App\Services\OptionsService::class);
+
+        return Inertia::render('Customer/Summary', [
+            'summaries' => CustomerPeriodSummaryResource::collection($summaries),
+            'periodReport' => $request->period_report,
+            'periodReportOptions' => [
+                ['id' => 'current', 'value' => 'Current'],
+                ['id' => 'last_12_months', 'value' => 'Last 12 months'],
+                ['id' => 'all', 'value' => 'All'],
+            ],
+            'rangeStart' => $rangeStart->toDateString(),
+            'rangeEnd' => $rangeEnd->copy()->endOfMonth()->toDateString(),
+            'cmsEndpoint' => env('CMS_URL'),
+            'locationTypeOptions' => $optionsService->locationTypes(),
+            'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
+            'operatorOptions' => $optionsService->operators(),
+            'tags' => $optionsService->tags($className),
+            'vendPrefixOptions' => $optionsService->vendPrefixes(),
+        ]);
+    }
+
+    /**
+     * For aggregated Summary rows ("Last 12 months" / "All"), replace the
+     * stored MIN(period_start) / MAX(period_end) with the actual reporting
+     * window. Clamp by the customer's begin_date / termination_date so:
+     *   - a customer who started mid-window shows their begin_date
+     *   - a customer who terminated mid-window shows their termination_date
+     */
+    protected function clampAggregatedPeriodBounds($collection, \Carbon\Carbon $rangeStart, \Carbon\Carbon $rangeEnd): void
+    {
+        $rangeEndEffective = $rangeEnd->copy()->endOfMonth()->startOfDay();
+
+        foreach ($collection as $row) {
+            $cust = $row->customer ?? null;
+
+            $start = $rangeStart->copy();
+            if ($cust && $cust->begin_date) {
+                $beginDate = $cust->begin_date instanceof \Carbon\Carbon
+                    ? $cust->begin_date->copy()
+                    : \Carbon\Carbon::parse($cust->begin_date);
+                if ($beginDate->gt($start)) {
+                    $start = $beginDate;
+                }
+            }
+
+            $end = $rangeEndEffective->copy();
+            if ($cust && $cust->termination_date) {
+                $termDate = $cust->termination_date instanceof \Carbon\Carbon
+                    ? $cust->termination_date->copy()
+                    : \Carbon\Carbon::parse($cust->termination_date);
+                if ($termDate->lt($end)) {
+                    $end = $termDate;
+                }
+            }
+
+            $row->period_start = $start->toDateString();
+            $row->period_end = $end->toDateString();
+        }
+    }
+
+    /**
+     * Export the Customer Management > Summary table to .xlsx.
+     *
+     * Reuses the same filter + period resolution as summary(); streams rows
+     * out via FastExcel with a generator so memory stays flat.
+     */
+    public function summaryExportExcel(Request $request)
+    {
+        $request->merge([
+            'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
+            'is_cms' => $request->is_cms ? $request->is_cms : 'all',
+            'is_active' => $request->is_active ? $request->is_active : 'true',
+            'period_report' => $request->period_report ?: 'current',
+            // sortKey/sortBy don't apply to the Customer filter scope here.
+            'sortKey' => null,
+            'sortBy' => null,
+        ]);
+
+        // Period range — same logic as summary().
+        $today = \Carbon\Carbon::today();
+        $currentMonthStart = $today->copy()->startOfMonth();
+
+        switch ($request->period_report) {
+            case 'last_12_months':
+                $rangeEnd = $currentMonthStart->copy()->subMonthNoOverflow();
+                $rangeStart = $rangeEnd->copy()->subMonthsNoOverflow(11)->startOfMonth();
+                $rangeEnd = $rangeEnd->startOfMonth();
+                break;
+            case 'all':
+                $earliest = \Illuminate\Support\Facades\DB::table('customer_period_summaries')->min('year_month');
+                $rangeStart = $earliest
+                    ? \Carbon\Carbon::parse($earliest)->startOfMonth()
+                    : $currentMonthStart->copy();
+                $rangeEnd = $currentMonthStart->copy();
+                break;
+            default:
+                $rangeStart = $currentMonthStart->copy();
+                $rangeEnd = $currentMonthStart->copy();
+                break;
+        }
+
+        // Resolve qualifying customer IDs through the Customer Index filters.
+        $customerIdsQuery = Customer::query()
+            ->select('customers.id')
+            ->leftJoin('addresses', function ($q) {
+                $q->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\\Models\\Customer')
+                    ->where('addresses.type', '=', 2)
+                    ->limit(1);
+            })
+            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->filterIndex($request);
+        $customerIdsQuery = $this->filterOperator($customerIdsQuery);
+        $customerIds = $customerIdsQuery->pluck('customers.id')->unique()->values();
+
+        // Match the on-screen aggregation: "current" stays per-month;
+        // "last_12_months" / "all" collapse to ONE row per customer over the
+        // whole range (SUM cents, MIN/MAX dates, recompute rate from sums).
+        $isAggregated = in_array($request->period_report, ['last_12_months', 'all'], true);
+
+        $eagerLoads = [
+            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,begin_date,termination_date',
+            'customer.operator:id,code,name',
+            'customer.tagBindings.tag:id,name',
+            'customer.deliveryAddress',
+            'customer.locationType:id,name',
+            'customer.vend:id,customer_id,code,vend_prefix_id',
+            'customer.vend.vendPrefix:id,name',
+        ];
+
+        if ($isAggregated) {
+            $query = \App\Models\CustomerPeriodSummary::query()
+                ->with($eagerLoads)
+                ->selectRaw(
+                    'MIN(id) AS id,
+                     customer_id,
+                     MAX(operator_id) AS operator_id,
+                     MIN(`year_month`) AS `year_month`,
+                     MIN(period_start) AS period_start,
+                     MAX(period_end) AS period_end,
+                     0 AS is_current_month,
+                     MAX(as_of_date) AS as_of_date,
+                     SUM(sales_cents) AS sales_cents,
+                     SUM(gross_earning_cents) AS gross_earning_cents,
+                     SUM(location_fees_cents) AS location_fees_cents,
+                     SUM(location_earning_cents) AS location_earning_cents,
+                     CASE WHEN SUM(sales_cents) > 0
+                          THEN ROUND(SUM(location_earning_cents) / SUM(sales_cents), 4)
+                          ELSE 0 END AS location_earning_rate,
+                     SUM(transaction_count) AS transaction_count,
+                     MAX(vend_count) AS vend_count,
+                     MAX(contract_commission_type) AS contract_commission_type,
+                     MAX(contract_commission_value) AS contract_commission_value,
+                     MAX(contract_commission_value2) AS contract_commission_value2,
+                     MAX(contract_ps_term) AS contract_ps_term'
+                )
+                ->whereIn('customer_id', $customerIds)
+                ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+                ->groupBy('customer_id')
+                ->orderBy('customer_id', 'asc');
+        } else {
+            $query = \App\Models\CustomerPeriodSummary::query()
+                ->with($eagerLoads)
+                ->whereIn('customer_id', $customerIds)
+                ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+                ->orderBy('customer_id', 'asc')
+                ->orderBy('year_month', 'desc');
+        }
+
+        $operatorCountry = auth()->user()->operator->country ?? null;
+        $divisor = pow(10, $operatorCountry?->currency_exponent ?? 2);
+        $currencySymbol = $operatorCountry?->currency_symbol ?? '$';
+
+        $contractTypeLabels = [
+            'F'     => 'Free Placement',
+            'S'     => 'Subsidized Plan',
+            'R'     => 'Fix Rental',
+            'U'     => 'Utility Only',
+            'PS'    => 'Profit Sharing Only',
+            'PS+U'  => 'PS + Utility',
+            'PSORU' => 'PS OR Utility (whichever higher)',
+        ];
+
+        $formatLocationFeesRate = function ($row) {
+            $type = $row->contract_commission_type;
+            if (!$type) return '';
+            $val = $row->contract_commission_value;
+            $val2 = $row->contract_commission_value2;
+            $psTerm = $row->contract_ps_term;
+            if (in_array($type, ['PS', 'PS+U', 'PSORU'], true)) {
+                $base = $val !== null ? rtrim(rtrim(number_format((float) $val, 2, '.', ''), '0'), '.') . '%' : '';
+                if (in_array($type, ['PS+U', 'PSORU'], true) && $val2 !== null) {
+                    $base .= ' + $' . rtrim(rtrim(number_format((float) $val2, 2, '.', ''), '0'), '.');
+                }
+                if ($psTerm !== null) {
+                    $base .= ' (PS Term ' . rtrim(rtrim(number_format((float) $psTerm, 2, '.', ''), '0'), '.') . '%)';
+                }
+                return $base;
+            }
+            return $val !== null ? '$' . number_format((float) $val, 2) : '';
+        };
+
+        $rowIndex = 0;
+
+        return (new FastExcel($this->exportWithCursor($query)))->download(
+            $this->formatExportFilename('CustomersSummary', 'xlsx'),
+            function ($row) use (&$rowIndex, $divisor, $currencySymbol, $contractTypeLabels, $formatLocationFeesRate, $isAggregated, $rangeStart, $rangeEnd) {
+                $rowIndex++;
+                $customer = $row->customer;
+                $address = $customer?->deliveryAddress;
+                $vend = $customer?->vend;
+                $tagNames = $customer
+                    ? $customer->tagBindings->map(fn ($tb) => optional($tb->tag)->name)->filter()->implode(', ')
+                    : '';
+
+                // Build full_address the same way AddressResource does.
+                $fullAddress = '';
+                if ($address) {
+                    $parts = [];
+                    if ($address->block_num)   $parts[] = 'Blk ' . ucwords(strtolower($address->block_num));
+                    if ($address->unit_num)    $parts[] = '#' . $address->unit_num;
+                    if ($address->building)    $parts[] = ucwords(strtolower($address->building));
+                    if ($address->street_name) $parts[] = ucwords(strtolower($address->street_name));
+                    $joined = implode(', ', $parts);
+                    $fullAddress = $joined ? ($joined . ($address->postcode ? ', ' . $address->postcode : '')) : ($address->postcode ?? '');
+                }
+
+                // For aggregated rows, the export's Period Start / End should
+                // reflect the full reporting window (clamped by the customer's
+                // begin_date / termination_date) — not MIN/MAX of stored months.
+                $periodStartOut = $row->period_start;
+                $periodEndOut = $row->period_end;
+                if ($isAggregated) {
+                    $effStart = $rangeStart->copy();
+                    if ($customer && $customer->begin_date) {
+                        $bd = $customer->begin_date instanceof \Carbon\Carbon
+                            ? $customer->begin_date->copy()
+                            : \Carbon\Carbon::parse($customer->begin_date);
+                        if ($bd->gt($effStart)) $effStart = $bd;
+                    }
+                    $effEnd = $rangeEnd->copy()->endOfMonth()->startOfDay();
+                    if ($customer && $customer->termination_date) {
+                        $td = $customer->termination_date instanceof \Carbon\Carbon
+                            ? $customer->termination_date->copy()
+                            : \Carbon\Carbon::parse($customer->termination_date);
+                        if ($td->lt($effEnd)) $effEnd = $td;
+                    }
+                    $periodStartOut = $effStart;
+                    $periodEndOut = $effEnd;
+                }
+
+                return [
+                    '#' => $rowIndex,
+                    'Customer ID' => $customer ? ($customer->id + Customer::RUNNING_NUMBER_INIT) : null,
+                    'Customer Name' => $customer?->name,
+                    'Ref Price' => $customer?->selling_price_type ? ('RP' . $customer->selling_price_type) : null,
+                    'Address' => $fullAddress,
+                    'Period Report (YYMM)' => $row->year_month ? \Carbon\Carbon::parse($row->year_month)->format('ym') : null,
+                    'Machine ID' => $vend?->code,
+                    'Machine Prefix' => $vend && $vend->relationLoaded('vendPrefix') ? optional($vend->vendPrefix)->name : null,
+                    'Period Start Date' => $periodStartOut ? (\Carbon\Carbon::parse($periodStartOut))->format('ymd') : null,
+                    'Period End Date' => $periodEndOut ? (\Carbon\Carbon::parse($periodEndOut))->format('ymd') : null,
+                    'Sales ($) (excl GST)' => round(((int) $row->sales_cents) / $divisor, 2),
+                    'Gross Earning (excl GST)' => round(((int) $row->gross_earning_cents) / $divisor, 2),
+                    'Placement Contract Type' => $contractTypeLabels[$row->contract_commission_type] ?? $row->contract_commission_type,
+                    'Location Fees Rate' => $formatLocationFeesRate($row),
+                    'Location Fees' => round(((int) $row->location_fees_cents) / $divisor, 2),
+                    'Location Earning' => round(((int) $row->location_earning_cents) / $divisor, 2),
+                    'Location Earning Rate %' => round(((float) $row->location_earning_rate) * 100, 2),
+                    'Accumulate Gross margin $' => null, // placeholder — same as the on-screen "—"
+                    'Location Grading' => null,          // placeholder — same as the on-screen "—"
+                    'Location Type' => $customer && $customer->relationLoaded('locationType') ? optional($customer->locationType)->name : null,
+                    'Customer Tag' => $tagNames,
+                ];
+            }
+        );
     }
 
     public function bindVend(Request $request, $id)
@@ -601,6 +1068,35 @@ class CustomerController extends Controller
             }
 
             $customer->update($request->customer);
+
+            // Append a row to customer_contract_logs whenever any contract field
+            // changes, so the Summary page (and future segmented reporting) can
+            // resolve which contract was active for any historical period.
+            // Stamps the previously-active row's effective_to to "now" so the
+            // history is contiguous.
+            if ($contractChanged) {
+                $now = now();
+                CustomerContractLog::query()
+                    ->where('customer_id', $customer->id)
+                    ->whereNull('effective_to')
+                    ->update(['effective_to' => $now]);
+
+                CustomerContractLog::query()->create([
+                    'customer_id' => $customer->id,
+                    'effective_from' => $now,
+                    'effective_to' => null,
+                    'contract_commission_type' => $customer->contract_commission_type,
+                    'contract_commission_value' => $customer->contract_commission_value,
+                    'contract_commission_value2' => $customer->contract_commission_value2,
+                    'contract_ps_term' => $customer->contract_ps_term,
+                    'contract_until' => $customer->contract_until,
+                    'contract_auto_renewal' => (bool) $customer->contract_auto_renewal,
+                    'contract_min_commitment_period' => $customer->contract_min_commitment_period,
+                    'contract_notice_period' => $customer->contract_notice_period,
+                    'changed_by' => auth()->id(),
+                    'source' => 'user',
+                ]);
+            }
 
             if ($request->customer['contact'] && isset($request->customer['contact']['name'])) {
                 if ($customer->contact) {

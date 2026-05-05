@@ -173,6 +173,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
 
     Route::prefix('customers')->group(function () {
         Route::get('/', [CustomerController::class, 'index'])->name('customers');
+        Route::get('/summary', [CustomerController::class, 'summary'])->name('customers.summary');
+        Route::get('/summary/excel', [CustomerController::class, 'summaryExportExcel'])->name('customers.summary.excel');
         Route::get('/{id}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
         Route::get('/create', [CustomerController::class, 'create']);
         Route::post('/store', [CustomerController::class, 'store']);

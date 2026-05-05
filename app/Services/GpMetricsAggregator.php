@@ -179,8 +179,15 @@ class GpMetricsAggregator
             // transaction page which also sums vend_transactions.amount per matching transaction.
             ->selectRaw('ROUND(SUM(vend_transactions.amount / NULLIF(pcs_count.product_item_count, 0))) as txn_amount_cents')
             ->selectRaw("SUM($adjustedRevenueExpr) as revenue_cents")
-            ->selectRaw("SUM($adjustedRevenueExpr - (COALESCE(vend_transaction_items.unit_cost, 0) * 100)) as gross_profit_cents")
-            ->selectRaw('SUM(COALESCE(vend_transaction_items.unit_cost, 0) * 100) as unit_cost_cents')
+            // vend_transaction_items.unit_cost is already stored in CENTS:
+            // VendTransactionService writes it as $unitCost->cost * 100, where
+            // $unitCost->cost goes through the UnitCost accessor (DB cents → /100
+            // on read = dollars) and then * 100 converts back to cents. Multiplying
+            // by 100 again here was over-deducting cost by 100× for every
+            // multi-basket item, which is what produced the wildly negative
+            // gross profits seen on multi-item-heavy customers (Zoo, etc.).
+            ->selectRaw("SUM($adjustedRevenueExpr - COALESCE(vend_transaction_items.unit_cost, 0)) as gross_profit_cents")
+            ->selectRaw('SUM(COALESCE(vend_transaction_items.unit_cost, 0)) as unit_cost_cents')
             ->groupBy([
                 DB::raw($transactionDateExpression),
                 'vend_transactions.operator_id',

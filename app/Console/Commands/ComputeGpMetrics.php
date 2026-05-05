@@ -19,7 +19,8 @@ class ComputeGpMetrics extends Command
         {--to= : End date for range (YYYY-MM-DD)}
         {--chunk=1000 : Chunk size for inserts}
         {--sync : Process each day immediately instead of queueing the job}
-        {--sleep=0 : Seconds to pause between days when using --sync}';
+        {--sleep=0 : Seconds to pause between days when using --sync}
+        {--queue= : Override queue name (low|default|high). Defaults: backfill=low, nightly=default}';
 
     /**
      * The console command description.
@@ -39,22 +40,32 @@ class ComputeGpMetrics extends Command
             return self::FAILURE;
         }
 
-        [$rangeStart, $rangeEnd] = $this->determineRange();
+        [$rangeStart, $rangeEnd, $isBackfill] = $this->determineRange();
 
         if ($rangeStart->gt($rangeEnd)) {
             $this->error('Invalid date range supplied.');
             return self::FAILURE;
         }
 
+        // Backfill ranges (any explicit window) go on "low" queue so they
+        // don't compete with realtime jobs. The nightly self-heal (no flags)
+        // stays on "default" so morning reports are fresh by 01:00.
+        // Explicit --queue= always wins.
+        $queue = $this->option('queue')
+            ?: ($isBackfill ? 'low' : 'default');
+
         $this->info(sprintf(
-            'Computing GP metrics from %s to %s',
+            'Computing GP metrics from %s to %s (sync=%s, queue=%s, backfill=%s)',
             $rangeStart->toDateString(),
-            $rangeEnd->toDateString()
+            $rangeEnd->toDateString(),
+            $this->option('sync') ? 'yes' : 'no',
+            $queue,
+            $isBackfill ? 'yes' : 'no'
         ));
 
         $current = $rangeStart->copy();
         while ($current->lte($rangeEnd)) {
-            $this->processDay($current, $chunkSize);
+            $this->processDay($current, $chunkSize, $queue);
             $current->addDay();
         }
 
@@ -65,7 +76,7 @@ class ComputeGpMetrics extends Command
     /**
      * Determine the date range the command should process.
      *
-     * @return array{0:Carbon,1:Carbon}
+     * @return array{0:Carbon,1:Carbon,2:bool}  start, end, isBackfill
      */
     protected function determineRange(): array
     {
@@ -75,7 +86,7 @@ class ComputeGpMetrics extends Command
 
         if ($dateOption) {
             $date = Carbon::parse($dateOption)->startOfDay();
-            return [$date, $date->copy()];
+            return [$date, $date->copy(), true];
         }
 
         if ($fromOption || $toOption) {
@@ -86,7 +97,7 @@ class ComputeGpMetrics extends Command
                 [$from, $to] = [$to, $from];
             }
 
-            return [$from, $to];
+            return [$from, $to, true];
         }
 
         // Default: process last 3 days to self-heal any recent misses
@@ -96,7 +107,7 @@ class ComputeGpMetrics extends Command
         $from = $today->copy()->subDays(3);
         $to = $today->copy()->subDays(1);
 
-        return [$from, $to];
+        return [$from, $to, false]; // nightly self-heal — not a backfill
     }
 
     /**
@@ -104,9 +115,10 @@ class ComputeGpMetrics extends Command
      *
      * @param  Carbon  $day
      * @param  int     $chunkSize
+     * @param  string  $queue
      * @return void
      */
-    protected function processDay(Carbon $day, int $chunkSize): void
+    protected function processDay(Carbon $day, int $chunkSize, string $queue = 'default'): void
     {
         if ($this->option('sync')) {
             $this->info(sprintf(' - Processing %s (sync)', $day->toDateString()));
@@ -119,7 +131,8 @@ class ComputeGpMetrics extends Command
             return;
         }
 
-        $this->info(sprintf(' - Queuing %s', $day->toDateString()));
-        ProcessGpMetricsDay::dispatch($day->toDateString(), $chunkSize);
+        $this->info(sprintf(' - Queuing %s on queue:%s', $day->toDateString(), $queue));
+        ProcessGpMetricsDay::dispatch($day->toDateString(), $chunkSize)
+            ->onQueue($queue);
     }
 }
