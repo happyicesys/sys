@@ -1653,7 +1653,11 @@ class ReportController extends Controller
                         ->selectRaw('SUM(gm.error_count_no_4_5) AS error_count_no_4_5')
                         ->selectRaw('SUM(gm.error_count_4_5) AS error_count_4_5')
                         ->selectRaw('MAX(pvc.channel_availability) AS channel_availability');
-                    $countColumn = 'gm.sale_count - gm.error_count_4_5'; // Exclude error #4 and #5 from Count (Success Only)
+                    // Count (Success Only) = sale_count minus ALL errors (both #3,#6,#7,#9 and #4,#5).
+                    // Previously this only subtracted error_count_4_5, which gave correct numbers in
+                    // databases where every error happened to be code 4 or 5, but inflated the success
+                    // count whenever errors of code 3/7/9 (and others) existed.
+                    $countColumn = 'gm.sale_count - gm.error_count';
                     $groupByExpr = 'gm.product_id';
                     break;
                 case 'categories':
