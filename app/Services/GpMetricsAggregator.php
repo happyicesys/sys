@@ -134,10 +134,6 @@ class GpMetricsAggregator
             ->join('vend_transactions', 'vend_transaction_items.vend_transaction_id', '=', 'vend_transactions.id')
             ->leftJoinSub($multiSub, 'vti_sum', 'vend_transactions.id', '=', 'vti_sum.vend_transaction_id')
             ->leftJoin('vend_channels', 'vend_transaction_items.vend_channel_id', '=', 'vend_channels.id')
-            // Per-item channel-error code is needed so multi-purchase transactions can split
-            // their items into success / error buckets. Without this join, every line below
-            // would evaluate to "no error" and we'd lose every multi-purchase failure.
-            ->leftJoin('vend_channel_errors', 'vend_transaction_items.vend_channel_error_id', '=', 'vend_channel_errors.id')
             ->leftJoinSub($productCountSub, 'pcs_count', function ($join) {
                 $join->on('pcs_count.vend_transaction_id', '=', 'vend_transactions.id')
                      ->on('pcs_count.product_id', '=', DB::raw('COALESCE(vend_transaction_items.product_id, vend_channels.product_id)'));
@@ -167,13 +163,15 @@ class GpMetricsAggregator
             ->selectRaw('CASE WHEN customers.id IS NULL THEN 0 ELSE 1 END as is_binded_customer')
             ->selectRaw('SUM(1) as sale_count')
             ->selectRaw('COUNT(DISTINCT vend_transaction_items.vend_transaction_id) as transaction_count')
-            // Mirror the single-transaction logic: an item is "successful" when it has no
-            // channel error or when the error code is 0/6 (No Malfunction / Microswitch).
-            // Anything else is an error, split into the 4/5 (motor) bucket vs everything else.
-            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_id IS NULL OR vend_channel_errors.code IN (0, 6) THEN 1 ELSE 0 END) as success_count")
-            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_id IS NOT NULL AND (vend_channel_errors.code IS NULL OR vend_channel_errors.code NOT IN (0, 6)) THEN 1 ELSE 0 END) as error_count")
-            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_id IS NOT NULL AND (vend_channel_errors.code IS NULL OR vend_channel_errors.code NOT IN (0, 4, 5, 6)) THEN 1 ELSE 0 END) as error_count_no_4_5")
-            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_id IS NOT NULL AND vend_channel_errors.code IN (4, 5) THEN 1 ELSE 0 END) as error_count_4_5")
+            // Per-item success/error split for multi-purchase baskets. We rely on
+            // vend_transaction_items.vend_channel_error_code (the int column populated at write
+            // time) rather than joining vend_channel_errors via the FK, because some items have
+            // the error code set without a resolved FK row — joining would silently treat those
+            // failures as success. This matches StoreVendProductRecords' aggregation logic.
+            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_code IS NULL OR vend_transaction_items.vend_channel_error_code IN (0, 6) THEN 1 ELSE 0 END) as success_count")
+            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code NOT IN (0, 6) THEN 1 ELSE 0 END) as error_count")
+            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_code IS NOT NULL AND vend_transaction_items.vend_channel_error_code NOT IN (0, 4, 5, 6) THEN 1 ELSE 0 END) as error_count_no_4_5")
+            ->selectRaw("SUM(CASE WHEN vend_transaction_items.vend_channel_error_code IN (4, 5) THEN 1 ELSE 0 END) as error_count_4_5")
             ->selectRaw("SUM($adjustedAmountExpr) as amount_cents")
             // txn_amount_cents: full transaction amount counted exactly once per transaction per product.
             // Dividing vend_transactions.amount by the number of same-product items in each transaction,
