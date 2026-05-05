@@ -100,6 +100,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                 'Member ID',
                 'HID Card ID',
                 'Voucher',
+                'Cashless Mfg',
                 'Campaign Labels'
             ]);
 
@@ -222,9 +223,16 @@ class ExportVendTransactionCsv implements ShouldQueue
                             ? ($txn->amount - $txnItems->sum(fn($it) => $it->vendChannel?->amount ?? 0)) / 100
                             : $main_amount;
 
+                        // Wrap order_id in Excel text-formula so long numeric IDs
+                        // do not get converted to scientific notation when the
+                        // CSV is opened directly in Excel.
+                        $orderIdCell = $txn->order_id !== null && $txn->order_id !== ''
+                            ? '="' . $txn->order_id . '"'
+                            : '';
+
                         // ✏️ Parent row — append $labelStr at the end
                         fputcsv($stream, [
-                            $txn->order_id,
+                            $orderIdCell,
                             \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
                             $txn->vend_code ?? '',
                             $txn->vend_prefix_name ?? '',
@@ -250,13 +258,14 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $txn_json['dcvend_user_id'] ?? '',
                             $meta_json['hid_card_id'] ?? '',
                             (!empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
+                            $txn->cashless_mfg ?? '',
                             $labelStr, // 👈 new
                         ]);
 
                         // ✏️ Child item rows — keep Labels empty (or repeat $labelStr if you prefer)
                         foreach ($txnItems as $item) {
                             fputcsv($stream, [
-                                $txn->order_id,
+                                $orderIdCell,
                                 \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
                                 $txn->vend_code ?? '',
                                 $txn->vend_prefix_name ?? '',
@@ -282,6 +291,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 $txn_json['dcvend_user_id'] ?? '',
                                 '',
                                 '',
+                                '', // Cashless Mfg empty for item rows
                                 '', // 👈 Labels for item row (leave empty or put $labelStr)
                             ]);
                         }

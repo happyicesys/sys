@@ -43,6 +43,7 @@ class VendTransaction extends Model
         'order_id',
         'transaction_datetime',
         'amount',
+        'cashless_mfg',
         'is_zero_amount',
         'gross_profit',
         'gross_profit_margin',
@@ -177,6 +178,21 @@ class VendTransaction extends Model
         })
             ->when($request->apk_ver, function ($query, $search) {
                 $query->where('vend_transactions.meta_json->apk_ver', 'LIKE', "%{$search}%");
+            })
+            ->when($request->cashless_mfg, function ($query, $search) {
+                if ($search === 'all') {
+                    return;
+                }
+                if (is_array($search)) {
+                    $values = array_values(array_filter($search, fn($v) => $v !== null && $v !== '' && $v !== 'all'));
+                } elseif (is_string($search) && strpos($search, ',') !== false) {
+                    $values = array_values(array_filter(array_map('trim', explode(',', $search))));
+                } else {
+                    $values = [$search];
+                }
+                if (!empty($values)) {
+                    $query->whereIn('vend_transactions.cashless_mfg', $values);
+                }
             })
             ->when($request->codes, function ($query, $search) use ($request) {
                 // Use pre-resolved IDs when available (set by DashboardController) to skip the subquery.

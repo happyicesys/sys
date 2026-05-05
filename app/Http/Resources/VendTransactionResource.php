@@ -20,6 +20,7 @@ class VendTransactionResource extends JsonResource
             'id' => $this->id,
             'amount' => $this->amount / 100,
             'avg_seven_days_amount' => isset($this->avg_seven_days_amount) ? $this->avg_seven_days_amount : null,
+            'cashless_mfg' => $this->cashless_mfg,
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,

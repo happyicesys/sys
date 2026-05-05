@@ -32,9 +32,24 @@ class SyncBackDateVendTransaction implements ShouldQueue
     {
         $input = $this->input;
 
+        // Snapshot cashless mfg only for credit-card backdated entries; mirror
+        // the logic in VendTransactionService::createVendTransaction.
+        $cashlessMfg = null;
+        if ((int) ($input['paymentMethodID'] ?? 0) === 2) {
+            $paJson = is_array($this->vend->acb_vmc_pa_json)
+                ? $this->vend->acb_vmc_pa_json
+                : (json_decode($this->vend->acb_vmc_pa_json ?? '', true) ?: []);
+            $rawMfg = $paJson['CSHL_MFG'] ?? null;
+            if (is_string($rawMfg)) {
+                $rawMfg = trim($rawMfg);
+            }
+            $cashlessMfg = $rawMfg !== '' ? $rawMfg : null;
+        }
+
         $vendTransaction = VendTransaction::create([
             'transaction_datetime' => $input['date'],
             'amount' => $input['amount'],
+            'cashless_mfg' => $cashlessMfg,
             'order_id' => $input['orderID'],
             'interface_type' => null,
             'is_multiple' => 0,

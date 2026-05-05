@@ -208,9 +208,26 @@ class VendTransactionService
         $customer = $vend->customer;
         $vendPrefix = $vend->vendPrefix;
 
+        // Snapshot cashless manufacturer at the moment of the transaction so
+        // historical reports stay accurate even after the vend's cashless
+        // terminal is swapped. Only relevant for credit-card payments
+        // (payment_method_id = 2); everything else stays null.
+        $cashlessMfg = null;
+        if ((int) $input['paymentMethodID'] === 2) {
+            $paJson = is_array($vend->acb_vmc_pa_json)
+                ? $vend->acb_vmc_pa_json
+                : (json_decode($vend->acb_vmc_pa_json ?? '', true) ?: []);
+            $rawMfg = $paJson['CSHL_MFG'] ?? null;
+            if (is_string($rawMfg)) {
+                $rawMfg = trim($rawMfg);
+            }
+            $cashlessMfg = $rawMfg !== '' ? $rawMfg : null;
+        }
+
         $vendTransaction = VendTransaction::create([
             'transaction_datetime' => $isCurrentTime ? Carbon::now() : Carbon::parse($input['time']),
             'amount' => $input['amount'],
+            'cashless_mfg' => $cashlessMfg,
             'is_zero_amount' => $input['amount'] == 0,
             'order_id' => $input['orderID'],
             'interface_type' => $input['interfaceType'],
