@@ -288,7 +288,15 @@
 
                   <!-- Vend ID -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    <span v-if="row.customer?.vend">{{ row.customer.vend.code }}</span>
+                    <a
+                      v-if="row.customer?.vend?.id"
+                      target="_blank"
+                      :href="'/settings/vend/' + row.customer.vend.id + '/update'"
+                      class="text-blue-700 hover:underline"
+                    >
+                      {{ row.customer.vend.code }}
+                    </a>
+                    <span v-else-if="row.customer?.vend">{{ row.customer.vend.code }}</span>
                     <div v-if="row.vend_count > 1" class="text-[10px] text-gray-500 mt-0.5">
                       +{{ row.vend_count - 1 }} more
                     </div>

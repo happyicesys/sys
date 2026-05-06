@@ -28,28 +28,31 @@ class ProcessGpMetricsDay implements ShouldQueue
      */
     public function __construct(
         public string $date,
-        public int $chunkSize = 1000
+        public int $chunkSize = 5000
     ) {
     }
 
     /**
      * Prevent multiple jobs from rebuilding the same date simultaneously.
+     * releaseAfter is short so retries from genuine lock contention land
+     * back on the queue quickly instead of dominating the wait time.
      */
     public function middleware(): array
     {
         return [
             (new WithoutOverlapping('gp-metrics-'.$this->date))
-                ->releaseAfter(30)
+                ->releaseAfter(5)
                 ->expireAfter(3600),
         ];
     }
 
     /**
-     * Provide an exponential-ish backoff for Horizon.
+     * Provide a snappier backoff for Horizon — most failures we see are
+     * transient deadlocks that clear within seconds.
      */
     public function backoff(): array
     {
-        return [30, 120, 300, 600];
+        return [10, 30, 60, 120];
     }
 
     /**
