@@ -108,6 +108,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 'Amount Breakdown',
                 'Unit Cost',
                 'Payment Method',
+                'Cashless Mfg',
                 'Error Code',
                 'Location Type',
                 'Operator',
@@ -119,7 +120,6 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 'Member ID',
                 'HID Card ID',
                 'Voucher',
-                'Cashless Mfg',
                 'Campaign Labels'
             ]);
 
@@ -280,6 +280,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             $multipleBreakdown,
                             $txn->cost ? $txn->cost / 100 : '',
                             $txn->payment_method_name,
+                            $txn->cashless_mfg ?? '',
                             $txn->vend_channel_error_code,
                             $txn->location_type_name,
                             $txn->operator_code,
@@ -291,7 +292,6 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             $txn_json['dcvend_user_id'] ?? '',
                             $meta_json['hid_card_id'] ?? '',
                             (!empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
-                            $txn->cashless_mfg ?? '',
                             $labelStr, // 👈 new
                         ]);
 
@@ -313,6 +313,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 $item->vendChannel ? $item->vendChannel->amount / 100 : '',
                                 $item->unitCost ? $item->unitCost->cost : '',
                                 '',
+                                '', // Cashless Mfg empty for item rows
                                 $item->vendChannelError->code ?? '',
                                 $txn->location_type_name,
                                 $txn->operator_code,
@@ -324,7 +325,6 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 $txn_json['dcvend_user_id'] ?? '',
                                 '',
                                 '',
-                                '', // Cashless Mfg empty for item rows
                                 '', // Labels for item rows
                             ]);
                         }

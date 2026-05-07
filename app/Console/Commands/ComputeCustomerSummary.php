@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Jobs\ProcessCustomerSummaryMonth;
 use App\Jobs\ProcessGpMetricsDay;
+use App\Jobs\ProcessGpMetricsRange;
 use App\Services\CustomerSummaryAggregator;
 use Carbon\Carbon;
 use Illuminate\Bus\PendingDispatch;
@@ -37,7 +38,7 @@ class ComputeCustomerSummary extends Command
         {--sync : Run synchronously instead of queueing}
         {--queue= : Override queue name (low|default|high). Defaults: backfill=low, nightly=default}
         {--with-gp-metrics : Also rebuild gp_metrics for the range BEFORE the summary (chained per month)}
-        {--gp-chunk=5000 : Chunk size for gp_metrics inserts when --with-gp-metrics is used (bigger = fewer DB round trips)}';
+        {--gp-chunk=1000 : Chunk size for gp_metrics inserts when --with-gp-metrics is used}';
 
     protected $description = 'Aggregate customer_period_summaries from gp_metrics + customer contract details';
 
@@ -125,18 +126,24 @@ class ComputeCustomerSummary extends Command
     /**
      * Per-month dispatcher for the --with-gp-metrics flag.
      *
-     * Preferred path (when the job_batches table exists):
-     *   Bus::batch([day1, day2, …, dayN])
-     *       ->then(fn ($batch) => dispatch(ProcessCustomerSummaryMonth))
+     *   Bus::chain([
+     *      ProcessGpMetricsRange(month_start → month_end),   // 1 job, processes all days inline
+     *      ProcessCustomerSummaryMonth(month),                // 1 job, depends on the range above
+     *   ])
      *
-     * Days run IN PARALLEL up to the queue's worker count — a 30-day month
-     * that previously took 30× the per-day cost in serial now finishes in
-     * roughly 1/N of that, where N = parallel workers on the low queue.
+     * Why one range job per month instead of N day jobs:
+     *   - Each month uses ONE worker + ONE MySQL connection for the whole
+     *     range, instead of N short-lived workers each opening a new
+     *     connection. Way lighter on the connection pool — critical given
+     *     the recent SQLSTATE 1040 incident.
+     *   - Far fewer Redis round-trips (1 dispatch vs ~30). Less queue
+     *     bookkeeping, fewer "pending → reserved → completed" cycles.
+     *   - Larger insert chunks per call inside the same execution context.
+     *   - Months still run in PARALLEL via separate chains, capped by the
+     *     low-queue's maxProcesses (currently 4).
      *
-     * Fallback (when job_batches table is missing):
-     *   Bus::chain([day1, day2, …, dayN, summary])
-     * Same correctness guarantee, just no parallelism within a month.
-     * Months still run in parallel either way.
+     * For an N-month backfill on 4 low workers: roughly N/4 "waves", each
+     * wave = the time it takes one worker to grind through one month.
      */
     protected function dispatchMonthChain(Carbon $month, Carbon $asOf, string $queue, int $gpChunk): void
     {
@@ -146,61 +153,29 @@ class ComputeCustomerSummary extends Command
             $monthEnd = $asOf->copy();
         }
 
-        $dayJobs = [];
-        $day = $monthStart->copy();
-        while ($day->lte($monthEnd)) {
-            $dayJobs[] = new ProcessGpMetricsDay($day->toDateString(), $gpChunk);
-            $day->addDay();
-        }
+        $rangeJob = new ProcessGpMetricsRange(
+            $monthStart->toDateString(),
+            $monthEnd->toDateString(),
+            $gpChunk
+        );
 
         $summaryJob = new ProcessCustomerSummaryMonth(
             $monthStart->toDateString(),
             $asOf->toDateString()
         );
 
-        if ($this->batchesTableExists()) {
-            $this->info(sprintf(
-                ' - queue:%s batch %s (%d gp_metrics days || → summary)',
-                $queue,
-                $month->format('Y-m'),
-                count($dayJobs)
-            ));
+        $dayCount = $monthStart->diffInDays($monthEnd) + 1;
 
-            Bus::batch($dayJobs)
-                ->name('gp_metrics ' . $month->format('Y-m'))
-                ->onQueue($queue)
-                ->then(function () use ($summaryJob, $queue) {
-                    // All gp_metrics days finished — fan in to the summary.
-                    dispatch($summaryJob)->onQueue($queue);
-                })
-                ->allowFailures() // a single bad day shouldn't block the summary
-                ->dispatch();
-            return;
-        }
-
-        // Fallback: serial chain (still correct, just slower).
-        $this->warn(sprintf(
-            ' - queue:%s chain %s (%d gp_metrics days + summary) — job_batches table missing, falling back to serial',
+        $this->info(sprintf(
+            ' - queue:%s chain %s (range %d days → summary)',
             $queue,
             $month->format('Y-m'),
-            count($dayJobs)
+            $dayCount
         ));
-        $jobs = array_merge($dayJobs, [$summaryJob]);
-        Bus::chain($jobs)->onQueue($queue)->dispatch();
-    }
 
-    /**
-     * The job_batches table is provisioned by the standard Laravel
-     * `queue:batches-table` migration. We cache the check so we don't hit
-     * INFORMATION_SCHEMA once per dispatched month.
-     */
-    private static ?bool $batchesTableCheck = null;
-    protected function batchesTableExists(): bool
-    {
-        if (self::$batchesTableCheck === null) {
-            self::$batchesTableCheck = \Illuminate\Support\Facades\Schema::hasTable('job_batches');
-        }
-        return self::$batchesTableCheck;
+        Bus::chain([$rangeJob, $summaryJob])
+            ->onQueue($queue)
+            ->dispatch();
     }
 
     /**

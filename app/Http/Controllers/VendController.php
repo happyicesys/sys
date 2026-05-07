@@ -1933,6 +1933,7 @@ class VendController extends Controller
                     'vend_channels.amount2 AS vend_channel_amount2',
                     'vend_transactions.amount',
                     'payment_methods.name AS payment_method_name',
+                    'vend_transactions.cashless_mfg',
                     'vend_channel_errors.desc AS vend_channel_error_desc',
                     'vend_channel_errors.code AS vend_channel_error_code',
                     'vend_contracts.name AS vend_contract_name',
@@ -2144,7 +2145,25 @@ class VendController extends Controller
             VendPrefix::orderBy('name')->get()
         )->resolve());
 
+        // Distinct cashless terminal manufacturer options for the filter.
+        // Cached for 24h — values come from the snapshot column on the
+        // transaction itself (populated by VendTransactionService) so this
+        // does not need to scan vends.acb_vmc_pa_json on every page load.
+        $cashlessMfgOptions = Cache::remember('cashless_mfg_options_txn', $ttl, fn() =>
+            VendTransaction::query()
+                ->select('cashless_mfg')
+                ->whereNotNull('cashless_mfg')
+                ->where('cashless_mfg', '!=', '')
+                ->distinct()
+                ->orderBy('cashless_mfg')
+                ->pluck('cashless_mfg')
+                ->filter()
+                ->unique()
+                ->values()
+        );
+
         return Inertia::render('Vend/Transaction', [
+            'cashlessMfgOptions' => ['data' => $cashlessMfgOptions],
             'categories' => ['data' => $categories],
             'categoryGroups' => ['data' => $categoryGroups],
             'latestExports' => $latestExports,

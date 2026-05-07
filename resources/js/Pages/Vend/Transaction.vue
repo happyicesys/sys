@@ -82,6 +82,22 @@
                 >
                 </MultiSelect>
             </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                   Cashless Terminal
+                </label>
+                <MultiSelect
+                    v-model="filters.cashlessMfgs"
+                    :options="cashlessMfgOptions"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                    mode="tags"
+                >
+                </MultiSelect>
+            </div>
             <!-- <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Category
@@ -800,7 +816,7 @@
                             {{ vendTransaction.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.payment_method_name }}
+                            {{ vendTransaction.payment_method_name }}<span v-if="vendTransaction.cashless_mfg"> ({{ vendTransaction.cashless_mfg }})</span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.is_payment_received">
@@ -944,6 +960,7 @@ import fileDownload from 'js-file-download'
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
+    cashlessMfgOptions: Object,
     categories: Object,
     categoryGroups: Object,
     operatorOptions: Object,
@@ -961,6 +978,7 @@ const props = defineProps({
 })
 const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
+const cashlessMfgOptions = ref([])
 const successfulOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
@@ -990,6 +1008,10 @@ onMounted(() => {
         {id: 'all', name: 'All'},
         ...props.paymentMethods.data.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})
     ]
+    cashlessMfgOptions.value = [
+        {id: 'all', value: 'All'},
+        ...(props.cashlessMfgOptions?.data ?? []).map((mfg) => {return {id: mfg, value: mfg}})
+    ]
     numberPerPageOptions.value = [
         { id: 50, value: 50 },
         { id: 100, value: 100 },
@@ -999,6 +1021,7 @@ onMounted(() => {
     ]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
     filters.value.paymentMethods = [paymentMethodOptions.value[0]]
+    filters.value.cashlessMfgs = [cashlessMfgOptions.value[0]]
 
     booleanOptions.value = [
         {id: 'all', value: 'All'},
@@ -1070,6 +1093,7 @@ onUnmounted(() => {
 
 const filters = ref({
     apk_ver: '',
+    cashlessMfgs: [],
     codes: '',
     channel_codes: '',
     categories: [],
@@ -1126,6 +1150,20 @@ watch(() => filters.value.paymentMethods, (newVal, oldVal) => {
             filters.value.paymentMethods = paymentMethodOptions.value.filter(pm => pm.id === 'all');
         } else if (hasAllNew && hasAllOld) {
             filters.value.paymentMethods = newVal.filter(pm => (pm.id ?? pm) !== 'all');
+        }
+    }
+}, { deep: true });
+
+watch(() => filters.value.cashlessMfgs, (newVal, oldVal) => {
+    if (!newVal || !oldVal) return;
+    if (newVal.length > 1) {
+        const hasAllNew = newVal.some(m => (m.id ?? m) === 'all');
+        const hasAllOld = oldVal.some(m => (m.id ?? m) === 'all');
+
+        if (hasAllNew && !hasAllOld) {
+            filters.value.cashlessMfgs = cashlessMfgOptions.value.filter(m => m.id === 'all');
+        } else if (hasAllNew && hasAllOld) {
+            filters.value.cashlessMfgs = newVal.filter(m => (m.id ?? m) !== 'all');
         }
     }
 }, { deep: true });
@@ -1188,6 +1226,7 @@ function onExportCsvClicked() {
         url: '/vends/transactions/export-csv',
         params: {
             ...filters.value,
+            cashless_mfg: (filters.value.cashlessMfgs ?? []).map(m => m.id ?? m),
             categories: filters.value.categories.map(c => c.id),
             categoryGroups: filters.value.categoryGroups.map(cg => cg.id),
             channel_codes: filters.value.channel_codes,
@@ -1337,6 +1376,7 @@ function onExportExcelClicked() {
         url: '/vends/transactions/excel',
         params: {
             ...filters.value,
+            cashless_mfg: (filters.value.cashlessMfgs ?? []).map(m => m.id ?? m),
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             channel_codes: filters.value.channel_codes,
@@ -1369,6 +1409,7 @@ function onExportExcelClicked() {
 function onSearchFilterUpdated() {
     router.get('/vends/transactions', {
         ...filters.value,
+        cashless_mfg: (filters.value.cashlessMfgs ?? []).map(m => m.id ?? m),
         categories: filters.value.categories.map((category) => { return category.id }),
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
         channel_codes: filters.value.channel_codes,

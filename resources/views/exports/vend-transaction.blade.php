@@ -14,6 +14,7 @@
       <th>Sales (before GST)</th>
       <th>Unit Cost</th>
       <th>Payment Method</th>
+      <th>Cashless Mfg</th>
       <th>Error</th>
       <th>Location Type</th>
   </tr>
@@ -68,6 +69,9 @@
           </td>
           <td>
             {{ $vendTransaction->paymentMethod->name }}
+          </td>
+          <td>
+            {{ $vendTransaction->cashless_mfg }}
           </td>
           <td>
             {{ $vendTransaction->vend_transaction_json &&

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Services\GpMetricsAggregator;
 use Carbon\Carbon;
+use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\QueryException;
@@ -14,7 +15,10 @@ use Illuminate\Queue\SerializesModels;
 
 class ProcessGpMetricsDay implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    // Batchable lets this job participate in Bus::batch([...])->then(...)
+    // (used by customer-summary:compute --with-gp-metrics for parallel days).
+    // Plain Bus::dispatch() / chain() still work — the trait is additive.
+    use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
      * Number of attempts before the job fails permanently.
@@ -28,31 +32,28 @@ class ProcessGpMetricsDay implements ShouldQueue
      */
     public function __construct(
         public string $date,
-        public int $chunkSize = 5000
+        public int $chunkSize = 1000
     ) {
     }
 
     /**
      * Prevent multiple jobs from rebuilding the same date simultaneously.
-     * releaseAfter is short so retries from genuine lock contention land
-     * back on the queue quickly instead of dominating the wait time.
      */
     public function middleware(): array
     {
         return [
             (new WithoutOverlapping('gp-metrics-'.$this->date))
-                ->releaseAfter(5)
+                ->releaseAfter(30)
                 ->expireAfter(3600),
         ];
     }
 
     /**
-     * Provide a snappier backoff for Horizon — most failures we see are
-     * transient deadlocks that clear within seconds.
+     * Provide an exponential-ish backoff for Horizon.
      */
     public function backoff(): array
     {
-        return [10, 30, 60, 120];
+        return [30, 120, 300, 600];
     }
 
     /**

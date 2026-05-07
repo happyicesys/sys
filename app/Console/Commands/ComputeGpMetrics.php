@@ -17,7 +17,7 @@ class ComputeGpMetrics extends Command
         {--date= : Process a specific YYYY-MM-DD}
         {--from= : Start date for range (YYYY-MM-DD)}
         {--to= : End date for range (YYYY-MM-DD)}
-        {--chunk=5000 : Chunk size for inserts (bigger = fewer DB round trips)}
+        {--chunk=1000 : Chunk size for inserts}
         {--sync : Process each day immediately instead of queueing the job}
         {--sleep=0 : Seconds to pause between days when using --sync}
         {--queue= : Override queue name (low|default|high). Defaults: backfill=low, nightly=default}';

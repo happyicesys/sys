@@ -201,10 +201,17 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+            // Cap low queue tightly. Each worker holds a MySQL connection (often
+            // two — read + write split), so concurrency here directly eats into
+            // MySQL max_connections (default 151). With supervisor-1 already
+            // using up to 15 workers × ~2 connections, a low cap of 4 leaves
+            // generous headroom for the rest of the system (web requests,
+            // schedule, etc). Bump only if you've raised MySQL max_connections.
             'supervisor-low' => [
-                'maxProcesses' => 8,
-                'balanceMaxShift' => 2,
+                'maxProcesses' => 4,
+                'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
+                'nice' => 10, // deprioritise CPU-wise vs real-time supervisor
             ],
         ],
 

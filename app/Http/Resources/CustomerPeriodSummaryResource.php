@@ -31,6 +31,12 @@ class CustomerPeriodSummaryResource extends JsonResource
             'location_earning_rate' => (float) $this->location_earning_rate,
             'transaction_count' => (int) $this->transaction_count,
             'vend_count' => (int) $this->vend_count,
+            // Lifetime-to-date sum of gross_earning_cents for this customer up
+            // to and including the latest month visible on the current view.
+            // Attached by CustomerController::attachAccumulatedGrossEarning().
+            'accumulate_gross_earning_cents' => isset($this->accumulate_gross_earning_cents)
+                ? (int) $this->accumulate_gross_earning_cents
+                : null,
             'contract_commission_type' => $this->contract_commission_type,
             'contract_commission_value' => $this->contract_commission_value !== null ? (float) $this->contract_commission_value : null,
             'contract_commission_value2' => $this->contract_commission_value2 !== null ? (float) $this->contract_commission_value2 : null,
@@ -67,6 +73,24 @@ class CustomerPeriodSummaryResource extends JsonResource
                             ? $c->vend->vendPrefix->name
                             : null,
                     ] : null,
+                    // Full list of vends bound to this customer, sorted by
+                    // code ascending. Powers the line-broken display in the
+                    // Vend ID column on the Summary page.
+                    'vends' => $c->relationLoaded('vends')
+                        ? $c->vends
+                            ->sortBy(fn ($v) => (string) $v->code, SORT_NATURAL | SORT_FLAG_CASE)
+                            ->values()
+                            ->map(function ($v) {
+                                return [
+                                    'id'     => $v->id,
+                                    'code'   => $v->code,
+                                    'prefix' => $v->relationLoaded('vendPrefix') && $v->vendPrefix
+                                        ? $v->vendPrefix->name
+                                        : null,
+                                ];
+                            })
+                            ->all()
+                        : [],
                     'tag_bindings' => $c->relationLoaded('tagBindings')
                         ? $c->tagBindings->map(function ($tb) {
                             return [

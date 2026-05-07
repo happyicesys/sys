@@ -186,7 +186,11 @@ class CustomerController extends Controller
      * Reads pre-aggregated rows from customer_period_summaries (refreshed
      * nightly by ProcessCustomerSummaryMonth) and applies the same
      * customer-level filters as the Customer Index page, plus a Period Report
-     * filter (current | last_12_months | all).
+     * filter — one of:
+     *   current
+     *   last_1_month, last_2_months, last_3_months, last_6_months,
+     *   last_12_months, last_24_months, last_36_months
+     *   all
      */
     public function summary(Request $request)
     {
@@ -210,34 +214,16 @@ class CustomerController extends Controller
         ]);
 
         // Resolve period range based on period_report option.
-        // Current        : just the current calendar month (one row per customer)
-        // Last 12 months : 12 most recent FINISHED months (excludes current)
-        // All            : earliest known month → current month inclusive
+        // Current         : just the current calendar month (one row per customer)
+        // Last N month(s) : the N most recent FINISHED months (excludes current)
+        // All             : earliest known month → current month inclusive
         $today = \Carbon\Carbon::today();
         $currentMonthStart = $today->copy()->startOfMonth();
 
-        switch ($request->period_report) {
-            case 'last_12_months':
-                $rangeEnd = $currentMonthStart->copy()->subMonthNoOverflow(); // last finished month
-                $rangeStart = $rangeEnd->copy()->subMonthsNoOverflow(11);     // 12 months back from rangeEnd
-                $rangeStart = $rangeStart->startOfMonth();
-                $rangeEnd = $rangeEnd->startOfMonth();
-                break;
-
-            case 'all':
-                $earliest = \Illuminate\Support\Facades\DB::table('customer_period_summaries')->min('year_month');
-                $rangeStart = $earliest
-                    ? \Carbon\Carbon::parse($earliest)->startOfMonth()
-                    : $currentMonthStart->copy();
-                $rangeEnd = $currentMonthStart->copy();
-                break;
-
-            case 'current':
-            default:
-                $rangeStart = $currentMonthStart->copy();
-                $rangeEnd = $currentMonthStart->copy();
-                break;
-        }
+        [$rangeStart, $rangeEnd] = $this->resolvePeriodReportRange(
+            $request->period_report,
+            $currentMonthStart
+        );
 
         // Reuse the Customer Index filter scope to determine which customers
         // qualify, then join the pre-aggregated summary rows for the period.
@@ -253,6 +239,9 @@ class CustomerController extends Controller
             ->filterIndex($request);
 
         $customerIdsQuery = $this->filterOperator($customerIdsQuery);
+        // Summary-only filter: Placement Contract Type. Accepts an array of
+        // codes (F, S, R, U, PS, PS+U, PSORU). 'all' (or absent) = no filter.
+        $this->applyContractCommissionTypeFilter($customerIdsQuery, $request);
         $customerIds = $customerIdsQuery->pluck('customers.id')->unique()->values();
 
         // Sortable columns. machine_id / machine_prefix sort by the customer's
@@ -262,6 +251,7 @@ class CustomerController extends Controller
             'location_fees_cents', 'location_earning_cents', 'location_earning_rate',
             'transaction_count', 'customer_id',
             'machine_id', 'machine_prefix',
+            'contract_commission_type', 'contract_commission_value',
         ], true) ? $summarySortKey : 'year_month';
         $sortDirection = filter_var($summarySortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
@@ -271,16 +261,20 @@ class CustomerController extends Controller
         // window — aggregate the stored per-month rows into a single virtual
         // row using SUMs. This matches the user's mental model of the filter:
         // "show me one number per customer for this period".
-        $isAggregated = in_array($request->period_report, ['last_12_months', 'all'], true);
+        $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
-            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date',
+            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date',
             'customer.operator:id,code,name',
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
             'customer.locationType:id,name',
             'customer.vend:id,customer_id,code,vend_prefix_id',
             'customer.vend.vendPrefix:id,name',
+            // All vends bound to the customer — used to expand the "+N more"
+            // hint into a line-broken list (ascending) in the Vend ID column.
+            'customer.vends:id,customer_id,code,vend_prefix_id',
+            'customer.vends.vendPrefix:id,name',
         ];
 
         if ($isAggregated) {
@@ -366,17 +360,18 @@ class CustomerController extends Controller
             $this->clampAggregatedPeriodBounds($summaries->getCollection(), $rangeStart, $rangeEnd);
         }
 
+        // "Accumulate Gross Margin $" — lifetime sum of gross_earning_cents for
+        // each customer up to and including the latest month visible on this
+        // view ($rangeEnd). One batched query per page keeps it cheap.
+        $this->attachAccumulatedGrossEarning($summaries->getCollection(), $rangeEnd);
+
         $className = get_class(new Customer());
         $optionsService = app(\App\Services\OptionsService::class);
 
         return Inertia::render('Customer/Summary', [
             'summaries' => CustomerPeriodSummaryResource::collection($summaries),
             'periodReport' => $request->period_report,
-            'periodReportOptions' => [
-                ['id' => 'current', 'value' => 'Current'],
-                ['id' => 'last_12_months', 'value' => 'Last 12 months'],
-                ['id' => 'all', 'value' => 'All'],
-            ],
+            'periodReportOptions' => $this->periodReportOptions(),
             'rangeStart' => $rangeStart->toDateString(),
             'rangeEnd' => $rangeEnd->copy()->endOfMonth()->toDateString(),
             'cmsEndpoint' => env('CMS_URL'),
@@ -385,6 +380,18 @@ class CustomerController extends Controller
             'operatorOptions' => $optionsService->operators(),
             'tags' => $optionsService->tags($className),
             'vendPrefixOptions' => $optionsService->vendPrefixes(),
+            // Placement Contract Type options for the new filter dropdown.
+            // Order matches Customer/Edit.vue's commissionTypeOptions so the
+            // labels stay consistent across the app.
+            'contractCommissionTypeOptions' => [
+                ['id' => 'F',     'value' => 'Free Placement'],
+                ['id' => 'S',     'value' => 'Subsidized Plan'],
+                ['id' => 'R',     'value' => 'Fix Rental'],
+                ['id' => 'U',     'value' => 'Utility only'],
+                ['id' => 'PS',    'value' => 'PS'],
+                ['id' => 'PS+U',  'value' => 'PS + U'],
+                ['id' => 'PSORU', 'value' => 'PS OR U'],
+            ],
         ]);
     }
 
@@ -428,6 +435,155 @@ class CustomerController extends Controller
     }
 
     /**
+     * Period Report options for the Summary page dropdown. Single source of
+     * truth for the labels/ids used by both the on-screen filter and the
+     * controller's period range resolver.
+     *
+     * @return array<int,array{id:string,value:string}>
+     */
+    protected function periodReportOptions(): array
+    {
+        return [
+            ['id' => 'current',         'value' => 'Current'],
+            ['id' => 'last_1_month',    'value' => 'Last month'],
+            ['id' => 'last_2_months',   'value' => 'Last 2 months'],
+            ['id' => 'last_3_months',   'value' => 'Last 3 months'],
+            ['id' => 'last_6_months',   'value' => 'Last 6 months'],
+            ['id' => 'last_12_months',  'value' => 'Last 12 months'],
+            ['id' => 'last_24_months',  'value' => 'Last 24 months'],
+            ['id' => 'last_36_months',  'value' => 'Last 36 months'],
+            ['id' => 'all',             'value' => 'All'],
+        ];
+    }
+
+    /**
+     * Map a `last_N_month(s)` id to its month count. Returns null for ids that
+     * aren't of that shape (e.g. `current`, `all`).
+     */
+    protected function periodReportMonthsBack(?string $id): ?int
+    {
+        $map = [
+            'last_1_month'   => 1,
+            'last_2_months'  => 2,
+            'last_3_months'  => 3,
+            'last_6_months'  => 6,
+            'last_12_months' => 12,
+            'last_24_months' => 24,
+            'last_36_months' => 36,
+        ];
+        return $map[$id] ?? null;
+    }
+
+    /**
+     * Resolve the [rangeStart, rangeEnd] anchor months for a given
+     * period_report id. Both bounds are first-of-month dates.
+     *
+     *   current         → rangeStart = rangeEnd = current month start
+     *   last_N_month(s) → rangeEnd = last finished month; rangeStart = end - (N-1) months
+     *   all             → rangeStart = earliest known year_month; rangeEnd = current month
+     *   anything else   → falls back to "current"
+     *
+     * @return array{0:\Carbon\Carbon,1:\Carbon\Carbon}
+     */
+    protected function resolvePeriodReportRange(?string $id, \Carbon\Carbon $currentMonthStart): array
+    {
+        $monthsBack = $this->periodReportMonthsBack($id);
+        if ($monthsBack !== null) {
+            $rangeEnd = $currentMonthStart->copy()->subMonthNoOverflow();        // last finished month
+            $rangeStart = $rangeEnd->copy()->subMonthsNoOverflow($monthsBack - 1); // N months back from rangeEnd
+            return [$rangeStart->startOfMonth(), $rangeEnd->startOfMonth()];
+        }
+
+        if ($id === 'all') {
+            $earliest = \Illuminate\Support\Facades\DB::table('customer_period_summaries')->min('year_month');
+            $rangeStart = $earliest
+                ? \Carbon\Carbon::parse($earliest)->startOfMonth()
+                : $currentMonthStart->copy();
+            return [$rangeStart, $currentMonthStart->copy()];
+        }
+
+        // 'current' (and any unknown value) — single-month window for the
+        // in-progress month.
+        return [$currentMonthStart->copy(), $currentMonthStart->copy()];
+    }
+
+    /**
+     * Whether the supplied period_report id should produce ONE aggregated row
+     * per customer (true) instead of one row per stored month (false). Every
+     * option except 'current' aggregates.
+     */
+    protected function isAggregatedPeriodReport(?string $id): bool
+    {
+        return $id !== null && $id !== 'current';
+    }
+
+    /**
+     * Apply the Summary page's "Placement Contract Type" filter to a
+     * customers-table query. Accepts the request param `contract_commission_types`
+     * as either an array of codes (F, S, R, U, PS, PS+U, PSORU) or a single
+     * scalar; the value 'all' (or an array containing it) is treated as
+     * "no filter" so the default selection still returns every customer.
+     *
+     * Whitelists incoming codes against the canonical set so callers can't
+     * inject arbitrary values.
+     */
+    protected function applyContractCommissionTypeFilter($query, Request $request): void
+    {
+        $raw = $request->input('contract_commission_types');
+        if ($raw === null || $raw === '' || $raw === 'all') {
+            return;
+        }
+        $values = is_array($raw) ? $raw : [$raw];
+        if (in_array('all', $values, true)) {
+            return;
+        }
+
+        $allowed = ['F', 'S', 'R', 'U', 'PS', 'PS+U', 'PSORU'];
+        $codes = array_values(array_intersect($values, $allowed));
+        if (empty($codes)) {
+            return;
+        }
+
+        $query->whereIn('customers.contract_commission_type', $codes);
+    }
+
+    /**
+     * Attach lifetime-to-date "Accumulate Gross Margin $" to each summary row.
+     *
+     * "Lifetime to date" = SUM(gross_earning_cents) across every stored monthly
+     * row for the customer where year_month <= $accumulateThrough (i.e. up to
+     * and including the latest month currently visible in the view).
+     *
+     * One batched query per page keeps this cheap regardless of how many rows
+     * the user is paginating over. Customers without any matching monthly
+     * rows fall back to 0 (rather than NULL) so the UI can format consistently.
+     */
+    protected function attachAccumulatedGrossEarning($collection, \Carbon\Carbon $accumulateThrough): void
+    {
+        if ($collection->isEmpty()) {
+            return;
+        }
+
+        $customerIds = $collection->pluck('customer_id')->filter()->unique()->values()->all();
+        if (empty($customerIds)) {
+            return;
+        }
+
+        $through = $accumulateThrough->copy()->startOfMonth()->toDateString();
+
+        $sums = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
+            ->selectRaw('customer_id, SUM(gross_earning_cents) AS accum')
+            ->whereIn('customer_id', $customerIds)
+            ->where('year_month', '<=', $through)
+            ->groupBy('customer_id')
+            ->pluck('accum', 'customer_id');
+
+        foreach ($collection as $row) {
+            $row->accumulate_gross_earning_cents = (int) ($sums[$row->customer_id] ?? 0);
+        }
+    }
+
+    /**
      * Export the Customer Management > Summary table to .xlsx.
      *
      * Reuses the same filter + period resolution as summary(); streams rows
@@ -449,24 +605,10 @@ class CustomerController extends Controller
         $today = \Carbon\Carbon::today();
         $currentMonthStart = $today->copy()->startOfMonth();
 
-        switch ($request->period_report) {
-            case 'last_12_months':
-                $rangeEnd = $currentMonthStart->copy()->subMonthNoOverflow();
-                $rangeStart = $rangeEnd->copy()->subMonthsNoOverflow(11)->startOfMonth();
-                $rangeEnd = $rangeEnd->startOfMonth();
-                break;
-            case 'all':
-                $earliest = \Illuminate\Support\Facades\DB::table('customer_period_summaries')->min('year_month');
-                $rangeStart = $earliest
-                    ? \Carbon\Carbon::parse($earliest)->startOfMonth()
-                    : $currentMonthStart->copy();
-                $rangeEnd = $currentMonthStart->copy();
-                break;
-            default:
-                $rangeStart = $currentMonthStart->copy();
-                $rangeEnd = $currentMonthStart->copy();
-                break;
-        }
+        [$rangeStart, $rangeEnd] = $this->resolvePeriodReportRange(
+            $request->period_report,
+            $currentMonthStart
+        );
 
         // Resolve qualifying customer IDs through the Customer Index filters.
         $customerIdsQuery = Customer::query()
@@ -480,12 +622,16 @@ class CustomerController extends Controller
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->filterIndex($request);
         $customerIdsQuery = $this->filterOperator($customerIdsQuery);
+        // Mirror summary()'s Placement Contract Type filter so the export
+        // honours the same dropdown selection.
+        $this->applyContractCommissionTypeFilter($customerIdsQuery, $request);
         $customerIds = $customerIdsQuery->pluck('customers.id')->unique()->values();
 
         // Match the on-screen aggregation: "current" stays per-month;
-        // "last_12_months" / "all" collapse to ONE row per customer over the
-        // whole range (SUM cents, MIN/MAX dates, recompute rate from sums).
-        $isAggregated = in_array($request->period_report, ['last_12_months', 'all'], true);
+        // any "last N months" / "all" selection collapses to ONE row per
+        // customer over the whole range (SUM cents, MIN/MAX dates, recompute
+        // rate from sums).
+        $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
             'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,begin_date,termination_date',
@@ -569,11 +715,22 @@ class CustomerController extends Controller
             return $val !== null ? '$' . number_format((float) $val, 2) : '';
         };
 
+        // Pre-fetch lifetime "Accumulate Gross Margin $" per customer so the
+        // streamed exporter can resolve it via O(1) map lookup instead of
+        // running a per-row aggregate query.
+        $accumThrough = $rangeEnd->copy()->startOfMonth()->toDateString();
+        $accumulateMap = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
+            ->selectRaw('customer_id, SUM(gross_earning_cents) AS accum')
+            ->whereIn('customer_id', $customerIds)
+            ->where('year_month', '<=', $accumThrough)
+            ->groupBy('customer_id')
+            ->pluck('accum', 'customer_id');
+
         $rowIndex = 0;
 
         return (new FastExcel($this->exportWithCursor($query)))->download(
             $this->formatExportFilename('CustomersSummary', 'xlsx'),
-            function ($row) use (&$rowIndex, $divisor, $currencySymbol, $contractTypeLabels, $formatLocationFeesRate, $isAggregated, $rangeStart, $rangeEnd) {
+            function ($row) use (&$rowIndex, $divisor, $currencySymbol, $contractTypeLabels, $formatLocationFeesRate, $isAggregated, $rangeStart, $rangeEnd, $accumulateMap) {
                 $rowIndex++;
                 $customer = $row->customer;
                 $address = $customer?->deliveryAddress;
@@ -636,7 +793,7 @@ class CustomerController extends Controller
                     'Location Fees' => round(((int) $row->location_fees_cents) / $divisor, 2),
                     'Location Earning' => round(((int) $row->location_earning_cents) / $divisor, 2),
                     'Location Earning Rate %' => round(((float) $row->location_earning_rate) * 100, 2),
-                    'Accumulate Gross margin $' => null, // placeholder — same as the on-screen "—"
+                    'Accumulate Gross margin $' => round(((int) ($accumulateMap[$row->customer_id] ?? 0)) / $divisor, 2),
                     'Location Grading' => null,          // placeholder — same as the on-screen "—"
                     'Location Type' => $customer && $customer->relationLoaded('locationType') ? optional($customer->locationType)->name : null,
                     'Customer Tag' => $tagNames,

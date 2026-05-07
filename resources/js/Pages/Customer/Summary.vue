@@ -92,6 +92,19 @@
               Default: Current month, recomputed daily ~01:00 (yesterday).
             </p>
           </div>
+
+          <!-- Placement Contract Type filter (multi-select tags) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Placement Contract Type
+            </label>
+            <MultiSelect
+              v-model="filters.contract_commission_types"
+              :options="contractCommissionTypeLocalOptions"
+              trackBy="id" valueProp="id" label="value" mode="tags"
+              placeholder="Select" open-direction="bottom" class="mt-1"
+            />
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -207,8 +220,12 @@
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-4">
-                      <span>Placement Contract Type</span>
-                      <span>Location Fees Rate</span>
+                      <SingleSortItem modelName="contract_commission_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('contract_commission_type')">
+                        Placement Contract Type
+                      </SingleSortItem>
+                      <SingleSortItem modelName="contract_commission_value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('contract_commission_value')">
+                        Location Fees Rate
+                      </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
@@ -288,23 +305,55 @@
 
                   <!-- Vend ID -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    <a
-                      v-if="row.customer?.vend?.id"
-                      target="_blank"
-                      :href="'/settings/vend/' + row.customer.vend.id + '/update'"
-                      class="text-blue-700 hover:underline"
-                    >
-                      {{ row.customer.vend.code }}
-                    </a>
-                    <span v-else-if="row.customer?.vend">{{ row.customer.vend.code }}</span>
-                    <div v-if="row.vend_count > 1" class="text-[10px] text-gray-500 mt-0.5">
-                      +{{ row.vend_count - 1 }} more
-                    </div>
+                    <!--
+                      When the customer has multiple vends, list them all
+                      (ascending by code) with a line-break between each so the
+                      user can see every machine bound to this customer
+                      instead of a "+N more" hint.
+                    -->
+                    <template v-if="row.customer?.vends && row.customer.vends.length > 1">
+                      <div class="flex flex-col items-center space-y-0.5">
+                        <a
+                          v-for="v in row.customer.vends"
+                          :key="v.id"
+                          target="_blank"
+                          :href="'/settings/vend/' + v.id + '/update'"
+                          class="text-blue-700 hover:underline"
+                        >
+                          {{ v.code }}
+                        </a>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <a
+                        v-if="row.customer?.vend?.id"
+                        target="_blank"
+                        :href="'/settings/vend/' + row.customer.vend.id + '/update'"
+                        class="text-blue-700 hover:underline"
+                      >
+                        {{ row.customer.vend.code }}
+                      </a>
+                      <span v-else-if="row.customer?.vend">{{ row.customer.vend.code }}</span>
+                    </template>
                   </TableData>
 
                   <!-- Prefix -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    <span v-if="row.customer?.vend?.prefix">{{ row.customer.vend.prefix }}</span>
+                    <!--
+                      Mirror the Vend ID column: when multiple vends are listed
+                      (ascending by code), show each vend's prefix on its own
+                      line so rows stay visually aligned.
+                    -->
+                    <template v-if="row.customer?.vends && row.customer.vends.length > 1">
+                      <div class="flex flex-col items-center space-y-0.5">
+                        <span v-for="v in row.customer.vends" :key="v.id">
+                          {{ v.prefix || '—' }}
+                        </span>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <span v-if="row.customer?.vend?.prefix">{{ row.customer.vend.prefix }}</span>
+                    </template>
                   </TableData>
 
                   <!-- Period Start Date (YYMMDD) -->
@@ -372,8 +421,19 @@
                     </div>
                   </TableData>
 
-                  <!-- Accumulate Gross margin $ — placeholder until lifetime aggregator is added -->
+                  <!--
+                    Accumulate Gross margin $
+                    Lifetime-to-date sum of gross_earning_cents for the
+                    customer through the latest month visible on this view
+                    (computed server-side, batched per page).
+                  -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
+                    <span
+                      v-if="row.accumulate_gross_earning_cents != null"
+                      :class="row.accumulate_gross_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'"
+                    >
+                      {{ formatMoney(row.accumulate_gross_earning_cents) }}
+                    </span>
                   </TableData>
 
                   <!-- Location Grading + Location Type -->
@@ -456,6 +516,8 @@ const props = defineProps({
   operatorOptions: Object,
   tags: Object,
   vendPrefixOptions: Object,
+  // Placement Contract Type dropdown options ([{id, value}, ...]).
+  contractCommissionTypeOptions: Array,
 });
 
 const operatorCountry = usePage().props.auth.operatorCountry;
@@ -487,6 +549,8 @@ const filters = ref({
   vendPrefixes: [],
   tags: [],
   period_report: '',
+  // Multi-select tags of contract type codes (F, S, R, U, PS, PS+U, PSORU).
+  contract_commission_types: [],
   sortKey: 'year_month',
   sortBy: false,
   numberPerPage: 100,
@@ -500,6 +564,7 @@ const tagOptions = ref([]);
 const vendPrefixOptions = ref([]);
 const numberPerPageOptions = ref([]);
 const periodReportLocalOptions = ref([]);
+const contractCommissionTypeLocalOptions = ref([]);
 
 onMounted(() => {
   activeOptions.value = [
@@ -535,6 +600,11 @@ onMounted(() => {
   ];
 
   periodReportLocalOptions.value = (props.periodReportOptions ?? []).map((opt) => ({
+    id: opt.id,
+    value: opt.value,
+  }));
+
+  contractCommissionTypeLocalOptions.value = (props.contractCommissionTypeOptions ?? []).map((opt) => ({
     id: opt.id,
     value: opt.value,
   }));
@@ -643,6 +713,10 @@ function onSearchFilterUpdated() {
       operators: (filters.value.operators ?? []).filter(Boolean).map((o) => o.id),
       vendPrefixes: (filters.value.vendPrefixes ?? []).map((vp) => vp.id),
       period_report: filters.value.period_report?.id || 'current',
+      // MultiSelect in tags-mode emits an array of selected ids — pass through
+      // as-is. Empty array = no filter (treated as "all" by the controller).
+      contract_commission_types: (filters.value.contract_commission_types ?? [])
+        .map((t) => (t && t.id !== undefined ? t.id : t)),
       sortKey: filters.value.sortKey,
       sortBy: filters.value.sortBy,
       numberPerPage: filters.value.numberPerPage?.id ?? filters.value.numberPerPage,
@@ -675,6 +749,8 @@ function buildBackendParams() {
     operators: (filters.value.operators ?? []).filter(Boolean).map((o) => o.id),
     vendPrefixes: (filters.value.vendPrefixes ?? []).map((vp) => vp.id),
     period_report: filters.value.period_report?.id || 'current',
+    contract_commission_types: (filters.value.contract_commission_types ?? [])
+      .map((t) => (t && t.id !== undefined ? t.id : t)),
     sortKey: filters.value.sortKey,
     sortBy: filters.value.sortBy,
     numberPerPage: filters.value.numberPerPage?.id ?? filters.value.numberPerPage,
