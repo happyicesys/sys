@@ -731,9 +731,9 @@
                       <span v-if="customer.contract_auto_renewal">
                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800 border border-yellow-300">Auto Renewal</span>
                       </span>
-                      <span v-if="customer.contract_min_commitment_period">
-                        <span class="font-semibold text-gray-500">Min:</span>
-                        <span class="ml-1">{{ customer.contract_min_commitment_period }}mo</span>
+                      <span v-if="customer.contract_from">
+                        <span class="font-semibold text-gray-500">From:</span>
+                        <span class="ml-1">{{ customer.contract_from }}</span>
                       </span>
                       <span v-if="customer.contract_notice_period">
                         <span class="font-semibold text-gray-500">NP:</span>

@@ -290,13 +290,22 @@
                     </div>
                   </div>
 
-                  <!-- Contract Until + Auto Renewal — always on their own row -->
+                  <!-- Contract From + Contract Until — same row -->
                   <div class="sm:col-span-6 grid grid-cols-6 gap-4">
+                    <div class="col-span-6 sm:col-span-3">
+                      <DatePicker v-model="form.contract_from" :error="form.errors['customer.contract_from']">
+                        Contract From
+                      </DatePicker>
+                    </div>
                     <div class="col-span-6 sm:col-span-3">
                       <DatePicker v-model="form.contract_until" :error="form.errors['customer.contract_until']">
                         Contract Until
                       </DatePicker>
                     </div>
+                  </div>
+
+                  <!-- Auto Renewal + Notice Period — same row -->
+                  <div class="sm:col-span-6 grid grid-cols-6 gap-4">
                     <div class="col-span-6 sm:col-span-3 flex flex-col justify-end pb-1">
                       <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">Auto Renewal</label>
                       <div class="flex items-center gap-2">
@@ -311,45 +320,24 @@
                         </label>
                       </div>
                     </div>
-                  </div>
-
-                  <!-- Minimum Contract Period + Notice Period (same row) -->
-                  <div class="sm:col-span-3">
-                    <label class="flex justify-start text-sm font-medium text-gray-700">
-                      Minimum Contract Period
-                      <span class="ml-1 text-gray-400 text-xs font-normal">(months)</span>
-                    </label>
-                    <div class="mt-1">
-                      <input
-                        type="number"
-                        step="1"
-                        min="0"
-                        v-model="form.contract_min_commitment_period"
-                        class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
-                        placeholder="e.g. 12"
-                      />
-                    </div>
-                    <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_min_commitment_period']">
-                      {{ form.errors['customer.contract_min_commitment_period'] }}
-                    </div>
-                  </div>
-                  <div class="sm:col-span-3">
-                    <label class="flex justify-start text-sm font-medium text-gray-700">
-                      Notice Period
-                      <span class="ml-1 text-gray-400 text-xs font-normal">(months)</span>
-                    </label>
-                    <div class="mt-1">
-                      <input
-                        type="number"
-                        step="1"
-                        min="0"
-                        v-model="form.contract_notice_period"
-                        class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
-                        placeholder="e.g. 1"
-                      />
-                    </div>
-                    <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_notice_period']">
-                      {{ form.errors['customer.contract_notice_period'] }}
+                    <div class="col-span-6 sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700">
+                        Notice Period
+                        <span class="ml-1 text-gray-400 text-xs font-normal">(months)</span>
+                      </label>
+                      <div class="mt-1">
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          v-model="form.contract_notice_period"
+                          class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                          placeholder="e.g. 1"
+                        />
+                      </div>
+                      <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_notice_period']">
+                        {{ form.errors['customer.contract_notice_period'] }}
+                      </div>
                     </div>
                   </div>
 
@@ -425,6 +413,26 @@
                         No contracts attached
                       </li>
                     </ul>
+                  </div>
+
+                  <!-- Remarks for Contract -->
+                  <div class="sm:col-span-6">
+                    <label for="contract_remarks" class="flex justify-start text-sm font-medium text-gray-700">
+                      Remarks for Contract
+                    </label>
+                    <div class="mt-1">
+                      <textarea
+                        id="contract_remarks"
+                        v-model="form.contract_remarks"
+                        rows="3"
+                        maxlength="5000"
+                        class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                        placeholder="e.g. Special clauses, agreed adjustments, etc."
+                      ></textarea>
+                    </div>
+                    <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_remarks']">
+                      {{ form.errors['customer.contract_remarks'] }}
+                    </div>
                   </div>
 
                   <!-- end Contract Details -->
@@ -1160,10 +1168,11 @@ function getDefaultForm() {
     contract_commission_value: null,
     contract_commission_value2: null,
     contract_ps_term: null,
+    contract_from: null,
     contract_until: null,
     contract_auto_renewal: false,
-    contract_min_commitment_period: null,
     contract_notice_period: null,
+    contract_remarks: null,
   };
 }
 
@@ -1251,10 +1260,11 @@ onMounted(() => {
     contract_commission_value: props.customer ? (props.customer.contract_commission_value ?? null) : null,
     contract_commission_value2: props.customer ? (props.customer.contract_commission_value2 ?? null) : null,
     contract_ps_term: props.customer ? (props.customer.contract_ps_term ?? null) : null,
+    contract_from: props.customer ? (props.customer.contract_from ?? null) : null,
     contract_until: props.customer ? (props.customer.contract_until ?? null) : null,
     contract_auto_renewal: props.customer ? (props.customer.contract_auto_renewal ?? false) : false,
-    contract_min_commitment_period: props.customer ? (props.customer.contract_min_commitment_period ?? null) : null,
     contract_notice_period: props.customer ? (props.customer.contract_notice_period ?? null) : null,
+    contract_remarks: props.customer ? (props.customer.contract_remarks ?? null) : null,
   }) : useForm(getDefaultForm());
 
   vendChannels.value = props.customer && props.customer.vend ? props.customer.vend.vend_channels : [];
@@ -1351,10 +1361,11 @@ function saveCustomer(customerID) {
       contract_commission_value: data.contract_commission_value !== null && data.contract_commission_value !== '' ? parseFloat(data.contract_commission_value) : null,
       contract_commission_value2: data.contract_commission_value2 !== null && data.contract_commission_value2 !== '' ? parseFloat(data.contract_commission_value2) : null,
       contract_ps_term: data.contract_ps_term !== null && data.contract_ps_term !== '' ? parseFloat(data.contract_ps_term) : null,
+      contract_from: data.contract_from && data.contract_from !== 'Invalid date' ? data.contract_from : null,
       contract_until: data.contract_until && data.contract_until !== 'Invalid date' ? data.contract_until : null,
       contract_auto_renewal: data.contract_auto_renewal ?? false,
-      contract_min_commitment_period: data.contract_min_commitment_period !== null && data.contract_min_commitment_period !== '' ? parseInt(data.contract_min_commitment_period) : null,
       contract_notice_period: data.contract_notice_period !== null && data.contract_notice_period !== '' ? parseInt(data.contract_notice_period) : null,
+      contract_remarks: data.contract_remarks && String(data.contract_remarks).trim() !== '' ? data.contract_remarks : null,
     }
   })).post('/customers/' + customerID + '/update', {
     onSuccess: () => {

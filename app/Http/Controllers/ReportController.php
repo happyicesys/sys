@@ -1635,14 +1635,31 @@ class ReportController extends Controller
 
             switch ($className) {
                 case 'products':
-                    // Join pre-aggregated channel availability for the selected date range.
-                    // product_vend_channels stores one row per (product_id, date) with the
-                    // count of active channels at 00:08 that day.  We SUM across the range
-                    // so "Last Month" accumulates 30 daily snapshots per product.
-                    $pvcSub = DB::table('product_vend_channels')
-                        ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
-                        ->selectRaw('product_id, SUM(channel_count) AS channel_availability')
-                        ->groupBy('product_id');
+                    // Channel Availability for the Product tab.
+                    //
+                    // Previously this read from the pre-aggregated `product_vend_channels`
+                    // snapshot table, which only carries (product_id, date, channel_count).
+                    // That table has NO dimension to filter on, so the column ignored every
+                    // sidebar filter (Customer / Operator / Location Type / Machine Prefix
+                    // / Machine Model / Machine Contract / Product Mapping / Machine ID),
+                    // making the value mismatch the other columns whenever a filter was
+                    // applied — see user bug report 2026-05-07.
+                    //
+                    // Fix: compute live from `vend_channels` joined to `vends`, applying
+                    // the same vend-level filters that the metrics query uses.  We then
+                    // multiply the matched channel count by the number of days in the
+                    // selected range to preserve the "channel-days of availability"
+                    // semantic (e.g. 30 channels over a 30-day range → 900 channel-days),
+                    // which is what the snapshot SUM was approximating in the unfiltered
+                    // case.
+                    //
+                    // Note: this trades a small amount of day-by-day historical accuracy
+                    // (channel counts that fluctuated mid-range) for filter correctness,
+                    // which the user explicitly needs.  The snapshot table and its sync
+                    // job are left untouched.
+                    $numDays = max(1, (int) $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1);
+
+                    $pvcSub = $this->buildChannelAvailabilitySubQuery($request, $numDays);
 
                     $transactionsQuery
                         ->leftJoinSub($pvcSub, 'pvc', 'pvc.product_id', '=', 'gm.product_id')
@@ -1765,6 +1782,151 @@ class ReportController extends Controller
             ->groupBy(DB::raw($groupByExpr));
 
         return $transactionsQuery;
+    }
+
+    /**
+     * Build the Channel Availability subquery for the Sales Report > Product tab.
+     *
+     * Returns a subquery selecting (product_id, channel_availability) where
+     * channel_availability = COUNT(matching active vend_channels) * $numDays.
+     *
+     * Applies the same vend-level filters (Customer, Machine ID, Operator,
+     * Location Type, Machine Prefix, Machine Model, Machine Contract,
+     * Product Mapping, Customer Binded?) that filterGpMetricsReport() applies
+     * to the main metrics query, so the column reacts consistently with the
+     * other columns when filters are set.
+     *
+     * Operator-scoped users (non Happy Ice) are also restricted to their own
+     * operator_id and assigned vends, mirroring filterOperatorVendTransactionDB.
+     */
+    private function buildChannelAvailabilitySubQuery($request, int $numDays)
+    {
+        $sub = DB::table('vend_channels as vc')
+            ->join('vends', 'vc.vend_id', '=', 'vends.id')
+            ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
+            ->leftJoin('vend_prefixes', 'vends.vend_prefix_id', '=', 'vend_prefixes.id')
+            ->where('vc.is_active', true)
+            ->whereNotNull('vc.product_id')
+            ->where('vends.is_active', true)
+            ->where('vends.is_disposed', false);
+
+        // ----- Machine ID (codes) -----
+        if ($request->filled('codes')) {
+            $codes = $request->codes;
+            if (strpos($codes, ',') !== false) {
+                $codeList = array_filter(array_map('trim', explode(',', $codes)));
+                if (!empty($codeList)) {
+                    $sub->whereIn('vends.code', $codeList);
+                }
+            } else {
+                $sub->where('vends.code', 'LIKE', "{$codes}%");
+            }
+        }
+
+        // ----- Customer (free-text) -----
+        if ($request->filled('customer')) {
+            $search = $request->customer;
+            $sub->where(function ($q) use ($search) {
+                $q->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                    ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
+                    ->orWhere('customers.name', 'LIKE', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('customer_code')) {
+            $sub->where('customers.code', 'LIKE', '%' . $request->customer_code . '%');
+        }
+
+        if ($request->filled('customer_name')) {
+            $name = $request->customer_name;
+            $sub->where(function ($q) use ($name) {
+                $q->where('customers.name', 'LIKE', "%{$name}%")
+                    ->orWhere('vends.name', 'LIKE', "%{$name}%");
+            });
+        }
+
+        // ----- Customer Binded? -----
+        if ($request->filled('is_binded_customer') && $request->is_binded_customer !== 'all') {
+            if ($request->is_binded_customer === 'true' || $request->is_binded_customer === true) {
+                $sub->whereNotNull('vends.customer_id');
+            } elseif ($request->is_binded_customer === 'false' || $request->is_binded_customer === false) {
+                $sub->whereNull('vends.customer_id');
+            }
+        }
+
+        // ----- Location Type -----
+        if ($request->filled('location_type_id') && $request->location_type_id !== 'all') {
+            $sub->where('vends.location_type_id', $request->location_type_id);
+        }
+
+        // ----- Operator -----
+        if ($request->filled('operators')) {
+            $ops = $request->operators;
+            if (is_array($ops) && !in_array('all', $ops, true)) {
+                $sub->whereIn('vends.operator_id', $ops);
+            }
+        }
+
+        // ----- Machine Contract -----
+        if ($request->filled('vendContracts')) {
+            $vc = $request->vendContracts;
+            if (is_array($vc) && !in_array('all', $vc, true)) {
+                $sub->whereIn('vends.vend_contract_id', $vc);
+            }
+        }
+
+        // ----- Machine Model -----
+        if ($request->filled('vendModels')) {
+            $vm = $request->vendModels;
+            if (is_array($vm) && !in_array('all', $vm, true)) {
+                $sub->whereIn('vends.vend_model_id', $vm);
+            }
+        }
+
+        // ----- Machine Prefix (with Single-UD expansion, matching filterGpMetricsReport) -----
+        if ($request->filled('vendPrefixes')) {
+            $vp = $request->vendPrefixes;
+            if (is_array($vp) && !in_array('all', $vp, true)) {
+                if (in_array('single-ud', $vp, true)) {
+                    $vp = array_unique(array_merge($vp, [56, 57, 58, 60, 63, 64, 76, 83]));
+                    $idx = array_search('single-ud', $vp, true);
+                    if ($idx !== false) {
+                        unset($vp[$idx]);
+                    }
+                }
+                $sub->whereIn('vends.vend_prefix_id', $vp);
+            }
+        }
+
+        // ----- Product Mapping -----
+        if ($request->filled('productMappings')) {
+            $pm = $request->productMappings;
+            $ids = is_array($pm) ? $pm : [$pm];
+            $ids = array_filter($ids, fn($v) => $v !== null && $v !== '');
+            if (!in_array('all', $ids, true) && !empty($ids)) {
+                $sub->whereIn('vends.product_mapping_id', $ids);
+            }
+        }
+
+        // ----- Operator-scoped user restriction (mirrors filterOperatorVendTransactionDB) -----
+        if (auth()->check()) {
+            $user = auth()->user();
+            $operatorId = $user->operator_id;
+            $isHappyIce = $operatorId == 1;
+            if (!$isHappyIce && $operatorId) {
+                $sub->where('vends.operator_id', $operatorId);
+            }
+            if ($user->vends()->exists()) {
+                $vendIds = $user->vends->pluck('id')->toArray();
+                if (!empty($vendIds)) {
+                    $sub->whereIn('vends.id', $vendIds);
+                }
+            }
+        }
+
+        return $sub
+            ->selectRaw('vc.product_id, COUNT(vc.id) * ' . (int) $numDays . ' AS channel_availability')
+            ->groupBy('vc.product_id');
     }
 
     private function baseVendRecordsQuery($request, Carbon $start, Carbon $end): Builder

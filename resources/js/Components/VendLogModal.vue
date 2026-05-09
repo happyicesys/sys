@@ -13,7 +13,7 @@
       </template>
       <div class="space-y-4">
         <div class="text-sm text-gray-600">
-          Showing the latest {{ HISTORY_PAGE_SIZE }} events by default. Use Load More to pull older records.
+          Showing the latest {{ HISTORY_PAGE_SIZE }} events by default. Use Load More to pull older records. Logs are retained for the last 90 days only.
         </div>
         <div v-if="loading && !logs.length" class="py-6 text-sm text-gray-500 text-center">
           Loading log history...

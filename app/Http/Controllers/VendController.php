@@ -3158,8 +3158,20 @@ class VendController extends Controller
             (new \App\Jobs\DetectTempTrends($vend->id, true))->handle();
         }
 
+        // Vend logs are only retained for 90 days. Constrain the query so the
+        // pagination/total reflects the retention policy even if the daily
+        // prune command (delete:vend-log) hasn't run yet.
+        $retentionCutoff = Carbon::now()->subDays(90);
+
         $logs = $vend->eventLogs()
             ->select(['id', 'event', 'subject', 'context', 'occurred_at', 'created_at'])
+            ->where(function ($query) use ($retentionCutoff) {
+                $query->where('occurred_at', '>=', $retentionCutoff)
+                    ->orWhere(function ($q) use ($retentionCutoff) {
+                        $q->whereNull('occurred_at')
+                            ->where('created_at', '>=', $retentionCutoff);
+                    });
+            })
             ->orderByDesc('occurred_at')
             ->paginate($perPage > 0 ? $perPage : 10);
 

@@ -44,10 +44,18 @@ class Vend extends Model
 
     const LCD_MONITOR_MAPPINGS = [
         99 => 'N/A',
-        1 => 'WaveShare 7 inch 1024x600',
-        2 => 'WaveShare 10.1 inch 1920x1200',
-        3 => 'WaveShare 10.1HP-CAPLCD (Type-C) 1280x800',
-        4 => 'Inhand InPad3101 10.1 inch 1280x800',
+        1 => 'WaveShare 7" 1024x600',
+        2 => 'WaveShare 10.1" 1920x1200',
+        3 => 'WaveShare 10.1HP-CAPLCD 1280x800',
+        4 => 'InPad3101, 1280x800',
+    ];
+
+    const LCD_MONITOR_SHORT_MAPPINGS = [
+        99 => 'N/A',
+        1 => '7"',
+        2 => '10.1"',
+        3 => '10.1" Type-C',
+        4 => 'Inhand 10.1"',
     ];
 
     const LED_MATRIX_PANEL_MAPPINGS = [

@@ -4,7 +4,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Customers
+        Customer Summary
       </h2>
     </template>
 
@@ -520,6 +520,7 @@ const props = defineProps({
   contractCommissionTypeOptions: Array,
 });
 
+const authOperator = usePage().props.auth.operator;
 const operatorCountry = usePage().props.auth.operatorCountry;
 const permissions = usePage().props.auth.permissions;
 
@@ -592,7 +593,9 @@ onMounted(() => {
   ];
   operatorOptions.value = [
     { id: 'all', full_name: 'All' },
-    ...(props.operatorOptions?.data ?? []).map((d) => ({ id: d.id, code: d.code, full_name: d.full_name })),
+    ...props.operatorOptions.data.map((data) => {
+      return { id: data.id, code: data.code, full_name: data.full_name };
+    }),
   ];
   vendPrefixOptions.value = [
     { id: 'single-ud', value: 'Single UD' },
@@ -613,7 +616,19 @@ onMounted(() => {
   filters.value.is_active = booleanOptions.value[1];
   filters.value.is_cms = booleanOptions.value[0];
   filters.value.location_types = [locationTypeOptions.value.find((o) => o.id === 'all')].filter(Boolean);
-  filters.value.operators = [operatorOptions.value.find((o) => o.id === 'all')].filter(Boolean);
+  // Operator default — mirrors Vend/CustomerIndex.vue:
+  //   - logged in user: pre-select their own operator
+  //   - HIPL admins additionally pre-select HIMD / LEA / HIESG / UL-ST
+  //   - no auth (unlikely): fall back to the first option ("All")
+  filters.value.operators = authOperator ? [
+    operatorOptions.value.find((operator) => operator.id === authOperator.id),
+    ...authOperator.code == 'HIPL' ? [
+      operatorOptions.value.find((operator) => operator.code == 'HIMD'),
+      operatorOptions.value.find((operator) => operator.code == 'LEA'),
+      operatorOptions.value.find((operator) => operator.code == 'HIESG'),
+      operatorOptions.value.find((operator) => operator.code == 'UL-ST'),
+    ] : [],
+  ].filter((operator) => operator !== undefined) : [operatorOptions.value[0]];
   filters.value.period_report =
     periodReportLocalOptions.value.find((o) => o.id === (props.periodReport || 'current'))
     ?? periodReportLocalOptions.value[0];

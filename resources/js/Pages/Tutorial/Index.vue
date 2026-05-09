@@ -152,7 +152,7 @@ const managementItems = [
     },
     {
         title: 'Change to new SKU and Mapping',
-        link: 'https://youtu.be/kCXIEQUFINI',
+        link: 'https://youtu.be/kCXIEQUFlNI',
         subtitles: [
             'Create new Mapping. Replicate from current Mapping, replace old sku with new sku',
             'Link Current Mapping to New Mapping',

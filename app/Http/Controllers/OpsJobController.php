@@ -228,7 +228,7 @@ class OpsJobController extends Controller
                 ->get()
                 ->keyBy('ops_job_id');
 
-            // 3. Task Stats Aggregation (count, value sum in cents, qty sum, status counts)
+            // 3. Task Stats Aggregation (count, value sum in cents, qty sum, status counts + picked/completed amounts)
             $taskStats = DB::table('ops_job_tasks')
                 ->whereIn('ops_job_id', $opsJobIds)
                 ->selectRaw('
@@ -237,7 +237,11 @@ class OpsJobController extends Controller
                     SUM(value) as tasks_value_sum,
                     SUM(COALESCE(qty, 0)) as tasks_qty_sum,
                     SUM(CASE WHEN status >= 2 THEN 1 ELSE 0 END) as tasks_picked_count,
-                    SUM(CASE WHEN status >= 3 THEN 1 ELSE 0 END) as tasks_completed_count
+                    SUM(CASE WHEN status >= 3 THEN 1 ELSE 0 END) as tasks_completed_count,
+                    SUM(CASE WHEN status >= 2 THEN value ELSE 0 END) as tasks_picked_value,
+                    SUM(CASE WHEN status >= 2 THEN COALESCE(qty, 0) ELSE 0 END) as tasks_picked_qty,
+                    SUM(CASE WHEN status >= 3 THEN value ELSE 0 END) as tasks_completed_value,
+                    SUM(CASE WHEN status >= 3 THEN COALESCE(qty, 0) ELSE 0 END) as tasks_completed_qty
                 ')
                 ->groupBy('ops_job_id')
                 ->get()
@@ -267,11 +271,15 @@ class OpsJobController extends Controller
                 // refillable_amount is in cents; tasks.value is also stored in cents
                 $job->refillable_amount = ($iStat?->refillable_amount_frozen ?? 0) + ($cStat?->live_refillable_amount ?? 0) + ($tStat?->tasks_value_sum ?? 0);
                 $job->refillable_count = ($iStat?->refillable_count_frozen ?? 0) + ($cStat?->live_refillable_count ?? 0) + ($tStat?->tasks_qty_sum ?? 0);
-                $job->picked_amount = $cStat?->picked_amount ?? 0;
-                $job->picked_count = $cStat?->picked_count ?? 0;
+
+                // Picked: add task picked value+qty (status >= 2)
+                $job->picked_amount = ($cStat?->picked_amount ?? 0) + (int) ($tStat?->tasks_picked_value ?? 0);
+                $job->picked_count = ($cStat?->picked_count ?? 0) + (int) ($tStat?->tasks_picked_qty ?? 0);
                 $job->picked_cost = $cStat?->picked_cost ?? 0;
-                $job->stock_in_amount = $cStat?->stock_in_amount ?? 0;
-                $job->stock_in_count = $cStat?->stock_in_count ?? 0;
+
+                // Stock-in: add task completed value+qty (status >= 3)
+                $job->stock_in_amount = ($cStat?->stock_in_amount ?? 0) + (int) ($tStat?->tasks_completed_value ?? 0);
+                $job->stock_in_count = ($cStat?->stock_in_count ?? 0) + (int) ($tStat?->tasks_completed_qty ?? 0);
                 $job->stock_in_cost = $cStat?->stock_in_cost ?? 0;
 
                 // Percentages
@@ -284,8 +292,10 @@ class OpsJobController extends Controller
                 $job->ops_job_items_verified_count_percentage = $job->ops_job_items_count > 0
                     ? ($job->ops_job_items_verified_count / $job->ops_job_items_count) * 100
                     : 0;
-                $job->cms_transaction_percentage = $job->ops_job_items_delivered_count > 0
-                    ? ($job->cms_transaction_count / $job->ops_job_items_delivered_count) * 100
+                // API Invoice % — tasks cannot have API invoices, so use items-only delivered count as denominator
+                $itemsOnlyDeliveredCount = $iStat?->ops_job_items_delivered_count ?? 0;
+                $job->cms_transaction_percentage = $itemsOnlyDeliveredCount > 0
+                    ? ($job->cms_transaction_count / $itemsOnlyDeliveredCount) * 100
                     : 0;
             }
 

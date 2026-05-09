@@ -23,10 +23,11 @@ class CustomerContractLog extends Model
         'contract_commission_value',
         'contract_commission_value2',
         'contract_ps_term',
+        'contract_from',
         'contract_until',
         'contract_auto_renewal',
-        'contract_min_commitment_period',
         'contract_notice_period',
+        'contract_remarks',
         'changed_by',
         'source',
     ];
@@ -37,6 +38,7 @@ class CustomerContractLog extends Model
         'contract_commission_value' => 'decimal:2',
         'contract_commission_value2' => 'decimal:2',
         'contract_ps_term' => 'decimal:2',
+        'contract_from' => 'date',
         'contract_until' => 'date',
         'contract_auto_renewal' => 'boolean',
     ];

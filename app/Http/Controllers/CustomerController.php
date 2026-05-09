@@ -1191,10 +1191,11 @@ class CustomerController extends Controller
                 ],
                 'customer.contract_commission_value2'      => 'nullable|numeric|min:0',
                 'customer.contract_ps_term'                => 'nullable|numeric|min:0|max:100',
+                'customer.contract_from'                   => 'nullable|date',
                 'customer.contract_until'                  => 'nullable|date',
                 'customer.contract_auto_renewal'           => 'nullable|boolean',
-                'customer.contract_min_commitment_period'  => 'nullable|integer|min:0',
                 'customer.contract_notice_period'          => 'nullable|integer|min:0',
+                'customer.contract_remarks'                => 'nullable|string|max:5000',
             ];
 
             $request->validate($contractRules);
@@ -1202,8 +1203,8 @@ class CustomerController extends Controller
             // Detect if any contract detail field changed → log audit
             $contractFields = [
                 'contract_commission_type', 'contract_commission_value', 'contract_commission_value2',
-                'contract_ps_term', 'contract_until', 'contract_auto_renewal',
-                'contract_min_commitment_period', 'contract_notice_period',
+                'contract_ps_term', 'contract_from', 'contract_until', 'contract_auto_renewal',
+                'contract_notice_period', 'contract_remarks',
             ];
             $contractChanged = false;
             foreach ($contractFields as $field) {
@@ -1246,10 +1247,11 @@ class CustomerController extends Controller
                     'contract_commission_value' => $customer->contract_commission_value,
                     'contract_commission_value2' => $customer->contract_commission_value2,
                     'contract_ps_term' => $customer->contract_ps_term,
+                    'contract_from' => $customer->contract_from,
                     'contract_until' => $customer->contract_until,
                     'contract_auto_renewal' => (bool) $customer->contract_auto_renewal,
-                    'contract_min_commitment_period' => $customer->contract_min_commitment_period,
                     'contract_notice_period' => $customer->contract_notice_period,
+                    'contract_remarks' => $customer->contract_remarks,
                     'changed_by' => auth()->id(),
                     'source' => 'user',
                 ]);
@@ -1502,11 +1504,13 @@ class CustomerController extends Controller
                     'Contract Value'                => $customer->contract_commission_value,
                     'Contract Value 2'              => $customer->contract_commission_value2,
                     'PS Term (%)'                   => $customer->contract_ps_term,
+                    'Contract From'                 => $customer->contract_from
+                                                        ? Carbon::parse($customer->contract_from)->format('Y-m-d') : null,
                     'Contract Until'                => $customer->contract_until
                                                         ? Carbon::parse($customer->contract_until)->format('Y-m-d') : null,
                     'Auto Renewal'                  => $customer->contract_auto_renewal ? 'Yes' : 'No',
-                    'Min Commitment (months)'       => $customer->contract_min_commitment_period,
                     'Notice Period (months)'        => $customer->contract_notice_period,
+                    'Contract Remarks'              => $customer->contract_remarks,
                 ];
             }
         );
