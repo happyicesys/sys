@@ -126,6 +126,7 @@ const navigation = computed(() => [
         children: [
             {name: 'Customers', href: '/customers', permission: 'read customers'},
             {name: 'Summary', href: '/customers/summary', permission: 'read customers'},
+            {name: 'Tags', href: '/tags?classname=App\\Models\\Customer', permission: 'read customers'},
         ]
     },
     {

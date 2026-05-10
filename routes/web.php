@@ -175,6 +175,23 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/', [CustomerController::class, 'index'])->name('customers');
         Route::get('/summary', [CustomerController::class, 'summary'])->name('customers.summary');
         Route::get('/summary/excel', [CustomerController::class, 'summaryExportExcel'])->name('customers.summary.excel');
+        // Performance Report email send (button on Customer Summary > Action).
+        // Currently a stub — the actual queued send is wired in a follow-up.
+        Route::post('/{id}/send-performance-report', [CustomerController::class, 'sendPerformanceReport'])
+            ->name('customers.send-performance-report');
+        // JSON endpoint backing the "Report Content" preview modal in the
+        // Action column. Returns the same structured payload that will drive
+        // the email body once the queued send is wired.
+        Route::get('/{id}/performance-report-content', [CustomerController::class, 'getPerformanceReportContent'])
+            ->name('customers.performance-report-content');
+        // Customer Summary > Action ▸ "Create API Invoice" (single + bulk).
+        // Mirrors OpsJob's syncCmsInvoices() flow but for period summaries —
+        // dispatches SyncCustomerInvoiceCMS to POST to the CMS deals endpoint
+        // using hardcoded item codes (055/V01/60) per contract type.
+        Route::post('/{id}/cms-invoices', [CustomerController::class, 'syncCmsInvoice'])
+            ->name('customers.cms-invoice.create');
+        Route::post('/cms-invoices/bulk', [CustomerController::class, 'syncCmsInvoicesBulk'])
+            ->name('customers.cms-invoice.bulk');
         Route::get('/{id}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
         Route::get('/create', [CustomerController::class, 'create']);
         Route::post('/store', [CustomerController::class, 'store']);

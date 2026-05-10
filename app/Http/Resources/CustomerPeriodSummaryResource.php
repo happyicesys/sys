@@ -31,11 +31,20 @@ class CustomerPeriodSummaryResource extends JsonResource
             'location_earning_rate' => (float) $this->location_earning_rate,
             'transaction_count' => (int) $this->transaction_count,
             'vend_count' => (int) $this->vend_count,
-            // Lifetime-to-date sum of gross_earning_cents for this customer up
-            // to and including the latest month visible on the current view.
-            // Attached by CustomerController::attachAccumulatedGrossEarning().
-            'accumulate_gross_earning_cents' => isset($this->accumulate_gross_earning_cents)
-                ? (int) $this->accumulate_gross_earning_cents
+            // Lifetime-to-date sum of location_earning_cents (= gross_earning
+            // - location_fees, a.k.a. Vending Earning) for this customer up to
+            // and including the latest month visible on the current view.
+            // Attached by CustomerController::attachAccumulatedVendingEarning().
+            'accumulate_vending_earning_cents' => isset($this->accumulate_vending_earning_cents)
+                ? (int) $this->accumulate_vending_earning_cents
+                : null,
+            // Latest API Invoice (if any) for this row's (customer, period)
+            // — populated by CustomerController::attachExistingInvoice().
+            // Null when no successful CMS transaction exists yet. The Vue
+            // page uses this to render the "API Rpt" badge and to decide
+            // whether the per-row Create button should ask-to-confirm.
+            'existing_invoice' => isset($this->existing_invoice)
+                ? $this->existing_invoice
                 : null,
             'contract_commission_type' => $this->contract_commission_type,
             'contract_commission_value' => $this->contract_commission_value !== null ? (float) $this->contract_commission_value : null,
@@ -54,6 +63,22 @@ class CustomerPeriodSummaryResource extends JsonResource
                     'is_active' => (bool) $c->is_active,
                     'selling_price_type' => $c->selling_price_type,
                     'contract_commission_type' => $c->contract_commission_type,
+                    // Performance Report email opt-in (drives the Email button
+                    // in the Action column on Customer/Summary.vue).
+                    'report_email' => $c->report_email,
+                    'is_report_email_enabled' => (bool) $c->is_report_email_enabled,
+                    // Whether the Report Content modal would render anything
+                    // for this customer's contract. False for F/S (per spec)
+                    // and any contract type with missing required values.
+                    // Computed via PerformanceReportContentService so the
+                    // Vue button stays in sync with the actual API response.
+                    'has_report_content' => (new \App\Services\PerformanceReportContentService())->isAvailable($c),
+                    // Contract values needed for the contract_commission_value(2)
+                    // contract_ps_term — the Vue side already has these for
+                    // some columns but the modal/action layer needs them too.
+                    'contract_commission_value' => $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                    'contract_commission_value2' => $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                    'contract_ps_term' => $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
                     'operator' => $c->relationLoaded('operator') && $c->operator ? [
                         'id' => $c->operator->id,
                         'code' => $c->operator->code,

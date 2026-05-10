@@ -78,6 +78,7 @@ class Customer extends Model
         'apk_ver_json' => 'json',
         'begin_date' => 'datetime',
         'is_active' => 'boolean',
+        'is_report_email_enabled' => 'boolean',
         'is_restricted_access' => 'boolean',
         'last_updated_at' => 'datetime',
         'mqtt_last_updated_at' => 'datetime',
@@ -140,6 +141,10 @@ class Customer extends Model
         'contract_remarks',
         'contract_detail_updated_at',
         'contract_detail_updated_by',
+        // Performance Report email opt-in (see migration
+        // 2026_05_09_000000_add_report_email_to_customers).
+        'report_email',
+        'is_report_email_enabled',
     ];
 
     // mutator

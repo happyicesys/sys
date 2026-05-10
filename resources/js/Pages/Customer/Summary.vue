@@ -145,6 +145,37 @@
                   <span>Export Excel</span>
                 </div>
               </Button>
+              <!--
+                Bulk API Invoice toggle — flips the Action column into
+                checkbox mode and reveals the "Create API Invoice(s)"
+                submit button. Mirrors OpsJob's bulk-mode pattern.
+              -->
+              <!-- <Button
+                v-if="cmsEndpoint"
+                type="button"
+                :class="[
+                  'rounded-md px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-inset',
+                  bulkMode
+                    ? 'bg-orange-100 text-orange-800 ring-orange-300 hover:bg-orange-200'
+                    : 'bg-white text-gray-900 ring-gray-400 hover:bg-gray-100',
+                ]"
+                @click.prevent="bulkMode = !bulkMode; selectedRowKeys = []"
+              >
+                <span class="flex items-center space-x-1">
+                  <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true" />
+                  <span>{{ bulkMode ? 'Cancel Bulk' : 'Bulk API Invoice' }}</span>
+                </span>
+              </Button>
+              <Button
+                v-if="bulkMode"
+                type="button"
+                class="inline-flex items-center space-x-1 rounded-md border border-yellow bg-yellow-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="!selectedRowKeys.length || bulkSubmitting"
+                @click.prevent="onBulkCreateApiInvoicesClicked()"
+              >
+                <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true" />
+                <span>Create API Invoice(s) ({{ selectedRowKeys.length }})</span>
+              </Button> -->
             </div>
             <p class="text-xs text-gray-600 mt-2">
               Period range: <span class="font-medium">{{ rangeStart }}</span> &nbsp;→&nbsp;
@@ -236,19 +267,32 @@
                   <TableHead>
                     <div class="flex flex-col space-y-1">
                       <SingleSortItem modelName="location_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_earning_cents')">
-                        Location Earning
+                        Vending Earning
                       </SingleSortItem>
                       <span >Rate</span>
                     </div>
                   </TableHead>
-                  <TableHead>Accumulate Gross Margin $</TableHead>
+                  <TableHead>Accumulate Vending Earning</TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-4">
                       <span>Location Grading</span>
                       <span>Location Type</span>
                     </div>
                   </TableHead>
-                  <TableHead>Action</TableHead>
+                  <TableHead>
+                    <template v-if="bulkMode">
+                      <label class="inline-flex items-center space-x-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          class="h-4 w-4 rounded border-gray-300 text-yellow-600 cursor-pointer accent-yellow-500"
+                          :checked="isAllInvoiceableSelected()"
+                          @change="toggleSelectAllInvoiceable()"
+                        />
+                        <span>Select</span>
+                      </label>
+                    </template>
+                    <template v-else>Action</template>
+                  </TableHead>
                   <TableHead>Customer Tag</TableHead>
                 </tr>
               </thead>
@@ -295,11 +339,25 @@
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
                     <div class="flex flex-col space-y-1">
                       <span class="font-semibold">{{ periodReportLabel(row) }}</span>
+                      <!--
+                        "API Rpt" badge — green/with-tx-id when an invoice
+                        was successfully created in CMS for this exact
+                        (customer, period) tuple, blue/no-tx-id otherwise.
+                        Hovering shows the transaction id and amount.
+                      -->
+                      <!-- <span
+                        v-if="existingInvoice(row)"
+                        class="inline-flex justify-center items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 border border-emerald-300 w-fit mx-auto"
+                        v-tooltip="`Transaction #${existingInvoice(row).cms_transaction_id} — ${existingInvoiceAmountLabel(row)}`"
+                      >
+                        API Rpt #{{ existingInvoice(row).cms_transaction_id }}
+                      </span>
                       <span
+                        v-else
                         class="inline-flex justify-center items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 border border-blue-300 w-fit mx-auto"
                       >
                         API Rpt
-                      </span>
+                      </span> -->
                     </div>
                   </TableData>
 
@@ -409,7 +467,7 @@
                     </div>
                   </TableData>
 
-                  <!-- Location Earning $ / Rate -->
+                  <!-- Vending Earning $ / Rate (Vending Earning = Gross Earning - Location Fees) -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
                     <div class="flex flex-col space-y-0.5">
                       <span :class="row.location_earning_cents >= 0 ? 'text-green-700 font-medium' : 'text-red-700 font-medium'">
@@ -422,17 +480,17 @@
                   </TableData>
 
                   <!--
-                    Accumulate Gross margin $
-                    Lifetime-to-date sum of gross_earning_cents for the
-                    customer through the latest month visible on this view
-                    (computed server-side, batched per page).
+                    Accumulate Vending Earning
+                    Lifetime-to-date sum of location_earning_cents (= gross_earning
+                    - location_fees) for the customer through the latest month
+                    visible on this view (computed server-side, batched per page).
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
                     <span
-                      v-if="row.accumulate_gross_earning_cents != null"
-                      :class="row.accumulate_gross_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'"
+                      v-if="row.accumulate_vending_earning_cents != null"
+                      :class="row.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'"
                     >
-                      {{ formatMoney(row.accumulate_gross_earning_cents) }}
+                      {{ formatMoney(row.accumulate_vending_earning_cents) }}
                     </span>
                   </TableData>
 
@@ -447,6 +505,106 @@
 
                   <!-- Action -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
+                    <!--
+                      Bulk mode: replace the action buttons with a single
+                      checkbox so the user can multi-select rows for the
+                      "Create API Invoice(s)" submit at the top.
+                      Non-invoiceable rows (F/S/no-person_id/incomplete
+                      contract) get a disabled placeholder, mirroring
+                      OpsJob's bulk pattern.
+                    -->
+                    <template v-if="bulkMode">
+                      <input
+                        v-if="isInvoiceable(row)"
+                        type="checkbox"
+                        class="h-5 w-5 rounded border-gray-300 text-yellow-600 cursor-pointer accent-yellow-500"
+                        :value="rowKey(row)"
+                        v-model="selectedRowKeys"
+                      />
+                      <span v-else class="text-xs text-gray-400" v-tooltip="'Not invoiceable (F/S, missing person_id, or incomplete contract)'">—</span>
+                    </template>
+                    <div v-else class="flex flex-col items-stretch space-y-1">
+                      <!--
+                        Email button — sends the Performance Report for this
+                        row's period to the customer's report_email.
+                        Visibility gate: opt-in flag AND non-empty email AND
+                        the contract is complete enough that there'd actually
+                        be content to send (has_report_content). The
+                        controller re-checks the same conditions defensively.
+                      -->
+                      <Button
+                        v-if="row.customer?.is_report_email_enabled && row.customer?.report_email"
+                        type="button"
+                        :class="[
+                          'inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs',
+                          row.customer?.has_report_content
+                            ? 'bg-blue-100 hover:bg-blue-200 text-blue-800'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+                        ]"
+                        :disabled="!row.customer?.has_report_content"
+                        v-tooltip="!row.customer?.has_report_content
+                          ? 'Contract details incomplete — fill them in on Customer Edit first'
+                          : ''"
+                        @click="onEmailReportClicked(row)"
+                      >
+                        <EnvelopeIcon class="w-4 h-4"></EnvelopeIcon>
+                        <span>Email</span>
+                      </Button>
+
+                      <!--
+                        Report Content preview — fetches the same payload
+                        the email body will carry and renders it in a modal
+                        so the user can inspect before sending. Disabled
+                        when the contract info is incomplete (F/S, or any
+                        type missing required values).
+                      -->
+                      <Button
+                        type="button"
+                        :class="[
+                          'inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs',
+                          row.customer?.has_report_content
+                            ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+                        ]"
+                        :disabled="!row.customer?.has_report_content"
+                        v-tooltip="!row.customer?.has_report_content
+                          ? 'Free Placement / Subsidized Plan have no report content; other types need a complete contract'
+                          : 'Preview the report content that will be emailed'"
+                        @click="onReportContentClicked(row)"
+                      >
+                        <DocumentTextIcon class="w-4 h-4"></DocumentTextIcon>
+                        <span>Report Content</span>
+                      </Button>
+
+                      <!--
+                        Create API Invoice — POSTs the period-line items
+                        (using hardcoded item codes 055/V01/60 per contract
+                        type) to /api/transactions/deals via the queued
+                        SyncCustomerInvoiceCMS job. When an invoice already
+                        exists for this period, the button changes copy to
+                        "Re-create" and asks for explicit confirmation
+                        before posting force=1.
+                      -->
+                      <!-- <Button
+                        v-if="cmsEndpoint && isInvoiceable(row)"
+                        type="button"
+                        :class="[
+                          'inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs',
+                          existingInvoice(row)
+                            ? 'bg-amber-100 hover:bg-amber-200 text-amber-800'
+                            : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800',
+                          creatingInvoiceFor.has(rowKey(row)) ? 'opacity-60 cursor-wait' : '',
+                        ]"
+                        :disabled="creatingInvoiceFor.has(rowKey(row))"
+                        v-tooltip="existingInvoice(row)
+                          ? `Re-create API Invoice (existing: #${existingInvoice(row).cms_transaction_id})`
+                          : 'Create API Invoice in CMS for this period'"
+                        @click="onCreateApiInvoiceClicked(row)"
+                      >
+                        <ReceiptPercentIcon class="w-4 h-4"></ReceiptPercentIcon>
+                        <span>{{ existingInvoice(row) ? 'Re-create Invoice' : 'Create API Invoice' }}</span>
+                      </Button> -->
+                    </div>
                   </TableData>
 
                   <!-- Customer Tag -->
@@ -485,6 +643,127 @@
       :showModal="showMapMarkerModal"
       @modalClose="onMapMarkerModalClose"
     />
+
+    <!--
+      Report Content preview modal — populated lazily by clicking the
+      Report Content button in any row's Action column. Renders the same
+      structure that the queued Performance Report email will carry, so
+      "what you see is what you'll send".
+    -->
+    <Modal :open="showReportContentModal" @modalClose="onReportContentModalClose">
+      <template #header>
+        <div class="flex items-center space-x-2">
+          <DocumentTextIcon class="w-5 h-5 text-blue-600" />
+          <span>Performance Report Preview</span>
+        </div>
+      </template>
+      <template #default>
+        <div v-if="reportContentLoading" class="text-center py-10 text-gray-500">
+          <div class="animate-pulse text-sm">Loading report content…</div>
+        </div>
+
+        <div v-else-if="reportContent" class="text-sm">
+          <!-- Customer chip -->
+          <div
+            v-if="reportContentCustomerLabel"
+            class="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs mb-4"
+          >
+            <span class="font-medium">{{ reportContentCustomerLabel }}</span>
+          </div>
+
+          <!-- Title banner -->
+          <div class="rounded-md bg-blue-50 border border-blue-200 px-4 py-3 mb-4">
+            <div class="text-blue-900 font-semibold text-base leading-tight">
+              Vending Machine Location Fees Report
+            </div>
+            <div class="mt-1 text-blue-700 font-bold uppercase tracking-wide text-sm">
+              {{ reportContent.contract_type_label }}
+            </div>
+          </div>
+
+          <!--
+            Meta block — Period, Days, Machine ID, Machine Prefix.
+            Machine fields are populated locally from the row data when
+            the modal opens (see onReportContentClicked) so no extra API
+            roundtrip is needed. Hidden when blank so customers without a
+            bound vend don't show empty cards.
+          -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            <div class="rounded-md border border-gray-200 px-3 py-2">
+              <div class="text-xs uppercase tracking-wide text-gray-500">Period (YYMM)</div>
+              <div class="mt-0.5 text-gray-900 font-semibold text-base">
+                {{ reportContent.period_label }}
+              </div>
+            </div>
+            <div
+              v-if="reportContent.active_days != null && reportContent.month_days != null"
+              class="rounded-md border border-gray-200 px-3 py-2"
+            >
+              <div class="text-xs uppercase tracking-wide text-gray-500">Total number of days</div>
+              <div class="mt-0.5 text-gray-900 font-semibold text-base">
+                {{ reportContent.active_days }} / {{ reportContent.month_days }}
+              </div>
+            </div>
+            <div
+              v-if="reportContentMachineId"
+              class="rounded-md border border-gray-200 px-3 py-2"
+            >
+              <div class="text-xs uppercase tracking-wide text-gray-500">Machine ID</div>
+              <div class="mt-0.5 text-gray-900 font-semibold text-base whitespace-pre-line">
+                {{ reportContentMachineId }}
+              </div>
+            </div>
+            <div
+              v-if="reportContentMachinePrefix"
+              class="rounded-md border border-gray-200 px-3 py-2"
+            >
+              <div class="text-xs uppercase tracking-wide text-gray-500">Machine Prefix</div>
+              <div class="mt-0.5 text-gray-900 font-semibold text-base whitespace-pre-line">
+                {{ reportContentMachinePrefix }}
+              </div>
+            </div>
+          </div>
+
+          <!--
+            Calculation lines — bumped to text-base for label / formula and
+            text-lg for the resolved value, so the numbers carry more weight
+            visually than the surrounding meta cards.
+          -->
+          <div v-if="reportContent.lines?.length" class="rounded-md border border-gray-200 divide-y divide-gray-200 mb-4">
+            <div
+              v-for="(line, idx) in reportContent.lines"
+              :key="idx"
+              class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between px-4 py-3"
+            >
+              <div class="text-gray-800 font-medium text-base">{{ line.label }}</div>
+              <div class="mt-1 sm:mt-0 sm:text-right">
+                <span class="text-gray-600 text-sm">{{ line.formula }}</span>
+                <span class="text-gray-400 mx-1.5 text-base">=</span>
+                <span class="text-gray-900 font-bold text-lg">{{ line.value }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total banner -->
+          <div
+            v-if="reportContent.has_total"
+            class="flex items-baseline justify-between rounded-md bg-blue-600 px-4 py-3 text-white mb-3"
+          >
+            <span class="font-semibold text-base">Total</span>
+            <span class="font-bold text-xl">{{ reportContent.total_value }}</span>
+          </div>
+
+          <!-- Footnote -->
+          <div class="text-xs text-gray-500 italic mt-2">
+            {{ reportContent.footnote }}
+          </div>
+        </div>
+
+        <div v-else class="text-center py-10 text-gray-500 text-sm">
+          No content available for this customer.
+        </div>
+      </template>
+    </Modal>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -492,15 +771,17 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import MapMarker from '@/Components/MapMarker.vue';
+import Modal from '@/Components/Modal.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, BackspaceIcon, ClipboardDocumentCheckIcon, DocumentTextIcon, EnvelopeIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { computed, ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useToast } from 'vue-toastification';
 import { vTooltip } from 'floating-vue';
 import moment from 'moment';
 
@@ -524,9 +805,37 @@ const authOperator = usePage().props.auth.operator;
 const operatorCountry = usePage().props.auth.operatorCountry;
 const permissions = usePage().props.auth.permissions;
 
+const toast = useToast();
 const loading = ref(false);
+// Per-row in-flight guard so the Email button can't be clicked twice while
+// the request is open. Keyed by customer_id (one button per row anyway).
+const sendingReportFor = ref(new Set());
+
+// Report Content preview modal state. Single instance — only one row's
+// content can be visible at a time, so a flat ref structure is enough.
+const showReportContentModal = ref(false);
+const reportContentLoading = ref(false);
+const reportContent = ref(null);
+const reportContentCustomerLabel = ref('');
+// Machine context shown alongside the customer name in the modal header
+// area. Resolved from the row data we already have (vend / vends), so no
+// extra API roundtrip is needed.
+const reportContentMachineId = ref('');
+const reportContentMachinePrefix = ref('');
 const showMapMarkerModal = ref(false);
 const mapCustomers = ref([]);
+
+// Per-row in-flight guard for the "Create API Invoice" button. Keyed by
+// row composite "<customer_id>|<period_start>|<period_end>" so a customer
+// with multiple visible periods doesn't accidentally lock all of them.
+const creatingInvoiceFor = ref(new Set());
+
+// Bulk-mode state. selectedRowKeys uses the same composite key as
+// creatingInvoiceFor so we can map back to {customer_id, period_start,
+// period_end} on submit.
+const bulkMode = ref(false);
+const selectedRowKeys = ref([]);
+const bulkSubmitting = ref(false);
 
 // Show the "Show Map Markers" button only when at least one row's customer
 // has a delivery_address with both latitude and longitude.
@@ -714,6 +1023,56 @@ function locationFeesColorClass(cents, type) {
   return 'text-gray-800';
 }
 
+/**
+ * Email Performance Report — confirms intent then POSTs to the stub
+ * /customers/{id}/send-performance-report endpoint. Server re-validates
+ * the opt-in (is_report_email_enabled + report_email present) so the
+ * button vanishing on the next page reload mid-flight isn't a concern.
+ *
+ * `row` here is a customer_period_summary row, so period_start/period_end
+ * already reflect what the user is looking at (clamped per-customer for
+ * aggregated period reports — see CustomerController::clampAggregatedPeriodBounds).
+ */
+function onEmailReportClicked(row) {
+  const cust = row?.customer;
+  if (!cust?.is_report_email_enabled || !cust?.report_email) return;
+
+  const customerId = cust.id;
+  if (sendingReportFor.value.has(customerId)) return;
+
+  const periodStart = row.period_start;
+  const periodEnd = row.period_end;
+  const label = cust.name || ('#' + customerId);
+  const ok = confirm(
+    `Send Performance Report for ${label}\nPeriod: ${periodStart} → ${periodEnd}\nTo: ${cust.report_email}\n\nProceed?`
+  );
+  if (!ok) return;
+
+  sendingReportFor.value.add(customerId);
+  router.post(
+    '/customers/' + customerId + '/send-performance-report',
+    { period_start: periodStart, period_end: periodEnd },
+    {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: (page) => {
+        const flashed = page?.props?.flash?.success;
+        toast.success(flashed || 'Performance report queued.', { timeout: 3500 });
+      },
+      onError: (errors) => {
+        const msg = errors?.send_performance_report
+          || errors?.period_start
+          || errors?.period_end
+          || 'Failed to send report. Please try again.';
+        toast.error(msg, { timeout: 4500 });
+      },
+      onFinish: () => {
+        sendingReportFor.value.delete(customerId);
+      },
+    }
+  );
+}
+
 function onSearchFilterUpdated() {
   router.get(
     '/customers/summary',
@@ -800,6 +1159,63 @@ function onMapMarkerModalClose() {
   showMapMarkerModal.value = false;
 }
 
+/**
+ * Report Content preview — fetches the structured content from the
+ * /customers/{id}/performance-report-content endpoint and shows it in a
+ * modal. Same payload that the queued email body builder will use, so
+ * "what you see is what gets sent".
+ *
+ * Defensive guard at top: even if the disabled state on the button gets
+ * bypassed (keyboard, devtools), we refuse to fire when has_report_content
+ * is false — saves a 200 OK that just renders "no content".
+ */
+function onReportContentClicked(row) {
+  const cust = row?.customer;
+  if (!cust?.has_report_content) return;
+
+  reportContent.value = null;
+  reportContentCustomerLabel.value = cust.name || ('#' + cust.id);
+
+  // Machine ID + Prefix — mirror the on-screen Vend ID column logic:
+  // join all bound vends for customers with multiple machines, fall back
+  // to the single primary vend otherwise. Empty string when neither path
+  // resolves so the template can hide the section gracefully.
+  if (Array.isArray(cust.vends) && cust.vends.length > 1) {
+    reportContentMachineId.value = cust.vends.map(v => v.code).filter(Boolean).join(', ');
+    reportContentMachinePrefix.value = cust.vends.map(v => v.prefix).filter(Boolean).join(', ');
+  } else {
+    reportContentMachineId.value = cust.vend?.code || '';
+    reportContentMachinePrefix.value = cust.vend?.prefix || '';
+  }
+
+  showReportContentModal.value = true;
+  reportContentLoading.value = true;
+
+  window.axios.get('/customers/' + cust.id + '/performance-report-content', {
+    params: {
+      period_start: row.period_start,
+      period_end: row.period_end,
+    },
+  }).then(res => {
+    reportContent.value = res?.data ?? null;
+  }).catch(err => {
+    const msg = err?.response?.data?.message
+      || 'Failed to load report content. Please try again.';
+    toast.error(msg, { timeout: 4000 });
+    showReportContentModal.value = false;
+  }).finally(() => {
+    reportContentLoading.value = false;
+  });
+}
+
+function onReportContentModalClose() {
+  showReportContentModal.value = false;
+  reportContent.value = null;
+  reportContentCustomerLabel.value = '';
+  reportContentMachineId.value = '';
+  reportContentMachinePrefix.value = '';
+}
+
 function onExportExcelClicked() {
   loading.value = true;
   axios({
@@ -814,5 +1230,186 @@ function onExportExcelClicked() {
   }).finally(() => {
     loading.value = false;
   });
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// API Invoice (Customer Summary > Action ▸ "Create API Invoice")
+//
+// Mirrors OpsJob's "Create API Invoice(s)" pattern but at the customer +
+// period grain. The button is gated by:
+//   1. Customer has a CMS person_id (CMS-linked).
+//   2. Contract type is invoiceable (R, U, PS, PS+U, PSORU). F/S are out.
+//   3. Contract values are complete (PerformanceReportContentService says
+//      has_report_content = true).
+// All three are satisfied via row.customer.has_report_content (server
+// re-checks anyway, this is just for visual gating).
+// ───────────────────────────────────────────────────────────────────────
+
+function rowKey(row) {
+  // Composite key matching the server's (customer_id, period_start, period_end)
+  // — used both for selection state and per-row in-flight guards.
+  return (row?.customer_id ?? row?.customer?.id ?? '?')
+    + '|' + (row?.period_start ?? '')
+    + '|' + (row?.period_end ?? '');
+}
+
+function isInvoiceable(row) {
+  // 1) CMS-linked + invoiceable contract type AND complete contract
+  //    (mirrors CustomerInvoiceService::isInvoiceable on the backend).
+  const cust = row?.customer;
+  if (!cust) return false;
+  if (!cust.person_id) return false;
+  if (!cust.has_report_content) return false;
+  const t = cust.contract_commission_type ?? row?.contract_commission_type;
+  if (!t || t === 'F' || t === 'S') return false;
+  return true;
+}
+
+function existingInvoice(row) {
+  return row?.existing_invoice ?? null;
+}
+
+/**
+ * Per-row Create button. Confirms intent (mentioning re-creation when an
+ * invoice already exists for the same period) and POSTs to the single
+ * endpoint. The page reloads via Inertia onSuccess so the badge updates.
+ */
+function onCreateApiInvoiceClicked(row) {
+  if (!isInvoiceable(row)) return;
+
+  const key = rowKey(row);
+  if (creatingInvoiceFor.value.has(key)) return;
+
+  const cust = row.customer;
+  const existing = existingInvoice(row);
+  const force = !!existing;
+
+  const periodLine = `${row.period_start} → ${row.period_end}`;
+  const msg = existing
+    ? `An API Invoice already exists for ${cust.name}\n` +
+      `Period: ${periodLine}\n` +
+      `Existing transaction: #${existing.cms_transaction_id}\n\n` +
+      `Re-create now? (a new invoice will be created in CMS)`
+    : `Create API Invoice for ${cust.name}\n` +
+      `Period: ${periodLine}\n\n` +
+      `Proceed?`;
+
+  if (!confirm(msg)) return;
+
+  creatingInvoiceFor.value.add(key);
+  router.post(
+    '/customers/' + cust.id + '/cms-invoices',
+    {
+      period_start: row.period_start,
+      period_end: row.period_end,
+      force: force ? 1 : 0,
+    },
+    {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: (page) => {
+        const flashed = page?.props?.flash?.success;
+        toast.success(flashed || 'API Invoice queued.', { timeout: 3500 });
+      },
+      onError: (errors) => {
+        const msg = errors?.sync_cms_invoice
+          || errors?.period_start
+          || errors?.period_end
+          || 'Failed to queue API Invoice. Please try again.';
+        toast.error(msg, { timeout: 4500 });
+      },
+      onFinish: () => {
+        creatingInvoiceFor.value.delete(key);
+      },
+    }
+  );
+}
+
+/**
+ * Bulk submit — fires one POST with the array of selected (customer +
+ * period) tuples. Server queues them independently. We force=1 for any
+ * row that already has an existing invoice (the user has already
+ * confirmed at the bulk level via the dialog below).
+ */
+function onBulkCreateApiInvoicesClicked() {
+  const rows = (props.summaries?.data ?? [])
+    .filter((r) => selectedRowKeys.value.includes(rowKey(r)))
+    .filter((r) => isInvoiceable(r));
+
+  if (!rows.length) {
+    toast.error('No invoiceable rows selected.', { timeout: 3000 });
+    return;
+  }
+
+  const reCreateCount = rows.filter((r) => existingInvoice(r)).length;
+  const msg = reCreateCount > 0
+    ? `Create API Invoice for ${rows.length} row(s)?\n` +
+      `${reCreateCount} of these already have an existing invoice and will be RE-CREATED in CMS.\n\n` +
+      `Proceed?`
+    : `Create API Invoice for ${rows.length} row(s)?\n\nProceed?`;
+
+  if (!confirm(msg)) return;
+
+  bulkSubmitting.value = true;
+  router.post(
+    '/customers/cms-invoices/bulk',
+    {
+      items: rows.map((r) => ({
+        customer_id: r.customer_id ?? r.customer?.id,
+        period_start: r.period_start,
+        period_end: r.period_end,
+        force: existingInvoice(r) ? 1 : 0,
+      })),
+    },
+    {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: (page) => {
+        const flashed = page?.props?.flash?.success;
+        toast.success(flashed || 'API Invoices queued.', { timeout: 4500 });
+        // Clear selection — server has accepted.
+        selectedRowKeys.value = [];
+        bulkMode.value = false;
+      },
+      onError: (errors) => {
+        const msg = errors?.sync_cms_invoice
+          || errors?.items
+          || 'Failed to queue API Invoices. Please try again.';
+        toast.error(typeof msg === 'string' ? msg : 'Validation error.', { timeout: 4500 });
+      },
+      onFinish: () => {
+        bulkSubmitting.value = false;
+      },
+    }
+  );
+}
+
+function toggleSelectAllInvoiceable() {
+  // Select-all toggles only invoiceable rows on the current page so the
+  // user doesn't end up trying to invoice F/S/CMS-orphan rows.
+  const allKeys = (props.summaries?.data ?? [])
+    .filter((r) => isInvoiceable(r))
+    .map((r) => rowKey(r));
+
+  const allSelected = allKeys.length > 0
+    && allKeys.every((k) => selectedRowKeys.value.includes(k));
+
+  selectedRowKeys.value = allSelected ? [] : allKeys;
+}
+
+function isAllInvoiceableSelected() {
+  const allKeys = (props.summaries?.data ?? [])
+    .filter((r) => isInvoiceable(r))
+    .map((r) => rowKey(r));
+  if (!allKeys.length) return false;
+  return allKeys.every((k) => selectedRowKeys.value.includes(k));
+}
+
+// Reactive helper exposed to the template — avoids re-computing per row
+// when the existing_invoice cents need formatting via formatMoney().
+function existingInvoiceAmountLabel(row) {
+  const inv = existingInvoice(row);
+  if (!inv || inv.total_amount_cents == null) return '';
+  return formatMoney(inv.total_amount_cents);
 }
 </script>

@@ -39,6 +39,8 @@ use App\Models\VendPrefix;
 use App\Models\Zone;
 use App\Services\HistoryService;
 use App\Services\MapService;
+use App\Services\PerformanceReportContentService;
+use App\Services\TagBindingService;
 use App\Traits\ExportOptimizationTrait;
 use App\Traits\HasFilter;
 use App\Traits\SearchAddress;
@@ -264,7 +266,7 @@ class CustomerController extends Controller
         $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
-            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date',
+            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date,report_email,is_report_email_enabled',
             'customer.operator:id,code,name',
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
@@ -360,10 +362,17 @@ class CustomerController extends Controller
             $this->clampAggregatedPeriodBounds($summaries->getCollection(), $rangeStart, $rangeEnd);
         }
 
-        // "Accumulate Gross Margin $" — lifetime sum of gross_earning_cents for
-        // each customer up to and including the latest month visible on this
-        // view ($rangeEnd). One batched query per page keeps it cheap.
-        $this->attachAccumulatedGrossEarning($summaries->getCollection(), $rangeEnd);
+        // "Accumulate Vending Earning" — lifetime sum of location_earning_cents
+        // (= gross_earning - location_fees) for each customer up to and
+        // including the latest month visible on this view ($rangeEnd). One
+        // batched query per page keeps it cheap.
+        $this->attachAccumulatedVendingEarning($summaries->getCollection(), $rangeEnd);
+
+        // Attach the latest API Invoice (if any) for each visible row's
+        // (customer, period_start, period_end) triple — drives the
+        // "API Rpt" badge and the per-row Create-button visibility on the
+        // Customer Summary page.
+        $this->attachExistingInvoice($summaries->getCollection());
 
         $className = get_class(new Customer());
         $optionsService = app(\App\Services\OptionsService::class);
@@ -548,17 +557,21 @@ class CustomerController extends Controller
     }
 
     /**
-     * Attach lifetime-to-date "Accumulate Gross Margin $" to each summary row.
+     * Attach lifetime-to-date "Accumulate Vending Earning" to each summary row.
      *
-     * "Lifetime to date" = SUM(gross_earning_cents) across every stored monthly
-     * row for the customer where year_month <= $accumulateThrough (i.e. up to
-     * and including the latest month currently visible in the view).
+     * Vending Earning = Gross Earning - Location Fees, already pre-computed
+     * per-month and stored on customer_period_summaries.location_earning_cents
+     * (see CustomerSummaryAggregator::persistMonth()).
+     *
+     * "Lifetime to date" = SUM(location_earning_cents) across every stored
+     * monthly row for the customer where year_month <= $accumulateThrough
+     * (i.e. up to and including the latest month currently visible in view).
      *
      * One batched query per page keeps this cheap regardless of how many rows
      * the user is paginating over. Customers without any matching monthly
      * rows fall back to 0 (rather than NULL) so the UI can format consistently.
      */
-    protected function attachAccumulatedGrossEarning($collection, \Carbon\Carbon $accumulateThrough): void
+    protected function attachAccumulatedVendingEarning($collection, \Carbon\Carbon $accumulateThrough): void
     {
         if ($collection->isEmpty()) {
             return;
@@ -572,14 +585,99 @@ class CustomerController extends Controller
         $through = $accumulateThrough->copy()->startOfMonth()->toDateString();
 
         $sums = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
-            ->selectRaw('customer_id, SUM(gross_earning_cents) AS accum')
+            ->selectRaw('customer_id, SUM(location_earning_cents) AS accum')
             ->whereIn('customer_id', $customerIds)
             ->where('year_month', '<=', $through)
             ->groupBy('customer_id')
             ->pluck('accum', 'customer_id');
 
         foreach ($collection as $row) {
-            $row->accumulate_gross_earning_cents = (int) ($sums[$row->customer_id] ?? 0);
+            $row->accumulate_vending_earning_cents = (int) ($sums[$row->customer_id] ?? 0);
+        }
+    }
+
+    /**
+     * Look up the latest customer_period_summary_invoices row for each
+     * (customer, period_start, period_end) triple visible on the page,
+     * and attach a compact summary onto the row so the Vue page can:
+     *   - render the "API Rpt" badge with a transaction id
+     *   - decide whether the per-row Create-button should fire a confirm
+     *
+     * One batched query per page keeps this cheap. We only consider rows
+     * that successfully resolved a CMS transaction (cms_transaction_id IS
+     * NOT NULL) — in-flight rows that haven't yet succeeded shouldn't
+     * gate the button.
+     */
+    protected function attachExistingInvoice($collection): void
+    {
+        if ($collection->isEmpty()) {
+            return;
+        }
+
+        // Build the (customer_id, period_start, period_end) tuples we need
+        // to look up. Convert Carbon dates to ISO strings for the WHERE.
+        $tuples = [];
+        foreach ($collection as $row) {
+            $cid = $row->customer_id;
+            $ps = $row->period_start instanceof \Carbon\Carbon
+                ? $row->period_start->toDateString()
+                : (string) $row->period_start;
+            $pe = $row->period_end instanceof \Carbon\Carbon
+                ? $row->period_end->toDateString()
+                : (string) $row->period_end;
+            $tuples[$cid][$ps . '|' . $pe] = true;
+        }
+
+        if (empty($tuples)) {
+            return;
+        }
+
+        $customerIds = array_keys($tuples);
+
+        // Pull the most recent (by id desc) invoice per (customer, period)
+        // tuple in a single query, then index by composite key for O(1)
+        // lookup back into the collection. Using a window function would be
+        // tidier on MySQL 8+, but the DB version isn't guaranteed app-wide
+        // — so we fall back to a per-customer max(id) groupby join.
+        $latestIds = \App\Models\CustomerPeriodSummaryInvoice::query()
+            ->whereIn('customer_id', $customerIds)
+            ->whereNotNull('cms_transaction_id')
+            ->selectRaw('MAX(id) AS id')
+            ->groupBy('customer_id', 'period_start', 'period_end')
+            ->pluck('id');
+
+        if ($latestIds->isEmpty()) {
+            return;
+        }
+
+        $invoices = \App\Models\CustomerPeriodSummaryInvoice::query()
+            ->whereIn('id', $latestIds)
+            ->get(['id', 'customer_id', 'period_start', 'period_end', 'cms_transaction_id', 'cms_transaction_at', 'total_amount_cents'])
+            ->keyBy(function ($inv) {
+                return $inv->customer_id
+                    . '|' . $inv->period_start->toDateString()
+                    . '|' . $inv->period_end->toDateString();
+            });
+
+        foreach ($collection as $row) {
+            $ps = $row->period_start instanceof \Carbon\Carbon
+                ? $row->period_start->toDateString()
+                : (string) $row->period_start;
+            $pe = $row->period_end instanceof \Carbon\Carbon
+                ? $row->period_end->toDateString()
+                : (string) $row->period_end;
+            $key = $row->customer_id . '|' . $ps . '|' . $pe;
+            if (isset($invoices[$key])) {
+                $inv = $invoices[$key];
+                $row->existing_invoice = [
+                    'id' => $inv->id,
+                    'cms_transaction_id' => $inv->cms_transaction_id,
+                    'cms_transaction_at' => optional($inv->cms_transaction_at)->toIso8601String(),
+                    'total_amount_cents' => (int) ($inv->total_amount_cents ?? 0),
+                ];
+            } else {
+                $row->existing_invoice = null;
+            }
         }
     }
 
@@ -715,12 +813,14 @@ class CustomerController extends Controller
             return $val !== null ? '$' . number_format((float) $val, 2) : '';
         };
 
-        // Pre-fetch lifetime "Accumulate Gross Margin $" per customer so the
+        // Pre-fetch lifetime "Accumulate Vending Earning" per customer so the
         // streamed exporter can resolve it via O(1) map lookup instead of
-        // running a per-row aggregate query.
+        // running a per-row aggregate query. Vending Earning =
+        // gross_earning_cents - location_fees_cents (already pre-computed and
+        // stored as location_earning_cents on each monthly summary row).
         $accumThrough = $rangeEnd->copy()->startOfMonth()->toDateString();
         $accumulateMap = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
-            ->selectRaw('customer_id, SUM(gross_earning_cents) AS accum')
+            ->selectRaw('customer_id, SUM(location_earning_cents) AS accum')
             ->whereIn('customer_id', $customerIds)
             ->where('year_month', '<=', $accumThrough)
             ->groupBy('customer_id')
@@ -791,15 +891,296 @@ class CustomerController extends Controller
                     'Placement Contract Type' => $contractTypeLabels[$row->contract_commission_type] ?? $row->contract_commission_type,
                     'Location Fees Rate' => $formatLocationFeesRate($row),
                     'Location Fees' => round(((int) $row->location_fees_cents) / $divisor, 2),
-                    'Location Earning' => round(((int) $row->location_earning_cents) / $divisor, 2),
-                    'Location Earning Rate %' => round(((float) $row->location_earning_rate) * 100, 2),
-                    'Accumulate Gross margin $' => round(((int) ($accumulateMap[$row->customer_id] ?? 0)) / $divisor, 2),
+                    'Vending Earning' => round(((int) $row->location_earning_cents) / $divisor, 2),
+                    'Vending Earning Rate %' => round(((float) $row->location_earning_rate) * 100, 2),
+                    'Accumulate Vending Earning' => round(((int) ($accumulateMap[$row->customer_id] ?? 0)) / $divisor, 2),
                     'Location Grading' => null,          // placeholder — same as the on-screen "—"
                     'Location Type' => $customer && $customer->relationLoaded('locationType') ? optional($customer->locationType)->name : null,
                     'Customer Tag' => $tagNames,
                 ];
             }
         );
+    }
+
+    /**
+     * Performance Report email — stub endpoint for the "Email" button on
+     * Customer Summary > Action. Validates the request and confirms the
+     * intent; the actual queued send (Mailable + dispatch) will be wired
+     * in a follow-up so this exists primarily to give the frontend a real
+     * URL to POST to without 404'ing.
+     *
+     * Contract once the send is wired:
+     *   - body must contain period_start (Y-m-d) and period_end (Y-m-d)
+     *   - customer must have is_report_email_enabled = true and a valid
+     *     report_email; we re-check both on the server to defend against
+     *     stale UI state (e.g. user toggled off in another tab).
+     *   - dispatches a queued job that pulls the per-customer per-period
+     *     summary row and emails an HTML report (format TBD by user).
+     */
+    public function sendPerformanceReport(Request $request, $id)
+    {
+        $request->validate([
+            'period_start' => 'required|date',
+            'period_end'   => 'required|date|after_or_equal:period_start',
+        ]);
+
+        $customer = Customer::findOrFail($id);
+
+        if (!$customer->is_report_email_enabled || empty($customer->report_email)) {
+            return redirect()->back()->withErrors([
+                'send_performance_report' => 'This customer has not opted-in to performance report emails. Enable it from the customer edit page first.',
+            ]);
+        }
+
+        // TODO: dispatch Mailable on the queue, e.g.
+        //   PerformanceReportMail::dispatch($customer, $request->period_start, $request->period_end)
+        //       ->onQueue('mail');
+        // For now we only confirm the request was accepted so the UI flow
+        // can be exercised end-to-end.
+
+        return redirect()->back()->with(
+            'success',
+            "Performance report queued for {$customer->report_email} ({$request->period_start} → {$request->period_end}). [send pipeline pending wiring]"
+        );
+    }
+
+    /**
+     * Returns the structured Performance Report content for a single customer
+     * over a period — used by the "Report Content" preview modal on Customer
+     * Summary AND (later) by the queued email body builder. Both surfaces
+     * call this endpoint so they stay in lockstep.
+     *
+     * Looks up the matching customer_period_summary row to pull Sales for
+     * PS-family math; gracefully falls back to 0 sales if the row hasn't
+     * been aggregated yet (preview still renders, just shows $0.00).
+     */
+    public function getPerformanceReportContent(Request $request, $id)
+    {
+        $request->validate([
+            'period_start' => 'required|date',
+            'period_end'   => 'required|date|after_or_equal:period_start',
+        ]);
+
+        $customer = Customer::findOrFail($id);
+
+        $periodStart = \Carbon\Carbon::parse($request->period_start);
+        $periodEnd   = \Carbon\Carbon::parse($request->period_end);
+
+        // Find the summary row whose period overlaps the requested window.
+        // For a single-month period this is exact; for aggregated periods
+        // we sum sales across the matching months so PS math is correct.
+        $summaryRow = \App\Models\CustomerPeriodSummary::query()
+            ->where('customer_id', $customer->id)
+            ->whereBetween('year_month', [
+                $periodStart->copy()->startOfMonth()->toDateString(),
+                $periodEnd->copy()->startOfMonth()->toDateString(),
+            ])
+            ->selectRaw('MIN(id) AS id, customer_id, SUM(sales_cents) AS sales_cents')
+            ->groupBy('customer_id')
+            ->first();
+
+        $service = new PerformanceReportContentService();
+        $content = $service->generate($customer, $periodStart, $periodEnd, $summaryRow);
+
+        return response()->json($content);
+    }
+
+    /**
+     * Customer Management > Summary > Action ▸ "Create API Invoice".
+     *
+     * Mirrors the spirit of OpsJobController::syncCmsInvoices() but for
+     * the Customer Period Summary flow:
+     *   - Builds a CMS invoice payload using hardcoded item codes per
+     *     contract_commission_type (PS=055, U=V01, R=60, PS+U=both,
+     *     PSORU=whichever-higher).
+     *   - Creates a customer_period_summary_invoices row up front so the
+     *     UI can show an "in flight" indicator.
+     *   - Dispatches SyncCustomerInvoiceCMS to POST to /api/transactions/deals
+     *     and persist the returned transaction_id back onto that row.
+     *
+     * Re-creation is allowed (per product decision) — the UI shows a
+     * confirm dialog when an invoice already exists for the same
+     * (customer + period). The server records every invocation so the
+     * audit trail is preserved; only the latest row drives the badge.
+     *
+     * Body:
+     *   period_start (Y-m-d) — required
+     *   period_end   (Y-m-d) — required, >= period_start
+     *   force        (bool)  — optional, must be 1/true to re-create when
+     *                          a non-failed invoice already exists for
+     *                          the same period.
+     */
+    public function syncCmsInvoice(Request $request, $id)
+    {
+        $request->validate([
+            'period_start' => 'required|date',
+            'period_end'   => 'required|date|after_or_equal:period_start',
+            'force'        => 'nullable|boolean',
+        ]);
+
+        $customer = Customer::findOrFail($id);
+
+        $service = app(\App\Services\CustomerInvoiceService::class);
+
+        if (!$service->isInvoiceable($customer)) {
+            return redirect()->back()->withErrors([
+                'sync_cms_invoice' => 'This customer cannot be invoiced via API: missing CMS person_id, non-invoiceable contract type (F/S), or incomplete contract values.',
+            ]);
+        }
+
+        if (empty(config('app.cms_url'))) {
+            return redirect()->back()->withErrors([
+                'sync_cms_invoice' => 'CMS endpoint is not configured (CMS_URL).',
+            ]);
+        }
+
+        $periodStart = \Carbon\Carbon::parse($request->period_start)->toDateString();
+        $periodEnd   = \Carbon\Carbon::parse($request->period_end)->toDateString();
+
+        $existing = \App\Models\CustomerPeriodSummaryInvoice::query()
+            ->where('customer_id', $customer->id)
+            ->whereDate('period_start', $periodStart)
+            ->whereDate('period_end', $periodEnd)
+            ->whereNotNull('cms_transaction_id')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($existing && !$request->boolean('force')) {
+            return redirect()->back()->withErrors([
+                'sync_cms_invoice' => "Invoice already exists for this period (transaction #{$existing->cms_transaction_id}). Pass force=1 to re-create.",
+            ]);
+        }
+
+        $summaryRow = \App\Models\CustomerPeriodSummary::query()
+            ->where('customer_id', $customer->id)
+            ->whereBetween('year_month', [
+                \Carbon\Carbon::parse($periodStart)->startOfMonth()->toDateString(),
+                \Carbon\Carbon::parse($periodEnd)->startOfMonth()->toDateString(),
+            ])
+            ->selectRaw('MIN(id) AS id, customer_id, SUM(sales_cents) AS sales_cents')
+            ->groupBy('customer_id')
+            ->first();
+
+        $invoice = \App\Models\CustomerPeriodSummaryInvoice::create([
+            'customer_id' => $customer->id,
+            'period_start' => $periodStart,
+            'period_end' => $periodEnd,
+            'contract_commission_type' => $customer->contract_commission_type,
+            'created_by' => auth()->id(),
+        ]);
+
+        \App\Jobs\SyncCustomerInvoiceCMS::dispatch(
+            $invoice->id,
+            $customer->id,
+            $summaryRow ? $summaryRow->id : null,
+            $periodStart,
+            $periodEnd,
+            auth()->id(),
+        );
+
+        return redirect()->back()->with(
+            'success',
+            "API Invoice queued for {$customer->name} ({$periodStart} → {$periodEnd})."
+        );
+    }
+
+    /**
+     * Bulk variant of syncCmsInvoice — accepts an array of
+     * [{customer_id, period_start, period_end, force?}, ...]. Each entry
+     * is dispatched independently; failures don't block the rest.
+     *
+     * Returns a small summary { queued, skipped, errors[] } via flash so
+     * the UI can show a single toast covering the whole batch.
+     */
+    public function syncCmsInvoicesBulk(Request $request)
+    {
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.customer_id' => 'required|integer',
+            'items.*.period_start' => 'required|date',
+            'items.*.period_end' => 'required|date|after_or_equal:items.*.period_start',
+            'items.*.force' => 'nullable|boolean',
+        ]);
+
+        if (empty(config('app.cms_url'))) {
+            return redirect()->back()->withErrors([
+                'sync_cms_invoice' => 'CMS endpoint is not configured (CMS_URL).',
+            ]);
+        }
+
+        $service = app(\App\Services\CustomerInvoiceService::class);
+
+        $queued = 0;
+        $skipped = 0;
+        $errors = [];
+
+        foreach ($request->input('items') as $entry) {
+            $customer = Customer::find($entry['customer_id']);
+            if (!$customer) {
+                $errors[] = "Customer #{$entry['customer_id']} not found.";
+                $skipped++;
+                continue;
+            }
+            if (!$service->isInvoiceable($customer)) {
+                $errors[] = "Customer #{$customer->id} ({$customer->name}) is not invoiceable.";
+                $skipped++;
+                continue;
+            }
+
+            $periodStart = \Carbon\Carbon::parse($entry['period_start'])->toDateString();
+            $periodEnd   = \Carbon\Carbon::parse($entry['period_end'])->toDateString();
+            $force = !empty($entry['force']);
+
+            $existing = \App\Models\CustomerPeriodSummaryInvoice::query()
+                ->where('customer_id', $customer->id)
+                ->whereDate('period_start', $periodStart)
+                ->whereDate('period_end', $periodEnd)
+                ->whereNotNull('cms_transaction_id')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($existing && !$force) {
+                $errors[] = "{$customer->name}: already invoiced (#{$existing->cms_transaction_id}).";
+                $skipped++;
+                continue;
+            }
+
+            $summaryRow = \App\Models\CustomerPeriodSummary::query()
+                ->where('customer_id', $customer->id)
+                ->whereBetween('year_month', [
+                    \Carbon\Carbon::parse($periodStart)->startOfMonth()->toDateString(),
+                    \Carbon\Carbon::parse($periodEnd)->startOfMonth()->toDateString(),
+                ])
+                ->selectRaw('MIN(id) AS id, customer_id, SUM(sales_cents) AS sales_cents')
+                ->groupBy('customer_id')
+                ->first();
+
+            $invoice = \App\Models\CustomerPeriodSummaryInvoice::create([
+                'customer_id' => $customer->id,
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'contract_commission_type' => $customer->contract_commission_type,
+                'created_by' => auth()->id(),
+            ]);
+
+            \App\Jobs\SyncCustomerInvoiceCMS::dispatch(
+                $invoice->id,
+                $customer->id,
+                $summaryRow ? $summaryRow->id : null,
+                $periodStart,
+                $periodEnd,
+                auth()->id(),
+            );
+
+            $queued++;
+        }
+
+        return redirect()->back()->with('success', sprintf(
+            'API Invoices: %d queued, %d skipped.%s',
+            $queued,
+            $skipped,
+            $errors ? ' ' . implode(' ', $errors) : ''
+        ));
     }
 
     public function bindVend(Request $request, $id)
@@ -881,7 +1262,9 @@ class CustomerController extends Controller
                 'photos',
                 'profile',
                 'status',
-                'tagBindings',
+                // Eager-load tag relation so the multiselect on Customer/Edit
+                // can preselect bound tags by name + id.
+                'tagBindings.tag',
                 'vend:id,code,customer_id,product_mapping_id',
                 'vend.productMapping.attachments' => function ($query) use ($type) {
                     // $query->when($type, function ($query, $type) {
@@ -909,6 +1292,7 @@ class CustomerController extends Controller
         return Inertia::render('Customer/Edit', [
             'cmsEndpoint' => env('CMS_URL'),
             'countries' => $optionsService->countries(),
+            'customerTagOptions' => $optionsService->tags(Customer::class),
             'days' => Customer::DAYS_MAPPING,
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
             'locationTypeOptions' => $optionsService->locationTypes(),
@@ -1196,9 +1580,22 @@ class CustomerController extends Controller
                 'customer.contract_auto_renewal'           => 'nullable|boolean',
                 'customer.contract_notice_period'          => 'nullable|integer|min:0',
                 'customer.contract_remarks'                => 'nullable|string|max:5000',
+                // Performance Report Email opt-in (see migration
+                // 2026_05_09_000000_add_report_email_to_customers).
+                'customer.report_email'                    => 'nullable|email|max:191',
+                'customer.is_report_email_enabled'         => 'nullable|boolean',
             ];
 
             $request->validate($contractRules);
+
+            // Defensive: never let the DB hold "enabled = true" with a NULL/
+            // empty email. The Vue side already enforces this on the form,
+            // but if someone POSTs directly we still want clean data so the
+            // Summary page's button-visibility flag is meaningful.
+            if (empty($requestCustomerArr['report_email'])) {
+                $requestCustomerArr['is_report_email_enabled'] = false;
+                $request->merge(['customer' => $requestCustomerArr]);
+            }
 
             // Detect if any contract detail field changed → log audit
             $contractFields = [
@@ -1308,6 +1705,19 @@ class CustomerController extends Controller
 
         if ($customer and $customer->person_id and $vend) {
             SyncVendCustomerCms::dispatchSync($customer->person_id, $vend->id);
+        }
+
+        // Sync customer tags (Customer-scoped Tag rows from /tags?classname=
+        // App\Models\Customer). The Vue side sends tag_ids at the top level so
+        // it can't collide with the customer payload's mass-assignment.
+        if ($customer && $request->has('tag_ids')) {
+            $tagIds = collect($request->input('tag_ids', []))
+                ->filter(fn ($v) => is_numeric($v))
+                ->map(fn ($v) => (int) $v)
+                ->unique()
+                ->values()
+                ->all();
+            TagBindingService::sync($customer, $tagIds);
         }
 
         return redirect()->back();

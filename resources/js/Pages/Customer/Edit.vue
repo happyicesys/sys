@@ -479,6 +479,77 @@
                       {{ form.errors['customer.is_restricted_access'] }}
                     </div>
                   </div>
+                  <div class="sm:col-span-6">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      Customer Tags
+                      <ExclamationCircleIcon
+                        class="w-5 h-5 self-center pl-1"
+                        v-tooltip="'Manage tag list under Customer Management → Tags'"
+                      ></ExclamationCircleIcon>
+                    </label>
+                    <MultiSelect
+                      v-model="form.tags"
+                      :options="customerTagOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="name"
+                      placeholder="Select tags"
+                      open-direction="bottom"
+                      class="mt-1"
+                      mode="tags"
+                    ></MultiSelect>
+                    <div class="text-sm text-red-600" v-if="form.errors.tag_ids">
+                      {{ form.errors.tag_ids }}
+                    </div>
+                  </div>
+
+                  <!--
+                    Performance Report Email opt-in.
+                    The toggle is force-disabled (and force-false) when no
+                    valid email is entered, so the Customer Summary "Email"
+                    button can rely on is_report_email_enabled === true to
+                    mean "this customer has agreed to receive the report at
+                    a known address".
+                  -->
+                  <div class="sm:col-span-3">
+                    <FormInput
+                      v-model="form.report_email"
+                      :error="form.errors['customer.report_email']"
+                      type="email"
+                      placeholder="customer@example.com"
+                    >
+                      Performance Report Email
+                    </FormInput>
+                  </div>
+                  <div class="sm:col-span-3">
+                    <label class="flex justify-start text-sm font-medium text-gray-700">
+                      Enable Send Performance to Email?
+                      <ExclamationCircleIcon
+                        class="w-5 h-5 self-center pl-1"
+                        v-tooltip="'Toggle on to surface the Email action button on Customer Summary. Disabled until a valid email is entered.'"
+                      ></ExclamationCircleIcon>
+                    </label>
+                    <MultiSelect
+                      v-model="form.is_report_email_enabled"
+                      :options="booleanStrictOptions"
+                      :disabled="!isReportEmailValid"
+                      trackBy="id"
+                      valueProp="id"
+                      label="value"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                    ></MultiSelect>
+                    <div
+                      v-if="!isReportEmailValid"
+                      class="text-xs text-gray-500 mt-1"
+                    >
+                      Enter a valid email above to enable.
+                    </div>
+                    <div class="text-sm text-red-600" v-if="form.errors['customer.is_report_email_enabled']">
+                      {{ form.errors['customer.is_report_email_enabled'] }}
+                    </div>
+                  </div>
                   <div class="sm:col-span-5">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                       Reference Price Type
@@ -1025,6 +1096,7 @@ const props = defineProps({
   cmsEndpoint: String,
   vendOptions: Object,
   countries: Object,
+  customerTagOptions: Object,
   days: Object,
   frequencyPerWeekOptions: [Array, Object],
   locationTypeOptions: [Array, Object],
@@ -1044,6 +1116,7 @@ const booleanStrictOptions = ref([
 
 const countryOptions = ref([]);
 const customer = ref([]);
+const customerTagOptions = ref([]);
 const customerVendBindings = ref([]);
 const frequencyPerWeekOptions = ref([]);
 const isExisting = ref(1);
@@ -1081,6 +1154,24 @@ const TWO_VAL_TYPES = ['PS+U', 'PSORU'];
 const isPsCommission = computed(() => PS_TYPES.includes(form.value.contract_commission_type));
 const hasTwoValues   = computed(() => TWO_VAL_TYPES.includes(form.value.contract_commission_type));
 const showPsTerm     = computed(() => isPsCommission.value);
+
+// Performance Report Email — a tiny RFC-5322-ish guard. Good enough for
+// gating the "Enable Send Performance to Email?" toggle; the server-side
+// 'email' validator on update() does the authoritative check.
+const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isReportEmailValid = computed(() => {
+  const v = form.value?.report_email;
+  return typeof v === 'string' && EMAIL_RX.test(v.trim());
+});
+
+// Whenever the email becomes invalid (cleared, malformed), force the toggle
+// back to "false" so a stale "true" can't survive an email deletion and
+// silently leave the Email button enabled with no address to send to.
+watch(isReportEmailValid, (valid) => {
+  if (!valid && form.value && booleanStrictOptions.value?.length) {
+    form.value.is_report_email_enabled = booleanStrictOptions.value.find(o => o.id === 'false');
+  }
+});
 
 const commissionValueLabel = computed(() => {
   switch (form.value.contract_commission_type) {
@@ -1173,6 +1264,15 @@ function getDefaultForm() {
     contract_auto_renewal: false,
     contract_notice_period: null,
     contract_remarks: null,
+    // Customer-scoped tag bindings — populated from props.customer.tag_bindings
+    // on mount and synced server-side via TagBindingService::sync().
+    tags: [],
+    // Performance Report email opt-in. report_email is a plain string;
+    // is_report_email_enabled is the booleanStrictOptions object {id,value}
+    // (matches how is_active / is_restricted_access are modelled), then
+    // unpacked back to a boolean in saveCustomer's transform.
+    report_email: '',
+    is_report_email_enabled: null,
   };
 }
 
@@ -1198,6 +1298,10 @@ onMounted(() => {
   ];
 
   operatorOptions.value = props.operatorOptions.data;
+  // Tag options come from OptionsService::tags('App\\Models\\Customer'),
+  // wrapped in a Resource collection → unwrap .data and keep id+name only.
+  customerTagOptions.value = (props.customerTagOptions?.data ?? [])
+    .map(tag => ({ id: tag.id, name: tag.name }));
   zoneOptions.value = [
     { id: '', value: '--- Clear ---' },
     ...props.zoneOptions.data.map(zone => ({
@@ -1265,6 +1369,19 @@ onMounted(() => {
     contract_auto_renewal: props.customer ? (props.customer.contract_auto_renewal ?? false) : false,
     contract_notice_period: props.customer ? (props.customer.contract_notice_period ?? null) : null,
     contract_remarks: props.customer ? (props.customer.contract_remarks ?? null) : null,
+    // Pre-select the multiselect with already-bound tags. tag_bindings comes
+    // from the Customer model with `tagBindings.tag` eager-loaded, so each
+    // binding has a nested .tag object. Filter to options we know about so the
+    // multiselect doesn't render orphan rows.
+    tags: (props.customer?.tag_bindings ?? [])
+      .map(tb => customerTagOptions.value.find(opt => opt.id === tb.tag?.id))
+      .filter(Boolean),
+    report_email: props.customer ? (props.customer.report_email ?? '') : '',
+    is_report_email_enabled: props.customer
+      ? (props.customer.is_report_email_enabled
+          ? booleanStrictOptions.value.find(option => option.id === 'true')
+          : booleanStrictOptions.value.find(option => option.id === 'false'))
+      : booleanStrictOptions.value.find(option => option.id === 'false'),
   }) : useForm(getDefaultForm());
 
   vendChannels.value = props.customer && props.customer.vend ? props.customer.vend.vend_channels : [];
@@ -1336,6 +1453,9 @@ function saveCustomer(customerID) {
 
   form.value.transform((data) => ({
     id: data.vend_id ? data.vend_id.id : null,
+    // tag_ids lives at the top level — server reads it via $request->input('tag_ids')
+    // and applies TagBindingService::sync() after the customer is updated.
+    tag_ids: Array.isArray(data.tags) ? data.tags.map(t => t?.id).filter(v => v != null) : [],
     customer: {
       ...data,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
@@ -1366,6 +1486,16 @@ function saveCustomer(customerID) {
       contract_auto_renewal: data.contract_auto_renewal ?? false,
       contract_notice_period: data.contract_notice_period !== null && data.contract_notice_period !== '' ? parseInt(data.contract_notice_period) : null,
       contract_remarks: data.contract_remarks && String(data.contract_remarks).trim() !== '' ? data.contract_remarks : null,
+      // Performance Report Email — normalise empty strings to null so the
+      // DB stores NULL rather than '', and force-clear the enabled flag
+      // when the email is missing/invalid so the Summary "Email" button
+      // can never appear without a deliverable address.
+      report_email: data.report_email && String(data.report_email).trim() !== ''
+        ? String(data.report_email).trim()
+        : null,
+      is_report_email_enabled: (data.report_email && String(data.report_email).trim() !== '')
+        ? (data.is_report_email_enabled?.id === 'true')
+        : false,
     }
   })).post('/customers/' + customerID + '/update', {
     onSuccess: () => {

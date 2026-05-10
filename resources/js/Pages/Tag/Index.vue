@@ -117,8 +117,18 @@
                             </span>
                           </Button>
                           <Button
-                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
+                            type="button"
+                            :class="[
+                              'px-3 py-2 text-xs flex space-x-1',
+                              tag.bindings_count > 0
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'bg-red-300 hover:bg-red-400 text-red-800',
+                            ]"
+                            :disabled="tag.bindings_count > 0"
                             @click="onDeleteClicked(tag)"
+                            v-tooltip="tag.bindings_count > 0
+                              ? 'In use by ' + tag.bindings_count + ' record(s) — remove from those records first'
+                              : ''"
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
@@ -160,6 +170,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { vTooltip } from 'floating-vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -202,6 +213,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(tag) {
+  // Defensive guard — the button is also disabled in the template, but if the
+  // user somehow triggers this (e.g. via keyboard) we still refuse early so
+  // we don't even fire the request.
+  if (tag.bindings_count > 0) {
+    toast.error(
+      'Cannot delete "' + tag.name + '" — still bound to ' + tag.bindings_count + ' record(s).',
+      { timeout: 4000 }
+    )
+    return
+  }
   const approval = confirm('Are you sure to delete ' + tag.name + '?');
   if (!approval) {
       return;
@@ -210,8 +231,11 @@ function onDeleteClicked(tag) {
     onSuccess: () => {
       toast.success("Tag deleted successfully", { timeout: 3000 })
     },
-    onError: () => {
-      toast.error("Failed to delete tag", { timeout: 3000 })
+    onError: (errors) => {
+      // Surface the controller's `delete` error message verbatim so the user
+      // sees exactly why the tag couldn't be removed (e.g. binding count).
+      const msg = errors?.delete || "Failed to delete tag"
+      toast.error(msg, { timeout: 4000 })
     }
   })
 }
