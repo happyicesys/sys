@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Bus\PendingDispatch;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Compute / re-compute customer_period_summaries.
@@ -38,7 +39,9 @@ class ComputeCustomerSummary extends Command
         {--sync : Run synchronously instead of queueing}
         {--queue= : Override queue name (low|default|high). Defaults: backfill=low, nightly=default}
         {--with-gp-metrics : Also rebuild gp_metrics for the range BEFORE the summary (chained per month)}
-        {--gp-chunk=1000 : Chunk size for gp_metrics inserts when --with-gp-metrics is used}';
+        {--gp-chunk=1000 : Chunk size for gp_metrics inserts when --with-gp-metrics is used}
+        {--chunk= : Dispatch at most N months per invocation, save progress, resume on next run. Default 200.}
+        {--reset : Wipe the saved progress watermark for this range (start over from rangeStart).}';
 
     protected $description = 'Aggregate customer_period_summaries from gp_metrics + customer contract details';
 
@@ -117,19 +120,58 @@ class ComputeCustomerSummary extends Command
         }
 
         // ─────────────────────────────────────────────────────────────
-        // Queued mode: dispatch the whole range as a single Bus::batch
-        // so the user gets ONE id to watch in Horizon's Batches tab.
-        //   - allowFailures(): one bad month doesn't cancel the rest.
-        //   - Each top-level item is either:
-        //       • a single ProcessCustomerSummaryMonth job, OR
-        //       • a chain [ProcessGpMetricsRange → ProcessCustomerSummaryMonth]
-        //         when --with-gp-metrics is set (each chain becomes one
-        //         batch item, so the batch's progress % reflects months
-        //         not the underlying gp_metrics sub-steps).
+        // Queued mode: chunked, resumable dispatch.
+        //
+        // Each invocation dispatches at most --chunk=N months (default 200)
+        // and persists a watermark in storage/app/customer-summary-compute-progress.json.
+        // Running the same command again picks up from where the previous run
+        // left off, so a multi-thousand-month backfill can be paced by the
+        // operator: dispatch a chunk → watch the queue drain → run again →
+        // dispatch the next chunk → etc.
+        //
+        // The watermark is keyed by the resolved range so different ranges
+        // (e.g. --since-begin-date vs --from=2025-06 --to=2025-12) keep
+        // independent progress. Pass --reset to wipe the watermark and
+        // start over from rangeStart.
         // ─────────────────────────────────────────────────────────────
-        $items = [];
-        $cursor = $rangeStart->copy();
-        while ($cursor->lte($rangeEnd)) {
+
+        $chunkSize = (int) ($this->option('chunk') ?: 200);
+        if ($chunkSize < 1) {
+            $this->error('--chunk must be >= 1.');
+            return self::FAILURE;
+        }
+
+        $progressKey = $this->progressKey($rangeStart, $rangeEnd, $withGpMetrics);
+        if ($this->option('reset')) {
+            $this->forgetProgress($progressKey);
+            $this->info("Watermark cleared for range {$rangeStart->format('Y-m')} → {$rangeEnd->format('Y-m')}.");
+        }
+
+        $progress = $this->readProgress($progressKey);
+        // Resume cursor: either the saved watermark, or rangeStart on a fresh run.
+        $cursor = $progress['next_month'] ?? null
+            ? Carbon::parse($progress['next_month'])->startOfMonth()
+            : $rangeStart->copy();
+
+        if ($cursor->lt($rangeStart)) {
+            // Watermark is older than current rangeStart (e.g. range narrowed).
+            // Trust the explicit rangeStart.
+            $cursor = $rangeStart->copy();
+        }
+
+        if ($cursor->gt($rangeEnd)) {
+            $this->info('Already past range end — nothing to dispatch. Pass --reset to restart from ' . $rangeStart->format('Y-m') . '.');
+            return self::SUCCESS;
+        }
+
+        // Total months across the whole range, just for the progress display.
+        $totalMonths = $rangeStart->copy()->diffInMonths($rangeEnd->copy()) + 1;
+        // Months remaining = from cursor to rangeEnd inclusive.
+        $remaining = $cursor->copy()->diffInMonths($rangeEnd->copy()) + 1;
+        $dispatchCount = min($chunkSize, $remaining);
+
+        $dispatchedMonths = [];
+        for ($i = 0; $i < $dispatchCount; $i++) {
             $monthStart = $cursor->copy()->startOfMonth();
             $monthEnd = $cursor->copy()->endOfMonth()->startOfDay();
             if ($monthEnd->gt($asOf)) {
@@ -137,7 +179,9 @@ class ComputeCustomerSummary extends Command
             }
 
             if ($withGpMetrics) {
-                $items[] = [
+                // Range → summary as a Bus::chain, so the gp_metrics rebuild
+                // for the month finishes before its summary recomputes.
+                Bus::chain([
                     new ProcessGpMetricsRange(
                         $monthStart->toDateString(),
                         $monthEnd->toDateString(),
@@ -147,39 +191,127 @@ class ComputeCustomerSummary extends Command
                         $monthStart->toDateString(),
                         $asOf->toDateString()
                     ),
-                ];
+                ])->onQueue($queue)->dispatch();
             } else {
-                $items[] = new ProcessCustomerSummaryMonth(
+                ProcessCustomerSummaryMonth::dispatch(
                     $monthStart->toDateString(),
                     $asOf->toDateString()
-                );
+                )->onQueue($queue);
             }
+
+            $dispatchedMonths[] = $cursor->format('Y-m');
             $cursor->addMonthNoOverflow();
         }
 
-        $batchName = sprintf(
-            'CustomerSummary backfill %s → %s%s',
-            $rangeStart->format('Y-m'),
-            $rangeEnd->format('Y-m'),
-            $withGpMetrics ? ' (with gp_metrics)' : ''
-        );
+        // Advance watermark. If we just finished the range, mark complete.
+        $nextMonth = $cursor->lte($rangeEnd) ? $cursor->format('Y-m-d') : null;
+        $this->writeProgress($progressKey, [
+            'range_start' => $rangeStart->toDateString(),
+            'range_end' => $rangeEnd->toDateString(),
+            'next_month' => $nextMonth,
+            'total_months' => $totalMonths,
+            'dispatched_so_far' => ($progress['dispatched_so_far'] ?? 0) + count($dispatchedMonths),
+            'updated_at' => Carbon::now()->toIso8601String(),
+            'with_gp_metrics' => $withGpMetrics,
+        ]);
 
-        $batch = Bus::batch($items)
-            ->name($batchName)
-            ->onQueue($queue)
-            ->allowFailures()
-            ->dispatch();
-
+        $dispatchedTotal = ($progress['dispatched_so_far'] ?? 0) + count($dispatchedMonths);
         $this->info(sprintf(
-            'Dispatched batch: id=%s, name="%s", queue=%s, months=%d',
-            $batch->id,
-            $batchName,
+            'Dispatched %d month(s) on queue=%s: %s → %s. Progress: %d/%d.',
+            count($dispatchedMonths),
             $queue,
-            count($items)
+            $dispatchedMonths[0] ?? '-',
+            end($dispatchedMonths) ?: '-',
+            $dispatchedTotal,
+            $totalMonths
         ));
-        $this->info('Monitor: Horizon → Batches tab, or `Bus::findBatch(\'' . $batch->id . '\')`.');
+
+        if ($nextMonth === null) {
+            $this->info('All months in range dispatched. Watermark cleared.');
+            $this->forgetProgress($progressKey);
+        } else {
+            $this->info(sprintf(
+                'Next month to dispatch: %s. Re-run the same command to dispatch the next %d months.',
+                Carbon::parse($nextMonth)->format('Y-m'),
+                $chunkSize
+            ));
+        }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Stable scope key for the watermark file. Different ranges keep
+     * independent progress.
+     */
+    protected function progressKey(Carbon $rangeStart, Carbon $rangeEnd, bool $withGpMetrics): string
+    {
+        return sprintf(
+            '%s_%s%s',
+            $rangeStart->format('Y-m'),
+            $rangeEnd->format('Y-m'),
+            $withGpMetrics ? '_gp' : ''
+        );
+    }
+
+    /**
+     * Watermark file path. Uses Laravel's "local" filesystem (storage/app/)
+     * so it persists across deploys but stays out of the public asset tree.
+     */
+    protected function progressFile(): string
+    {
+        return 'customer-summary-compute-progress.json';
+    }
+
+    /**
+     * Read the persisted watermark for a scope. Returns [] when unset.
+     *
+     * @return array<string, mixed>
+     */
+    protected function readProgress(string $scopeKey): array
+    {
+        $path = $this->progressFile();
+        if (!Storage::disk('local')->exists($path)) {
+            return [];
+        }
+        $raw = Storage::disk('local')->get($path);
+        $all = json_decode($raw, true);
+        if (!is_array($all) || !isset($all[$scopeKey]) || !is_array($all[$scopeKey])) {
+            return [];
+        }
+        return $all[$scopeKey];
+    }
+
+    protected function writeProgress(string $scopeKey, array $data): void
+    {
+        $path = $this->progressFile();
+        $all = [];
+        if (Storage::disk('local')->exists($path)) {
+            $decoded = json_decode(Storage::disk('local')->get($path), true);
+            if (is_array($decoded)) {
+                $all = $decoded;
+            }
+        }
+        $all[$scopeKey] = $data;
+        Storage::disk('local')->put($path, json_encode($all, JSON_PRETTY_PRINT));
+    }
+
+    protected function forgetProgress(string $scopeKey): void
+    {
+        $path = $this->progressFile();
+        if (!Storage::disk('local')->exists($path)) {
+            return;
+        }
+        $decoded = json_decode(Storage::disk('local')->get($path), true);
+        if (!is_array($decoded)) {
+            return;
+        }
+        unset($decoded[$scopeKey]);
+        if (empty($decoded)) {
+            Storage::disk('local')->delete($path);
+        } else {
+            Storage::disk('local')->put($path, json_encode($decoded, JSON_PRETTY_PRINT));
+        }
     }
 
     /**

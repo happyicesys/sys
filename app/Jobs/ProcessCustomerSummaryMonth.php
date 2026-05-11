@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Services\CustomerSummaryAggregator;
 use Carbon\Carbon;
-use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -21,11 +20,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class ProcessCustomerSummaryMonth implements ShouldQueue
 {
-    // Batchable lets ComputeCustomerSummary wrap N month-jobs in a single
-    // Bus::batch (progress tracking in Horizon → Batches). Without this
-    // trait, Bus::batch() throws "Attempted to batch job [...], but it
-    // does not use the Batchable trait."
-    use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 
