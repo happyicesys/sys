@@ -249,7 +249,7 @@ class DebugTransactionIndexPerformance extends Command
                 'vend_channel_errors',
                 'vend_contract_options',
                 'vend_model_options',
-                'vend_prefix_options',
+                'vend_prefix_options_active',
                 'tag_options',
                 'location_type_options',
             ];

@@ -229,7 +229,7 @@ class ReportController extends Controller
                 VendModel::orderBy('name')->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+                VendPrefix::hasActiveVends()->orderBy('name')->get()
             ),
             'items' => SalesReportResource::collection($items),
             'totals' => $totals,
@@ -754,7 +754,7 @@ class ReportController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+                VendPrefix::hasActiveVends()->orderBy('name')->get()
             ),
             'totals' => $totals,
             'vends' => VendDBResource::collection($vends),
@@ -801,7 +801,7 @@ class ReportController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+                VendPrefix::hasActiveVends()->orderBy('name')->get()
             ),
             'totals' => $totals,
             'products' => ProductDBResource::collection($products),
@@ -898,7 +898,7 @@ class ReportController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+                VendPrefix::hasActiveVends()->orderBy('name')->get()
             ),
             'totals' => $totals,
             'products' => SalesPerformanceProductResource::collection($products),
@@ -944,7 +944,7 @@ class ReportController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+                VendPrefix::hasActiveVends()->orderBy('name')->get()
             ),
             'totals' => $totals,
             'categories' => CategoryDBResource::collection($categories),
@@ -991,7 +991,7 @@ class ReportController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+                VendPrefix::hasActiveVends()->orderBy('name')->get()
             ),
             'totals' => $totals,
             'locationTypes' => LocationTypeDBResource::collection($locationTypes),
@@ -1043,7 +1043,7 @@ class ReportController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+                VendPrefix::hasActiveVends()->orderBy('name')->get()
             ),
             'vendSnapshots' => VendSnapshotDBResource::collection($vendSnapshots),
         ]);
@@ -1149,7 +1149,7 @@ class ReportController extends Controller
             ),
             'reportDateOptions' => $this->getReportStockCountDateOptions(),
             'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+                VendPrefix::hasActiveVends()->orderBy('name')->get()
             ),
 
             // Pivot payload (note: this is a DB paginator, not Eloquent models)
@@ -1195,7 +1195,7 @@ class ReportController extends Controller
                 Product::where('is_inventory', true)->orderBy('name')->orderBy('code')->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+                VendPrefix::hasActiveVends()->orderBy('name')->get()
             ),
         ]);
     }

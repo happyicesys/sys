@@ -44,4 +44,23 @@ class VendPrefix extends Model
     {
         return $this->belongsToMany(VendConfig::class);
     }
+
+    // scopes
+    /**
+     * Limit prefixes to those that have at least one Active machine
+     * (is_active = true AND is_testing = false).
+     *
+     * Used by filter dropdowns (Customer View, Transaction, Report, etc.)
+     * so the dropdown doesn't list prefixes whose machines are all
+     * inactive/testing/disposed. Management pages (VendPrefix CRUD,
+     * Settings, VendConfig, etc.) should NOT use this scope — they need
+     * to see every prefix regardless of machine status.
+     */
+    public function scopeHasActiveVends($query)
+    {
+        return $query->whereHas('vends', function ($q) {
+            $q->where('vends.is_active', true)
+              ->where('vends.is_testing', false);
+        });
+    }
 }

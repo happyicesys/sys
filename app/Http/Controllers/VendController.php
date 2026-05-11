@@ -1042,9 +1042,12 @@ class VendController extends Controller
             VendModelResource::collection(VendModel::orderBy('name')->get())->resolve()
         );
 
-        $vendPrefixOptions = Cache::remember('vend_prefix_options', $ttl, fn() =>
+        // Customer View filter: only list prefixes that still have at least
+        // one Active machine — prefixes whose machines are all
+        // inactive/testing should not clutter the dropdown.
+        $vendPrefixOptions = Cache::remember('vend_prefix_options_active', $ttl, fn() =>
             VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+                VendPrefix::hasActiveVends()->orderBy('name')->get()
             )->resolve()
         );
 
@@ -2190,8 +2193,11 @@ class VendController extends Controller
             VendModel::orderBy('name')->get()
         )->resolve());
 
-        $vendPrefixOptions = Cache::remember('vend_prefix_options', $ttl, fn() => VendPrefixResource::collection(
-            VendPrefix::orderBy('name')->get()
+        // Transaction filter: only list prefixes that still have at least
+        // one Active machine — prefixes whose machines are all
+        // inactive/testing should not clutter the dropdown.
+        $vendPrefixOptions = Cache::remember('vend_prefix_options_active', $ttl, fn() => VendPrefixResource::collection(
+            VendPrefix::hasActiveVends()->orderBy('name')->get()
         )->resolve());
 
         // Distinct cashless terminal manufacturer options for the filter.
