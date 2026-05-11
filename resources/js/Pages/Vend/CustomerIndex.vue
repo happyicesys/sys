@@ -692,6 +692,9 @@
 							<SingleSortItem modelName="customers.virtual_customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.virtual_customer_code')">
 								Customer
 							</SingleSortItem>
+							<SingleSortItem modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
+								Postcode
+							</SingleSortItem>
 							<SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
 								Ref Price
 							</SingleSortItem>
@@ -856,22 +859,6 @@
 					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
 							<span>
-								Last 2 Job
-							</span>
-							<span>
-								Stock In Value{{ operatorCountry.currency_symbol }}
-							</span>
-							<span>
-								Qty
-							</span>
-							<span>
-								Transaction{{ operatorCountry.currency_symbol }} (Qty)
-							</span>
-						</div>
-					</TableHead>
-					<TableHead v-if="!roles.includes('operator_driver')">
-						<div class="flex flex-col space-y-2">
-							<span>
 								Last Job
 							</span>
 							<span>
@@ -883,6 +870,11 @@
 							<span>
 								Transaction{{ operatorCountry.currency_symbol }} (Qty)
 							</span>
+							<div class="border-t border-gray-300 my-1 pt-1">
+								<span>
+									Last 2 Job
+								</span>
+							</div>
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
@@ -931,18 +923,27 @@
 							<SingleSortItem modelName="thirty_days_stock_in_qty" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_stock_in_qty', false)">
 								StockIn (Last30d)
 							</SingleSortItem>
-							<SingleSortItem modelName="thirty_days_stock_in_delta_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_stock_in_delta_percent', false)">
-									&Delta;Last30d StockIn - Sales:  {{ operatorCountry.currency_symbol }}(%)
+							<SingleSortItem modelName="customers.contract_commission_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_commission_type', false)">
+								Contract Type
 							</SingleSortItem>
-							<div class="flex justify-center items-center">
-								<SingleSortItem modelName="thirty_days_over_full_load_ratio" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_over_full_load_ratio', false)">
-									Avg30dSales/ Full Load
-								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '30dSales = 30 x Avg Daily Sales (Last30d) <br> Red: < 1 <br> Green: > 2', html: true }"></ExclamationCircleIcon>
-							</div>
+							<span>
+								Location Fees
+							</span>
+							<SingleSortItem modelName="customers.termination_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.termination_date', false)">
+								Contract End Date
+							</SingleSortItem>
 							<SingleSortItem modelName="totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_gross_profit', true)">
-								L30d Gross Margin S$
+								L30d GrossEarning
 							</SingleSortItem>
+							<span>
+								L30d VendingEarning
+							</span>
+							<span>
+								Accumulated VendingEarning
+							</span>
+							<span>
+								Location Grading
+							</span>
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
@@ -950,22 +951,6 @@
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						Payment Device
-					</TableHead>
-					<TableHead v-if="!roles.includes('operator_driver')">
-						<div class="flex flex-col space-y-2">
-							<SingleSortItem modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
-								Operator
-							</SingleSortItem>
-							<SingleSortItem modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('account_manager_name')">
-								Acc Manager
-							</SingleSortItem>
-							<SingleSortItem modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
-								Postcode
-							</SingleSortItem>
-							<SingleSortItem modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
-								Location
-							</SingleSortItem>
-						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
@@ -1074,6 +1059,12 @@
 								</span>
 							</span>
 							<div
+								class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-gray-100 text-gray-800 border-gray-300"
+								v-if="vend.postcode"
+							>
+								{{ vend.postcode }}
+							</div>
+							<div
 								class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
 								v-if="vend.selling_price_type"
 							>
@@ -1105,15 +1096,16 @@
 							</span>
 
 
-              <Button
-                type="button"
-                class="bg-orange-400 hover:bg-orange-500 px-2 py-1 text-[10px] text-white flex space-x-1 items-center w-fit rounded shadow"
-                @click="openLogModal(vend)"
-                v-if="permissions.includes('admin-access vend-customers')"
-              >
-                <ClockIcon class="w-3 h-3" />
-                <span>Log</span>
-              </Button>
+              <Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')">
+                <Button
+                type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                >
+                <EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
+                <span class="text-blue-800 underline">
+                    more
+                </span>
+                </Button>
+              </Link>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -1477,76 +1469,6 @@
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
-							<div v-if="vend && vend.lastSecondOpsJobItem" class="flex flex-col space-y-1">
-								<a :href="'/ops-jobs/items/' + vend.lastSecondOpsJobItem.id + '/edit'">
-									<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
-									>
-										<span class="text-blue-800 underline">
-											{{ vend.lastSecondOpsJobItem.ref_id }}
-										</span>
-									</div>
-								</a>
-								<span>
-									{{ vend.lastSecondOpsJobItem.opsJob.deliveredBy.name }}
-								</span>
-								<span class="flex flex-col space-y-1">
-									<span>
-										{{ vend.lastSecondOpsJobItem.opsJob.date_formatted }}
-									</span>
-									<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-										:class="[(vend.lastSecondOpsJobItem.opsJob.date_diff_count < 1 && vend.lastSecondOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.lastSecondOpsJobItem.opsJob.date_diff_count > -1 && vend.lastSecondOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : vend.lastSecondOpsJobItem.opsJob.date_diff_count > 10 ? 'bg-red-300' : '') ]"
-										v-if="vend.lastSecondOpsJobItem.opsJob.date_diff_human"
-									>
-										<span>
-											{{ vend.lastSecondOpsJobItem.opsJob.date_diff_human }}
-										</span>
-									</div>
-								</span>
-								<span class="flex flex-col space-y-1"
-									v-if="vend.lastSecondOpsJobItem.status >= 3"
-									:class="[vend.lastSecondOpsJobItem.status == 4 ? 'text-green-700' : (vend.lastSecondOpsJobItem.status == 98 ? 'text-red-700' : '')]"
-								>
-									<span>
-										{{ operatorCountry.currency_symbol }}{{ vend.last_second_ops_job_amount ? vend.last_second_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
-									</span>
-									<span>
-										{{ vend.last_second_ops_job_count ? vend.last_second_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
-									</span>
-								</span>
-								<span>
-									{{ operatorCountry.currency_symbol }}{{ vend.last_second_ops_job_acc_total_amount ? vend.last_second_ops_job_acc_total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }} ({{ vend.last_ops_job_acc_total_count ? vend.last_second_ops_job_acc_total_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }})
-								</span>
-								<!-- Stock Action Type Badges -->
-								<div
-									v-if="vend.lastSecondOpsJobItem.stock_action_type === 'implement_new_mapping'"
-									class="flex flex-col items-center mt-1 space-y-0.5"
-								>
-									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-purple-100 text-purple-700 border-purple-300">
-										Implement New Mapping
-									</span>
-									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.lastSecondOpsJobItem.vend && (vend.lastSecondOpsJobItem.vend.upcomingProductMapping || (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping))">
-										{{ vend.lastSecondOpsJobItem.vend.productMapping ? vend.lastSecondOpsJobItem.vend.productMapping.name : '' }}
-										<span v-if="(vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.lastSecondOpsJobItem.vend.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
-											&RightArrow;
-											{{ (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.lastSecondOpsJobItem.vend.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name : '') }}
-										</span>
-									</span>
-								</div>
-								<div
-									v-else-if="vend.lastSecondOpsJobItem.stock_action_type === 'return_stock'"
-									class="mt-1"
-								>
-									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-orange-100 text-orange-700 border-orange-300">
-										Return Stock
-									</span>
-								</div>
-							</div>
-						</div>
-					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
-						<div class="flex flex-col space-y-1">
 							<div v-if="vend && vend.lastOpsJobItem" class="flex flex-col space-y-1">
 								<a :href="'/ops-jobs/items/' + vend.lastOpsJobItem.id + '/edit'">
 									<div
@@ -1606,6 +1528,74 @@
 								</div>
 								<div
 									v-else-if="vend.lastOpsJobItem.stock_action_type === 'return_stock'"
+									class="mt-1"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-orange-100 text-orange-700 border-orange-300">
+										Return Stock
+									</span>
+								</div>
+							</div>
+							<!-- Divider between Last Job and Last 2 Job -->
+							<div v-if="vend && vend.lastSecondOpsJobItem" class="border-t border-gray-300 my-2 pt-2"></div>
+							<div v-if="vend && vend.lastSecondOpsJobItem" class="flex flex-col space-y-1">
+								<a :href="'/ops-jobs/items/' + vend.lastSecondOpsJobItem.id + '/edit'">
+									<div
+										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
+									>
+										<span class="text-blue-800 underline">
+											{{ vend.lastSecondOpsJobItem.ref_id }}
+										</span>
+									</div>
+								</a>
+								<span>
+									{{ vend.lastSecondOpsJobItem.opsJob.deliveredBy.name }}
+								</span>
+								<span class="flex flex-col space-y-1">
+									<span>
+										{{ vend.lastSecondOpsJobItem.opsJob.date_formatted }}
+									</span>
+									<div
+										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
+										:class="[(vend.lastSecondOpsJobItem.opsJob.date_diff_count < 1 && vend.lastSecondOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.lastSecondOpsJobItem.opsJob.date_diff_count > -1 && vend.lastSecondOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : vend.lastSecondOpsJobItem.opsJob.date_diff_count > 10 ? 'bg-red-300' : '') ]"
+										v-if="vend.lastSecondOpsJobItem.opsJob.date_diff_human"
+									>
+										<span>
+											{{ vend.lastSecondOpsJobItem.opsJob.date_diff_human }}
+										</span>
+									</div>
+								</span>
+								<span class="flex flex-col space-y-1"
+									v-if="vend.lastSecondOpsJobItem.status >= 3"
+									:class="[vend.lastSecondOpsJobItem.status == 4 ? 'text-green-700' : (vend.lastSecondOpsJobItem.status == 98 ? 'text-red-700' : '')]"
+								>
+									<span>
+										{{ operatorCountry.currency_symbol }}{{ vend.last_second_ops_job_amount ? vend.last_second_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+									</span>
+									<span>
+										{{ vend.last_second_ops_job_count ? vend.last_second_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+									</span>
+								</span>
+								<span>
+									{{ operatorCountry.currency_symbol }}{{ vend.last_second_ops_job_acc_total_amount ? vend.last_second_ops_job_acc_total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }} ({{ vend.last_ops_job_acc_total_count ? vend.last_second_ops_job_acc_total_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }})
+								</span>
+								<!-- Stock Action Type Badges -->
+								<div
+									v-if="vend.lastSecondOpsJobItem.stock_action_type === 'implement_new_mapping'"
+									class="flex flex-col items-center mt-1 space-y-0.5"
+								>
+									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-purple-100 text-purple-700 border-purple-300">
+										Implement New Mapping
+									</span>
+									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.lastSecondOpsJobItem.vend && (vend.lastSecondOpsJobItem.vend.upcomingProductMapping || (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping))">
+										{{ vend.lastSecondOpsJobItem.vend.productMapping ? vend.lastSecondOpsJobItem.vend.productMapping.name : '' }}
+										<span v-if="(vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.lastSecondOpsJobItem.vend.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
+											&RightArrow;
+											{{ (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.lastSecondOpsJobItem.vend.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name : '') }}
+										</span>
+									</span>
+								</div>
+								<div
+									v-else-if="vend.lastSecondOpsJobItem.stock_action_type === 'return_stock'"
 									class="mt-1"
 								>
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-orange-100 text-orange-700 border-orange-300">
@@ -1738,17 +1728,49 @@
 							<span :class="[vend.vendTransactionTotalsJson && vend.last_thirty_days_stock_in_amount < vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent)) ? 'text-green-700' : 'text-red-700']">
 								{{ operatorCountry.currency_symbol }}{{ (vend.last_thirty_days_stock_in_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{(vend.last_thirty_days_stock_in_qty).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}})
 							</span>
-							<span :class="[vend.thirty_days_stock_in_delta_percent < 0 ? 'text-green-700' : 'text-red-700']">
-								{{ operatorCountry.currency_symbol }}{{ (vend.thirty_days_stock_in_delta_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{(vend.thirty_days_stock_in_delta_percent).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}%)
+							<!-- Contract Type -->
+							<span v-if="vend.contract_commission_type" class="font-semibold text-gray-800">
+								{{ contractTypeLabel(vend.contract_commission_type) }}
+								<span v-if="vend.contract_commission_value != null" class="block text-[11px] font-normal text-gray-600">
+									<span v-if="['PS','PS+U','PSORU'].includes(vend.contract_commission_type)">
+										{{ Number(vend.contract_commission_value) }}%<span
+											v-if="vend.contract_commission_value2 != null && ['PS+U','PSORU'].includes(vend.contract_commission_type)"
+										>+{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value2) }}</span>
+									</span>
+									<span v-else>
+										{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}
+									</span>
+								</span>
+								<span v-if="vend.contract_ps_term != null" class="block text-[11px] font-normal text-gray-600">
+									PS Term: {{ Number(vend.contract_ps_term) }}%
+								</span>
 							</span>
-							<span :class="[vend.thirty_days_over_full_load_ratio < 1 ? 'text-red-600' : (vend.thirty_days_over_full_load_ratio > 2 ? 'text-green-600' : 'text-gray-800')]">
-								{{(vend.thirty_days_over_full_load_ratio).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+							<!-- Location Fees -->
+							<span v-if="vend.location_fees_cents != null" :class="vend.location_fees_cents > 0 ? 'text-red-600' : (vend.location_fees_cents < 0 ? 'text-emerald-600' : 'text-gray-800')">
+								{{ vend.location_fees_cents < 0 ? '-' : '' }}{{ operatorCountry.currency_symbol }}{{ (Math.abs(vend.location_fees_cents) / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
+							<!-- Contract End Date -->
+							<span v-if="vend.termination_date" class="text-gray-800">
+								{{ vend.termination_date }}
+							</span>
+							<!-- L30d GrossEarning -->
 							<span
 								v-if="vend.vendTransactionTotalsJson && 'thirty_days_gross_profit' in vend.vendTransactionTotalsJson"
 								:class="[vend.vendTransactionTotalsJson['thirty_days_gross_profit'] > 0 ? 'text-green-700' : 'text-red-700']"
 							>
 								{{ operatorCountry.currency_symbol }}{{ (vend.vendTransactionTotalsJson['thirty_days_gross_profit'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+							</span>
+							<!-- L30d VendingEarning -->
+							<span v-if="vend.thirty_days_vending_earning_cents != null" :class="vend.thirty_days_vending_earning_cents >= 0 ? 'text-green-700' : 'text-red-700'">
+								{{ operatorCountry.currency_symbol }}{{ (vend.thirty_days_vending_earning_cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+							</span>
+							<!-- Accumulated VendingEarning -->
+							<span v-if="vend.accumulate_vending_earning_cents != null" :class="vend.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'">
+								{{ operatorCountry.currency_symbol }}{{ (vend.accumulate_vending_earning_cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+							</span>
+							<!-- Location Grading (placeholder until schema exists) -->
+							<span v-if="vend.location_grading" class="text-gray-700">
+								{{ vend.location_grading }}
 							</span>
 						</div>
 					</TableData>
@@ -1971,24 +1993,6 @@
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_driver')">
 						<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
 							<div class="flex flex-col space-y-2">
-								<span>
-									{{ vend.operator_code }}
-								</span>
-								<span>
-									{{ vend.account_manager_name }}
-								</span>
-								<span>
-									{{ vend.postcode }}
-								</span>
-								<span>
-									{{ vend.location_type_name }}
-								</span>
-							</div>
-						</span>
-					</TableData>
-					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_driver')">
-						<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
-							<div class="flex flex-col space-y-2">
 								<span class="flex flex-col space-y-1">
 									<span class="text-blue-600" v-if="vend.acbVmcPaJson && 'VMC_MDL' in vend.acbVmcPaJson">
 											{{ vend.acbVmcPaJson['VMC_MDL'] }}
@@ -2023,16 +2027,6 @@
 										</div>
 
 								</div>
-					<Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')">
-						<Button
-						type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-						>
-						<EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
-						<span class="text-blue-800 underline">
-								more
-						</span>
-						</Button>
-					</Link>
 
 				</div>
 			</span>
@@ -2112,13 +2106,6 @@ v-if="showMapMarkerModal"
 @modalClose="onMapMarkerModalClose"
 >
 </MapMarker>
-<VendLogModal
-	v-if="showLogModal"
-	:open="showLogModal"
-	:vend="logVend"
-	@close="closeLogModal"
-/>
-
 </BreezeAuthenticatedLayout>
 </template>
 
@@ -2164,7 +2151,7 @@ font-size:13px;
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
-	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon } from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -2179,7 +2166,6 @@ font-size:13px;
 	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));
 	const Create = defineAsyncComponent(() => import('@/Pages/Vend/Create.vue'));
 	const Form = defineAsyncComponent(() => import('@/Pages/Vend/Form.vue'));
-	const VendLogModal = defineAsyncComponent(() => import('@/Components/VendLogModal.vue'));
 	const MapMarker = defineAsyncComponent(() => import('@/Components/MapMarker.vue'));
 	const PickList = defineAsyncComponent(() => import('@/Pages/Vend/PickList.vue'));
 
@@ -2292,11 +2278,9 @@ font-size:13px;
 	const showMapMarkerModal = ref(false)
 	const showPickListModal = ref(false)
 	const showProductAvailabilityModal = ref(false)
-	const showLogModal = ref(false)
 	const statusOptions = ref([])
 	const type = ref('')
 	const vend = ref()
-	const logVend = ref(null)
 
 	const vends = ref(getVendsField())
 	const vendChannelErrorsOptions = ref([])
@@ -2696,6 +2680,20 @@ if(channel && channel.amount && channel.amount != channel.ref_price) {
 return 'text-gray-900'
 }
 
+// Maps contract type code to human-readable label. Mirrors Customer/Summary.vue.
+function contractTypeLabel(type) {
+	switch (type) {
+		case 'F':     return 'Free Placement'
+		case 'S':     return 'Subsidized Plan'
+		case 'R':     return 'Fix Rental'
+		case 'U':     return 'Utility only'
+		case 'PS':    return 'PS'
+		case 'PS+U':  return 'PS + U'
+		case 'PSORU': return 'PS OR U'
+		default:      return type ?? ''
+	}
+}
+
 function getVendsField() {
 	return {
 			...props.vends,
@@ -2727,25 +2725,6 @@ function onChannelOverviewClicked(vendData) {
 
 function onChannelOverviewClosed() {
 		showChannelOverviewModal.value = false
-}
-
-	function openLogModal(vendData) {
-		let targetId = vendData.vend_id;
-		if (!targetId && vendData.vend && vendData.vend.id) {
-			targetId = vendData.vend.id;
-		}
-
-		logVend.value = {
-			...vendData,
-			id: targetId,
-			code: vendData.code || (vendData.vend ? vendData.vend.code : '')
-		}
-		showLogModal.value = true
-	}
-
-function closeLogModal() {
-		showLogModal.value = false
-		logVend.value = null
 }
 
 function onCreateClicked() {

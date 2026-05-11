@@ -938,6 +938,59 @@ class VendController extends Controller
                 $this->loadAggregates($vends->getCollection(), $types);
             }
 
+            // Per-vend Location Fees + L30d Vending Earning.
+            // Reuses CustomerSummaryAggregator::computeLocationFeeCents so the
+            // math matches the Customer Summary page and the totals row above.
+            // Pure in-PHP O(per_page) loop — no extra SQL.
+            foreach ($vends->items() as $vend) {
+                $totalsJson = $vend->vend_transaction_totals_json;
+                if (!$totalsJson) {
+                    $vend->location_fees_cents = null;
+                    $vend->thirty_days_vending_earning_cents = null;
+                    continue;
+                }
+                $salesCents = (int) ($totalsJson['thirty_days_amount'] ?? 0);
+                $grossEarningCents = (int) ($totalsJson['thirty_days_gross_profit'] ?? 0);
+                $locationFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
+                    $vend->contract_commission_type,
+                    $vend->contract_commission_value !== null ? (float) $vend->contract_commission_value : null,
+                    $vend->contract_commission_value2 !== null ? (float) $vend->contract_commission_value2 : null,
+                    $vend->contract_ps_term !== null ? (float) $vend->contract_ps_term : null,
+                    $salesCents,
+                    $grossEarningCents
+                );
+                $vend->location_fees_cents = $locationFeeCents;
+                $vend->thirty_days_vending_earning_cents = $grossEarningCents - $locationFeeCents;
+            }
+
+            // Accumulated (lifetime-to-date) Vending Earning per customer.
+            // SUM(location_earning_cents) from customer_period_summaries up to
+            // and including the current month. Single batched query per page —
+            // hits the (customer_id, year_month) unique index. Same pattern as
+            // CustomerController::attachAccumulatedVendingEarning.
+            $customerIds = collect($vends->items())
+                ->pluck('customer_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            if (!empty($customerIds)) {
+                $through = Carbon::now()->startOfMonth()->toDateString();
+                $accumSums = DB::table('customer_period_summaries')
+                    ->selectRaw('customer_id, SUM(location_earning_cents) AS accum')
+                    ->whereIn('customer_id', $customerIds)
+                    ->where('year_month', '<=', $through)
+                    ->groupBy('customer_id')
+                    ->pluck('accum', 'customer_id');
+                foreach ($vends->items() as $vend) {
+                    $vend->accumulate_vending_earning_cents = (int) ($accumSums[$vend->customer_id] ?? 0);
+                }
+            } else {
+                foreach ($vends->items() as $vend) {
+                    $vend->accumulate_vending_earning_cents = 0;
+                }
+            }
+
             $totals = [
                 'mapApiKey' => $mapApiKey,
                 'thirtyDays' => collect($vends->items())

@@ -187,6 +187,17 @@
                       Push Products Info to Machine
                     </span>
                 </Button>
+                <Button
+                    type="button"
+                    class="bg-orange-400 hover:bg-orange-500 text-white flex space-x-1 items-center"
+                    @click.prevent="openLogModal(vend)"
+                    v-if="permissions.includes('admin-access vend-customers')"
+                  >
+                    <ClockIcon class="w-4 h-4"></ClockIcon>
+                    <span>
+                      Log
+                    </span>
+                </Button>
               </span>
             </div>
             </div>
@@ -661,6 +672,12 @@
       </div>
     </div>
   </div>
+  <VendLogModal
+    v-if="showLogModal"
+    :open="showLogModal"
+    :vend="logVend"
+    @close="closeLogModal"
+  />
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -671,9 +688,11 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
-import { ArrowPathIcon, ArrowUpCircleIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue';
+import { ArrowPathIcon, ArrowUpCircleIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, ClockIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { defineAsyncComponent, ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+
+const VendLogModal = defineAsyncComponent(() => import('@/Components/VendLogModal.vue'));
 import { fromPairs } from 'lodash';
 import { useToast } from "vue-toastification";
 
@@ -701,6 +720,27 @@ const isExisting = ref(1)
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const toast = useToast()
+const showLogModal = ref(false)
+const logVend = ref(null)
+
+function openLogModal(vendData) {
+  let targetId = vendData?.id;
+  if (!targetId && vendData?.vend_id) {
+    targetId = vendData.vend_id;
+  }
+
+  logVend.value = {
+    ...vendData,
+    id: targetId,
+    code: vendData?.code || ''
+  }
+  showLogModal.value = true
+}
+
+function closeLogModal() {
+  showLogModal.value = false
+  logVend.value = null
+}
 
 function getDefaultForm() {
   return {
