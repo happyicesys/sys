@@ -138,13 +138,27 @@ class CustomerSummaryAggregator
         }
 
         // Pull aggregated numbers from gp_metrics for the whole month window.
-        // gp_metrics.txn_date is a DATE column. revenue_cents = excl-GST sales.
-        // gross_profit_cents = revenue - unit_cost.
+        // gp_metrics.txn_date is a DATE column.
+        //
+        // sales_cents  ← amount_cents (INCL-GST): the actual transaction
+        //                amount the customer paid. Matches the Transactions
+        //                page's "Total Sales" column so users don't have
+        //                to mentally reconcile two screens.
+        //                Used by PerformanceReportContentService /
+        //                CustomerInvoiceService as the base for PS-family
+        //                invoice math (PS amount = sales × ps_term% × commission%).
+        //                NOTE: changing this requires a re-aggregation pass
+        //                  php artisan customer-summary:compute --since-begin-date
+        //                so historical rows pick up the new semantic.
+        //
+        // gross_earning_cents ← gross_profit_cents (revenue - unit_cost,
+        //                       still excl-GST). The "Gross Earning (excl GST)"
+        //                       column header is explicit about this.
         $rows = DB::table('gp_metrics')
             ->whereBetween('txn_date', [$monthStart->toDateString(), $periodEnd->toDateString()])
             ->whereNotNull('customer_id')
             ->select('customer_id')
-            ->selectRaw('SUM(revenue_cents) AS sales_cents')
+            ->selectRaw('SUM(amount_cents) AS sales_cents')
             ->selectRaw('SUM(gross_profit_cents) AS gross_earning_cents')
             ->selectRaw('SUM(transaction_count) AS transaction_count')
             ->selectRaw('COUNT(DISTINCT vend_id) AS vend_count')

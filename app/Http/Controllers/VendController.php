@@ -83,6 +83,7 @@ use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
 use App\Models\Zone;
 use App\Services\CmsService;
+use App\Services\CustomerSummaryAggregator;
 use App\Services\HistoryService;
 use App\Services\MapService;
 use App\Services\MqttService;
@@ -821,6 +822,13 @@ class VendController extends Controller
                 'customers.begin_date',
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
+                // Contract fields — required for Last 30d Vending Earning total
+                // (Vending Earning = Gross Earning - Location Fees, where Location
+                // Fees are derived from the customer's contract type/values).
+                'customers.contract_commission_type',
+                'customers.contract_commission_value',
+                'customers.contract_commission_value2',
+                'customers.contract_ps_term',
                 'customers.frequency_per_week_status',
                 'customers.is_active AS is_active',
                 'customers.is_active AS customer_is_active',
@@ -944,6 +952,45 @@ class VendController extends Controller
                     ->sum(function ($vend) {
                         return $vend->last_thirty_days_stock_in_amount ? $vend->last_thirty_days_stock_in_amount : 0;
                     }) / 100,
+                // Last 30d Gross Earning (excl GST) — sum of per-customer
+                // thirty_days_gross_profit (mirrors Customer Summary's
+                // `gross_earning_cents`, which is also revenue - unit_cost).
+                'thirtyDaysGrossEarning' => collect($vends->items())
+                    ->sum(function ($vend) {
+                        return $vend->vend_transaction_totals_json
+                            ? ($vend->vend_transaction_totals_json['thirty_days_gross_profit'] ?? 0)
+                            : 0;
+                    }) / 100,
+                // Last 30d Vending Earning — Gross Earning - Location Fees per
+                // customer, then summed. Reuses the same Location Fee formula
+                // the Customer Summary page uses (CustomerSummaryAggregator).
+                'thirtyDaysVendingEarning' => collect($vends->items())
+                    ->sum(function ($vend) {
+                        $totalsJson = $vend->vend_transaction_totals_json;
+                        if (!$totalsJson) {
+                            return 0;
+                        }
+                        // Use thirty_days_amount (INCL-GST, sums vend_records.total_amount),
+                        // NOT thirty_days_revenue (excl-GST). This matches the Customer
+                        // Summary page's sales_cents which now sources from
+                        // gp_metrics.amount_cents (also incl-GST), so the PS-family
+                        // location fee math agrees on both screens.
+                        // gross_earning_cents stays excl-GST because gross_profit is
+                        // revenue − unit_cost by definition (the column label even
+                        // says "Gross Earning (excl GST)"); only the sales basis
+                        // for the fee formula needs to be incl-GST.
+                        $salesCents = (int) ($totalsJson['thirty_days_amount'] ?? 0);
+                        $grossEarningCents = (int) ($totalsJson['thirty_days_gross_profit'] ?? 0);
+                        $locationFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
+                            $vend->contract_commission_type,
+                            $vend->contract_commission_value !== null ? (float) $vend->contract_commission_value : null,
+                            $vend->contract_commission_value2 !== null ? (float) $vend->contract_commission_value2 : null,
+                            $vend->contract_ps_term !== null ? (float) $vend->contract_ps_term : null,
+                            $salesCents,
+                            $grossEarningCents
+                        );
+                        return $grossEarningCents - $locationFeeCents;
+                    }) / 100,
             ];
         } else {
             $vends = new LengthAwarePaginator([], 0, $perPage, 1, [
@@ -956,6 +1003,8 @@ class VendController extends Controller
                 'thirtyDays' => 0,
                 'thirthyDaysAvg' => 0,
                 'thirthyDaysStockIn' => 0,
+                'thirtyDaysGrossEarning' => 0,
+                'thirtyDaysVendingEarning' => 0,
             ];
         }
 

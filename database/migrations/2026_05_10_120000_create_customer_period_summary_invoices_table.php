@@ -46,6 +46,24 @@ return new class extends Migration
             // from the report content service every page load.
             $table->bigInteger('total_amount_cents')->nullable();
 
+            // Snapshot of the customer_period_summaries row + contract
+            // values at the moment of invoicing. Once the invoice is
+            // posted to CMS, the Customer Summary page renders this
+            // frozen snapshot instead of the live row — that way a later
+            // backfill of vend_transactions can never make the page show
+            // numbers that disagree with what was actually invoiced.
+            //
+            // Shape: {
+            //   sales_cents, gross_earning_cents, location_fees_cents,
+            //   location_earning_cents, location_earning_rate,
+            //   contract_commission_type, contract_commission_value,
+            //   contract_commission_value2, contract_ps_term,
+            //   active_days, month_days
+            // }
+            // JSON not dedicated columns: this is a display-only override,
+            // sorts/filters still run on the live summary table.
+            $table->json('summary_snapshot')->nullable();
+
             // Audit payload — what we sent and what we got back. JSON so
             // the schema doesn't need a migration if the CMS contract
             // evolves. Useful for incident response.

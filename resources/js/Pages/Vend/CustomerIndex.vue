@@ -611,7 +611,7 @@
 					</Button>
 				</div>
 			</div>
-			<dl v-if="hasSearched" class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-4">
+			<dl v-if="hasSearched" class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
 					<dt class="truncate text-sm font-medium text-gray-500">Total Stock In (Last 30 days)</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
@@ -622,6 +622,21 @@
 					<dt class="truncate text-sm font-medium text-gray-500">Total Sales (Last 30 days)</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{totals['thirtyDays'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+					</dd>
+				</div>
+				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+					<dt class="truncate text-sm font-medium text-gray-500">Total Gross Earning (Last 30 days)</dt>
+					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+						{{(totals['thirtyDaysGrossEarning'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+					</dd>
+				</div>
+				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+					<dt class="truncate text-sm font-medium text-gray-500">Total Vending Earning (Last 30 days)</dt>
+					<dd
+						class="mt-1 text-2xl font-semibold tracking-normal"
+						:class="(totals['thirtyDaysVendingEarning'] || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
+					>
+						{{(totals['thirtyDaysVendingEarning'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">

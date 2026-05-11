@@ -102,24 +102,83 @@ class ComputeCustomerSummary extends Command
             return self::SUCCESS;
         }
 
-        $cursor = $rangeStart->copy();
-        while ($cursor->lte($rangeEnd)) {
-            if ($this->option('sync')) {
+        // ─────────────────────────────────────────────────────────────
+        // Synchronous mode: process months inline, no queue.
+        // ─────────────────────────────────────────────────────────────
+        if ($this->option('sync')) {
+            $cursor = $rangeStart->copy();
+            while ($cursor->lte($rangeEnd)) {
                 $this->info(' - sync ' . $cursor->format('Y-m'));
                 CustomerSummaryAggregator::persistMonth($cursor->copy(), $asOf);
-            } elseif ($withGpMetrics) {
-                $this->dispatchMonthChain($cursor->copy(), $asOf, $queue, $gpChunk);
+                $cursor->addMonthNoOverflow();
+            }
+            $this->info('Done.');
+            return self::SUCCESS;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // Queued mode: dispatch the whole range as a single Bus::batch
+        // so the user gets ONE id to watch in Horizon's Batches tab.
+        //   - allowFailures(): one bad month doesn't cancel the rest.
+        //   - Each top-level item is either:
+        //       • a single ProcessCustomerSummaryMonth job, OR
+        //       • a chain [ProcessGpMetricsRange → ProcessCustomerSummaryMonth]
+        //         when --with-gp-metrics is set (each chain becomes one
+        //         batch item, so the batch's progress % reflects months
+        //         not the underlying gp_metrics sub-steps).
+        // ─────────────────────────────────────────────────────────────
+        $items = [];
+        $cursor = $rangeStart->copy();
+        while ($cursor->lte($rangeEnd)) {
+            $monthStart = $cursor->copy()->startOfMonth();
+            $monthEnd = $cursor->copy()->endOfMonth()->startOfDay();
+            if ($monthEnd->gt($asOf)) {
+                $monthEnd = $asOf->copy();
+            }
+
+            if ($withGpMetrics) {
+                $items[] = [
+                    new ProcessGpMetricsRange(
+                        $monthStart->toDateString(),
+                        $monthEnd->toDateString(),
+                        $gpChunk
+                    ),
+                    new ProcessCustomerSummaryMonth(
+                        $monthStart->toDateString(),
+                        $asOf->toDateString()
+                    ),
+                ];
             } else {
-                $this->info(' - queue:' . $queue . ' ' . $cursor->format('Y-m'));
-                ProcessCustomerSummaryMonth::dispatch(
-                    $cursor->copy()->startOfMonth()->toDateString(),
+                $items[] = new ProcessCustomerSummaryMonth(
+                    $monthStart->toDateString(),
                     $asOf->toDateString()
-                )->onQueue($queue);
+                );
             }
             $cursor->addMonthNoOverflow();
         }
 
-        $this->info('Done.');
+        $batchName = sprintf(
+            'CustomerSummary backfill %s → %s%s',
+            $rangeStart->format('Y-m'),
+            $rangeEnd->format('Y-m'),
+            $withGpMetrics ? ' (with gp_metrics)' : ''
+        );
+
+        $batch = Bus::batch($items)
+            ->name($batchName)
+            ->onQueue($queue)
+            ->allowFailures()
+            ->dispatch();
+
+        $this->info(sprintf(
+            'Dispatched batch: id=%s, name="%s", queue=%s, months=%d',
+            $batch->id,
+            $batchName,
+            $queue,
+            count($items)
+        ));
+        $this->info('Monitor: Horizon → Batches tab, or `Bus::findBatch(\'' . $batch->id . '\')`.');
+
         return self::SUCCESS;
     }
 

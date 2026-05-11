@@ -300,7 +300,15 @@
                 <tr
                   v-for="(row, rowIndex) in summaries.data"
                   :key="row.id"
-                  class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100"
+                  :class="[
+                    'divide-x divide-y-2 divide-gray-300',
+                    // Stripe by CUSTOMER GROUP, not by row — so a customer's
+                    // 12 monthly rows share one background and the eye reads
+                    // each cluster as a unit. customerGroupIndex(rowIndex)
+                    // increments only when the previous row had a different
+                    // customer_id; modulo 2 picks the alternating colour.
+                    customerGroupIndex(rowIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-100',
+                  ]"
                 >
                   <!-- # -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
@@ -484,10 +492,13 @@
                     Lifetime-to-date sum of location_earning_cents (= gross_earning
                     - location_fees) for the customer through the latest month
                     visible on this view (computed server-side, batched per page).
+                    Shown only on the FIRST row of each customer's cluster —
+                    rows for the same customer share the same lifetime value
+                    so repeating it on every monthly row is just noise.
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
                     <span
-                      v-if="row.accumulate_vending_earning_cents != null"
+                      v-if="isFirstRowForCustomer(rowIndex) && row.accumulate_vending_earning_cents != null"
                       :class="row.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'"
                     >
                       {{ formatMoney(row.accumulate_vending_earning_cents) }}
@@ -607,15 +618,21 @@
                     </div>
                   </TableData>
 
-                  <!-- Customer Tag -->
+                  <!--
+                    Customer Tag — customer-level data, so only show on
+                    the FIRST row of each customer's cluster (multi-month
+                    view groups multiple rows per customer).
+                  -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-left">
-                    <span
-                      v-for="binding in (row.customer?.tag_bindings ?? [])"
-                      :key="binding.id"
-                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 mr-1"
-                    >
-                      {{ binding.tag?.name }}
-                    </span>
+                    <template v-if="isFirstRowForCustomer(rowIndex)">
+                      <span
+                        v-for="binding in (row.customer?.tag_bindings ?? [])"
+                        :key="binding.id"
+                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 mr-1"
+                      >
+                        {{ binding.tag?.name }}
+                      </span>
+                    </template>
                   </TableData>
                 </tr>
 
@@ -1251,6 +1268,52 @@ function rowKey(row) {
   return (row?.customer_id ?? row?.customer?.id ?? '?')
     + '|' + (row?.period_start ?? '')
     + '|' + (row?.period_end ?? '');
+}
+
+/**
+ * "Multi-month" period reports return one row per (customer, month). The
+ * controller orders rows so a customer's months cluster together. For
+ * customer-level columns (Accumulate Vending Earning, Customer Tag) we
+ * only want to render content on the FIRST row of each customer's
+ * cluster — the remaining rows in the cluster look intentionally blank
+ * so the eye can read the group as a unit.
+ *
+ * "First row" = previous row had a different customer_id (or no previous
+ * row at all). Robust against user sort changes because adjacency is
+ * what we actually care about.
+ */
+function isFirstRowForCustomer(rowIndex) {
+  const rows = props.summaries?.data ?? [];
+  if (!rows.length || rowIndex === 0) return true;
+  const cur = rows[rowIndex]?.customer_id ?? rows[rowIndex]?.customer?.id;
+  const prev = rows[rowIndex - 1]?.customer_id ?? rows[rowIndex - 1]?.customer?.id;
+  return cur !== prev;
+}
+
+/**
+ * Group index of the row's customer in the current page. Customer A's
+ * rows return 0, Customer B's rows return 1, Customer C's rows return 2,
+ * etc. Used by the tr :class binding to stripe alternating backgrounds
+ * by CUSTOMER GROUP instead of per-row — so a customer's 12 monthly
+ * rows share one background colour.
+ *
+ * Linear scan from the top of the visible page is fine: pagination caps
+ * us at 100 rows by default, and the controller already clusters a
+ * customer's rows together so the increment logic is correct.
+ */
+function customerGroupIndex(rowIndex) {
+  const rows = props.summaries?.data ?? [];
+  if (!rows.length) return 0;
+  let group = 0;
+  let prevCustomerId = rows[0]?.customer_id ?? rows[0]?.customer?.id;
+  for (let i = 1; i <= rowIndex; i++) {
+    const cur = rows[i]?.customer_id ?? rows[i]?.customer?.id;
+    if (cur !== prevCustomerId) {
+      group++;
+      prevCustomerId = cur;
+    }
+  }
+  return group;
 }
 
 function isInvoiceable(row) {

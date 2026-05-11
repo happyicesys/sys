@@ -79,7 +79,10 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
             // Calculate from vend_transactions only, ignoring heartbeat errors
 
             $records1 = $vend->daysVendRecords(1, 1)->get();
-            $records2 = $vend->daysVendRecords(2, 0)->get();
+            // 2d range = yesterday's vend_records + today (added separately below).
+            // vend_records does not contain today's row yet, so daysVendRecords(1, 1) returns
+            // exactly yesterday — combined with today this yields a true 2-day window.
+            $records2 = $records1;
             $records7 = $vend->daysVendRecords(7, 0)->get();
             $records29 = $vend->daysVendRecords(29, 0)->get();
             $lifetime = $vend->lifetimeVendRecords;
@@ -145,7 +148,10 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
             // Calculate from vend_transactions only, ignoring heartbeat errors
 
             $records1 = $customer->daysVendRecords(1, 1)->get();
-            $records2 = $customer->daysVendRecords(2, 0)->get();
+            // 2d range = yesterday's vend_records + today (added separately below).
+            // vend_records does not contain today's row yet, so daysVendRecords(1, 1) returns
+            // exactly yesterday — combined with today this yields a true 2-day window.
+            $records2 = $records1;
             $records7 = $customer->daysVendRecords(7, 0)->get();
             $records29 = $customer->daysVendRecords(29, 0)->get();
             $lifetime = $customer->lifetimeVendRecords;

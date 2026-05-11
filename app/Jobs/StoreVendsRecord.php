@@ -69,7 +69,7 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw("MONTHNAME(vt.transaction_datetime) AS monthname"),
                 DB::raw("YEAR(vt.transaction_datetime) as year"),
 
-                // Maps exactly to "Total Revenue" on Transactions page
+                // Maps exactly to "Total Sales" on Transactions page (incl-GST)
                 DB::raw('SUM(CASE
                     WHEN vt.is_multiple = true THEN vt.amount
                     WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0, 6) THEN vt.amount

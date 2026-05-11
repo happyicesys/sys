@@ -28,6 +28,7 @@ class CustomerPeriodSummaryInvoice extends Model
         'cms_transaction_at',
         'cms_transaction_by',
         'total_amount_cents',
+        'summary_snapshot',
         'payload',
         'response',
         'created_by',
@@ -38,6 +39,7 @@ class CustomerPeriodSummaryInvoice extends Model
         'period_end' => 'date',
         'cms_transaction_at' => 'datetime',
         'total_amount_cents' => 'integer',
+        'summary_snapshot' => 'array',
         'payload' => 'array',
         'response' => 'array',
     ];

@@ -257,12 +257,19 @@ class CustomerController extends Controller
         ], true) ? $summarySortKey : 'year_month';
         $sortDirection = filter_var($summarySortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
-        // "Current" = one row per customer for the current month (the stored
-        // per-month grain is already what we want to render).
-        // "Last 12 months" / "All" = ONE row per customer covering the whole
-        // window — aggregate the stored per-month rows into a single virtual
-        // row using SUMs. This matches the user's mental model of the filter:
-        // "show me one number per customer for this period".
+        // ALWAYS render one row per (customer, year_month) — even when the
+        // user picked a multi-month "Last N months" / "All" filter.
+        //
+        // We used to SUM into a single roll-up row per customer for those
+        // filters, but that's incompatible with the per-month invoice +
+        // snapshot-lock design: each month gets its own CMS transaction,
+        // its own locked numbers, its own re-create. Returning a single
+        // SUM'd row would have to either hide all of that or arbitrarily
+        // pick one month's invoice to represent the lot.
+        //
+        // Multi-month is now a "show me a row per month" experience.
+        // isAggregated is still tracked so we know to force customer
+        // clustering on the sort.
         $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
@@ -279,51 +286,23 @@ class CustomerController extends Controller
             'customer.vends.vendPrefix:id,name',
         ];
 
-        if ($isAggregated) {
-            // Aggregated query: GROUP BY customer_id, SUM the cents columns.
-            // location_earning_rate is recomputed from the SUMs (NOT the
-            // average of monthly rates — that would be statistically wrong).
-            // Contract snapshot fields use MAX() — for the "current contract"
-            // snapshot pattern we use today, MAX/MIN/ANY all return the same
-            // value since every per-month row has the same snapshot.
-            $summariesQuery = \App\Models\CustomerPeriodSummary::query()
-                ->with($eagerLoads)
-                ->selectRaw(
-                    'MIN(id) AS id,
-                     customer_id,
-                     MAX(operator_id) AS operator_id,
-                     MIN(`year_month`) AS `year_month`,
-                     MIN(period_start) AS period_start,
-                     MAX(period_end) AS period_end,
-                     0 AS is_current_month,
-                     MAX(as_of_date) AS as_of_date,
-                     SUM(sales_cents) AS sales_cents,
-                     SUM(gross_earning_cents) AS gross_earning_cents,
-                     SUM(location_fees_cents) AS location_fees_cents,
-                     SUM(location_earning_cents) AS location_earning_cents,
-                     CASE WHEN SUM(sales_cents) > 0
-                          THEN ROUND(SUM(location_earning_cents) / SUM(sales_cents), 4)
-                          ELSE 0 END AS location_earning_rate,
-                     SUM(transaction_count) AS transaction_count,
-                     MAX(vend_count) AS vend_count,
-                     MAX(contract_commission_type) AS contract_commission_type,
-                     MAX(contract_commission_value) AS contract_commission_value,
-                     MAX(contract_commission_value2) AS contract_commission_value2,
-                     MAX(contract_ps_term) AS contract_ps_term'
-                )
-                ->whereIn('customer_id', $customerIds)
-                ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
-                ->groupBy('customer_id');
-        } else {
-            $summariesQuery = \App\Models\CustomerPeriodSummary::query()
-                ->with($eagerLoads)
-                ->whereIn('customer_id', $customerIds)
-                ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
-        }
+        $summariesQuery = \App\Models\CustomerPeriodSummary::query()
+            ->with($eagerLoads)
+            ->whereIn('customer_id', $customerIds)
+            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
 
         // For machine_id / machine_prefix sorting, attach a scalar subquery
         // that picks the latest-bound vend per customer (mirrors the
         // Customer::vend() relation: latest by begin_date, then created_at).
+        if ($isAggregated) {
+            // Multi-month view: cluster a customer's months together so the
+            // "Accumulate / Customer Tag" first-row-per-customer rendering
+            // on the Vue side stays unambiguous, regardless of what column
+            // the user sorted by. customer_id is primary; the user-picked
+            // sortKey becomes secondary within each customer's group.
+            $summariesQuery->orderBy('customer_id', 'asc');
+        }
+
         if ($sortKey === 'machine_id') {
             $summariesQuery->orderByRaw(
                 '(SELECT v.code FROM vends v
@@ -338,11 +317,17 @@ class CustomerController extends Controller
                   ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) ' . $sortDirection
             );
         } else {
-            // For aggregated queries the SUM/MIN columns are aliased into the
-            // same names — orderBy on the alias works against MySQL.
             $summariesQuery->orderBy($sortKey, $sortDirection);
         }
-        $summariesQuery->orderBy('customer_id', 'asc');
+
+        // Final tie-breaker: customer_id (in case the multi-month branch
+        // above didn't already apply it, e.g. single-month "current" view)
+        // + year_month DESC so a customer's most recent month sits at the
+        // top of their cluster.
+        if (!$isAggregated) {
+            $summariesQuery->orderBy('customer_id', 'asc');
+        }
+        $summariesQuery->orderBy('year_month', 'desc');
 
         $summaries = $summariesQuery;
 
@@ -352,15 +337,10 @@ class CustomerController extends Controller
             )
             ->withQueryString();
 
-        // For aggregated views ("Last 12 months" / "All"), period_start /
-        // period_end on each row come from MIN/MAX of the customer's STORED
-        // monthly rows, so a customer who only had transactions in 1 of the
-        // 12 months would show that single month as the period — misleading.
-        // Override with the actual reporting window, clamped by the customer's
-        // begin_date (in case they started mid-window) and termination_date.
-        if ($isAggregated) {
-            $this->clampAggregatedPeriodBounds($summaries->getCollection(), $rangeStart, $rangeEnd);
-        }
+        // (clampAggregatedPeriodBounds is no longer needed — multi-month
+        // period reports now return one row per (customer, year_month),
+        // so period_start / period_end on each row already reflect the
+        // stored month's bounds exactly.)
 
         // "Accumulate Vending Earning" — lifetime sum of location_earning_cents
         // (= gross_earning - location_fees) for each customer up to and
@@ -652,7 +632,11 @@ class CustomerController extends Controller
 
         $invoices = \App\Models\CustomerPeriodSummaryInvoice::query()
             ->whereIn('id', $latestIds)
-            ->get(['id', 'customer_id', 'period_start', 'period_end', 'cms_transaction_id', 'cms_transaction_at', 'total_amount_cents'])
+            ->get([
+                'id', 'customer_id', 'period_start', 'period_end',
+                'cms_transaction_id', 'cms_transaction_at',
+                'total_amount_cents', 'summary_snapshot',
+            ])
             ->keyBy(function ($inv) {
                 return $inv->customer_id
                     . '|' . $inv->period_start->toDateString()
@@ -675,6 +659,43 @@ class CustomerController extends Controller
                     'cms_transaction_at' => optional($inv->cms_transaction_at)->toIso8601String(),
                     'total_amount_cents' => (int) ($inv->total_amount_cents ?? 0),
                 ];
+
+                // Snapshot override: once an invoice is on file for this
+                // (customer, month), the Customer Summary page must render
+                // the FROZEN values that were sent to CMS — even if a
+                // later backfill changed the live customer_period_summaries
+                // row. Sorts/filters still run on the live DB columns
+                // (we only mutate the in-memory model for serialization).
+                $snap = $inv->summary_snapshot;
+                if (is_array($snap)) {
+                    if (array_key_exists('sales_cents', $snap)) {
+                        $row->sales_cents = (int) $snap['sales_cents'];
+                    }
+                    if (array_key_exists('gross_earning_cents', $snap)) {
+                        $row->gross_earning_cents = (int) $snap['gross_earning_cents'];
+                    }
+                    if (array_key_exists('location_fees_cents', $snap)) {
+                        $row->location_fees_cents = (int) $snap['location_fees_cents'];
+                    }
+                    if (array_key_exists('location_earning_cents', $snap)) {
+                        $row->location_earning_cents = (int) $snap['location_earning_cents'];
+                    }
+                    if (array_key_exists('location_earning_rate', $snap)) {
+                        $row->location_earning_rate = (float) $snap['location_earning_rate'];
+                    }
+                    if (array_key_exists('contract_commission_type', $snap)) {
+                        $row->contract_commission_type = $snap['contract_commission_type'];
+                    }
+                    if (array_key_exists('contract_commission_value', $snap)) {
+                        $row->contract_commission_value = $snap['contract_commission_value'];
+                    }
+                    if (array_key_exists('contract_commission_value2', $snap)) {
+                        $row->contract_commission_value2 = $snap['contract_commission_value2'];
+                    }
+                    if (array_key_exists('contract_ps_term', $snap)) {
+                        $row->contract_ps_term = $snap['contract_ps_term'];
+                    }
+                }
             } else {
                 $row->existing_invoice = null;
             }
@@ -725,12 +746,10 @@ class CustomerController extends Controller
         $this->applyContractCommissionTypeFilter($customerIdsQuery, $request);
         $customerIds = $customerIdsQuery->pluck('customers.id')->unique()->values();
 
-        // Match the on-screen aggregation: "current" stays per-month;
-        // any "last N months" / "all" selection collapses to ONE row per
-        // customer over the whole range (SUM cents, MIN/MAX dates, recompute
-        // rate from sums).
-        $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
-
+        // Mirror summary()'s per-month grain in the export — one row per
+        // (customer, year_month) regardless of period_report. The user
+        // can collapse / pivot in Excel themselves if they want a
+        // roll-up.
         $eagerLoads = [
             'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,begin_date,termination_date',
             'customer.operator:id,code,name',
@@ -741,44 +760,12 @@ class CustomerController extends Controller
             'customer.vend.vendPrefix:id,name',
         ];
 
-        if ($isAggregated) {
-            $query = \App\Models\CustomerPeriodSummary::query()
-                ->with($eagerLoads)
-                ->selectRaw(
-                    'MIN(id) AS id,
-                     customer_id,
-                     MAX(operator_id) AS operator_id,
-                     MIN(`year_month`) AS `year_month`,
-                     MIN(period_start) AS period_start,
-                     MAX(period_end) AS period_end,
-                     0 AS is_current_month,
-                     MAX(as_of_date) AS as_of_date,
-                     SUM(sales_cents) AS sales_cents,
-                     SUM(gross_earning_cents) AS gross_earning_cents,
-                     SUM(location_fees_cents) AS location_fees_cents,
-                     SUM(location_earning_cents) AS location_earning_cents,
-                     CASE WHEN SUM(sales_cents) > 0
-                          THEN ROUND(SUM(location_earning_cents) / SUM(sales_cents), 4)
-                          ELSE 0 END AS location_earning_rate,
-                     SUM(transaction_count) AS transaction_count,
-                     MAX(vend_count) AS vend_count,
-                     MAX(contract_commission_type) AS contract_commission_type,
-                     MAX(contract_commission_value) AS contract_commission_value,
-                     MAX(contract_commission_value2) AS contract_commission_value2,
-                     MAX(contract_ps_term) AS contract_ps_term'
-                )
-                ->whereIn('customer_id', $customerIds)
-                ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
-                ->groupBy('customer_id')
-                ->orderBy('customer_id', 'asc');
-        } else {
-            $query = \App\Models\CustomerPeriodSummary::query()
-                ->with($eagerLoads)
-                ->whereIn('customer_id', $customerIds)
-                ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
-                ->orderBy('customer_id', 'asc')
-                ->orderBy('year_month', 'desc');
-        }
+        $query = \App\Models\CustomerPeriodSummary::query()
+            ->with($eagerLoads)
+            ->whereIn('customer_id', $customerIds)
+            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->orderBy('customer_id', 'asc')
+            ->orderBy('year_month', 'desc');
 
         $operatorCountry = auth()->user()->operator->country ?? null;
         $divisor = pow(10, $operatorCountry?->currency_exponent ?? 2);
@@ -826,11 +813,29 @@ class CustomerController extends Controller
             ->groupBy('customer_id')
             ->pluck('accum', 'customer_id');
 
+        // Pre-fetch the latest API Invoice snapshot per (customer, period)
+        // tuple so locked rows export their FROZEN values — same rule the
+        // on-screen view follows. One indexed query covers the page.
+        $latestInvoiceIds = \App\Models\CustomerPeriodSummaryInvoice::query()
+            ->whereIn('customer_id', $customerIds)
+            ->whereNotNull('cms_transaction_id')
+            ->selectRaw('MAX(id) AS id')
+            ->groupBy('customer_id', 'period_start', 'period_end')
+            ->pluck('id');
+        $invoiceSnapshots = \App\Models\CustomerPeriodSummaryInvoice::query()
+            ->whereIn('id', $latestInvoiceIds)
+            ->get(['customer_id', 'period_start', 'period_end', 'cms_transaction_id', 'summary_snapshot'])
+            ->keyBy(function ($inv) {
+                return $inv->customer_id
+                    . '|' . $inv->period_start->toDateString()
+                    . '|' . $inv->period_end->toDateString();
+            });
+
         $rowIndex = 0;
 
         return (new FastExcel($this->exportWithCursor($query)))->download(
             $this->formatExportFilename('CustomersSummary', 'xlsx'),
-            function ($row) use (&$rowIndex, $divisor, $currencySymbol, $contractTypeLabels, $formatLocationFeesRate, $isAggregated, $rangeStart, $rangeEnd, $accumulateMap) {
+            function ($row) use (&$rowIndex, $divisor, $currencySymbol, $contractTypeLabels, $formatLocationFeesRate, $accumulateMap, $invoiceSnapshots) {
                 $rowIndex++;
                 $customer = $row->customer;
                 $address = $customer?->deliveryAddress;
@@ -851,28 +856,31 @@ class CustomerController extends Controller
                     $fullAddress = $joined ? ($joined . ($address->postcode ? ', ' . $address->postcode : '')) : ($address->postcode ?? '');
                 }
 
-                // For aggregated rows, the export's Period Start / End should
-                // reflect the full reporting window (clamped by the customer's
-                // begin_date / termination_date) — not MIN/MAX of stored months.
-                $periodStartOut = $row->period_start;
-                $periodEndOut = $row->period_end;
-                if ($isAggregated) {
-                    $effStart = $rangeStart->copy();
-                    if ($customer && $customer->begin_date) {
-                        $bd = $customer->begin_date instanceof \Carbon\Carbon
-                            ? $customer->begin_date->copy()
-                            : \Carbon\Carbon::parse($customer->begin_date);
-                        if ($bd->gt($effStart)) $effStart = $bd;
+                // Snapshot override: if an API Invoice was created for this
+                // (customer, month), replay its frozen values so the export
+                // matches what was actually billed in CMS.
+                $ps = $row->period_start instanceof \Carbon\Carbon
+                    ? $row->period_start->toDateString()
+                    : (string) $row->period_start;
+                $pe = $row->period_end instanceof \Carbon\Carbon
+                    ? $row->period_end->toDateString()
+                    : (string) $row->period_end;
+                $invKey = $row->customer_id . '|' . $ps . '|' . $pe;
+                $cmsTxnId = null;
+                if (isset($invoiceSnapshots[$invKey])) {
+                    $inv = $invoiceSnapshots[$invKey];
+                    $cmsTxnId = $inv->cms_transaction_id;
+                    $snap = $inv->summary_snapshot;
+                    if (is_array($snap)) {
+                        foreach (['sales_cents', 'gross_earning_cents', 'location_fees_cents',
+                                  'location_earning_cents', 'location_earning_rate',
+                                  'contract_commission_type', 'contract_commission_value',
+                                  'contract_commission_value2', 'contract_ps_term'] as $f) {
+                            if (array_key_exists($f, $snap)) {
+                                $row->{$f} = $snap[$f];
+                            }
+                        }
                     }
-                    $effEnd = $rangeEnd->copy()->endOfMonth()->startOfDay();
-                    if ($customer && $customer->termination_date) {
-                        $td = $customer->termination_date instanceof \Carbon\Carbon
-                            ? $customer->termination_date->copy()
-                            : \Carbon\Carbon::parse($customer->termination_date);
-                        if ($td->lt($effEnd)) $effEnd = $td;
-                    }
-                    $periodStartOut = $effStart;
-                    $periodEndOut = $effEnd;
                 }
 
                 return [
@@ -884,9 +892,13 @@ class CustomerController extends Controller
                     'Period Report (YYMM)' => $row->year_month ? \Carbon\Carbon::parse($row->year_month)->format('ym') : null,
                     'Machine ID' => $vend?->code,
                     'Machine Prefix' => $vend && $vend->relationLoaded('vendPrefix') ? optional($vend->vendPrefix)->name : null,
-                    'Period Start Date' => $periodStartOut ? (\Carbon\Carbon::parse($periodStartOut))->format('ymd') : null,
-                    'Period End Date' => $periodEndOut ? (\Carbon\Carbon::parse($periodEndOut))->format('ymd') : null,
-                    'Sales ($) (excl GST)' => round(((int) $row->sales_cents) / $divisor, 2),
+                    'Period Start Date' => $row->period_start ? (\Carbon\Carbon::parse($row->period_start))->format('ymd') : null,
+                    'Period End Date' => $row->period_end ? (\Carbon\Carbon::parse($row->period_end))->format('ymd') : null,
+                    // Sales now sources gp_metrics.amount_cents (INCL-GST) to
+                    // match the Transactions page's "Total Sales" column.
+                    // Gross Earning stays revenue − unit_cost (excl-GST), per
+                    // its explicit column label.
+                    'Sales ($) (incl GST)' => round(((int) $row->sales_cents) / $divisor, 2),
                     'Gross Earning (excl GST)' => round(((int) $row->gross_earning_cents) / $divisor, 2),
                     'Placement Contract Type' => $contractTypeLabels[$row->contract_commission_type] ?? $row->contract_commission_type,
                     'Location Fees Rate' => $formatLocationFeesRate($row),
@@ -897,6 +909,7 @@ class CustomerController extends Controller
                     'Location Grading' => null,          // placeholder — same as the on-screen "—"
                     'Location Type' => $customer && $customer->relationLoaded('locationType') ? optional($customer->locationType)->name : null,
                     'Customer Tag' => $tagNames,
+                    'CMS Txn #' => $cmsTxnId,
                 ];
             }
         );
@@ -1051,21 +1064,37 @@ class CustomerController extends Controller
             ]);
         }
 
+        // Fetch the FULL stored row for the month — needed both for the
+        // CMS payload (sales drives PS math) AND for the snapshot we
+        // freeze on the invoice. SUM(sales_cents) is sufficient if the
+        // period spans more than one stored month, but our per-month
+        // grain means it's always a single row anyway.
         $summaryRow = \App\Models\CustomerPeriodSummary::query()
             ->where('customer_id', $customer->id)
             ->whereBetween('year_month', [
                 \Carbon\Carbon::parse($periodStart)->startOfMonth()->toDateString(),
                 \Carbon\Carbon::parse($periodEnd)->startOfMonth()->toDateString(),
             ])
-            ->selectRaw('MIN(id) AS id, customer_id, SUM(sales_cents) AS sales_cents')
-            ->groupBy('customer_id')
+            ->orderBy('year_month', 'asc')
             ->first();
+
+        // Freeze the snapshot at creation time. attachExistingInvoice()
+        // replays this onto the Customer Summary page so any later
+        // backfill can't make the page show numbers that disagree with
+        // what was actually invoiced.
+        $snapshot = $service->buildSnapshot(
+            $customer,
+            \Carbon\Carbon::parse($periodStart),
+            \Carbon\Carbon::parse($periodEnd),
+            $summaryRow
+        );
 
         $invoice = \App\Models\CustomerPeriodSummaryInvoice::create([
             'customer_id' => $customer->id,
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
             'contract_commission_type' => $customer->contract_commission_type,
+            'summary_snapshot' => $snapshot,
             'created_by' => auth()->id(),
         ]);
 
@@ -1151,15 +1180,22 @@ class CustomerController extends Controller
                     \Carbon\Carbon::parse($periodStart)->startOfMonth()->toDateString(),
                     \Carbon\Carbon::parse($periodEnd)->startOfMonth()->toDateString(),
                 ])
-                ->selectRaw('MIN(id) AS id, customer_id, SUM(sales_cents) AS sales_cents')
-                ->groupBy('customer_id')
+                ->orderBy('year_month', 'asc')
                 ->first();
+
+            $snapshot = $service->buildSnapshot(
+                $customer,
+                \Carbon\Carbon::parse($periodStart),
+                \Carbon\Carbon::parse($periodEnd),
+                $summaryRow
+            );
 
             $invoice = \App\Models\CustomerPeriodSummaryInvoice::create([
                 'customer_id' => $customer->id,
                 'period_start' => $periodStart,
                 'period_end' => $periodEnd,
                 'contract_commission_type' => $customer->contract_commission_type,
+                'summary_snapshot' => $snapshot,
                 'created_by' => auth()->id(),
             ]);
 

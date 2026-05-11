@@ -26,7 +26,11 @@ use Carbon\CarbonInterface;
  *   R (Fix Rental)            : Rental rate × (active_days / month_days)
  *   U (Utility Only)          : Utility rate × (active_days / month_days)
  *   PS (Profit Sharing)       : Total Revenue × PS rate%
- *                               where Total Revenue = Sales (excl GST) × PS Term%
+ *                               where Total Revenue = Sales × PS Term%
+ *                               (Sales = CustomerPeriodSummary.sales_cents,
+ *                               which now sources gp_metrics.amount_cents
+ *                               = INCL-GST. "Total Revenue" here is the
+ *                               negotiated PS BASE, not an accounting figure.)
  *   PS+U                      : PS amount + Utility amount
  *   PSORU (whichever higher)  : max(PS amount, Utility amount)
  *

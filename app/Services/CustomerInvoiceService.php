@@ -292,6 +292,60 @@ class CustomerInvoiceService
     }
 
     /**
+     * Build a frozen snapshot of the values the Customer Summary page
+     * currently shows for this (customer, period) row. Stored on
+     * customer_period_summary_invoices.summary_snapshot at invoice time
+     * and replayed by CustomerController::attachExistingInvoice() so the
+     * page renders the invoiced numbers forever — even if a later backfill
+     * changes the underlying customer_period_summaries row.
+     *
+     * Captures money totals + the contract values that drive the invoice
+     * math (so future readers can answer "what contract did we bill
+     * under?" without consulting the audit log).
+     *
+     * Returns null when the customer wasn't invoiceable — caller should
+     * never hit this path because they've already gated on isInvoiceable().
+     */
+    public function buildSnapshot(
+        Customer $customer,
+        CarbonInterface $periodStart,
+        CarbonInterface $periodEnd,
+        ?CustomerPeriodSummary $summary
+    ): ?array {
+        if (!$customer->contract_commission_type) {
+            return null;
+        }
+
+        // Reuse the report service to resolve active_days / month_days
+        // (the values driving R/U/PS+U day-ratio math). These don't live
+        // on customer_period_summaries so we'd lose them otherwise.
+        $report = $this->reportService->generate($customer, $periodStart, $periodEnd, $summary);
+
+        return [
+            // Money columns visible on the Summary page.
+            'sales_cents'             => $summary ? (int) $summary->sales_cents : 0,
+            'gross_earning_cents'     => $summary ? (int) $summary->gross_earning_cents : 0,
+            'location_fees_cents'     => $summary ? (int) $summary->location_fees_cents : 0,
+            'location_earning_cents'  => $summary ? (int) $summary->location_earning_cents : 0,
+            'location_earning_rate'   => $summary ? (float) $summary->location_earning_rate : 0.0,
+            // Contract snapshot — these CAN change on the customer record
+            // after invoicing (e.g. contract renegotiation), so we freeze
+            // them here to keep the invoiced row's display honest.
+            'contract_commission_type'   => $customer->contract_commission_type,
+            'contract_commission_value'  => $customer->contract_commission_value !== null
+                ? (float) $customer->contract_commission_value : null,
+            'contract_commission_value2' => $customer->contract_commission_value2 !== null
+                ? (float) $customer->contract_commission_value2 : null,
+            'contract_ps_term'           => $customer->contract_ps_term !== null
+                ? (float) $customer->contract_ps_term : null,
+            // Day counts — drive the R/U day-ratio formula shown in the
+            // Report Content modal and used by the invoice math.
+            'active_days' => $report['active_days'] ?? null,
+            'month_days'  => $report['month_days'] ?? null,
+        ];
+    }
+
+    /**
      * Total amount in cents for the rows we're about to send to CMS.
      * Used to populate customer_period_summary_invoices.total_amount_cents
      * for fast UI badge rendering.

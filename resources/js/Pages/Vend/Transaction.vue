@@ -514,7 +514,7 @@
         <!-- <dl class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-5"> -->
         <dl class="grid grid-cols-1 md:grid-cols-4 gap-2">
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="text-base font-bold text-gray-800">Total Revenue {{ operatorCountry.currency_symbol }}</dt>
+                <dt class="text-base font-bold text-gray-800">Total Sales {{ operatorCountry.currency_symbol }}</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div>
                         {{((totals['success_amount'] ? totals['success_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
