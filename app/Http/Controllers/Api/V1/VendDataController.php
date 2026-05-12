@@ -33,10 +33,34 @@ class VendDataController extends Controller
         $input = $request->all();
         $ipAddress = $request->ip();
         $connectionType = 'http';
+
+        // TEMP DEBUG: trace ACBVMCPA delivery for vend code 2004 only.
+        // Remove once ACBVMCPA reception is confirmed.
+        $isDebugVend = isset($input['m']) && (int) $input['m'] === 2004;
+        if ($isDebugVend) {
+            Log::info('SetPara2 incoming [vend 2004]', [
+                'ip' => $ipAddress,
+                'content_type' => $request->header('Content-Type'),
+                'raw_body_len' => strlen($request->getContent()),
+                'input_keys' => array_keys($input),
+                'p_len' => strlen($input['p'] ?? ''),
+                'p_last_30' => substr($input['p'] ?? '', -30),
+            ]);
+        }
+
         $standardizedVendData = $this->vendDataService->standardizedVendData($input, $connectionType);
         // dd($standardizedVendData);
         $decodedData = $this->vendDataService->decodeVendData($standardizedVendData);
         // dd($decodedData);
+
+        if ($isDebugVend) {
+            $decodedArr = is_array($decodedData) ? $decodedData : (method_exists($decodedData, 'toArray') ? $decodedData->toArray() : []);
+            Log::info('SetPara2 decoded [vend 2004]', [
+                'type' => $decodedArr['Type'] ?? '(no Type)',
+                'decoded_keys' => array_keys($decodedArr),
+            ]);
+        }
+
         $response = $this->vendDataService->processVendData($standardizedVendData, $decodedData, $ipAddress, $connectionType);
 
         return $response;
