@@ -217,7 +217,10 @@ class CustomerController extends Controller
 
         // Resolve period range based on period_report option.
         // Current         : just the current calendar month (one row per customer)
-        // Last N month(s) : the N most recent FINISHED months (excludes current)
+        // Last N month(s) : current (in-progress) month + the N most recent
+        //                   finished months, so the latest (possibly
+        //                   incomplete) month sits at the top of each
+        //                   customer's group.
         // All             : earliest known month → current month inclusive
         $today = \Carbon\Carbon::today();
         $currentMonthStart = $today->copy()->startOfMonth();
@@ -468,7 +471,11 @@ class CustomerController extends Controller
      * period_report id. Both bounds are first-of-month dates.
      *
      *   current         → rangeStart = rangeEnd = current month start
-     *   last_N_month(s) → rangeEnd = last finished month; rangeStart = end - (N-1) months
+     *   last_N_month(s) → rangeEnd = current (in-progress) month;
+     *                     rangeStart = current month - N months. Yields
+     *                     N+1 month rows so the latest (possibly
+     *                     incomplete) month appears at the top of each
+     *                     customer's group.
      *   all             → rangeStart = earliest known year_month; rangeEnd = current month
      *   anything else   → falls back to "current"
      *
@@ -478,8 +485,10 @@ class CustomerController extends Controller
     {
         $monthsBack = $this->periodReportMonthsBack($id);
         if ($monthsBack !== null) {
-            $rangeEnd = $currentMonthStart->copy()->subMonthNoOverflow();        // last finished month
-            $rangeStart = $rangeEnd->copy()->subMonthsNoOverflow($monthsBack - 1); // N months back from rangeEnd
+            // Include the current (still-in-progress) month at the top of
+            // each customer's group, then walk back N finished months.
+            $rangeEnd = $currentMonthStart->copy();                              // current month (incomplete)
+            $rangeStart = $rangeEnd->copy()->subMonthsNoOverflow($monthsBack);   // N months back from current
             return [$rangeStart->startOfMonth(), $rangeEnd->startOfMonth()];
         }
 

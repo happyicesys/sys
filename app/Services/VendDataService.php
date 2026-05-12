@@ -279,6 +279,14 @@ class VendDataService
       if (isset($processedInput['Type'])) {
         switch ($processedInput['Type']) {
           case 'ACBVMCPA':
+            // TEMP DEBUG: confirm dispatch fires for vend 2004 ACBVMCPA.
+            if ((int) $vend->code === 2004) {
+              \Log::channel('vend2004')->info('Dispatching SyncAcbVmcPa', [
+                'vend_id' => $vend->id,
+                'vend_code' => $vend->code,
+                'payload_keys' => array_keys((array) $processedInput),
+              ]);
+            }
             SyncAcbVmcPa::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'ACBSTATUS':
