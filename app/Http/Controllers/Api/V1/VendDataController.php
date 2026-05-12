@@ -35,10 +35,11 @@ class VendDataController extends Controller
         $connectionType = 'http';
 
         // TEMP DEBUG: trace ACBVMCPA delivery for vend code 2004 only.
+        // Writes to storage/logs/vend2004.log via the 'vend2004' channel.
         // Remove once ACBVMCPA reception is confirmed.
         $isDebugVend = isset($input['m']) && (int) $input['m'] === 2004;
         if ($isDebugVend) {
-            Log::info('SetPara2 incoming [vend 2004]', [
+            Log::channel('vend2004')->info('SetPara2 incoming', [
                 'ip' => $ipAddress,
                 'content_type' => $request->header('Content-Type'),
                 'raw_body_len' => strlen($request->getContent()),
@@ -55,7 +56,7 @@ class VendDataController extends Controller
 
         if ($isDebugVend) {
             $decodedArr = is_array($decodedData) ? $decodedData : (method_exists($decodedData, 'toArray') ? $decodedData->toArray() : []);
-            Log::info('SetPara2 decoded [vend 2004]', [
+            Log::channel('vend2004')->info('SetPara2 decoded', [
                 'type' => $decodedArr['Type'] ?? '(no Type)',
                 'decoded_keys' => array_keys($decodedArr),
             ]);

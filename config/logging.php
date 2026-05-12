@@ -117,6 +117,14 @@ return [
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],
+
+        // TEMP DEBUG: isolated log file for vend code 2004 ACBVMCPA tracing.
+        // Remove this channel once debugging is complete.
+        'vend2004' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/vend2004.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+        ],
     ],
 
 ];
