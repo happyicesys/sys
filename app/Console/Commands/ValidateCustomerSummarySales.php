@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\DB;
  * the same window.
  *
  * The two should agree because Customer Summary now sources sales_cents
- * from gp_metrics.amount_cents (incl-GST) — the same column the
- * Transactions page aggregates. Use this command after any backfill or
- * aggregator change to catch drift.
+ * directly from vend_transactions.amount (incl-GST) using the same filter
+ * the Transactions page applies — see CustomerSummaryAggregator::persistMonth.
+ * Use this command after any backfill or aggregator change to catch drift.
  *
  * Filter parity with /vends/transactions:
  *   - vend_channel_errors.code IN (0, 6) OR code IS NULL OR is_multiple = true
@@ -185,11 +185,12 @@ class ValidateCustomerSummarySales extends Command
 
         if ($mismatchCount > 0) {
             $this->warn('Mismatch hint: positive diff = summary higher than live; negative = lower.');
-            $this->line('Common causes when sales_cents was just repointed to amount_cents:');
-            $this->line('  - Aggregator hasn\'t been re-run yet (sales_cents still excl-GST).');
-            $this->line('    Run: php artisan customer-summary:compute --month=' . $monthStart->format('Y-m'));
+            $this->line('Common causes after the cent-exact rewire (sales_cents now from vend_transactions):');
+            $this->line('  - Aggregator hasn\'t been re-run since the change. Re-aggregate the affected months:');
+            $this->line('    php artisan customer-summary:compute --month=' . $monthStart->format('Y-m'));
             $this->line('  - Live transactions cover a different date range (check period_end / as_of_date).');
-            $this->line('  - vend_transaction_items multi-purchase splits the amount differently than the Transactions page.');
+            $this->line('  - New vend_transactions rows arrived AFTER the nightly aggregator ran — wait for the next');
+            $this->line('    nightly recompute or re-run the command above for the affected month.');
             return self::FAILURE;
         }
 

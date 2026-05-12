@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\CustomerPeriodSummary;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -13,9 +14,24 @@ use Illuminate\Support\Facades\Log;
  * Aggregates per-customer per-month numbers used by the
  * Customer Management > Summary page.
  *
- * Reads from the already-aggregated `gp_metrics` table (one row per
- * day-customer-vend-product) so no scans of vend_transactions happen here.
+ * Data sources, by column:
+ *   sales_cents          ← vend_transactions (cent-exact, source of truth;
+ *                          mirrors the /vends/transactions success_amount
+ *                          filter so Customer Summary matches the
+ *                          Transactions page exactly)
+ *   gross_earning_cents  ← gp_metrics.gross_profit_cents (per-product cost
+ *                          accounting only available in the rollup)
+ *   transaction_count    ← gp_metrics.transaction_count
+ *   vend_count           ← gp_metrics distinct vend_id
  *
+ * Why sales_cents bypasses gp_metrics: GpMetricsAggregator splits multi-
+ * purchase basket totals across products via decimal division, then GROUPs
+ * BY product. Sub-cent fractions are lost when stored back into the INT
+ * amount_cents column, accumulating into off-by-cents drift on the Summary
+ * page (e.g. 514.59 vs Transactions' 514.60). Reading vend_transactions
+ * directly for the Sales column eliminates that drift.
+ *
+
  * Sign convention for location_fees:
  *   positive = expense (we pay the location)
  *   negative = income  (location pays us, e.g. Subsidized Plan)
@@ -140,31 +156,75 @@ class CustomerSummaryAggregator
         // Pull aggregated numbers from gp_metrics for the whole month window.
         // gp_metrics.txn_date is a DATE column.
         //
-        // sales_cents  ← amount_cents (INCL-GST): the actual transaction
-        //                amount the customer paid. Matches the Transactions
-        //                page's "Total Sales" column so users don't have
-        //                to mentally reconcile two screens.
-        //                Used by PerformanceReportContentService /
-        //                CustomerInvoiceService as the base for PS-family
-        //                invoice math (PS amount = sales × ps_term% × commission%).
-        //                NOTE: changing this requires a re-aggregation pass
-        //                  php artisan customer-summary:compute --since-begin-date
-        //                so historical rows pick up the new semantic.
-        //
         // gross_earning_cents ← gross_profit_cents (revenue - unit_cost,
         //                       still excl-GST). The "Gross Earning (excl GST)"
         //                       column header is explicit about this.
+        // transaction_count / vend_count are pure counts so no rounding noise.
         $rows = DB::table('gp_metrics')
             ->whereBetween('txn_date', [$monthStart->toDateString(), $periodEnd->toDateString()])
             ->whereNotNull('customer_id')
             ->select('customer_id')
-            ->selectRaw('SUM(amount_cents) AS sales_cents')
             ->selectRaw('SUM(gross_profit_cents) AS gross_earning_cents')
             ->selectRaw('SUM(transaction_count) AS transaction_count')
             ->selectRaw('COUNT(DISTINCT vend_id) AS vend_count')
             ->groupBy('customer_id')
             ->get()
             ->keyBy('customer_id');
+
+        // sales_cents must be sourced from vend_transactions DIRECTLY — the
+        // Transactions page is the source of truth for "Total Sales" and
+        // users need the two screens to match to the cent.
+        //
+        // Why not gp_metrics.amount_cents (the previous source)? For
+        // multi-purchase baskets, GpMetricsAggregator splits the basket
+        // total across products via `(amount - item_sum) / item_count` and
+        // then GROUPs BY product. The decimal division is mathematically
+        // exact in aggregate but loses sub-cent fractions when each row is
+        // stored back into the INT amount_cents column. SUM-ming many such
+        // rows for one customer accumulates the loss and produces the
+        // off-by-cents drift users were reporting (e.g. 514.59 vs 514.60).
+        //
+        // Filter parity with /vends/transactions success_amount:
+        //   - vend_channel_errors.code IN (0, 6) OR code IS NULL OR is_multiple = true
+        //   - testing vends excluded
+        //   - transaction_datetime (fallback to created_at) inside [monthStart, periodEnd]
+        //
+        // Used by PerformanceReportContentService / CustomerInvoiceService as
+        // the base for PS-family invoice math (PS amount = sales × ps_term%
+        // × commission%). Re-run the aggregator after deploy:
+        //   php artisan customer-summary:compute --since-begin-date
+        // so historical rows pick up the corrected (cent-exact) values.
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () =>
+            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
+        );
+
+        $windowStart = $monthStart->copy()->startOfDay();
+        $windowEnd = $periodEnd->copy()->endOfDay();
+
+        $salesByCustomer = DB::table('vend_transactions')
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->whereNotNull('vend_transactions.customer_id')
+            ->where(function ($q) use ($windowStart, $windowEnd) {
+                $q->whereBetween('vend_transactions.transaction_datetime', [$windowStart, $windowEnd])
+                  ->orWhere(function ($or) use ($windowStart, $windowEnd) {
+                      $or->whereNull('vend_transactions.transaction_datetime')
+                         ->whereBetween('vend_transactions.created_at', [$windowStart, $windowEnd]);
+                  });
+            })
+            ->where(function ($q) {
+                // Mirror the Transactions page success_amount filter exactly:
+                // - error code 0 / 6 / NULL OR
+                // - is_multiple = true (treats every multi-purchase txn as
+                //   success at the basket level; per-item filtering is a
+                //   separate concern).
+                $q->whereIn('vend_channel_errors.code', [0, 6])
+                  ->orWhereNull('vend_channel_errors.code')
+                  ->orWhere('vend_transactions.is_multiple', true);
+            })
+            ->when(!empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->groupBy('vend_transactions.customer_id')
+            ->selectRaw('vend_transactions.customer_id AS customer_id, SUM(vend_transactions.amount) AS sales_cents')
+            ->pluck('sales_cents', 'customer_id');
 
         // We also need to emit "zero" rows for active customers that had no
         // transactions in the window — otherwise they'd disappear from the
@@ -190,10 +250,12 @@ class CustomerSummaryAggregator
             'contract_commission_value',
             'contract_commission_value2',
             'contract_ps_term',
-        ])->chunk(500, function ($customers) use ($rows, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, &$payloads) {
+        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, &$payloads) {
             foreach ($customers as $customer) {
                 $row = $rows->get($customer->id);
-                $salesCents = (int) ($row->sales_cents ?? 0);
+                // sales_cents: from vend_transactions (cent-exact, matches
+                // Transactions page). Other metrics from gp_metrics rollup.
+                $salesCents = (int) round((float) ($salesByCustomer[$customer->id] ?? 0));
                 $grossEarningCents = (int) ($row->gross_earning_cents ?? 0);
                 $transactionCount = (int) ($row->transaction_count ?? 0);
                 $vendCount = (int) ($row->vend_count ?? 0);

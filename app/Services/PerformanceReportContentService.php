@@ -28,9 +28,11 @@ use Carbon\CarbonInterface;
  *   PS (Profit Sharing)       : Total Revenue × PS rate%
  *                               where Total Revenue = Sales × PS Term%
  *                               (Sales = CustomerPeriodSummary.sales_cents,
- *                               which now sources gp_metrics.amount_cents
- *                               = INCL-GST. "Total Revenue" here is the
- *                               negotiated PS BASE, not an accounting figure.)
+ *                               sourced cent-exact from vend_transactions
+ *                               by CustomerSummaryAggregator; INCL-GST,
+ *                               matches the Transactions page totals.
+ *                               "Total Revenue" here is the negotiated
+ *                               PS BASE, not an accounting figure.)
  *   PS+U                      : PS amount + Utility amount
  *   PSORU (whichever higher)  : max(PS amount, Utility amount)
  *
