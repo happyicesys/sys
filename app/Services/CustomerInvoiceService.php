@@ -192,11 +192,20 @@ class CustomerInvoiceService
         $monthDays  = (int) ($report['month_days'] ?? 0);
         $dayRatio   = $monthDays > 0 ? $activeDays / $monthDays : 0.0;
 
-        // Sales (excl GST) for PS-family math. Stored as cents on
-        // customer_period_summaries.sales_cents.
-        $salesDollars = $summary && $summary->sales_cents
+        // Sales basis for PS-family math. Stored as cents on
+        // customer_period_summaries.sales_cents — sourced from
+        // vend_transactions.amount which is INCL-GST. We de-gross by
+        // (1 + operator GST%) before applying PS Term so the invoiced
+        // amount matches the Performance Report Preview popup and the
+        // Location Fees column on the Customer Summary page.
+        $salesDollarsInclGst = $summary && $summary->sales_cents
             ? ((int) $summary->sales_cents) / 100.0
             : 0.0;
+        $gstRatePct = (float) ($customer->operator->gst_vat_rate ?? 0);
+        $gstDivisor = 1 + ($gstRatePct / 100.0);
+        $salesDollars = $gstDivisor > 0
+            ? $salesDollarsInclGst / $gstDivisor
+            : $salesDollarsInclGst;
 
         $lines = [];
 
@@ -224,7 +233,7 @@ class CustomerInvoiceService
             }
             case 'PS': {
                 // PS: <total_revenue> Unit × <ps_rate as decimal>
-                // total_revenue = sales × ps_term%
+                // total_revenue = sales(excl-gst) × ps_term%
                 // unit_price    = ps_rate / 100 (e.g. 10% -> 0.10)
                 // amount        = total_revenue × unit_price
                 $totalRevenue = round($salesDollars * ($psTerm / 100.0), 2);

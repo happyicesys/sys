@@ -737,7 +737,7 @@
                       </span>
                       <span v-if="customer.contract_notice_period">
                         <span class="font-semibold text-gray-500">NP:</span>
-                        <span class="ml-1">{{ customer.contract_notice_period }}mo</span>
+                        <span class="ml-1">{{ customer.contract_notice_period }}</span>
                       </span>
                     </div>
                   </TableData>

@@ -57,7 +57,10 @@ class SyncCustomerInvoiceCMS implements ShouldQueue
             return;
         }
 
-        $customer = Customer::find($this->customerId);
+        // Eager-load operator so CustomerInvoiceService can read
+        // operator->gst_vat_rate for PS-family GST de-grossing (avoids
+        // a lazy-load query inside the queue worker).
+        $customer = Customer::with('operator:id,gst_vat_rate')->find($this->customerId);
         if (!$customer) {
             Log::warning('SyncCustomerInvoiceCMS aborted: customer missing', ['customer_id' => $this->customerId]);
             return;

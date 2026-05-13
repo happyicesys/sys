@@ -933,17 +933,17 @@
 							<SingleSortItem modelName="customers.contract_until" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_until', false)">
 								Contract End Date
 							</SingleSortItem>
+							<SingleSortItem modelName="accumulate_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('accumulate_vending_earning_cents', true)">
+								Accumulated VendEarning
+							</SingleSortItem>
 							<SingleSortItem modelName="totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_gross_profit', true)">
 								L30d GrossEarning
 							</SingleSortItem>
-							<span>
+							<SingleSortItem modelName="thirty_days_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_vending_earning_cents', true)">
 								L30d VendEarning
-							</span>
+							</SingleSortItem>
 							<span>
-								Accumulated VendEarning
-							</span>
-							<span>
-								Location Grading
+								Loc Grading
 							</span>
 						</div>
 					</TableHead>
@@ -1764,6 +1764,10 @@
 							<span v-if="vend.contract_until_short" class="text-gray-800">
 								{{ vend.contract_until_short }}
 							</span>
+							<!-- Accumulated VendingEarning -->
+							<span v-if="vend.accumulate_vending_earning_cents != null" :class="vend.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'">
+								{{ operatorCountry.currency_symbol }}{{ (vend.accumulate_vending_earning_cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+							</span>
 							<!-- L30d GrossEarning -->
 							<span
 								v-if="vend.vendTransactionTotalsJson && 'thirty_days_gross_profit' in vend.vendTransactionTotalsJson"
@@ -1772,12 +1776,8 @@
 								{{ operatorCountry.currency_symbol }}{{ (vend.vendTransactionTotalsJson['thirty_days_gross_profit'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
 							<!-- L30d VendingEarning -->
-							<span v-if="vend.thirty_days_vending_earning_cents != null" :class="vend.thirty_days_vending_earning_cents >= 0 ? 'text-green-700' : 'text-red-700'">
+							<span v-if="vend.thirty_days_vending_earning_cents != null" :class="[vend.thirty_days_vending_earning_cents >= 0 ? 'text-green-700' : 'text-red-700', 'text-base font-bold']">
 								{{ operatorCountry.currency_symbol }}{{ (vend.thirty_days_vending_earning_cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-							</span>
-							<!-- Accumulated VendingEarning -->
-							<span v-if="vend.accumulate_vending_earning_cents != null" :class="vend.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'">
-								{{ operatorCountry.currency_symbol }}{{ (vend.accumulate_vending_earning_cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
 							<!-- Location Grading -->
 							<span
@@ -1862,56 +1862,33 @@
 											</div>
 							</div>
 							<!--
-								Modem — mirrors the rich Modem column on Vend/Index.vue
-								(type / IMEI / online status + relative "last seen" +
-								Reset button when the type is resettable). In this view
-								the loop variable named `vend` is actually a Customer
-								row, so the bound vend's modem lives at
-								`vend.vend.modemUnit`.
-							-->
-							<!--
-								Tight font sizes (text-[10px] / text-[9px]) so the
-								Machine Status column doesn't widen just to fit the
-								modem type name or 15-digit IMEI. break-all lets a
-								long IMEI wrap instead of pushing the cell wider.
+								Remote Modem — minimal badge, matches HTTP / MQTT styling.
+								Modem type, IMEI and Reset button have been moved to
+								Vend/Edit.vue (Advance Control) so this column stays
+								narrow.
+
+								Coloring logic mirrors HTTP / MQTT badges:
+								  - green when modem reports online
+								  - red when modem reports offline (last_updated_at present)
+								  - gray when N/A (no last_updated_at) or vend inactive
 							-->
 							<div
-								class="inline-flex flex-col justify-center items-center rounded px-1 py-0.5 text-[10px] font-medium border min-w-full bg-gray-50 text-gray-900 space-y-0.5 max-w-[120px]"
+								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+								:class="[vend.is_active || vend.is_testing ? (vend.vend.modemUnit.last_updated_at ? (vend.vend.modemUnit.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400') : 'bg-gray-200 text-gray-400']"
 								v-if="vend.vend && vend.vend.modemUnit"
 							>
-								<span class="font-bold">Modem</span>
-								<span class="text-blue-800 break-all text-center leading-tight" v-if="vend.vend.modemUnit.modemType && vend.vend.modemUnit.modemType.name">
-									{{ vend.vend.modemUnit.modemType.name }}
-								</span>
-								<span class="text-blue-800 break-all text-center text-[9px] leading-tight" v-if="vend.vend.modemUnit.imei">
-									{{ vend.vend.modemUnit.imei }}
-								</span>
-								<div
-									class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[10px] font-medium border w-fit"
-									:class="[vend.vend.modemUnit.is_online ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']"
-								>
-									<div class="flex flex-col items-center leading-tight">
-										<span class="font-bold" v-if="vend.vend.modemUnit.last_updated_at">
-											{{ vend.vend.modemUnit.is_online ? 'Online' : 'Offline' }}
-										</span>
-										<span class="font-bold" v-else>
-											N/A
-										</span>
-										<span class="text-[9px]" v-if="vend.vend.modemUnit.last_updated_at">
-											{{ vend.vend.modemUnit.last_updated_at }}
-										</span>
-									</div>
+								<div class="flex flex-col">
+									<span class="font-bold">Remote Modem</span>
+									<span class="font-bold" v-if="vend.vend.modemUnit.last_updated_at">
+										{{ vend.vend.modemUnit.is_online ? 'Online' : 'Offline' }}
+									</span>
+									<span class="font-bold" v-else>
+										N/A
+									</span>
+									<span v-if="vend.vend.modemUnit.last_updated_at">
+										{{ vend.vend.modemUnit.last_updated_at }}
+									</span>
 								</div>
-								<Button
-									type="button"
-									class="bg-yellow-300 hover:bg-yellow-400 p-0.5 text-gray-800 inline-flex items-center justify-center mt-0.5 rounded"
-									@click="onResetModemClicked(vend.vend.modemUnit.id)"
-									v-if="vend.vend.modemUnit.modemType && vend.vend.modemUnit.modemType.is_resetable && vend.vend.modemUnit.last_updated_at"
-									v-tooltip="'Reset Modem'"
-									aria-label="Reset Modem"
-								>
-									<ArrowPathIcon class="w-3 h-3"></ArrowPathIcon>
-								</Button>
 							</div>
 						</div>
 					</TableData>
@@ -2214,7 +2191,7 @@ font-size:13px;
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
-	import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon } from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -2848,24 +2825,6 @@ function onMapAllMarkerClicked() {
 
 function onMapMarkerModalClose() {
 	showMapMarkerModal.value = false
-}
-
-/**
- * Reset Modem — mirrors Vend/Index.vue's behaviour. POSTs to the
- * /modem-units/{id}/reset endpoint after a confirm dialog so the user
- * can't accidentally double-click. preserveState/preserveScroll keep
- * the table position; no toast here (CustomerIndex doesn't import one),
- * the user gets feedback from the page state.
- */
-function onResetModemClicked(modemUnitID) {
-	if (!modemUnitID) return;
-	const approval = confirm('Are you sure to reset this modem?');
-	if (!approval) return;
-	router.post('/modem-units/' + modemUnitID + '/reset', {}, {
-		preserveScroll: true,
-		preserveState: true,
-		replace: true,
-	});
 }
 
 function onJobAssigned() {

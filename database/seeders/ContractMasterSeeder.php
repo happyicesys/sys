@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Jobs\ProcessCustomerSummaryMonth;
+use App\Models\Customer;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -51,6 +52,15 @@ use RuntimeException;
  *   PS     value = PS%, ps_term = term%         → sales × term% × value%
  *   PS+U   + value2 = utility $                 → PS amount + value2
  *   PSORU  + value2 = utility $                 → max(PS amount, value2)
+ *
+ * Notice Period — stored as one of Customer::NOTICE_PERIOD_OPTIONS
+ * ('1 wk', '2 wk', '3 wk', '1 mth', '1.5 mth', '2 mth', '3 mth', 'NO need',
+ * 'Cant ETerm'). Anything in the CSV that doesn't match is set to null on
+ * the customer and flagged in the unresolved list.
+ *
+ * Location Grading — three independent A/B/C selections stored on `customers`
+ * (NOT mirrored to `customer_contract_logs`, since grading is a placement
+ * attribute, not contract-versioned). See Customer::LOCATION_GRADING_CATEGORIES.
  */
 class ContractMasterSeeder extends Seeder
 {
@@ -97,6 +107,21 @@ class ContractMasterSeeder extends Seeder
             }
 
             $contractFrom = Carbon::parse($row['contract_from'])->startOfDay();
+
+            // Notice period: validate against the enum on the model. Anything
+            // that doesn't match becomes null (logged in the unresolved list so
+            // it's not silent).
+            $noticeRaw = $row['notice_period'] ?? '';
+            $notice = null;
+            if ($noticeRaw !== '') {
+                if (in_array($noticeRaw, Customer::NOTICE_PERIOD_OPTIONS, true)) {
+                    $notice = $noticeRaw;
+                } else {
+                    $missing[] = $machineId . " (unknown notice_period: '{$noticeRaw}')";
+                    // Still write the customer row, just with null notice_period.
+                }
+            }
+
             $writes[] = [
                 'customer_id'    => (int) $customerId,
                 'machine_id'     => $machineId,
@@ -107,8 +132,14 @@ class ContractMasterSeeder extends Seeder
                 'contract_from'  => $contractFrom,
                 'contract_until' => $row['contract_until'] !== '' ? $row['contract_until'] : null,
                 'auto_renewal'   => $row['auto_renewal'] === '1',
-                'notice_period'  => $this->nullableTruncInt($row['notice_period']),
+                'notice_period'  => $notice,
                 'remarks'        => $row['remarks'] !== '' ? $row['remarks'] : null,
+                // Location grading lives on `customers` only — NOT on
+                // customer_contract_logs (it's a placement attribute, not a
+                // contract-versioned one). Stored as A/B/C/null.
+                'grade_placement'   => $this->gradeOrNull($row['location_grading_placement'] ?? ''),
+                'grade_access'      => $this->gradeOrNull($row['location_grading_access'] ?? ''),
+                'grade_flexibility' => $this->gradeOrNull($row['location_grading_flexibility'] ?? ''),
             ];
             if ($earliest === null || $contractFrom->lt($earliest)) {
                 $earliest = $contractFrom->copy();
@@ -168,13 +199,32 @@ class ContractMasterSeeder extends Seeder
      */
     private function guardSchema(): void
     {
-        foreach (['contract_from', 'contract_remarks', 'contract_detail_updated_at'] as $col) {
+        $required = [
+            'contract_from',
+            'contract_remarks',
+            'contract_detail_updated_at',
+            // Added in 2026_05_12: location grading
+            'location_grading_placement',
+            'location_grading_access',
+            'location_grading_flexibility',
+        ];
+        foreach ($required as $col) {
             if (!Schema::hasColumn('customers', $col)) {
                 throw new RuntimeException(sprintf(
                     'customers.%s missing — run `php artisan migrate` before this seeder.',
                     $col
                 ));
             }
+        }
+        // Notice period must be the new string column (migration
+        // 2026_05_13_000000_change_contract_notice_period_to_string). Detect
+        // pre-migrate state by sniffing the column type.
+        $type = Schema::getColumnType('customers', 'contract_notice_period');
+        if (!in_array($type, ['string', 'varchar', 'text', 'char'], true)) {
+            throw new RuntimeException(sprintf(
+                'customers.contract_notice_period is still %s — run `php artisan migrate` so it becomes a string column.',
+                $type
+            ));
         }
         if (!Schema::hasTable('customer_contract_logs')) {
             throw new RuntimeException('customer_contract_logs table missing — run `php artisan migrate` first.');
@@ -212,15 +262,14 @@ class ContractMasterSeeder extends Seeder
     }
 
     /**
-     * Match Edit.vue's parseInt() behaviour for the integer notice_period
-     * column: 0.25 / 0.5 become 0. Logged at the seeder level so it's visible.
+     * Returns 'A' | 'B' | 'C' | null for the three location_grading_* columns.
+     * Defensive — the CSV builder already normalises, but this keeps the seeder
+     * safe against future hand-edits.
      */
-    private function nullableTruncInt(string $v): ?int
+    private function gradeOrNull(string $v): ?string
     {
-        if ($v === '') {
-            return null;
-        }
-        return (int) ((float) $v);
+        $v = strtoupper(trim($v));
+        return in_array($v, ['A', 'B', 'C'], true) ? $v : null;
     }
 
     private function writeCustomer(array $w, $now): void
@@ -228,17 +277,21 @@ class ContractMasterSeeder extends Seeder
         DB::table('customers')
             ->where('id', $w['customer_id'])
             ->update([
-                'contract_commission_type'   => $w['type'],
-                'contract_commission_value'  => $w['value'],
-                'contract_commission_value2' => $w['value2'],
-                'contract_ps_term'           => $w['ps_term'],
-                'contract_from'              => $w['contract_from']->toDateString(),
-                'contract_until'             => $w['contract_until'],
-                'contract_auto_renewal'      => $w['auto_renewal'],
-                'contract_notice_period'     => $w['notice_period'],
-                'contract_remarks'           => $w['remarks'],
-                'contract_detail_updated_at' => $now,
-                'updated_at'                 => $now,
+                'contract_commission_type'     => $w['type'],
+                'contract_commission_value'    => $w['value'],
+                'contract_commission_value2'   => $w['value2'],
+                'contract_ps_term'             => $w['ps_term'],
+                'contract_from'                => $w['contract_from']->toDateString(),
+                'contract_until'               => $w['contract_until'],
+                'contract_auto_renewal'        => $w['auto_renewal'],
+                'contract_notice_period'       => $w['notice_period'],
+                'contract_remarks'             => $w['remarks'],
+                'contract_detail_updated_at'   => $now,
+                'updated_at'                   => $now,
+                // Location grading — placement attributes, not contract block.
+                'location_grading_placement'   => $w['grade_placement'],
+                'location_grading_access'      => $w['grade_access'],
+                'location_grading_flexibility' => $w['grade_flexibility'],
             ]);
     }
 

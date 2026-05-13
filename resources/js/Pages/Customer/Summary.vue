@@ -291,7 +291,17 @@
                       <SingleSortItem modelName="sales_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sales_cents')">
                         Sales ($)
                       </SingleSortItem>
-                      <span>(with GST)</span>
+                      <!--
+                        Two sub-labels mirror the cell layout:
+                          (w/ GST)  - small/muted, matches the smaller
+                                      secondary line in each row (the raw
+                                      sales_cents figure)
+                          (excl GST) - normal weight, matches the larger
+                                       primary line in each row (the
+                                       de-grossed figure used by PS math)
+                      -->
+                      <span class="text-[11px] text-gray-500">(w/ GST)</span>
+                      <span>(excl GST)</span>
                     </div>
                   </TableHead>
                   <TableHead>
@@ -300,6 +310,7 @@
                         Gross Earing
                       </SingleSortItem>
                       <span >(excl GST)</span>
+                      <span>Rate</span>
                     </div>
                   </TableHead>
                   <TableHead>
@@ -328,7 +339,7 @@
                   <TableHead>Accumulate Vend Earning</TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-4">
-                      <span>Location Grading</span>
+                      <span>Loc Grading</span>
                       <span>Location Type</span>
                     </div>
                   </TableHead>
@@ -343,7 +354,7 @@
                     <div class="flex flex-col space-y-1">
                       <span>Contract End Date</span>
                       <span>Auto Renewal?</span>
-                      <span>Notice Period (mth)</span>
+                      <span>Notice Period</span>
                     </div>
                   </TableHead>
                   <TableHead>
@@ -410,14 +421,14 @@
                         v-if="row.customer.begin_date"
                         class="text-xs text-gray-900 mt-1"
                       >
-                        {{ row.customer.begin_date }}
+                        {{ formatYYMMDD(row.customer.begin_date) }}
                       </span>
                       <!--
                         Contract Attachment — hyperlinks to the latest
                         uploaded contract (FILE_TYPE_CONTRACT). Label lives
                         in the column header; the cell renders a short
-                        "View" link so the row stays compact. Hidden when
-                        the customer has no contracts attached.
+                        "Contract" link so the row stays compact. Hidden
+                        when the customer has no contracts attached.
                       -->
                       <a
                         v-if="row.customer.latest_contract && row.customer.latest_contract.full_url"
@@ -427,7 +438,7 @@
                         class="text-xs text-gray-900 underline hover:text-gray-700 truncate"
                         :title="row.customer.latest_contract.name || 'Contract Attachment'"
                       >
-                        View
+                        Contract
                       </a>
                     </div>
                   </TableData>
@@ -530,14 +541,54 @@
                     </div>
                   </TableData>
 
-                  <!-- Sales, $ -->
+                  <!--
+                    Sales, $
+                    Cell layout mirrors the column header top-to-bottom:
+                      Top (small, muted) - INCL-GST raw figure
+                                           (sales_cents as stored, sum of
+                                           vend_transactions.amount, matches
+                                           the Transactions page total).
+                      Bottom (larger)    - EXCL-GST de-grossed figure
+                                           (sales_cents / (1 + operator.gst%)),
+                                           the basis used by the PS-family
+                                           Location Fees math + the
+                                           Performance Report Preview popup,
+                                           i.e. the headline number.
+                    When the operator has no GST configured (rate=0) the two
+                    lines would carry the same value, so we collapse to a
+                    single line to avoid duplicate numbers in the cell.
+                  -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
-                    {{ formatMoney(row.sales_cents) }}
+                    <div class="flex flex-col items-end space-y-0.5">
+                      <template v-if="row.customer && row.customer.operator && Number(row.customer.operator.gst_vat_rate) > 0">
+                        <span class="text-[11px] text-gray-600">
+                          {{ formatMoney(row.sales_cents) }}
+                        </span>
+                        <span>{{ formatMoney(row.sales_cents / (1 + Number(row.customer.operator.gst_vat_rate) / 100)) }}</span>
+                      </template>
+                      <span v-else>{{ formatMoney(row.sales_cents) }}</span>
+                    </div>
                   </TableData>
 
-                  <!-- Gross Earing (excl GST) -->
+                  <!--
+                    Gross Earing (excl GST) + Rate sub-line.
+
+                    Rate = gross_earning_cents (already excl GST) divided by
+                    sales-excl-GST. For GST customers sales-excl-GST is
+                    sales_cents / (1 + gst_vat_rate/100); for non-GST
+                    customers sales_cents is already excl-GST so we use it
+                    as-is. Mirrors the Vend Earning column's "value over
+                    rate" layout (gray sub-line, NOT red — the red Rate
+                    annotation in the spec screenshot is the formula hint,
+                    not the rendering style).
+                  -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
-                    {{ formatMoney(row.gross_earning_cents) }}
+                    <div class="flex flex-col space-y-0.5">
+                      <span>{{ formatMoney(row.gross_earning_cents) }}</span>
+                      <span class="text-[11px] text-gray-600">
+                        {{ formatPercent(grossEarningRate(row)) }}
+                      </span>
+                    </div>
                   </TableData>
 
                   <!-- Placement Contract Type / Location Fees Rate -->
@@ -1233,6 +1284,32 @@ function formatPercent(rate) {
   return (Number(rate) * 100).toFixed(1) + '%';
 }
 
+/**
+ * Gross Earning Rate for the Customer Summary table.
+ *
+ * Mirrors the in-cell formula spec from the feedback screenshot:
+ *   Rate = gross_earning (excl GST) / sales (excl GST)
+ *
+ * sales_cents is stored gross of GST, so for operators with a non-zero
+ * gst_vat_rate we de-gross by dividing by (1 + gst%/100) — same
+ * derivation the Sales column already uses for its excl-GST sub-line.
+ * For non-GST operators sales_cents is already excl-GST.
+ *
+ * Returns null when sales-excl-GST is zero/missing so formatPercent()
+ * renders an empty cell rather than NaN%/Infinity%.
+ */
+function grossEarningRate(row) {
+  if (!row || row.gross_earning_cents == null || row.sales_cents == null) return null;
+  const sales = Number(row.sales_cents);
+  if (!sales) return null;
+  const gst = row.customer && row.customer.operator
+    ? Number(row.customer.operator.gst_vat_rate) || 0
+    : 0;
+  const salesExclGst = gst > 0 ? sales / (1 + gst / 100) : sales;
+  if (!salesExclGst) return null;
+  return Number(row.gross_earning_cents) / salesExclGst;
+}
+
 function locationFeesColorClass(cents, type) {
   // Negative = subsidy income (green); positive = expense (gray neutral).
   if (Number(cents) < 0 || type === 'S') return 'text-emerald-700 font-medium';
@@ -1242,17 +1319,17 @@ function locationFeesColorClass(cents, type) {
 /**
  * Contract End Date colour rule for the Summary page.
  *
- * Red when contract_until is within 3 months of today — i.e. either already
- * expired or expiring inside the next 3 months. Comfortably-future dates
- * (> 3 months out) render in black. Renewal / extension cadence on this
- * team is quarterly, so 3 months gives enough lead time to act.
+ * Red ONLY when contract_until is already in the past (strictly before
+ * today's date — already expired). Contracts ending today or any future
+ * date render in black ("not due yet"). Compared at day-boundary so the
+ * time-of-day on either side doesn't flip the colour.
  */
 function contractEndDateClass(d) {
   if (!d) return 'text-gray-900';
-  const until = moment(d);
+  const until = moment(d).startOf('day');
   if (!until.isValid()) return 'text-gray-900';
-  const threshold = moment().add(3, 'months');
-  return until.isBefore(threshold) ? 'text-red-600 font-semibold' : 'text-gray-900';
+  const today = moment().startOf('day');
+  return until.isBefore(today) ? 'text-red-600 font-semibold' : 'text-gray-900';
 }
 
 // Location Grading — three char(1) picks (placement/access/flexibility)

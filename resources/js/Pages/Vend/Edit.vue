@@ -198,6 +198,28 @@
                       Log
                     </span>
                 </Button>
+                <!--
+                  Reset Modem — always rendered so the action is discoverable.
+                  When the vend has a bound modemUnit whose modemType is
+                  flagged resetable, the button is yellow and posts to
+                  /modem-units/{id}/reset. Otherwise it renders as a greyed-
+                  out, click-disabled "N/A Remote Modem" placeholder so the
+                  user can tell at a glance that no modem is bound or that
+                  the bound modem type can't be remotely reset.
+                -->
+                <Button
+                    type="button"
+                    :class="canResetModem
+                      ? 'bg-yellow-300 hover:bg-yellow-400 text-gray-800 flex space-x-1 items-center'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed flex space-x-1 items-center'"
+                    :disabled="!canResetModem"
+                    @click.prevent="canResetModem ? resetModem(boundModemUnit.id) : null"
+                  >
+                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                    <span>
+                      {{ canResetModem ? 'Reset Modem' : 'N/A Remote Modem' }}
+                    </span>
+                </Button>
               </span>
             </div>
             </div>
@@ -689,7 +711,7 @@ import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import { ArrowPathIcon, ArrowUpCircleIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, ClockIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import { defineAsyncComponent, ref, onMounted } from 'vue';
+import { defineAsyncComponent, ref, onMounted, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
 const VendLogModal = defineAsyncComponent(() => import('@/Components/VendLogModal.vue'));
@@ -861,6 +883,54 @@ function restartVMC(vendID) {
     },
     onError: () => {
       toast.error("Failed to restart VMC", { timeout: 3000 })
+    },
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+  })
+}
+
+/**
+ * Resolve the bound modem unit on this vend regardless of the JSON key
+ * that Laravel used to serialize it. The controller passes the raw Vend
+ * model (not a VendResource) so Eloquent's default `$snakeAttributes`
+ * converts the `modemUnit` relationship into the snake_case `modem_unit`
+ * key in the payload. Falling back to either spelling keeps this page
+ * working without having to wire a Resource through the edit() endpoint.
+ */
+const boundModemUnit = computed(() => {
+  const vendValue = props.vend
+  if (!vendValue) return null
+  return vendValue.modemUnit || vendValue.modem_unit || null
+})
+
+/**
+ * Whether the action-bar "Reset Modem" button should be enabled. True
+ * whenever this vend has a bound modem unit with an id — per the user's
+ * spec, "if no remote modem, become GREY", so we gate on modem presence
+ * only (not on the is_resetable flag).
+ */
+const canResetModem = computed(() => {
+  const modemUnit = boundModemUnit.value
+  return !!(modemUnit && modemUnit.id)
+})
+
+/**
+ * Reset Modem — mirrors the handler in Vend/Index.vue. Confirms first so
+ * a misclick can't accidentally reboot the modem. Uses preserveState /
+ * preserveScroll so the Advance Control page stays put after the POST.
+ */
+function resetModem(modemUnitID) {
+  if (!modemUnitID) return
+  const approval = confirm('Are you sure to reset this modem?')
+  if (!approval) return
+
+  router.post('/modem-units/' + modemUnitID + '/reset', {}, {
+    onSuccess: () => {
+      toast.success("Reset signal sent", { timeout: 3000 })
+    },
+    onError: () => {
+      toast.error("Failed to reset modem", { timeout: 3000 })
     },
     preserveScroll: true,
     preserveState: true,

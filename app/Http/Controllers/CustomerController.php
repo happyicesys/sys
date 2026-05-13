@@ -277,7 +277,9 @@ class CustomerController extends Controller
 
         $eagerLoads = [
             'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period',
-            'customer.operator:id,code,name',
+            // gst_vat_rate is pulled here so the Sales column can render the
+            // excl-GST sub-line right under the incl-GST main value.
+            'customer.operator:id,code,name,gst_vat_rate',
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
             'customer.locationType:id,name',
@@ -1107,7 +1109,10 @@ class CustomerController extends Controller
             'force'        => 'nullable|boolean',
         ]);
 
-        $customer = Customer::findOrFail($id);
+        // Eager-load operator so CustomerInvoiceService can read
+        // operator->gst_vat_rate for PS-family GST de-grossing without an
+        // extra lazy query.
+        $customer = Customer::with('operator:id,gst_vat_rate')->findOrFail($id);
 
         $service = app(\App\Services\CustomerInvoiceService::class);
 
@@ -1220,7 +1225,10 @@ class CustomerController extends Controller
         $errors = [];
 
         foreach ($request->input('items') as $entry) {
-            $customer = Customer::find($entry['customer_id']);
+            // Eager-load operator so CustomerInvoiceService can read
+            // operator->gst_vat_rate for PS-family GST de-grossing without
+            // an extra lazy query per bulk entry.
+            $customer = Customer::with('operator:id,gst_vat_rate')->find($entry['customer_id']);
             if (!$customer) {
                 $errors[] = "Customer #{$entry['customer_id']} not found.";
                 $skipped++;
@@ -1412,6 +1420,8 @@ class CustomerController extends Controller
             // rubric stays in one place.
             'locationGradingCategories' => Customer::LOCATION_GRADING_CATEGORIES,
             'locationTypeOptions' => $optionsService->locationTypes(),
+            // Notice Period dropdown — see Customer::NOTICE_PERIOD_OPTIONS.
+            'noticePeriodOptions' => Customer::NOTICE_PERIOD_OPTIONS,
             'operatorOptions' => $optionsService->operators(),
             'sellingPriceTypeOptions' => collect(SellingPrice::TYPE_MAPPINGS),
             'vendOptions' => Vend::query()
@@ -1694,7 +1704,7 @@ class CustomerController extends Controller
                 'customer.contract_from'                   => 'nullable|date',
                 'customer.contract_until'                  => 'nullable|date',
                 'customer.contract_auto_renewal'           => 'nullable|boolean',
-                'customer.contract_notice_period'          => 'nullable|integer|min:0',
+                'customer.contract_notice_period'          => 'nullable|string|in:' . implode(',', Customer::NOTICE_PERIOD_OPTIONS),
                 'customer.contract_remarks'                => 'nullable|string|max:5000',
                 // Performance Report Email opt-in (see migration
                 // 2026_05_09_000000_add_report_email_to_customers).
@@ -2040,7 +2050,7 @@ class CustomerController extends Controller
                     'Contract Until'                => $customer->contract_until
                                                         ? Carbon::parse($customer->contract_until)->format('Y-m-d') : null,
                     'Auto Renewal'                  => $customer->contract_auto_renewal ? 'Yes' : 'No',
-                    'Notice Period (months)'        => $customer->contract_notice_period,
+                    'Notice Period'                 => $customer->contract_notice_period,
                     'Contract Remarks'              => $customer->contract_remarks,
                 ];
             }

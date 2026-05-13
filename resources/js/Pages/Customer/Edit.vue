@@ -318,17 +318,21 @@
                     <div class="col-span-6 sm:col-span-3">
                       <label class="flex justify-start text-sm font-medium text-gray-700">
                         Notice Period
-                        <span class="ml-1 text-gray-400 text-xs font-normal">(months)</span>
                       </label>
                       <div class="mt-1">
-                        <input
-                          type="number"
-                          step="1"
-                          min="0"
+                        <select
                           v-model="form.contract_notice_period"
                           class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
-                          placeholder="e.g. 1"
-                        />
+                        >
+                          <option :value="null">-- Select --</option>
+                          <option
+                            v-for="opt in (noticePeriodOptions || [])"
+                            :key="opt"
+                            :value="opt"
+                          >
+                            {{ opt }}
+                          </option>
+                        </select>
                       </div>
                       <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.contract_notice_period']">
                         {{ form.errors['customer.contract_notice_period'] }}
@@ -1145,6 +1149,9 @@ const props = defineProps({
   // Location grading rubric — { placement: { label, options: {A,B,C} }, ... }
   // Sourced from Customer::LOCATION_GRADING_CATEGORIES.
   locationGradingCategories: { type: Object, default: () => ({}) },
+  // Notice Period dropdown options — sourced from
+  // Customer::NOTICE_PERIOD_OPTIONS. Array of label strings.
+  noticePeriodOptions: { type: Array, default: () => [] },
   locationTypeOptions: [Array, Object],
   operatorOptions: Object,
   customer: Object,
@@ -1538,7 +1545,10 @@ function saveCustomer(customerID) {
       contract_from: data.contract_from && data.contract_from !== 'Invalid date' ? data.contract_from : null,
       contract_until: data.contract_until && data.contract_until !== 'Invalid date' ? data.contract_until : null,
       contract_auto_renewal: data.contract_auto_renewal ?? false,
-      contract_notice_period: data.contract_notice_period !== null && data.contract_notice_period !== '' ? parseInt(data.contract_notice_period) : null,
+      // Notice Period is now a label string from Customer::NOTICE_PERIOD_OPTIONS
+      // ('1 wk', '1.5 mth', 'NO need', 'Cant ETerm', etc.) — pass through as-is,
+      // server-side `in:` validation owns the allowed-value check.
+      contract_notice_period: data.contract_notice_period && String(data.contract_notice_period).trim() !== '' ? data.contract_notice_period : null,
       contract_remarks: data.contract_remarks && String(data.contract_remarks).trim() !== '' ? data.contract_remarks : null,
       // Performance Report Email — normalise empty strings to null so the
       // DB stores NULL rather than '', and force-clear the enabled flag

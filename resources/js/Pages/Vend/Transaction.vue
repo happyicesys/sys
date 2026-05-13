@@ -1010,6 +1010,10 @@ onMounted(() => {
     ]
     cashlessMfgOptions.value = [
         {id: 'all', value: 'All'},
+        // 'na' selects credit-card transactions (payment_method_id = 2) whose
+        // cashless_mfg snapshot is null — e.g. older rows before the snapshot
+        // column was populated, or txns where acb_vmc_pa_json was unavailable.
+        {id: 'na', value: 'N/A'},
         ...(props.cashlessMfgOptions?.data ?? []).map((mfg) => {return {id: mfg, value: mfg}})
     ]
     numberPerPageOptions.value = [

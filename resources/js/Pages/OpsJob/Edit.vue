@@ -540,12 +540,19 @@
                                     <PaperClipIcon class="w-4 h-4"></PaperClipIcon>
                                   </span>
                                 </div>
-                                <div
-                                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-bold border w-fit"
-                                    :class="row.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700' : row.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700'"
-                                    v-if="row.stock_action_type"
-                                >
-                                    {{ row.stock_action_type == 'implement_new_mapping' ? 'Implement New Mapping' : row.stock_action_type == 'return_stock' ? 'Return Stock' : 'Onsite Adjustment' }}
+                                <div class="flex flex-col gap-1" v-if="row.stock_action_type">
+                                  <div
+                                      class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-bold border w-fit"
+                                      :class="row.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700' : row.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700'"
+                                  >
+                                      {{ row.stock_action_type == 'implement_new_mapping' ? 'Implement New Mapping' : row.stock_action_type == 'return_stock' ? 'Return Stock' : 'Onsite Adjustment' }}
+                                  </div>
+                                  <div
+                                      class="text-xs text-gray-700 whitespace-pre-line break-words max-w-40 border border-purple-300 rounded px-1.5 py-1 bg-purple-50"
+                                      v-if="row.stock_action_type == 'implement_new_mapping' && (row.vend && (row.vend.upcomingProductMapping || (row.vend.productMapping && row.vend.productMapping.upcomingProductMapping))) && ((row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).remarks)"
+                                  >
+                                      {{ (row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).remarks }}
+                                  </div>
                                 </div>
                                 <span v-if="row.status_at" class="text-xs font-medium text-gray-600">
                                   {{ row.status_at }}

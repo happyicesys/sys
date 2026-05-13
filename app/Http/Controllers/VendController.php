@@ -522,6 +522,13 @@ class VendController extends Controller
         $needsLastSecondOpsJobs = in_array($sortKey, ['last_second_ops_job_acc_total_amount', 'last_second_ops_job_acc_total_count', 'last_second_ops_job_amount', 'last_second_ops_job_cash_amount', 'last_second_ops_job_count']);
         $needsNextOpsJobs = in_array($sortKey, ['next_ops_job_amount', 'next_ops_job_cash_amount', 'next_ops_job_count']);
         $needsLastThirtyDaysStockIn = in_array($sortKey, ['last_thirty_days_stock_in_amount', 'last_thirty_days_stock_in_qty', 'thirty_days_stock_in_delta_amount', 'thirty_days_stock_in_delta_percent']);
+        // Sort hooks for the Contract Type column's Accumulated VendEarning and
+        // L30d VendEarning rows. Both are normally computed in PHP after the
+        // page is fetched (see the post-query loops further down). When the
+        // user sorts by them we expose a matching SQL alias on the SELECT so
+        // filterVendsDB() can ORDER BY the alias across the full result set.
+        $needsAccumulatedVendingEarning = in_array($sortKey, ['accumulate_vending_earning_cents']);
+        $needsThirtyDaysVendingEarning = in_array($sortKey, ['thirty_days_vending_earning_cents']);
 
         $shouldAutoload = $request->boolean('autoload', false);
         $perPage = $request->numberPerPage === 'All' ? 10000 : $request->numberPerPage;
@@ -777,6 +784,21 @@ class VendController extends Controller
                         '=',
                         'customers.id'
                     );
+                })
+                ->when($needsAccumulatedVendingEarning, function ($query) {
+                    // Lifetime-to-date Vending Earning per customer for sorting.
+                    // Mirrors the post-query SUM(location_earning_cents) loop below
+                    // (and CustomerController::attachAccumulatedVendingEarning) so
+                    // the sort order matches the value rendered in the column.
+                    // Hits the (customer_id, year_month) unique index on
+                    // customer_period_summaries — cheap even at site scale.
+                    $through = \Carbon\Carbon::now()->startOfMonth()->toDateString();
+                    $query->leftJoin(DB::raw("(
+                SELECT customer_id, SUM(location_earning_cents) AS accumulate_vending_earning_cents
+                FROM customer_period_summaries
+                WHERE year_month <= '{$through}'
+                GROUP BY customer_id
+            ) AS accum_ve"), 'accum_ve.customer_id', '=', 'customers.id');
                 });
             $selectColumns = [
                 'customers.id AS id',
@@ -913,6 +935,61 @@ class VendController extends Controller
                 ');
             }
 
+            if ($needsAccumulatedVendingEarning) {
+                // Expose the joined subquery's SUM under the same name the
+                // PHP post-loop writes back onto each row — filterVendsDB()
+                // will ORDER BY this alias for the requested direction.
+                $selectColumns[] = DB::raw('COALESCE(accum_ve.accumulate_vending_earning_cents, 0) AS accumulate_vending_earning_cents');
+            }
+
+            if ($needsThirtyDaysVendingEarning) {
+                // L30d Vending Earning = L30d Gross Earning - Location Fees.
+                // Location Fees vary by contract_commission_type — mirrors
+                // CustomerSummaryAggregator::computeLocationFeeCents so the
+                // sort order matches the value rendered in the cell.
+                //   F      → fee 0
+                //   S      → fee = -value*100  (subsidy = income to operator)
+                //   R / U  → fee = value*100   (flat rent / utility)
+                //   PS     → fee = (sales_incl_gst / (1+gst%)) * ps_term% * value%
+                //   PS+U   → PS + value2*100
+                //   PSORU  → MAX(PS, value2*100)
+                // PS-family bails out to 0 when sales <= 0 (matches PHP).
+                $selectColumns[] = DB::raw('(
+                    CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_gross_profit")) AS DECIMAL(20,4))
+                    - (CASE customers.contract_commission_type
+                        WHEN \'F\' THEN 0
+                        WHEN \'S\' THEN -ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
+                        WHEN \'R\' THEN ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
+                        WHEN \'U\' THEN ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
+                        WHEN \'PS\' THEN
+                            CASE WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) <= 0 THEN 0
+                            ELSE ROUND(
+                                (CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) / (1 + COALESCE(operators.gst_vat_rate, 0)/100))
+                                * COALESCE(customers.contract_ps_term, 0)/100
+                                * COALESCE(customers.contract_commission_value, 0)/100
+                            ) END
+                        WHEN \'PS+U\' THEN
+                            CASE WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) <= 0 THEN 0
+                            ELSE ROUND(
+                                (CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) / (1 + COALESCE(operators.gst_vat_rate, 0)/100))
+                                * COALESCE(customers.contract_ps_term, 0)/100
+                                * COALESCE(customers.contract_commission_value, 0)/100
+                            ) END
+                            + ROUND(COALESCE(customers.contract_commission_value2, 0) * 100)
+                        WHEN \'PSORU\' THEN GREATEST(
+                            CASE WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) <= 0 THEN 0
+                            ELSE ROUND(
+                                (CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) / (1 + COALESCE(operators.gst_vat_rate, 0)/100))
+                                * COALESCE(customers.contract_ps_term, 0)/100
+                                * COALESCE(customers.contract_commission_value, 0)/100
+                            ) END,
+                            ROUND(COALESCE(customers.contract_commission_value2, 0) * 100)
+                        )
+                        ELSE 0
+                    END)
+                ) AS thirty_days_vending_earning_cents');
+            }
+
             $vends->select($selectColumns);
 
             $page = Paginator::resolveCurrentPage() ?: 1;
@@ -949,6 +1026,16 @@ class VendController extends Controller
             // Reuses CustomerSummaryAggregator::computeLocationFeeCents so the
             // math matches the Customer Summary page and the totals row above.
             // Pure in-PHP O(per_page) loop — no extra SQL.
+            //
+            // PS-family math also needs the operator GST rate to de-gross the
+            // INCL-GST sales basis before applying PS Term (mirrors the
+            // Performance Report Preview popup). Pre-loaded once as a small
+            // {operator_id => gst_vat_rate%} lookup so the closures below
+            // can resolve it in O(1) without N+1 queries.
+            $vendOperatorGstRates = DB::table('operators')
+                ->pluck('gst_vat_rate', 'id')
+                ->map(fn ($v) => (float) $v)
+                ->all();
             foreach ($vends->items() as $vend) {
                 $totalsJson = $vend->vend_transaction_totals_json;
                 if (!$totalsJson) {
@@ -958,13 +1045,15 @@ class VendController extends Controller
                 }
                 $salesCents = (int) ($totalsJson['thirty_days_amount'] ?? 0);
                 $grossEarningCents = (int) ($totalsJson['thirty_days_gross_profit'] ?? 0);
+                $gstRatePct = (float) ($vendOperatorGstRates[$vend->operator_id] ?? 0);
                 $locationFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
                     $vend->contract_commission_type,
                     $vend->contract_commission_value !== null ? (float) $vend->contract_commission_value : null,
                     $vend->contract_commission_value2 !== null ? (float) $vend->contract_commission_value2 : null,
                     $vend->contract_ps_term !== null ? (float) $vend->contract_ps_term : null,
                     $salesCents,
-                    $grossEarningCents
+                    $grossEarningCents,
+                    $gstRatePct
                 );
                 $vend->location_fees_cents = $locationFeeCents;
                 $vend->thirty_days_vending_earning_cents = $grossEarningCents - $locationFeeCents;
@@ -1025,7 +1114,7 @@ class VendController extends Controller
                 // customer, then summed. Reuses the same Location Fee formula
                 // the Customer Summary page uses (CustomerSummaryAggregator).
                 'thirtyDaysVendingEarning' => collect($vends->items())
-                    ->sum(function ($vend) {
+                    ->sum(function ($vend) use ($vendOperatorGstRates) {
                         $totalsJson = $vend->vend_transaction_totals_json;
                         if (!$totalsJson) {
                             return 0;
@@ -1041,13 +1130,15 @@ class VendController extends Controller
                         // for the fee formula needs to be incl-GST.
                         $salesCents = (int) ($totalsJson['thirty_days_amount'] ?? 0);
                         $grossEarningCents = (int) ($totalsJson['thirty_days_gross_profit'] ?? 0);
+                        $gstRatePct = (float) ($vendOperatorGstRates[$vend->operator_id] ?? 0);
                         $locationFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
                             $vend->contract_commission_type,
                             $vend->contract_commission_value !== null ? (float) $vend->contract_commission_value : null,
                             $vend->contract_commission_value2 !== null ? (float) $vend->contract_commission_value2 : null,
                             $vend->contract_ps_term !== null ? (float) $vend->contract_ps_term : null,
                             $salesCents,
-                            $grossEarningCents
+                            $grossEarningCents,
+                            $gstRatePct
                         );
                         return $grossEarningCents - $locationFeeCents;
                     }) / 100,
@@ -3210,6 +3301,10 @@ class VendController extends Controller
                 'customer.deliveryAddress',
                 'customer.contact',
                 'logs',
+                // modemUnit + modemType:is_resetable are needed by the
+                // "Reset Modem" button on the Advance Control page.
+                'modemUnit',
+                'modemUnit.modemType:id,name,is_resetable',
             ])
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
@@ -3225,6 +3320,9 @@ class VendController extends Controller
             ->select(
                 'vends.id',
                 'vends.code',
+                // FK required by the eager-loaded `modemUnit` belongsTo
+                // relationship — omitting it would leave modemUnit null.
+                'vends.modem_unit_id',
                 'customers.id AS customer_id',
                 DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (",IFNULL(customers.virtual_customer_prefix, \'\'),")") ELSE customers.code END AS customer_code'),
                 'customers.name AS customer_name',

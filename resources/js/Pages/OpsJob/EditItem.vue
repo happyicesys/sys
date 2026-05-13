@@ -1587,11 +1587,10 @@ function loadingData() {
         pickedQty = initialDefault;
 
         if (opsJobItemChannel.saved_picked_qty != null) {
-          if (opsJobItemChannel.is_upcoming_product && opsJobItemChannel.saved_picked_qty === 0) {
-            pickedQty = 5;
-          } else {
-            pickedQty = opsJobItemChannel.saved_picked_qty;
-          }
+          // Always respect the user's explicitly saved value, including 0.
+          // Previously, upcoming products with saved_picked_qty === 0 were forced back to 5,
+          // which made "Save & Freeze 'To Pick Qty'" appear to ignore a user setting 0.
+          pickedQty = opsJobItemChannel.saved_picked_qty;
         } else if (activeProduct) {
           if (!activeProduct.is_available) {
             pickedQty = 0;

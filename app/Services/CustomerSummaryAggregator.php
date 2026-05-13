@@ -36,18 +36,26 @@ use Illuminate\Support\Facades\Log;
  *   positive = expense (we pay the location)
  *   negative = income  (location pays us, e.g. Subsidized Plan)
  *
- * Location Fee formulas — mirror Customer/Edit.vue's 7 contract types:
+ * Location Fee formulas — mirror Customer/Edit.vue's 7 contract types.
+ * PS-family formulas de-gross sales by (1 + operator GST%) before
+ * applying PS Term so the stored Location Fees agree with the
+ * Performance Report Preview popup (PerformanceReportContentService).
+ * "sales(excl)" below = sales_cents / (1 + gst_rate%); "sales" with no
+ * suffix preserves the old gst=0 behaviour for the default call signature.
  *   F      Free Placement              0
  *   S      Subsidized Plan             -value          (we receive)
  *   R      Fix Rental                  +value
  *   U      Utility only                +value
- *   PS     Profit Sharing              sales * ps_term% * value%
- *   PS+U   PS + Utility                sales * ps_term% * value% + value2
+ *   PS     Profit Sharing              sales(excl) * ps_term% * value%
+ *   PS+U   PS + Utility                sales(excl) * ps_term% * value% + value2
  *   PSORU  PS or Utility (whichever)   max(PS_amount, value2)
  *
- * Verified against screenshot:
- *   PS+U value=30 value2=50 ps_term=70 sales=$1000
+ * Verified against screenshots:
+ *   PS+U value=30 value2=50 ps_term=70 sales=$1000 (gst=0)
  *   => 1000 * 0.70 * 0.30 + 50 = $260  ✓
+ *
+ *   PS+U value=40 value2=50 ps_term=70 sales=$733.40 gst=9
+ *   => 733.40/1.09 * 0.70 * 0.40 + 50 = $238.39  ✓
  */
 class CustomerSummaryAggregator
 {
@@ -64,6 +72,12 @@ class CustomerSummaryAggregator
      * (i.e. minor units / cents). Inputs that are decimals (value, value2, ps_term)
      * are in the customer-facing units (e.g. value=30 means 30%, value=300 means $300).
      *
+     * $gstRatePct is the operator's GST/VAT rate in percent (e.g. 9 for 9%). PS-family
+     * formulas de-gross the INCL-GST $salesCents by (1 + gstRatePct%) before applying
+     * PS Term, so the stored Location Fees match the Performance Report Preview popup
+     * (PerformanceReportContentService::generate()). Defaults to 0 — i.e. the legacy
+     * behaviour — so any legacy caller that hasn't been threaded through still works.
+     *
      * Returns an integer cent value with the sign convention above.
      */
     public static function computeLocationFeeCents(
@@ -72,7 +86,8 @@ class CustomerSummaryAggregator
         ?float $value2,
         ?float $psTerm,
         int $salesCents,
-        int $grossEarningCents
+        int $grossEarningCents,
+        float $gstRatePct = 0.0
     ): int {
         if ($contractType === null) {
             return 0;
@@ -97,15 +112,15 @@ class CustomerSummaryAggregator
                 return (int) round($value * 100);
 
             case self::CONTRACT_TYPE_PS:
-                return self::psAmountCents($salesCents, $psTerm, $value);
+                return self::psAmountCents($salesCents, $psTerm, $value, $gstRatePct);
 
             case self::CONTRACT_TYPE_PS_U:
-                return self::psAmountCents($salesCents, $psTerm, $value)
+                return self::psAmountCents($salesCents, $psTerm, $value, $gstRatePct)
                     + (int) round($value2 * 100);
 
             case self::CONTRACT_TYPE_PS_OR_U:
                 return max(
-                    self::psAmountCents($salesCents, $psTerm, $value),
+                    self::psAmountCents($salesCents, $psTerm, $value, $gstRatePct),
                     (int) round($value2 * 100)
                 );
         }
@@ -113,13 +128,25 @@ class CustomerSummaryAggregator
         return 0;
     }
 
-    private static function psAmountCents(int $salesCents, float $psTerm, float $commissionPercent): int
-    {
+    private static function psAmountCents(
+        int $salesCents,
+        float $psTerm,
+        float $commissionPercent,
+        float $gstRatePct = 0.0
+    ): int {
         if ($salesCents <= 0) {
             return 0;
         }
-        // sales * ps_term% * commission%
-        $amount = $salesCents * ($psTerm / 100.0) * ($commissionPercent / 100.0);
+        // $salesCents is INCL-GST (sourced from vend_transactions.amount).
+        // De-gross by (1 + gst%) so the PS base matches the EXCL-GST figure
+        // shown in the Performance Report Preview popup.
+        $gstDivisor = 1 + ($gstRatePct / 100.0);
+        $exclGstSalesCents = $gstDivisor > 0
+            ? $salesCents / $gstDivisor
+            : $salesCents;
+
+        // sales(excl-gst) * ps_term% * commission%
+        $amount = $exclGstSalesCents * ($psTerm / 100.0) * ($commissionPercent / 100.0);
         return (int) round($amount);
     }
 
@@ -241,6 +268,14 @@ class CustomerSummaryAggregator
                 $q->whereNull('termination_date')->orWhere('termination_date', '>=', $monthStart);
             });
 
+        // Pre-load operator GST rates as a single small lookup so the
+        // per-customer chunk loop can resolve operator->gst_vat_rate in O(1)
+        // without an N+1 of `Customer::with('operator')` for every row.
+        $operatorGstRates = DB::table('operators')
+            ->pluck('gst_vat_rate', 'id')
+            ->map(fn ($v) => (float) $v)
+            ->all();
+
         $now = now();
         $payloads = [];
         $customerQuery->select([
@@ -250,7 +285,7 @@ class CustomerSummaryAggregator
             'contract_commission_value',
             'contract_commission_value2',
             'contract_ps_term',
-        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, &$payloads) {
+        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, &$payloads) {
             foreach ($customers as $customer) {
                 $row = $rows->get($customer->id);
                 // sales_cents: from vend_transactions (cent-exact, matches
@@ -260,13 +295,19 @@ class CustomerSummaryAggregator
                 $transactionCount = (int) ($row->transaction_count ?? 0);
                 $vendCount = (int) ($row->vend_count ?? 0);
 
+                // Operator GST rate (e.g. 9.00 for 9%). Used by PS-family
+                // formulas to de-gross the INCL-GST sales basis before
+                // applying PS Term — matches the popup's math.
+                $gstRatePct = (float) ($operatorGstRates[$customer->operator_id] ?? 0);
+
                 $locationFeeCents = self::computeLocationFeeCents(
                     $customer->contract_commission_type,
                     $customer->contract_commission_value !== null ? (float) $customer->contract_commission_value : null,
                     $customer->contract_commission_value2 !== null ? (float) $customer->contract_commission_value2 : null,
                     $customer->contract_ps_term !== null ? (float) $customer->contract_ps_term : null,
                     $salesCents,
-                    $grossEarningCents
+                    $grossEarningCents,
+                    $gstRatePct
                 );
 
                 $locationEarningCents = $grossEarningCents - $locationFeeCents;

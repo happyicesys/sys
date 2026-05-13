@@ -50,6 +50,23 @@ class Customer extends Model
         self::STATUS_INACTIVE => 'Not Active',
     ];
 
+    // Notice Period dropdown options for the Placement Contract Detail
+    // block on Customer/Edit.vue. Stored as the exact label string in
+    // `contract_notice_period` (varchar 16) — see migration
+    // 2026_05_13_000000_change_contract_notice_period_to_string.
+    // Order here drives the dropdown order in the UI.
+    const NOTICE_PERIOD_OPTIONS = [
+        '1 wk',
+        '2 wk',
+        '3 wk',
+        '1 mth',
+        '1.5 mth',
+        '2 mth',
+        '3 mth',
+        'NO need',
+        'Cant ETerm',
+    ];
+
     // Location grading rubric — shown on Customer/Edit.vue under the
     // "Placement Contract Detail" section. Selections are stored in the
     // three location_grading_* columns (char(1), values A/B/C/null).

@@ -98,6 +98,12 @@ class CustomerPeriodSummaryResource extends JsonResource
                         'id' => $c->operator->id,
                         'code' => $c->operator->code,
                         'name' => $c->operator->name,
+                        // GST/VAT rate (decimal percent, e.g. 9.00 for 9%).
+                        // Used by Customer/Summary.vue's Sales column to
+                        // render the excl-GST sub-line under the displayed
+                        // incl-GST sales figure.
+                        'gst_vat_rate' => $c->operator->gst_vat_rate !== null
+                            ? (float) $c->operator->gst_vat_rate : 0.0,
                     ] : null,
                     'delivery_address' => $c->relationLoaded('deliveryAddress') && $c->deliveryAddress
                         ? AddressResource::make($c->deliveryAddress)->resolve()
@@ -123,9 +129,10 @@ class CustomerPeriodSummaryResource extends JsonResource
                     // keeps the wire payload as plain YYYY-MM-DD.
                     'contract_until' => optional($c->contract_until)->toDateString(),
                     'contract_auto_renewal' => (bool) $c->contract_auto_renewal,
-                    'contract_notice_period' => $c->contract_notice_period !== null
-                        ? (int) $c->contract_notice_period
-                        : null,
+                    // Stored as one of the labels in Customer::NOTICE_PERIOD_OPTIONS
+                    // ('1 wk', '1.5 mth', 'NO need', 'Cant ETerm', etc.). String,
+                    // not numeric — see migration 2026_05_13_000000.
+                    'contract_notice_period' => $c->contract_notice_period,
                     'vend' => $c->relationLoaded('vend') && $c->vend ? [
                         'id' => $c->vend->id,
                         'code' => $c->vend->code,

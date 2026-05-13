@@ -33,13 +33,13 @@ use Carbon\CarbonInterface;
  *                               matches the Transactions page totals.
  *                               We divide by (1 + operator GST%) to land
  *                               on the EXCL-GST PS base before applying
- *                               PS Term. "Total Revenue" here is the
+ *                               PS Term — same math as
+ *                               CustomerSummaryAggregator::psAmountCents
+ *                               so this popup and the Location Fees
+ *                               column on the Summary table agree to the
+ *                               cent. "Total Revenue" here is the
  *                               negotiated PS BASE, not an accounting
- *                               figure. NOTE: CustomerSummaryAggregator's
- *                               Location Fees column does NOT yet apply
- *                               this GST division, so the popup may show
- *                               a different Profit Sharing $$ than the
- *                               table column — flagged for a follow-up.)
+ *                               figure.)
  *   PS+U                      : PS amount + Utility amount
  *   PSORU (whichever higher)  : max(PS amount, Utility amount)
  *

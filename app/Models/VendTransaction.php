@@ -190,8 +190,28 @@ class VendTransaction extends Model
                 } else {
                     $values = [$search];
                 }
-                if (!empty($values)) {
-                    $query->whereIn('vend_transactions.cashless_mfg', $values);
+                if (empty($values)) {
+                    return;
+                }
+                // 'na' is a sentinel: match credit-card transactions whose
+                // cashless_mfg snapshot is null. Concrete mfg codes are
+                // matched as-is. When mixed, results are unioned via OR.
+                $hasNa = in_array('na', $values, true);
+                $concrete = array_values(array_filter($values, fn($v) => $v !== 'na'));
+
+                if ($hasNa && empty($concrete)) {
+                    $query->whereNull('vend_transactions.cashless_mfg')
+                        ->where('vend_transactions.payment_method_id', 2);
+                } elseif ($hasNa) {
+                    $query->where(function ($q) use ($concrete) {
+                        $q->whereIn('vend_transactions.cashless_mfg', $concrete)
+                            ->orWhere(function ($q2) {
+                                $q2->whereNull('vend_transactions.cashless_mfg')
+                                    ->where('vend_transactions.payment_method_id', 2);
+                            });
+                    });
+                } else {
+                    $query->whereIn('vend_transactions.cashless_mfg', $concrete);
                 }
             })
             ->when($request->codes, function ($query, $search) use ($request) {
