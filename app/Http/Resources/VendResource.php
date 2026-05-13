@@ -112,6 +112,26 @@ class VendResource extends JsonResource
             'temp_updated_at' => isset($this->temp_updated_at) ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->diffForHumans() : null,
             'termination_date' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'termination_date_short' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
+            // Contract end date (Customer Edit page "Contract Until" field).
+            // Distinct from termination_date — contract_until is the contract's
+            // expiry, termination_date is when the customer relationship ended.
+            'contract_until' => isset($this->contract_until) ? Carbon::parse($this->contract_until)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
+            'contract_until_short' => isset($this->contract_until) ? Carbon::parse($this->contract_until)->setTimezone($this->getUserTimezone())->format('ymd') : null,
+            // Contract fields (snapshot of the customer's contract terms; drives
+            // Contract Type / Location Fees / VendingEarning columns on the
+            // Customer Index page).
+            'contract_commission_type' => $this->contract_commission_type ?? null,
+            'contract_commission_value' => $this->contract_commission_value ?? null,
+            'contract_commission_value2' => $this->contract_commission_value2 ?? null,
+            'contract_ps_term' => $this->contract_ps_term ?? null,
+            // Per-vend earnings (computed in VendController@indexCustomer).
+            'location_fees_cents' => isset($this->location_fees_cents) ? (int) $this->location_fees_cents : null,
+            'thirty_days_vending_earning_cents' => isset($this->thirty_days_vending_earning_cents) ? (int) $this->thirty_days_vending_earning_cents : null,
+            'accumulate_vending_earning_cents' => isset($this->accumulate_vending_earning_cents) ? (int) $this->accumulate_vending_earning_cents : null,
+            // Location Grading — three independent A/B/C codes per customer.
+            'location_grading_placement' => $this->location_grading_placement ?? null,
+            'location_grading_access' => $this->location_grading_access ?? null,
+            'location_grading_flexibility' => $this->location_grading_flexibility ?? null,
             'is_enable_grab_collection' => $this->is_enable_grab_collection,
             'is_enable_soft_keyboard_qr_pay' => $this->is_enable_soft_keyboard_qr_pay,
             'is_enable_soft_keyboard_cash_pay' => $this->is_enable_soft_keyboard_cash_pay,

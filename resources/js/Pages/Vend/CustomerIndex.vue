@@ -625,30 +625,30 @@
 					</dd>
 				</div>
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+					<dt class="truncate text-sm font-medium text-gray-500">Avg Sales per VM (Last 30 days)</dt>
+					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+						{{(totals['thirtyDays']/vends.meta.to ? totals['thirtyDays']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+					</dd>
+				</div>
+				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+					<dt class="truncate text-sm font-medium text-gray-500">Avg Daily Sales per VM (Last 30 days)</dt>
+					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+						{{(totals['thirthyDaysAvg']/vends.meta.to ? totals['thirthyDaysAvg']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+					</dd>
+				</div>
+				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
 					<dt class="truncate text-sm font-medium text-gray-500">Total Gross Earning (Last 30 days)</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{(totals['thirtyDaysGrossEarning'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Total Vending Earning (Last 30 days)</dt>
+					<dt class="truncate text-sm font-medium text-gray-500">Total Vend Earning (Last 30 days)</dt>
 					<dd
 						class="mt-1 text-2xl font-semibold tracking-normal"
 						:class="(totals['thirtyDaysVendingEarning'] || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
 					>
 						{{(totals['thirtyDaysVendingEarning'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-					</dd>
-				</div>
-				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Avg per VM (Last 30 days)</dt>
-					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-						{{(totals['thirtyDays']/vends.meta.to ? totals['thirtyDays']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-					</dd>
-				</div>
-				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Avg per Day per VM (Last 30 days)</dt>
-					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-						{{(totals['thirthyDaysAvg']/vends.meta.to ? totals['thirthyDaysAvg']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
 			</dl>
@@ -920,26 +920,27 @@
 							<SingleSortItem modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
 								AvgDailySales (Last30d)
 							</SingleSortItem>
-							<SingleSortItem modelName="thirty_days_stock_in_qty" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_stock_in_qty', false)">
-								StockIn (Last30d)
-							</SingleSortItem>
+						</div>
+					</TableHead>
+					<TableHead v-if="!roles.includes('operator_driver')">
+						<div class="flex flex-col space-y-2">
 							<SingleSortItem modelName="customers.contract_commission_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_commission_type', false)">
 								Contract Type
 							</SingleSortItem>
 							<span>
 								Location Fees
 							</span>
-							<SingleSortItem modelName="customers.termination_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.termination_date', false)">
+							<SingleSortItem modelName="customers.contract_until" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_until', false)">
 								Contract End Date
 							</SingleSortItem>
 							<SingleSortItem modelName="totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_gross_profit', true)">
 								L30d GrossEarning
 							</SingleSortItem>
 							<span>
-								L30d VendingEarning
+								L30d VendEarning
 							</span>
 							<span>
-								Accumulated VendingEarning
+								Accumulated VendEarning
 							</span>
 							<span>
 								Location Grading
@@ -954,6 +955,15 @@
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
+							<SingleSortItem modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
+								Operator
+							</SingleSortItem>
+							<SingleSortItem modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('account_manager_name')">
+								Acc Manager
+							</SingleSortItem>
+							<SingleSortItem modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
+								Location
+							</SingleSortItem>
 							<span>
 								VMC Board
 							</span>
@@ -1725,9 +1735,10 @@
 							<span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
 									{{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
-							<span :class="[vend.vendTransactionTotalsJson && vend.last_thirty_days_stock_in_amount < vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent)) ? 'text-green-700' : 'text-red-700']">
-								{{ operatorCountry.currency_symbol }}{{ (vend.last_thirty_days_stock_in_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{(vend.last_thirty_days_stock_in_qty).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}})
-							</span>
+						</div>
+					</TableData>
+					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
+						<div class="flex flex-col space-y-2">
 							<!-- Contract Type -->
 							<span v-if="vend.contract_commission_type" class="font-semibold text-gray-800">
 								{{ contractTypeLabel(vend.contract_commission_type) }}
@@ -1749,9 +1760,9 @@
 							<span v-if="vend.location_fees_cents != null" :class="vend.location_fees_cents > 0 ? 'text-red-600' : (vend.location_fees_cents < 0 ? 'text-emerald-600' : 'text-gray-800')">
 								{{ vend.location_fees_cents < 0 ? '-' : '' }}{{ operatorCountry.currency_symbol }}{{ (Math.abs(vend.location_fees_cents) / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
-							<!-- Contract End Date -->
-							<span v-if="vend.termination_date" class="text-gray-800">
-								{{ vend.termination_date }}
+							<!-- Contract End Date (yymmdd) -->
+							<span v-if="vend.contract_until_short" class="text-gray-800">
+								{{ vend.contract_until_short }}
 							</span>
 							<!-- L30d GrossEarning -->
 							<span
@@ -1768,9 +1779,13 @@
 							<span v-if="vend.accumulate_vending_earning_cents != null" :class="vend.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'">
 								{{ operatorCountry.currency_symbol }}{{ (vend.accumulate_vending_earning_cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
-							<!-- Location Grading (placeholder until schema exists) -->
-							<span v-if="vend.location_grading" class="text-gray-700">
-								{{ vend.location_grading }}
+							<!-- Location Grading -->
+							<span
+								v-if="vend.location_grading_placement || vend.location_grading_access || vend.location_grading_flexibility"
+								class="text-gray-700"
+								v-tooltip="{ content: 'Placement / Access / Flexibility', html: true }"
+							>
+								{{ vend.location_grading_placement || '-' }}, {{ vend.location_grading_access || '-' }}, {{ vend.location_grading_flexibility || '-' }}
 							</span>
 						</div>
 					</TableData>
@@ -1846,18 +1861,57 @@
 													</span>
 											</div>
 							</div>
+							<!--
+								Modem — mirrors the rich Modem column on Vend/Index.vue
+								(type / IMEI / online status + relative "last seen" +
+								Reset button when the type is resettable). In this view
+								the loop variable named `vend` is actually a Customer
+								row, so the bound vend's modem lives at
+								`vend.vend.modemUnit`.
+							-->
+							<!--
+								Tight font sizes (text-[10px] / text-[9px]) so the
+								Machine Status column doesn't widen just to fit the
+								modem type name or 15-digit IMEI. break-all lets a
+								long IMEI wrap instead of pushing the cell wider.
+							-->
 							<div
-								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200 text-gray-900"
-								v-if="vend.modemUnit && vend.modemUnit.last_updated_at"
+								class="inline-flex flex-col justify-center items-center rounded px-1 py-0.5 text-[10px] font-medium border min-w-full bg-gray-50 text-gray-900 space-y-0.5 max-w-[120px]"
+								v-if="vend.vend && vend.vend.modemUnit"
 							>
-											<div class="flex flex-col">
-													<span class="font-bold">
-															Modem
-													</span>
-													<span>
-															{{vend.modemUnit.last_updated_at}}
-													</span>
-											</div>
+								<span class="font-bold">Modem</span>
+								<span class="text-blue-800 break-all text-center leading-tight" v-if="vend.vend.modemUnit.modemType && vend.vend.modemUnit.modemType.name">
+									{{ vend.vend.modemUnit.modemType.name }}
+								</span>
+								<span class="text-blue-800 break-all text-center text-[9px] leading-tight" v-if="vend.vend.modemUnit.imei">
+									{{ vend.vend.modemUnit.imei }}
+								</span>
+								<div
+									class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[10px] font-medium border w-fit"
+									:class="[vend.vend.modemUnit.is_online ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']"
+								>
+									<div class="flex flex-col items-center leading-tight">
+										<span class="font-bold" v-if="vend.vend.modemUnit.last_updated_at">
+											{{ vend.vend.modemUnit.is_online ? 'Online' : 'Offline' }}
+										</span>
+										<span class="font-bold" v-else>
+											N/A
+										</span>
+										<span class="text-[9px]" v-if="vend.vend.modemUnit.last_updated_at">
+											{{ vend.vend.modemUnit.last_updated_at }}
+										</span>
+									</div>
+								</div>
+								<Button
+									type="button"
+									class="bg-yellow-300 hover:bg-yellow-400 p-0.5 text-gray-800 inline-flex items-center justify-center mt-0.5 rounded"
+									@click="onResetModemClicked(vend.vend.modemUnit.id)"
+									v-if="vend.vend.modemUnit.modemType && vend.vend.modemUnit.modemType.is_resetable && vend.vend.modemUnit.last_updated_at"
+									v-tooltip="'Reset Modem'"
+									aria-label="Reset Modem"
+								>
+									<ArrowPathIcon class="w-3 h-3"></ArrowPathIcon>
+								</Button>
 							</div>
 						</div>
 					</TableData>
@@ -1994,6 +2048,15 @@
 						<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
 							<div class="flex flex-col space-y-2">
 								<span class="flex flex-col space-y-1">
+									<span>
+										{{ vend.operator_code }}
+									</span>
+									<span>
+										{{ vend.account_manager_name }}
+									</span>
+									<span>
+										{{ vend.location_type_name }}
+									</span>
 									<span class="text-blue-600" v-if="vend.acbVmcPaJson && 'VMC_MDL' in vend.acbVmcPaJson">
 											{{ vend.acbVmcPaJson['VMC_MDL'] }}
 									</span>
@@ -2151,7 +2214,7 @@ font-size:13px;
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
-	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon } from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -2785,6 +2848,24 @@ function onMapAllMarkerClicked() {
 
 function onMapMarkerModalClose() {
 	showMapMarkerModal.value = false
+}
+
+/**
+ * Reset Modem — mirrors Vend/Index.vue's behaviour. POSTs to the
+ * /modem-units/{id}/reset endpoint after a confirm dialog so the user
+ * can't accidentally double-click. preserveState/preserveScroll keep
+ * the table position; no toast here (CustomerIndex doesn't import one),
+ * the user gets feedback from the page state.
+ */
+function onResetModemClicked(modemUnitID) {
+	if (!modemUnitID) return;
+	const approval = confirm('Are you sure to reset this modem?');
+	if (!approval) return;
+	router.post('/modem-units/' + modemUnitID + '/reset', {}, {
+		preserveScroll: true,
+		preserveState: true,
+		replace: true,
+	});
 }
 
 function onJobAssigned() {

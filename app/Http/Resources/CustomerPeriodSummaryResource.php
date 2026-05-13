@@ -63,6 +63,21 @@ class CustomerPeriodSummaryResource extends JsonResource
                     'is_active' => (bool) $c->is_active,
                     'selling_price_type' => $c->selling_price_type,
                     'contract_commission_type' => $c->contract_commission_type,
+                    // Begin Date — rendered in the Customer column on the
+                    // Summary page (right under the Ref Price chip).
+                    // Mirrors Customer/Edit.vue's form.begin_date.
+                    'begin_date' => optional($c->begin_date)->toDateString(),
+                    // Latest contract attachment (if any) — drives the
+                    // "Contract Attachment" hyperlink in the Customer column
+                    // on the Summary page. The contracts() relation already
+                    // orders DESC by created_at, so .first() = most recent.
+                    'latest_contract' => $c->relationLoaded('contracts') && $c->contracts->isNotEmpty()
+                        ? [
+                            'id' => $c->contracts->first()->id,
+                            'name' => $c->contracts->first()->name,
+                            'full_url' => $c->contracts->first()->full_url,
+                        ]
+                        : null,
                     // Performance Report email opt-in (drives the Email button
                     // in the Action column on Customer/Summary.vue).
                     'report_email' => $c->report_email,
@@ -91,6 +106,26 @@ class CustomerPeriodSummaryResource extends JsonResource
                         'id' => $c->locationType->id,
                         'name' => $c->locationType->name,
                     ] : null,
+                    // Location Grading — three char(1) columns (A/B/C/null)
+                    // captured on Customer/Edit.vue. Surfaced as a flat object
+                    // so the Summary page's Location Grading column can show
+                    // all three picks per row at a glance. See
+                    // Customer::LOCATION_GRADING_CATEGORIES for the rubric.
+                    'location_grading' => [
+                        'placement' => $c->location_grading_placement,
+                        'access' => $c->location_grading_access,
+                        'flexibility' => $c->location_grading_flexibility,
+                    ],
+                    // Contract end / renewal / notice period — captured on
+                    // Customer/Edit.vue and surfaced as their own column on
+                    // the Summary page. contract_until is cast to a Carbon
+                    // date in the Customer model, so optional()->toDateString()
+                    // keeps the wire payload as plain YYYY-MM-DD.
+                    'contract_until' => optional($c->contract_until)->toDateString(),
+                    'contract_auto_renewal' => (bool) $c->contract_auto_renewal,
+                    'contract_notice_period' => $c->contract_notice_period !== null
+                        ? (int) $c->contract_notice_period
+                        : null,
                     'vend' => $c->relationLoaded('vend') && $c->vend ? [
                         'id' => $c->vend->id,
                         'code' => $c->vend->code,

@@ -201,6 +201,49 @@
             />
           </div>
         </div>
+
+        <!--
+          Aggregate total boxes — sums Sales / Gross Earning / Location Fees /
+          Vend Earnings across the FULL filtered set (every row matching the
+          current filters, not just the 100 visible on this page). Styling
+          mirrors Vend/CustomerIndex.vue's totals dl: the gray cards sit
+          INSIDE the white filter card so they pop against the white
+          background. Location Fees flips colour with sign so subsidy
+          income (negative cents) is visually distinct from expense. Vend
+          Earnings flips red when the result is net-negative.
+        -->
+        <dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Sales</dt>
+            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+              {{ formatMoney(totals.sales_cents) }}
+            </dd>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Gross Earning</dt>
+            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+              {{ formatMoney(totals.gross_earning_cents) }}
+            </dd>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Location Fees</dt>
+            <dd
+              class="mt-1 text-2xl font-semibold tracking-normal"
+              :class="(totals.location_fees_cents || 0) < 0 ? 'text-emerald-700' : 'text-gray-900'"
+            >
+              {{ formatMoneySigned(totals.location_fees_cents) }}
+            </dd>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Vend Earnings</dt>
+            <dd
+              class="mt-1 text-2xl font-semibold tracking-normal"
+              :class="(totals.location_earning_cents || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
+            >
+              {{ formatMoney(totals.location_earning_cents) }}
+            </dd>
+          </div>
+        </dl>
       </div>
 
       <!-- Table -->
@@ -214,16 +257,12 @@
                   <TableHead>
                     <div class="flex flex-col space-y-1">
                       <span>Customer</span>
-                      <span >Ref Price</span>
+                      <span>Ref Price</span>
+                      <span>Begin Date</span>
+                      <span>Contract Attachment</span>
                     </div>
                   </TableHead>
                   <TableHead>Address</TableHead>
-                  <TableHead>
-                    <div class="flex flex-col space-y-1">
-                      <span>Period Report</span>
-                      <span >YYMM</span>
-                    </div>
-                  </TableHead>
                   <TableHead>
                     <SingleSortItem modelName="machine_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('machine_id')">
                       Machine ID
@@ -234,12 +273,26 @@
                       Machine Prefix
                     </SingleSortItem>
                   </TableHead>
-                  <TableHead>Period Start Date</TableHead>
-                  <TableHead>Period End Date</TableHead>
                   <TableHead>
-                    <SingleSortItem modelName="sales_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sales_cents')">
-                      Sales ($)
-                    </SingleSortItem>
+                    <div class="flex flex-col space-y-1">
+                      <span>Period Report</span>
+                      <span >YYMM</span>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div class="flex flex-col space-y-1">
+                      <span>Period</span>
+                      <span>Start Date</span>
+                      <span>End Date</span>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div class="flex flex-col space-y-1">
+                      <SingleSortItem modelName="sales_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sales_cents')">
+                        Sales ($)
+                      </SingleSortItem>
+                      <span>(with GST)</span>
+                    </div>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-1">
@@ -267,16 +320,30 @@
                   <TableHead>
                     <div class="flex flex-col space-y-1">
                       <SingleSortItem modelName="location_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_earning_cents')">
-                        Vending Earning
+                        Vend Earning
                       </SingleSortItem>
                       <span >Rate</span>
                     </div>
                   </TableHead>
-                  <TableHead>Accumulate Vending Earning</TableHead>
+                  <TableHead>Accumulate Vend Earning</TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-4">
                       <span>Location Grading</span>
                       <span>Location Type</span>
+                    </div>
+                  </TableHead>
+                  <!--
+                    Contract terms — End Date / Auto Renewal / Notice Period.
+                    All three come from the customer record (same fields as
+                    Customer/Edit.vue's form.contract_until /
+                    contract_auto_renewal / contract_notice_period). Placed
+                    after Location Grading per user preference.
+                  -->
+                  <TableHead>
+                    <div class="flex flex-col space-y-1">
+                      <span>Contract End Date</span>
+                      <span>Auto Renewal?</span>
+                      <span>Notice Period (mth)</span>
                     </div>
                   </TableHead>
                   <TableHead>
@@ -315,7 +382,7 @@
                     {{ (summaries.meta?.from ?? 1) + rowIndex }}
                   </TableData>
 
-                  <!-- Customer / Ref Price -->
+                  <!-- Customer / Ref Price / Begin Date / Contract Attachment -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-left">
                     <div class="flex flex-col space-y-0.5" v-if="row.customer">
                       <a target="_blank" :href="'/customers/' + row.customer.id + '/edit'"
@@ -333,6 +400,35 @@
                           RP{{ row.customer.selling_price_type }}
                         </span>
                       </div>
+                      <!--
+                        Begin Date — sourced from the customer record (same
+                        field as Customer/Edit.vue's form.begin_date). Label
+                        lives in the column header now; the cell renders just
+                        the date value. Hidden when blank.
+                      -->
+                      <span
+                        v-if="row.customer.begin_date"
+                        class="text-xs text-gray-900 mt-1"
+                      >
+                        {{ row.customer.begin_date }}
+                      </span>
+                      <!--
+                        Contract Attachment — hyperlinks to the latest
+                        uploaded contract (FILE_TYPE_CONTRACT). Label lives
+                        in the column header; the cell renders a short
+                        "View" link so the row stays compact. Hidden when
+                        the customer has no contracts attached.
+                      -->
+                      <a
+                        v-if="row.customer.latest_contract && row.customer.latest_contract.full_url"
+                        :href="row.customer.latest_contract.full_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-xs text-gray-900 underline hover:text-gray-700 truncate"
+                        :title="row.customer.latest_contract.name || 'Contract Attachment'"
+                      >
+                        View
+                      </a>
                     </div>
                   </TableData>
 
@@ -341,32 +437,6 @@
                     <span v-if="row.customer?.delivery_address">
                       {{ row.customer.delivery_address.full_address }}
                     </span>
-                  </TableData>
-
-                  <!-- Period Report YYMM -->
-                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    <div class="flex flex-col space-y-1">
-                      <span class="font-semibold">{{ periodReportLabel(row) }}</span>
-                      <!--
-                        "API Rpt" badge — green/with-tx-id when an invoice
-                        was successfully created in CMS for this exact
-                        (customer, period) tuple, blue/no-tx-id otherwise.
-                        Hovering shows the transaction id and amount.
-                      -->
-                      <!-- <span
-                        v-if="existingInvoice(row)"
-                        class="inline-flex justify-center items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 border border-emerald-300 w-fit mx-auto"
-                        v-tooltip="`Transaction #${existingInvoice(row).cms_transaction_id} — ${existingInvoiceAmountLabel(row)}`"
-                      >
-                        API Rpt #{{ existingInvoice(row).cms_transaction_id }}
-                      </span>
-                      <span
-                        v-else
-                        class="inline-flex justify-center items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 border border-blue-300 w-fit mx-auto"
-                      >
-                        API Rpt
-                      </span> -->
-                    </div>
                   </TableData>
 
                   <!-- Vend ID -->
@@ -422,14 +492,42 @@
                     </template>
                   </TableData>
 
-                  <!-- Period Start Date (YYMMDD) -->
+                  <!-- Period Report YYMM (moved here so it sits right after Machine Prefix) -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    {{ formatYYMMDD(row.period_start) }}
+                    <div class="flex flex-col space-y-1">
+                      <span class="font-semibold">{{ periodReportLabel(row) }}</span>
+                      <!--
+                        "API Rpt" badge — green/with-tx-id when an invoice
+                        was successfully created in CMS for this exact
+                        (customer, period) tuple, blue/no-tx-id otherwise.
+                        Hovering shows the transaction id and amount.
+                      -->
+                      <!-- <span
+                        v-if="existingInvoice(row)"
+                        class="inline-flex justify-center items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 border border-emerald-300 w-fit mx-auto"
+                        v-tooltip="`Transaction #${existingInvoice(row).cms_transaction_id} — ${existingInvoiceAmountLabel(row)}`"
+                      >
+                        API Rpt #{{ existingInvoice(row).cms_transaction_id }}
+                      </span>
+                      <span
+                        v-else
+                        class="inline-flex justify-center items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 border border-blue-300 w-fit mx-auto"
+                      >
+                        API Rpt
+                      </span> -->
+                    </div>
                   </TableData>
 
-                  <!-- Period End Date (YYMMDD) -->
+                  <!--
+                    Period — Start Date / End Date stacked into a single
+                    cell so the column header (Period / Start Date / End Date)
+                    maps directly onto two YYMMDD values per row.
+                  -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    {{ formatYYMMDD(row.period_end) }}
+                    <div class="flex flex-col space-y-1">
+                      <span>{{ formatYYMMDD(row.period_start) }}</span>
+                      <span>{{ formatYYMMDD(row.period_end) }}</span>
+                    </div>
                   </TableData>
 
                   <!-- Sales, $ -->
@@ -475,7 +573,7 @@
                     </div>
                   </TableData>
 
-                  <!-- Vending Earning $ / Rate (Vending Earning = Gross Earning - Location Fees) -->
+                  <!-- Vend Earning $ / Rate (Vend Earning = Gross Earning - Location Fees) -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
                     <div class="flex flex-col space-y-0.5">
                       <span :class="row.location_earning_cents >= 0 ? 'text-green-700 font-medium' : 'text-red-700 font-medium'">
@@ -488,29 +586,86 @@
                   </TableData>
 
                   <!--
-                    Accumulate Vending Earning
-                    Lifetime-to-date sum of location_earning_cents (= gross_earning
-                    - location_fees) for the customer through the latest month
-                    visible on this view (computed server-side, batched per page).
-                    Shown only on the FIRST row of each customer's cluster —
-                    rows for the same customer share the same lifetime value
-                    so repeating it on every monthly row is just noise.
+                    Accumulate Vend Earning
+                    Running prefix sum of location_earning_cents
+                    (= gross_earning - location_fees) for the customer
+                    through THIS row's own year_month — computed server-side,
+                    one batched query per page. So an April row shows the
+                    cumulative through end-of-April, a March row shows
+                    cumulative through end-of-March, and the most recent
+                    month's row stays "up to date" because its underlying
+                    monthly summary is refreshed to as_of_date.
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
                     <span
-                      v-if="isFirstRowForCustomer(rowIndex) && row.accumulate_vending_earning_cents != null"
+                      v-if="row.accumulate_vending_earning_cents != null"
                       :class="row.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'"
                     >
                       {{ formatMoney(row.accumulate_vending_earning_cents) }}
                     </span>
                   </TableData>
 
-                  <!-- Location Grading + Location Type -->
+                  <!--
+                    Location Grading + Location Type. Grading is three
+                    char(1) picks (placement, access, flexibility) — render
+                    as a comma-joined "A, B, C" string, matching the
+                    Vend/CustomerIndex.vue pattern. Tooltip spells out which
+                    letter belongs to which rubric (P / A / F order).
+                  -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    <div class="flex flex-col items-center space-y-4 text-xs">
+                    <div class="flex flex-col items-center space-y-2 text-xs">
+                      <span
+                        v-if="hasAnyLocationGrading(row.customer)"
+                        class="text-gray-700"
+                        v-tooltip="{ content: 'Placement / Access / Flexibility', html: true }"
+                      >
+                        {{ row.customer?.location_grading?.placement || '-' }}, {{ row.customer?.location_grading?.access || '-' }}, {{ row.customer?.location_grading?.flexibility || '-' }}
+                      </span>
                       <span v-if="row.customer?.location_type" class="text-gray-700">
                         {{ row.customer.location_type.name }}
                       </span>
+                    </div>
+                  </TableData>
+
+                  <!--
+                    Contract End Date / Auto Renewal / Notice Period — all
+                    sourced from the customer record. Contract End Date
+                    flips red when it's in the past (mirroring the existing
+                    contract_until styling on Customer/Index.vue). Auto
+                    Renewal renders a green tick / red cross heroicon for
+                    quick visual scanning. Placed after Location Grading
+                    per user preference.
+                  -->
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
+                    <div class="flex flex-col items-center space-y-1 text-xs">
+                      <span
+                        v-if="row.customer?.contract_until"
+                        :class="[contractEndDateClass(row.customer.contract_until)]"
+                      >
+                        {{ formatYYMMDD(row.customer.contract_until) }}
+                      </span>
+                      <span v-else class="text-gray-400">—</span>
+                      <span class="inline-flex items-center justify-center">
+                        <CheckCircleIcon
+                          v-if="row.customer?.contract_auto_renewal"
+                          class="h-5 w-5 text-green-600"
+                          aria-hidden="true"
+                          v-tooltip="'Auto Renewal: Yes'"
+                        />
+                        <XCircleIcon
+                          v-else
+                          class="h-5 w-5 text-red-600"
+                          aria-hidden="true"
+                          v-tooltip="'Auto Renewal: No'"
+                        />
+                      </span>
+                      <span
+                        v-if="row.customer?.contract_notice_period != null"
+                        class="text-gray-900"
+                      >
+                        {{ row.customer.contract_notice_period }}
+                      </span>
+                      <span v-else class="text-gray-400">—</span>
                     </div>
                   </TableData>
 
@@ -745,6 +900,13 @@
             Calculation lines — bumped to text-base for label / formula and
             text-lg for the resolved value, so the numbers carry more weight
             visually than the surrounding meta cards.
+
+            Lines with `formula_internal: true` carry an admin-only formula
+            (e.g. the PS Term discount applied to gross sales for the
+            "Total Revenue" line of PS-family contracts). We render those
+            formulas in greyscale + strikethrough so admins can still verify
+            the math, but it's visually clear the formula won't appear in
+            the customer-facing report once it's emailed/printed.
           -->
           <div v-if="reportContent.lines?.length" class="rounded-md border border-gray-200 divide-y divide-gray-200 mb-4">
             <div
@@ -754,11 +916,36 @@
             >
               <div class="text-gray-800 font-medium text-base">{{ line.label }}</div>
               <div class="mt-1 sm:mt-0 sm:text-right">
-                <span class="text-gray-600 text-sm">{{ line.formula }}</span>
+                <span
+                  :class="line.formula_internal
+                    ? 'text-gray-400 line-through text-sm italic'
+                    : 'text-gray-600 text-sm'"
+                  :title="line.formula_internal ? 'Internal calculation — not shown to customer in the final report' : null"
+                >{{ line.formula }}</span>
+                <span
+                  v-if="line.formula_internal"
+                  class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 align-middle"
+                  title="Internal calculation — not shown to customer in the final report"
+                >
+                  Admin only
+                </span>
                 <span class="text-gray-400 mx-1.5 text-base">=</span>
                 <span class="text-gray-900 font-bold text-lg">{{ line.value }}</span>
               </div>
             </div>
+          </div>
+
+          <!--
+            Internal-formula legend — only shown when at least one line is
+            marked admin-only, so non-PS contracts (R, U) aren't cluttered
+            with an irrelevant note.
+          -->
+          <div
+            v-if="reportContent.lines?.some(l => l.formula_internal)"
+            class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-3 leading-snug"
+          >
+            <span class="font-semibold">Note:</span>
+            Greyed-out formulas (tagged <span class="font-semibold">Admin only</span>) reflect internal PS Term adjustments to gross sales and will <span class="font-semibold">not</span> appear in the report sent to the customer — only the resolved value on the right will.
           </div>
 
           <!-- Total banner -->
@@ -793,7 +980,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, ClipboardDocumentCheckIcon, DocumentTextIcon, EnvelopeIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, DocumentTextIcon, EnvelopeIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { computed, ref, onMounted } from 'vue';
@@ -816,6 +1003,18 @@ const props = defineProps({
   vendPrefixOptions: Object,
   // Placement Contract Type dropdown options ([{id, value}, ...]).
   contractCommissionTypeOptions: Array,
+  // Aggregate totals across the FULL filtered set (sales / gross earning /
+  // location fees / vending earnings). Cents-typed — formatMoney() handles
+  // currency exponent + symbol. Renders into the 4 boxes above the table.
+  totals: {
+    type: Object,
+    default: () => ({
+      sales_cents: 0,
+      gross_earning_cents: 0,
+      location_fees_cents: 0,
+      location_earning_cents: 0,
+    }),
+  },
 });
 
 const authOperator = usePage().props.auth.operator;
@@ -1038,6 +1237,31 @@ function locationFeesColorClass(cents, type) {
   // Negative = subsidy income (green); positive = expense (gray neutral).
   if (Number(cents) < 0 || type === 'S') return 'text-emerald-700 font-medium';
   return 'text-gray-800';
+}
+
+/**
+ * Contract End Date colour rule for the Summary page.
+ *
+ * Red when contract_until is within 3 months of today — i.e. either already
+ * expired or expiring inside the next 3 months. Comfortably-future dates
+ * (> 3 months out) render in black. Renewal / extension cadence on this
+ * team is quarterly, so 3 months gives enough lead time to act.
+ */
+function contractEndDateClass(d) {
+  if (!d) return 'text-gray-900';
+  const until = moment(d);
+  if (!until.isValid()) return 'text-gray-900';
+  const threshold = moment().add(3, 'months');
+  return until.isBefore(threshold) ? 'text-red-600 font-semibold' : 'text-gray-900';
+}
+
+// Location Grading — three char(1) picks (placement/access/flexibility)
+// captured on Customer/Edit.vue. Render style mirrors Vend/CustomerIndex.vue:
+// a single "A, B, C" string with a tooltip explaining the order.
+function hasAnyLocationGrading(customer) {
+  const g = customer?.location_grading;
+  if (!g) return false;
+  return !!(g.placement || g.access || g.flexibility);
 }
 
 /**
@@ -1273,7 +1497,7 @@ function rowKey(row) {
 /**
  * "Multi-month" period reports return one row per (customer, month). The
  * controller orders rows so a customer's months cluster together. For
- * customer-level columns (Accumulate Vending Earning, Customer Tag) we
+ * customer-level columns (Accumulate Vend Earning, Customer Tag) we
  * only want to render content on the FIRST row of each customer's
  * cluster — the remaining rows in the cluster look intentionally blank
  * so the eye can read the group as a unit.

@@ -554,6 +554,9 @@ class VendController extends Controller
                     'nextOpsJobItem.vend.upcomingProductMapping:id,name',
                     'nextOpsJobItem.vend.productMapping.upcomingProductMapping:id,name',
                     'vend.modemUnit',
+                    // Modem type — needed for the rich "Modem" block in the
+                    // Machine Status column (type name + Reset button gate).
+                    'vend.modemUnit.modemType:id,name,is_resetable',
                     'vend.productMapping:id,name',
                     'vend.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
                     'vend.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
@@ -842,8 +845,12 @@ class VendController extends Controller
                 'customers.preferred_visit_days_json',
                 'customers.selling_price_type',
                 'customers.termination_date',
+                'customers.contract_until',
                 'customers.virtual_customer_prefix',
                 'customers.virtual_customer_code',
+                'customers.location_grading_placement',
+                'customers.location_grading_access',
+                'customers.location_grading_flexibility',
                 'location_types.name AS location_type_name',
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',

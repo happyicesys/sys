@@ -26,13 +26,20 @@ use Carbon\CarbonInterface;
  *   R (Fix Rental)            : Rental rate × (active_days / month_days)
  *   U (Utility Only)          : Utility rate × (active_days / month_days)
  *   PS (Profit Sharing)       : Total Revenue × PS rate%
- *                               where Total Revenue = Sales × PS Term%
+ *                               where Total Revenue = Sales ÷ (1 + GST%) × PS Term%
  *                               (Sales = CustomerPeriodSummary.sales_cents,
  *                               sourced cent-exact from vend_transactions
  *                               by CustomerSummaryAggregator; INCL-GST,
  *                               matches the Transactions page totals.
- *                               "Total Revenue" here is the negotiated
- *                               PS BASE, not an accounting figure.)
+ *                               We divide by (1 + operator GST%) to land
+ *                               on the EXCL-GST PS base before applying
+ *                               PS Term. "Total Revenue" here is the
+ *                               negotiated PS BASE, not an accounting
+ *                               figure. NOTE: CustomerSummaryAggregator's
+ *                               Location Fees column does NOT yet apply
+ *                               this GST division, so the popup may show
+ *                               a different Profit Sharing $$ than the
+ *                               table column — flagged for a follow-up.)
  *   PS+U                      : PS amount + Utility amount
  *   PSORU (whichever higher)  : max(PS amount, Utility amount)
  *
@@ -100,11 +107,19 @@ class PerformanceReportContentService
      *   'period_end'           => '2026-05-25',
      *   'active_days'          => 25,
      *   'month_days'           => 30,
-     *   'lines'                => [{ label, formula, value }, ...],
+     *   'lines'                => [{ label, formula, value, formula_internal? }, ...],
      *   'has_total'            => bool,
      *   'total_value'          => '$1,234.56',
      *   'footnote'             => '(Amount above is before GST)',
      * ]
+     *
+     * `formula_internal` (bool, optional) marks the line's `formula` text as
+     * admin-only — currently used on the PS-family "Total Revenue" line whose
+     * formula shows "Sales × PS Term%". PS Term is an internal discount
+     * applied to gross sales (covers manpower / hidden costs) that the
+     * customer never sees. The admin preview modal renders these formulas
+     * in grey + strikethrough with an "Admin only" tag; any future
+     * customer-facing surface (email body, PDF report) MUST omit them.
      */
     public function generate(
         Customer $customer,
@@ -141,10 +156,16 @@ class PerformanceReportContentService
         // which leaks precision noise like 31.999999999988 into the report.
         // Cast through int() to keep the display (and the day-ratio math)
         // in clean whole-day units.
+        //
+        // Note: $monthSpanEnd must be normalized to startOfDay() — Carbon's
+        // endOfMonth() leaves the time at 23:59:59.999, which makes
+        // diffInDays() return e.g. 29.999... for April. round() then rounds
+        // that to 30 and the trailing "+ 1" pushes month_days to 31 (and
+        // 32 for May). startOfDay() pins the diff to a whole-day integer.
         $start = Carbon::parse($periodStart)->startOfDay();
         $end   = Carbon::parse($periodEnd)->startOfDay();
         $monthSpanStart = $start->copy()->startOfMonth();
-        $monthSpanEnd   = $end->copy()->endOfMonth();
+        $monthSpanEnd   = $end->copy()->endOfMonth()->startOfDay();
         $base['active_days'] = (int) round($start->diffInDays($end)) + 1;
         $base['month_days']  = (int) round($monthSpanStart->diffInDays($monthSpanEnd)) + 1;
 
@@ -152,15 +173,39 @@ class PerformanceReportContentService
         $value2 = (float) ($customer->contract_commission_value2 ?? 0);
         $psTerm = (float) ($customer->contract_ps_term ?? 0);
 
-        // Sales (excl GST) in dollars for PS-family math. Stored as cents
-        // on customer_period_summaries.sales_cents.
-        $salesDollars = $summary && $summary->sales_cents
+        // Sales as stored on customer_period_summaries.sales_cents — sourced
+        // from vend_transactions.amount which is INCL-GST (matches the
+        // Transactions page totals). PS-family math needs the EXCL-GST base,
+        // so we divide by (1 + gst_rate%) before applying PS Term.
+        //
+        // Per-operator GST is loaded from operators.gst_vat_rate (decimal,
+        // e.g. 9.00 for 9%). Falls back to 0 when the operator is missing
+        // or the rate isn't configured, in which case the division is a
+        // no-op and the math collapses back to the legacy behaviour.
+        $salesDollarsInclGst = $summary && $summary->sales_cents
             ? ((int) $summary->sales_cents) / 100.0
             : 0.0;
+
+        $gstRatePct = (float) ($customer->operator->gst_vat_rate ?? 0);
+        $gstDivisor = 1 + ($gstRatePct / 100.0);
+        $salesDollars = $gstDivisor > 0
+            ? $salesDollarsInclGst / $gstDivisor
+            : $salesDollarsInclGst;
 
         $dayRatio = $base['month_days'] > 0
             ? $base['active_days'] / $base['month_days']
             : 0.0;
+
+        // Pre-formatted helpers for the admin-only Total Revenue formula.
+        // When gst_vat_rate > 0 we render "$Sales ÷ 1.0x × PS Term%"; when
+        // 0 (or missing operator) we fall back to the legacy
+        // "$Sales × PS Term%" so the popup stays clean for operators that
+        // don't charge GST.
+        $gstDivisorLabel = number_format($gstDivisor, 2);
+        $psTermFormulaHasGst = $gstRatePct > 0;
+        $psTermFormula = $psTermFormulaHasGst
+            ? $this->money($salesDollarsInclGst) . ' ÷ ' . $gstDivisorLabel . ' × ' . $this->pct($psTerm)
+            : $this->money($salesDollarsInclGst) . ' × ' . $this->pct($psTerm);
 
         switch ($type) {
             case 'R': {
@@ -185,9 +230,10 @@ class PerformanceReportContentService
                 $totalRevenue   = round($salesDollars * ($psTerm / 100.0), 2);
                 $profitSharing  = round($totalRevenue * ($value / 100.0), 2);
                 $base['lines'][] = [
-                    'label'   => 'Total Revenue',
-                    'formula' => $this->money($salesDollars) . ' × ' . $this->pct($psTerm),
-                    'value'   => $this->money($totalRevenue),
+                    'label'            => 'Total Revenue',
+                    'formula'          => $psTermFormula,
+                    'value'            => $this->money($totalRevenue),
+                    'formula_internal' => true, // GST de-grossing + PS Term discount — admin-only
                 ];
                 $base['lines'][] = [
                     'label'   => 'Profit Sharing',
@@ -202,9 +248,10 @@ class PerformanceReportContentService
                 $utility        = round($value2 * $dayRatio, 2);
                 $total          = round($profitSharing + $utility, 2);
                 $base['lines'][] = [
-                    'label'   => 'Total Revenue',
-                    'formula' => $this->money($salesDollars) . ' × ' . $this->pct($psTerm),
-                    'value'   => $this->money($totalRevenue),
+                    'label'            => 'Total Revenue',
+                    'formula'          => $psTermFormula,
+                    'value'            => $this->money($totalRevenue),
+                    'formula_internal' => true, // GST de-grossing + PS Term discount — admin-only
                 ];
                 $base['lines'][] = [
                     'label'   => 'Profit Sharing',
@@ -226,9 +273,10 @@ class PerformanceReportContentService
                 $utility        = round($value2 * $dayRatio, 2);
                 $total          = max($profitSharing, $utility);
                 $base['lines'][] = [
-                    'label'   => 'Total Revenue',
-                    'formula' => $this->money($salesDollars) . ' × ' . $this->pct($psTerm),
-                    'value'   => $this->money($totalRevenue),
+                    'label'            => 'Total Revenue',
+                    'formula'          => $psTermFormula,
+                    'value'            => $this->money($totalRevenue),
+                    'formula_internal' => true, // GST de-grossing + PS Term discount — admin-only
                 ];
                 $base['lines'][] = [
                     'label'   => 'Profit Sharing',

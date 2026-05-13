@@ -41,15 +41,22 @@ class VendConfigController extends Controller
                     ->withCount([
                         'vends' => function ($query) use ($request) {
                             if ($request->vendStatus and $request->vendStatus !== 'all') {
+                                // NOTE: keep this in sync with Machine View status filter
+                                // in App\Traits\HasFilter::filterVendsDB (case 'status')
                                 switch ($request->vendStatus) {
                                     case 'active':
-                                        $query->where('is_active', true);
+                                        $query->where('is_active', true)
+                                              ->where('is_testing', false);
                                         break;
                                     case 'inactive':
-                                        $query->where('is_active', false);
+                                        $query->where('is_active', false)
+                                              ->where('is_testing', false)
+                                              ->where('is_disposed', false)
+                                              ->where('is_sold', false);
                                         break;
                                     case 'factory':
-                                        $query->where('is_testing', true);
+                                        $query->where('is_testing', true)
+                                              ->where('is_active', false);
                                         break;
                                     case 'disposed':
                                         $query->where('is_disposed', true);
@@ -80,18 +87,25 @@ class VendConfigController extends Controller
                     ->when($request->vendStatus, function ($query, $search) {
                         if ($search != 'all') {
                             $query->whereHas('vends', function ($query) use ($search) {
+                                // NOTE: keep this in sync with Machine View status filter
+                                // in App\Traits\HasFilter::filterVendsDB (case 'status')
                                 switch ($search) {
                                     case 'disposed':
                                         $query->where('is_disposed', true);
                                         break;
                                     case 'factory':
-                                        $query->where('is_testing', true);
+                                        $query->where('is_testing', true)
+                                              ->where('is_active', false);
                                         break;
                                     case 'active':
-                                        $query->where('is_active', true);
+                                        $query->where('is_active', true)
+                                              ->where('is_testing', false);
                                         break;
                                     case 'inactive':
-                                        $query->where('is_active', false);
+                                        $query->where('is_active', false)
+                                              ->where('is_testing', false)
+                                              ->where('is_disposed', false)
+                                              ->where('is_sold', false);
                                         break;
                                     case 'sold':
                                         $query->where('is_sold', true);

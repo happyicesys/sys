@@ -50,6 +50,38 @@ class Customer extends Model
         self::STATUS_INACTIVE => 'Not Active',
     ];
 
+    // Location grading rubric — shown on Customer/Edit.vue under the
+    // "Placement Contract Detail" section. Selections are stored in the
+    // three location_grading_* columns (char(1), values A/B/C/null).
+    // Edit values here when the rubric wording changes; no migration needed
+    // (the columns just hold the picked option code).
+    const LOCATION_GRADING_CATEGORIES = [
+        'placement' => [
+            'label' => 'Machine placement & removal',
+            'options' => [
+                'A' => 'Smooth surface, 1 person can perform',
+                'B' => 'Smooth surface, need 2 persons to perform',
+                'C' => 'Not smooth surface, need min 2 persons to perform',
+            ],
+        ],
+        'access' => [
+            'label' => 'Easy access & refill',
+            'options' => [
+                'A' => 'Low/Free parking and easy access',
+                'B' => 'Low/Free parking, but need to pre-apply entry',
+                'C' => 'No proper parking space; need guide to go in',
+            ],
+        ],
+        'flexibility' => [
+            'label' => 'Flexible to terminate / or replace with another machine later',
+            'options' => [
+                'A' => 'Less than 1 week',
+                'B' => 'Less than 2 weeks',
+                'C' => '2 weeks and above',
+            ],
+        ],
+    ];
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorCustomerFilterScope);
@@ -145,6 +177,11 @@ class Customer extends Model
         // 2026_05_09_000000_add_report_email_to_customers).
         'report_email',
         'is_report_email_enabled',
+        // Location grading — A/B/C selections per category. See
+        // LOCATION_GRADING_CATEGORIES const above for the rubric.
+        'location_grading_placement',
+        'location_grading_access',
+        'location_grading_flexibility',
     ];
 
     // mutator

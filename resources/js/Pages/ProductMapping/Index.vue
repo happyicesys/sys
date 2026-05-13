@@ -155,10 +155,16 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name', false)"  class="bg-sky-200">
-                      Name
+                      <div class="flex flex-col space-y-1">
+                        <span>Name</span>
+                        <span class="text-black font-normal text-xs">Remarks</span>
+                      </div>
                     </TableHeadSort>
                     <TableHead>
-                      Upcoming Product Mapping
+                      <div class="flex flex-col space-y-1">
+                        <span>Upcoming Product Mapping</span>
+                        <span class="text-black font-normal text-xs">Remarks</span>
+                      </div>
                     </TableHead>
                     <TableHead>
                       Operator
@@ -203,12 +209,20 @@
                                   </span>
                               </div>
                           </div>
+                          <span class="text-gray-500 text-xs whitespace-pre-wrap" v-if="productMapping.remarks">
+                            {{ productMapping.remarks }}
+                          </span>
                         </div>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
-                        <span v-if="productMapping.upcomingProductMapping">
-                          {{ productMapping.upcomingProductMapping.name }}
-                        </span>
+                        <div class="flex flex-col space-y-1" v-if="productMapping.upcomingProductMapping">
+                          <span>
+                            {{ productMapping.upcomingProductMapping.name }}
+                          </span>
+                          <span class="text-gray-500 text-xs whitespace-pre-wrap" v-if="productMapping.upcomingProductMapping.remarks">
+                            {{ productMapping.upcomingProductMapping.remarks }}
+                          </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
                         <span v-if="productMapping.operator">

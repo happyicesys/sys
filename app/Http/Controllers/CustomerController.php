@@ -276,7 +276,7 @@ class CustomerController extends Controller
         $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
-            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date,report_email,is_report_email_enabled',
+            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period',
             'customer.operator:id,code,name',
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
@@ -287,6 +287,11 @@ class CustomerController extends Controller
             // hint into a line-broken list (ascending) in the Vend ID column.
             'customer.vends:id,customer_id,code,vend_prefix_id',
             'customer.vends.vendPrefix:id,name',
+            // Contract attachments — drives the "Contract Attachment"
+            // hyperlink in the Customer column on the Summary page. The
+            // relation already orders DESC by created_at (latest() in
+            // Customer::contracts), so the first row is the most recent.
+            'customer.contracts',
         ];
 
         $summariesQuery = \App\Models\CustomerPeriodSummary::query()
@@ -357,11 +362,35 @@ class CustomerController extends Controller
         // Customer Summary page.
         $this->attachExistingInvoice($summaries->getCollection());
 
+        // Aggregate totals — summed across the FULL filtered set (not just
+        // the paginated rows visible on this page) so the 4 boxes above the
+        // table (Total Sales / Gross Earning / Location Fees / Vend Earnings)
+        // reflect every row matching the current filters. Same WHERE clause
+        // as the listing query so the numbers stay in lockstep with the
+        // table. Cents-typed; the Vue side runs them through formatMoney().
+        $totalsRow = \App\Models\CustomerPeriodSummary::query()
+            ->whereIn('customer_id', $customerIds)
+            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->selectRaw('
+                COALESCE(SUM(sales_cents), 0) AS sales_cents,
+                COALESCE(SUM(gross_earning_cents), 0) AS gross_earning_cents,
+                COALESCE(SUM(location_fees_cents), 0) AS location_fees_cents,
+                COALESCE(SUM(location_earning_cents), 0) AS location_earning_cents
+            ')
+            ->first();
+        $totals = [
+            'sales_cents' => (int) ($totalsRow->sales_cents ?? 0),
+            'gross_earning_cents' => (int) ($totalsRow->gross_earning_cents ?? 0),
+            'location_fees_cents' => (int) ($totalsRow->location_fees_cents ?? 0),
+            'location_earning_cents' => (int) ($totalsRow->location_earning_cents ?? 0),
+        ];
+
         $className = get_class(new Customer());
         $optionsService = app(\App\Services\OptionsService::class);
 
         return Inertia::render('Customer/Summary', [
             'summaries' => CustomerPeriodSummaryResource::collection($summaries),
+            'totals' => $totals,
             'periodReport' => $request->period_report,
             'periodReportOptions' => $this->periodReportOptions(),
             'rangeStart' => $rangeStart->toDateString(),
@@ -546,19 +575,34 @@ class CustomerController extends Controller
     }
 
     /**
-     * Attach lifetime-to-date "Accumulate Vending Earning" to each summary row.
+     * Attach "Accumulate Vend Earning" to each summary row — now computed
+     * PER ROW as the running prefix sum through that row's own year_month
+     * (instead of a single lifetime-to-date figure per customer).
      *
      * Vending Earning = Gross Earning - Location Fees, already pre-computed
      * per-month and stored on customer_period_summaries.location_earning_cents
      * (see CustomerSummaryAggregator::persistMonth()).
      *
-     * "Lifetime to date" = SUM(location_earning_cents) across every stored
-     * monthly row for the customer where year_month <= $accumulateThrough
-     * (i.e. up to and including the latest month currently visible in view).
+     * So:
+     *   row for 2024-03 → SUM(location_earning_cents) over all months ≤ 2024-03
+     *   row for 2024-02 → SUM(location_earning_cents) over all months ≤ 2024-02
+     *   row for 2024-01 → SUM(location_earning_cents) over all months ≤ 2024-01
      *
-     * One batched query per page keeps this cheap regardless of how many rows
-     * the user is paginating over. Customers without any matching monthly
-     * rows fall back to 0 (rather than NULL) so the UI can format consistently.
+     * The most recent visible month's row inherits the current month's
+     * still-accumulating numbers (CustomerSummaryAggregator keeps the
+     * current month's row fresh to "as_of_date"), so the top row stays
+     * "up to date" without any extra work here.
+     *
+     * Cost: one batched query per page pulling every (customer_id, year_month,
+     * location_earning_cents) tuple up to the page's latest visible month.
+     * We sort ascending in-memory and build the prefix sum once.
+     * Customers without any matching monthly rows fall back to 0 so the
+     * UI can format consistently.
+     *
+     * NOTE: $accumulateThrough is retained as an upper bound so we don't
+     * sum months *after* the visible window (e.g. future "All" filter
+     * shouldn't pull months that haven't been aggregated yet). For per-row
+     * lookup we still key by the row's own year_month.
      */
     protected function attachAccumulatedVendingEarning($collection, \Carbon\Carbon $accumulateThrough): void
     {
@@ -573,15 +617,35 @@ class CustomerController extends Controller
 
         $through = $accumulateThrough->copy()->startOfMonth()->toDateString();
 
-        $sums = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
-            ->selectRaw('customer_id, SUM(location_earning_cents) AS accum')
+        // Pull every monthly row for these customers up to the page's
+        // latest visible month, ordered ascending so a single linear pass
+        // builds the prefix sum keyed by (customer_id, year_month).
+        $monthlyRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
+            ->select('customer_id', 'year_month', 'location_earning_cents')
             ->whereIn('customer_id', $customerIds)
             ->where('year_month', '<=', $through)
-            ->groupBy('customer_id')
-            ->pluck('accum', 'customer_id');
+            ->orderBy('customer_id')
+            ->orderBy('year_month')
+            ->get();
+
+        // running[$customer_id][$yearMonthYmd] = cumulative location_earning_cents
+        // through and including that month.
+        $running = [];
+        $perCustomerSum = [];
+        foreach ($monthlyRows as $r) {
+            $cid = $r->customer_id;
+            // year_month is a DATE column; raw DB::table returns it as a
+            // string (e.g. "2024-03-01" or "2024-03-01 00:00:00"). Carbon
+            // normalises both to YYYY-MM-DD so it lines up with the row's
+            // own ->year_month->toDateString() below.
+            $key = \Carbon\Carbon::parse($r->year_month)->toDateString();
+            $perCustomerSum[$cid] = ($perCustomerSum[$cid] ?? 0) + (int) $r->location_earning_cents;
+            $running[$cid][$key] = $perCustomerSum[$cid];
+        }
 
         foreach ($collection as $row) {
-            $row->accumulate_vending_earning_cents = (int) ($sums[$row->customer_id] ?? 0);
+            $rowYm = optional($row->year_month)->toDateString();
+            $row->accumulate_vending_earning_cents = (int) ($running[$row->customer_id][$rowYm] ?? 0);
         }
     }
 
@@ -983,7 +1047,10 @@ class CustomerController extends Controller
             'period_end'   => 'required|date|after_or_equal:period_start',
         ]);
 
-        $customer = Customer::findOrFail($id);
+        // Eager-load the operator so PerformanceReportContentService can read
+        // operator->gst_vat_rate for the PS-family GST de-grossing without an
+        // extra lazy query per request.
+        $customer = Customer::with('operator:id,gst_vat_rate')->findOrFail($id);
 
         $periodStart = \Carbon\Carbon::parse($request->period_start);
         $periodEnd   = \Carbon\Carbon::parse($request->period_end);
@@ -1340,6 +1407,10 @@ class CustomerController extends Controller
             'customerTagOptions' => $optionsService->tags(Customer::class),
             'days' => Customer::DAYS_MAPPING,
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
+            // Drives the "Location Grading" section in Customer/Edit.vue
+            // (3 radio groups). Keep the data source in the model so the
+            // rubric stays in one place.
+            'locationGradingCategories' => Customer::LOCATION_GRADING_CATEGORIES,
             'locationTypeOptions' => $optionsService->locationTypes(),
             'operatorOptions' => $optionsService->operators(),
             'sellingPriceTypeOptions' => collect(SellingPrice::TYPE_MAPPINGS),
@@ -1629,6 +1700,11 @@ class CustomerController extends Controller
                 // 2026_05_09_000000_add_report_email_to_customers).
                 'customer.report_email'                    => 'nullable|email|max:191',
                 'customer.is_report_email_enabled'         => 'nullable|boolean',
+                // Location Grading — A/B/C per category, nullable. See
+                // Customer::LOCATION_GRADING_CATEGORIES for the rubric.
+                'customer.location_grading_placement'      => 'nullable|in:A,B,C',
+                'customer.location_grading_access'         => 'nullable|in:A,B,C',
+                'customer.location_grading_flexibility'    => 'nullable|in:A,B,C',
             ];
 
             $request->validate($contractRules);

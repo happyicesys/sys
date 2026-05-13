@@ -148,17 +148,12 @@
                     </DatePicker>
                   </div>
 
-                  <!-- Placement Contract Detail Section -->
-                  <div class="sm:col-span-6 pt-4 mt-3 mb-1">
-                    <div class="relative">
-                      <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div class="w-full border-t border-gray-300"></div>
-                      </div>
-                      <div class="relative flex justify-start">
-                        <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Placement Contract Detail </span>
-                      </div>
-                    </div>
-                  </div>
+                  <!-- Placement Contract Detail Section — highlighted container -->
+                  <div class="sm:col-span-6 bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3 mb-3 shadow-sm">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-blue-200">
+                      Placement Contract Detail
+                    </h3>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
                   <!-- Audit info -->
                   <div class="sm:col-span-6 mb-2" v-if="customer.contract_detail_updated_at">
                     <span class="text-xs text-gray-600 italic">
@@ -435,10 +430,129 @@
                     </div>
                   </div>
 
-                  <!-- end Contract Details -->
-                  <div class="sm:col-span-6 mt-3 mb-2">
-                    <div class="w-full border-t border-gray-200"></div>
+                  <!--
+                    Performance Report Email opt-in.
+                    The toggle is force-disabled (and force-false) when no
+                    valid email is entered, so the Customer Summary "Email"
+                    button can rely on is_report_email_enabled === true to
+                    mean "this customer has agreed to receive the report at
+                    a known address".
+                  -->
+                  <div class="sm:col-span-6">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      Customer Tags
+                      <ExclamationCircleIcon
+                        class="w-5 h-5 self-center pl-1"
+                        v-tooltip="'Manage tag list under Customer Management → Tags'"
+                      ></ExclamationCircleIcon>
+                    </label>
+                    <MultiSelect
+                      v-model="form.tags"
+                      :options="customerTagOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="name"
+                      placeholder="Select tags"
+                      open-direction="bottom"
+                      class="mt-1"
+                      mode="tags"
+                    ></MultiSelect>
+                    <div class="text-sm text-red-600" v-if="form.errors.tag_ids">
+                      {{ form.errors.tag_ids }}
+                    </div>
                   </div>
+                  <div class="sm:col-span-3">
+                    <FormInput
+                      v-model="form.report_email"
+                      :error="form.errors['customer.report_email']"
+                      type="email"
+                      placeholder="customer@example.com"
+                    >
+                      Performance Report Email
+                    </FormInput>
+                  </div>
+                  <div class="sm:col-span-3">
+                    <label class="flex justify-start text-sm font-medium text-gray-700">
+                      Enable Send Performance to Email?
+                      <ExclamationCircleIcon
+                        class="w-5 h-5 self-center pl-1"
+                        v-tooltip="'Toggle on to surface the Email action button on Customer Summary. Disabled until a valid email is entered.'"
+                      ></ExclamationCircleIcon>
+                    </label>
+                    <MultiSelect
+                      v-model="form.is_report_email_enabled"
+                      :options="booleanStrictOptions"
+                      :disabled="!isReportEmailValid"
+                      trackBy="id"
+                      valueProp="id"
+                      label="value"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                    ></MultiSelect>
+                    <div
+                      v-if="!isReportEmailValid"
+                      class="text-xs text-gray-500 mt-1"
+                    >
+                      Enter a valid email above to enable.
+                    </div>
+                    <div class="text-sm text-red-600" v-if="form.errors['customer.is_report_email_enabled']">
+                      {{ form.errors['customer.is_report_email_enabled'] }}
+                    </div>
+                  </div>
+                    </div>
+                  </div>
+                  <!-- end Placement Contract Detail Section -->
+
+                  <!-- Location Grading Section — A/B/C radio groups per category.
+                       Rubric data comes from props.locationGradingCategories
+                       (Customer::LOCATION_GRADING_CATEGORIES). Edit-page only. -->
+                  <div class="sm:col-span-6 bg-amber-50 border border-amber-200 rounded-lg p-4 mt-3 mb-3 shadow-sm">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-amber-200">
+                      Location Grading
+                    </h3>
+                    <div class="grid grid-cols-1 gap-4">
+                      <div
+                        v-for="(category, key) in locationGradingCategories"
+                        :key="key"
+                      >
+                        <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">
+                          {{ category.label }}
+                          <span class="ml-1 text-red-500 text-xs font-normal">(choose 1 only)</span>
+                        </label>
+                        <div class="flex flex-col gap-2">
+                          <label
+                            v-for="(optLabel, optCode) in category.options"
+                            :key="optCode"
+                            class="flex items-start gap-2 cursor-pointer select-none"
+                          >
+                            <input
+                              type="radio"
+                              :name="`location_grading_${key}`"
+                              :value="optCode"
+                              v-model="form[`location_grading_${key}`]"
+                              class="h-4 w-4 mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span class="text-sm text-gray-700">
+                              <span class="font-semibold">{{ optCode }}</span> = {{ optLabel }}
+                            </span>
+                          </label>
+                          <button
+                            type="button"
+                            v-if="form[`location_grading_${key}`]"
+                            @click="form[`location_grading_${key}`] = null"
+                            class="text-xs text-red-500 hover:text-red-700 underline self-start"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div class="text-sm text-red-600 mt-1" v-if="form.errors[`customer.location_grading_${key}`]">
+                          {{ form.errors[`customer.location_grading_${key}`] }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- end Location Grading Section -->
 
                   <div class="sm:col-span-3">
                     <FormInput v-model="form.power_socket_key_number" :error="form.errors.power_socket_key_number"> Power Socket Key Num </FormInput>
@@ -477,77 +591,6 @@
                     ></MultiSelect>
                     <div class="text-sm text-red-600" v-if="form.errors['customer.is_restricted_access']">
                       {{ form.errors['customer.is_restricted_access'] }}
-                    </div>
-                  </div>
-                  <div class="sm:col-span-6">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Customer Tags
-                      <ExclamationCircleIcon
-                        class="w-5 h-5 self-center pl-1"
-                        v-tooltip="'Manage tag list under Customer Management → Tags'"
-                      ></ExclamationCircleIcon>
-                    </label>
-                    <MultiSelect
-                      v-model="form.tags"
-                      :options="customerTagOptions"
-                      trackBy="id"
-                      valueProp="id"
-                      label="name"
-                      placeholder="Select tags"
-                      open-direction="bottom"
-                      class="mt-1"
-                      mode="tags"
-                    ></MultiSelect>
-                    <div class="text-sm text-red-600" v-if="form.errors.tag_ids">
-                      {{ form.errors.tag_ids }}
-                    </div>
-                  </div>
-
-                  <!--
-                    Performance Report Email opt-in.
-                    The toggle is force-disabled (and force-false) when no
-                    valid email is entered, so the Customer Summary "Email"
-                    button can rely on is_report_email_enabled === true to
-                    mean "this customer has agreed to receive the report at
-                    a known address".
-                  -->
-                  <div class="sm:col-span-3">
-                    <FormInput
-                      v-model="form.report_email"
-                      :error="form.errors['customer.report_email']"
-                      type="email"
-                      placeholder="customer@example.com"
-                    >
-                      Performance Report Email
-                    </FormInput>
-                  </div>
-                  <div class="sm:col-span-3">
-                    <label class="flex justify-start text-sm font-medium text-gray-700">
-                      Enable Send Performance to Email?
-                      <ExclamationCircleIcon
-                        class="w-5 h-5 self-center pl-1"
-                        v-tooltip="'Toggle on to surface the Email action button on Customer Summary. Disabled until a valid email is entered.'"
-                      ></ExclamationCircleIcon>
-                    </label>
-                    <MultiSelect
-                      v-model="form.is_report_email_enabled"
-                      :options="booleanStrictOptions"
-                      :disabled="!isReportEmailValid"
-                      trackBy="id"
-                      valueProp="id"
-                      label="value"
-                      placeholder="Select"
-                      open-direction="bottom"
-                      class="mt-1"
-                    ></MultiSelect>
-                    <div
-                      v-if="!isReportEmailValid"
-                      class="text-xs text-gray-500 mt-1"
-                    >
-                      Enter a valid email above to enable.
-                    </div>
-                    <div class="text-sm text-red-600" v-if="form.errors['customer.is_report_email_enabled']">
-                      {{ form.errors['customer.is_report_email_enabled'] }}
                     </div>
                   </div>
                   <div class="sm:col-span-5">
@@ -1099,6 +1142,9 @@ const props = defineProps({
   customerTagOptions: Object,
   days: Object,
   frequencyPerWeekOptions: [Array, Object],
+  // Location grading rubric — { placement: { label, options: {A,B,C} }, ... }
+  // Sourced from Customer::LOCATION_GRADING_CATEGORIES.
+  locationGradingCategories: { type: Object, default: () => ({}) },
   locationTypeOptions: [Array, Object],
   operatorOptions: Object,
   customer: Object,
@@ -1273,6 +1319,10 @@ function getDefaultForm() {
     // unpacked back to a boolean in saveCustomer's transform.
     report_email: '',
     is_report_email_enabled: null,
+    // Location Grading — three independent radio groups, each A/B/C or null.
+    location_grading_placement: null,
+    location_grading_access: null,
+    location_grading_flexibility: null,
   };
 }
 
@@ -1382,6 +1432,10 @@ onMounted(() => {
           ? booleanStrictOptions.value.find(option => option.id === 'true')
           : booleanStrictOptions.value.find(option => option.id === 'false'))
       : booleanStrictOptions.value.find(option => option.id === 'false'),
+    // Location Grading — bind directly to the stored char(1) value.
+    location_grading_placement: props.customer ? (props.customer.location_grading_placement ?? null) : null,
+    location_grading_access: props.customer ? (props.customer.location_grading_access ?? null) : null,
+    location_grading_flexibility: props.customer ? (props.customer.location_grading_flexibility ?? null) : null,
   }) : useForm(getDefaultForm());
 
   vendChannels.value = props.customer && props.customer.vend ? props.customer.vend.vend_channels : [];
@@ -1496,6 +1550,12 @@ function saveCustomer(customerID) {
       is_report_email_enabled: (data.report_email && String(data.report_email).trim() !== '')
         ? (data.is_report_email_enabled?.id === 'true')
         : false,
+      // Location Grading — coerce '' to null so the DB stores NULL, and
+      // only accept the rubric's A/B/C codes (server-side validator
+      // double-checks via `in:A,B,C`).
+      location_grading_placement: ['A','B','C'].includes(data.location_grading_placement) ? data.location_grading_placement : null,
+      location_grading_access: ['A','B','C'].includes(data.location_grading_access) ? data.location_grading_access : null,
+      location_grading_flexibility: ['A','B','C'].includes(data.location_grading_flexibility) ? data.location_grading_flexibility : null,
     }
   })).post('/customers/' + customerID + '/update', {
     onSuccess: () => {
