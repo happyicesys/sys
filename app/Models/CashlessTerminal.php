@@ -21,9 +21,14 @@ class CashlessTerminal extends Model
     ];
 
     // relationships
-    public function cashlessProvider()
+
+    /**
+     * Card-terminal type (renamed from cashlessProvider on 2026-05-14).
+     * Column is still `cashless_provider_id` — the rename is class-only.
+     */
+    public function cardTerminal()
     {
-        return $this->belongsTo(CashlessProvider::class);
+        return $this->belongsTo(CardTerminal::class, 'cashless_provider_id');
     }
 
     public function operator()

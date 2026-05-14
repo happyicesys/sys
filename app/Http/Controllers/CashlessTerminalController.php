@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\CashlessProviderResource;
+use App\Http\Resources\CardTerminalResource;
 use App\Http\Resources\CashlessTerminalResource;
 use App\Http\Resources\OperatorResource;
-use App\Models\CashlessProvider;
+use App\Models\CardTerminal;
 use App\Models\CashlessTerminal;
 use App\Models\Operator;
 use Carbon\Carbon;
@@ -24,7 +24,7 @@ class CashlessTerminalController extends Controller
             'cashlessTerminals' => CashlessTerminalResource::collection(
                 CashlessTerminal::query()
                     ->with([
-                        'cashlessProvider',
+                        'cardTerminal',
                         'operator',
                     ])
                     ->when($request->code, function($query, $search) {
@@ -39,8 +39,8 @@ class CashlessTerminalController extends Controller
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
-            'cashlessProviderOptions' => CashlessProviderResource::collection(
-                CashlessProvider::orderBy('name')->get()
+            'cashlessProviderOptions' => CardTerminalResource::collection(
+                CardTerminal::orderBy('name')->get()
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()

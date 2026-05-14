@@ -173,7 +173,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Cashless Terminal
+                Card Terminal
             </label>
             <MultiSelect
                 v-model="filters.cashless_mfg"
@@ -800,31 +800,18 @@
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex flex-col space-y-1">
+                          <!-- Card Terminal (merged from former Cashless Status + Cashless Mfg badges).
+                               Sourced from VendResource's card_terminal_name (eager-loaded cardTerminal relation). -->
                           <div
                               class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                              :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
-                              v-if="vend.parameterJson && 'CSHLStat' in vend.parameterJson"
+                              :class="[vend.is_active || vend.is_testing ? (vend.card_terminal_name ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
                           >
                               <div class="flex flex-col">
                                   <span class="font-bold">
-                                      Cashless Status
+                                      Card Terminal
                                   </span>
                                   <span>
-                                      {{vend.parameterJson['CSHLStat'] == 3 ? 'Active' : (vend.parameterJson['CSHLStat'] == 1 ? 'Inactive' : 'NA') }}
-                                  </span>
-                              </div>
-                          </div>
-                          <div
-                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                              :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                              v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
-                          >
-                              <div class="flex flex-col">
-                                  <span class="font-bold">
-                                      Cashless Mfg
-                                  </span>
-                                  <span>
-                                      {{vend.acbVmcPaJson['CSHL_MFG'] ? vend.acbVmcPaJson['CSHL_MFG'] : 'NA' }}
+                                      {{ vend.card_terminal_name ? vend.card_terminal_name : 'N/A' }}
                                   </span>
                               </div>
                           </div>

@@ -375,7 +375,12 @@
                     </template>
                     <template v-else>Action</template>
                   </TableHead>
-                  <TableHead>Customer Tag</TableHead>
+                  <TableHead>
+                    <div class="flex flex-col space-y-1">
+                      <span>Customer Tag</span>
+                      <span>Note</span>
+                    </div>
+                  </TableHead>
                 </tr>
               </thead>
               <tbody class="bg-white">
@@ -835,13 +840,44 @@
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-left">
                     <template v-if="isFirstRowForCustomer(rowIndex)">
-                      <span
-                        v-for="binding in (row.customer?.tag_bindings ?? [])"
-                        :key="binding.id"
-                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 mr-1"
-                      >
-                        {{ binding.tag?.name }}
-                      </span>
+                      <!--
+                        Tags are stored as snake_case (e.g.
+                        already_inform_for_renewal) so the text has no
+                        spaces to wrap on. Each badge gets a fixed width
+                        and `break-all` so long names break onto multiple
+                        lines instead of stretching the column. Stacked
+                        vertically via flex-col for readability when a
+                        customer has several tags.
+                      -->
+                      <div class="flex flex-col gap-1">
+                        <span
+                          v-for="binding in (row.customer?.tag_bindings ?? [])"
+                          :key="binding.id"
+                          class="inline-block w-28 px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 break-all whitespace-normal leading-tight"
+                        >
+                          {{ binding.tag?.name }}
+                        </span>
+                      </div>
+                      <!--
+                        Customer-level Notes field — mirrors the Remarks
+                        setup on /products/availability. The note is
+                        stored on the customer record (not on the monthly
+                        summary row), so it persists across whatever
+                        period / filter the user has applied here. Audit
+                        line below shows who last edited and when.
+                      -->
+                      <div class="mt-2 flex flex-col w-full">
+                        <textarea
+                          v-model="row.customer.notes"
+                          @change="onNotesChanged(row.customer)"
+                          rows="2"
+                          class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full"
+                          placeholder="Notes"
+                        ></textarea>
+                        <span class="text-[10px] text-gray-500 mt-1" v-if="row.customer?.notes_updated_by_user">
+                          {{ row.customer.notes_updated_by_user.name }} ({{ moment(row.customer.notes_updated_at).format('YYMMDD hh:mma') }})
+                        </span>
+                      </div>
                     </template>
                   </TableData>
                 </tr>
@@ -1423,6 +1459,24 @@ function onSearchFilterUpdated() {
 
 function resetFilters() {
   router.get('/customers/summary');
+}
+
+// Persist the inline-edited customer-level Note. Mirrors the
+// onRemarksChanged setup on Vend/ProductAvailability.vue — POST to a
+// dedicated endpoint, then router.reload only the `summaries` prop so
+// the audit line (last updated by / at) refreshes without resetting the
+// rest of the page state (filters, scroll, etc.).
+function onNotesChanged(customer) {
+  if (!customer?.id) return;
+  axios.post('/customers/' + customer.id + '/update-notes', {
+    notes: customer.notes,
+  })
+    .then(() => {
+      router.reload({ only: ['summaries'], preserveScroll: true });
+    })
+    .catch((error) => {
+      console.error('Error updating customer notes:', error);
+    });
 }
 
 function sortTable(sortKey) {

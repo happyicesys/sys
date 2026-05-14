@@ -198,15 +198,20 @@ class VendTransactionService
         $vendPrefix = $vend->vendPrefix;
 
         // Snapshot cashless manufacturer at the moment of the transaction so
-        // historical reports stay accurate even after the vend's cashless
+        // historical reports stay accurate even after the vend's card
         // terminal is swapped. Only relevant for credit-card payments
         // (payment_method_id = 2); everything else stays null.
+        //
+        // Source: vends.card_terminal_id -> card_terminals.name (user-defined,
+        // managed via the Card Terminal entity). Replaces the previous
+        // unreliable read from acb_vmc_pa_json->CSHL_MFG (VM telemetry).
         $cashlessMfg = null;
         if ((int) $input['paymentMethodID'] === 2) {
-            $paJson = is_array($vend->acb_vmc_pa_json)
-                ? $vend->acb_vmc_pa_json
-                : (json_decode($vend->acb_vmc_pa_json ?? '', true) ?: []);
-            $rawMfg = $paJson['CSHL_MFG'] ?? null;
+            $cardTerminal = $vend->relationLoaded('cardTerminal')
+                ? $vend->cardTerminal
+                : $vend->cardTerminal()->first();
+
+            $rawMfg = $cardTerminal->name ?? null;
             if (is_string($rawMfg)) {
                 $rawMfg = trim($rawMfg);
             }

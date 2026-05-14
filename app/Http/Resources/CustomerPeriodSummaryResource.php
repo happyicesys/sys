@@ -158,6 +158,18 @@ class CustomerPeriodSummaryResource extends JsonResource
                             })
                             ->all()
                         : [],
+                    // Customer-level Notes (parked on the customer record so
+                    // it carries across any period filter on this page).
+                    // notes_updated_by_user is the user object resolved via
+                    // the notesUpdatedBy() relation; null when no one has
+                    // touched the field yet. See migration
+                    // 2026_05_14_090000_add_notes_to_customers.
+                    'notes' => $c->notes,
+                    'notes_updated_at' => optional($c->notes_updated_at)->toDateTimeString(),
+                    'notes_updated_by_user' => $c->relationLoaded('notesUpdatedBy') && $c->notesUpdatedBy ? [
+                        'id' => $c->notesUpdatedBy->id,
+                        'name' => $c->notesUpdatedBy->name,
+                    ] : null,
                     'tag_bindings' => $c->relationLoaded('tagBindings')
                         ? $c->tagBindings->map(function ($tb) {
                             return [

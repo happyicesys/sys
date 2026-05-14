@@ -4,7 +4,7 @@ use App\Http\Controllers\Api\V1\VendDataController;
 use App\Http\Controllers\ApkSettingController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\CampaignController;
-use App\Http\Controllers\CashlessProviderController;
+use App\Http\Controllers\CardTerminalController;
 use App\Http\Controllers\CashlessTerminalController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CategoryGroupController;
@@ -124,11 +124,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::delete('/{id}', [AttachmentController::class, 'delete']);
     });
 
-    Route::prefix('cashless-providers')->group(function () {
-        Route::get('/', [CashlessProviderController::class, 'index'])->name('cashless-providers');
-        Route::post('/create', [CashlessProviderController::class, 'create']);
-        Route::post('/{id}/update', [CashlessProviderController::class, 'update']);
-        Route::delete('/{id}', [CashlessProviderController::class, 'delete']);
+    Route::prefix('card-terminals')->group(function () {
+        Route::get('/', [CardTerminalController::class, 'index'])->name('card-terminals');
+        Route::post('/create', [CardTerminalController::class, 'create']);
+        Route::post('/{id}/update', [CardTerminalController::class, 'update']);
+        Route::delete('/{id}', [CardTerminalController::class, 'delete']);
     });
 
     Route::prefix('cashless-terminals')->group(function () {
@@ -207,6 +207,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/{id}/selling-prices/type/{type}', [CustomerController::class, 'getProductSellingPrices']);
         Route::post('/sync-cms-invoice-items', [CustomerController::class, 'syncCmsInvoiceItems']);
         Route::post('/{id}/disconnect-cms', [CustomerController::class, 'disconnectCms']);
+        // Customer-level notes — edited inline on the Customer Summary page
+        // (Customer Tag column). Mirrors products-availability.update-remarks.
+        Route::post('/{id}/update-notes', [CustomerController::class, 'updateNotes'])->name('customers.update-notes');
         Route::post('/map', [CustomerController::class, 'getMap']);
     });
 

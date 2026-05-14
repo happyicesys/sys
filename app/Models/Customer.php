@@ -111,6 +111,11 @@ class Customer extends Model
         'contract_from' => 'date',
         'contract_until' => 'date',
         'contract_detail_updated_at' => 'datetime',
+        // Customer Notes audit timestamp — cast so the Resource can call
+        // ->toDateTimeString() and the Vue side gets a parseable string
+        // (otherwise `optional()` silently swallows the call on a raw
+        // DB string and the audit line renders "Invalid date").
+        'notes_updated_at' => 'datetime',
         'cms_invoice_history' => 'json',
         'person_json' => 'json',
         'last_invoice_date' => 'datetime',
@@ -190,6 +195,14 @@ class Customer extends Model
         'contract_remarks',
         'contract_detail_updated_at',
         'contract_detail_updated_by',
+        // Customer-level free-text notes shown on the Customer Summary
+        // page (Customer Tag column). Parked here — not on the monthly
+        // CustomerPeriodSummary row — so the note carries over no matter
+        // which period filter is applied. See migration
+        // 2026_05_14_090000_add_notes_to_customers.
+        'notes',
+        'notes_updated_at',
+        'notes_updated_by',
         // Performance Report email opt-in (see migration
         // 2026_05_09_000000_add_report_email_to_customers).
         'report_email',
@@ -364,6 +377,11 @@ class Customer extends Model
     public function contractDetailUpdatedBy()
     {
         return $this->belongsTo(User::class, 'contract_detail_updated_by');
+    }
+
+    public function notesUpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'notes_updated_by');
     }
 
     public function zone()

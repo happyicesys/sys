@@ -374,11 +374,11 @@
 
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Cashless Terminal
+                  Card Terminal
                 </label>
                 <MultiSelect
-                  v-model="form.cashless_terminal_id"
-                  :options="cashlessTerminalOptions"
+                  v-model="form.card_terminal_id"
+                  :options="cardTerminalOptions"
                   trackBy="id"
                   valueProp="id"
                   label="name"
@@ -387,8 +387,8 @@
                   class="mt-1"
                 >
                 </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors.cashless_terminal_id">
-                  {{ form.errors.cashless_terminal_id }}
+                <div class="text-sm text-red-600" v-if="form.errors.card_terminal_id">
+                  {{ form.errors.card_terminal_id }}
                 </div>
             </div>
 
@@ -1334,6 +1334,7 @@ import { useToast } from "vue-toastification";
 
 const props = defineProps({
     adminCustomerOptions: Object,
+    cardTerminalOptions: Object,
     cashlessTerminalOptions: Object,
     clawMachineBoardOptions: [Array, Object],
     clawMachineBodyOptions: [Array, Object],
@@ -1383,6 +1384,7 @@ const statusOptions = ref([
     {id: 'sold', value: 'Sold'},
 ])
 
+const cardTerminalOptions = ref([])
 const cashlessTerminalOptions = ref([])
 const clawMachineBoardOptions = ref([])
 const clawMachineBodyOptions = ref([])
@@ -1434,6 +1436,7 @@ function getDefaultForm() {
   return {
     id: '',
     begin_date: '',
+    card_terminal_id: '',
     cashless_terminal_id: '',
     claw_machine_board_id: '',
     claw_machine_body_id: '',
@@ -1491,6 +1494,15 @@ function getDefaultForm() {
 }
 
 onMounted(() => {
+  // Card Terminal types (CAS / NYX / PAX / 111 / MLS) — populated from
+  // CardTerminalResource::collection in SettingController@edit.
+  cardTerminalOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...((props.cardTerminalOptions?.data) ?? []).map(terminal => ({
+      id: terminal.id,
+      name: terminal.name,
+    })),
+  ]
   cashlessTerminalOptions.value = [
     { id: '', name: '--- Clear ---'},
     ...props.cashlessTerminalOptions.data.map(terminal => ({
@@ -1590,6 +1602,7 @@ onMounted(() => {
 
   form.value = props.vend ? useForm({
     ...props.vend,
+    card_terminal_id: props.vend.card_terminal_id ? cardTerminalOptions.value.find(t => t.id == props.vend.card_terminal_id) : null,
     cashless_terminal_id: props.vend.cashless_terminal_id ? cashlessTerminalOptions.value.find(t => t.id == props.vend.cashless_terminal_id) : null,
     claw_machine_board_id: props.vend.claw_machine_board_id ? clawMachineBoardOptions.value.find(clawMachineBoard => clawMachineBoard.id == props.vend.claw_machine_board_id) : null,
     claw_machine_body_id: props.vend.claw_machine_body_id ? clawMachineBodyOptions.value.find(clawMachineBody => clawMachineBody.id == props.vend.claw_machine_body_id) : null,
@@ -2149,6 +2162,7 @@ function saveVend(vendID) {
   form.value
     .transform((data) => ({
       ...data,
+      card_terminal_id: data.card_terminal_id ? data.card_terminal_id.id : null,
       cashless_terminal_id: data.cashless_terminal_id ? data.cashless_terminal_id.id : null,
       claw_machine_board_id: data.claw_machine_board_id ? data.claw_machine_board_id.id : null,
       claw_machine_body_id: data.claw_machine_body_id ? data.claw_machine_body_id.id : null,

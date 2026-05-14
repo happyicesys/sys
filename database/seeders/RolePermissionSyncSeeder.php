@@ -275,7 +275,7 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
-                'cashless-providers',
+                'card-terminals',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
             ],

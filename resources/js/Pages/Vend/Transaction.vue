@@ -84,7 +84,7 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                   Cashless Terminal
+                   Card Terminal
                 </label>
                 <MultiSelect
                     v-model="filters.cashlessMfgs"

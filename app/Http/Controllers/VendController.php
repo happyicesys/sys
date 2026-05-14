@@ -217,6 +217,7 @@ class VendController extends Controller
 
         $vends = Vend::query()
             ->with([
+                'cardTerminal',
                 'customer:id,name,code,person_id',
                 'customer.deliveryAddress',
                 'modemType',
@@ -296,6 +297,7 @@ class VendController extends Controller
             'vends.t1_lowest_48h',
             'vends.amount_average_day',
             'vends.begin_date',
+            'vends.card_terminal_id',
             'vends.code',
             'vends.acb_vmc_pa_json',
             'vends.apk_ver_json',
@@ -586,7 +588,12 @@ class VendController extends Controller
                     ->where('addresses.type', '=', 2);
             })
             ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
-            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id');
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            // Card terminal type (CAS / NYX / PAX / 111 / MLS). Joined so we
+            // can SELECT card_terminals.name AS card_terminal_name and expose
+            // it on the Customer Index "Card Terminal" badge / filter without
+            // an N+1 lazy load.
+            ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
 
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'customers');
@@ -868,6 +875,7 @@ class VendController extends Controller
                 'customers.selling_price_type',
                 'customers.termination_date',
                 'customers.contract_until',
+                'customers.contract_auto_renewal',
                 'customers.virtual_customer_prefix',
                 'customers.virtual_customer_code',
                 'customers.location_grading_placement',
@@ -882,6 +890,10 @@ class VendController extends Controller
                 'vend_configs.name AS vend_config_name',
                 'vend_prefixes.name AS vend_prefix_name',
                 'zones.name AS zone_name',
+                // Card terminal (user-defined) — drives the "Card Terminal"
+                // badge on the customer index page.
+                'vends.card_terminal_id',
+                'card_terminals.name AS card_terminal_name',
             ];
 
             if ($needsVc) {
@@ -3057,6 +3069,7 @@ class VendController extends Controller
             'name' => $request->name,
             'begin_date' => $request->begin_date,
             'key_id' => $request->key_id,
+            'card_terminal_id' => $request->card_terminal_id,
             'cashless_terminal_id' => $request->cashless_terminal_id,
             'claw_machine_board_id' => $request->claw_machine_board_id,
             'claw_machine_body_id' => $request->claw_machine_body_id,

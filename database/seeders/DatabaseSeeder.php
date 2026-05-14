@@ -50,7 +50,8 @@ class DatabaseSeeder extends Seeder
             // CountrySeeder::class,
             // TaxSeeder::class,
 
-            // CashlessProviderSeeder::class,
+            // CardTerminalSeeder::class,
+            // VendCardTerminalSeeder::class,
             // TelcoSeeder::class,
             // VendTypeSeeder::class,
             // UomSeeder::class,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CardTerminalResource;
 use App\Http\Resources\CashlessTerminalResource;
 use App\Http\Resources\CountryResource;
 use App\Http\Resources\CategoryResource;
@@ -25,6 +26,7 @@ use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
 use App\Jobs\PublishMqtt;
 use App\Services\VendParameterService;
+use App\Models\CardTerminal;
 use App\Models\CashlessTerminal;
 use App\Models\Category;
 use App\Models\Country;
@@ -106,6 +108,7 @@ class SettingController extends Controller
 
         $vends = Vend::query()
             ->with([
+                'cardTerminal',
                 'cashlessTerminal',
                 'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type',
                 'customer.operator:id,code,name',
@@ -145,6 +148,7 @@ class SettingController extends Controller
                 'vends.id',
                 'vends.acb_vmc_pa_json',
                 'vends.begin_date',
+                'vends.card_terminal_id',
                 'vends.cashless_terminal_id',
                 'vends.code',
                 'vends.customer_id',
@@ -194,16 +198,16 @@ class SettingController extends Controller
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()
             ),
-            'cashlessMfgOptions' => Vend::query()
-                ->select(DB::raw("DISTINCT JSON_UNQUOTE(JSON_EXTRACT(acb_vmc_pa_json, '$.CSHL_MFG')) AS value"))
-                ->whereNotNull('acb_vmc_pa_json')
-                ->whereRaw("JSON_EXTRACT(acb_vmc_pa_json, '$.CSHL_MFG') IS NOT NULL")
-                ->orderBy('value')
-                ->get()
-                ->pluck('value')
-                ->filter() // remove null/empty strings
-                ->unique()
-                ->values(),
+            // Card terminal types (CAS / NYX / PAX / 111 / MLS). Sourced from
+            // the user-defined `card_terminals` table (formerly read live from
+            // vends.acb_vmc_pa_json->CSHL_MFG, which was unreliable).
+            //
+            // Returned as { name => name } so the Vue side's
+            // `Object.entries(...)` produces { id: name, value: name } options
+            // and the filter posts back a name (e.g. "CAS") rather than an
+            // array index. The corresponding Vend::scopeFilterIndex filter
+            // matches on card_terminals.name.
+            'cashlessMfgOptions' => CardTerminal::orderBy('name')->pluck('name', 'name')->all(),
             'categories' => CategoryResource::collection(
                 Category::where('classname', $className)->orderBy('name')->get()
             ),
@@ -274,6 +278,7 @@ class SettingController extends Controller
 
         $vend = Vend::withoutGlobalScopes()
             ->with([
+                'cardTerminal',
                 'cashlessTerminal',
                 'customer',
                 'customer.deliveryAddress',
@@ -324,6 +329,7 @@ class SettingController extends Controller
                 'customers.selling_price_type',
                 'product_mappings.name AS product_mapping_name',
                 'upcoming_product_mappings.name AS upcoming_product_mapping_name',
+                'vends.card_terminal_id',
                 'vends.cashless_terminal_id',
                 'vends.claw_machine_board_id',
                 'vends.claw_machine_body_id',
@@ -427,6 +433,11 @@ class SettingController extends Controller
         }
 
         return Inertia::render('Setting/Edit', [
+            // Card Terminal types (CAS / NYX / PAX / 111 / MLS) — populates
+            // the new "Card Terminal" dropdown on the vend edit form.
+            'cardTerminalOptions' => CardTerminalResource::collection(
+                CardTerminal::orderBy('name')->get()
+            ),
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()
             ),

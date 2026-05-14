@@ -356,8 +356,9 @@ class MachineHealthDashboardService
         $vendCollection = empty($vendIds)
             ? collect()
             : Vend::query()
-                ->select('id', 'code', 'name', 'customer_id', 'operator_id', 'vend_prefix_id')
+                ->select('id', 'code', 'name', 'customer_id', 'operator_id', 'vend_prefix_id', 'card_terminal_id')
                 ->with([
+                    'cardTerminal:id,name',
                     'customer:id,name',
                     'operator:id,name',
                     'vendPrefix:id,name',
@@ -951,6 +952,7 @@ class MachineHealthDashboardService
     {
         $query = Vend::query()
             ->with([
+                'cardTerminal:id,name',
                 'customer:id,name,code',
                 'operator:id,name,code',
                 'vendPrefix:id,name',
@@ -1004,6 +1006,9 @@ class MachineHealthDashboardService
             'customer_name' => $vend?->customer?->name,
             'operator_name' => $vend?->operator?->name,
             'vend_prefix_name' => $vend?->vendPrefix?->name,
+            // User-defined card terminal type (CAS/NYX/PAX/111/MLS) — shown
+            // in the Card Terminal badge on MachineHealth/Index.vue.
+            'card_terminal_name' => $vend?->cardTerminal?->name,
         ];
     }
 

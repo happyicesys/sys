@@ -29,6 +29,14 @@ class VendResource extends JsonResource
             'actual_stock_in_qty' => isset($this->actual_stock_in_qty) ? $this->actual_stock_in_qty : null,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'balance_percent' => isset($this->balance_percent) ? $this->balance_percent : null,
+            'cardTerminal' => CardTerminalResource::make($this->whenLoaded('cardTerminal')),
+            'card_terminal_id' => isset($this->card_terminal_id) ? $this->card_terminal_id : null,
+            // Card terminal manufacturer name (CAS / NYX / PAX / 111 / MLS).
+            // Comes from the user-defined card_terminals table — replaces the
+            // unreliable acb_vmc_pa_json->CSHL_MFG read.
+            'card_terminal_name' => $this->whenLoaded('cardTerminal', function () {
+                return $this->cardTerminal?->name;
+            }, isset($this->card_terminal_name) ? $this->card_terminal_name : null),
             'cashlessTerminal' => CashlessTerminalResource::make($this->whenLoaded('cashlessTerminal')),
             'cashless_terminal_id' => isset($this->cashless_terminal_id) ? $this->cashless_terminal_id : null,
             'claw_machine_board_id' => isset($this->claw_machine_board_id) ? $this->claw_machine_board_id : null,
@@ -65,6 +73,13 @@ class VendResource extends JsonResource
             'thirty_days_stock_in_delta_percent' => isset($this->thirty_days_stock_in_delta_percent) ? $this->thirty_days_stock_in_delta_percent : 0,
             'last_updated_at' => isset($this->last_updated_at) ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'lcd_monitor' => isset($this->lcd_monitor_id) ? Vend::LCD_MONITOR_MAPPINGS[$this->lcd_monitor_id] : null,
+            // Short label variant used by the Customer Index "Payment Device"
+            // column so the badge stays narrow. Falls back to null when the
+            // mapping doesn't contain the id (defensive — keeps the badge
+            // from rendering a "[]" if a stale id slips in).
+            'lcd_monitor_short' => isset($this->lcd_monitor_id) && isset(Vend::LCD_MONITOR_SHORT_MAPPINGS[$this->lcd_monitor_id])
+                ? Vend::LCD_MONITOR_SHORT_MAPPINGS[$this->lcd_monitor_id]
+                : null,
             'lcd_monitor_id' => isset($this->lcd_monitor_id) ? $this->lcd_monitor_id : null,
             'menu_frame_id' => isset($this->menu_frame_id) ? $this->menu_frame_id : null,
             'modemType' => ModemTypeResource::make($this->whenLoaded('modemType')),
@@ -117,6 +132,10 @@ class VendResource extends JsonResource
             // expiry, termination_date is when the customer relationship ended.
             'contract_until' => isset($this->contract_until) ? Carbon::parse($this->contract_until)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'contract_until_short' => isset($this->contract_until) ? Carbon::parse($this->contract_until)->setTimezone($this->getUserTimezone())->format('ymd') : null,
+            // Customer's contract auto-renewal flag (boolean). Drives the
+            // green-tick / red-cross indicator next to Contract End Date on
+            // the Customer Index page.
+            'contract_auto_renewal' => isset($this->contract_auto_renewal) ? (bool) $this->contract_auto_renewal : null,
             // Contract fields (snapshot of the customer's contract terms; drives
             // Contract Type / Location Fees / VendingEarning columns on the
             // Customer Index page).

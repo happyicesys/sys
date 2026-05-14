@@ -280,7 +280,10 @@ class CustomerController extends Controller
         $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
-            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period',
+            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by',
+            // Customer-level note "last edited by" user — drives the
+            // tiny audit line under the textarea on Customer Summary.
+            'customer.notesUpdatedBy:id,name',
             // gst_vat_rate is pulled here so the Sales column can render the
             // excl-GST sub-line right under the incl-GST main value.
             'customer.operator:id,code,name,gst_vat_rate',
@@ -1410,6 +1413,26 @@ class CustomerController extends Controller
         $customer->save();
 
         return redirect()->route('customers.edit', [$id]);
+    }
+
+    /**
+     * Persist a customer-level free-text note from the Customer Summary
+     * page (Customer Tag column). Mirrors ProductController::updateRemarks
+     * — the note + audit stamp live directly on the customer record so
+     * the value survives any period/filter combination on the Summary
+     * page. Returning a fresh customer payload (with the notesUpdatedBy
+     * user) lets the Vue page refresh the "last updated by" line without
+     * a full router reload.
+     */
+    public function updateNotes(Request $request, $customerId)
+    {
+        $customer = Customer::findOrFail($customerId);
+        $customer->notes = $request->notes;
+        $customer->notes_updated_by = auth()->user()->id;
+        $customer->notes_updated_at = Carbon::now();
+        $customer->save();
+
+        return redirect()->back();
     }
 
     public function edit(Request $request, $id)

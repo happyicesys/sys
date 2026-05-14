@@ -169,7 +169,7 @@ const navigation = computed(() => [
             {name: 'Machine Models', href: '/vend-models', permission: 'read vend-models'},
             {name: 'Machine Key No', href: '/keys', permission: 'read keys'},
             {name: 'Modem Models', href: '/modem-types', permission: 'read modem-models'},
-            {name: 'Cashless Terminal Models', href: '/cashless-providers', permission: 'read cashless-providers'},
+            {name: 'Card Terminals', href: '/card-terminals', permission: 'read card-terminals'},
             {name: 'Cashless Terminals', href: '/cashless-terminals', permission: 'read cashless-terminals'},
             {name: 'Telco', href: '/telcos', permission: 'read telcos'},
             {name: 'SIM Card', href: '/simcards', permission: 'read simcards'},

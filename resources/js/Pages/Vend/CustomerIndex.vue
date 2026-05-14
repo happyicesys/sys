@@ -911,6 +911,9 @@
 							<SingleSortItem modelName="totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_latest', true)">
 								Lifetime Sales
 							</SingleSortItem>
+							<SingleSortItem modelName="accumulate_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('accumulate_vending_earning_cents', true)">
+								Accumulated VendEarning
+							</SingleSortItem>
 							<SingleSortItem modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date', false)">
 								Begin Dt
 							</SingleSortItem>
@@ -932,9 +935,6 @@
 							</span>
 							<SingleSortItem modelName="customers.contract_until" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_until', false)">
 								Contract End Date
-							</SingleSortItem>
-							<SingleSortItem modelName="accumulate_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('accumulate_vending_earning_cents', true)">
-								Accumulated VendEarning
 							</SingleSortItem>
 							<SingleSortItem modelName="totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_gross_profit', true)">
 								L30d GrossEarning
@@ -1720,6 +1720,11 @@
 							>
 								{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
 							</span>
+							<!-- Accumulated VendingEarning — moved here from the Contract Type column.
+								Formatted without decimals to match the Lifetime Sales row directly above it. -->
+							<span v-if="vend.accumulate_vending_earning_cents != null" :class="vend.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'">
+								{{ operatorCountry.currency_symbol }}{{ (vend.accumulate_vending_earning_cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+							</span>
 							<span
 								v-if="vend.begin_date"
 								:class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'"
@@ -1761,12 +1766,26 @@
 								{{ vend.location_fees_cents < 0 ? '-' : '' }}{{ operatorCountry.currency_symbol }}{{ (Math.abs(vend.location_fees_cents) / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
 							<!-- Contract End Date (yymmdd) -->
-							<span v-if="vend.contract_until_short" class="text-gray-800">
-								{{ vend.contract_until_short }}
-							</span>
-							<!-- Accumulated VendingEarning -->
-							<span v-if="vend.accumulate_vending_earning_cents != null" :class="vend.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'">
-								{{ operatorCountry.currency_symbol }}{{ (vend.accumulate_vending_earning_cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+							<span v-if="vend.contract_until_short" class="text-gray-800 inline-flex items-center justify-center gap-1">
+								<!-- Invisible left spacer keeps the date visually centered when an icon is shown on the right -->
+								<span
+									v-if="vend.contract_auto_renewal === true || vend.contract_auto_renewal === false"
+									class="h-4 w-4 inline-block"
+									aria-hidden="true"
+								></span>
+								<span>{{ vend.contract_until_short }}</span>
+								<CheckCircleIcon
+									v-if="vend.contract_auto_renewal === true"
+									class="h-4 w-4 text-green-600 shrink-0"
+									aria-hidden="true"
+									v-tooltip="'Auto Renewal: Yes'"
+								/>
+								<XCircleIcon
+									v-else-if="vend.contract_auto_renewal === false"
+									class="h-4 w-4 text-red-600 shrink-0"
+									aria-hidden="true"
+									v-tooltip="'Auto Renewal: No'"
+								/>
 							</span>
 							<!-- L30d GrossEarning -->
 							<span
@@ -1819,6 +1838,53 @@
 											</span>
 									</div>
 							</div>
+							<!--
+								Remote Modem — minimal badge, matches HTTP / MQTT styling.
+								Modem type, IMEI and Reset button have been moved to
+								Vend/Edit.vue (Advance Control) so this column stays
+								narrow.
+
+								Always rendered so the column is visually consistent
+								across rows. When the vend has no modem unit bound,
+								the badge falls back to a gray N/A — same pattern the
+								Payment Device column uses for missing parameters.
+
+								Coloring logic when a modemUnit IS present mirrors
+								HTTP / MQTT badges:
+								  - green when modem reports online
+								  - red when modem reports offline (last_updated_at present)
+								  - gray when N/A (no last_updated_at) or vend inactive
+							-->
+							<div
+								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+								:class="[
+									vend.vend && vend.vend.modemUnit
+										? ((vend.is_active || vend.is_testing)
+											? (vend.vend.modemUnit.last_updated_at
+												? (vend.vend.modemUnit.is_online ? 'bg-green-200' : 'bg-red-200')
+												: 'bg-gray-200')
+											: 'bg-gray-200 text-gray-400')
+										: ((vend.is_active || vend.is_testing) ? 'bg-gray-200' : 'bg-gray-200 text-gray-400')
+								]"
+							>
+								<div class="flex flex-col">
+									<span class="font-bold">Remote Modem</span>
+									<template v-if="vend.vend && vend.vend.modemUnit">
+										<span class="font-bold" v-if="vend.vend.modemUnit.last_updated_at">
+											{{ vend.vend.modemUnit.is_online ? 'Online' : 'Offline' }}
+										</span>
+										<span v-else>
+											N/A
+										</span>
+										<span v-if="vend.vend.modemUnit.last_updated_at">
+											{{ vend.vend.modemUnit.last_updated_at }}
+										</span>
+									</template>
+									<span v-else>
+										N/A
+									</span>
+								</div>
+							</div>
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 									:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['Sensor'] % 2 == 0 ? 'bg-red-200' : 'bg-green-200') : 'bg-gray-200 text-gray-400']"
@@ -1861,35 +1927,6 @@
 													</span>
 											</div>
 							</div>
-							<!--
-								Remote Modem — minimal badge, matches HTTP / MQTT styling.
-								Modem type, IMEI and Reset button have been moved to
-								Vend/Edit.vue (Advance Control) so this column stays
-								narrow.
-
-								Coloring logic mirrors HTTP / MQTT badges:
-								  - green when modem reports online
-								  - red when modem reports offline (last_updated_at present)
-								  - gray when N/A (no last_updated_at) or vend inactive
-							-->
-							<div
-								class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-								:class="[vend.is_active || vend.is_testing ? (vend.vend.modemUnit.last_updated_at ? (vend.vend.modemUnit.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400') : 'bg-gray-200 text-gray-400']"
-								v-if="vend.vend && vend.vend.modemUnit"
-							>
-								<div class="flex flex-col">
-									<span class="font-bold">Remote Modem</span>
-									<span class="font-bold" v-if="vend.vend.modemUnit.last_updated_at">
-										{{ vend.vend.modemUnit.is_online ? 'Online' : 'Offline' }}
-									</span>
-									<span class="font-bold" v-else>
-										N/A
-									</span>
-									<span v-if="vend.vend.modemUnit.last_updated_at">
-										{{ vend.vend.modemUnit.last_updated_at }}
-									</span>
-								</div>
-							</div>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
@@ -1905,6 +1942,37 @@
 											</span>
 											<span>
 													{{vend.acbVmcPaJson['QRCode'] == 1 ? 'Enabled' : 'Disabled'}}
+											</span>
+									</div>
+							</div>
+							<!--
+								LCD Monitor — short label sourced from
+								Vend::LCD_MONITOR_SHORT_MAPPINGS (exposed through
+								VendResource as `lcd_monitor_short`). Always rendered
+								so the Payment Device column lines up across rows.
+
+								Two paths produce an "N/A" display: the vend has no
+								lcd_monitor_id bound, OR the user explicitly bound it
+								to mapping id 99 (which the mapping itself labels
+								'N/A'). Both should render the badge in the same
+								Bill-Acceptor-style gray — bg-gray-200 with default
+								dark text when the vend is active, dimmed only when
+								the vend itself is inactive.
+							-->
+							<div
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+									:class="[
+										(vend.vend && vend.vend.lcd_monitor_short && vend.vend.lcd_monitor_short !== 'N/A')
+											? ((vend.is_active || vend.is_testing) ? 'bg-green-200' : 'bg-gray-200 text-gray-400')
+											: ((vend.is_active || vend.is_testing) ? 'bg-gray-200' : 'bg-gray-200 text-gray-400')
+									]"
+							>
+									<div class="flex flex-col">
+											<span class="font-bold">
+													LCD Monitor
+											</span>
+											<span>
+													{{ vend.vend && vend.vend.lcd_monitor_short ? vend.vend.lcd_monitor_short : 'N/A' }}
 											</span>
 									</div>
 							</div>
@@ -1991,31 +2059,19 @@
 											</span>
 									</div>
 							</div> -->
+							<!-- Card Terminal (merged from former Cashless Status + Cashless Mfg badges):
+								 user-defined value from vends.card_terminal_id -> card_terminals.name.
+								 Green when set, gray "N/A" when null. -->
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-									:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
-									v-if="vend.parameterJson && 'CSHLStat' in vend.parameterJson"
+									:class="[vend.is_active || vend.is_testing ? (vend.card_terminal_name ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-													Cashless Status
+													Card Terminal
 											</span>
 											<span>
-													{{vend.parameterJson['CSHLStat'] == 3 ? 'Active' : (vend.parameterJson['CSHLStat'] == 1 ? 'Inactive' : 'NA') }}
-											</span>
-									</div>
-							</div>
-							<div
-									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-									:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-									v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
-							>
-									<div class="flex flex-col">
-											<span class="font-bold">
-													Cashless Mfg
-											</span>
-											<span>
-													{{vend.acbVmcPaJson['CSHL_MFG'] ? vend.acbVmcPaJson['CSHL_MFG'] : 'NA' }}
+													{{ vend.card_terminal_name ? vend.card_terminal_name : 'N/A' }}
 											</span>
 									</div>
 							</div>
@@ -2191,7 +2247,7 @@ font-size:13px;
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
-	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon } from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';

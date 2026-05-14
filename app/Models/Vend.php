@@ -19,6 +19,16 @@ class Vend extends Model
     const ATTACHMENT_TYPE_LOG = 1;
     const ATTACHMENT_TYPE_MEDIA_CONTENT = 2;
 
+    /**
+     * Card terminal manufacturer codes used in the "Card Terminal" badge on
+     * the vend listing pages and the Card Terminal filter dropdowns. The
+     * authoritative source of these values is the `card_terminals` table
+     * (seeded by CardTerminalSeeder). This const exists for places that
+     * need a static reference list (e.g. filter UIs that don't query the
+     * DB).
+     */
+    const CARD_TERMINALS = ['CAS', 'NYX', 'PAX', '111', 'MLS'];
+
     const CLAW_MACHINE_BOARD_MAPPINGS = [
         1 => 'China Huaqi Board',
         2 => 'Taiwanese Feiloli Board',
@@ -311,6 +321,7 @@ class Vend extends Model
         'apk_ver_json',
         'begin_date',
         'binded_at',
+        'card_terminal_id',
         'cashless_terminal_id',
         'claw_machine_body_id',
         'claw_machine_board_id',
@@ -409,6 +420,11 @@ class Vend extends Model
     public function category()
     {
         return $this->morphOne(Category::class, 'modelable');
+    }
+
+    public function cardTerminal()
+    {
+        return $this->belongsTo(CardTerminal::class, 'card_terminal_id');
     }
 
     public function cashlessTerminal()
@@ -769,8 +785,15 @@ class Vend extends Model
                 }
             })
             ->when($request->cashless_mfg, function ($query, $search) {
+                // Filter by user-defined card terminal manufacturer.
+                // Sourced from card_terminals.name via vends.card_terminal_id
+                // (previously read live from acb_vmc_pa_json->CSHL_MFG, which
+                // was unreliable). See VendController::indexCustomer for the
+                // matching join on card_terminals.
                 if ($search != 'all') {
-                    $query->where('acb_vmc_pa_json->CSHL_MFG', '=', $search);
+                    $query->whereHas('cardTerminal', function ($q) use ($search) {
+                        $q->where('name', $search);
+                    });
                 }
             })
             ->when($request->account_manager_name, function ($query, $search) {

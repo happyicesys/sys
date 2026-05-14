@@ -947,14 +947,14 @@ const loadMoreHistory = () => {
                           </div>
                           <div
                               class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
-                              :class="[row.acb_vmc_pa_json && row.acb_vmc_pa_json['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
+                              :class="[row.card_terminal_name ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
                           >
                               <div class="flex flex-col items-center text-center">
                                   <span class="font-bold">
-                                      Cashless Mfg
+                                      Card Terminal
                                   </span>
                                   <span>
-                                      {{row.acb_vmc_pa_json && row.acb_vmc_pa_json['CSHL_MFG'] ? row.acb_vmc_pa_json['CSHL_MFG'] : 'NA' }}
+                                      {{ row.card_terminal_name ? row.card_terminal_name : 'N/A' }}
                                   </span>
                               </div>
                           </div>
@@ -1599,15 +1599,14 @@ const loadMoreHistory = () => {
                     </div>
                     <div
                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
-                       :class="[row.acb_vmc_pa_json && row.acb_vmc_pa_json['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
-                       v-if="row.acb_vmc_pa_json && 'CSHL_MFG' in row.acb_vmc_pa_json"
+                       :class="[row.card_terminal_name ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
                     >
                        <div class="flex flex-col items-center text-center">
                            <span class="font-bold">
-                               Cashless Mfg
+                               Card Terminal
                            </span>
                            <span>
-                               {{row.acb_vmc_pa_json['CSHL_MFG'] ? row.acb_vmc_pa_json['CSHL_MFG'] : 'NA' }}
+                               {{ row.card_terminal_name ? row.card_terminal_name : 'N/A' }}
                            </span>
                        </div>
                     </div>
@@ -1723,15 +1722,14 @@ const loadMoreHistory = () => {
                       </div>
                       <div
                          class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
-                         :class="[row.acb_vmc_pa_json && row.acb_vmc_pa_json['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
-                         v-if="row.acb_vmc_pa_json && 'CSHL_MFG' in row.acb_vmc_pa_json"
+                         :class="[row.card_terminal_name ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
                       >
                          <div class="flex flex-col items-center text-center">
                              <span class="font-bold">
-                                 Cashless Mfg
+                                 Card Terminal
                              </span>
                              <span>
-                                 {{row.acb_vmc_pa_json['CSHL_MFG'] ? row.acb_vmc_pa_json['CSHL_MFG'] : 'NA' }}
+                                 {{ row.card_terminal_name ? row.card_terminal_name : 'N/A' }}
                              </span>
                          </div>
                       </div>

@@ -27,7 +27,7 @@ class CashlessTerminalResource extends JsonResource
             'termination_date' => $this->termination_date,
             'updated_by' => $this->updated_by,
             'updatedBy' => UserResource::make($this->whenLoaded('updatedBy')),
-            'cashlessProvider' => CashlessProviderResource::make($this->whenLoaded('cashlessProvider')),
+            'cashlessProvider' => CardTerminalResource::make($this->whenLoaded('cardTerminal')),
         ];
     }
 }
