@@ -2,13 +2,11 @@
 
 namespace App\Services;
 
-use App\Jobs\CreateVendData;
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformCampaign;
 use App\Models\DeliveryPlatformCampaignItemVend;
 use App\Models\DeliveryPlatformOperator;
-use App\Models\VendData;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Facades\Http;
@@ -73,15 +71,6 @@ class DeliveryPlatformCampaignService
     switch($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->updateCampaign($deliveryPlatformCampaignItemVend->platform_ref_id, $this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend));
-
-        CreateVendData::dispatch(
-          $response,       // originalInput
-          $response,       // processedInput
-          null,            // ipAddress
-          'grab',          // connectionType (better clarity than null)
-          'GRAB-CAMPAIGN-UPDATE' // type
-        )->onQueue('default');
-
 
         if($response['success']) {
           return $response['data'];

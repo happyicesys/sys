@@ -13,7 +13,6 @@ class VendData extends Model
         'connection',
         'ip_address',
         'is_keep',
-        'processed',
         'type',
         'value',
         'vend_code',
@@ -21,6 +20,5 @@ class VendData extends Model
 
     protected $casts = [
         'value' => 'json',
-        'processed' => 'json',
     ];
 }

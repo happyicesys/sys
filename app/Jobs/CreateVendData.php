@@ -35,16 +35,23 @@ class CreateVendData implements ShouldQueue
 
     /**
      * Execute the job.
+     *
+     * Lean writes: we no longer persist the decoded `processed` payload — the raw
+     * `value` is preserved and can be re-decoded on demand via VendDataService::decodeVendData().
+     * When Type is missing it means a heartbeat (MQTT: empty 'p', no Type / HTTP: 'p' absent).
      */
     public function handle(): void
     {
+        $resolvedType = $this->type
+            ?? ($this->processedInput['Type'] ?? null)
+            ?? 'HEARTBEAT';
+
         VendData::create([
             'connection' => $this->connectionType,
             'ip_address' => $this->ipAddress,
-            'processed' => $this->processedInput,
-            'type' => $this->type ?? ($this->processedInput['Type'] ?? null),
+            'type' => $resolvedType,
             'value' => $this->originalInput,
-            'vend_code' => isset($this->originalInput['m']) ? $this->originalInput['m'] : null,
+            'vend_code' => $this->originalInput['m'] ?? null,
             'is_keep' => $this->isKeep,
         ]);
     }

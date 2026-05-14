@@ -12,10 +12,8 @@ use App\Models\UnitCost;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
-use App\Models\VendData;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
-use App\Jobs\CreateVendData;
 use App\Jobs\HandleFailedVendTransaction;
 use App\Jobs\SendDataToDcvend;
 use App\Jobs\Vend\SyncUnitCostJson;
@@ -80,15 +78,6 @@ class VendTransactionService
                         ->first();
 
                     if ($duplicatedVendTransaction) {
-                        CreateVendData::dispatch(
-                            $input,                                      // originalInput
-                            $duplicatedVendTransaction->vend_transaction_json, // processedInput
-                            null,                                        // ipAddress
-                            'vend-transaction',                          // connectionType
-                            'duplicated_order_id',                       // type
-                            true                                         // isKeep
-                        )->onQueue('default');
-
                         return null; // Exit and return null if duplicate exists
                     }
 

@@ -352,7 +352,6 @@ class VendDataService
               $encodedOriginalHb = json_encode($originalInput);
               \Illuminate\Support\Facades\DB::table('vend_data')->insert([
                 'value' => $encodedOriginalHb,
-                'processed' => null,
                 'ip_address' => $ipAddress,
                 'connection' => $connectionType,
                 'type' => strlen($encodedOriginalHb),
@@ -377,7 +376,6 @@ class VendDataService
           $encodedOriginalHb = json_encode($originalInput);
           \Illuminate\Support\Facades\DB::table('vend_data')->insert([
             'value' => $encodedOriginalHb,
-            'processed' => null,
             'ip_address' => $ipAddress,
             'connection' => $connectionType,
             'type' => strlen($encodedOriginalHb),
@@ -419,10 +417,15 @@ class VendDataService
     }
 
     if ($saveVendData) {
-      if (config('app.env') == 'production' && config('app.log_server_url') && config('app.log_server_access_token')) {
-        SendHttpDataToLogServer::dispatch($originalInput)->onQueue('default');
+      // Switched from external log server (SendHttpDataToLogServer) to local vend_data table
+      // for stability. Kill switch: set LOG_TO_VEND_DATA=false in .env to disable without a deploy.
+      // To revert: comment the local dispatch and uncomment the HTTP dispatch.
+      // if (config('app.env') == 'production' && config('app.log_server_url') && config('app.log_server_access_token')) {
+      //   SendHttpDataToLogServer::dispatch($originalInput)->onQueue('default');
+      // }
+      if (config('app.log_to_vend_data')) {
+        CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
       }
-      // CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
     }
 
     return response()->json($response);

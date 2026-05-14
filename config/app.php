@@ -64,6 +64,14 @@ return [
 
     'log_server_access_token' => env('LOG_SERVER_ACCESS_TOKEN'),
 
+    // Kill switch for local vend_data logging (CreateVendData job).
+    // STRICT OPT-IN: logging is OFF unless LOG_TO_VEND_DATA is explicitly truthy
+    // (true / 1 / yes / on). If the var is missing, empty, or false → no logging.
+    // This means after a fresh deploy, you MUST set LOG_TO_VEND_DATA=true in .env
+    // to start logging — otherwise vend_data stays untouched.
+    // Run `php artisan config:clear` (or config:cache for prod) after changing .env.
+    'log_to_vend_data' => filter_var(env('LOG_TO_VEND_DATA'), FILTER_VALIDATE_BOOLEAN),
+
     'asset_url' => env('ASSET_URL'),
 
     /*
