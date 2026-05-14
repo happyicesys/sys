@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     /**
      * Adds `card_terminal_id` to `vends` so each vend can store a
-     * user-defined card-terminal type (CAS, NYX, PAX, 111, MLS) instead of
-     * relying on the VM-reported `acb_vmc_pa_json->CSHL_MFG` value, which has
-     * proven unreliable.
+     * user-defined card-terminal type (Nayax, Nets, Nets-Auresys, PAX, MLS)
+     * instead of relying on the VM-reported `acb_vmc_pa_json->CSHL_MFG`
+     * value, which has proven unreliable.
      *
      * Nullable + no DB-level FK constraint to mirror the project's other
      * "soft" FK columns (e.g. cashless_terminal_id, vend_prefix_id).

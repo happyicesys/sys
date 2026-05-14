@@ -1006,7 +1006,7 @@ class MachineHealthDashboardService
             'customer_name' => $vend?->customer?->name,
             'operator_name' => $vend?->operator?->name,
             'vend_prefix_name' => $vend?->vendPrefix?->name,
-            // User-defined card terminal type (CAS/NYX/PAX/111/MLS) — shown
+            // User-defined card terminal type (Nayax/Nets/Nets-Auresys/PAX/MLS) — shown
             // in the Card Terminal badge on MachineHealth/Index.vue.
             'card_terminal_name' => $vend?->cardTerminal?->name,
         ];

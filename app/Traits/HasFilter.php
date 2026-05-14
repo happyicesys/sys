@@ -414,6 +414,26 @@ trait HasFilter
                     $query->where('vends.cashless_terminal_id', $search);
                 }
             })
+            // Filter by user-defined card terminal name (Nayax / Nets /
+            // Nets-Auresys / PAX / MLS). The frontend sends the bare name;
+            // we resolve it to a card_terminals.id via a subquery and match
+            // on the `vends.card_terminal_id` column.
+            //
+            // A subquery (rather than whereHas('cardTerminal')) is used
+            // because this trait is mixed into queries with different base
+            // models — Vend, Customer (indexCustomer), VendSnapshot, etc. —
+            // and whereHas would try to call cardTerminal() on whichever
+            // base model is in use. The vends table is always joined at
+            // every call site.
+            ->when($request->cashless_mfg, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereIn('vends.card_terminal_id', function ($sub) use ($search) {
+                        $sub->select('id')
+                            ->from('card_terminals')
+                            ->where('name', $search);
+                    });
+                }
+            })
             ->when($request->codes, function ($query, $search) {
                 if (strpos($search, ',') !== false) {
                     $search = array_map('trim', explode(',', $search));

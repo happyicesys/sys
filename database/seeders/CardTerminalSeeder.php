@@ -10,7 +10,11 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Seeds the `card_terminals` table with the canonical list of card-terminal
- * manufacturer codes (CAS / NYX / PAX / 111 / MLS).
+ * brand names (Nayax / Nets / Nets-Auresys / PAX / MLS).
+ *
+ * Source: the operations team's "Card Terminal" column in
+ * `card terminal as of 14May26 (1).xlsx` (the related `cashless_mfg` column
+ * of VM-reported codes — CAS/NYX/111/etc. — is no longer authoritative).
  *
  * Truncates both `card_terminals` and `cashless_terminals` first — the old
  * `cashless_providers` seed (Nayax / Castle / XVend / Auresys / Beeptech) was

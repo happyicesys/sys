@@ -198,7 +198,7 @@ class SettingController extends Controller
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()
             ),
-            // Card terminal types (CAS / NYX / PAX / 111 / MLS). Sourced from
+            // Card terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS). Sourced from
             // the user-defined `card_terminals` table (formerly read live from
             // vends.acb_vmc_pa_json->CSHL_MFG, which was unreliable).
             //
@@ -433,7 +433,7 @@ class SettingController extends Controller
         }
 
         return Inertia::render('Setting/Edit', [
-            // Card Terminal types (CAS / NYX / PAX / 111 / MLS) — populates
+            // Card Terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS) — populates
             // the new "Card Terminal" dropdown on the vend edit form.
             'cardTerminalOptions' => CardTerminalResource::collection(
                 CardTerminal::orderBy('name')->get()

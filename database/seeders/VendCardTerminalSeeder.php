@@ -5,8 +5,6 @@ namespace Database\Seeders;
 use App\Models\CardTerminal;
 use App\Models\Vend;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Backfills `vends.card_terminal_id` from a hand-curated CSV (sourced from
@@ -14,14 +12,19 @@ use Illuminate\Support\Facades\Log;
  * database/seeders/data/vend_card_terminal.csv).
  *
  * CSV format:
- *   id,cashless_mfg
- *   1149,NYX
- *   1184,CAS
+ *   id,card_terminal
+ *   1149,Nayax
+ *   2052,Nets
  *   ...
  *
- * Where `id` is the vend code (matches vends.code) and `cashless_mfg` is one
- * of {CAS, NYX, PAX, 111, MLS} — or empty / N/A for vends without a card
- * terminal. Empty rows are skipped (vend's card_terminal_id stays as-is).
+ * Where `id` is the vend code (matches vends.code) and `card_terminal` is one
+ * of {Nayax, Nets, Nets-Auresys, PAX, MLS} — or empty for vends without a
+ * card terminal. Empty rows are skipped (vend's card_terminal_id stays
+ * as-is).
+ *
+ * The CSV is generated from the "Card Terminal" column of the source Excel,
+ * NOT the related "cashless_mfg" column (which holds the legacy VM-reported
+ * codes CAS / NYX / 111 / etc.).
  *
  * Requires CardTerminalSeeder to have run first so the card_terminals table
  * is populated.
@@ -50,7 +53,7 @@ class VendCardTerminalSeeder extends Seeder
         }
 
         $handle = fopen($csvPath, 'r');
-        $header = fgetcsv($handle); // id,cashless_mfg
+        $header = fgetcsv($handle); // id,card_terminal
 
         $updated = 0;
         $skippedEmpty = 0;
@@ -59,26 +62,26 @@ class VendCardTerminalSeeder extends Seeder
         $unmatchedTerminals = [];
 
         while (($row = fgetcsv($handle)) !== false) {
-            [$vendCode, $cashlessMfg] = array_pad($row, 2, '');
+            [$vendCode, $cardTerminalName] = array_pad($row, 2, '');
             $vendCode = trim((string) $vendCode);
-            $cashlessMfg = trim((string) $cashlessMfg);
+            $cardTerminalName = trim((string) $cardTerminalName);
 
             if ($vendCode === '') {
                 continue;
             }
 
-            if ($cashlessMfg === '' || strcasecmp($cashlessMfg, 'NULL') === 0 || strcasecmp($cashlessMfg, 'N/A') === 0) {
+            if ($cardTerminalName === '' || strcasecmp($cardTerminalName, 'NULL') === 0 || strcasecmp($cardTerminalName, 'N/A') === 0) {
                 $skippedEmpty++;
                 continue;
             }
 
-            if (!isset($terminalIdByName[$cashlessMfg])) {
+            if (!isset($terminalIdByName[$cardTerminalName])) {
                 $skippedUnknownTerminal++;
-                $unmatchedTerminals[$cashlessMfg] = ($unmatchedTerminals[$cashlessMfg] ?? 0) + 1;
+                $unmatchedTerminals[$cardTerminalName] = ($unmatchedTerminals[$cardTerminalName] ?? 0) + 1;
                 continue;
             }
 
-            $terminalId = $terminalIdByName[$cashlessMfg];
+            $terminalId = $terminalIdByName[$cardTerminalName];
 
             $affected = Vend::where('code', $vendCode)
                 ->where(function ($q) use ($terminalId) {

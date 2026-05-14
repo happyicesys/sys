@@ -1494,7 +1494,7 @@ function getDefaultForm() {
 }
 
 onMounted(() => {
-  // Card Terminal types (CAS / NYX / PAX / 111 / MLS) — populated from
+  // Card Terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS) — populated from
   // CardTerminalResource::collection in SettingController@edit.
   cardTerminalOptions.value = [
     { id: '', name: '--- Clear ---'},

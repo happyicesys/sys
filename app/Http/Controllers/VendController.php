@@ -589,7 +589,7 @@ class VendController extends Controller
             })
             ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-            // Card terminal type (CAS / NYX / PAX / 111 / MLS). Joined so we
+            // Card terminal type (Nayax / Nets / Nets-Auresys / PAX / MLS). Joined so we
             // can SELECT card_terminals.name AS card_terminal_name and expose
             // it on the Customer Index "Card Terminal" badge / filter without
             // an N+1 lazy load.
@@ -1245,6 +1245,11 @@ class VendController extends Controller
         });
 
         return Inertia::render('Vend/CustomerIndex', [
+            // Card terminal options (Nayax / Nets / Nets-Auresys / PAX / MLS). Drives the
+            // "Card Terminal" filter dropdown. Sourced from the static const
+            // so the dropdown stays consistent even if a vend hasn't been
+            // bound to any card terminal yet.
+            'cardTerminalOptions' => Vend::CARD_TERMINALS,
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'dayOptions' => Customer::DAYS_MAPPING,

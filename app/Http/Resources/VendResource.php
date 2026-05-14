@@ -31,7 +31,7 @@ class VendResource extends JsonResource
             'balance_percent' => isset($this->balance_percent) ? $this->balance_percent : null,
             'cardTerminal' => CardTerminalResource::make($this->whenLoaded('cardTerminal')),
             'card_terminal_id' => isset($this->card_terminal_id) ? $this->card_terminal_id : null,
-            // Card terminal manufacturer name (CAS / NYX / PAX / 111 / MLS).
+            // Card terminal name (Nayax / Nets / Nets-Auresys / PAX / MLS).
             // Comes from the user-defined card_terminals table — replaces the
             // unreliable acb_vmc_pa_json->CSHL_MFG read.
             'card_terminal_name' => $this->whenLoaded('cardTerminal', function () {

@@ -20,14 +20,16 @@ class Vend extends Model
     const ATTACHMENT_TYPE_MEDIA_CONTENT = 2;
 
     /**
-     * Card terminal manufacturer codes used in the "Card Terminal" badge on
-     * the vend listing pages and the Card Terminal filter dropdowns. The
-     * authoritative source of these values is the `card_terminals` table
-     * (seeded by CardTerminalSeeder). This const exists for places that
-     * need a static reference list (e.g. filter UIs that don't query the
-     * DB).
+     * Card terminal names used in the "Card Terminal" badge on the vend
+     * listing pages and the Card Terminal filter dropdowns. The authoritative
+     * source of these values is the `card_terminals` table (seeded by
+     * CardTerminalSeeder). This const exists for places that need a static
+     * reference list (e.g. filter UIs that don't query the DB).
+     *
+     * Source: the operations team's "Card Terminal" column in
+     * `card terminal as of 14May26 (1).xlsx`.
      */
-    const CARD_TERMINALS = ['CAS', 'NYX', 'PAX', '111', 'MLS'];
+    const CARD_TERMINALS = ['Nayax', 'Nets', 'Nets-Auresys', 'PAX', 'MLS'];
 
     const CLAW_MACHINE_BOARD_MAPPINGS = [
         1 => 'China Huaqi Board',

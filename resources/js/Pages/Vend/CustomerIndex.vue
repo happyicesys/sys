@@ -235,6 +235,22 @@
 					>
 					</MultiSelect>
 				</div>
+				<div v-if="showAllFilters">
+					<label for="text" class="block text-sm font-medium text-gray-700">
+						Card Terminal
+					</label>
+					<MultiSelect
+						v-model="filters.cashless_mfg"
+						:options="cardTerminalOptions"
+						trackBy="id"
+						valueProp="id"
+						label="value"
+						placeholder="Select"
+						open-direction="bottom"
+						class="mt-1"
+					>
+					</MultiSelect>
+				</div>
 				<SearchInput placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 					Avg/Day Sales (30d) &lt;&lt;
 				</SearchInput>
@@ -2267,6 +2283,7 @@ font-size:13px;
 
 	const props = defineProps({
 			autoLoad: Boolean,
+			cardTerminalOptions: [Array, Object],
 			cmsEndpoint: String,
 			constTempError: Number,
 			dayOptions: [Array, Object],
@@ -2295,6 +2312,7 @@ font-size:13px;
 	const filters = ref({
 			account_manager_name: '',
 			apk_ver: '',
+			cashless_mfg: '',
 			codes: '',
 			coinLessThan: '',
 			channel_codes: '',
@@ -2347,6 +2365,7 @@ font-size:13px;
 	const baseUrl = ref(props.indexType === 'customers' ? '/vends/customers' : '/vends')
 	const booleanOptions = ref([])
 	const booleanStrictOptions = ref([])
+	const cardTerminalOptions = ref([])
 	const customerModel = ref([])
 	const deliveryPlatformOptions = ref([])
 	const deviceTypeOptions = ref([])
@@ -2420,6 +2439,14 @@ deviceTypeOptions.value =
 [
 		{id: 'all', value: 'All'},
 		...Object.entries(props.deviceTypes).map(([id, name]) => ({id: id, value: name}))
+]
+// Card terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS) sourced from
+// Vend::CARD_TERMINALS via the controller. Posts back the name (e.g.
+// "Nayax") as the `cashless_mfg` query param; resolved against
+// card_terminals.name via the subquery in HasFilter::filterVendsDB.
+cardTerminalOptions.value = [
+		{id: 'all', value: 'All'},
+		...(props.cardTerminalOptions ?? []).map((name) => ({id: name, value: name}))
 ]
 booleanOptions.value = [
 		{id: 'all', value: 'All'},
@@ -2516,6 +2543,7 @@ productMappingOptions.value = [
 		...props.productMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
+filters.value.cashless_mfg = cardTerminalOptions.value[0]
 filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
 filters.value.is_active = booleanOptions.value[1]
 filters.value.deviceType = deviceTypeOptions.value[0]
@@ -2576,6 +2604,7 @@ if(urlParams.has('channel_codes')) {
 
 		if(key === 'sortBy') filters.value.sortBy = (value === 'true');
 
+		if(cleanKey === 'cashless_mfg') filters.value.cashless_mfg = cardTerminalOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.cashless_mfg;
 		if(cleanKey === 'delivery_platform_id') filters.value.delivery_platform_id = deliveryPlatformOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.delivery_platform_id;
 		if(cleanKey === 'deviceType') filters.value.deviceType = deviceTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.deviceType;
 		if(cleanKey === 'location_type_id') filters.value.locationType = locationTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.locationType;
@@ -2912,6 +2941,7 @@ function onSearchFilterUpdated() {
 	router.get(baseUrl.value, {
 			autoload: true,
 			...filters.value,
+			cashless_mfg: filters.value.cashless_mfg?.id ?? '',
 			delivery_platform_id: filters.value.delivery_platform_id.id,
 			deviceType: filters.value.deviceType.id,
 			errors: filters.value.errors.map((error) => { return error.id }),
@@ -3029,6 +3059,7 @@ axios({
 		url: '/vends/channels/excel',
 		params: {
 				...filters.value,
+				cashless_mfg: filters.value.cashless_mfg?.id ?? '',
 				delivery_platform_id: filters.value.delivery_platform_id.id,
 				deviceType: filters.value.deviceType.id,
 				errors: filters.value.errors.map((error) => { return error.id }),
