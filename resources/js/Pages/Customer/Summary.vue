@@ -336,7 +336,11 @@
                       <span >Rate</span>
                     </div>
                   </TableHead>
-                  <TableHead>Accumulate Vend Earning</TableHead>
+                  <TableHead>
+                    <SingleSortItem modelName="accumulate_vending_earning" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('accumulate_vending_earning')">
+                      Accumulate Vend Earning
+                    </SingleSortItem>
+                  </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-4">
                       <span>Loc Grading</span>

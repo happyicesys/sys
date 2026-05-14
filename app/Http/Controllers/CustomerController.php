@@ -251,12 +251,16 @@ class CustomerController extends Controller
 
         // Sortable columns. machine_id / machine_prefix sort by the customer's
         // latest-bound vend (resolved via scalar subqueries below).
+        // accumulate_vending_earning sorts by the lifetime running prefix sum
+        // of location_earning_cents per customer up to each row's year_month —
+        // computed via a correlated subquery (see orderByRaw below).
         $sortKey = in_array($summarySortKey, [
             'year_month', 'sales_cents', 'gross_earning_cents',
             'location_fees_cents', 'location_earning_cents', 'location_earning_rate',
             'transaction_count', 'customer_id',
             'machine_id', 'machine_prefix',
             'contract_commission_type', 'contract_commission_value',
+            'accumulate_vending_earning',
         ], true) ? $summarySortKey : 'year_month';
         $sortDirection = filter_var($summarySortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
@@ -325,6 +329,23 @@ class CustomerController extends Controller
                   LEFT JOIN vend_prefixes vp ON vp.id = v.vend_prefix_id
                   WHERE v.customer_id = customer_period_summaries.customer_id
                   ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) ' . $sortDirection
+            );
+        } elseif ($sortKey === 'accumulate_vending_earning') {
+            // Lifetime running sum of location_earning_cents for THIS row's
+            // customer up to and including THIS row's year_month. Same value
+            // that attachAccumulatedVendingEarning() later attaches as
+            // $row->accumulate_vending_earning_cents — we just need it visible
+            // to MySQL during ORDER BY so the page-window selection is
+            // accumulate-aware.
+            //
+            // Efficient on the existing (customer_id, year_month) unique
+            // index: each subquery is an index range scan, no full table
+            // scan.
+            $summariesQuery->orderByRaw(
+                '(SELECT COALESCE(SUM(s2.location_earning_cents), 0)
+                  FROM customer_period_summaries s2
+                  WHERE s2.customer_id = customer_period_summaries.customer_id
+                    AND s2.`year_month` <= customer_period_summaries.`year_month`) ' . $sortDirection
             );
         } else {
             $summariesQuery->orderBy($sortKey, $sortDirection);
@@ -826,7 +847,11 @@ class CustomerController extends Controller
         // can collapse / pivot in Excel themselves if they want a
         // roll-up.
         $eagerLoads = [
-            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,begin_date,termination_date',
+            // Column-selection eager load — must include every column the
+            // export references below. Three previously-missing columns
+            // (location_grading_*) made the "Location Grading" cell render
+            // blank even when the on-screen Summary page showed a value.
+            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,termination_date',
             'customer.operator:id,code,name',
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
@@ -981,13 +1006,43 @@ class CustomerController extends Controller
                     'Vending Earning' => round(((int) $row->location_earning_cents) / $divisor, 2),
                     'Vending Earning Rate %' => round(((float) $row->location_earning_rate) * 100, 2),
                     'Accumulate Vending Earning' => round(((int) ($accumulateMap[$row->customer_id] ?? 0)) / $divisor, 2),
-                    'Location Grading' => null,          // placeholder — same as the on-screen "—"
-                    'Location Type' => $customer && $customer->relationLoaded('locationType') ? optional($customer->locationType)->name : null,
+                    // Location Grading: matches Summary.vue's "P, A, F" tooltip
+                    // format — "{placement}, {access}, {flexibility}", each
+                    // letter or '-' when blank. Hidden entirely if all three
+                    // are null so the column doesn't carry meaningless "-, -, -"
+                    // rows.
+                    'Location Grading' => $this->formatLocationGradingForExport($customer),
+                    // Direct access — the relation is in $eagerLoads above, and
+                    // even if it weren't, optional() handles the null case.
+                    // The old relationLoaded() defensive check was returning
+                    // false in cursor() context and silently dropping the value.
+                    'Location Type' => optional($customer?->locationType)->name,
                     'Customer Tag' => $tagNames,
                     'CMS Txn #' => $cmsTxnId,
                 ];
             }
         );
+    }
+
+    /**
+     * Format a customer's three Location Grading picks for the Summary export.
+     * Mirrors Summary.vue's render style: "{placement}, {access}, {flexibility}"
+     * with '-' for blanks. Returns null when all three are null so empty rows
+     * don't render a meaningless "-, -, -" string.
+     *
+     * @param  \App\Models\Customer|null  $customer
+     * @return string|null
+     */
+    protected function formatLocationGradingForExport($customer): ?string
+    {
+        if (!$customer) return null;
+        $p = $customer->location_grading_placement;
+        $a = $customer->location_grading_access;
+        $f = $customer->location_grading_flexibility;
+        if ($p === null && $a === null && $f === null) {
+            return null;
+        }
+        return ($p ?: '-') . ', ' . ($a ?: '-') . ', ' . ($f ?: '-');
     }
 
     /**
