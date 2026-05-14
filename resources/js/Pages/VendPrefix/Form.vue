@@ -44,14 +44,8 @@
                 open-direction="top"
                 mode="tags"
                 class="mt-1"
-                max="4"
               >
               </MultiSelect>
-              <span>
-                <small class="text-xs text-blue-800">
-                  (Maximum 4 options)
-                </small>
-              </span>
               <div class="text-sm text-red-600" v-if="form.errors.productMappings">
                 {{ form.errors.productMappings }}
               </div>
