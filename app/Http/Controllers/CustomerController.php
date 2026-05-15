@@ -56,6 +56,20 @@ class CustomerController extends Controller
 {
     use ExportOptimizationTrait, HasFilter, SearchAddress;
 
+    /**
+     * Hard floor for Customer Summary reporting. mark1 only started capturing
+     * monthly Customer Period Summaries from 2022-01-01 onwards; anything
+     * older was reconstructed from imported Excel and is incomplete, so the
+     * "Accumulate Vending Earning" column would be misleading if it summed
+     * across that boundary. We clamp both the visible window ("All" Period
+     * Report) and the lifetime running sum to this date.
+     *
+     * Pre-2022 rows are intentionally left in `customer_period_summaries`
+     * (no reseed needed) — we just don't display or sum them. If the floor
+     * ever needs to change, update this constant only.
+     */
+    const SUMMARY_FLOOR_DATE = '2022-01-01';
+
     protected $historyService;
     protected $mapService;
 
@@ -531,7 +545,10 @@ class CustomerController extends Controller
      *                     N+1 month rows so the latest (possibly
      *                     incomplete) month appears at the top of each
      *                     customer's group.
-     *   all             → rangeStart = earliest known year_month; rangeEnd = current month
+     *   all             → rangeStart = earliest known year_month (clamped to
+     *                     self::SUMMARY_FLOOR_DATE — pre-2022 rows in the
+     *                     table came from the Excel backfill and are
+     *                     incomplete); rangeEnd = current month
      *   anything else   → falls back to "current"
      *
      * @return array{0:\Carbon\Carbon,1:\Carbon\Carbon}
@@ -552,6 +569,14 @@ class CustomerController extends Controller
             $rangeStart = $earliest
                 ? \Carbon\Carbon::parse($earliest)->startOfMonth()
                 : $currentMonthStart->copy();
+            // Hard floor — see self::SUMMARY_FLOOR_DATE. Pre-2022 rows exist in
+            // the table from the Excel backfill but are incomplete, so we
+            // refuse to show or sum them. max() picks the later of the two,
+            // i.e. clamps the start forward to the floor when needed.
+            $floor = \Carbon\Carbon::parse(self::SUMMARY_FLOOR_DATE)->startOfMonth();
+            if ($rangeStart->lt($floor)) {
+                $rangeStart = $floor;
+            }
             return [$rangeStart, $currentMonthStart->copy()];
         }
 
@@ -646,9 +671,18 @@ class CustomerController extends Controller
         // Pull every monthly row for these customers up to the page's
         // latest visible month, ordered ascending so a single linear pass
         // builds the prefix sum keyed by (customer_id, year_month).
+        //
+        // We also clamp at self::SUMMARY_FLOOR_DATE so the running sum starts
+        // at the system deployment date — pre-2022 rows (reconstructed from
+        // Excel) are incomplete and would inflate / distort the lifetime
+        // accumulated earning. This must stay in lockstep with the floor
+        // applied in resolvePeriodReportRange() so the on-screen rows and
+        // their running totals describe the same window.
+        $floor = self::SUMMARY_FLOOR_DATE;
         $monthlyRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
             ->select('customer_id', 'year_month', 'location_earning_cents')
             ->whereIn('customer_id', $customerIds)
+            ->where('year_month', '>=', $floor)
             ->where('year_month', '<=', $through)
             ->orderBy('customer_id')
             ->orderBy('year_month')
@@ -909,9 +943,13 @@ class CustomerController extends Controller
         // gross_earning_cents - location_fees_cents (already pre-computed and
         // stored as location_earning_cents on each monthly summary row).
         $accumThrough = $rangeEnd->copy()->startOfMonth()->toDateString();
+        // Floor matches attachAccumulatedVendingEarning() — pre-2022 rows are
+        // incomplete and excluded from the lifetime sum so the export agrees
+        // with what's rendered on screen.
         $accumulateMap = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
             ->selectRaw('customer_id, SUM(location_earning_cents) AS accum')
             ->whereIn('customer_id', $customerIds)
+            ->where('year_month', '>=', self::SUMMARY_FLOOR_DATE)
             ->where('year_month', '<=', $accumThrough)
             ->groupBy('customer_id')
             ->pluck('accum', 'customer_id');
@@ -1430,6 +1468,23 @@ class CustomerController extends Controller
         $customer->notes = $request->notes;
         $customer->notes_updated_by = auth()->user()->id;
         $customer->notes_updated_at = Carbon::now();
+        $customer->save();
+
+        return redirect()->back();
+    }
+
+    /**
+     * Inline-update the customer's Ops Note (refilling/operations free-text
+     * field shown in the "Refilling Routes" column on Vend/CustomerIndex).
+     * Same shape as updateNotes() — write the value plus a (by, at) audit
+     * pair, no return payload, the caller does a partial reload.
+     */
+    public function updateOpsNote(Request $request, $customerId)
+    {
+        $customer = Customer::findOrFail($customerId);
+        $customer->ops_note = $request->ops_note;
+        $customer->ops_note_updated_by = auth()->user()->id;
+        $customer->ops_note_updated_at = Carbon::now();
         $customer->save();
 
         return redirect()->back();

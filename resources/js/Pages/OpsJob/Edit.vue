@@ -540,6 +540,12 @@
                                     <PaperClipIcon class="w-4 h-4"></PaperClipIcon>
                                   </span>
                                 </div>
+                                <span v-if="row.status_at" class="text-xs font-medium text-gray-600">
+                                  {{ row.status_at }}
+                                  <span v-if="row.statusBy">
+                                    ({{ row.statusBy.name }})
+                                  </span>
+                                </span>
                                 <div class="flex flex-col gap-1" v-if="row.stock_action_type">
                                   <div
                                       class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-bold border w-fit"
@@ -554,12 +560,6 @@
                                       {{ (row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).remarks }}
                                   </div>
                                 </div>
-                                <span v-if="row.status_at" class="text-xs font-medium text-gray-600">
-                                  {{ row.status_at }}
-                                  <span v-if="row.statusBy">
-                                    ({{ row.statusBy.name }})
-                                  </span>
-                                </span>
                               </div>
                               <div
                                   class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
@@ -583,6 +583,12 @@
                                     {{ row.customer.code }} <br>
                                   </span>
                                   {{ row.customer && row.customer.name ? row.customer.name : ''}}
+                                </span>
+                                <span
+                                  class="inline-flex rounded px-0.5 py-0.5 text-xs border align-middle ml-1 bg-indigo-100 text-indigo-800 border-indigo-300"
+                                  v-if="row.customer && row.customer.selling_price_type"
+                                >
+                                  RP{{ row.customer.selling_price_type }}
                                 </span>
                               </span>
                               <span>
@@ -629,6 +635,29 @@
                                   </span>
                                 </div>
                               </span>
+                              <!-- Coin Float: always show when CoinCnt exists; red when at/below COIN_FLOAT_LOW_THRESHOLD, green otherwise -->
+                              <div
+                                class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
+                                :class="row.vend && row.vend.parameterJson && row.vend.parameterJson['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200 text-gray-800 border-green-300' : 'bg-red-200 text-gray-800 border-red-300'"
+                                v-if="row.vend && row.vend.parameterJson && row.vend.parameterJson['CoinCnt']"
+                              >
+                                <span class="font-bold mr-1">Coin Float</span>
+                                <span>
+                                  {{ operatorCountry.currency_symbol }}{{ (row.vend.parameterJson['CoinCnt'] / Math.pow(10, operatorCountry.currency_exponent)).toFixed(operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }}
+                                </span>
+                              </div>
+                              <!-- Channel Errors: single inline badge, channel + error code, comma-separated -->
+                              <div
+                                class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-red-100 text-red-800 border-red-300"
+                                v-if="row.vend && row.vend.vendChannelErrorLogsJson && row.vend.vendChannelErrorLogsJson.length"
+                              >
+                                <span class="font-semibold mr-1">Error:</span>
+                                <span>
+                                  <template v-for="(vendChannelErrorLog, errIndex) in row.vend.vendChannelErrorLogsJson" :key="vendChannelErrorLog.id">
+                                    <span v-if="errIndex > 0">, </span>#{{ vendChannelErrorLog['vendChannel'] ? vendChannelErrorLog['vendChannel']['code'] : (vendChannelErrorLog['vend_channel'] ? vendChannelErrorLog['vend_channel']['code'] : '') }}<span class="font-bold">({{ vendChannelErrorLog['vendChannelError'] ? vendChannelErrorLog['vendChannelError']['code'] : (vendChannelErrorLog['vend_channel_error'] ? vendChannelErrorLog['vend_channel_error']['code'] : '') }})</span>
+                                  </template>
+                                </span>
+                              </div>
                               <span class="text-left font-medium bg-gray-200 py-1 px-1 rounded">
                                 {{ row.customer ? row.customer.ops_note : '' }}
                               </span>
@@ -1153,6 +1182,7 @@ import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon
 import { ref, computed, onMounted, watch } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
 
 const props = defineProps({
   addressDestination: [Array, Object],

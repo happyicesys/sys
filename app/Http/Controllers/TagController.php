@@ -50,25 +50,49 @@ class TagController extends Controller
 
     public function create(Request $request)
     {
-        // Normalise to the same snake_case form the Tag model's `name` mutator
-        // will store, BEFORE running uniqueness checks. Without this step,
-        // "VIP Customer" and "vip customer" both get snake-cased to
-        // "vip_customer" by the mutator and would collide silently at insert
-        // time (or worse, slip through if the DB has no unique constraint).
-        $request->merge([
-            'name' => $this->normaliseTagName($request->input('name')),
-        ]);
+        // For Customer-scoped tags we now keep `name` as the user-typed
+        // display string and use a derived snake_case `slug` for uniqueness.
+        // For every other classname we keep the legacy behaviour where the
+        // `name` column itself stores the snake_case form (Vend/Product/etc.
+        // code still matches labels by name) — see Tag::booted().
+        $isDisplayNameScope = in_array(
+            $request->classname,
+            \App\Models\Tag::DISPLAY_NAME_CLASSNAMES,
+            true
+        );
 
-        // Tag names must be unique WITHIN a polymorphic scope (classname), not
-        // globally — otherwise a "vip" Product Label would block creation of a
-        // "vip" Customer Tag, even though they live on different models.
-        $request->validate([
-            'name' => [
-                'required',
-                \Illuminate\Validation\Rule::unique('tags', 'name')
-                    ->where(fn ($q) => $q->where('classname', $request->classname)),
-            ],
-        ]);
+        if ($isDisplayNameScope) {
+            // Trim only — preserve the casing/spacing the user typed.
+            $request->merge([
+                'name' => $this->trimName($request->input('name')),
+                // Pre-compute slug so we can validate uniqueness on it
+                // BEFORE hitting the DB. Mirrors Tag::makeSlug().
+                'slug' => \App\Models\Tag::makeSlug($request->input('name')),
+            ]);
+
+            $request->validate([
+                'name' => ['required'],
+                'slug' => [
+                    'required',
+                    \Illuminate\Validation\Rule::unique('tags', 'slug')
+                        ->where(fn ($q) => $q->where('classname', $request->classname)),
+                ],
+            ]);
+        } else {
+            // Legacy path: normalise into snake_case and validate against
+            // `name` (matches the existing Product / Campaign label tooling).
+            $request->merge([
+                'name' => $this->normaliseTagName($request->input('name')),
+            ]);
+
+            $request->validate([
+                'name' => [
+                    'required',
+                    \Illuminate\Validation\Rule::unique('tags', 'name')
+                        ->where(fn ($q) => $q->where('classname', $request->classname)),
+                ],
+            ]);
+        }
 
         Tag::create($request->all());
 
@@ -77,19 +101,41 @@ class TagController extends Controller
 
     public function update(Request $request, $tagId)
     {
-        // Same normalisation + scoping rule as create().
-        $request->merge([
-            'name' => $this->normaliseTagName($request->input('name')),
-        ]);
+        $isDisplayNameScope = in_array(
+            $request->classname,
+            \App\Models\Tag::DISPLAY_NAME_CLASSNAMES,
+            true
+        );
 
-        $request->validate([
-            'name' => [
-                'required',
-                \Illuminate\Validation\Rule::unique('tags', 'name')
-                    ->ignore($tagId)
-                    ->where(fn ($q) => $q->where('classname', $request->classname)),
-            ],
-        ]);
+        if ($isDisplayNameScope) {
+            $request->merge([
+                'name' => $this->trimName($request->input('name')),
+                'slug' => \App\Models\Tag::makeSlug($request->input('name')),
+            ]);
+
+            $request->validate([
+                'name' => ['required'],
+                'slug' => [
+                    'required',
+                    \Illuminate\Validation\Rule::unique('tags', 'slug')
+                        ->ignore($tagId)
+                        ->where(fn ($q) => $q->where('classname', $request->classname)),
+                ],
+            ]);
+        } else {
+            $request->merge([
+                'name' => $this->normaliseTagName($request->input('name')),
+            ]);
+
+            $request->validate([
+                'name' => [
+                    'required',
+                    \Illuminate\Validation\Rule::unique('tags', 'name')
+                        ->ignore($tagId)
+                        ->where(fn ($q) => $q->where('classname', $request->classname)),
+                ],
+            ]);
+        }
 
         $tag = Tag::findOrFail($tagId);
         $tag->update($request->all());
@@ -98,12 +144,9 @@ class TagController extends Controller
     }
 
     /**
-     * Mirror the Tag model's `name` setter:
-     *   - trim outer whitespace
-     *   - collapse internal whitespace runs to a single underscore
-     *   - lowercase
-     * Validation calls this BEFORE checking uniqueness so users see a clear
-     * "name already exists" error instead of a 500 from the DB.
+     * Legacy snake_case normaliser used by non-Customer tag flows
+     * (Product, Campaign, etc.) where `name` itself is the slug.
+     * Kept identical to Tag::makeSlug() so validation and DB state agree.
      */
     protected function normaliseTagName(?string $value): ?string
     {
@@ -111,6 +154,19 @@ class TagController extends Controller
             return null;
         }
         return strtolower(trim(preg_replace('/\s+/', '_', $value)));
+    }
+
+    /**
+     * Trim outer whitespace and collapse internal whitespace runs to a
+     * single space for display-name tag scopes — we preserve casing and
+     * the user's wording, only tidying up obvious whitespace mistakes.
+     */
+    protected function trimName(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        return trim(preg_replace('/\s+/', ' ', $value));
     }
 
     public function delete($tagId)

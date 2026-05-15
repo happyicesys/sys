@@ -262,7 +262,7 @@
                       <span>Contract Attachment</span>
                     </div>
                   </TableHead>
-                  <TableHead>Address</TableHead>
+                  <TableHead inputClass="w-[220px] max-w-[220px]">Address</TableHead>
                   <TableHead>
                     <SingleSortItem modelName="machine_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('machine_id')">
                       Machine ID
@@ -375,10 +375,10 @@
                     </template>
                     <template v-else>Action</template>
                   </TableHead>
-                  <TableHead>
+                  <TableHead inputClass="min-w-[150px] max-w-[150px]">
                     <div class="flex flex-col space-y-1">
                       <span>Customer Tag</span>
-                      <span>Note</span>
+                      <span>Customer Note</span>
                     </div>
                   </TableHead>
                 </tr>
@@ -453,8 +453,8 @@
                   </TableData>
 
                   <!-- Address -->
-                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-left">
-                    <span v-if="row.customer?.delivery_address">
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-left w-[220px] max-w-[220px] break-words">
+                    <span v-if="row.customer?.delivery_address" class="text-[11px] leading-tight">
                       {{ row.customer.delivery_address.full_address }}
                     </span>
                   </TableData>
@@ -773,7 +773,6 @@
                           : ''"
                         @click="onEmailReportClicked(row)"
                       >
-                        <EnvelopeIcon class="w-4 h-4"></EnvelopeIcon>
                         <span>Email</span>
                       </Button>
 
@@ -798,7 +797,6 @@
                           : 'Preview the report content that will be emailed'"
                         @click="onReportContentClicked(row)"
                       >
-                        <DocumentTextIcon class="w-4 h-4"></DocumentTextIcon>
                         <span>Report Content</span>
                       </Button>
 
@@ -838,7 +836,7 @@
                     the FIRST row of each customer's cluster (multi-month
                     view groups multiple rows per customer).
                   -->
-                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-left">
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-left min-w-[150px] max-w-[150px]">
                     <template v-if="isFirstRowForCustomer(rowIndex)">
                       <!--
                         Tags are stored as snake_case (e.g.
@@ -849,11 +847,20 @@
                         vertically via flex-col for readability when a
                         customer has several tags.
                       -->
+                      <!--
+                        Tag badges alternate background shade (blue-50 /
+                        blue-100) and carry a darker blue-400 border so
+                        adjacent tags read as distinct chips instead of
+                        running together as one block of pale blue.
+                      -->
                       <div class="flex flex-col gap-1">
                         <span
-                          v-for="binding in (row.customer?.tag_bindings ?? [])"
+                          v-for="(binding, tagIdx) in (row.customer?.tag_bindings ?? [])"
                           :key="binding.id"
-                          class="inline-block w-28 px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 break-all whitespace-normal leading-tight"
+                          :class="[
+                            'inline-block w-28 px-2 py-0.5 rounded text-xs font-medium text-blue-900 border border-blue-400 break-all whitespace-normal leading-tight',
+                            tagIdx % 2 === 0 ? 'bg-blue-50' : 'bg-blue-100',
+                          ]"
                         >
                           {{ binding.tag?.name }}
                         </span>
@@ -870,8 +877,10 @@
                         <textarea
                           v-model="row.customer.notes"
                           @change="onNotesChanged(row.customer)"
-                          rows="2"
-                          class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full"
+                          @input="autoGrowTextarea($event.target)"
+                          :ref="(el) => autoGrowTextarea(el)"
+                          rows="4"
+                          class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none overflow-hidden"
                           placeholder="Notes"
                         ></textarea>
                         <span class="text-[10px] text-gray-500 mt-1" v-if="row.customer?.notes_updated_by_user">
@@ -1071,10 +1080,10 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, DocumentTextIcon, EnvelopeIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, DocumentTextIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, nextTick } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useToast } from 'vue-toastification';
 import { vTooltip } from 'floating-vue';
@@ -1477,6 +1486,19 @@ function onNotesChanged(customer) {
     .catch((error) => {
       console.error('Error updating customer notes:', error);
     });
+}
+
+// Auto-grow the Notes textarea so the full content is visible without
+// scrolling inside the cell. Called both via :ref-callback (initial mount
+// + when summaries reload swaps row instances) and on every keystroke
+// via @input. nextTick ensures the textarea has its final value applied
+// to the DOM before we measure scrollHeight.
+function autoGrowTextarea(el) {
+  if (!el) return;
+  nextTick(() => {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  });
 }
 
 function sortTable(sortKey) {

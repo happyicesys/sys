@@ -23,6 +23,7 @@ use App\Jobs\CreateVendData;
 use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
+use App\Jobs\Vend\IncrementVendDailyStat;
 use App\Jobs\Vend\SyncVendChannels;
 use App\Jobs\Vend\SyncVendParameter;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
@@ -308,6 +309,14 @@ class VendDataService
             break;
           case 'PWRON':
             UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
+            // Daily PWRON counter per machine. Date is captured here (not in
+            // the job) so a queue lag across midnight still buckets correctly.
+            IncrementVendDailyStat::dispatch(
+              $vend->id,
+              $vend->code,
+              'pwron',
+              Carbon::now()->toDateString()
+            )->onQueue('low');
             break;
           case 'REFILL':
             break;

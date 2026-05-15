@@ -143,6 +143,10 @@ class VendResource extends JsonResource
             'contract_commission_value' => $this->contract_commission_value ?? null,
             'contract_commission_value2' => $this->contract_commission_value2 ?? null,
             'contract_ps_term' => $this->contract_ps_term ?? null,
+            // Notice Period — free-text since 2026_05_13 (string column).
+            // Powers the Notice Period line under Contract End Date on
+            // Vend/CustomerIndex; null on /vends rows where it isn't selected.
+            'contract_notice_period' => $this->contract_notice_period ?? null,
             // Per-vend earnings (computed in VendController@indexCustomer).
             'location_fees_cents' => isset($this->location_fees_cents) ? (int) $this->location_fees_cents : null,
             'thirty_days_vending_earning_cents' => isset($this->thirty_days_vending_earning_cents) ? (int) $this->thirty_days_vending_earning_cents : null,
@@ -218,6 +222,19 @@ class VendResource extends JsonResource
             'operator_code' => isset($this->operator_code) ? $this->operator_code : null,
             'operator_name' => isset($this->operator_name) ? $this->operator_name : null,
             'ops_note' => isset($this->ops_note) ? $this->ops_note : null,
+            // Audit pair for the inline Ops Note edit on Vend/CustomerIndex.
+            // Populated only on the customers-index path (where the SELECT and
+            // eager-load include them); falls back to null on the regular
+            // /vends path so the field is safe to read either way.
+            'ops_note_updated_at' => isset($this->ops_note_updated_at)
+                ? Carbon::parse($this->ops_note_updated_at)->setTimezone($this->getUserTimezone())->toDateTimeString()
+                : null,
+            'ops_note_updated_by_user' => $this->whenLoaded('opsNoteUpdatedBy', function () {
+                return $this->opsNoteUpdatedBy ? [
+                    'id' => $this->opsNoteUpdatedBy->id,
+                    'name' => $this->opsNoteUpdatedBy->name,
+                ] : null;
+            }),
             'parameterJson' => isset($this->parameter_json) ? $this->parameter_json : null,
             'postcode' => isset($this->postcode) ? $this->postcode : null,
             'preferred_visit_days_json' => isset($this->preferred_visit_days_json) ? $this->preferred_visit_days_json : null,
@@ -265,6 +282,33 @@ class VendResource extends JsonResource
             'virtual_vend_records_thirty_days_amount_average' => isset($this->virtual_vend_records_thirty_days_amount_average) ? $this->virtual_vend_records_thirty_days_amount_average / 100 : 0,
             'zone_name' => isset($this->zone_name) ? $this->zone_name : null,
             'zone_id' => isset($this->zone_id) ? $this->zone_id : null,
+            // Customer Tag / Note column on Vend/CustomerIndex.vue.
+            // VendResource is fed Customer rows in the customers-index path
+            // (VendController@indexCustomer eager-loads tagBindings + tag and
+            // selects customers.notes / notes_updated_at / notes_updated_by),
+            // so we expose them here for the new combined column. Vend rows
+            // (where these columns don't exist) fall back to defaults.
+            'notes' => isset($this->notes) ? $this->notes : null,
+            'notes_updated_at' => isset($this->notes_updated_at)
+                ? Carbon::parse($this->notes_updated_at)->setTimezone($this->getUserTimezone())->toDateTimeString()
+                : null,
+            'notes_updated_by_user' => $this->whenLoaded('notesUpdatedBy', function () {
+                return $this->notesUpdatedBy ? [
+                    'id' => $this->notesUpdatedBy->id,
+                    'name' => $this->notesUpdatedBy->name,
+                ] : null;
+            }),
+            'tag_bindings' => $this->whenLoaded('tagBindings', function () {
+                return $this->tagBindings->map(function ($tb) {
+                    return [
+                        'id' => $tb->id,
+                        'tag' => $tb->relationLoaded('tag') && $tb->tag ? [
+                            'id' => $tb->tag->id,
+                            'name' => $tb->tag->name,
+                        ] : null,
+                    ];
+                });
+            }, []),
             'this_month_count' => isset($this->this_month_count) ? $this->this_month_count : 0,
             'this_month_revenue' => isset($this->this_month_revenue) ? $this->this_month_revenue / 100 : 0,
             'this_month_gross_profit' => isset($this->this_month_gross_profit) ? $this->this_month_gross_profit / 100 : 0,

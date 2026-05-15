@@ -210,6 +210,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Customer-level notes — edited inline on the Customer Summary page
         // (Customer Tag column). Mirrors products-availability.update-remarks.
         Route::post('/{id}/update-notes', [CustomerController::class, 'updateNotes'])->name('customers.update-notes');
+        // Ops-side free-text note (refilling/operations) — edited inline on
+        // Vend/CustomerIndex "Refilling Routes" column. Same shape as
+        // update-notes; lives under the same /customers prefix because it
+        // writes a column on the customer record.
+        Route::post('/{id}/update-ops-note', [CustomerController::class, 'updateOpsNote'])->name('customers.update-ops-note');
         Route::post('/map', [CustomerController::class, 'getMap']);
     });
 

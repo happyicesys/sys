@@ -541,6 +541,16 @@ class VendController extends Controller
             $vends = Customer::query()
                 ->with([
                     'deliveryAddress',
+                    // Customer Tag chips + last-edited-by audit line for the
+                    // new "Customer Tag / Note" column. Mirrors the eager-load
+                    // already used by the Customer Summary page so the same
+                    // VendResource fields are populated here.
+                    'tagBindings',
+                    'tagBindings.tag:id,name,slug,classname',
+                    'notesUpdatedBy:id,name',
+                    // Audit user for the inline Ops Note edit (same Customer
+                    // row, same pattern as notesUpdatedBy).
+                    'opsNoteUpdatedBy:id,name',
                     'lastOpsJobItem:id,ops_job_id,status,vend_id,customer_id,stock_action_type',
                     'lastOpsJobItem.opsJob:id,code,date,delivered_by',
                     'lastOpsJobItem.opsJob.deliveredBy:id,name,username',
@@ -869,6 +879,12 @@ class VendController extends Controller
                 'customers.name AS customer_name',
                 'customers.operator_id',
                 'customers.ops_note',
+                // Audit pair powers the "edited by X at T" line under the Ops
+                // Note textarea on Vend/CustomerIndex. Lives next to ops_note
+                // for SELECT readability; see Customer Note for the matching
+                // notes_updated_at / notes_updated_by setup.
+                'customers.ops_note_updated_at',
+                'customers.ops_note_updated_by',
                 'customers.person_json',
                 'customers.person_id AS person_id',
                 'customers.preferred_visit_days_json',
@@ -876,11 +892,22 @@ class VendController extends Controller
                 'customers.termination_date',
                 'customers.contract_until',
                 'customers.contract_auto_renewal',
+                // Notice Period — string column (e.g. "1 mth", "2 wks"). Shown
+                // under Contract End Date on Vend/CustomerIndex's Lifetime Sales
+                // cluster so the contract summary reads end-date + notice in one
+                // glance, matching the Customer Summary layout.
+                'customers.contract_notice_period',
                 'customers.virtual_customer_prefix',
                 'customers.virtual_customer_code',
                 'customers.location_grading_placement',
                 'customers.location_grading_access',
                 'customers.location_grading_flexibility',
+                // Customer Tag + Note column (mirrors Customer Summary).
+                // Notes are stored on the customer record so they persist
+                // across filter changes here just like they do on Summary.
+                'customers.notes',
+                'customers.notes_updated_at',
+                'customers.notes_updated_by',
                 'location_types.name AS location_type_name',
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',

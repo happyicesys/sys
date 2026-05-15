@@ -729,7 +729,7 @@
                           </div>
                           <div
                             class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                            :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
+                            :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
                             v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
                           >
                               <div class="flex flex-col">
@@ -960,6 +960,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
 
 const props = defineProps({
     cashlessTerminalOptions: Object,

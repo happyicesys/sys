@@ -20,12 +20,12 @@ class DeleteVendData extends Command
      *
      * @var string
      */
-    protected $description = 'Delete vending machine log data older than 3 days (chunked).';
+    protected $description = 'Delete vending machine log data older than 7 days (chunked).';
 
     /**
      * Retention window in days. Rows older than this (and is_keep=false) are deleted.
      */
-    protected int $retentionDays = 3;
+    protected int $retentionDays = 7;
 
     /**
      * Max rows to delete per batch. Small enough to keep locks short, large enough

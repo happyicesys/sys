@@ -339,7 +339,7 @@
                                   </div>
                                   <div
                                       class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                      :class="[vendSnapshot.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200']"
+                                      :class="[vendSnapshot.parameterJson['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200' : 'bg-red-200']"
                                       v-if="vendSnapshot.parameterJson && vendSnapshot.parameterJson['CoinCnt']"
                                   >
                                       <div class="flex flex-col">
@@ -424,6 +424,7 @@ import { router } from '@inertiajs/vue3';
 import { Head, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
 import axios from 'axios';
+import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
 
 const props = defineProps({
   categories: Object,

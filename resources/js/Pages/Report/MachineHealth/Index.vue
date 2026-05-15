@@ -8,6 +8,7 @@ import SearchInput from '@/Components/SearchInput.vue'
 import { CheckCircleIcon } from '@heroicons/vue/24/solid'
 import { ClockIcon } from '@heroicons/vue/24/outline'
 import Modal from '@/Components/Modal.vue'
+import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds'
 
 const props = defineProps({
   machineHealth: {
@@ -1538,7 +1539,7 @@ const loadMoreHistory = () => {
                     </div>
                     <div
                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
-                       :class="[row.parameter_json && row.parameter_json['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200']"
+                       :class="[row.parameter_json && row.parameter_json['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200' : 'bg-red-200']"
                        v-if="getCoinFloat(row) !== null"
                     >
                        <div class="flex flex-col items-center text-center">
@@ -1708,7 +1709,7 @@ const loadMoreHistory = () => {
                     <div class="flex gap-2 flex-wrap">
                       <div
                          class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit mt-1"
-                         :class="[row.parameter_json && row.parameter_json['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200']"
+                         :class="[row.parameter_json && row.parameter_json['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200' : 'bg-red-200']"
                          v-if="getCoinFloat(row) !== null"
                       >
                          <div class="flex flex-col items-center text-center">

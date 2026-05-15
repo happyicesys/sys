@@ -168,6 +168,11 @@ class Customer extends Model
         'next_invoice_driver_id',
         'operator_id',
         'ops_note',
+        // Last-edited audit pair for ops_note. Mirrors the
+        // notes_updated_at / notes_updated_by pair used by the Customer
+        // Note column on the Customer Summary and Vend/CustomerIndex pages.
+        'ops_note_updated_at',
+        'ops_note_updated_by',
         // for cms person id
         'person_id',
         'power_socket_key_number',
@@ -382,6 +387,11 @@ class Customer extends Model
     public function notesUpdatedBy()
     {
         return $this->belongsTo(User::class, 'notes_updated_by');
+    }
+
+    public function opsNoteUpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'ops_note_updated_by');
     }
 
     public function zone()

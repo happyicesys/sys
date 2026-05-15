@@ -42,14 +42,11 @@
                         Cap
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Machine Price (P1)
+                        Machine Price
                       </th>
-                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Machine Price (P2)
-                      </th>
-                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <!-- <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Server Price
-                      </th>
+                      </th> -->
                       <!-- <th
                         scope="col"
                         class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
@@ -143,15 +140,9 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="compareSellingPrice(channel)">
                         {{ (channel.amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </td>
-                      <td
-                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
-                        v-if="channels.some(channel => 'amount2' in channel)"
-                      >
-                        {{ (channel.amount2).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                      </td>
-                      <td class=" py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center">
+                      <!-- <td class=" py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center">
                         {{ (channel.server_amount ?? 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                      </td>
+                      </td> -->
                       <td
                         class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
                       >

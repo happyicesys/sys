@@ -893,8 +893,8 @@
 							</div>
 						</div>
 					</TableHead>
-					<TableHead v-if="!roles.includes('operator_driver')">
-						<div class="flex flex-col space-y-2">
+					<TableHead v-if="!roles.includes('operator_driver')" inputClass="!px-1">
+						<div class="flex flex-col space-y-2 max-w-28 mx-auto">
 							<span>
 								Upcoming Job
 							</span>
@@ -930,15 +930,53 @@
 							<SingleSortItem modelName="accumulate_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('accumulate_vending_earning_cents', true)">
 								Accumulated VendEarning
 							</SingleSortItem>
+							<!-- Section divider — visually groups the sales metrics
+								above (Lifetime / Accumulated) from the contract /
+								date cluster that starts at Begin Dt. The matching
+								<hr> sits at the same position in the TableData. -->
+							<hr class="border-t border-gray-300 my-1" />
 							<SingleSortItem modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date', false)">
 								Begin Dt
 							</SingleSortItem>
+							<!-- Contract End Date — moved out of the Contract Type
+								column so it sits beside Begin Dt, which makes the
+								start/end dates easier to read together at a glance.
+								The auto-renewal icon travels with it (see the
+								matching span in the TableData below). -->
+							<SingleSortItem modelName="customers.contract_until" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_until', false)">
+								Contract End Date
+							</SingleSortItem>
+							<!-- Notice Period — string column (e.g. "1 mth"). Pairs
+								with Contract End Date so the contract summary reads
+								end-date + notice together. Same column as Customer
+								Summary's Contract terms cluster. -->
+							<SingleSortItem modelName="customers.contract_notice_period" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_notice_period', false)">
+								Notice Period
+							</SingleSortItem>
+							<!-- Section divider — closes off the contract/date
+								cluster (Begin Dt → Contract End Date → Notice
+								Period) before the daily-sales pair (Avg Sales/Day
+								→ AvgDailySales). Matching <hr> in the TableData. -->
+							<hr class="border-t border-gray-300 my-1" />
 							<SingleSortItem modelName="totals_json->vend_records_amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_average_day', true)">
 								Avg Sales/ Day
 							</SingleSortItem>
 							<SingleSortItem modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
 								AvgDailySales (Last30d)
 							</SingleSortItem>
+							<!-- Section divider — separates the daily-sales pair
+								from the Customer Tag chips below. Matching <hr>
+								in the TableData. Gated on indexType so the line
+								only appears when Customer Tag is being shown. -->
+							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-1" />
+							<!-- Customer Tag — chips render at the bottom of this
+								column's TableData, mirroring the Customer Summary
+								"Customer Tag" row. Header label only shows on the
+								customers-index path because tag_bindings is empty
+								on the regular /vends rows. -->
+							<span v-if="indexType === 'customers'">
+								Customer Tag
+							</span>
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
@@ -949,17 +987,34 @@
 							<span>
 								Location Fees
 							</span>
-							<SingleSortItem modelName="customers.contract_until" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_until', false)">
-								Contract End Date
-							</SingleSortItem>
+							<!-- Section divider — splits the contract terms
+								(Contract Type / Location Fees) from the L30d
+								earnings cluster (GrossEarning / VendEarning).
+								Matching <hr> in the TableData. -->
+							<hr class="border-t border-gray-300 my-1" />
 							<SingleSortItem modelName="totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_gross_profit', true)">
 								L30d GrossEarning
 							</SingleSortItem>
 							<SingleSortItem modelName="thirty_days_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_vending_earning_cents', true)">
 								L30d VendEarning
 							</SingleSortItem>
-							<span>
-								Loc Grading
+							<!-- Section divider — splits the L30d earnings pair
+								from the Loc Grading + Customer Note cluster
+								below. Matching <hr> in the TableData. -->
+							<hr class="border-t border-gray-300 my-1" />
+							<div class="flex justify-center items-center">
+								<span>
+									Loc Grading
+								</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '<div class=&quot;text-left&quot;><b>Machine placement &amp; removal</b><br>A = Smooth surface, 1 person can perform<br>B = Smooth surface, need 2 persons to perform<br>C = Not smooth surface, need min 2 persons to perform<br><br><b>Easy access &amp; refill</b><br>A = Low/Free parking and easy access<br>B = Low/Free parking, but need to pre-apply entry<br>C = No proper parking space; need guide to go in<br><br><b>Flexible to terminate/ or replace with another machine later</b><br>A = Less than 1 week<br>B = Less than 2 week<br>C = 2 weeks and above</div>', html: true }"></ExclamationCircleIcon>
+							</div>
+							<!-- Customer Note — inline-editable textarea renders at
+								the bottom of this column's TableData, mirroring the
+								Customer Summary "Note" row. Header label hidden on
+								the regular /vends path since notes aren't loaded
+								for vend rows. -->
+							<span v-if="indexType === 'customers'">
+								Customer Note
 							</span>
 						</div>
 					</TableHead>
@@ -980,6 +1035,12 @@
 							<SingleSortItem modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
 								Location
 							</SingleSortItem>
+							<!-- Section divider — splits the operator/location
+								cluster (Operator / Acc Manager / Location) from
+								the hardware-version cluster below (VMC / Firmware
+								/ Android / APK / ACB). Matching <hr> in the
+								TableData. -->
+							<hr class="border-t border-gray-300 my-1" />
 							<span>
 								VMC Board
 							</span>
@@ -1632,7 +1693,7 @@
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
-						<div class="flex flex-col space-y-1">
+						<div class="flex flex-col space-y-1 max-w-28 mx-auto">
 							<div v-if="vend && vend.nextOpsJobItem" class="flex flex-col space-y-1">
 								<span v-if="vend.nextOpsJobItem.sequence && vend.nextOpsJobItem.status < 3" class="font-semibold">
 									({{ vend.nextOpsJobItem.sequence }})
@@ -1672,7 +1733,7 @@
 										{{ vend.next_ops_job_count ? vend.next_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</span>
 								</span>
-								<div class="max-w-32 text-left bg-gray-100 px-1 py-1 rounded break-words shadow text-xs mt-1" v-if="vend.nextOpsJobItem.remarks">
+								<div class="max-w-24 text-left bg-gray-100 px-1 py-1 rounded break-words shadow text-xs mt-1" v-if="vend.nextOpsJobItem.remarks">
 									{{ vend.nextOpsJobItem.remarks }}
 								</div>
 								<!-- Stock Action Type Badges -->
@@ -1722,8 +1783,40 @@
 								<span>
 									{{ vend.frequency_per_week_status_name }}
 								</span>
-								<div class="max-w-32 text-left bg-gray-100 px-1 py-1 rounded break-words shadow" v-if="vend.ops_note">
-									{{ vend.ops_note }}
+								<!--
+									Ops Note — inline-editable textarea matching the
+									Customer Note pattern. Edits POST to
+									/customers/{id}/update-ops-note and the page only
+									reloads the `vends` prop so filters / scroll are
+									preserved. The audit line beneath shows who last
+									saved it and when, mirroring the Customer Note
+									footer for consistency. Gated on indexType ===
+									'customers' because ops_note + its audit columns
+									are only selected on the customers-index path.
+								-->
+								<!--
+									w-28 (7rem) keeps the Ops Note textarea narrow
+									so it lines up with the Sat / 1 Time markers
+									above it in the Refilling Routes column. We
+									intentionally drop the previous min-w-[180px]
+									(which made the textarea push the column wide)
+									but KEEP the rows=4 + autoGrowTextarea pair so
+									the height can still grow with content — that's
+									what "height remain" is referring to.
+								-->
+								<div v-if="indexType === 'customers'" class="mt-1 flex flex-col w-[82px]">
+									<textarea
+										v-model="vend.ops_note"
+										@change="onOpsNoteChanged(vend)"
+										@input="autoGrowTextarea($event.target)"
+										:ref="(el) => autoGrowTextarea(el)"
+										rows="4"
+										class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full text-left resize-none overflow-hidden"
+										placeholder="Ops Note"
+									></textarea>
+									<span class="text-[10px] text-gray-500 mt-1" v-if="vend.ops_note_updated_by_user">
+										{{ vend.ops_note_updated_by_user.name }} ({{ moment(vend.ops_note_updated_at).format('YYMMDD hh:mma') }})
+									</span>
 								</div>
 							</div>
 						</span>
@@ -1741,12 +1834,57 @@
 							<span v-if="vend.accumulate_vending_earning_cents != null" :class="vend.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'">
 								{{ operatorCountry.currency_symbol }}{{ (vend.accumulate_vending_earning_cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
 							</span>
+							<!-- Section divider — mirrors the <hr> in the TableHead
+								between Accumulated VendEarning and Begin Dt so the
+								eye reads the contract/date cluster as its own group. -->
+							<hr class="border-t border-gray-300 my-1" />
 							<span
 								v-if="vend.begin_date"
 								:class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'"
 							>
 								{{ vend.begin_date_short }}
 							</span>
+							<!-- Contract End Date (yymmdd) — moved here from the
+								Contract Type column so it sits directly under
+								Begin Dt. The auto-renewal icon (green check /
+								red cross) travels with it, with an invisible
+								left-side spacer to keep the date itself optically
+								centered. -->
+							<span v-if="vend.contract_until_short" class="text-gray-800 inline-flex items-center justify-center gap-1">
+								<span
+									v-if="vend.contract_auto_renewal === true || vend.contract_auto_renewal === false"
+									class="h-4 w-4 inline-block"
+									aria-hidden="true"
+								></span>
+								<span>{{ vend.contract_until_short }}</span>
+								<CheckCircleIcon
+									v-if="vend.contract_auto_renewal === true"
+									class="h-4 w-4 text-green-600 shrink-0"
+									aria-hidden="true"
+									v-tooltip="'Auto Renewal: Yes'"
+								/>
+								<XCircleIcon
+									v-else-if="vend.contract_auto_renewal === false"
+									class="h-4 w-4 text-red-600 shrink-0"
+									aria-hidden="true"
+									v-tooltip="'Auto Renewal: No'"
+								/>
+							</span>
+							<!-- Notice Period — free-text string column (e.g.
+								"1 mth"). Renders directly under Contract End Date
+								to mirror the header order. Em-dash placeholder when
+								the field is blank keeps the column visually
+								consistent across rows. -->
+							<span
+								v-if="vend.contract_notice_period"
+								class="text-gray-900"
+							>
+								{{ vend.contract_notice_period }}
+							</span>
+							<span v-else class="text-gray-400">—</span>
+							<!-- Section divider — mirrors the <hr> in the TableHead
+								between Notice Period and Avg Sales/Day. -->
+							<hr class="border-t border-gray-300 my-1" />
 							<span
 							v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson"
 							:class="[ vend.is_active || vend.is_testing ? getVendRecordsAmountAverageDayClass(vend.vendTransactionTotalsJson['vend_records_amount_average_day']) : 'text-gray-400']"
@@ -1756,6 +1894,30 @@
 							<span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
 									{{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
+							<!-- Section divider — mirrors the <hr> in the TableHead
+								between AvgDailySales (Last30d) and Customer Tag.
+								Gated on indexType so the line only appears when
+								Customer Tag chips are being rendered below. -->
+							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-1" />
+							<!-- Customer Tag chips — sit under the column's
+								AvgDailySales (Last30d) value to match the column
+								header's "Customer Tag" label. Mirrors the Customer
+								Summary chip treatment: alternating bg-blue-50 /
+								bg-blue-100 with a darker blue-400 border so adjacent
+								tags read as distinct chips. break-all wrapping keeps
+								long tag names from blowing out the column width. -->
+							<div v-if="indexType === 'customers'" class="flex flex-col gap-1 mt-1">
+								<span
+									v-for="(binding, tagIdx) in (vend.tag_bindings ?? [])"
+									:key="binding.id"
+									:class="[
+										'inline-block w-28 px-2 py-0.5 rounded text-xs font-medium text-blue-900 border border-blue-400 break-all whitespace-normal leading-tight',
+										tagIdx % 2 === 0 ? 'bg-blue-50' : 'bg-blue-100',
+									]"
+								>
+									{{ binding.tag?.name }}
+								</span>
+							</div>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
@@ -1781,28 +1943,10 @@
 							<span v-if="vend.location_fees_cents != null" :class="vend.location_fees_cents > 0 ? 'text-red-600' : (vend.location_fees_cents < 0 ? 'text-emerald-600' : 'text-gray-800')">
 								{{ vend.location_fees_cents < 0 ? '-' : '' }}{{ operatorCountry.currency_symbol }}{{ (Math.abs(vend.location_fees_cents) / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
-							<!-- Contract End Date (yymmdd) -->
-							<span v-if="vend.contract_until_short" class="text-gray-800 inline-flex items-center justify-center gap-1">
-								<!-- Invisible left spacer keeps the date visually centered when an icon is shown on the right -->
-								<span
-									v-if="vend.contract_auto_renewal === true || vend.contract_auto_renewal === false"
-									class="h-4 w-4 inline-block"
-									aria-hidden="true"
-								></span>
-								<span>{{ vend.contract_until_short }}</span>
-								<CheckCircleIcon
-									v-if="vend.contract_auto_renewal === true"
-									class="h-4 w-4 text-green-600 shrink-0"
-									aria-hidden="true"
-									v-tooltip="'Auto Renewal: Yes'"
-								/>
-								<XCircleIcon
-									v-else-if="vend.contract_auto_renewal === false"
-									class="h-4 w-4 text-red-600 shrink-0"
-									aria-hidden="true"
-									v-tooltip="'Auto Renewal: No'"
-								/>
-							</span>
+							<!-- Section divider — mirrors the <hr> in the
+								TableHead between Location Fees and L30d
+								GrossEarning. -->
+							<hr class="border-t border-gray-300 my-1" />
 							<!-- L30d GrossEarning -->
 							<span
 								v-if="vend.vendTransactionTotalsJson && 'thirty_days_gross_profit' in vend.vendTransactionTotalsJson"
@@ -1814,6 +1958,9 @@
 							<span v-if="vend.thirty_days_vending_earning_cents != null" :class="[vend.thirty_days_vending_earning_cents >= 0 ? 'text-green-700' : 'text-red-700', 'text-base font-bold']">
 								{{ operatorCountry.currency_symbol }}{{ (vend.thirty_days_vending_earning_cents / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
+							<!-- Section divider — mirrors the <hr> in the
+								TableHead between L30d VendEarning and Loc Grading. -->
+							<hr class="border-t border-gray-300 my-1" />
 							<!-- Location Grading -->
 							<span
 								v-if="vend.location_grading_placement || vend.location_grading_access || vend.location_grading_flexibility"
@@ -1822,6 +1969,33 @@
 							>
 								{{ vend.location_grading_placement || '-' }}, {{ vend.location_grading_access || '-' }}, {{ vend.location_grading_flexibility || '-' }}
 							</span>
+							<!--
+								Customer Note — inline-editable textarea matches the
+								Customer Summary "Note" row. Saves to the existing
+								/customers/{id}/update-notes endpoint and only reloads
+								the `vends` prop so filters / scroll are preserved.
+								Gated on indexType === 'customers' because notes
+								aren't selected on the regular /vends query.
+
+								w-28 (7rem) keeps this textarea narrow so it stays
+								within the Loc Grading column header width, matching
+								the Ops Note sizing. rows=4 + autoGrowTextarea are
+								preserved so the box still expands with content.
+							-->
+							<div v-if="indexType === 'customers'" class="mt-2 flex flex-col w-[82px]">
+								<textarea
+									v-model="vend.notes"
+									@change="onNotesChanged(vend)"
+									@input="autoGrowTextarea($event.target)"
+									:ref="(el) => autoGrowTextarea(el)"
+									rows="4"
+									class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full text-left resize-none overflow-hidden"
+									placeholder="Notes"
+								></textarea>
+								<span class="text-[10px] text-gray-500 mt-1" v-if="vend.notes_updated_by_user">
+									{{ vend.notes_updated_by_user.name }} ({{ moment(vend.notes_updated_at).format('YYMMDD hh:mma') }})
+								</span>
+							</div>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
@@ -2036,7 +2210,7 @@
 							</div>
 							<div
 							class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-							:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
+							:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
 							v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
 							>
 									<div class="flex flex-col">
@@ -2106,6 +2280,11 @@
 									<span>
 										{{ vend.location_type_name }}
 									</span>
+									<!-- Section divider — mirrors the <hr> in the
+										TableHead between Location and VMC Board,
+										separating the operator/location cluster
+										from the hardware-version cluster. -->
+									<hr class="border-t border-gray-300 my-1" />
 									<span class="text-blue-600" v-if="vend.acbVmcPaJson && 'VMC_MDL' in vend.acbVmcPaJson">
 											{{ vend.acbVmcPaJson['VMC_MDL'] }}
 									</span>
@@ -2268,11 +2447,12 @@ font-size:13px;
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
 	import SingleSortItem from '@/Components/SingleSortItem.vue';
-	import { ref, onMounted, defineAsyncComponent, watch } from 'vue';
+	import { ref, onMounted, defineAsyncComponent, watch, nextTick } from 'vue';
 	import { router, Link, Head, usePage } from '@inertiajs/vue3';
 	import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 	import moment from 'moment';
 	import axios from 'axios';
+	import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds';
 
 	const AssignJob = defineAsyncComponent(() => import('@/Pages/Vend/AssignJob.vue'));
 	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));
@@ -3038,6 +3218,56 @@ if(inverse && filters.value.sortKey != sortKey) {
 }
 filters.value.sortKey = sortKey
 onSearchFilterUpdated()
+}
+
+// Persist the inline-edited customer-level Note. Same endpoint and refresh
+// pattern as Customer/Summary.vue — POST to /customers/{id}/update-notes
+// and then router.reload only the `vends` prop so filters, scroll, etc. are
+// preserved. We key off vend.customer_id because in the customers-index
+// path each row's customer_id is the canonical customer being edited.
+function onNotesChanged(vend) {
+	const customerId = vend?.customer_id ?? vend?.id;
+	if (!customerId) return;
+	axios.post('/customers/' + customerId + '/update-notes', {
+		notes: vend.notes,
+	})
+		.then(() => {
+			router.reload({ only: ['vends'], preserveScroll: true });
+		})
+		.catch((error) => {
+			console.error('Error updating customer notes:', error);
+		});
+}
+
+// Auto-grow the inline-edit textareas (Ops Note + Customer Note) so the
+// full content is visible without scrolling inside the cell. Bound via
+// :ref-callback (initial mount + after vends partial-reload swaps row
+// instances) and via @input for live typing. nextTick guarantees the
+// new value is in the DOM before we measure scrollHeight.
+function autoGrowTextarea(el) {
+	if (!el) return;
+	nextTick(() => {
+		el.style.height = 'auto';
+		el.style.height = el.scrollHeight + 'px';
+	});
+}
+
+// Same shape as onNotesChanged — separate endpoint so the two free-text
+// fields (Customer Note for finance/admin, Ops Note for refilling/operations)
+// have independent audit trails. Hits /customers/{id}/update-ops-note and
+// partial-reloads `vends` so the audit line refreshes without losing state.
+function onOpsNoteChanged(vend) {
+	const customerId = vend?.customer_id ?? vend?.id;
+	if (!customerId) return;
+	axios.post('/customers/' + customerId + '/update-ops-note', {
+		ops_note: vend.ops_note,
+	})
+		.then(() => {
+			router.reload({ only: ['vends'], preserveScroll: true });
+		})
+		.catch((error) => {
+			console.error('Error updating customer ops note:', error);
+		});
 }
 
 function toggleSelectAll() {
