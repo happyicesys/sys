@@ -1126,6 +1126,49 @@ class VendController extends Controller
                 }
             }
 
+            // PWRON 1d / 2d / 3d counts per vend — drives the new PWRON block at
+            // the bottom of the Error column on Vend/CustomerIndex.
+            //
+            // 1d = today, 2d = yesterday, 3d = day before yesterday (3d is the
+            // baseline; 1d/2d are colored relative to the next-longer window —
+            // see CustomerIndex.vue). Date strings are taken in the app
+            // timezone, which matches how IncrementVendDailyStat buckets writes
+            // (see VendDataService::processVendData PWRON branch — also uses
+            // Carbon::now()->toDateString()), so 1d-aligned data lines up.
+            //
+            // Single batched query against vend_daily_stats keyed on
+            // (vend_id, date, metric) — hits the unique index.
+            $vendIds = collect($vends->items())
+                ->pluck('vend_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            $pwronDate1d = Carbon::today()->toDateString();
+            $pwronDate2d = Carbon::today()->subDay()->toDateString();
+            $pwronDate3d = Carbon::today()->subDays(2)->toDateString();
+            $pwronByVend = [];
+            if (!empty($vendIds)) {
+                $pwronRows = DB::table('vend_daily_stats')
+                    ->whereIn('vend_id', $vendIds)
+                    ->where('metric', 'pwron')
+                    ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
+                    ->get(['vend_id', 'date', 'count']);
+                foreach ($pwronRows as $row) {
+                    $vid = (int) $row->vend_id;
+                    // DB date may come back as 'Y-m-d' or 'Y-m-d 00:00:00'
+                    // depending on driver — normalize to a 'Y-m-d' key.
+                    $dateKey = substr((string) $row->date, 0, 10);
+                    $pwronByVend[$vid][$dateKey] = (int) $row->count;
+                }
+            }
+            foreach ($vends->items() as $vend) {
+                $vid = (int) ($vend->vend_id ?? 0);
+                $vend->pwron_1d_count = (int) ($pwronByVend[$vid][$pwronDate1d] ?? 0);
+                $vend->pwron_2d_count = (int) ($pwronByVend[$vid][$pwronDate2d] ?? 0);
+                $vend->pwron_3d_count = (int) ($pwronByVend[$vid][$pwronDate3d] ?? 0);
+            }
+
             $totals = [
                 'mapApiKey' => $mapApiKey,
                 'thirtyDays' => collect($vends->items())

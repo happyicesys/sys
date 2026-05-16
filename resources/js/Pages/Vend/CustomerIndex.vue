@@ -827,6 +827,16 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 7 days error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
 							</div>
+							<!-- PWRON 1d/2d/3d trend block. Separator + label only
+							     — actual counts render at the bottom of the
+							     data cell below (sourced from vend_daily_stats). -->
+							<hr class="border-t border-gray-300 my-1 w-full" />
+							<div class="flex justify-center items-center">
+								<span>
+									PWRON 1d/2d/3d
+								</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Daily PWRON (power-on) counts from vend_daily_stats. <br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal. 3d is the baseline.', html: true }"></ExclamationCircleIcon>
+							</div>
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
@@ -870,6 +880,23 @@
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_amount', false)">
 							Last30d
+						</SingleSortItem>
+						<!-- Mthly Sales $ — calendar-month split sitting under the rolling
+							Today/Yday/Last7d/Last30d block. Three sub-rows (Current Mth /
+							Last Mth / Last 2Mth) sourced from vend_records (cheaper than
+							re-aggregating vend_transactions) and synced via
+							SyncVendTransactionTotalsJson. Up/down arrow chips on the data
+							side compare each row to the previous month. -->
+						<hr class="border-t border-gray-300 my-1" />
+						<span class="text-xs font-semibold text-gray-700">Mthly Sales $</span>
+						<SingleSortItem modelName="totals_json->current_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->current_mth_amount', false)">
+							Current Mth
+						</SingleSortItem>
+						<SingleSortItem modelName="totals_json->last_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->last_mth_amount', false)">
+							Last Mth
+						</SingleSortItem>
+						<SingleSortItem modelName="totals_json->last_2_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->last_2_mth_amount', false)">
+							Last 2Mth
 						</SingleSortItem>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
@@ -1461,6 +1488,47 @@
 									{{vend.vendTransactionTotalsJson['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
 									({{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 							</span>
+							<!-- PWRON 1d/2d/3d trend (counts from vend_daily_stats).
+							     Coloring (inactive machines stay gray):
+							       - 1d: red if 1d > 2d, green if 1d < 2d, black if equal
+							       - 2d: red if 2d > 3d, green if 2d < 3d, black if equal
+							       - 3d: always black (baseline for comparison)
+							     v-if guards the block when the controller hasn't
+							     attached the counts (e.g. older /vends path). -->
+							<template v-if="vend.pwron_1d_count !== null && vend.pwron_1d_count !== undefined">
+								<hr class="border-t border-gray-300 my-1 w-full" />
+								<div class="flex justify-center items-center space-x-1 text-sm">
+									<span
+										:class="
+											(vend.is_active || vend.is_testing) ?
+											(
+												vend.pwron_1d_count > vend.pwron_2d_count ? 'text-red-700' :
+												(vend.pwron_1d_count < vend.pwron_2d_count ? 'text-green-700' : 'text-gray-900')
+											) :
+											'text-gray-400'
+										"
+									>
+										{{ vend.pwron_1d_count }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span
+										:class="
+											(vend.is_active || vend.is_testing) ?
+											(
+												vend.pwron_2d_count > vend.pwron_3d_count ? 'text-red-700' :
+												(vend.pwron_2d_count < vend.pwron_3d_count ? 'text-green-700' : 'text-gray-900')
+											) :
+											'text-gray-400'
+										"
+									>
+										{{ vend.pwron_2d_count }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
+										{{ vend.pwron_3d_count }}
+									</span>
+								</div>
+							</template>
 						</div>
 						<!-- Machine Health Alerts (5) -->
 						<div v-if="getMachineAlertsGroup(vend, [5]).length > 0" class="mt-2 w-full flex flex-wrap gap-1 items-center justify-center">
@@ -1543,6 +1611,60 @@
 								<br>
 								{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 						</span>
+						<!-- Mthly Sales $ — calendar-month split (Current / Last / Last 2).
+							Amount only (no qty) per ops request; current month already
+							includes today via SyncVendTransactionTotalsJson. Each row
+							shows a heroicon arrow chip comparing it to the previous
+							month (green up = exceeded; red down = below). Last 2 Mth
+							is the baseline so it carries no chip. -->
+						<div
+							v-if="vend.vendTransactionTotalsJson && 'current_mth_amount' in vend.vendTransactionTotalsJson"
+							class="mt-1 pt-1 border-t border-gray-300 flex flex-col items-center gap-0.5"
+						>
+							<div class="flex items-center justify-center gap-1">
+								<span :class="[vend.is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
+									{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['current_mth_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+								</span>
+								<span
+									v-if="vend.vendTransactionTotalsJson['current_mth_amount'] > vend.vendTransactionTotalsJson['last_mth_amount']"
+									class="inline-flex items-center justify-center rounded-full bg-green-100"
+									v-tooltip="'Higher than last month'"
+								>
+									<ArrowUpCircleIcon class="h-4 w-4 text-green-600" aria-hidden="true" />
+								</span>
+								<span
+									v-else-if="vend.vendTransactionTotalsJson['current_mth_amount'] < vend.vendTransactionTotalsJson['last_mth_amount']"
+									class="inline-flex items-center justify-center rounded-full bg-red-100"
+									v-tooltip="'Lower than last month'"
+								>
+									<ArrowDownCircleIcon class="h-4 w-4 text-red-600" aria-hidden="true" />
+								</span>
+							</div>
+							<div class="flex items-center justify-center gap-1">
+								<span :class="[vend.is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
+									{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['last_mth_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+								</span>
+								<span
+									v-if="vend.vendTransactionTotalsJson['last_mth_amount'] > vend.vendTransactionTotalsJson['last_2_mth_amount']"
+									class="inline-flex items-center justify-center rounded-full bg-green-100"
+									v-tooltip="'Higher than 2 months ago'"
+								>
+									<ArrowUpCircleIcon class="h-4 w-4 text-green-600" aria-hidden="true" />
+								</span>
+								<span
+									v-else-if="vend.vendTransactionTotalsJson['last_mth_amount'] < vend.vendTransactionTotalsJson['last_2_mth_amount']"
+									class="inline-flex items-center justify-center rounded-full bg-red-100"
+									v-tooltip="'Lower than 2 months ago'"
+								>
+									<ArrowDownCircleIcon class="h-4 w-4 text-red-600" aria-hidden="true" />
+								</span>
+							</div>
+							<div class="flex items-center justify-center">
+								<span :class="[vend.is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
+									{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['last_2_mth_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+								</span>
+							</div>
+						</div>
 						<!-- Machine Health Alerts (4) -->
 						<div v-if="getMachineAlertsGroup(vend, [4]).length > 0" class="mt-2 w-full flex flex-wrap gap-1 items-center justify-center">
 							<span v-for="alert in getMachineAlertsGroup(vend, [4])" :key="alert.type + alert.group"
@@ -2442,7 +2564,7 @@ font-size:13px;
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
-	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ArrowUpCircleIcon, ArrowDownCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';

@@ -94,6 +94,27 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
 
             $recordsFor30 = $vend->daysVendRecords($daysFor30 - 1, 0)->get();
 
+            // Calendar-month totals (current / last / last-2) sourced from
+            // vend_records since vend_transactions is too slow at this scale.
+            // vend_records does not contain today's row yet, so today's
+            // vend_transactions amount is added on top of the current-month sum.
+            $currentMthStart = Carbon::now()->startOfMonth()->startOfDay();
+            $currentMthEnd = Carbon::now()->endOfMonth()->endOfDay();
+            $lastMthStart = Carbon::now()->subMonthNoOverflow()->startOfMonth()->startOfDay();
+            $lastMthEnd = Carbon::now()->subMonthNoOverflow()->endOfMonth()->endOfDay();
+            $last2MthStart = Carbon::now()->subMonthsNoOverflow(2)->startOfMonth()->startOfDay();
+            $last2MthEnd = Carbon::now()->subMonthsNoOverflow(2)->endOfMonth()->endOfDay();
+
+            $currentMthAmountRecords = (int) $vend->vendRecords()
+                ->whereBetween('date', [$currentMthStart, $currentMthEnd])
+                ->sum('total_amount');
+            $lastMthAmount = (int) $vend->vendRecords()
+                ->whereBetween('date', [$lastMthStart, $lastMthEnd])
+                ->sum('total_amount');
+            $last2MthAmount = (int) $vend->vendRecords()
+                ->whereBetween('date', [$last2MthStart, $last2MthEnd])
+                ->sum('total_amount');
+
             $vend->update([
                 'vend_transaction_totals_json' => [
                     'today_amount' => $todayAmount,
@@ -127,6 +148,12 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                     'vend_records_amount_average_day' => ((int) $lifetime->sum('total_amount') + $todayAmount) / $daysSinceStart,
                     'vend_records_thirty_days_amount' => (int) $records29->sum('total_amount') + $todayAmount,
                     'vend_records_thirty_days_amount_average' => ((int) $recordsFor30->sum('total_amount') + $todayAmount) / $daysFor30,
+                    // Calendar-month sales totals — used by CustomerIndex.vue
+                    // "Mthly Sales $" sub-column. Current month adds today's
+                    // amount on top since vend_records doesn't carry today.
+                    'current_mth_amount' => $currentMthAmountRecords + $todayAmount,
+                    'last_mth_amount' => $lastMthAmount,
+                    'last_2_mth_amount' => $last2MthAmount,
                 ]
             ]);
         }
@@ -163,6 +190,27 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
 
             $recordsFor30 = $customer->daysVendRecords($daysFor30 - 1, 0)->get();
 
+            // Calendar-month totals (current / last / last-2) sourced from
+            // vend_records since vend_transactions is too slow at this scale.
+            // vend_records does not contain today's row yet, so today's
+            // vend_transactions amount is added on top of the current-month sum.
+            $currentMthStart = Carbon::now()->startOfMonth()->startOfDay();
+            $currentMthEnd = Carbon::now()->endOfMonth()->endOfDay();
+            $lastMthStart = Carbon::now()->subMonthNoOverflow()->startOfMonth()->startOfDay();
+            $lastMthEnd = Carbon::now()->subMonthNoOverflow()->endOfMonth()->endOfDay();
+            $last2MthStart = Carbon::now()->subMonthsNoOverflow(2)->startOfMonth()->startOfDay();
+            $last2MthEnd = Carbon::now()->subMonthsNoOverflow(2)->endOfMonth()->endOfDay();
+
+            $currentMthAmountRecords = (int) $customer->vendRecords()
+                ->whereBetween('date', [$currentMthStart, $currentMthEnd])
+                ->sum('total_amount');
+            $lastMthAmount = (int) $customer->vendRecords()
+                ->whereBetween('date', [$lastMthStart, $lastMthEnd])
+                ->sum('total_amount');
+            $last2MthAmount = (int) $customer->vendRecords()
+                ->whereBetween('date', [$last2MthStart, $last2MthEnd])
+                ->sum('total_amount');
+
             $customer->update([
                 'totals_json' => [
                     'today_amount' => $todayAmount,
@@ -196,6 +244,12 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                     'vend_records_amount_average_day' => ((int) $lifetime->sum('total_amount') + $todayAmount) / $daysSinceStart,
                     'vend_records_thirty_days_amount' => (int) $records29->sum('total_amount') + $todayAmount,
                     'vend_records_thirty_days_amount_average' => ((int) $recordsFor30->sum('total_amount') + $todayAmount) / $daysFor30,
+                    // Calendar-month sales totals — used by CustomerIndex.vue
+                    // "Mthly Sales $" sub-column. Current month adds today's
+                    // amount on top since vend_records doesn't carry today.
+                    'current_mth_amount' => $currentMthAmountRecords + $todayAmount,
+                    'last_mth_amount' => $lastMthAmount,
+                    'last_2_mth_amount' => $last2MthAmount,
                 ]
             ]);
         }

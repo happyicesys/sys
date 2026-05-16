@@ -275,6 +275,14 @@ class VendResource extends JsonResource
             'vend_vend_config_version' => $this->vend_vend_config_version,
             'vendTwoDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendTwoDaysErrorTransactions')),
             'vendTransactionTotalsJson' => isset($this->vend_transaction_totals_json) ? $this->vend_transaction_totals_json : null,
+            // PWRON 1d / 2d / 3d counts sourced from vend_daily_stats — drives
+            // the trend block at the bottom of the Error column on
+            // Vend/CustomerIndex (populated in VendController@indexCustomer).
+            // Default to null on paths where the enrichment hasn't run so the
+            // view can hide the block instead of showing zero-everywhere noise.
+            'pwron_1d_count' => isset($this->pwron_1d_count) ? (int) $this->pwron_1d_count : null,
+            'pwron_2d_count' => isset($this->pwron_2d_count) ? (int) $this->pwron_2d_count : null,
+            'pwron_3d_count' => isset($this->pwron_3d_count) ? (int) $this->pwron_3d_count : null,
             'vendSevenDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendSevenDaysErrorTransactions')),
             'vend_id' => isset($this->vend_id) ? $this->vend_id : null,
             'virtual_customer_code' => isset($this->virtual_customer_code) ? $this->virtual_customer_code : null,
