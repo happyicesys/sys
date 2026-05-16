@@ -170,6 +170,10 @@ class ProductMappingController extends Controller
                     },
                     'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
                     'vends.vendPrefix:id,name',
+                    'vends.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
+                    'vends.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
+                    'vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
+                    'vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
                     'vendPrefixes',
                     'upcomingProductMapping',
                 ])

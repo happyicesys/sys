@@ -377,24 +377,6 @@ class VendDataService
         }
       }
 
-      // MQTT heartbeat: empty 'p', no Type. HTTP heartbeat: 'p' may be absent entirely.
-      // Catch both here. Always log for the target machines.
-      if (!isset($processedInput['Type'])) {
-        $vendCodeNum = (int) $vend->code;
-        if (in_array($vendCodeNum, [2003])) {
-          $encodedOriginalHb = json_encode($originalInput);
-          \Illuminate\Support\Facades\DB::table('vend_data')->insert([
-            'value' => $encodedOriginalHb,
-            'ip_address' => $ipAddress,
-            'connection' => $connectionType,
-            'type' => strlen($encodedOriginalHb),
-            'vend_code' => $vendCodeNum,
-            'created_at' => now(),
-            'updated_at' => now(),
-          ]);
-        }
-      }
-
       if ($connectionType == 'http') {
         UpdateHttpLastUpdated::dispatch($vend->id)->onQueue('default');
       }
@@ -419,10 +401,6 @@ class VendDataService
         Cache::put('detect_temp_trends_' . $vend->id, true, now()->addMinutes(10));
       }
 
-    }
-
-    if ($connectionType == 'mqtt') {
-      $saveVendData = false;
     }
 
     if ($saveVendData) {

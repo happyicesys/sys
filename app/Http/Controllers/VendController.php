@@ -813,7 +813,7 @@ class VendController extends Controller
                     $query->leftJoin(DB::raw("(
                 SELECT customer_id, SUM(location_earning_cents) AS accumulate_vending_earning_cents
                 FROM customer_period_summaries
-                WHERE year_month <= '{$through}'
+                WHERE `year_month` <= '{$through}'
                 GROUP BY customer_id
             ) AS accum_ve"), 'accum_ve.customer_id', '=', 'customers.id');
                 });
@@ -2959,6 +2959,265 @@ class VendController extends Controller
             ),
             'totals' => $totals,
         ]);
+    }
+
+    /**
+     * Daily Summary of vend_transactions.
+     *
+     * Groups vend_transactions by date (transaction_datetime) and payment_method.
+     * Reuses the same scopeFilterTransactionIndex filters as the Sales Transactions
+     * page, but the page itself only surfaces a subset of filters (Machine ID,
+     * Channel ID, From/To, Payment Method, Card Terminal, Payment Received).
+     *
+     * NOTE: per-country deployments — DB datetimes are already stored in the
+     * operator's timezone, so DATE(transaction_datetime) is the correct group key.
+     */
+    public function dailySummaryIndex(Request $request)
+    {
+        if (!$request->has('operators')) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
+                    ]
+                ]);
+            } else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+
+        $request->date_from = $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
+        $request->date_to = $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
+
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        $perPage = $numberPerPage === 'All' ? 10000 : $numberPerPage;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+
+        // Sort key + direction. Default: newest date first.
+        $sortKey = $request->sortKey ?: 'transaction_date';
+        $allowedSortKeys = [
+            'transaction_date',
+            'payment_method_name',
+            'total_transaction_count',
+            'success_count',
+            'total_amount',
+            'success_amount',
+        ];
+        if (!in_array($sortKey, $allowedSortKeys, true)) {
+            $sortKey = 'transaction_date';
+        }
+        $sortDir = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+
+        // Base query (shared between paginated rows + totals + count).
+        // skipSort = true because filterTransactionIndex doesn't drive sort here.
+        $makeBaseQuery = function () use ($request) {
+            return VendTransaction::query()
+                ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+                ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+                ->filterTransactionIndex($request, true);
+        };
+
+        // Count distinct (date, payment_method_id) groups for pagination.
+        $totalGroups = (int) $makeBaseQuery()
+            ->select(DB::raw('COUNT(DISTINCT DATE(vend_transactions.transaction_datetime), vend_transactions.payment_method_id) AS cnt'))
+            ->value('cnt');
+
+        $records = $makeBaseQuery()
+            ->select([
+                DB::raw('DATE(vend_transactions.transaction_datetime) AS transaction_date'),
+                'vend_transactions.payment_method_id',
+                DB::raw('MAX(payment_methods.name) AS payment_method_name'),
+                DB::raw('COUNT(*) AS total_transaction_count'),
+
+                DB::raw('CAST(COUNT(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR vend_transactions.is_multiple = true
+                    THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
+
+                DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS total_amount'),
+
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR vend_transactions.is_multiple = true
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
+
+                DB::raw('CAST(COUNT(CASE
+                    WHEN vend_transactions.is_refunded = 1
+                    THEN 1 ELSE NULL END) AS SIGNED) AS refunded_count'),
+
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN vend_transactions.is_refunded = 1
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS refunded_amount'),
+            ])
+            ->groupBy('transaction_date', 'vend_transactions.payment_method_id')
+            ->orderBy($sortKey, $sortDir)
+            // tie-breaker so the same group order is stable across pages
+            ->orderBy('vend_transactions.payment_method_id')
+            ->forPage($currentPage, $perPage)
+            ->get();
+
+        $paginator = new LengthAwarePaginator(
+            $records,
+            $totalGroups,
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        // Shape the response to mirror the API-resource paginator format the
+        // shared Paginator.vue / page meta widgets expect (data + links + meta).
+        $dailySummary = [
+            'data' => $records,
+            'links' => [
+                'first' => $paginator->url(1),
+                'last' => $paginator->url($paginator->lastPage()),
+                'prev' => $paginator->previousPageUrl(),
+                'next' => $paginator->nextPageUrl(),
+            ],
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'from' => $paginator->firstItem(),
+                'last_page' => $paginator->lastPage(),
+                'links' => $paginator->linkCollection()->toArray(),
+                'path' => $paginator->path(),
+                'per_page' => $paginator->perPage(),
+                'to' => $paginator->lastItem(),
+                'total' => $paginator->total(),
+            ],
+        ];
+
+        // Aggregate totals across all matching rows (regardless of grouping).
+        $totals = $makeBaseQuery()
+            ->select([
+                DB::raw('COUNT(*) AS total_transaction_count'),
+                DB::raw('CAST(COUNT(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR vend_transactions.is_multiple = true
+                    THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
+                DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS total_amount'),
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR vend_transactions.is_multiple = true
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
+                DB::raw('CAST(COUNT(CASE
+                    WHEN vend_transactions.is_refunded = 1
+                    THEN 1 ELSE NULL END) AS SIGNED) AS refunded_count'),
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN vend_transactions.is_refunded = 1
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS refunded_amount'),
+            ])
+            ->first();
+
+        $ttl = 86400;
+        $paymentMethods = Cache::remember('payment_methods', $ttl, fn() => PaymentMethodResource::collection(
+            PaymentMethod::orderBy('name')->get()
+        )->resolve());
+
+        $operatorOptions = Cache::remember('operator_options', $ttl, fn() => OperatorResource::collection(
+            Operator::orderBy('name')->get()
+        )->resolve());
+
+        $cashlessMfgOptions = Cache::remember('cashless_mfg_options_txn', $ttl, fn() =>
+            VendTransaction::query()
+                ->select('cashless_mfg')
+                ->whereNotNull('cashless_mfg')
+                ->where('cashless_mfg', '!=', '')
+                ->distinct()
+                ->orderBy('cashless_mfg')
+                ->pluck('cashless_mfg')
+                ->filter()
+                ->unique()
+                ->values()
+        );
+
+        return Inertia::render('Vend/DailySummary', [
+            'cashlessMfgOptions' => ['data' => $cashlessMfgOptions],
+            'paymentMethods' => ['data' => $paymentMethods],
+            'operatorOptions' => ['data' => $operatorOptions],
+            'dailySummary' => $dailySummary,
+            'totals' => $totals,
+        ]);
+    }
+
+    /**
+     * Stream the Daily Summary table as a CSV file.
+     * Re-runs the same aggregation as dailySummaryIndex but without pagination.
+     */
+    public function exportDailySummaryCsv(Request $request)
+    {
+        if (!$request->has('operators')) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
+                    ]
+                ]);
+            } else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+        $request->date_from = $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
+        $request->date_to = $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
+
+        $rows = VendTransaction::query()
+            ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->filterTransactionIndex($request, true)
+            ->select([
+                DB::raw('DATE(vend_transactions.transaction_datetime) AS transaction_date'),
+                'vend_transactions.payment_method_id',
+                DB::raw('MAX(payment_methods.name) AS payment_method_name'),
+                DB::raw('COUNT(*) AS total_transaction_count'),
+                DB::raw('CAST(COUNT(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR vend_transactions.is_multiple = true
+                    THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
+                DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS total_amount'),
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR vend_transactions.is_multiple = true
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
+                DB::raw('CAST(COUNT(CASE
+                    WHEN vend_transactions.is_refunded = 1
+                    THEN 1 ELSE NULL END) AS SIGNED) AS refunded_count'),
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN vend_transactions.is_refunded = 1
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS refunded_amount'),
+            ])
+            ->groupBy('transaction_date', 'vend_transactions.payment_method_id')
+            ->orderByDesc('transaction_date')
+            ->orderBy('vend_transactions.payment_method_id')
+            ->get();
+
+        $country = auth()->user()->operator?->country;
+        $currencyExponent = $country?->currency_exponent ?? 2;
+        $divisor = pow(10, $currencyExponent);
+
+        $filename = 'Daily_Summary_' . now()->format('Ymd_His') . '.csv';
+
+        return (new FastExcel($this->yieldOneByOne($rows)))->download($filename, function ($row) use ($divisor, $currencyExponent) {
+            $total = (int) $row->total_transaction_count;
+            $success = (int) $row->success_count;
+            $rate = $total > 0 ? round(($success / $total) * 100, 2) : 0.0;
+            return [
+                'Date' => $row->transaction_date,
+                'Payment Method' => $row->payment_method_name ?? '—',
+                'Total Transactions' => $total,
+                'Successful Transactions' => $success,
+                'Success Rate (%)' => $rate,
+                'Total Amount' => round(((float) $row->total_amount) / $divisor, $currencyExponent),
+                'Successful Amount' => round(((float) $row->success_amount) / $divisor, $currencyExponent),
+                'Refunded Count' => (int) $row->refunded_count,
+                'Refunded Amount' => round(((float) $row->refunded_amount) / $divisor, $currencyExponent),
+            ];
+        });
     }
 
     public function pickLists(Request $request)

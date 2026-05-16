@@ -1,11 +1,11 @@
 
 <template>
-	<Head title="Vending Machines - Customers" />
+	<Head title="Ops Dashboard - Live Status" />
 
 <BreezeAuthenticatedLayout>
 	<template #header>
 		<h2 class="font-semibold text-xl text-gray-800 leading-tight">
-				Vending Machines (Customer View)
+				Ops Dashboard (Live Status)
 		</h2>
 	</template>
 
@@ -1911,7 +1911,7 @@
 									v-for="(binding, tagIdx) in (vend.tag_bindings ?? [])"
 									:key="binding.id"
 									:class="[
-										'inline-block w-28 px-2 py-0.5 rounded text-xs font-medium text-blue-900 border border-blue-400 break-all whitespace-normal leading-tight',
+										'inline-block w-28 px-2 py-0.5 rounded text-xs font-medium text-blue-900 border border-blue-400 break-words whitespace-normal leading-tight',
 										tagIdx % 2 === 0 ? 'bg-blue-50' : 'bg-blue-100',
 									]"
 								>
@@ -1990,7 +1990,7 @@
 									:ref="(el) => autoGrowTextarea(el)"
 									rows="4"
 									class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full text-left resize-none overflow-hidden"
-									placeholder="Notes"
+									placeholder="Cust Notes"
 								></textarea>
 								<span class="text-[10px] text-gray-500 mt-1" v-if="vend.notes_updated_by_user">
 									{{ vend.notes_updated_by_user.name }} ({{ moment(vend.notes_updated_at).format('YYMMDD hh:mma') }})

@@ -412,12 +412,27 @@
                         <br />
                         {{ row.customer.name }}
                       </a>
-                      <div class="flex space-x-1 mt-0.5">
+                      <div class="flex flex-wrap items-center gap-1 mt-0.5">
                         <span
                           v-if="row.customer.selling_price_type"
                           class="inline-flex rounded px-0.5 py-0.5 text-[10px] border w-fit h-fit bg-indigo-100 text-indigo-800 border-indigo-300"
                         >
                           RP{{ row.customer.selling_price_type }}
+                        </span>
+                        <!--
+                          Delivery platform badges (e.g. green "Grab" pill)
+                          — surfaced from any vend bound to this customer
+                          that has an active delivery_product_mapping_vends
+                          row. Deduplicated server-side in
+                          CustomerPeriodSummaryResource as `delivery_platforms`.
+                          Style mirrors the Grab pill on Vend/CustomerIndex.vue.
+                        -->
+                        <span
+                          v-for="(platformName, platformIdx) in (row.customer.delivery_platforms || [])"
+                          :key="'dp-' + platformIdx"
+                          class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
+                        >
+                          {{ platformName }}
                         </span>
                       </div>
                       <!--
@@ -839,13 +854,15 @@
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-left min-w-[150px] max-w-[150px]">
                     <template v-if="isFirstRowForCustomer(rowIndex)">
                       <!--
-                        Tags are stored as snake_case (e.g.
-                        already_inform_for_renewal) so the text has no
-                        spaces to wrap on. Each badge gets a fixed width
-                        and `break-all` so long names break onto multiple
-                        lines instead of stretching the column. Stacked
-                        vertically via flex-col for readability when a
-                        customer has several tags.
+                        Tags may be stored as snake_case (e.g.
+                        already_inform_for_renewal — no spaces to wrap
+                        on) or as multi-word strings (e.g. "Contract In
+                        Progress"). Each badge gets a fixed width and
+                        `break-words` so word-boundary wrapping is
+                        preferred (keeps multi-word tags whole), while
+                        single overly-long tokens still break to fit
+                        the chip. Stacked vertically via flex-col for
+                        readability when a customer has several tags.
                       -->
                       <!--
                         Tag badges alternate background shade (blue-50 /
@@ -858,7 +875,7 @@
                           v-for="(binding, tagIdx) in (row.customer?.tag_bindings ?? [])"
                           :key="binding.id"
                           :class="[
-                            'inline-block w-28 px-2 py-0.5 rounded text-xs font-medium text-blue-900 border border-blue-400 break-all whitespace-normal leading-tight',
+                            'inline-block w-28 px-2 py-0.5 rounded text-xs font-medium text-blue-900 border border-blue-400 break-words whitespace-normal leading-tight',
                             tagIdx % 2 === 0 ? 'bg-blue-50' : 'bg-blue-100',
                           ]"
                         >

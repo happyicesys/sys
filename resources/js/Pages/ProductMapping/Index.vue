@@ -283,11 +283,27 @@
                                           <br>
                                           {{ vend.customer.name }} <span class="text-black text-xs" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                       </a>
+                                      <span v-if="vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.deliveryProductMappingVends" :key="'dpmv-a-' + index">
+                                          <span
+                                              class="ml-1 inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
+                                              v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
+                                          >
+                                              {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
+                                          </span>
+                                      </span>
                                   </span>
                                   <span v-else>
                                       {{ vend.customer.virtual_customer_code }} ({{ vend.vendPrefix ? vend.vendPrefix.name : '' }})
                                       <br>
                                       {{ vend.customer.name }} <span class="text-black text-xs" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
+                                      <span v-if="vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.deliveryProductMappingVends" :key="'dpmv-b-' + index">
+                                          <span
+                                              class="ml-1 inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
+                                              v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
+                                          >
+                                              {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
+                                          </span>
+                                      </span>
                                   </span>
                               </span>
                               <span v-else-if="vend.customer && !vend.customer.person_id">
@@ -295,9 +311,25 @@
                                       <!-- <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'"> -->
                                           {{ vend.customer.name }} <span class="text-black text-xs" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                       <!-- </a> -->
+                                      <span v-if="vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.deliveryProductMappingVends" :key="'dpmv-c-' + index">
+                                          <span
+                                              class="ml-1 inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
+                                              v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
+                                          >
+                                              {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
+                                          </span>
+                                      </span>
                                   </span>
                                   <span v-else :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
                                       {{ vend.customer.name }} <span class="text-black text-xs" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
+                                      <span v-if="vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.deliveryProductMappingVends" :key="'dpmv-d-' + index">
+                                          <span
+                                              class="ml-1 inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
+                                              v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
+                                          >
+                                              {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
+                                          </span>
+                                      </span>
                                   </span>
                               </span>
                             </li>

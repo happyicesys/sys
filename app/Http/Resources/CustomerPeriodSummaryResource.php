@@ -158,6 +158,28 @@ class CustomerPeriodSummaryResource extends JsonResource
                             })
                             ->all()
                         : [],
+                    // Deduplicated list of delivery platform names (e.g. "Grab")
+                    // across all of the customer's bound vends. Drives the small
+                    // green platform badge rendered next to the customer name on
+                    // the Customer Summary page. Empty array when no vend has an
+                    // active delivery-platform mapping.
+                    'delivery_platforms' => $c->relationLoaded('vends')
+                        ? $c->vends
+                            ->flatMap(function ($v) {
+                                if (!$v->relationLoaded('deliveryProductMappingVends')) {
+                                    return [];
+                                }
+                                return $v->deliveryProductMappingVends->map(function ($dpmv) {
+                                    $platform = optional(optional($dpmv->deliveryProductMapping)
+                                        ->deliveryPlatformOperator)->deliveryPlatform;
+                                    return $platform ? $platform->name : null;
+                                });
+                            })
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->all()
+                        : [],
                     // Customer-level Notes (parked on the customer record so
                     // it carries across any period filter on this page).
                     // notes_updated_by_user is the user object resolved via

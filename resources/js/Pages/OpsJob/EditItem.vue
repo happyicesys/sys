@@ -276,32 +276,66 @@
             </dl>
           </div>
           <div class="flex md:justify-between mb-2 px-4 py-3">
-            <Button
-                type="button"
-                class="px-2 py-2 ml-1 text-xs md:text-md flex space-x-1 bg-yellow-500 hover:bg-yellow-600 text-black w-full md:w-fit"
-                @click.prevent="onIsIgnoreLimitClicked()"
-                v-if="!opsJobItem.is_ignore_limit"
-            >
-              <span class="flex space-x-1 items-center">
-                <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
-                <span>
-                  Bypass Capped Qty
+            <!--
+              Left-aligned button cluster — groups the bulk-edit
+              shortcuts (Bypass/Abide Capped Qty + Zero-up To Pick Qty)
+              so they sit side-by-side instead of being pushed apart by
+              the outer flex justify-between, which still keeps "Save
+              Remarks" anchored to the right.
+            -->
+            <div class="flex">
+              <Button
+                  type="button"
+                  class="px-2 py-2 ml-1 text-xs md:text-md flex space-x-1 bg-yellow-500 hover:bg-yellow-600 text-black w-full md:w-fit"
+                  @click.prevent="onIsIgnoreLimitClicked()"
+                  v-if="!opsJobItem.is_ignore_limit"
+              >
+                <span class="flex space-x-1 items-center">
+                  <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
+                  <span>
+                    Bypass Capped Qty
+                  </span>
                 </span>
-              </span>
-            </Button>
-            <Button
-                type="button"
-                class="px-2 py-2 ml-1 text-xs md:text-md flex space-x-1 bg-yellow-500 hover:bg-yellow-600 text-black w-full md:w-fit"
-                @click.prevent="onIsIgnoreLimitClicked()"
-                v-if="opsJobItem.is_ignore_limit"
-            >
-              <span class="flex space-x-1 items-center">
-                <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                <span>
-                  Abide Capped Qty
+              </Button>
+              <Button
+                  type="button"
+                  class="px-2 py-2 ml-1 text-xs md:text-md flex space-x-1 bg-yellow-500 hover:bg-yellow-600 text-black w-full md:w-fit"
+                  @click.prevent="onIsIgnoreLimitClicked()"
+                  v-if="opsJobItem.is_ignore_limit"
+              >
+                <span class="flex space-x-1 items-center">
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Abide Capped Qty
+                  </span>
                 </span>
-              </span>
-            </Button>
+              </Button>
+              <!--
+                Zero-up To Pick Qty — clears every editable channel's
+                picked qty back to 0 so the user can hand-pick only what
+                they want. Mirrors the spirit of "Bypass Capped Qty" as a
+                quick bulk-edit shortcut. Particularly useful after
+                switching to a Stock Action like "Implement New Mapping"
+                where the auto-defaults may not match what the operator
+                actually intends to load. Local state only — user still
+                needs to hit "Save & Freeze 'To Pick Qty'" to persist.
+                Gated on status == 1 because pick qty is only editable
+                in the Pending state.
+              -->
+              <Button
+                  type="button"
+                  class="px-2 py-2 ml-1 text-xs md:text-md flex space-x-1 bg-slate-500 hover:bg-slate-600 text-white w-full md:w-fit"
+                  @click.prevent="onZeroUpPickQtyClicked()"
+                  v-if="opsJobItem.status == 1"
+              >
+                <span class="flex space-x-1 items-center">
+                  <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                  <span>
+                    Zero-up To Pick Qty
+                  </span>
+                </span>
+              </Button>
+            </div>
             <Button
                 type="button"
                 class="px-2 py-2 ml-1 text-xs md:text-md flex space-x-1 bg-green-500 hover:bg-green-600 text-white w-full md:w-fit"
@@ -473,15 +507,27 @@
                               <div v-if="channel.is_replaced" class="text-xs text-gray-500 italic py-2">
                                 N/A
                               </div>
-                              <select v-else-if="channel.is_manually_replaced" name="channel_picked" id="channel_picked_manually_replaced" class="rounded text-orange-600" v-model="channel.picked">
+                              <select v-else-if="channel.is_manually_replaced" name="channel_picked" id="channel_picked_manually_replaced" class="rounded text-orange-600" v-model="channel.picked" @change="onPickQtyChanged(channel)">
                                 <option v-for="n in channel.qty + 1" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
                               </select>
-                              <select v-else-if="channel.is_return_stock || channel.is_onsite_adjustment" name="channel_picked" :id="channel.is_onsite_adjustment ? 'channel_picked_onsite' : 'channel_picked_return'" class="rounded" :class="channel.is_onsite_adjustment ? 'text-teal-600' : 'text-orange-600'" v-model="channel.picked">
+                              <select v-else-if="channel.is_return_stock || channel.is_onsite_adjustment" name="channel_picked" :id="channel.is_onsite_adjustment ? 'channel_picked_onsite' : 'channel_picked_return'" class="rounded" :class="channel.is_onsite_adjustment ? 'text-teal-600' : 'text-orange-600'" v-model="channel.picked" @change="onPickQtyChanged(channel)">
                                 <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
                               </select>
-                              <select v-else name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" v-if="opsJobItem.status < 2">
+                              <select v-else name="channel_picked" id="channel_picked" class="rounded" :class="[(channel.saved_picked_qty != null && !channel.is_user_unfreeze) || channel.is_user_modified ? 'text-red-500 font-semibold' : 'text-blue-600', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" @change="onPickQtyChanged(channel)" v-if="opsJobItem.status < 2">
                                 <option v-for="v in getPickOptions(channel)" :key="v" :value="v">{{ v }}</option>
                               </select>
+                              <!-- "↺ Live" reset: only meaningful for an already-frozen row
+                                   (saved_picked_qty != null) that the user hasn't already
+                                   re-touched or queued for unfreeze in this session. -->
+                              <button
+                                type="button"
+                                v-if="channel.saved_picked_qty != null && !channel.is_user_unfreeze && !channel.is_replaced && !channel.is_manually_replaced && !channel.is_return_stock && !channel.is_onsite_adjustment"
+                                class="text-[10px] text-blue-600 hover:text-blue-800 underline"
+                                title="Reset this SKU back to live Needed Qty"
+                                @click.prevent="onResetToLiveClicked(channel)"
+                              >
+                                ↺ Live
+                              </button>
                               <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
                                 capped ({{ channel.picked_limit }})
                               </span>
@@ -849,15 +895,27 @@
                             <div v-if="channel.is_replaced" class="text-xs text-gray-500 italic py-2">
                                N/A
                             </div>
-                            <select v-else-if="channel.is_manually_replaced" name="channel_picked" id="channel_picked_manually_replaced" class="rounded w-fit text-orange-600" v-model="channel.picked">
+                            <select v-else-if="channel.is_manually_replaced" name="channel_picked" id="channel_picked_manually_replaced" class="rounded w-fit text-orange-600" v-model="channel.picked" @change="onPickQtyChanged(channel)">
                               <option v-for="n in channel.qty + 1" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
                             </select>
-                            <select v-else-if="channel.is_return_stock || channel.is_onsite_adjustment" name="channel_picked" :id="channel.is_onsite_adjustment ? 'channel_picked_onsite' : 'channel_picked_return'" class="rounded w-fit" :class="channel.is_onsite_adjustment ? 'text-teal-600' : 'text-orange-600'" v-model="channel.picked">
+                            <select v-else-if="channel.is_return_stock || channel.is_onsite_adjustment" name="channel_picked" :id="channel.is_onsite_adjustment ? 'channel_picked_onsite' : 'channel_picked_return'" class="rounded w-fit" :class="channel.is_onsite_adjustment ? 'text-teal-600' : 'text-orange-600'" v-model="channel.picked" @change="onPickQtyChanged(channel)">
                               <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
                             </select>
-                            <select v-else name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" v-if="opsJobItem.status < 2">
+                            <select v-else name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[(channel.saved_picked_qty != null && !channel.is_user_unfreeze) || channel.is_user_modified ? 'text-red-500 font-semibold' : 'text-blue-600', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" @change="onPickQtyChanged(channel)" v-if="opsJobItem.status < 2">
                               <option v-for="v in getPickOptions(channel)" :key="v" :value="v">{{ v }}</option>
                             </select>
+                            <!-- "↺ Live" reset: only meaningful for an already-frozen row
+                                 (saved_picked_qty != null) that the user hasn't already
+                                 re-touched or queued for unfreeze in this session. -->
+                            <button
+                              type="button"
+                              v-if="opsJobItem.status < 2 && channel.saved_picked_qty != null && !channel.is_user_unfreeze && !channel.is_replaced && !channel.is_manually_replaced && !channel.is_return_stock && !channel.is_onsite_adjustment"
+                              class="text-[10px] text-blue-600 hover:text-blue-800 underline mt-1"
+                              title="Reset this SKU back to live Needed Qty"
+                              @click.prevent="onResetToLiveClicked(channel)"
+                            >
+                              ↺ Live
+                            </button>
                             <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
                               capped ({{ channel.picked_limit }})
                             </span>
@@ -1357,6 +1415,7 @@
                   class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-gray-300 hover:bg-gray-400 text-gray-800 w-full md:w-fit"
                   @click="onSaveClicked()"
                   v-if="opsJobItem.status == 1 && opsJobItem.stock_action_type !== 'return_stock' && opsJobItem.stock_action_type !== 'onsite_adjustment'"
+                  title="Freezes only the SKUs you manually changed (RED). Untouched SKUs (BLUE) keep updating with live Needed Qty."
               >
                 <span class="flex space-x-1 items-center">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
@@ -1649,6 +1708,20 @@ function loadingData() {
       picked_limit: (opsJobItemChannel.product || opsJobItemChannel.vendChannel.product) && (opsJobItemChannel.product || opsJobItemChannel.vendChannel.product).max_ops_job_pick_limit != null && !opsJobItem.value.is_ignore_limit ? (opsJobItemChannel.product || opsJobItemChannel.vendChannel.product).max_ops_job_pick_limit : null,
       before_picked: opsJobItemChannel.picked_before_qty,
       picked: pickedQty,
+      // Per-SKU freeze tracking:
+      //   saved_picked_qty != null  -> SKU is "frozen" (RED): qty was
+      //     manually fixed by an operator and will NOT follow live Needed
+      //     Qty when sales happen. The "Save & Freeze 'To Pick Qty'"
+      //     button writes this column.
+      //   saved_picked_qty == null  -> SKU is "live" (BLUE): qty defaults
+      //     to (capacity - qty) and updates on each page load as sales
+      //     come in.
+      // is_user_modified / is_user_unfreeze are local-only flags used to
+      // decide which rows to POST on save (untouched rows are skipped so
+      // their frozen/live state is preserved server-side).
+      saved_picked_qty: opsJobItemChannel.saved_picked_qty,
+      is_user_modified: false,
+      is_user_unfreeze: false,
       before_refill: opsJobItemChannel.actual_before_qty,
       refill: refill,
       product: opsJobItemChannel.product ? opsJobItemChannel.product : (opsJobItemChannel.vendChannel.product ? {
@@ -1951,8 +2024,20 @@ function onConfirmClicked() {
 }
 
 function onSaveClicked() {
+  // Per-SKU freeze: only post channels the operator actually touched in
+  // this session (manual qty change OR explicit "↺ Live" reset). Untouched
+  // channels are intentionally NOT sent, so the backend leaves their
+  // saved_picked_qty alone — frozen rows stay frozen, live rows stay
+  // live and keep tracking Needed Qty as sales come in.
+  const touchedChannels = channels.value.filter(c => c.is_user_modified || c.is_user_unfreeze);
+
+  if (touchedChannels.length === 0) {
+    toast.info("No manual changes to save.", { timeout: 2500 });
+    return;
+  }
+
   router.post(`/ops-jobs/items/${opsJobItem.value.id}/save`, {
-    channels: channels.value.map((channel) => {
+    channels: touchedChannels.map((channel) => {
       return {
         id: channel.ops_job_item_channel_id,
         code: channel.code,
@@ -1960,6 +2045,9 @@ function onSaveClicked() {
         picked: channel.picked,
         qty: channel.qty,
         refill: channel.refill,
+        // unfreeze=true tells the backend to clear saved_picked_qty
+        // (back to live). Otherwise it freezes at the posted `picked`.
+        unfreeze: !!channel.is_user_unfreeze,
       }
     }),
   }, {
@@ -1978,6 +2066,25 @@ function onSaveClicked() {
       })
     }
   })
+}
+
+// Mark a channel as manually modified by the operator. Hooked to the
+// "To Pick Qty" dropdown's @change so any user-initiated value change
+// flags the row for inclusion in the next save (and clears any pending
+// unfreeze intent, since the operator is now setting an explicit value).
+function onPickQtyChanged(channel) {
+  channel.is_user_modified = true;
+  channel.is_user_unfreeze = false;
+}
+
+// "↺ Live" button on a frozen row: snap the displayed To-Pick back to
+// the live Needed Qty and flag the row to be unfrozen on save. We do NOT
+// set is_user_modified here — that's reserved for explicit dropdown
+// changes — but we DO add it to the touched list via is_user_unfreeze.
+function onResetToLiveClicked(channel) {
+  channel.picked = channel.capacity - channel.qty;
+  channel.is_user_unfreeze = true;
+  channel.is_user_modified = false;
 }
 
 function onCashCollectedClicked() {
@@ -2041,6 +2148,41 @@ function onIsIgnoreLimitClicked() {
       });
     }
   })
+}
+
+// Zero-up: bulk-clear every channel's "To Pick Qty" to 0 so the user
+// can hand-pick what they want from a clean slate. This is a UI-only
+// mutation — the new values aren't persisted until the user hits
+// "Save & Freeze 'To Pick Qty'" (which posts the channels array via
+// onSaveClicked). We skip channels that aren't user-editable:
+//   - is_replaced  : picked is locked at -qty (full return because the
+//                    channel is being replaced); zeroing would change
+//                    the semantic meaning of the row.
+// All other modes — normal pick, manually_replaced, return_stock,
+// onsite_adjustment, upcoming products under "Implement New Mapping" —
+// support picked = 0 as a valid value, so they're cleared.
+function onZeroUpPickQtyClicked() {
+  const approval = confirm("Set every channel's To Pick Qty to 0? You'll still need to click \"Save & Freeze 'To Pick Qty'\" to persist this.");
+  if (!approval) {
+    return;
+  }
+  let cleared = 0;
+  channels.value.forEach((channel) => {
+    if (channel.is_replaced) return;
+    if (channel.picked !== 0) {
+      channel.picked = 0;
+      // Bulk-clear counts as a manual change per channel so that on
+      // "Save & Freeze 'To Pick Qty'" every zeroed row is sent and
+      // its saved_picked_qty is persisted (otherwise the post-save
+      // reload would snap them back to live Needed Qty).
+      channel.is_user_modified = true;
+      channel.is_user_unfreeze = false;
+      cleared++;
+    }
+  });
+  toast.success(`Zeroed To Pick Qty on ${cleared} channel${cleared === 1 ? '' : 's'}. Click "Save & Freeze 'To Pick Qty'" to persist.`, {
+    timeout: 4000
+  });
 }
 
 function onUndoCashCollectedClicked() {

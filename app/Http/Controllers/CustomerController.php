@@ -310,6 +310,14 @@ class CustomerController extends Controller
             // hint into a line-broken list (ascending) in the Vend ID column.
             'customer.vends:id,customer_id,code,vend_prefix_id',
             'customer.vends.vendPrefix:id,name',
+            // Delivery-platform bindings on the customer's vends — used to
+            // render small platform badges (e.g. green "Grab" pill) next to
+            // the customer name in the Customer column on Summary. Mirrors
+            // the chain eager-loaded in VendController::indexCustomer().
+            'customer.vends.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
+            'customer.vends.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
+            'customer.vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
+            'customer.vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
             // Contract attachments — drives the "Contract Attachment"
             // hyperlink in the Customer column on the Summary page. The
             // relation already orders DESC by created_at (latest() in

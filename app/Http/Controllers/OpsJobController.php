@@ -953,14 +953,24 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
+        // Per-SKU freeze semantics:
+        //   - Front-end only sends channels the operator manually touched
+        //     (is_user_modified or is_user_unfreeze).
+        //   - Untouched channels are NOT sent and we leave their
+        //     saved_picked_qty alone (so previously-frozen rows stay frozen,
+        //     and previously-live rows stay live and keep tracking the
+        //     Needed Qty as sales come in).
+        //   - For sent channels:
+        //       * unfreeze=true  -> saved_picked_qty = null (back to live)
+        //       * unfreeze=false -> saved_picked_qty = picked (freeze at value)
         if ($request->channels) {
-            // dd($request->channels);
             foreach ($request->channels as $channel) {
 
                 $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                 if ($opsJobItemChannel) {
+                    $unfreeze = !empty($channel['unfreeze']);
                     $opsJobItemChannel->update([
-                        'saved_picked_qty' => $channel['picked'],
+                        'saved_picked_qty' => $unfreeze ? null : $channel['picked'],
                     ]);
                 }
             }

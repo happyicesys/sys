@@ -40,7 +40,7 @@ const navigation = computed(() => [
     //     tagline: 'Device',
     // },
     {
-        name: 'Vending Machines',
+        name: 'Ops Dashboard',
         icon: CommandLineIcon,
         current: false,
         href: 'vends.customer',
@@ -59,6 +59,7 @@ const navigation = computed(() => [
         tagline: null,
         children: [
             {name: 'All Transactions', href: '/vends/transactions', permission: 'read transactions-sales'},
+            {name: 'Daily Summary', href: '/vends/transactions-daily-summary', permission: 'read transactions-sales'},
             {name: 'Payment Gateway Txn', href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
         ]
     },
