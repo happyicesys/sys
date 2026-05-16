@@ -403,6 +403,15 @@ class VendDataService
 
     }
 
+    // MQTT-only filter: don't persist heartbeats. A heartbeat = no Type in the
+    // decoded payload (covers both empty-`p` pings like {"f":...,"p":"",...} and
+    // ACK echoes like ["{vendcode},4,MQ=="] that don't decode to anything).
+    // These fire continuously per machine and bloat vend_data without adding signal.
+    // Type 'P' polls are already filtered globally in the case 'P' branch above.
+    if ($connectionType == 'mqtt' && !isset($processedInput['Type'])) {
+      $saveVendData = false;
+    }
+
     if ($saveVendData) {
       // Switched from external log server (SendHttpDataToLogServer) to local vend_data table
       // for stability. Kill switch: set LOG_TO_VEND_DATA=false in .env to disable without a deploy.
