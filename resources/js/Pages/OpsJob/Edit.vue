@@ -497,11 +497,11 @@
                               <span>
                                 {{ row.vend && row.vend.vendPrefix ? row.vend.vendPrefix.name : '' }}
                               </span>
-                              <span class="flex flex-col text-xs font-medium whitespace-normal break-words max-w-24 mt-1" v-if="row.vend && row.vend.productMapping">
-                                <span class="text-gray-500">{{ row.vend.productMapping.name }}</span>
-                                <span class="flex items-center justify-center gap-1 mt-0.5" v-if="row.vend.upcomingProductMapping || (row.vend.productMapping && row.vend.productMapping.upcomingProductMapping)">
-                                  <span class="bg-purple-100 text-purple-700 text-xs font-medium px-1.5 py-0.5 rounded">New</span>
-                                  <span class="text-red-500 text-xs font-medium">{{ (row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).name }}</span>
+                              <span class="flex flex-col text-xs font-medium whitespace-normal break-all max-w-24 min-w-0 mt-1" v-if="row.vend && row.vend.productMapping">
+                                <span class="text-gray-500 break-all">{{ row.vend.productMapping.name }}</span>
+                                <span class="flex flex-wrap items-center justify-center gap-1 mt-0.5 max-w-24 min-w-0" v-if="row.vend.upcomingProductMapping || (row.vend.productMapping && row.vend.productMapping.upcomingProductMapping)">
+                                  <span class="bg-purple-100 text-purple-700 text-xs font-medium px-1.5 py-0.5 rounded shrink-0">New</span>
+                                  <span class="text-red-500 text-xs font-medium break-all max-w-24 min-w-0">{{ (row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).name }}</span>
                                 </span>
                               </span>
                               <div>
@@ -589,6 +589,24 @@
                                   v-if="row.customer && row.customer.selling_price_type"
                                 >
                                   RP{{ row.customer.selling_price_type }}
+                                </span>
+                                <!--
+                                  Delivery platform badges (e.g. green "Grab" pill)
+                                  — surfaced from any active delivery_product_mapping_vends
+                                  row tied to the vend. Style mirrors the Grab pill on
+                                  ProductMapping/Index.vue and Vend/CustomerIndex.vue.
+                                -->
+                                <span
+                                  v-if="row.vend && row.vend.deliveryProductMappingVends"
+                                  v-for="(deliveryProductMappingVend, dpmvIndex) in row.vend.deliveryProductMappingVends"
+                                  :key="'opsjob-dpmv-' + dpmvIndex"
+                                >
+                                  <span
+                                    class="ml-1 inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400 align-middle"
+                                    v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
+                                  >
+                                    {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
+                                  </span>
                                 </span>
                               </span>
                               <span>

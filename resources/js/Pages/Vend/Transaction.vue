@@ -82,22 +82,9 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
-                <label for="text" class="block text-sm font-medium text-gray-700">
-                   Card Terminal
-                </label>
-                <MultiSelect
-                    v-model="filters.cashlessMfgs"
-                    :options="cashlessMfgOptions"
-                    valueProp="id"
-                    label="value"
-                    placeholder="Select"
-                    open-direction="bottom"
-                    class="mt-1"
-                    mode="tags"
-                >
-                </MultiSelect>
-            </div>
+            <!-- Card Terminal filter retired on 2026-05-16 — its options
+                 were folded into Payment Method as "Credit Card (<terminal>)"
+                 synthetic entries. See paymentMethodOptions below. -->
             <!-- <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Category
@@ -960,7 +947,7 @@ import fileDownload from 'js-file-download'
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
-    cashlessMfgOptions: Object,
+    cardTerminalOptions: Object,
     categories: Object,
     categoryGroups: Object,
     operatorOptions: Object,
@@ -978,7 +965,6 @@ const props = defineProps({
 })
 const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
-const cashlessMfgOptions = ref([])
 const successfulOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
@@ -1004,17 +990,19 @@ onMounted(() => {
         {'id': 'errors_only', 'desc': 'Errors Only'},
         ...props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
     ]
+    // The standalone "Credit Card" entry is replaced by one synthetic
+    // entry per card terminal — "Credit Card (Nayax)", "Credit Card (Nets)"
+    // etc. — using ids of the form "cc:<terminal>". The backend
+    // scopeFilterTransactionIndex decodes these into
+    // (payment_method = Credit Card AND cashless_mfg = <terminal>).
+    // The standalone Card Terminal filter was removed as part of this change.
+    const terminalNames = (props.cardTerminalOptions?.data ?? [])
     paymentMethodOptions.value = [
         {id: 'all', name: 'All'},
-        ...props.paymentMethods.data.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})
-    ]
-    cashlessMfgOptions.value = [
-        {id: 'all', value: 'All'},
-        // 'na' selects credit-card transactions (payment_method_id = 2) whose
-        // cashless_mfg snapshot is null — e.g. older rows before the snapshot
-        // column was populated, or txns where acb_vmc_pa_json was unavailable.
-        {id: 'na', value: 'N/A'},
-        ...(props.cashlessMfgOptions?.data ?? []).map((mfg) => {return {id: mfg, value: mfg}})
+        ...props.paymentMethods.data
+            .filter((pm) => pm.name !== 'Credit Card')
+            .map((pm) => ({id: pm.id, name: pm.name})),
+        ...terminalNames.map((t) => ({id: `cc:${t}`, name: `Credit Card (${t})`})),
     ]
     numberPerPageOptions.value = [
         { id: 50, value: 50 },
@@ -1025,7 +1013,6 @@ onMounted(() => {
     ]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
     filters.value.paymentMethods = [paymentMethodOptions.value[0]]
-    filters.value.cashlessMfgs = [cashlessMfgOptions.value[0]]
 
     booleanOptions.value = [
         {id: 'all', value: 'All'},
@@ -1097,7 +1084,6 @@ onUnmounted(() => {
 
 const filters = ref({
     apk_ver: '',
-    cashlessMfgs: [],
     codes: '',
     channel_codes: '',
     categories: [],
@@ -1158,19 +1144,6 @@ watch(() => filters.value.paymentMethods, (newVal, oldVal) => {
     }
 }, { deep: true });
 
-watch(() => filters.value.cashlessMfgs, (newVal, oldVal) => {
-    if (!newVal || !oldVal) return;
-    if (newVal.length > 1) {
-        const hasAllNew = newVal.some(m => (m.id ?? m) === 'all');
-        const hasAllOld = oldVal.some(m => (m.id ?? m) === 'all');
-
-        if (hasAllNew && !hasAllOld) {
-            filters.value.cashlessMfgs = cashlessMfgOptions.value.filter(m => m.id === 'all');
-        } else if (hasAllNew && hasAllOld) {
-            filters.value.cashlessMfgs = newVal.filter(m => (m.id ?? m) !== 'all');
-        }
-    }
-}, { deep: true });
 // const vendOptions = ref([])
 const vendChannelErrorOptions = ref([])
 const loading = ref(false)
@@ -1230,7 +1203,6 @@ function onExportCsvClicked() {
         url: '/vends/transactions/export-csv',
         params: {
             ...filters.value,
-            cashless_mfg: (filters.value.cashlessMfgs ?? []).map(m => m.id ?? m),
             categories: filters.value.categories.map(c => c.id),
             categoryGroups: filters.value.categoryGroups.map(cg => cg.id),
             channel_codes: filters.value.channel_codes,
@@ -1380,7 +1352,6 @@ function onExportExcelClicked() {
         url: '/vends/transactions/excel',
         params: {
             ...filters.value,
-            cashless_mfg: (filters.value.cashlessMfgs ?? []).map(m => m.id ?? m),
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             channel_codes: filters.value.channel_codes,
@@ -1413,7 +1384,6 @@ function onExportExcelClicked() {
 function onSearchFilterUpdated() {
     router.get('/vends/transactions', {
         ...filters.value,
-        cashless_mfg: (filters.value.cashlessMfgs ?? []).map(m => m.id ?? m),
         categories: filters.value.categories.map((category) => { return category.id }),
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
         channel_codes: filters.value.channel_codes,

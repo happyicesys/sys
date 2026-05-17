@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\PublishMqtt;
 use App\Jobs\RefundOmiseJob;
+use App\Jobs\Vend\LogNofoundTxnIfStillMissing;
 use App\Models\Country;
 use App\Models\PaymentGateways\Fiuu;
 use App\Models\PaymentGateways\Midtrans;
@@ -210,6 +211,18 @@ class PaymentController extends Controller
       $updatedPaymentGatewayLog->update([
         'approved_at' => Carbon::now(),
       ]);
+
+      // Schedule the "no-found-in-txn" daily-stats check. 5 minutes from now
+      // we re-read this PG log; if the matching vend_transactions row has
+      // still not landed (the visible "Found in Transactions?" flag on the
+      // PaymentGatewayTransaction page is still red), we increment
+      // vend_daily_stats.metric='nofound_txn' for this machine on the paid-at
+      // date. VendTransactionService::createTransaction pairs this with a
+      // DecrementVendDailyStat when the transaction eventually lands, so the
+      // counter self-heals as the anomaly is resolved.
+      LogNofoundTxnIfStillMissing::dispatch($updatedPaymentGatewayLog->id)
+        ->delay(now()->addMinutes(5))
+        ->onQueue('low');
 
       $this->processPayment($updatedPaymentGatewayLog);
     }

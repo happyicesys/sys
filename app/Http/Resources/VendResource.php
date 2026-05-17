@@ -283,6 +283,15 @@ class VendResource extends JsonResource
             'pwron_1d_count' => isset($this->pwron_1d_count) ? (int) $this->pwron_1d_count : null,
             'pwron_2d_count' => isset($this->pwron_2d_count) ? (int) $this->pwron_2d_count : null,
             'pwron_3d_count' => isset($this->pwron_3d_count) ? (int) $this->pwron_3d_count : null,
+            // "# of No Found in Txn" 1d / 2d / 3d counts — same vend_daily_stats
+            // table as PWRON, different metric ('nofound_txn'). Written by
+            // LogNofoundTxnIfStillMissing (5-min delayed) and undone by
+            // VendTransactionService -> DecrementVendDailyStat when the
+            // matching vend_transactions row finally lands. Null-default so
+            // routes that don't enrich (e.g. /vends) hide the block.
+            'nofound_txn_1d_count' => isset($this->nofound_txn_1d_count) ? (int) $this->nofound_txn_1d_count : null,
+            'nofound_txn_2d_count' => isset($this->nofound_txn_2d_count) ? (int) $this->nofound_txn_2d_count : null,
+            'nofound_txn_3d_count' => isset($this->nofound_txn_3d_count) ? (int) $this->nofound_txn_3d_count : null,
             'vendSevenDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendSevenDaysErrorTransactions')),
             'vend_id' => isset($this->vend_id) ? $this->vend_id : null,
             'virtual_customer_code' => isset($this->virtual_customer_code) ? $this->virtual_customer_code : null,

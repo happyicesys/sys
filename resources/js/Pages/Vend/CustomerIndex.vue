@@ -827,15 +827,63 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 7 days error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
 							</div>
-							<!-- PWRON 1d/2d/3d trend block. Separator + label only
-							     — actual counts render at the bottom of the
-							     data cell below (sourced from vend_daily_stats). -->
-							<hr class="border-t border-gray-300 my-1 w-full" />
+							<!-- PWRON 1d/2d/3d trend block — header has per-day sort
+							     handles. Each SingleSortItem hits the matching
+							     `pwron_{1,2,3}d_count` alias exposed conditionally by
+							     VendController::indexCustomer (single leftJoin against
+							     vend_daily_stats). Actual counts render at the bottom of
+							     the data cell below. Tooltip wording is product-supplied
+							     so it stays in sync with what we tell users PWRON means. -->
+							<hr class="border-t border-gray-300 my-2 w-full" />
 							<div class="flex justify-center items-center">
-								<span>
-									PWRON 1d/2d/3d
-								</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Daily PWRON (power-on) counts from vend_daily_stats. <br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal. 3d is the baseline.', html: true }"></ExclamationCircleIcon>
+								<span class="text-[11px] font-semibold text-gray-900">PWRON</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Stability of connectivity. PWRON = Count of machine auto reconnect to server after dropline.<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal. 3d is the baseline.', html: true }"></ExclamationCircleIcon>
+							</div>
+							<!-- No text-* override here — TableHead drives the base
+							     text-[11px] size for every header cell. Adding text-sm
+							     pushed these handles to ~14px and made them visually
+							     louder than "1d Rate" / "2d Rate" etc. above. -->
+							<div class="flex justify-center items-center space-x-1">
+								<SingleSortItem modelName="pwron_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_1d_count', false)">
+									1d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="pwron_2d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_2d_count', false)">
+									2d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="pwron_3d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_3d_count', false)">
+									3d
+								</SingleSortItem>
+							</div>
+							<!-- "# of No Found in Txn" 1d/2d/3d block — sits directly
+							     under PWRON, same Error column. Counter is written by
+							     LogNofoundTxnIfStillMissing (5 min after a PG payment is
+							     approved, if the matching vend_transactions row still
+							     hasn't landed) and decremented when the txn eventually
+							     arrives — so the number is the count of *currently
+							     unresolved* payment-without-transaction anomalies for
+							     that day. Headers are per-day sortable; data renders at
+							     the bottom of the cell below. -->
+							<hr class="border-t border-gray-300 my-2 w-full" />
+							<div class="flex justify-center items-center">
+								<span class="text-[11px] font-semibold text-gray-900"># of No Found in Txn</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Daily count of payment-gateway transactions where the matching machine transaction never arrived within 5 minutes of payment approval. Decrements automatically if the transaction lands later. Sourced from vend_daily_stats (metric=nofound_txn). 1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal.', html: true }"></ExclamationCircleIcon>
+							</div>
+							<!-- Match the PWRON row above — no explicit text size class
+							     so we inherit TableHead's text-[11px]. -->
+							<div class="flex justify-center items-center space-x-1">
+								<SingleSortItem modelName="nofound_txn_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_1d_count', false)">
+									1d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="nofound_txn_2d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_2d_count', false)">
+									2d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="nofound_txn_3d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('nofound_txn_3d_count', false)">
+									3d
+								</SingleSortItem>
 							</div>
 						</div>
 					</TableHead>
@@ -882,13 +930,13 @@
 							Last30d
 						</SingleSortItem>
 						<!-- Mthly Sales $ — calendar-month split sitting under the rolling
-							Today/Yday/Last7d/Last30d block. Three sub-rows (Current Mth /
-							Last Mth / Last 2Mth) sourced from vend_records (cheaper than
-							re-aggregating vend_transactions) and synced via
+							Today/Yday/Last7d/Last30d block. Four sub-rows (Current Mth /
+							Last Mth / Last 2Mth / Last 3Mth) sourced from vend_records
+							(cheaper than re-aggregating vend_transactions) and synced via
 							SyncVendTransactionTotalsJson. Up/down arrow chips on the data
 							side compare each row to the previous month. -->
-						<hr class="border-t border-gray-300 my-1" />
-						<span class="text-xs font-semibold text-gray-700">Mthly Sales $</span>
+						<hr class="border-t border-gray-300 my-2" />
+						<span class="text-[11px] font-semibold text-gray-900">Mthly Sales $</span>
 						<SingleSortItem modelName="totals_json->current_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->current_mth_amount', false)">
 							Current Mth
 						</SingleSortItem>
@@ -897,6 +945,9 @@
 						</SingleSortItem>
 						<SingleSortItem modelName="totals_json->last_2_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->last_2_mth_amount', false)">
 							Last 2Mth
+						</SingleSortItem>
+						<SingleSortItem modelName="totals_json->last_3_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->last_3_mth_amount', false)">
+							Last 3Mth
 						</SingleSortItem>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
@@ -961,7 +1012,7 @@
 								above (Lifetime / Accumulated) from the contract /
 								date cluster that starts at Begin Dt. The matching
 								<hr> sits at the same position in the TableData. -->
-							<hr class="border-t border-gray-300 my-1" />
+							<hr class="border-t border-gray-300 my-2" />
 							<SingleSortItem modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date', false)">
 								Begin Dt
 							</SingleSortItem>
@@ -984,7 +1035,7 @@
 								cluster (Begin Dt → Contract End Date → Notice
 								Period) before the daily-sales pair (Avg Sales/Day
 								→ AvgDailySales). Matching <hr> in the TableData. -->
-							<hr class="border-t border-gray-300 my-1" />
+							<hr class="border-t border-gray-300 my-2" />
 							<SingleSortItem modelName="totals_json->vend_records_amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_average_day', true)">
 								Avg Sales/ Day
 							</SingleSortItem>
@@ -995,7 +1046,7 @@
 								from the Customer Tag chips below. Matching <hr>
 								in the TableData. Gated on indexType so the line
 								only appears when Customer Tag is being shown. -->
-							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-1" />
+							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-2" />
 							<!-- Customer Tag — chips render at the bottom of this
 								column's TableData, mirroring the Customer Summary
 								"Customer Tag" row. Header label only shows on the
@@ -1018,7 +1069,7 @@
 								(Contract Type / Location Fees) from the L30d
 								earnings cluster (GrossEarning / VendEarning).
 								Matching <hr> in the TableData. -->
-							<hr class="border-t border-gray-300 my-1" />
+							<hr class="border-t border-gray-300 my-2" />
 							<SingleSortItem modelName="totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_gross_profit', true)">
 								L30d GrossEarning
 							</SingleSortItem>
@@ -1028,7 +1079,7 @@
 							<!-- Section divider — splits the L30d earnings pair
 								from the Loc Grading + Customer Note cluster
 								below. Matching <hr> in the TableData. -->
-							<hr class="border-t border-gray-300 my-1" />
+							<hr class="border-t border-gray-300 my-2" />
 							<div class="flex justify-center items-center">
 								<span>
 									Loc Grading
@@ -1067,7 +1118,7 @@
 								the hardware-version cluster below (VMC / Firmware
 								/ Android / APK / ACB). Matching <hr> in the
 								TableData. -->
-							<hr class="border-t border-gray-300 my-1" />
+							<hr class="border-t border-gray-300 my-2" />
 							<span>
 								VMC Board
 							</span>
@@ -1496,7 +1547,7 @@
 							     v-if guards the block when the controller hasn't
 							     attached the counts (e.g. older /vends path). -->
 							<template v-if="vend.pwron_1d_count !== null && vend.pwron_1d_count !== undefined">
-								<hr class="border-t border-gray-300 my-1 w-full" />
+								<hr class="border-t border-gray-300 my-2 w-full" />
 								<div class="flex justify-center items-center space-x-1 text-sm">
 									<span
 										:class="
@@ -1529,20 +1580,58 @@
 									</span>
 								</div>
 							</template>
+							<!-- "# of No Found in Txn" 1d/2d/3d (counts from vend_daily_stats
+							     metric=nofound_txn). Coloring rule mirrors the PWRON block
+							     directly above so the two trend lines read consistently:
+							       - 1d: red if 1d > 2d, green if 1d < 2d, black if equal
+							       - 2d: red if 2d > 3d, green if 2d < 3d, black if equal
+							       - 3d: always black (baseline)
+							     Inactive machines stay gray (matches PWRON). Block is
+							     hidden when the controller hasn't enriched the counts. -->
+							<template v-if="vend.nofound_txn_1d_count !== null && vend.nofound_txn_1d_count !== undefined">
+								<hr class="border-t border-gray-300 my-2 w-full" />
+								<div class="flex justify-center items-center space-x-1 text-sm">
+									<span
+										:class="
+											(vend.is_active || vend.is_testing) ?
+											(
+												vend.nofound_txn_1d_count > vend.nofound_txn_2d_count ? 'text-red-700' :
+												(vend.nofound_txn_1d_count < vend.nofound_txn_2d_count ? 'text-green-700' : 'text-gray-900')
+											) :
+											'text-gray-400'
+										"
+									>
+										{{ vend.nofound_txn_1d_count }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span
+										:class="
+											(vend.is_active || vend.is_testing) ?
+											(
+												vend.nofound_txn_2d_count > vend.nofound_txn_3d_count ? 'text-red-700' :
+												(vend.nofound_txn_2d_count < vend.nofound_txn_3d_count ? 'text-green-700' : 'text-gray-900')
+											) :
+											'text-gray-400'
+										"
+									>
+										{{ vend.nofound_txn_2d_count }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
+										{{ vend.nofound_txn_3d_count }}
+									</span>
+								</div>
+							</template>
 						</div>
-						<!-- Machine Health Alerts (5) -->
-						<div v-if="getMachineAlertsGroup(vend, [5]).length > 0" class="mt-2 w-full flex flex-wrap gap-1 items-center justify-center">
-							<span v-for="alert in getMachineAlertsGroup(vend, [5])" :key="alert.type + alert.group"
-								class="inline-flex justify-center items-center rounded-md px-1 py-0.5 text-[10px] font-bold border cursor-help shadow-sm min-w-[28px]"
-								:class="getAlertClass(alert)"
-								v-tooltip="getAlertTooltip(alert)"
-							>
-								({{ getAlertLabel(alert) }})
-							</span>
-						</div>
+						<!-- Machine Health Alerts (5) removed per user request — redundant with vendChannelErrorLogs shown above in the same column -->
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
+							<!-- Spacer mirroring the header's "Stock" section label so the
+								 border-b divider below aligns vertically with the header's
+								 divider (header has 3 rows above / 3 below; data needs the
+								 same). Without this, the divider drifts upward. -->
+							<span>&nbsp;</span>
 							<span
 									v-if="vend.vendChannelTotalsJson"
 									:class="[vend.is_active || vend.is_testing ? (vend.balance_percent <= 20 ? 'text-red-700' : (vend.balance_percent > 50 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
@@ -1611,12 +1700,27 @@
 								<br>
 								{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
 						</span>
-						<!-- Mthly Sales $ — calendar-month split (Current / Last / Last 2).
+						<!-- Machine Health Alerts (4) — sits between Last30d and the
+							Mthly Sales $ block (above the hr/border) per ops request,
+							so the alert chips read as part of the rolling totals
+							summary rather than under the calendar-month section. -->
+						<div v-if="getMachineAlertsGroup(vend, [4]).length > 0" class="mt-2 w-full flex flex-wrap gap-1 items-center justify-center">
+							<span v-for="alert in getMachineAlertsGroup(vend, [4])" :key="alert.type + alert.group"
+								class="inline-flex justify-center items-center rounded-md px-1 py-0.5 text-[10px] font-bold border cursor-help shadow-sm min-w-[28px]"
+								:class="getAlertClass(alert)"
+								v-tooltip="getAlertTooltip(alert)"
+							>
+								({{ getAlertLabel(alert) }})
+							</span>
+						</div>
+						<!-- Mthly Sales $ — calendar-month split (Current / Last / Last 2 / Last 3).
 							Amount only (no qty) per ops request; current month already
 							includes today via SyncVendTransactionTotalsJson. Each row
 							shows a heroicon arrow chip comparing it to the previous
-							month (green up = exceeded; red down = below). Last 2 Mth
-							is the baseline so it carries no chip. -->
+							month (green up = exceeded; red down = below). Last 3 Mth
+							is the baseline so it carries no chip. Last 3 row is rendered
+							only when last_3_mth_amount exists in the JSON, which handles
+							rows synced before the column was added. -->
 						<div
 							v-if="vend.vendTransactionTotalsJson && 'current_mth_amount' in vend.vendTransactionTotalsJson"
 							class="mt-1 pt-1 border-t border-gray-300 flex flex-col items-center gap-0.5"
@@ -1627,17 +1731,17 @@
 								</span>
 								<span
 									v-if="vend.vendTransactionTotalsJson['current_mth_amount'] > vend.vendTransactionTotalsJson['last_mth_amount']"
-									class="inline-flex items-center justify-center rounded-full bg-green-100"
+									class="inline-flex items-center justify-center"
 									v-tooltip="'Higher than last month'"
 								>
-									<ArrowUpCircleIcon class="h-4 w-4 text-green-600" aria-hidden="true" />
+									<ArrowUpIcon class="h-4 w-4 text-green-600" aria-hidden="true" />
 								</span>
 								<span
 									v-else-if="vend.vendTransactionTotalsJson['current_mth_amount'] < vend.vendTransactionTotalsJson['last_mth_amount']"
-									class="inline-flex items-center justify-center rounded-full bg-red-100"
+									class="inline-flex items-center justify-center"
 									v-tooltip="'Lower than last month'"
 								>
-									<ArrowDownCircleIcon class="h-4 w-4 text-red-600" aria-hidden="true" />
+									<ArrowDownIcon class="h-4 w-4 text-red-600" aria-hidden="true" />
 								</span>
 							</div>
 							<div class="flex items-center justify-center gap-1">
@@ -1646,34 +1750,43 @@
 								</span>
 								<span
 									v-if="vend.vendTransactionTotalsJson['last_mth_amount'] > vend.vendTransactionTotalsJson['last_2_mth_amount']"
-									class="inline-flex items-center justify-center rounded-full bg-green-100"
+									class="inline-flex items-center justify-center"
 									v-tooltip="'Higher than 2 months ago'"
 								>
-									<ArrowUpCircleIcon class="h-4 w-4 text-green-600" aria-hidden="true" />
+									<ArrowUpIcon class="h-4 w-4 text-green-600" aria-hidden="true" />
 								</span>
 								<span
 									v-else-if="vend.vendTransactionTotalsJson['last_mth_amount'] < vend.vendTransactionTotalsJson['last_2_mth_amount']"
-									class="inline-flex items-center justify-center rounded-full bg-red-100"
+									class="inline-flex items-center justify-center"
 									v-tooltip="'Lower than 2 months ago'"
 								>
-									<ArrowDownCircleIcon class="h-4 w-4 text-red-600" aria-hidden="true" />
+									<ArrowDownIcon class="h-4 w-4 text-red-600" aria-hidden="true" />
 								</span>
 							</div>
-							<div class="flex items-center justify-center">
+							<div class="flex items-center justify-center gap-1">
 								<span :class="[vend.is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
 									{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['last_2_mth_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 								</span>
+								<span
+									v-if="'last_3_mth_amount' in vend.vendTransactionTotalsJson && vend.vendTransactionTotalsJson['last_2_mth_amount'] > vend.vendTransactionTotalsJson['last_3_mth_amount']"
+									class="inline-flex items-center justify-center"
+									v-tooltip="'Higher than 3 months ago'"
+								>
+									<ArrowUpIcon class="h-4 w-4 text-green-600" aria-hidden="true" />
+								</span>
+								<span
+									v-else-if="'last_3_mth_amount' in vend.vendTransactionTotalsJson && vend.vendTransactionTotalsJson['last_2_mth_amount'] < vend.vendTransactionTotalsJson['last_3_mth_amount']"
+									class="inline-flex items-center justify-center"
+									v-tooltip="'Lower than 3 months ago'"
+								>
+									<ArrowDownIcon class="h-4 w-4 text-red-600" aria-hidden="true" />
+								</span>
 							</div>
-						</div>
-						<!-- Machine Health Alerts (4) -->
-						<div v-if="getMachineAlertsGroup(vend, [4]).length > 0" class="mt-2 w-full flex flex-wrap gap-1 items-center justify-center">
-							<span v-for="alert in getMachineAlertsGroup(vend, [4])" :key="alert.type + alert.group"
-								class="inline-flex justify-center items-center rounded-md px-1 py-0.5 text-[10px] font-bold border cursor-help shadow-sm min-w-[28px]"
-								:class="getAlertClass(alert)"
-								v-tooltip="getAlertTooltip(alert)"
-							>
-								({{ getAlertLabel(alert) }})
-							</span>
+							<div class="flex items-center justify-center" v-if="'last_3_mth_amount' in vend.vendTransactionTotalsJson">
+								<span :class="[vend.is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
+									{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['last_3_mth_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+								</span>
+							</div>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
@@ -1959,7 +2072,7 @@
 							<!-- Section divider — mirrors the <hr> in the TableHead
 								between Accumulated VendEarning and Begin Dt so the
 								eye reads the contract/date cluster as its own group. -->
-							<hr class="border-t border-gray-300 my-1" />
+							<hr class="border-t border-gray-300 my-2" />
 							<span
 								v-if="vend.begin_date"
 								:class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'"
@@ -2006,7 +2119,7 @@
 							<span v-else class="text-gray-400">—</span>
 							<!-- Section divider — mirrors the <hr> in the TableHead
 								between Notice Period and Avg Sales/Day. -->
-							<hr class="border-t border-gray-300 my-1" />
+							<hr class="border-t border-gray-300 my-2" />
 							<span
 							v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson"
 							:class="[ vend.is_active || vend.is_testing ? getVendRecordsAmountAverageDayClass(vend.vendTransactionTotalsJson['vend_records_amount_average_day']) : 'text-gray-400']"
@@ -2020,7 +2133,7 @@
 								between AvgDailySales (Last30d) and Customer Tag.
 								Gated on indexType so the line only appears when
 								Customer Tag chips are being rendered below. -->
-							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-1" />
+							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-2" />
 							<!-- Customer Tag chips — sit under the column's
 								AvgDailySales (Last30d) value to match the column
 								header's "Customer Tag" label. Mirrors the Customer
@@ -2068,7 +2181,7 @@
 							<!-- Section divider — mirrors the <hr> in the
 								TableHead between Location Fees and L30d
 								GrossEarning. -->
-							<hr class="border-t border-gray-300 my-1" />
+							<hr class="border-t border-gray-300 my-2" />
 							<!-- L30d GrossEarning -->
 							<span
 								v-if="vend.vendTransactionTotalsJson && 'thirty_days_gross_profit' in vend.vendTransactionTotalsJson"
@@ -2082,7 +2195,7 @@
 							</span>
 							<!-- Section divider — mirrors the <hr> in the
 								TableHead between L30d VendEarning and Loc Grading. -->
-							<hr class="border-t border-gray-300 my-1" />
+							<hr class="border-t border-gray-300 my-2" />
 							<!-- Location Grading -->
 							<span
 								v-if="vend.location_grading_placement || vend.location_grading_access || vend.location_grading_flexibility"
@@ -2406,7 +2519,7 @@
 										TableHead between Location and VMC Board,
 										separating the operator/location cluster
 										from the hardware-version cluster. -->
-									<hr class="border-t border-gray-300 my-1" />
+									<hr class="border-t border-gray-300 my-2" />
 									<span class="text-blue-600" v-if="vend.acbVmcPaJson && 'VMC_MDL' in vend.acbVmcPaJson">
 											{{ vend.acbVmcPaJson['VMC_MDL'] }}
 									</span>
@@ -2564,7 +2677,7 @@ font-size:13px;
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
-	import { ArrowDownTrayIcon, ArrowUpCircleIcon, ArrowDownCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ArrowUpIcon, ArrowDownIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';

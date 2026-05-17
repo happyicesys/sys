@@ -1306,6 +1306,16 @@ class OpsJobController extends Controller
                 'opsJobItems.vend.productMapping.productMappingItemsNormalSequence.product',
                 'opsJobItems.vend.productMapping.upcomingProductMapping.productMappingItemsNormalSequence.product',
                 'opsJobItems.vend.upcomingProductMapping.productMappingItemsNormalSequence.product',
+                // Delivery-platform bindings on the vend — used to render the
+                // green "Grab" pill next to the customer name in the Customer
+                // column. Mirrors the chain eager-loaded in
+                // CustomerController::summary() (customer.vends.deliveryProductMappingVends...).
+                // The deliveryProductMappingVends() relation is already scoped
+                // to is_active=true + end_date IS NULL on the Vend model.
+                'opsJobItems.vend.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
+                'opsJobItems.vend.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
+                'opsJobItems.vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
+                'opsJobItems.vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
                 'opsJobItems.cmsTransactionBy',
                 'opsJobItems.customer.deliveryAddress',
                 'opsJobItems.remarksUpdatedBy:id,name',

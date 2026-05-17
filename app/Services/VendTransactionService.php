@@ -16,6 +16,7 @@ use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Jobs\HandleFailedVendTransaction;
 use App\Jobs\SendDataToDcvend;
+use App\Jobs\Vend\DecrementVendDailyStat;
 use App\Jobs\Vend\SyncUnitCostJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
@@ -137,6 +138,23 @@ class VendTransactionService
                 $vendTransaction->update([
                     'payment_gateway_log_id' => $paymentGatewayLog->id,
                 ]);
+
+                // "Found in Transactions?" just flipped false → true for this
+                // PG log. If the LogNofoundTxnIfStillMissing job already ran
+                // (i.e. >5 minutes have passed since approved_at), the +1 is
+                // already on vend_daily_stats and we need a matching -1 so the
+                // counter reflects only currently-unresolved anomalies.
+                // Under 5 minutes? The delayed log job hasn't fired yet — when
+                // it does, it'll re-check this PG log, see the txn linked,
+                // and no-op. Either way the counter ends up correct.
+                $approvedAt = $paymentGatewayLog->approved_at;
+                if ($approvedAt && $approvedAt->lt(Carbon::now()->subMinutes(5)) && $paymentGatewayLog->vend_id) {
+                    DecrementVendDailyStat::dispatch(
+                        (int) $paymentGatewayLog->vend_id,
+                        'nofound_txn',
+                        $approvedAt->copy()->toDateString()
+                    )->onQueue('low');
+                }
             }
 
             // if($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {

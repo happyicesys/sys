@@ -179,41 +179,12 @@ class VendTransaction extends Model
             ->when($request->apk_ver, function ($query, $search) {
                 $query->where('vend_transactions.meta_json->apk_ver', 'LIKE', "%{$search}%");
             })
-            ->when($request->cashless_mfg, function ($query, $search) {
-                if ($search === 'all') {
-                    return;
-                }
-                if (is_array($search)) {
-                    $values = array_values(array_filter($search, fn($v) => $v !== null && $v !== '' && $v !== 'all'));
-                } elseif (is_string($search) && strpos($search, ',') !== false) {
-                    $values = array_values(array_filter(array_map('trim', explode(',', $search))));
-                } else {
-                    $values = [$search];
-                }
-                if (empty($values)) {
-                    return;
-                }
-                // 'na' is a sentinel: match credit-card transactions whose
-                // cashless_mfg snapshot is null. Concrete mfg codes are
-                // matched as-is. When mixed, results are unioned via OR.
-                $hasNa = in_array('na', $values, true);
-                $concrete = array_values(array_filter($values, fn($v) => $v !== 'na'));
-
-                if ($hasNa && empty($concrete)) {
-                    $query->whereNull('vend_transactions.cashless_mfg')
-                        ->where('vend_transactions.payment_method_id', 2);
-                } elseif ($hasNa) {
-                    $query->where(function ($q) use ($concrete) {
-                        $q->whereIn('vend_transactions.cashless_mfg', $concrete)
-                            ->orWhere(function ($q2) {
-                                $q2->whereNull('vend_transactions.cashless_mfg')
-                                    ->where('vend_transactions.payment_method_id', 2);
-                            });
-                    });
-                } else {
-                    $query->whereIn('vend_transactions.cashless_mfg', $concrete);
-                }
-            })
+            // The standalone 'Card Terminal' filter was merged into the
+            // 'Payment Method' filter on 2026-05-16. Credit-card transactions
+            // are now narrowed by selecting "Credit Card (<terminal name>)"
+            // options in `paymentMethods`, which the block below decodes.
+            // The legacy `cashless_mfg` query param is intentionally no
+            // longer honored — old saved URLs will degrade to "all".
             ->when($request->codes, function ($query, $search) use ($request) {
                 // Use pre-resolved IDs when available (set by DashboardController) to skip the subquery.
                 if ($request->has('_resolved_vend_ids')) {
@@ -361,10 +332,55 @@ class VendTransaction extends Model
                 $query->where('vend_transactions.order_id', 'LIKE', "%{$search}%");
             })
             ->when($request->paymentMethods, function ($query, $search) {
-                $search = array_filter((array)$search, fn($item) => $item !== 'all');
-                if (!empty($search)) {
-                    $query->whereIn('vend_transactions.payment_method_id', $search);
+                // Values can be either:
+                //   - a numeric PaymentMethod id (legacy behavior)
+                //   - the string "cc:<terminal name>" — a synthetic option
+                //     that means "Credit Card (payment_method.code = 1) AND
+                //     vend_transactions.cashless_mfg = <terminal name>". The
+                //     old "Card Terminal" dropdown was folded into this on
+                //     2026-05-16; see paymentMethodOptions in
+                //     resources/js/Pages/Vend/Transaction.vue.
+                $values = array_values(array_filter((array) $search, fn($item) => $item !== 'all' && $item !== '' && $item !== null));
+                if (empty($values)) {
+                    return;
                 }
+
+                $numericIds = [];
+                $terminalNames = [];
+                foreach ($values as $v) {
+                    if (is_string($v) && str_starts_with($v, 'cc:')) {
+                        $name = substr($v, 3);
+                        if ($name !== '') {
+                            $terminalNames[] = $name;
+                        }
+                    } elseif (is_numeric($v)) {
+                        $numericIds[] = (int) $v;
+                    }
+                }
+
+                // Resolve Credit Card payment_method id once. Cached
+                // for the request to avoid repeated lookups when the
+                // scope is invoked multiple times in the same call
+                // chain (e.g. totals + paginated rows).
+                $creditCardId = !empty($terminalNames)
+                    ? \Illuminate\Support\Facades\Cache::remember(
+                        'payment_method_id_credit_card',
+                        86400,
+                        fn() => \App\Models\PaymentMethod::where('code', 1)->value('id')
+                    )
+                    : null;
+
+                $query->where(function ($q) use ($numericIds, $terminalNames, $creditCardId) {
+                    if (!empty($numericIds)) {
+                        $q->orWhereIn('vend_transactions.payment_method_id', $numericIds);
+                    }
+                    if (!empty($terminalNames) && !empty($creditCardId)) {
+                        $q->orWhere(function ($q2) use ($creditCardId, $terminalNames) {
+                            $q2->where('vend_transactions.payment_method_id', $creditCardId)
+                                ->whereIn('vend_transactions.cashless_mfg', $terminalNames);
+                        });
+                    }
+                });
             })
             ->when($request->categories, function ($query, $search) {
                 $query->whereIn('vend_transactions.customer_id', function ($query) use ($search) {

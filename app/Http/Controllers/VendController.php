@@ -42,6 +42,7 @@ use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Mail\VendChannelErrorLogsMail;
 use App\Models\Campaign;
+use App\Models\CardTerminal;
 use App\Models\CampaignItem;
 use App\Models\Category;
 use App\Models\CategoryGroup;
@@ -531,6 +532,26 @@ class VendController extends Controller
         // filterVendsDB() can ORDER BY the alias across the full result set.
         $needsAccumulatedVendingEarning = in_array($sortKey, ['accumulate_vending_earning_cents']);
         $needsThirtyDaysVendingEarning = in_array($sortKey, ['thirty_days_vending_earning_cents']);
+        // PWRON 1d/2d/3d sort. Counts are normally attached in the post-query
+        // PHP loop further down (see "PWRON 1d / 2d / 3d counts per vend").
+        // When the user sorts by them we expose matching SQL aliases on the
+        // SELECT via a single conditional-aggregation leftJoin against
+        // vend_daily_stats so filterVendsDB() can ORDER BY across the full
+        // result set (otherwise sort would only work within the current page).
+        $needsPwron = in_array($sortKey, ['pwron_1d_count', 'pwron_2d_count', 'pwron_3d_count']);
+        // "# of No Found in Txn" 1d/2d/3d sort — same pattern as PWRON. The
+        // metric ('nofound_txn') is written by LogNofoundTxnIfStillMissing
+        // (5-min delayed after a PG payment is approved) and decremented by
+        // VendTransactionService when the matching vend_transactions row
+        // finally lands. Both metrics share the same vend_daily_stats table
+        // and the same three-date window, so we can reuse the date variables.
+        $needsNofoundTxn = in_array($sortKey, ['nofound_txn_1d_count', 'nofound_txn_2d_count', 'nofound_txn_3d_count']);
+        // Dates are app-TZ — mirrors the post-query loop and matches how
+        // IncrementVendDailyStat buckets writes. Computed up here so both the
+        // sort-leftJoin and the post-query enrichment use the same values.
+        $pwronDate1d = Carbon::today()->toDateString();
+        $pwronDate2d = Carbon::today()->subDay()->toDateString();
+        $pwronDate3d = Carbon::today()->subDays(2)->toDateString();
 
         $shouldAutoload = $request->boolean('autoload', false);
         $perPage = $request->numberPerPage === 'All' ? 10000 : $request->numberPerPage;
@@ -816,6 +837,41 @@ class VendController extends Controller
                 WHERE `year_month` <= '{$through}'
                 GROUP BY customer_id
             ) AS accum_ve"), 'accum_ve.customer_id', '=', 'customers.id');
+                })
+                ->when($needsPwron, function ($query) use ($pwronDate1d, $pwronDate2d, $pwronDate3d) {
+                    // Single conditional-aggregation subquery over vend_daily_stats —
+                    // hits the (vend_id, date, metric) unique index once for all
+                    // three dates instead of a separate join per column. Aliases
+                    // match the field names used by the post-query enrichment
+                    // loop and the resource, so the SELECT below + filterVendsDB
+                    // ORDER BY work without any extra mapping.
+                    $query->leftJoin(DB::raw("(
+                SELECT vend_id,
+                    SUM(CASE WHEN `date` = '{$pwronDate1d}' THEN count ELSE 0 END) AS pwron_1d_count,
+                    SUM(CASE WHEN `date` = '{$pwronDate2d}' THEN count ELSE 0 END) AS pwron_2d_count,
+                    SUM(CASE WHEN `date` = '{$pwronDate3d}' THEN count ELSE 0 END) AS pwron_3d_count
+                FROM vend_daily_stats
+                WHERE metric = 'pwron'
+                AND `date` IN ('{$pwronDate1d}', '{$pwronDate2d}', '{$pwronDate3d}')
+                GROUP BY vend_id
+            ) AS vds_pwron"), 'vds_pwron.vend_id', '=', 'vends.id');
+                })
+                ->when($needsNofoundTxn, function ($query) use ($pwronDate1d, $pwronDate2d, $pwronDate3d) {
+                    // Same shape as the PWRON join above, different metric. Reuses
+                    // the same three-date window so the screen's three columns line
+                    // up across both rows. Aliased as vds_nofound to avoid colliding
+                    // with vds_pwron when both sorts are needed (only one runs at
+                    // a time today, but cheap insurance).
+                    $query->leftJoin(DB::raw("(
+                SELECT vend_id,
+                    SUM(CASE WHEN `date` = '{$pwronDate1d}' THEN count ELSE 0 END) AS nofound_txn_1d_count,
+                    SUM(CASE WHEN `date` = '{$pwronDate2d}' THEN count ELSE 0 END) AS nofound_txn_2d_count,
+                    SUM(CASE WHEN `date` = '{$pwronDate3d}' THEN count ELSE 0 END) AS nofound_txn_3d_count
+                FROM vend_daily_stats
+                WHERE metric = 'nofound_txn'
+                AND `date` IN ('{$pwronDate1d}', '{$pwronDate2d}', '{$pwronDate3d}')
+                GROUP BY vend_id
+            ) AS vds_nofound"), 'vds_nofound.vend_id', '=', 'vends.id');
                 });
             $selectColumns = [
                 'customers.id AS id',
@@ -981,6 +1037,25 @@ class VendController extends Controller
                 $selectColumns[] = DB::raw('COALESCE(accum_ve.accumulate_vending_earning_cents, 0) AS accumulate_vending_earning_cents');
             }
 
+            if ($needsPwron) {
+                // Aliases match the post-query enrichment + VendResource fields.
+                // COALESCE because vends with no pwron stats today/yesterday
+                // should sort as 0, not NULL (matches the post-loop's ?? 0).
+                // The PHP enrichment loop further down will overwrite these
+                // SQL-derived values with the same numbers so the rendered
+                // counts stay in sync — sort here is purely for ORDER BY.
+                $selectColumns[] = DB::raw('COALESCE(vds_pwron.pwron_1d_count, 0) AS pwron_1d_count');
+                $selectColumns[] = DB::raw('COALESCE(vds_pwron.pwron_2d_count, 0) AS pwron_2d_count');
+                $selectColumns[] = DB::raw('COALESCE(vds_pwron.pwron_3d_count, 0) AS pwron_3d_count');
+            }
+
+            if ($needsNofoundTxn) {
+                // Same pattern as the PWRON block above — see comment there.
+                $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_1d_count, 0) AS nofound_txn_1d_count');
+                $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_2d_count, 0) AS nofound_txn_2d_count');
+                $selectColumns[] = DB::raw('COALESCE(vds_nofound.nofound_txn_3d_count, 0) AS nofound_txn_3d_count');
+            }
+
             if ($needsThirtyDaysVendingEarning) {
                 // L30d Vending Earning = L30d Gross Earning - Location Fees.
                 // Location Fees vary by contract_commission_type — mirrors
@@ -1126,8 +1201,9 @@ class VendController extends Controller
                 }
             }
 
-            // PWRON 1d / 2d / 3d counts per vend — drives the new PWRON block at
-            // the bottom of the Error column on Vend/CustomerIndex.
+            // PWRON 1d / 2d / 3d + No-Found-in-Txn 1d / 2d / 3d counts per vend —
+            // drives the two stacked blocks at the bottom of the Error column on
+            // Vend/CustomerIndex.
             //
             // 1d = today, 2d = yesterday, 3d = day before yesterday (3d is the
             // baseline; 1d/2d are colored relative to the next-longer window —
@@ -1137,29 +1213,35 @@ class VendController extends Controller
             // Carbon::now()->toDateString()), so 1d-aligned data lines up.
             //
             // Single batched query against vend_daily_stats keyed on
-            // (vend_id, date, metric) — hits the unique index.
+            // (vend_id, date, metric) — hits the unique index. We pull BOTH
+            // metrics in one round-trip and bucket by metric in PHP, instead
+            // of issuing two separate queries.
             $vendIds = collect($vends->items())
                 ->pluck('vend_id')
                 ->filter()
                 ->unique()
                 ->values()
                 ->all();
-            $pwronDate1d = Carbon::today()->toDateString();
-            $pwronDate2d = Carbon::today()->subDay()->toDateString();
-            $pwronDate3d = Carbon::today()->subDays(2)->toDateString();
+            // $pwronDate1d/2d/3d are computed earlier in this method so the
+            // sort-leftJoin and this enrichment share the exact same dates.
             $pwronByVend = [];
+            $nofoundByVend = [];
             if (!empty($vendIds)) {
-                $pwronRows = DB::table('vend_daily_stats')
+                $statsRows = DB::table('vend_daily_stats')
                     ->whereIn('vend_id', $vendIds)
-                    ->where('metric', 'pwron')
+                    ->whereIn('metric', ['pwron', 'nofound_txn'])
                     ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
-                    ->get(['vend_id', 'date', 'count']);
-                foreach ($pwronRows as $row) {
+                    ->get(['vend_id', 'date', 'metric', 'count']);
+                foreach ($statsRows as $row) {
                     $vid = (int) $row->vend_id;
                     // DB date may come back as 'Y-m-d' or 'Y-m-d 00:00:00'
                     // depending on driver — normalize to a 'Y-m-d' key.
                     $dateKey = substr((string) $row->date, 0, 10);
-                    $pwronByVend[$vid][$dateKey] = (int) $row->count;
+                    if ($row->metric === 'pwron') {
+                        $pwronByVend[$vid][$dateKey] = (int) $row->count;
+                    } elseif ($row->metric === 'nofound_txn') {
+                        $nofoundByVend[$vid][$dateKey] = (int) $row->count;
+                    }
                 }
             }
             foreach ($vends->items() as $vend) {
@@ -1167,6 +1249,9 @@ class VendController extends Controller
                 $vend->pwron_1d_count = (int) ($pwronByVend[$vid][$pwronDate1d] ?? 0);
                 $vend->pwron_2d_count = (int) ($pwronByVend[$vid][$pwronDate2d] ?? 0);
                 $vend->pwron_3d_count = (int) ($pwronByVend[$vid][$pwronDate3d] ?? 0);
+                $vend->nofound_txn_1d_count = (int) ($nofoundByVend[$vid][$pwronDate1d] ?? 0);
+                $vend->nofound_txn_2d_count = (int) ($nofoundByVend[$vid][$pwronDate2d] ?? 0);
+                $vend->nofound_txn_3d_count = (int) ($nofoundByVend[$vid][$pwronDate3d] ?? 0);
             }
 
             $totals = [
@@ -2438,25 +2523,16 @@ class VendController extends Controller
             VendPrefix::hasActiveVends()->orderBy('name')->get()
         )->resolve());
 
-        // Distinct cashless terminal manufacturer options for the filter.
-        // Cached for 24h — values come from the snapshot column on the
-        // transaction itself (populated by VendTransactionService) so this
-        // does not need to scan vends.acb_vmc_pa_json on every page load.
-        $cashlessMfgOptions = Cache::remember('cashless_mfg_options_txn', $ttl, fn() =>
-            VendTransaction::query()
-                ->select('cashless_mfg')
-                ->whereNotNull('cashless_mfg')
-                ->where('cashless_mfg', '!=', '')
-                ->distinct()
-                ->orderBy('cashless_mfg')
-                ->pluck('cashless_mfg')
-                ->filter()
-                ->unique()
-                ->values()
+        // Canonical card-terminal names (Nayax / Nets / Nets-Auresys / PAX /
+        // MLS). The frontend uses these to synthesize per-terminal
+        // "Credit Card (<name>)" entries inside the Payment Method dropdown
+        // — the standalone Card Terminal filter was retired on 2026-05-16.
+        $cardTerminalOptions = Cache::remember('card_terminal_options', $ttl, fn() =>
+            CardTerminal::orderBy('name')->pluck('name')->values()
         );
 
         return Inertia::render('Vend/Transaction', [
-            'cashlessMfgOptions' => ['data' => $cashlessMfgOptions],
+            'cardTerminalOptions' => ['data' => $cardTerminalOptions],
             'categories' => ['data' => $categories],
             'categoryGroups' => ['data' => $categoryGroups],
             'latestExports' => $latestExports,
@@ -3164,21 +3240,14 @@ class VendController extends Controller
             Operator::orderBy('name')->get()
         )->resolve());
 
-        $cashlessMfgOptions = Cache::remember('cashless_mfg_options_txn', $ttl, fn() =>
-            VendTransaction::query()
-                ->select('cashless_mfg')
-                ->whereNotNull('cashless_mfg')
-                ->where('cashless_mfg', '!=', '')
-                ->distinct()
-                ->orderBy('cashless_mfg')
-                ->pluck('cashless_mfg')
-                ->filter()
-                ->unique()
-                ->values()
+        // Canonical card-terminal names — see indexTransaction() above for
+        // why this powers the merged Payment Method dropdown.
+        $cardTerminalOptions = Cache::remember('card_terminal_options', $ttl, fn() =>
+            CardTerminal::orderBy('name')->pluck('name')->values()
         );
 
         return Inertia::render('Vend/DailySummary', [
-            'cashlessMfgOptions' => ['data' => $cashlessMfgOptions],
+            'cardTerminalOptions' => ['data' => $cardTerminalOptions],
             'paymentMethods' => ['data' => $paymentMethods],
             'operatorOptions' => ['data' => $operatorOptions],
             'dailySummary' => $dailySummary,

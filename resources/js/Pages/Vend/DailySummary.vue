@@ -77,22 +77,9 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
-                <label for="text" class="block text-sm font-medium text-gray-700">
-                   Card Terminal
-                </label>
-                <MultiSelect
-                    v-model="filters.cashlessMfgs"
-                    :options="cashlessMfgOptions"
-                    valueProp="id"
-                    label="value"
-                    placeholder="Select"
-                    open-direction="bottom"
-                    class="mt-1"
-                    mode="tags"
-                >
-                </MultiSelect>
-            </div>
+            <!-- Card Terminal filter retired on 2026-05-16 — its options
+                 were folded into Payment Method as "Credit Card (<terminal>)"
+                 synthetic entries. See paymentMethodOptions below. -->
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Payment Received
@@ -316,7 +303,7 @@ import fileDownload from 'js-file-download'
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
-    cashlessMfgOptions: Object,
+    cardTerminalOptions: Object,
     paymentMethods: Object,
     operatorOptions: Object,
     dailySummary: Object,
@@ -329,7 +316,6 @@ const permissions = usePage().props.auth.permissions
 const toast = useToast()
 
 const paymentMethodOptions = ref([])
-const cashlessMfgOptions = ref([])
 const operatorOptions = ref([])
 const successfulOptions = ref([])
 const numberPerPageOptions = ref([])
@@ -339,7 +325,6 @@ const filters = ref({
     codes: '',
     channel_codes: '',
     paymentMethods: [],
-    cashlessMfgs: [],
     operators: [],
     is_payment_received: '',
     date_from: moment().format('YYYY-MM-DD'),
@@ -350,14 +335,19 @@ const filters = ref({
 })
 
 onMounted(() => {
+    // The standalone "Credit Card" entry is replaced by one synthetic
+    // entry per card terminal — "Credit Card (Nayax)", "Credit Card (Nets)"
+    // etc. — using ids of the form "cc:<terminal>". The backend
+    // scopeFilterTransactionIndex decodes these into
+    // (payment_method = Credit Card AND cashless_mfg = <terminal>).
+    // The standalone Card Terminal filter was removed as part of this change.
+    const terminalNames = (props.cardTerminalOptions?.data ?? [])
     paymentMethodOptions.value = [
         {id: 'all', name: 'All'},
-        ...props.paymentMethods.data.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})
-    ]
-    cashlessMfgOptions.value = [
-        {id: 'all', value: 'All'},
-        {id: 'na', value: 'N/A'},
-        ...(props.cashlessMfgOptions?.data ?? []).map((mfg) => {return {id: mfg, value: mfg}})
+        ...props.paymentMethods.data
+            .filter((pm) => pm.name !== 'Credit Card')
+            .map((pm) => ({id: pm.id, name: pm.name})),
+        ...terminalNames.map((t) => ({id: `cc:${t}`, name: `Credit Card (${t})`})),
     ]
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
@@ -377,7 +367,6 @@ onMounted(() => {
     ]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
     filters.value.paymentMethods = [paymentMethodOptions.value[0]]
-    filters.value.cashlessMfgs = [cashlessMfgOptions.value[0]]
     filters.value.is_payment_received = successfulOptions.value[0]
     // Match Transaction.vue default: bind to the user's operator; for HIPL,
     // also fan out to HIMD/LEA/HIESG/UL-ST so HQ users see all sister operators.
@@ -438,7 +427,6 @@ function formatCount(value) {
 function buildParams() {
     return {
         ...filters.value,
-        cashless_mfg: (filters.value.cashlessMfgs ?? []).map(m => m.id ?? m),
         channel_codes: filters.value.channel_codes,
         is_payment_received: filters.value.is_payment_received?.id ?? '',
         operators: (filters.value.operators ?? []).filter(o => o).map(o => o.id ?? o),
