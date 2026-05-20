@@ -27,6 +27,9 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
+          <SearchInput placeholderStr="Upcoming Product Mapping" v-model="filters.upcoming_product_mapping">
+            Upcoming Product Mapping
+          </SearchInput>
           <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
             Machine ID#
           </SearchInput>
@@ -484,6 +487,7 @@ const props = defineProps({
 const filters = ref({
   is_active: true,
   name: '',
+  upcoming_product_mapping: '',
   product: '',
   vend_code: '',
   vendStatus: '',

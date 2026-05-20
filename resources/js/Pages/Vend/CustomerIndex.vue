@@ -799,7 +799,7 @@
 						</div>
 					</TableHead>
 					<TableHead>
-						<div class="flex flex-col space-y-2">
+						<div class="flex flex-col space-y-0.5">
 							<span>
 								Error
 							</span>
@@ -834,7 +834,7 @@
 							     vend_daily_stats). Actual counts render at the bottom of
 							     the data cell below. Tooltip wording is product-supplied
 							     so it stays in sync with what we tell users PWRON means. -->
-							<hr class="border-t border-gray-300 my-2 w-full" />
+							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
 								<span class="text-[11px] font-semibold text-gray-900">PWRON</span>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Stability of connectivity. PWRON = Count of machine auto reconnect to server after dropline.<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal. 3d is the baseline.', html: true }"></ExclamationCircleIcon>
@@ -865,7 +865,7 @@
 							     unresolved* payment-without-transaction anomalies for
 							     that day. Headers are per-day sortable; data renders at
 							     the bottom of the cell below. -->
-							<hr class="border-t border-gray-300 my-2 w-full" />
+							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
 								<span class="text-[11px] font-semibold text-gray-900"># of No Found in Txn</span>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Daily count of payment-gateway transactions where the matching machine transaction never arrived within 5 minutes of payment approval. Decrements automatically if the transaction lands later. Sourced from vend_daily_stats (metric=nofound_txn). 1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal.', html: true }"></ExclamationCircleIcon>
@@ -1175,11 +1175,21 @@
 								{{ vend.vend_prefix_name }}
 							</div>
 							<span class="flex flex-col space-y-0.5" v-if="vend.vend">
-								<a v-if="vend.vend.productMapping" :href="'/product-mappings/' + vend.vend.productMapping.id + '/edit'" target="_blank" class="text-gray-800 text-xs font-medium underline decoration-gray-400 underline-offset-2">
-									{{ vend.vend.productMapping.name }}
-								</a>
-								<span v-else-if="vend.product_mapping_name" class="text-xs text-gray-800">
-									{{ vend.product_mapping_name }}
+								<span class="flex items-center space-x-1">
+									<a v-if="vend.vend.productMapping" :href="'/product-mappings/' + vend.vend.productMapping.id + '/edit'" target="_blank" class="text-gray-800 text-xs font-medium underline decoration-gray-400 underline-offset-2">
+										{{ vend.vend.productMapping.name }}
+									</a>
+									<span v-else-if="vend.product_mapping_name" class="text-xs text-gray-800">
+										{{ vend.product_mapping_name }}
+									</span>
+									<!-- "New" badge: machine has an upcoming new mapping. Tooltip shows what it's changing to. -->
+									<span
+										v-if="getUpcomingMappingName(vend.vend)"
+										class="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-400 leading-none"
+										:title="'Upcoming new mapping: ' + getUpcomingMappingName(vend.vend)"
+									>
+										New
+									</span>
 								</span>
 
 							</span>
@@ -3232,6 +3242,27 @@ function contractTypeLabel(type) {
 		case 'PSORU': return 'PS OR U'
 		default:      return type ?? ''
 	}
+}
+
+// Returns the name of a machine's upcoming new product mapping, or null when
+// there isn't one. An upcoming mapping can live directly on the vend
+// (vend.upcomingProductMapping) or on its current mapping
+// (productMapping.upcomingProductMapping). 'N/A' is treated as "no upcoming
+// mapping". Drives the "New" badge in the machine column. Mirrors the same
+// precedence the Ops Job columns use (current mapping's upcoming wins first).
+function getUpcomingMappingName(vendData) {
+	if (!vendData) return null
+	const fromMapping = vendData.productMapping
+		&& vendData.productMapping.upcomingProductMapping
+		&& vendData.productMapping.upcomingProductMapping.name !== 'N/A'
+			? vendData.productMapping.upcomingProductMapping.name
+			: null
+	if (fromMapping) return fromMapping
+	const fromVend = vendData.upcomingProductMapping
+		&& vendData.upcomingProductMapping.name !== 'N/A'
+			? vendData.upcomingProductMapping.name
+			: null
+	return fromVend
 }
 
 function getVendsField() {

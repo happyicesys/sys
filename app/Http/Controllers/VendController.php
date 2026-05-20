@@ -597,7 +597,15 @@ class VendController extends Controller
                     // Modem type — needed for the rich "Modem" block in the
                     // Machine Status column (type name + Reset button gate).
                     'vend.modemUnit.modemType:id,name,is_resetable',
-                    'vend.productMapping:id,name',
+                    'vend.productMapping:id,upcoming_product_mapping_id,name',
+                    // Upcoming new mapping for the machine — drives the "New"
+                    // badge next to the product mapping name in the machine
+                    // column on Vend/CustomerIndex. Mirrors the eager loads the
+                    // Ops Job columns already use: an upcoming mapping can sit
+                    // either directly on the vend (vend.upcomingProductMapping)
+                    // or on its current mapping (productMapping.upcomingProductMapping).
+                    'vend.upcomingProductMapping:id,name',
+                    'vend.productMapping.upcomingProductMapping:id,name',
                     'vend.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
                     'vend.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
                     'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
@@ -1978,6 +1986,101 @@ class VendController extends Controller
                 'product_sub_category' => $product?->category?->name,
                 'product_volumn_weight' => $product?->measurement_value,
                 'sequence' => $productMappingItem?->sequence,
+                'thumbnail' => $product?->thumbnail?->full_url,
+                'server_price' => $serverPrice,
+                'labels' => $product?->tagBindings->map(fn($tb) => [
+                    'id' => $tb->tag?->id,
+                    'name' => $tb->tag?->name
+                ])->toArray() ?? [],
+            ];
+
+            if ($product?->translated_names_json) {
+                foreach ($product->translated_names_json as $lang => $value) {
+                    $data['product_name_' . $value['id']] = $value['name'];
+                }
+            }
+
+            $dataArr[] = $data;
+        }
+
+        return response()->json($dataArr, 200);
+    }
+
+    /**
+     * Returns the configured menu (product mapping) for a vend.
+     *
+     * Unlike getVendAllChannelThumbnails(), this is built from the product
+     * mapping items directly, so it reflects the intended planogram regardless
+     * of physical channel state (is_active / capacity / qty are NOT considered).
+     */
+    public function getVendMenu($vendCode)
+    {
+        // Real-time data - no caching (product mappings need to be current)
+        $vend = Vend::with([
+            'productMapping.productMappingItems.product.thumbnail',
+            'productMapping.productMappingItems.product.category',
+            'productMapping.productMappingItems.product.tagBindings.tag',
+        ])->where('code', $vendCode)->first();
+
+        if (!$vend) {
+            return response()->json([], 200);
+        }
+
+        $productMappingItems = $vend->productMapping?->productMappingItems;
+
+        if (!$productMappingItems || $productMappingItems->isEmpty()) {
+            return response()->json([], 200);
+        }
+
+        $serverPriceType = $vend->server_price_type;
+
+        // Get product IDs from mapping items
+        $productIds = $productMappingItems->pluck('product_id')->unique()->toArray();
+
+        // Get relevant selling prices if needed (same logic as thumbnails)
+        $sellingPrices = [];
+        if ($serverPriceType) {
+            $sellingPrices = SellingPrice::where('type', $serverPriceType)
+                ->whereIn('product_id', $productIds)
+                ->get()
+                ->keyBy('product_id');
+        }
+
+        // Sort mapping items by sequence (nulls last), then channel_code
+        $sortedItems = $productMappingItems->sort(function ($a, $b) {
+            $hasSeqA = $a->sequence !== null;
+            $hasSeqB = $b->sequence !== null;
+
+            if ($hasSeqA && !$hasSeqB)
+                return -1;
+            if (!$hasSeqA && $hasSeqB)
+                return 1;
+
+            if ($a->sequence !== $b->sequence)
+                return $a->sequence <=> $b->sequence;
+
+            return (int) $a->channel_code <=> (int) $b->channel_code;
+        })->values();
+
+        $dataArr = [];
+
+        foreach ($sortedItems as $item) {
+            $product = $item->product;
+            $serverPrice = $sellingPrices[$item->product_id]->amount ?? null;
+
+            $data = [
+                'vend_code' => $vend->code,
+                'channel_code' => $item->channel_code,
+                'product_id' => $product?->id,
+                'product_code' => $product?->code,
+                'product_name' => $product?->name,
+                'product_desc' => $product?->desc,
+                'product_is_halal' => $product?->is_halal,
+                'product_is_healthier_choice' => $product?->is_healthier_choice,
+                'product_nutri_grade' => $product?->nutri_grade,
+                'product_sub_category' => $product?->category?->name,
+                'product_volumn_weight' => $product?->measurement_value,
+                'sequence' => $item->sequence,
                 'thumbnail' => $product?->thumbnail?->full_url,
                 'server_price' => $serverPrice,
                 'labels' => $product?->tagBindings->map(fn($tb) => [

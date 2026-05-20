@@ -57,6 +57,11 @@ class ProductMappingController extends Controller
             ->when($request->name, function ($query, $search) {
                 $query->where('product_mappings.name', 'LIKE', "%{$search}%");
             })
+            ->when($request->upcoming_product_mapping, function ($query, $search) {
+                $query->whereHas('upcomingProductMapping', function ($query) use ($search) {
+                    $query->where('name', 'LIKE', "%{$search}%");
+                });
+            })
             ->when($request->product, function ($query, $search) {
                 $query->where(function ($query) use ($search) {
                     $query->whereHas('productMappingItems.product', function ($query) use ($search) {

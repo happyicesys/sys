@@ -88,6 +88,7 @@ Route::prefix('vends')->group(function () {
     Route::get('/search/operator/{code?}', [VendController::class , 'searchVendCodeWithOperator']);
     Route::get('/{vendCode}/vend-channels/{vendChanelCode}/thumbnail', [VendController::class , 'getVendChannelThumnail']);
     Route::get('/{vendCode}/thumbnails', [VendController::class , 'getVendAllChannelThumbnails']);
+    Route::get('/{vendCode}/menu', [VendController::class , 'getVendMenu']);
     Route::get('/{vendCode}/parameters/{apkver?}', [VendController::class , 'getVendParameters']);
     Route::get('/{vendCode}/banner-video', [VendController::class , 'getVendBannerVideo']);
     Route::get('/{vendCode}/banner-image', [VendController::class , 'getVendBannerImage']);
