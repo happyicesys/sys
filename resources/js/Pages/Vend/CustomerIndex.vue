@@ -1744,14 +1744,14 @@
 									class="inline-flex items-center justify-center"
 									v-tooltip="'Higher than last month'"
 								>
-									<ArrowUpIcon class="h-4 w-4 text-green-600" aria-hidden="true" />
+									<ArrowUpIcon class="h-4 w-4 text-green-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 								<span
 									v-else-if="vend.vendTransactionTotalsJson['current_mth_amount'] < vend.vendTransactionTotalsJson['last_mth_amount']"
 									class="inline-flex items-center justify-center"
 									v-tooltip="'Lower than last month'"
 								>
-									<ArrowDownIcon class="h-4 w-4 text-red-600" aria-hidden="true" />
+									<ArrowDownIcon class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 							</div>
 							<div class="flex items-center justify-center gap-1">
@@ -1763,14 +1763,14 @@
 									class="inline-flex items-center justify-center"
 									v-tooltip="'Higher than 2 months ago'"
 								>
-									<ArrowUpIcon class="h-4 w-4 text-green-600" aria-hidden="true" />
+									<ArrowUpIcon class="h-4 w-4 text-green-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 								<span
 									v-else-if="vend.vendTransactionTotalsJson['last_mth_amount'] < vend.vendTransactionTotalsJson['last_2_mth_amount']"
 									class="inline-flex items-center justify-center"
 									v-tooltip="'Lower than 2 months ago'"
 								>
-									<ArrowDownIcon class="h-4 w-4 text-red-600" aria-hidden="true" />
+									<ArrowDownIcon class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 							</div>
 							<div class="flex items-center justify-center gap-1">
@@ -1782,14 +1782,14 @@
 									class="inline-flex items-center justify-center"
 									v-tooltip="'Higher than 3 months ago'"
 								>
-									<ArrowUpIcon class="h-4 w-4 text-green-600" aria-hidden="true" />
+									<ArrowUpIcon class="h-4 w-4 text-green-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 								<span
 									v-else-if="'last_3_mth_amount' in vend.vendTransactionTotalsJson && vend.vendTransactionTotalsJson['last_2_mth_amount'] < vend.vendTransactionTotalsJson['last_3_mth_amount']"
 									class="inline-flex items-center justify-center"
 									v-tooltip="'Lower than 3 months ago'"
 								>
-									<ArrowDownIcon class="h-4 w-4 text-red-600" aria-hidden="true" />
+									<ArrowDownIcon class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 							</div>
 							<div class="flex items-center justify-center" v-if="'last_3_mth_amount' in vend.vendTransactionTotalsJson">
