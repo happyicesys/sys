@@ -289,6 +289,10 @@ class CustomerSummaryAggregator
             'contract_commission_value',
             'contract_commission_value2',
             'contract_ps_term',
+            // External Subsidize — snapshotted per period; folds into the NET
+            // location_earning_cents below.
+            'is_external_subsidize',
+            'external_subsidize_amount',
         ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, &$payloads) {
             foreach ($customers as $customer) {
                 $row = $rows->get($customer->id);
@@ -314,14 +318,25 @@ class CustomerSummaryAggregator
                     $gstRatePct
                 );
 
-                $locationEarningCents = $grossEarningCents - $locationFeeCents;
+                // External Subsidize (cents) — a third party (e.g. a brand)
+                // covering part of the location rental. Gated by the toggle;
+                // stored in dollars on the customer. It REDUCES the operator's
+                // effective location cost, so Vend Earning is computed against
+                // the NET location fee: Vend Earning = Gross − (LocFee − ExtSub).
+                $externalSubsidizeCents = ($customer->is_external_subsidize && $customer->external_subsidize_amount !== null)
+                    ? (int) round(((float) $customer->external_subsidize_amount) * 100)
+                    : 0;
+
+                $netLocationFeeCents = $locationFeeCents - $externalSubsidizeCents;
+                $locationEarningCents = $grossEarningCents - $netLocationFeeCents;
                 $locationEarningRate = $salesCents > 0
                     ? round($locationEarningCents / $salesCents, 4)
                     : 0;
 
                 // Skip rows that have nothing useful to show: no sales AND no
                 // contract fee. Keeps the table compact for very long-tail
-                // customers that didn't trade in the window.
+                // customers that didn't trade in the window. (A standalone
+                // subsidy with zero rental/sales isn't meaningful to surface.)
                 if ($salesCents === 0 && $locationFeeCents === 0 && $transactionCount === 0) {
                     continue;
                 }
@@ -339,6 +354,7 @@ class CustomerSummaryAggregator
                     'location_fees_cents' => $locationFeeCents,
                     'location_earning_cents' => $locationEarningCents,
                     'location_earning_rate' => $locationEarningRate,
+                    'external_subsidize_cents' => $externalSubsidizeCents,
                     'transaction_count' => $transactionCount,
                     'vend_count' => $vendCount,
                     'contract_commission_type' => $customer->contract_commission_type,

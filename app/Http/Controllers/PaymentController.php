@@ -283,18 +283,7 @@ class PaymentController extends Controller
    */
   private function shouldUnifyTransaction(?string $vendCode): bool
   {
-    if (!config('app.gateway_unified_txn_enabled')) {
-      return false;
-    }
-
-    $allow = trim((string) config('app.gateway_unified_txn_vend_codes', ''));
-    if ($allow === '') {
-      return true;
-    }
-
-    $codes = array_filter(array_map('trim', explode(',', $allow)));
-
-    return in_array((string) $vendCode, $codes, true);
+    return \App\Support\GatewayUnifiedTransaction::appliesToVend($vendCode);
   }
 
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)

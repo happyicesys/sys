@@ -210,8 +210,8 @@
 				<SearchInput placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					Balance Stock(%) &lt;&lt;
 				</SearchInput>
-				<SearchInput placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
-					Remaining SKU(%) &lt;&lt;
+				<SearchInput placeholderStr="Remaining Channel Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()" v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+					Remaining Channel(%) &lt;&lt;
 				</SearchInput>
 				<SearchInput placeholderStr="Firmware Ver" v-model="filters.firmware_ver" v-if="showAllFilters && permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 					Firmware Ver
@@ -900,9 +900,9 @@
 							</div>
 							<div class="flex justify-center items-center border-b border-gray-300 pb-2 mb-2 w-full">
 								<SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
-									Remaining SKU#
+									Remaining Channel#
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Remaining SKU % <br> Red: < 50% <br> Blue: >= 50% and < 75% <br> Green: >= 75%', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Channel Availability % <br> Red: < 50% <br> Blue: >= 50% and < 75% <br> Green: >= 75%', html: true }"></ExclamationCircleIcon>
 							</div>
 							<span>
 									Refill Planning

@@ -1076,10 +1076,13 @@ class VendController extends Controller
             }
 
             if ($needsThirtyDaysVendingEarning) {
-                // L30d Vending Earning = L30d Gross Earning - Location Fees.
+                // L30d Vending Earning = L30d Gross Earning - NET Location Fees,
+                // where NET Location Fees = Location Fees - External Subsidize.
                 // Location Fees vary by contract_commission_type — mirrors
                 // CustomerSummaryAggregator::computeLocationFeeCents so the
-                // sort order matches the value rendered in the cell.
+                // sort order matches the value rendered in the cell. External
+                // Subsidize is a flat monthly amount, treated the same way as
+                // the flat monthly rental (added straight back, not prorated).
                 //   F      → fee 0
                 //   S      → fee = -value*100  (subsidy = income to operator)
                 //   R / U  → fee = value*100   (flat rent / utility)
@@ -1120,6 +1123,9 @@ class VendController extends Controller
                         )
                         ELSE 0
                     END)
+                    + (CASE WHEN customers.is_external_subsidize = 1
+                            THEN ROUND(COALESCE(customers.external_subsidize_amount, 0) * 100)
+                            ELSE 0 END)
                 ) AS thirty_days_vending_earning_cents');
             }
 
@@ -1242,8 +1248,14 @@ class VendController extends Controller
                     $grossEarningCents,
                     $gstRatePct
                 );
+                // External Subsidize (flat monthly amount, cents) reduces the
+                // operator's effective location cost, so Vend Earning is NET of
+                // it: Vend Earning = Gross − (Location Fees − External Subsidize).
+                $extSubCents = ($vend->is_external_subsidize && $vend->external_subsidize_amount !== null)
+                    ? (int) round(((float) $vend->external_subsidize_amount) * 100)
+                    : 0;
                 $vend->location_fees_cents = $locationFeeCents;
-                $vend->thirty_days_vending_earning_cents = $grossEarningCents - $locationFeeCents;
+                $vend->thirty_days_vending_earning_cents = $grossEarningCents - ($locationFeeCents - $extSubCents);
             }
 
             // Accumulated (lifetime-to-date) Vending Earning per customer.
@@ -1380,7 +1392,12 @@ class VendController extends Controller
                             $grossEarningCents,
                             $gstRatePct
                         );
-                        return $grossEarningCents - $locationFeeCents;
+                        // NET of External Subsidize (flat monthly amount), same
+                        // as the per-row L30d Vend Earning above.
+                        $extSubCents = ($vend->is_external_subsidize && $vend->external_subsidize_amount !== null)
+                            ? (int) round(((float) $vend->external_subsidize_amount) * 100)
+                            : 0;
+                        return $grossEarningCents - ($locationFeeCents - $extSubCents);
                     }) / 100,
             ];
         } else {

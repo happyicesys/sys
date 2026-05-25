@@ -72,14 +72,22 @@ return [
     // Run `php artisan config:clear` (or config:cache for prod) after changing .env.
     'log_to_vend_data' => filter_var(env('LOG_TO_VEND_DATA'), FILTER_VALIDATE_BOOLEAN),
 
-    // Kill switch for the "create the vend_transaction at gateway paid-time"
-    // behaviour (merge of Payment Gateway Transactions into Sales Transactions).
-    // STRICT OPT-IN: OFF unless GATEWAY_UNIFIED_TXN_ENABLED is truthy. While OFF,
+    // Controls the "create the vend_transaction at gateway paid-time" behaviour
+    // (merge of Payment Gateway Transactions into Sales Transactions). While OFF,
     // gateway payments behave exactly as before (transaction created by TRADE).
+    // Resolved centrally by App\Support\GatewayUnifiedTransaction. Two ways to
+    // turn it on (either is enough):
+    //   GATEWAY_UNIFIED_TXN_ENABLED=true        → force on immediately
+    //   GATEWAY_UNIFIED_TXN_START_AT="2026-05-26 00:00:00"
+    //                                           → auto-on once that moment passes,
+    //                                             compared in the app timezone and
+    //                                             evaluated at runtime (no midnight
+    //                                             step, works with config:cache)
     // Optional pilot allowlist: GATEWAY_UNIFIED_TXN_VEND_CODES="2007,2003" limits
-    // pre-creation to those machine codes (empty = all machines once enabled).
+    // it to those machine codes (empty = all machines once on).
     // Run `php artisan config:clear` (or config:cache) after changing .env.
     'gateway_unified_txn_enabled' => filter_var(env('GATEWAY_UNIFIED_TXN_ENABLED'), FILTER_VALIDATE_BOOLEAN),
+    'gateway_unified_txn_start_at' => env('GATEWAY_UNIFIED_TXN_START_AT'),
     'gateway_unified_txn_vend_codes' => env('GATEWAY_UNIFIED_TXN_VEND_CODES', ''),
 
     'asset_url' => env('ASSET_URL'),

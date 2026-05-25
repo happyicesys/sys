@@ -15,6 +15,65 @@ class CustomerPeriodSummaryResource extends JsonResource
 {
     public function toArray($request): array
     {
+        // History-lock rule: a COMPLETED month is frozen to its stored
+        // per-period snapshot. The CURRENT ongoing month is NOT locked — every
+        // element of the Placement Contract Detail (Contract Type, the
+        // commission value / Location Fees Rate, Location Fees, External
+        // Subsidize) and the derived Vend Earning are re-derived LIVE from the
+        // customer's current contract, so a mid-month contract edit shows up
+        // immediately instead of waiting for the nightly aggregator.
+        $isCurrentMonth = (bool) $this->is_current_month;
+
+        // Defaults = the frozen per-period snapshot (used as-is for completed
+        // months, and as the fallback when the customer relation isn't loaded).
+        $contractType = $this->contract_commission_type;
+        $contractValue = $this->contract_commission_value !== null ? (float) $this->contract_commission_value : null;
+        $contractValue2 = $this->contract_commission_value2 !== null ? (float) $this->contract_commission_value2 : null;
+        $contractPsTerm = $this->contract_ps_term !== null ? (float) $this->contract_ps_term : null;
+        $locationFeesCents = (int) $this->location_fees_cents;
+        $externalSubsidizeCents = (int) $this->external_subsidize_cents;
+        $locationEarningCents = (int) $this->location_earning_cents;
+        $locationEarningRate = (float) $this->location_earning_rate;
+
+        if ($isCurrentMonth && $this->relationLoaded('customer') && $this->customer) {
+            $c = $this->customer;
+
+            // Live contract terms straight off the customer record.
+            $contractType = $c->contract_commission_type;
+            $contractValue = $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null;
+            $contractValue2 = $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null;
+            $contractPsTerm = $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null;
+
+            $grossCents = (int) $this->gross_earning_cents;
+            $salesCents = (int) $this->sales_cents;
+            $gstRatePct = ($c->relationLoaded('operator') && $c->operator && $c->operator->gst_vat_rate !== null)
+                ? (float) $c->operator->gst_vat_rate
+                : 0.0;
+
+            // Recompute Location Fees with the SAME formula the aggregator uses,
+            // but against the live contract terms. sales/gross stay the
+            // aggregated (daily) figures — only the contract inputs are live.
+            $locationFeesCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                $contractType,
+                $contractValue,
+                $contractValue2,
+                $contractPsTerm,
+                $salesCents,
+                $grossCents,
+                $gstRatePct
+            );
+
+            $externalSubsidizeCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                : 0;
+
+            // Vend Earning = Gross − (Location Fees − External Subsidize).
+            $locationEarningCents = $grossCents - ($locationFeesCents - $externalSubsidizeCents);
+            $locationEarningRate = $salesCents > 0
+                ? round($locationEarningCents / $salesCents, 4)
+                : 0.0;
+        }
+
         return [
             'id' => $this->id,
             'customer_id' => $this->customer_id,
@@ -26,9 +85,18 @@ class CustomerPeriodSummaryResource extends JsonResource
             'as_of_date' => optional($this->as_of_date)->toDateString(),
             'sales_cents' => (int) $this->sales_cents,
             'gross_earning_cents' => (int) $this->gross_earning_cents,
-            'location_fees_cents' => (int) $this->location_fees_cents,
-            'location_earning_cents' => (int) $this->location_earning_cents,
-            'location_earning_rate' => (float) $this->location_earning_rate,
+            // Completed months: frozen snapshot. Current month: re-derived live
+            // from the customer's contract (see the lock rule above).
+            'location_fees_cents' => $locationFeesCents,
+            // NET of External Subsidize. For completed months this is the
+            // frozen stored value; for the current month it's re-derived live
+            // (see the lock rule at the top of this method).
+            'location_earning_cents' => $locationEarningCents,
+            'location_earning_rate' => $locationEarningRate,
+            // External Subsidize (cents). Completed months use the frozen
+            // per-period snapshot; the current month uses the live value.
+            // Net Loc Fee column = location_fees_cents − external_subsidize_cents.
+            'external_subsidize_cents' => $externalSubsidizeCents,
             'transaction_count' => (int) $this->transaction_count,
             'vend_count' => (int) $this->vend_count,
             // Lifetime-to-date sum of location_earning_cents (= gross_earning
@@ -46,10 +114,12 @@ class CustomerPeriodSummaryResource extends JsonResource
             'existing_invoice' => isset($this->existing_invoice)
                 ? $this->existing_invoice
                 : null,
-            'contract_commission_type' => $this->contract_commission_type,
-            'contract_commission_value' => $this->contract_commission_value !== null ? (float) $this->contract_commission_value : null,
-            'contract_commission_value2' => $this->contract_commission_value2 !== null ? (float) $this->contract_commission_value2 : null,
-            'contract_ps_term' => $this->contract_ps_term !== null ? (float) $this->contract_ps_term : null,
+            // Placement Contract Detail — completed months show the frozen
+            // snapshot; the current month shows live contract terms.
+            'contract_commission_type' => $contractType,
+            'contract_commission_value' => $contractValue,
+            'contract_commission_value2' => $contractValue2,
+            'contract_ps_term' => $contractPsTerm,
             'customer' => $this->whenLoaded('customer', function () {
                 $c = $this->customer;
                 return [

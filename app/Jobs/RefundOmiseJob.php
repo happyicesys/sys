@@ -60,10 +60,10 @@ class RefundOmiseJob implements ShouldQueue
         ]);
 
         // Unified transactions only: keep the linked vend_transaction in sync —
-        // a refund voids the sale. Gated by the flag so legacy refund accounting
-        // (where refunded rows still appear in gross sales) is unchanged. No-op
-        // if no transaction is linked (legacy "not found in transaction" case).
-        if (config('app.gateway_unified_txn_enabled')) {
+        // a refund voids the sale. Gated per-vend so legacy refund accounting
+        // (where refunded rows still appear in gross sales) is unchanged for any
+        // machine the feature doesn't apply to. No-op if no transaction linked.
+        if (\App\Support\GatewayUnifiedTransaction::appliesToVend($paymentGatewayLog->vend_code)) {
             $vendTransaction = VendTransaction::withoutGlobalScopes()
                 ->where('payment_gateway_log_id', $paymentGatewayLog->id)
                 ->first();

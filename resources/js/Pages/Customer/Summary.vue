@@ -1410,18 +1410,15 @@ function locationFeesColorClass(cents, type) {
 }
 
 /**
- * External Subsidize for a Summary row, expressed in cents so it can reuse
- * formatMoney() and net out cleanly against location_fees_cents.
+ * External Subsidize for a Summary row, in cents.
  *
- * Pulled live from the customer's current contract (Customer/Edit.vue):
- * external_subsidize_amount is stored in dollars and only counts when the
- * is_external_subsidize toggle is on. Returns 0 when disabled/unset.
+ * Reads the per-period snapshot (external_subsidize_cents) stored on the
+ * summary row by CustomerSummaryAggregator — NOT the live customer value —
+ * so historical months stay locked to the subsidy that applied at the time
+ * (and it matches the NET location_earning_cents / Vend Earning shown).
  */
 function externalSubsidizeCents(row) {
-  const c = row && row.customer;
-  if (!c || !c.is_external_subsidize || c.external_subsidize_amount == null) return 0;
-  const exp = operatorCountry?.currency_exponent ?? 2;
-  return Math.round(Number(c.external_subsidize_amount) * Math.pow(10, exp));
+  return row && row.external_subsidize_cents != null ? Number(row.external_subsidize_cents) : 0;
 }
 
 /**

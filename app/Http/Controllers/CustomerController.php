@@ -357,27 +357,15 @@ class CustomerController extends Controller
                   ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) ' . $sortDirection
             );
         } elseif ($sortKey === 'external_subsidize') {
-            // External Subsidize — pulled live from the customer's current
-            // contract (gated by the is_external_subsidize toggle). Stored in
-            // dollars; units don't matter for a monotonic ORDER BY.
-            $summariesQuery->orderByRaw(
-                '(SELECT CASE WHEN c.is_external_subsidize = 1
-                              THEN COALESCE(c.external_subsidize_amount, 0)
-                              ELSE 0 END
-                  FROM customers c
-                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
-            );
+            // External Subsidize — per-period snapshot stored on the summary
+            // row (locked history), already in cents.
+            $summariesQuery->orderBy('external_subsidize_cents', $sortDirection);
         } elseif ($sortKey === 'net_loc_fee') {
-            // Net Loc Fee = Location Fees − External Subsidize.
-            // location_fees_cents is in cents; external_subsidize_amount is in
-            // dollars, so multiply by 100 to compare in the same (cent) unit.
+            // Net Loc Fee = Location Fees − External Subsidize, both in cents
+            // and both stored on the summary row.
             $summariesQuery->orderByRaw(
                 '(customer_period_summaries.location_fees_cents
-                  - (SELECT CASE WHEN c.is_external_subsidize = 1
-                                 THEN COALESCE(c.external_subsidize_amount, 0) * 100
-                                 ELSE 0 END
-                     FROM customers c
-                     WHERE c.id = customer_period_summaries.customer_id)) ' . $sortDirection
+                  - customer_period_summaries.external_subsidize_cents) ' . $sortDirection
             );
         } elseif ($sortKey === 'accumulate_vending_earning') {
             // Lifetime running sum of location_earning_cents for THIS row's
@@ -737,7 +725,37 @@ class CustomerController extends Controller
 
         foreach ($collection as $row) {
             $rowYm = optional($row->year_month)->toDateString();
-            $row->accumulate_vending_earning_cents = (int) ($running[$row->customer_id][$rowYm] ?? 0);
+            $accum = (int) ($running[$row->customer_id][$rowYm] ?? 0);
+
+            // History-lock rule: the current ongoing month is NOT locked — its
+            // whole Placement Contract Detail (Location Fees + External
+            // Subsidize) is rendered live, so Vend Earning is too (see
+            // CustomerPeriodSummaryResource). Mirror that exact recompute here
+            // so this row's Accumulate includes the live current-month
+            // contribution instead of the last-aggregated stored one. Completed
+            // months keep their frozen stored values untouched.
+            if ($row->is_current_month && $row->relationLoaded('customer') && $row->customer) {
+                $c = $row->customer;
+                $gstRatePct = ($c->relationLoaded('operator') && $c->operator && $c->operator->gst_vat_rate !== null)
+                    ? (float) $c->operator->gst_vat_rate
+                    : 0.0;
+                $liveLocFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                    $c->contract_commission_type,
+                    $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                    $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                    $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                    (int) $row->sales_cents,
+                    (int) $row->gross_earning_cents,
+                    $gstRatePct
+                );
+                $liveExtCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                    ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                    : 0;
+                $liveEarning = (int) $row->gross_earning_cents - ($liveLocFeeCents - $liveExtCents);
+                $accum = $accum - (int) $row->location_earning_cents + $liveEarning;
+            }
+
+            $row->accumulate_vending_earning_cents = $accum;
         }
     }
 

@@ -27,6 +27,10 @@ class CustomerPeriodSummary extends Model
         'location_fees_cents',
         'location_earning_cents',
         'location_earning_rate',
+        // Per-period snapshot of the External Subsidize amount (cents).
+        // location_earning_cents is stored NET of this. See migration
+        // 2026_05_25_010000_add_external_subsidize_cents_to_customer_period_summaries.
+        'external_subsidize_cents',
         'transaction_count',
         'vend_count',
         'contract_commission_type',
