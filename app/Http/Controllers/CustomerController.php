@@ -274,6 +274,7 @@ class CustomerController extends Controller
             'transaction_count', 'customer_id',
             'machine_id', 'machine_prefix',
             'contract_commission_type', 'contract_commission_value',
+            'external_subsidize', 'net_loc_fee',
             'accumulate_vending_earning',
         ], true) ? $summarySortKey : 'year_month';
         $sortDirection = filter_var($summarySortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
@@ -294,7 +295,7 @@ class CustomerController extends Controller
         $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
-            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by',
+            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by',
             // Customer-level note "last edited by" user — drives the
             // tiny audit line under the textarea on Customer Summary.
             'customer.notesUpdatedBy:id,name',
@@ -354,6 +355,29 @@ class CustomerController extends Controller
                   LEFT JOIN vend_prefixes vp ON vp.id = v.vend_prefix_id
                   WHERE v.customer_id = customer_period_summaries.customer_id
                   ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) ' . $sortDirection
+            );
+        } elseif ($sortKey === 'external_subsidize') {
+            // External Subsidize — pulled live from the customer's current
+            // contract (gated by the is_external_subsidize toggle). Stored in
+            // dollars; units don't matter for a monotonic ORDER BY.
+            $summariesQuery->orderByRaw(
+                '(SELECT CASE WHEN c.is_external_subsidize = 1
+                              THEN COALESCE(c.external_subsidize_amount, 0)
+                              ELSE 0 END
+                  FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+            );
+        } elseif ($sortKey === 'net_loc_fee') {
+            // Net Loc Fee = Location Fees − External Subsidize.
+            // location_fees_cents is in cents; external_subsidize_amount is in
+            // dollars, so multiply by 100 to compare in the same (cent) unit.
+            $summariesQuery->orderByRaw(
+                '(customer_period_summaries.location_fees_cents
+                  - (SELECT CASE WHEN c.is_external_subsidize = 1
+                                 THEN COALESCE(c.external_subsidize_amount, 0) * 100
+                                 ELSE 0 END
+                     FROM customers c
+                     WHERE c.id = customer_period_summaries.customer_id)) ' . $sortDirection
             );
         } elseif ($sortKey === 'accumulate_vending_earning') {
             // Lifetime running sum of location_earning_cents for THIS row's
@@ -1842,6 +1866,9 @@ class CustomerController extends Controller
                 ],
                 'customer.contract_commission_value2'      => 'nullable|numeric|min:0',
                 'customer.contract_ps_term'                => 'nullable|numeric|min:0|max:100',
+                // External Subsidize — toggle + optional dollar amount.
+                'customer.is_external_subsidize'           => 'nullable|boolean',
+                'customer.external_subsidize_amount'       => 'nullable|numeric|min:0',
                 'customer.contract_from'                   => 'nullable|date',
                 'customer.contract_until'                  => 'nullable|date',
                 'customer.contract_auto_renewal'           => 'nullable|boolean',
@@ -1869,10 +1896,20 @@ class CustomerController extends Controller
                 $request->merge(['customer' => $requestCustomerArr]);
             }
 
+            // External Subsidize — when the toggle is off, never persist a
+            // stray amount. Mirrors the Vue-side clear so direct POSTs also
+            // store clean data.
+            if (empty($requestCustomerArr['is_external_subsidize'])) {
+                $requestCustomerArr['is_external_subsidize'] = false;
+                $requestCustomerArr['external_subsidize_amount'] = null;
+                $request->merge(['customer' => $requestCustomerArr]);
+            }
+
             // Detect if any contract detail field changed → log audit
             $contractFields = [
                 'contract_commission_type', 'contract_commission_value', 'contract_commission_value2',
-                'contract_ps_term', 'contract_from', 'contract_until', 'contract_auto_renewal',
+                'contract_ps_term', 'is_external_subsidize', 'external_subsidize_amount',
+                'contract_from', 'contract_until', 'contract_auto_renewal',
                 'contract_notice_period', 'contract_remarks',
             ];
             $contractChanged = false;
@@ -1916,6 +1953,8 @@ class CustomerController extends Controller
                     'contract_commission_value' => $customer->contract_commission_value,
                     'contract_commission_value2' => $customer->contract_commission_value2,
                     'contract_ps_term' => $customer->contract_ps_term,
+                    'is_external_subsidize' => (bool) $customer->is_external_subsidize,
+                    'external_subsidize_amount' => $customer->external_subsidize_amount,
                     'contract_from' => $customer->contract_from,
                     'contract_until' => $customer->contract_until,
                     'contract_auto_renewal' => (bool) $customer->contract_auto_renewal,

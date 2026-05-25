@@ -61,24 +61,63 @@ class VendTransactionService
         DB::statement("SET innodb_lock_wait_timeout = 5"); // Prevent long waits
         DB::statement('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
 
+        // Set true when this TRADE updates a gateway row that was pre-created at
+        // paid-time (unified transactions), as opposed to a fresh insert. Drives
+        // the post-transaction branching below.
+        $wasPreCreatedUpdate = false;
+
         try {
             // 🔥 Store the result of the transaction
-            $vendTransaction = DB::transaction(function () use ($processedInput, $vend, $input, $isCurrentTime) {
+            $vendTransaction = DB::transaction(function () use ($processedInput, $vend, $input, $isCurrentTime, &$wasPreCreatedUpdate) {
                 if ($processedInput['interfaceType'] == '50') {
                     $processedInput['orderID'] = Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID'];
                 }
 
-                if ($vend->code != '2007') {
-                    $duplicatedVendTransaction = VendTransaction::query()
-                        ->where(function ($query) use ($processedInput) {
-                            $query->where('order_id', $processedInput['orderID'])
-                                ->orWhere('order_id', Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID']);
-                        })
-                        ->where('vend_id', $vend->id)
-                        ->lockForUpdate()
-                        ->first();
+                // Look up an existing row for this order id (raw + TXN_SRC-50
+                // prefixed form) with a row lock. Done for ALL vends so a
+                // gateway pre-created row is always found (the 2007 dedup bypass
+                // below only governs the genuine-duplicate short-circuit).
+                $existingVendTransaction = VendTransaction::query()
+                    ->where(function ($query) use ($processedInput) {
+                        $query->where('order_id', $processedInput['orderID'])
+                            ->orWhere('order_id', Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID']);
+                    })
+                    ->where('vend_id', $vend->id)
+                    ->lockForUpdate()
+                    ->first();
 
-                    if ($duplicatedVendTransaction) {
+                // Unified transactions: this row was pre-created at gateway
+                // paid-time (is_found_in_transaction = false, linked to a PG log).
+                // The machine's TRADE now fills it with ground truth instead of
+                // creating a second row. Non-gateway flows never hit this branch.
+                if ($existingVendTransaction
+                    && ! $existingVendTransaction->is_found_in_transaction
+                    && $existingVendTransaction->payment_gateway_log_id) {
+                    $this->applyTradeToPreCreatedRow($existingVendTransaction, $vend, $processedInput);
+
+                    if ($existingVendTransaction->amount > 0) {
+                        $this->updateVendPaymentTimestamps(
+                            $vend,
+                            $existingVendTransaction->transaction_datetime instanceof Carbon
+                                ? $existingVendTransaction->transaction_datetime->copy()
+                                : Carbon::parse($existingVendTransaction->transaction_datetime),
+                            $processedInput['paymentClassification'] ?? null,
+                            $processedInput['interfaceType'] ?? null
+                        );
+                    }
+
+                    if ($processedInput['vouchers']) {
+                        foreach ($processedInput['vouchers'] as $voucher) {
+                            $this->voucherService->updateUsedVoucher($voucher['code']);
+                        }
+                    }
+
+                    $wasPreCreatedUpdate = true;
+                    return $existingVendTransaction;
+                }
+
+                if ($vend->code != '2007') {
+                    if ($existingVendTransaction) {
                         return null; // Exit and return null if duplicate exists
                     }
 
@@ -121,6 +160,11 @@ class VendTransactionService
                 return; // Prevent further execution if duplicate order ID
             }
 
+            // Delivery-platform + PG-log linking only apply to the fresh-create
+            // path. A pre-created gateway row was already linked at paid-time, and
+            // its nofound_txn counter was never incremented (the row existed), so
+            // there is nothing to decrement here.
+            if (!$wasPreCreatedUpdate) {
             // store vend transaction id if found delivery platform order
             if ($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
                 $deliveryPlatformOrder->update([
@@ -156,6 +200,7 @@ class VendTransactionService
                     )->onQueue('low');
                 }
             }
+            } // end if (!$wasPreCreatedUpdate)
 
             // if($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
             //     $deliveryPlatformOrder->update([
@@ -165,6 +210,52 @@ class VendTransactionService
 
         } catch (\Exception $e) {
             \Log::error("Error creating vend transaction: " . $e->getMessage());
+            return;
+        }
+
+        // ── Unified-transactions settle path ────────────────────────────────
+        // The TRADE filled a pre-created gateway row. Items were already
+        // rebuilt + the row settled inside the transaction. Fire the
+        // once-at-settle dispatches here, then stop (the fresh-create
+        // post-processing below must NOT run — it would re-create items).
+        if ($wasPreCreatedUpdate) {
+            SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+
+            // Hand to the refund/void path ONLY when the row actually ended up
+            // PENDING — i.e. nothing dispensed AND the dispense ACK never
+            // confirmed it. applyTradeToPreCreatedRow() has already settled it
+            // (or kept it REFUNDED) in every other case, so this can no longer
+            // refund a confirmed sale or double-handle an already-refunded row.
+            // For Omise this refunds and marks settlement_status = REFUNDED; for
+            // non-Omise it is a no-op and the row stays PENDING (money held,
+            // manual review).
+            if ((int) $vendTransaction->settlement_status === VendTransaction::SETTLEMENT_PENDING) {
+                HandleFailedVendTransaction::dispatch($vendTransaction)->onQueue('default');
+            }
+
+            // Channel-error logs from the machine result (mirror fresh-create).
+            if (sizeof($processedInput['children']) > 1) {
+                foreach ($processedInput['children'] as $child) {
+                    if (!empty($child['vendChannelErrorID'])) {
+                        SyncVendChannelErrorLog::dispatch($vend, $child['vendChannelCode'], $child['errorCode'], $vendTransaction->id)->onQueue('default');
+                    }
+                }
+            } else {
+                if (!empty($processedInput['vendChannelErrorID'])) {
+                    SyncVendChannelErrorLog::dispatch($vend, $processedInput['vendChannelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');
+                }
+            }
+
+            // Operator transaction_upload callback — fire once, at settle.
+            if ($vend->operator) {
+                $callback = $vend->operator->operatorCallbacks()->where('code', 'transaction_upload')->first();
+                if ($callback) {
+                    $resource = new \App\Http\Resources\Callback\TransactionCallbackResource($vendTransaction);
+                    $payload = $resource->resolve();
+                    \App\Jobs\SendOperatorCallback::dispatch($callback->url, $payload)->onQueue('default');
+                }
+            }
+
             return;
         }
 
@@ -283,6 +374,101 @@ class VendTransactionService
         ]);
 
         return $vendTransaction;
+    }
+
+    /**
+     * Fill a gateway row that was pre-created at paid-time with the machine's
+     * TRADE ground truth. The amount stays the gateway-charged amount (money
+     * actually collected); only the dispense outcome comes from the machine.
+     * transaction_datetime is intentionally NOT moved (stays the paid time).
+     *
+     * Settlement (never demotes a confirmed sale):
+     *   - already REFUNDED          → stays REFUNDED (a late TRADE can't revive it)
+     *   - dispensed per TRADE, OR already SETTLED by the dispense ACK, OR the
+     *     gateway log shows is_dispensed → SETTLED (partial multi-vend included)
+     *   - otherwise (nothing dispensed, never confirmed) → PENDING, left for the
+     *     caller's refund/void handling to resolve.
+     */
+    private function applyTradeToPreCreatedRow(VendTransaction $transaction, $vend, $input): void
+    {
+        $gstVatRate = $input['gstVatRate'];
+        $amount = $transaction->amount; // keep the gateway-charged amount
+        $unitCostValue = $input['unitCostValue'] ?? 0;
+        $revenue = $amount / (1.00 + ($gstVatRate / 100));
+        $grossProfit = $revenue - $unitCostValue;
+
+        // Resolve the settlement state WITHOUT ever demoting a confirmed sale.
+        // The dispense ACK (GetPurchaseConfirm) is the authoritative "did it
+        // vend?" signal for gateway rows and may have already settled this row
+        // before the TRADE arrived. A TRADE that happens to report
+        // success_qty/dispensed_qty = 0 must NOT drag a SETTLED (or
+        // dispense-confirmed) row back to PENDING and trigger a wrongful refund.
+        $current = (int) $transaction->settlement_status;
+        if ($current === VendTransaction::SETTLEMENT_REFUNDED) {
+            // Already refunded/voided (e.g. the 10-min no-dispense auto-refund) —
+            // a late TRADE must not resurrect it into a sale.
+            $settlementStatus = VendTransaction::SETTLEMENT_REFUNDED;
+        } elseif (
+            $this->tradeDispensedAnything($input)
+            || $current === VendTransaction::SETTLEMENT_SETTLED
+            || (bool) ($transaction->paymentGatewayLog?->is_dispensed)
+        ) {
+            // Dispensed per the machine's TRADE, OR already settled by the
+            // dispense ACK, OR the gateway log confirms the dispense. Counts as a
+            // sale (a partial multi-vend dispense is included by design).
+            $settlementStatus = VendTransaction::SETTLEMENT_SETTLED;
+        } else {
+            // Genuinely nothing dispensed and never confirmed → leave PENDING so
+            // the caller's refund/void path can resolve it (Omise → REFUNDED;
+            // non-Omise → money held for manual review).
+            $settlementStatus = VendTransaction::SETTLEMENT_PENDING;
+        }
+
+        $transaction->forceFill([
+            'interface_type' => $input['interfaceType'],
+            'is_multiple' => $input['isMultiple'],
+            'is_payment_received' => $input['isPaymentReceived'],
+            'items_json' => $input['children'],
+            'payment_method_id' => $input['paymentMethodID'] ?? $transaction->payment_method_id,
+            'qty' => $input['qty'],
+            'success_qty' => $input['success_qty'],
+            'dispensed_qty' => $input['dispensed_qty'],
+            'vend_channel_code' => $input['vendChannelCode'],
+            'vend_channel_id' => $input['vendChannelID'],
+            'vend_channel_error_id' => $input['vendChannelErrorID'],
+            'vend_transaction_json' => $input['originalJson'],
+            'product_id' => $input['productID'],
+            'unit_cost_id' => $input['unitCostID'],
+            'unit_cost' => $unitCostValue,
+            'gst_vat_rate' => $gstVatRate,
+            'revenue' => $revenue,
+            'gross_profit' => $grossProfit,
+            'gross_profit_margin' => $revenue ? (($grossProfit * 100) / $revenue) : 0,
+            'label_json' => $input['label'] ?? $transaction->label_json,
+            'is_found_in_transaction' => true,
+            // Resolved above — never demotes a confirmed dispense or resurrects a
+            // refunded row.
+            'settlement_status' => $settlementStatus,
+        ])->save();
+
+        // Rebuild multi-purchase items from the machine's children (delete +
+        // recreate keeps it simple and correct vs. fuzzy per-channel matching).
+        if (!empty($input['isMultiple']) && sizeof($input['children']) > 0) {
+            $transaction->vendTransactionItems()->delete();
+            foreach ($input['children'] as $child) {
+                $this->createVendTransactionItem($transaction, $child);
+            }
+        }
+    }
+
+    /**
+     * Did the machine dispense anything for this TRADE? Covers single (qty 1)
+     * and multi (summed). Used to decide sale vs. void for a settling row.
+     */
+    private function tradeDispensedAnything(array $input): bool
+    {
+        return (int) ($input['dispensed_qty'] ?? 0) > 0
+            || (int) ($input['success_qty'] ?? 0) > 0;
     }
 
     private function updateVendPaymentTimestamps(Vend $vend, Carbon $transactionTime, ?string $paymentClassification, $interfaceType = null): void

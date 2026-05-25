@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentGateways\Omise;
+use App\Models\VendTransaction;
 use App\Services\ErrorService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -57,5 +58,22 @@ class RefundOmiseJob implements ShouldQueue
             'status' => PaymentGatewayLog::STATUS_REFUND,
             'response' => $response->json(),
         ]);
+
+        // Unified transactions only: keep the linked vend_transaction in sync —
+        // a refund voids the sale. Gated by the flag so legacy refund accounting
+        // (where refunded rows still appear in gross sales) is unchanged. No-op
+        // if no transaction is linked (legacy "not found in transaction" case).
+        if (config('app.gateway_unified_txn_enabled')) {
+            $vendTransaction = VendTransaction::withoutGlobalScopes()
+                ->where('payment_gateway_log_id', $paymentGatewayLog->id)
+                ->first();
+
+            if ($vendTransaction) {
+                $vendTransaction->forceFill([
+                    'is_refunded' => true,
+                    'settlement_status' => VendTransaction::SETTLEMENT_REFUNDED,
+                ])->save();
+            }
+        }
     }
 }

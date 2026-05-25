@@ -1062,11 +1062,18 @@
 							<SingleSortItem modelName="customers.contract_commission_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_commission_type', false)">
 								Contract Type
 							</SingleSortItem>
-							<span>
-								Location Fees
-							</span>
+							<!-- External Subsidize + Net Loc Fee replace the old
+								"Location Fees" line (Net Loc Fee already nets out
+								to Location Fees when no subsidy applies). Both
+								sortable server-side via SQL aliases. -->
+							<SingleSortItem modelName="external_subsidize" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('external_subsidize', true)">
+								Ext Subsidize
+							</SingleSortItem>
+							<SingleSortItem modelName="net_loc_fee" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('net_loc_fee', true)">
+								Net Loc Fee
+							</SingleSortItem>
 							<!-- Section divider — splits the contract terms
-								(Contract Type / Location Fees) from the L30d
+								(Contract Type / Net Loc Fee) from the L30d
 								earnings cluster (GrossEarning / VendEarning).
 								Matching <hr> in the TableData. -->
 							<hr class="border-t border-gray-300 my-2" />
@@ -2184,12 +2191,20 @@
 									PS Term: {{ Number(vend.contract_ps_term) }}%
 								</span>
 							</span>
-							<!-- Location Fees -->
-							<span v-if="vend.location_fees_cents != null" :class="vend.location_fees_cents > 0 ? 'text-red-600' : (vend.location_fees_cents < 0 ? 'text-emerald-600' : 'text-gray-800')">
-								{{ vend.location_fees_cents < 0 ? '-' : '' }}{{ operatorCountry.currency_symbol }}{{ (Math.abs(vend.location_fees_cents) / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+							<!-- External Subsidize — number only (label lives in the
+								header). Live from the customer's current contract
+								(Customer/Edit.vue); dash when the toggle is off. -->
+							<span class="text-gray-600">
+								<template v-if="extSubCents(vend)">{{ fmtCents(extSubCents(vend)) }}</template><template v-else>—</template>
+							</span>
+							<!-- Net Loc Fee = Location Fees − Ext Subsidize (number
+								only, no conditional coloring). Equals Location Fees
+								when no subsidy applies. -->
+							<span v-if="vend.location_fees_cents != null" class="text-gray-800">
+								{{ fmtCents(netLocFeeCents(vend)) }}
 							</span>
 							<!-- Section divider — mirrors the <hr> in the
-								TableHead between Location Fees and L30d
+								TableHead between Net Loc Fee and L30d
 								GrossEarning. -->
 							<hr class="border-t border-gray-300 my-2" />
 							<!-- L30d GrossEarning -->
@@ -3242,6 +3257,35 @@ function contractTypeLabel(type) {
 		case 'PSORU': return 'PS OR U'
 		default:      return type ?? ''
 	}
+}
+
+// Money formatter for cent amounts — mirrors the inline toLocaleString
+// pattern used elsewhere on this page, honouring the operator country's
+// currency symbol / exponent. Negative values get a leading '-'.
+function fmtCents(cents) {
+	if (cents == null) return ''
+	const exp = operatorCountry.currency_exponent
+	const sym = operatorCountry.currency_symbol
+	const sign = Number(cents) < 0 ? '-' : ''
+	const value = Math.abs(Number(cents)) / Math.pow(10, exp)
+	return sign + sym + value.toLocaleString(undefined, {
+		minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : exp,
+		maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : exp,
+	})
+}
+
+// External Subsidize for a row, in cents. Pulled live from the customer's
+// current contract (Customer/Edit.vue): external_subsidize_amount is stored
+// in dollars and only counts when the is_external_subsidize toggle is on.
+// Returns 0 when disabled/unset.
+function extSubCents(vend) {
+	if (!vend || !vend.is_external_subsidize || vend.external_subsidize_amount == null) return 0
+	return Math.round(Number(vend.external_subsidize_amount) * Math.pow(10, operatorCountry.currency_exponent))
+}
+
+// Net Loc Fee = Location Fees − External Subsidize (both in cents).
+function netLocFeeCents(vend) {
+	return Number(vend.location_fees_cents || 0) - extSubCents(vend)
 }
 
 // Returns the name of a machine's upcoming new product mapping, or null when

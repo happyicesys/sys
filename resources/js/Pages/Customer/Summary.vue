@@ -324,9 +324,17 @@
                     </div>
                   </TableHead>
                   <TableHead>
-                    <SingleSortItem modelName="location_fees_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_fees_cents')">
-                      Location Fees
-                    </SingleSortItem>
+                    <div class="flex flex-col space-y-4">
+                      <SingleSortItem modelName="location_fees_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_fees_cents')">
+                        Location Fees
+                      </SingleSortItem>
+                      <SingleSortItem modelName="external_subsidize" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('external_subsidize')">
+                        External Subsidize
+                      </SingleSortItem>
+                      <SingleSortItem modelName="net_loc_fee" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('net_loc_fee')">
+                        Net Loc Fee
+                      </SingleSortItem>
+                    </div>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-1">
@@ -635,16 +643,35 @@
                     </div>
                   </TableData>
 
-                  <!-- Location Fees -->
+                  <!-- Location Fees / External Subsidize / Net Loc Fee.
+                       Numbers only — the labels live in the column header, and
+                       the data lines use the SAME vertical spacing (space-y-4)
+                       as the header so each value lines up with its label. -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
-                    <span :class="locationFeesColorClass(row.location_fees_cents, row.contract_commission_type)">
-                      {{ formatMoneySigned(row.location_fees_cents) }}
-                    </span>
-                    <div
-                      v-if="row.contract_commission_type === 'S'"
-                      class="text-[10px] text-emerald-600 mt-0.5"
-                    >
-                      Subsidy income
+                    <div class="flex flex-col space-y-4">
+                      <div>
+                        <span :class="locationFeesColorClass(row.location_fees_cents, row.contract_commission_type)">
+                          {{ formatMoneySigned(row.location_fees_cents) }}
+                        </span>
+                        <div
+                          v-if="row.contract_commission_type === 'S'"
+                          class="text-[10px] text-emerald-600 leading-tight"
+                        >
+                          Subsidy income
+                        </div>
+                      </div>
+                      <!-- External Subsidize — live from the customer's current
+                           contract; shown only when the toggle is enabled. -->
+                      <span class="text-gray-600">
+                        {{ externalSubsidizeCents(row) ? formatMoney(externalSubsidizeCents(row)) : '—' }}
+                      </span>
+                      <!-- Net Loc Fee = Location Fees − External Subsidize -->
+                      <span
+                        class="font-medium"
+                        :class="netLocFeeCents(row) < 0 ? 'text-emerald-700' : 'text-gray-800'"
+                      >
+                        {{ formatMoneySigned(netLocFeeCents(row)) }}
+                      </span>
                     </div>
                   </TableData>
 
@@ -1380,6 +1407,28 @@ function locationFeesColorClass(cents, type) {
   // Negative = subsidy income (green); positive = expense (gray neutral).
   if (Number(cents) < 0 || type === 'S') return 'text-emerald-700 font-medium';
   return 'text-gray-800';
+}
+
+/**
+ * External Subsidize for a Summary row, expressed in cents so it can reuse
+ * formatMoney() and net out cleanly against location_fees_cents.
+ *
+ * Pulled live from the customer's current contract (Customer/Edit.vue):
+ * external_subsidize_amount is stored in dollars and only counts when the
+ * is_external_subsidize toggle is on. Returns 0 when disabled/unset.
+ */
+function externalSubsidizeCents(row) {
+  const c = row && row.customer;
+  if (!c || !c.is_external_subsidize || c.external_subsidize_amount == null) return 0;
+  const exp = operatorCountry?.currency_exponent ?? 2;
+  return Math.round(Number(c.external_subsidize_amount) * Math.pow(10, exp));
+}
+
+/**
+ * Net Loc Fee = Location Fees − External Subsidize (both in cents).
+ */
+function netLocFeeCents(row) {
+  return Number(row.location_fees_cents || 0) - externalSubsidizeCents(row);
 }
 
 /**

@@ -3,9 +3,11 @@
 namespace App\Jobs\Vend;
 
 use App\Jobs\PublishMqtt;
+use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DispenseRecord;
 use App\Models\PaymentGatewayLog;
+use App\Models\VendTransaction;
 use App\Services\MqttService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -67,6 +69,25 @@ class GetPurchaseConfirm implements ShouldQueue
           $paymentGatewayLog->update([
               'is_dispensed' => true,
           ]);
+
+          // Unified transactions: the item dispensed, so the pre-created row is a
+          // sale now even if the TRADE never arrives ("dispensed + not found =
+          // sale"). Only PENDING rows exist when the feature is on, so this is a
+          // no-op otherwise. TRADE later fills ground truth + flips found=true.
+          $preCreated = VendTransaction::withoutGlobalScopes()
+              ->where('payment_gateway_log_id', $paymentGatewayLog->id)
+              ->where('settlement_status', VendTransaction::SETTLEMENT_PENDING)
+              ->first();
+
+          if ($preCreated) {
+              $preCreated->forceFill([
+                  'settlement_status' => VendTransaction::SETTLEMENT_SETTLED,
+              ])->save();
+
+              if ($this->vend) {
+                  SyncVendTransactionTotalsJson::dispatch($this->vend)->onQueue('default');
+              }
+          }
         }
 
         if($paymentGatewayLog or $deliveryPlatformOrder) {

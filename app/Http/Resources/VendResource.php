@@ -143,6 +143,13 @@ class VendResource extends JsonResource
             'contract_commission_value' => $this->contract_commission_value ?? null,
             'contract_commission_value2' => $this->contract_commission_value2 ?? null,
             'contract_ps_term' => $this->contract_ps_term ?? null,
+            // External Subsidize — pulled live from the customer's current
+            // contract (Customer/Edit.vue). Drives the "Ext Subsidize" + "Net
+            // Loc Fee" lines in the Contract Type column on Vend/CustomerIndex.
+            // external_subsidize_amount is in dollars; the Vue side converts to
+            // cents for display/math. Null on /vends rows where it isn't selected.
+            'is_external_subsidize' => isset($this->is_external_subsidize) ? (bool) $this->is_external_subsidize : false,
+            'external_subsidize_amount' => isset($this->external_subsidize_amount) && $this->external_subsidize_amount !== null ? (float) $this->external_subsidize_amount : null,
             // Notice Period — free-text since 2026_05_13 (string column).
             // Powers the Notice Period line under Contract End Date on
             // Vend/CustomerIndex; null on /vends rows where it isn't selected.

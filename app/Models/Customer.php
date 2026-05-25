@@ -108,6 +108,7 @@ class Customer extends Model
         'account_manager_json' => 'json',
         'begin_date' => 'datetime',
         'contract_auto_renewal' => 'boolean',
+        'is_external_subsidize' => 'boolean',
         'contract_from' => 'date',
         'contract_until' => 'date',
         'contract_detail_updated_at' => 'datetime',
@@ -193,6 +194,10 @@ class Customer extends Model
         'contract_commission_value',
         'contract_commission_value2',
         'contract_ps_term',
+        // External Subsidize — toggle + optional dollar amount. See migration
+        // 2026_05_25_000000_add_external_subsidize_to_customers.
+        'is_external_subsidize',
+        'external_subsidize_amount',
         'contract_from',
         'contract_until',
         'contract_auto_renewal',

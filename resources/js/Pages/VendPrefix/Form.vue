@@ -51,7 +51,7 @@
               </div>
             </div>
 
-            <div class="sm:col-span-6">
+            <!-- <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Upcoming Product Mapping
               </label>
@@ -69,7 +69,7 @@
               <div class="text-sm text-red-600" v-if="form.errors.upcomingProductMapping">
                 {{ form.errors.upcomingProductMapping }}
               </div>
-            </div>
+            </div> -->
 
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -195,7 +195,7 @@ onMounted(() => {
         upcomingProductMapping: buildInitialUpcomingSelection(props.vendPrefix.productMappings),
       })
     : useForm(getDefaultForm())
-    
+
   ensureUpcomingValid()
 })
 

@@ -341,8 +341,8 @@
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
                           <div class="flex justify-center">
-                                <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="paymentGatewayLog.vendTransaction"/>
-                                <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-if="!paymentGatewayLog.vendTransaction"/>
+                                <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="paymentGatewayLog.vendTransaction && paymentGatewayLog.vendTransaction.is_found_in_transaction"/>
+                                <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-else/>
                           </div>
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">

@@ -35,9 +35,14 @@ class HandleFailedVendTransaction implements ShouldQueue
             switch($paymentGateway->name) {
                 case('omise'):
                     RefundOmiseJob::dispatch($this->vendTransaction->order_id);
-                    $this->vendTransaction->update([
-                        'is_refunded' => true,
-                    ]);
+                    // is_refunded is the existing (legacy) behaviour; the
+                    // settlement_status demotion only applies under unified
+                    // transactions so legacy sales accounting is unchanged.
+                    $updates = ['is_refunded' => true];
+                    if (config('app.gateway_unified_txn_enabled')) {
+                        $updates['settlement_status'] = VendTransaction::SETTLEMENT_REFUNDED;
+                    }
+                    $this->vendTransaction->update($updates);
                     break;
             }
         }

@@ -224,6 +224,9 @@ class ValidateCustomerSummarySales extends Command
                   });
             })
             ->when(!empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            // Unified transactions: mirror CustomerSummaryAggregator — only SETTLED
+            // rows count (no-op for legacy/non-gateway rows).
+            ->where('vend_transactions.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
             ->where(function ($q) {
                 // Mirror the Transactions page success_amount filter exactly:
                 // - error code 0 / 6 / NULL OR

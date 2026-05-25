@@ -100,11 +100,23 @@ class PaymentGatewayLog extends Model
                 }
             })
             ->when($request->is_found_in_transaction, function ($query, $search) {
+                // "Found in transaction" = the machine reported the row via TRADE.
+                // Under unified transactions a linked vend_transaction always
+                // exists (pre-created at paid-time), so we key off the row's
+                // is_found_in_transaction flag rather than mere relation existence.
+                // Legacy rows default that flag to true, so behaviour is unchanged.
                 if ($search != 'all') {
                     if (filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
-                        $query->has('vendTransaction');
+                        $query->whereHas('vendTransaction', function ($q) {
+                            $q->where('is_found_in_transaction', true);
+                        });
                     } else {
-                        $query->doesntHave('vendTransaction');
+                        $query->where(function ($q) {
+                            $q->doesntHave('vendTransaction')
+                                ->orWhereHas('vendTransaction', function ($q2) {
+                                    $q2->where('is_found_in_transaction', false);
+                                });
+                        });
                     }
                 }
             })

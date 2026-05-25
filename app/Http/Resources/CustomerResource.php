@@ -76,6 +76,8 @@ class CustomerResource extends JsonResource
             'contract_commission_value' => $this->contract_commission_value,
             'contract_commission_value2' => $this->contract_commission_value2,
             'contract_ps_term' => $this->contract_ps_term,
+            'is_external_subsidize' => $this->is_external_subsidize ?? false,
+            'external_subsidize_amount' => $this->external_subsidize_amount,
             'contract_from' => $this->contract_from ? $this->contract_from->toDateString() : null,
             'contract_until' => $this->contract_until ? $this->contract_until->toDateString() : null,
             'contract_auto_renewal' => $this->contract_auto_renewal ?? false,

@@ -285,6 +285,51 @@
                     </div>
                   </div>
 
+                  <!-- External Subsidize — toggle gates an optional dollar amount.
+                       When the toggle is off the amount input is readonly/disabled
+                       and the value is cleared to null on save (server-enforced too). -->
+                  <div class="sm:col-span-6 grid grid-cols-6 gap-4">
+                    <div class="col-span-6 sm:col-span-3 flex flex-col justify-end pb-1">
+                      <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">External Subsidize</label>
+                      <div class="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="is_external_subsidize"
+                          v-model="form.is_external_subsidize"
+                          @change="onExternalSubsidizeToggle"
+                          class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <label for="is_external_subsidize" class="text-sm text-gray-600 cursor-pointer">
+                          {{ form.is_external_subsidize ? 'Enabled' : 'Disabled' }}
+                        </label>
+                      </div>
+                    </div>
+                    <div class="col-span-6 sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700">
+                        External Subsidize Amount
+                        <span class="ml-1 text-gray-400 text-xs font-normal">(Amount)</span>
+                      </label>
+                      <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                          <span class="text-gray-500 sm:text-sm">$</span>
+                        </div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          v-model="form.external_subsidize_amount"
+                          :readonly="!form.is_external_subsidize"
+                          :disabled="!form.is_external_subsidize"
+                          :class="['shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md pl-7', !form.is_external_subsidize ? 'bg-gray-200 text-gray-500 hover:cursor-not-allowed' : '']"
+                          placeholder="e.g. 100.00"
+                        />
+                      </div>
+                      <div class="text-sm text-red-600 mt-1" v-if="form.errors['customer.external_subsidize_amount']">
+                        {{ form.errors['customer.external_subsidize_amount'] }}
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Contract From + Contract Until — same row -->
                   <div class="sm:col-span-6 grid grid-cols-6 gap-4">
                     <div class="col-span-6 sm:col-span-3">
@@ -1262,6 +1307,14 @@ function clearCommissionType() {
   form.value.contract_commission_value2 = null;
   form.value.contract_ps_term           = null;
 }
+
+// External Subsidize — when the toggle is switched off, clear the amount so a
+// stale value can't survive a disable (server re-enforces this on save too).
+function onExternalSubsidizeToggle() {
+  if (!form.value.is_external_subsidize) {
+    form.value.external_subsidize_amount = null;
+  }
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getDefaultForm() {
@@ -1312,6 +1365,8 @@ function getDefaultForm() {
     contract_commission_value: null,
     contract_commission_value2: null,
     contract_ps_term: null,
+    is_external_subsidize: false,
+    external_subsidize_amount: null,
     contract_from: null,
     contract_until: null,
     contract_auto_renewal: false,
@@ -1421,6 +1476,8 @@ onMounted(() => {
     contract_commission_value: props.customer ? (props.customer.contract_commission_value ?? null) : null,
     contract_commission_value2: props.customer ? (props.customer.contract_commission_value2 ?? null) : null,
     contract_ps_term: props.customer ? (props.customer.contract_ps_term ?? null) : null,
+    is_external_subsidize: props.customer ? (props.customer.is_external_subsidize ?? false) : false,
+    external_subsidize_amount: props.customer ? (props.customer.external_subsidize_amount ?? null) : null,
     contract_from: props.customer ? (props.customer.contract_from ?? null) : null,
     contract_until: props.customer ? (props.customer.contract_until ?? null) : null,
     contract_auto_renewal: props.customer ? (props.customer.contract_auto_renewal ?? false) : false,
@@ -1542,6 +1599,12 @@ function saveCustomer(customerID) {
       contract_commission_value: data.contract_commission_value !== null && data.contract_commission_value !== '' ? parseFloat(data.contract_commission_value) : null,
       contract_commission_value2: data.contract_commission_value2 !== null && data.contract_commission_value2 !== '' ? parseFloat(data.contract_commission_value2) : null,
       contract_ps_term: data.contract_ps_term !== null && data.contract_ps_term !== '' ? parseFloat(data.contract_ps_term) : null,
+      // External Subsidize — only persist the amount while the toggle is on;
+      // clear to null otherwise (server re-enforces this defensively).
+      is_external_subsidize: data.is_external_subsidize ?? false,
+      external_subsidize_amount: (data.is_external_subsidize && data.external_subsidize_amount !== null && data.external_subsidize_amount !== '')
+        ? parseFloat(data.external_subsidize_amount)
+        : null,
       contract_from: data.contract_from && data.contract_from !== 'Invalid date' ? data.contract_from : null,
       contract_until: data.contract_until && data.contract_until !== 'Invalid date' ? data.contract_until : null,
       contract_auto_renewal: data.contract_auto_renewal ?? false,

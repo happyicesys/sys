@@ -69,7 +69,7 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <!-- <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Upcoming Mapping
             </label>
@@ -84,7 +84,7 @@
               class="mt-1"
             >
             </MultiSelect>
-          </div>
+          </div> -->
 
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
@@ -184,9 +184,9 @@
                   >
                     Product Mapping <br /> Current
                   </TableHeadSort>
-                  <TableHead>
+                  <!-- <TableHead>
                     Product Mapping <br /> Upcoming
-                  </TableHead>
+                  </TableHead> -->
 
                   <TableHead></TableHead>
                 </tr>
@@ -265,7 +265,7 @@
                     </div>
                   </TableData>
 
-                  <TableData
+                  <!-- <TableData
                     :currentIndex="vendPrefixIndex"
                     :totalLength="vendPrefixes.length"
                     inputClass="text-center"
@@ -281,7 +281,7 @@
                         </a>
                       </template>
                     </div>
-                  </TableData>
+                  </TableData> -->
 
 
                   <TableData

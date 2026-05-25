@@ -51,6 +51,9 @@ class GpMetricsAggregator
                 $applyDateRange($query);
             })
             ->where('vend_transactions.amount', '>', 0)
+            // Unified transactions: only SETTLED rows count (no-op for legacy/
+            // non-gateway rows, which default to SETTLED).
+            ->where('vend_transactions.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
             ->where(function ($query) {
                 $query->where('vend_transactions.is_multiple', false)
                     ->orWhereNotExists(function ($subQuery) {
@@ -147,6 +150,8 @@ class GpMetricsAggregator
             })
             ->where('vend_transactions.amount', '>', 0)
             ->where('vend_transactions.is_multiple', true)
+            // Unified transactions: only SETTLED rows count (no-op for legacy).
+            ->where('vend_transactions.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
             ->selectRaw("$transactionDateExpression as txn_date")
             ->selectRaw('vend_transactions.operator_id as operator_id')
             ->selectRaw('vend_transactions.vend_id as vend_id')

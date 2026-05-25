@@ -22,6 +22,13 @@ class VendTransaction extends Model
         self::INTERFACE_TYPE_1 => 'Soft Keyboard/ Multiple Cart',
     ];
 
+    // Settlement lifecycle for gateway-backed (pre-created) rows. Non-gateway /
+    // legacy rows are always SETTLED (the column default), so existing sales
+    // logic is unaffected. See PLAN_merge_payment_gateway_into_sales_transactions.md.
+    const SETTLEMENT_PENDING = 0;   // paid, dispense outcome not yet known
+    const SETTLEMENT_REFUNDED = 1;  // refunded / void — never counts as a sale
+    const SETTLEMENT_SETTLED = 2;   // counts as a sale (normal error-code logic still applies)
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorTransactionFilterScope);
@@ -36,6 +43,8 @@ class VendTransaction extends Model
         'transaction_datetime' => 'datetime',
         'vend_transaction_json' => 'json',
         'is_zero_amount' => 'boolean',
+        'is_found_in_transaction' => 'boolean',
+        'settlement_status' => 'integer',
     ];
 
     protected $fillable = [
@@ -75,6 +84,8 @@ class VendTransaction extends Model
         'vend_transaction_json',
         'unit_cost',
         'unit_cost_id',
+        'is_found_in_transaction',
+        'settlement_status',
     ];
 
     protected $with = [
@@ -158,6 +169,34 @@ class VendTransaction extends Model
     }
 
     // scopes
+
+    /**
+     * Settlement gate shared by every sales/revenue aggregation.
+     *
+     * A row only counts toward sales when it is SETTLED. Legacy + non-gateway
+     * rows default to SETTLED, so adding this gate is a no-op for existing data;
+     * it only excludes the new gateway PENDING / REFUNDED rows. The normal
+     * error-code success test (code IN (0,6) / NULL / is_multiple) is layered on
+     * top of this by the caller — this gate does not replace it.
+     *
+     * WHERE-based callers: ->countsAsSale().
+     * Raw CASE-based callers: VendTransaction::settledSql($alias) inside the CASE.
+     */
+    public function scopeCountsAsSale($query, string $alias = 'vend_transactions')
+    {
+        return $query->where($alias . '.settlement_status', self::SETTLEMENT_SETTLED);
+    }
+
+    /**
+     * SQL fragment for the settlement gate, for injection into existing raw
+     * CASE/SUM expressions. Centralises the magic value so no aggregator
+     * hardcodes "settlement_status = 2".
+     */
+    public static function settledSql(string $alias = 'vend_transactions'): string
+    {
+        return $alias . '.settlement_status = ' . self::SETTLEMENT_SETTLED;
+    }
+
     public function scopeFilterTransactionIndex($query, $request, $skipSort = false)
     {
         $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
@@ -662,7 +701,10 @@ class VendTransaction extends Model
             $query->whereIn('vend_channel_error_id', [1, 5])
                 ->orWhereNull('vend_channel_error_id')
                 ->orWhere('vend_transaction_json->GET_TYPE', 1);
-        });
+        })
+            // Unified transactions: a PENDING/REFUNDED gateway row is never
+            // "successful". No-op for legacy/non-gateway rows (default SETTLED).
+            ->where('settlement_status', self::SETTLEMENT_SETTLED);
     }
 
     public function scopeIsFailure($query)

@@ -547,10 +547,13 @@
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="text-base font-bold text-gray-800">Transaction Count</dt>
+                <dt class="text-base font-bold text-gray-800">Transaction Count (Successful)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div>
-                        {{(totals['total_transaction_count'] ? totals['total_transaction_count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                        {{(totals['success_payment_count'] ? totals['success_payment_count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                        <span class="text-xs text-gray-500">
+                            ({{ (totals['total_transaction_count'] > 0 ? ((totals['success_payment_count'] / totals['total_transaction_count']) * 100).toFixed(2) : '0.00') }}%)
+                        </span>
                     </div>
                     <div class="flex flex-col mt-2 space-y-2">
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
@@ -590,12 +593,9 @@
                             </span>
                         </div>
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
-                            <span class="text-xs font-medium text-gray-500">Successful Payment Transaction:</span>
+                            <span class="text-xs font-medium text-gray-500">Total Payment Count:</span>
                             <span class="text-lg font-semibold text-gray-800">
-                                {{(totals['success_payment_count'] ? totals['success_payment_count'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
-                                <span class="text-xs text-gray-500">
-                                    ({{ (totals['total_transaction_count'] > 0 ? ((totals['success_payment_count'] / totals['total_transaction_count']) * 100).toFixed(2) : '0.00') }}%)
-                                </span>
+                                {{(totals['total_transaction_count'] ? totals['total_transaction_count'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                             </span>
                         </div>
                     </div>

@@ -94,6 +94,13 @@ class CustomerPeriodSummaryResource extends JsonResource
                     'contract_commission_value' => $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
                     'contract_commission_value2' => $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
                     'contract_ps_term' => $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                    // External Subsidize — pulled live from the customer's
+                    // current contract (Customer/Edit.vue). Drives the
+                    // "External Subsidize" + "Net Loc Fee" lines stacked under
+                    // the Location Fees column. external_subsidize_amount is in
+                    // dollars; the Vue side converts to cents for display/math.
+                    'is_external_subsidize' => (bool) $c->is_external_subsidize,
+                    'external_subsidize_amount' => $c->external_subsidize_amount !== null ? (float) $c->external_subsidize_amount : null,
                     'operator' => $c->relationLoaded('operator') && $c->operator ? [
                         'id' => $c->operator->id,
                         'code' => $c->operator->code,

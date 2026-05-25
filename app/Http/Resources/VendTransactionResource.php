@@ -28,6 +28,8 @@ class VendTransactionResource extends JsonResource
             'is_multiple' => $this->is_multiple,
             'is_payment_received' => $this->is_payment_received,
             'is_refunded' => isset($this->is_refunded) && $this->is_refunded ? true : false,
+            'is_found_in_transaction' => (bool) ($this->is_found_in_transaction ?? true),
+            'settlement_status' => $this->settlement_status ?? null,
             'itemsJson' => $this->items_json,
             'labelJson' => (function () {
                 $computed = is_string($this->label_json) ? json_decode($this->label_json, true) : ($this->label_json ?? []);

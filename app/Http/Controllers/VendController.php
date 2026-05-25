@@ -532,6 +532,13 @@ class VendController extends Controller
         // filterVendsDB() can ORDER BY the alias across the full result set.
         $needsAccumulatedVendingEarning = in_array($sortKey, ['accumulate_vending_earning_cents']);
         $needsThirtyDaysVendingEarning = in_array($sortKey, ['thirty_days_vending_earning_cents']);
+        // External Subsidize / Net Loc Fee sort. Both normally computed in the
+        // Vue cell (Ext Sub from the customer's current contract; Net Loc Fee =
+        // Location Fees − Ext Sub). When the user sorts by them we expose
+        // matching SQL aliases (external_subsidize / net_loc_fee) so the ORDER
+        // BY applies across the full result set, not just the current page.
+        $needsExternalSubsidize = in_array($sortKey, ['external_subsidize']);
+        $needsNetLocFee = in_array($sortKey, ['net_loc_fee']);
         // PWRON 1d/2d/3d sort. Counts are normally attached in the post-query
         // PHP loop further down (see "PWRON 1d / 2d / 3d counts per vend").
         // When the user sorts by them we expose matching SQL aliases on the
@@ -935,6 +942,10 @@ class VendController extends Controller
                 'customers.contract_commission_value',
                 'customers.contract_commission_value2',
                 'customers.contract_ps_term',
+                // External Subsidize — drives the "Ext Subsidize" + "Net Loc Fee"
+                // lines in the Contract Type column on Vend/CustomerIndex.
+                'customers.is_external_subsidize',
+                'customers.external_subsidize_amount',
                 'customers.frequency_per_week_status',
                 'customers.is_active AS is_active',
                 'customers.is_active AS customer_is_active',
@@ -1110,6 +1121,60 @@ class VendController extends Controller
                         ELSE 0
                     END)
                 ) AS thirty_days_vending_earning_cents');
+            }
+
+            if ($needsExternalSubsidize || $needsNetLocFee) {
+                // External Subsidize in cents — gated by the is_external_subsidize
+                // toggle; external_subsidize_amount is stored in dollars.
+                $extSubCaseSql = '(CASE WHEN customers.is_external_subsidize = 1
+                        THEN ROUND(COALESCE(customers.external_subsidize_amount, 0) * 100)
+                        ELSE 0 END)';
+
+                if ($needsExternalSubsidize) {
+                    $selectColumns[] = DB::raw($extSubCaseSql . ' AS external_subsidize');
+                }
+
+                if ($needsNetLocFee) {
+                    // Location Fees CASE — mirrors the block embedded in
+                    // thirty_days_vending_earning_cents above (which mirrors
+                    // CustomerSummaryAggregator::computeLocationFeeCents), so the
+                    // sort order matches the value rendered in the cell:
+                    //   F → 0; S → -value*100; R/U → value*100;
+                    //   PS → de-grossed sales * ps_term% * value%; PS+U → PS + value2*100;
+                    //   PSORU → MAX(PS, value2*100). PS-family bails to 0 when sales <= 0.
+                    $locationFeeCaseSql = '(CASE customers.contract_commission_type
+                            WHEN \'F\' THEN 0
+                            WHEN \'S\' THEN -ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
+                            WHEN \'R\' THEN ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
+                            WHEN \'U\' THEN ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
+                            WHEN \'PS\' THEN
+                                CASE WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) <= 0 THEN 0
+                                ELSE ROUND(
+                                    (CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) / (1 + COALESCE(operators.gst_vat_rate, 0)/100))
+                                    * COALESCE(customers.contract_ps_term, 0)/100
+                                    * COALESCE(customers.contract_commission_value, 0)/100
+                                ) END
+                            WHEN \'PS+U\' THEN
+                                CASE WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) <= 0 THEN 0
+                                ELSE ROUND(
+                                    (CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) / (1 + COALESCE(operators.gst_vat_rate, 0)/100))
+                                    * COALESCE(customers.contract_ps_term, 0)/100
+                                    * COALESCE(customers.contract_commission_value, 0)/100
+                                ) END
+                                + ROUND(COALESCE(customers.contract_commission_value2, 0) * 100)
+                            WHEN \'PSORU\' THEN GREATEST(
+                                CASE WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) <= 0 THEN 0
+                                ELSE ROUND(
+                                    (CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) / (1 + COALESCE(operators.gst_vat_rate, 0)/100))
+                                    * COALESCE(customers.contract_ps_term, 0)/100
+                                    * COALESCE(customers.contract_commission_value, 0)/100
+                                ) END,
+                                ROUND(COALESCE(customers.contract_commission_value2, 0) * 100)
+                            )
+                            ELSE 0
+                        END)';
+                    $selectColumns[] = DB::raw('(' . $locationFeeCaseSql . ' - ' . $extSubCaseSql . ') AS net_loc_fee');
+                }
             }
 
             $vends->select($selectColumns);
@@ -2465,6 +2530,10 @@ class VendController extends Controller
             ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
             ->filterTransactionIndex($request, true)
             ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            // Unified transactions: exclude in-flight (PENDING) and voided
+            // (REFUNDED) gateway rows from the sales card. Legacy + all non-gateway
+            // rows are SETTLED (column default), so this is a no-op for them.
+            ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->select([
                 DB::raw('CAST(COUNT(CASE
                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
@@ -2561,6 +2630,7 @@ class VendController extends Controller
             ->filterTransactionIndex($request, true)
             ->where('is_multiple', true)
             ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
             ->select([
                 DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IS NULL OR vend_transaction_items.vend_channel_error_code NOT IN (4, 5)) THEN 1 END) as total_items'),
@@ -2572,6 +2642,65 @@ class VendController extends Controller
         $totals->total_qty = $totals->single_qty + $itemTotals->total_items;
         $totals->success_total_qty = $totals->success_single_qty + $itemTotals->success_items;
         $totals->success_total_qty_rate = $totals->total_qty > 0 ? round($totals->success_total_qty * 100 / $totals->total_qty, 2) : 0;
+
+        // ── Dispensed-but-unreported QR/PayNow revenue ──────────────────────
+        // Some PayNow payments are approved (money received) and the machine
+        // dispenses the item (is_dispensed = true), but the machine never
+        // reports the completed transaction back via TRADE in VendDataService,
+        // so no vend_transaction row is created. These sales are real but
+        // invisible to the vend_transactions-based totals above. Product
+        // decision: treat them as successful QR sales — add their amount to
+        // both the QR Payment Gateway line and the Total Sales headline.
+        //
+        // Conditions mirror the /vends/payment-gateway-transactions filters:
+        //   is_dispensed = true, no linked vend_transaction, status = APPROVE
+        //   (status 2 = approved and NOT refunded(98)/declined(99)).
+        // Scope matches this card: same operators + date window (+ machine /
+        // customer when filtered) and the same testing-machine exclusion.
+        $unreportedGatewayAmount = PaymentGatewayLog::query()
+            ->where('payment_gateway_logs.status', PaymentGatewayLog::STATUS_APPROVE)
+            ->where('payment_gateway_logs.is_dispensed', true)
+            ->whereDoesntHave('vendTransaction')
+            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('payment_gateway_logs.vend_id', $testingVendIds))
+            ->when($request->operators, function ($q) use ($request) {
+                $ops = (array) $request->operators;
+                if (!in_array('all', $ops, true)) {
+                    $q->whereHas('operatorPaymentGateway', fn($sub) => $sub->whereIn('operator_id', $ops));
+                }
+            })
+            ->when($request->date_from, fn($q, $search) => $q->where('payment_gateway_logs.approved_at', '>=', $search))
+            ->when($request->date_to, fn($q, $search) => $q->where('payment_gateway_logs.approved_at', '<=', $search))
+            ->when($request->codes, function ($q, $search) {
+                if (strpos($search, ',') !== false) {
+                    $codes = array_map('trim', explode(',', $search));
+                    $q->whereHas('vend', fn($sub) => $sub->whereIn('code', $codes));
+                } else {
+                    $q->whereHas('vend', fn($sub) => $sub->where('code', 'LIKE', "%{$search}%"));
+                }
+            })
+            ->when($request->customer, function ($q, $search) {
+                if (strpos($search, '-')) {
+                    $parts = explode('-', $search, 2);
+                    $q->whereHas('vend.customer', fn($sub) => $sub
+                        ->where('virtual_customer_prefix', $parts[0])
+                        ->where('virtual_customer_code', $parts[1]));
+                } else {
+                    $q->whereHas('vend.customer', fn($sub) => $sub
+                        ->where('virtual_customer_prefix', 'LIKE', "{$search}%")
+                        ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
+                        ->orWhere(DB::raw('lower(name)'), 'LIKE', '%' . strtolower($search) . '%'));
+                }
+            })
+            ->sum('payment_gateway_logs.amount');
+
+        // vend_transactions.amount is in minor units (cents); gateway log
+        // amounts are in major units — scale up before merging.
+        $currencyExponent = auth()->user()->operator?->country?->currency_exponent ?? 2;
+        $unreportedGatewayMinor = (int) round(((float) $unreportedGatewayAmount) * pow(10, $currencyExponent));
+
+        $totals->qr_payment_amount = (float) $totals->qr_payment_amount + $unreportedGatewayMinor;
+        $totals->success_amount    = (float) $totals->success_amount + $unreportedGatewayMinor;
+        // ────────────────────────────────────────────────────────────────────
 
 
         $latestExports = ExportJob::with('attachment')
@@ -3241,7 +3370,10 @@ class VendController extends Controller
             return VendTransaction::query()
                 ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
-                ->filterTransactionIndex($request, true);
+                ->filterTransactionIndex($request, true)
+                // Unified transactions: exclude PENDING/REFUNDED gateway rows from
+                // the daily summary aggregates (no-op for legacy/non-gateway rows).
+                ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED);
         };
 
         // Count distinct (date, payment_method_id) groups for pagination.

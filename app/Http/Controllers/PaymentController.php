@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\PublishMqtt;
 use App\Jobs\RefundOmiseJob;
+use App\Jobs\Vend\CreateGatewayVendTransaction;
 use App\Jobs\Vend\LogNofoundTxnIfStillMissing;
 use App\Models\Country;
 use App\Models\PaymentGateways\Fiuu;
@@ -224,6 +225,13 @@ class PaymentController extends Controller
         ->delay(now()->addMinutes(5))
         ->onQueue('low');
 
+      // Unified transactions (feature-flagged): create the vend_transaction now,
+      // at paid-time, instead of waiting for the machine's TRADE. The machine's
+      // TRADE later just confirms/fills it. Dormant unless GATEWAY_UNIFIED_TXN_ENABLED.
+      if ($this->shouldUnifyTransaction($updatedPaymentGatewayLog->vend_code)) {
+        CreateGatewayVendTransaction::dispatch($updatedPaymentGatewayLog->id)->onQueue('high');
+      }
+
       $this->processPayment($updatedPaymentGatewayLog);
     }
   }
@@ -266,6 +274,27 @@ class PaymentController extends Controller
     });
 
     return $dataArr;
+  }
+
+  /**
+   * Whether the unified-transaction pre-create should run for this machine.
+   * Master kill switch + optional comma-separated pilot allowlist of vend codes
+   * (empty allowlist = all machines once the master switch is on).
+   */
+  private function shouldUnifyTransaction(?string $vendCode): bool
+  {
+    if (!config('app.gateway_unified_txn_enabled')) {
+      return false;
+    }
+
+    $allow = trim((string) config('app.gateway_unified_txn_vend_codes', ''));
+    if ($allow === '') {
+      return true;
+    }
+
+    $codes = array_filter(array_map('trim', explode(',', $allow)));
+
+    return in_array((string) $vendCode, $codes, true);
   }
 
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)

@@ -55,6 +55,9 @@ class StoreVendsRecord implements ShouldQueue
                 Carbon::parse($this->to)->setTimezone($timezone)->endOfDay()
             ])
             ->where('vt.amount', '>', 0)
+            // Unified transactions: only SETTLED rows feed the daily vend_records
+            // rollup (no-op for legacy/non-gateway rows, which default to SETTLED).
+            ->where('vt.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
             ->select(
                 'v.id AS vend_id',
                 'v.code as vend_code',

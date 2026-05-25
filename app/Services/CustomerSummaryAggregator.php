@@ -249,6 +249,10 @@ class CustomerSummaryAggregator
                   ->orWhere('vend_transactions.is_multiple', true);
             })
             ->when(!empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            // Unified transactions: exclude in-flight (PENDING) and voided
+            // (REFUNDED) gateway rows from billed sales. Legacy + non-gateway rows
+            // are SETTLED (column default) → no change to existing invoices.
+            ->where('vend_transactions.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
             ->groupBy('vend_transactions.customer_id')
             ->selectRaw('vend_transactions.customer_id AS customer_id, SUM(vend_transactions.amount) AS sales_cents')
             ->pluck('sales_cents', 'customer_id');
