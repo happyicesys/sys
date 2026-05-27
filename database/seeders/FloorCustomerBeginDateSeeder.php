@@ -7,28 +7,30 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Floor every customer's begin_date forward to 2022-01-01.
+ * Floor every customer's begin_date forward to 2023-01-01.
  *
  * The Customer Summary now clamps both the displayed period window and the
- * lifetime "Accumulate Vending Earning" running sum at 2022-01-01 — see
+ * lifetime "Accumulate Vending Earning" running sum at 2023-01-01 — see
  * App\Http\Controllers\CustomerController::SUMMARY_FLOOR_DATE. The reason
- * is that pre-2022 monthly rows in customer_period_summaries were
- * reconstructed from imported Excel and are incomplete (the system itself
- * only started capturing live monthly aggregates from 2022 onwards).
+ * is that pre-floor monthly rows in customer_period_summaries were
+ * reconstructed from imported Excel and are incomplete (the system only
+ * captures reliable live monthly aggregates from the floor date onwards).
  *
  * Leaving Customer.begin_date earlier than that floor implies a contract
  * history the Summary refuses to show, which confuses operators ("why
  * does this customer's begin date say 2019 but their Summary starts in
- * Jan 2022?"). This seeder bumps any pre-2022 begin_date forward to
- * 2022-01-01 so the field agrees with the Summary's earliest visible
+ * Jan 2023?"). This seeder bumps any pre-floor begin_date forward to
+ * 2023-01-01 so the field agrees with the Summary's earliest visible
  * month.
  *
  * Behaviour:
  *   begin_date IS NULL          → untouched
- *   begin_date >= 2022-01-01    → untouched
- *   begin_date <  2022-01-01    → set to 2022-01-01 00:00:00
+ *   begin_date >= 2023-01-01    → untouched
+ *   begin_date <  2023-01-01    → set to 2023-01-01 00:00:00
  *
  * Idempotent — re-running after a successful pass reports 0 updated.
+ * (Customers floored to 2022-01-01 by an earlier run will be bumped
+ * forward again to the new 2023-01-01 floor on the next run.)
  *
  *   php artisan db:seed --class=FloorCustomerBeginDateSeeder
  *
@@ -49,12 +51,12 @@ class FloorCustomerBeginDateSeeder extends Seeder
      * If that constant ever moves, update this one too (and run the
      * seeder again — it's idempotent).
      */
-    private const FLOOR_DATE = '2022-01-01';
+    private const FLOOR_DATE = '2023-01-01';
 
     public function run(): void
     {
         $floor = Carbon::parse(self::FLOOR_DATE)->startOfDay();
-        $floorString = $floor->toDateTimeString(); // '2022-01-01 00:00:00'
+        $floorString = $floor->toDateTimeString(); // '2023-01-01 00:00:00'
 
         $candidateQuery = DB::table('customers')
             ->whereNotNull('begin_date')

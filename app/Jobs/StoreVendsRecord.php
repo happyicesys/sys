@@ -79,7 +79,7 @@ class StoreVendsRecord implements ShouldQueue
                     ELSE 0 END) as total_amount'),
 
                 // Maps to "Total Qty Purchased"
-                DB::raw('SUM(vt.qty) as all_total_count'),
+                DB::raw('COALESCE(SUM(vt.qty), 0) as all_total_count'),
 
                 // Maps to "Total Qty Dispensed"
                 DB::raw('SUM(CASE
@@ -93,15 +93,18 @@ class StoreVendsRecord implements ShouldQueue
                     WHEN vt.vend_channel_error_id IS NOT NULL AND vce.code NOT IN (0, 6) THEN COALESCE(vt.qty, 1)
                     ELSE 0 END) as error_count'),
 
-                DB::raw('SUM(CASE
+                // COALESCE: vt.revenue is nullable, so a group whose only matched
+                // rows have NULL revenue makes SUM() return NULL -> insert into the
+                // NOT NULL vend_records.revenue column fails. NULL means "no revenue".
+                DB::raw('COALESCE(SUM(CASE
                     WHEN vt.is_multiple = true THEN vt.revenue
                     WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0, 6) THEN vt.revenue
-                    ELSE 0 END) as revenue'),
+                    ELSE 0 END), 0) as revenue'),
 
-                DB::raw('SUM(CASE
+                DB::raw('COALESCE(SUM(CASE
                     WHEN vt.is_multiple = true THEN vt.revenue - COALESCE(vti.total_cost, 0)
                     WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0, 6) THEN vt.gross_profit
-                    ELSE 0 END) as gross_profit'),
+                    ELSE 0 END), 0) as gross_profit'),
 
                 DB::raw('SUM(CASE
                     WHEN vt.is_multiple = false AND vt.vend_channel_error_id IS NOT NULL AND vce.code NOT IN (0, 6) THEN vt.amount

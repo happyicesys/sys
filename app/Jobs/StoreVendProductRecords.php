@@ -122,10 +122,13 @@ class StoreVendProductRecords implements ShouldQueue
                               THEN vt.amount ELSE 0 END) as failure_amount'),
 
                 // Revenue / GP (success only)
-                DB::raw('SUM(CASE WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0,6)
-                              THEN vt.revenue ELSE 0 END) as revenue'),
-                DB::raw('SUM(CASE WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0,6)
-                              THEN vt.gross_profit ELSE 0 END) as gross_profit'),
+                // COALESCE: vt.revenue / vt.gross_profit are nullable, so a group
+                // whose only success rows have NULL here makes SUM() return NULL ->
+                // insert into the NOT NULL revenue/gross_profit columns fails.
+                DB::raw('COALESCE(SUM(CASE WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0,6)
+                              THEN vt.revenue ELSE 0 END), 0) as revenue'),
+                DB::raw('COALESCE(SUM(CASE WHEN vt.vend_channel_error_id IS NULL OR vce.code IN (0,6)
+                              THEN vt.gross_profit ELSE 0 END), 0) as gross_profit'),
 
                 // Online channel (success)
                 DB::raw('SUM(CASE WHEN dpo.id IS NOT NULL

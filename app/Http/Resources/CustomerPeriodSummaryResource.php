@@ -15,14 +15,16 @@ class CustomerPeriodSummaryResource extends JsonResource
 {
     public function toArray($request): array
     {
-        // History-lock rule: a COMPLETED month is frozen to its stored
-        // per-period snapshot. The CURRENT ongoing month is NOT locked — every
-        // element of the Placement Contract Detail (Contract Type, the
-        // commission value / Location Fees Rate, Location Fees, External
-        // Subsidize) and the derived Vend Earning are re-derived LIVE from the
-        // customer's current contract, so a mid-month contract edit shows up
-        // immediately instead of waiting for the nightly aggregator.
+        // Action-triggered lock rule: a row stays LIVE until someone explicitly
+        // locks it. While unlocked (locked_at IS NULL — this includes the
+        // current in-progress month, which has no Lock button), every element
+        // of the Placement Contract Detail (Contract Type, the commission value
+        // / Location Fees Rate, Location Fees, External Subsidize) and the
+        // derived Vend Earning are re-derived LIVE from the customer's current
+        // contract, so a contract edit shows up immediately. Once locked, the
+        // row is frozen to the per-period snapshot stored at lock time.
         $isCurrentMonth = (bool) $this->is_current_month;
+        $isLocked = $this->locked_at !== null;
 
         // Defaults = the frozen per-period snapshot (used as-is for completed
         // months, and as the fallback when the customer relation isn't loaded).
@@ -35,7 +37,7 @@ class CustomerPeriodSummaryResource extends JsonResource
         $locationEarningCents = (int) $this->location_earning_cents;
         $locationEarningRate = (float) $this->location_earning_rate;
 
-        if ($isCurrentMonth && $this->relationLoaded('customer') && $this->customer) {
+        if (!$isLocked && $this->relationLoaded('customer') && $this->customer) {
             $c = $this->customer;
 
             // Live contract terms straight off the customer record.
@@ -83,6 +85,13 @@ class CustomerPeriodSummaryResource extends JsonResource
             'period_end' => optional($this->period_end)->toDateString(),
             'is_current_month' => (bool) $this->is_current_month,
             'as_of_date' => optional($this->as_of_date)->toDateString(),
+            // Action-triggered lock state. is_locked drives the Lock column on
+            // Customer/Summary.vue; locked_by_user powers the "Locked by X" tip.
+            'is_locked' => $isLocked,
+            'locked_at' => optional($this->locked_at)->toDateTimeString(),
+            'locked_by_user' => $this->relationLoaded('lockedBy') && $this->lockedBy
+                ? ['id' => $this->lockedBy->id, 'name' => $this->lockedBy->name]
+                : null,
             'sales_cents' => (int) $this->sales_cents,
             'gross_earning_cents' => (int) $this->gross_earning_cents,
             // Completed months: frozen snapshot. Current month: re-derived live
@@ -99,6 +108,9 @@ class CustomerPeriodSummaryResource extends JsonResource
             'external_subsidize_cents' => $externalSubsidizeCents,
             'transaction_count' => (int) $this->transaction_count,
             'vend_count' => (int) $this->vend_count,
+            // "# of Job" — ops job items that serviced this customer in the
+            // period (pre-aggregated; see CustomerSummaryAggregator).
+            'job_count' => (int) $this->job_count,
             // Lifetime-to-date sum of location_earning_cents (= gross_earning
             // - location_fees, a.k.a. Vending Earning) for this customer up to
             // and including the latest month visible on the current view.

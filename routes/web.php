@@ -175,6 +175,13 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/', [CustomerController::class, 'index'])->name('customers');
         Route::get('/summary', [CustomerController::class, 'summary'])->name('customers.summary');
         Route::get('/summary/excel', [CustomerController::class, 'summaryExportExcel'])->name('customers.summary.excel');
+        // Action-triggered lock / unlock for a single Customer Summary row
+        // (by customer_period_summaries.id). Lock = admin-access customers;
+        // unlock is gated to superadmin/admin in the controller.
+        Route::post('/summary/{id}/lock', [CustomerController::class, 'lockCustomerPeriodSummary'])
+            ->name('customers.summary.lock');
+        Route::post('/summary/{id}/unlock', [CustomerController::class, 'unlockCustomerPeriodSummary'])
+            ->name('customers.summary.unlock');
         // Performance Report email send (button on Customer Summary > Action).
         // Currently a stub — the actual queued send is wired in a follow-up.
         Route::post('/{id}/send-performance-report', [CustomerController::class, 'sendPerformanceReport'])

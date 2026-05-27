@@ -57,18 +57,17 @@ class CustomerController extends Controller
     use ExportOptimizationTrait, HasFilter, SearchAddress;
 
     /**
-     * Hard floor for Customer Summary reporting. mark1 only started capturing
-     * monthly Customer Period Summaries from 2022-01-01 onwards; anything
-     * older was reconstructed from imported Excel and is incomplete, so the
-     * "Accumulate Vending Earning" column would be misleading if it summed
-     * across that boundary. We clamp both the visible window ("All" Period
-     * Report) and the lifetime running sum to this date.
+     * Hard floor for Customer Summary reporting. Monthly Customer Period
+     * Summaries before this date were reconstructed from imported Excel and
+     * are incomplete, so the "Accumulate Vending Earning" column would be
+     * misleading if it summed across that boundary. We clamp both the visible
+     * window ("All" Period Report) and the lifetime running sum to this date.
      *
-     * Pre-2022 rows are intentionally left in `customer_period_summaries`
+     * Pre-floor rows are intentionally left in `customer_period_summaries`
      * (no reseed needed) — we just don't display or sum them. If the floor
      * ever needs to change, update this constant only.
      */
-    const SUMMARY_FLOOR_DATE = '2022-01-01';
+    const SUMMARY_FLOOR_DATE = '2023-01-01';
 
     protected $historyService;
     protected $mapService;
@@ -261,6 +260,10 @@ class CustomerController extends Controller
         // Summary-only filter: Placement Contract Type. Accepts an array of
         // codes (F, S, R, U, PS, PS+U, PSORU). 'all' (or absent) = no filter.
         $this->applyContractCommissionTypeFilter($customerIdsQuery, $request);
+        // Summary-only filter: Contract Attachment? — keep/drop customers
+        // based on whether a contract attachment was uploaded in the
+        // selected period window or later.
+        $this->applyContractAttachmentFilter($customerIdsQuery, $request, $rangeStart);
         $customerIds = $customerIdsQuery->pluck('customers.id')->unique()->values();
 
         // Sortable columns. machine_id / machine_prefix sort by the customer's
@@ -271,11 +274,18 @@ class CustomerController extends Controller
         $sortKey = in_array($summarySortKey, [
             'year_month', 'sales_cents', 'gross_earning_cents',
             'location_fees_cents', 'location_earning_cents', 'location_earning_rate',
-            'transaction_count', 'customer_id',
+            'transaction_count', 'job_count', 'customer_id',
             'machine_id', 'machine_prefix',
             'contract_commission_type', 'contract_commission_value',
             'external_subsidize', 'net_loc_fee',
             'accumulate_vending_earning',
+            // Real columns on customer_period_summaries — sortable directly.
+            'period_start', 'period_end',
+            // Customer-table fields — resolved via correlated subqueries below.
+            'customer_name', 'selling_price_type', 'begin_date',
+            'contract_attachment', 'location_type', 'contract_until',
+            // Computed Gross Earning rate (excl-GST) — see orderByRaw below.
+            'gross_earning_rate',
         ], true) ? $summarySortKey : 'year_month';
         $sortDirection = filter_var($summarySortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
@@ -299,6 +309,8 @@ class CustomerController extends Controller
             // Customer-level note "last edited by" user — drives the
             // tiny audit line under the textarea on Customer Summary.
             'customer.notesUpdatedBy:id,name',
+            // User who locked the row (if any) — "Locked by X" tooltip.
+            'lockedBy:id,name',
             // gst_vat_rate is pulled here so the Sales column can render the
             // excl-GST sub-line right under the incl-GST main value.
             'customer.operator:id,code,name,gst_vat_rate',
@@ -383,6 +395,59 @@ class CustomerController extends Controller
                   FROM customer_period_summaries s2
                   WHERE s2.customer_id = customer_period_summaries.customer_id
                     AND s2.`year_month` <= customer_period_summaries.`year_month`) ' . $sortDirection
+            );
+        } elseif ($sortKey === 'customer_name') {
+            // Customer name lives on the customers table; correlate by id.
+            $summariesQuery->orderByRaw(
+                '(SELECT c.name FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+            );
+        } elseif ($sortKey === 'selling_price_type') {
+            // Ref Price (RP{selling_price_type}) — customers.selling_price_type.
+            $summariesQuery->orderByRaw(
+                '(SELECT c.selling_price_type FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+            );
+        } elseif ($sortKey === 'begin_date') {
+            // Begin Date — customers.begin_date.
+            $summariesQuery->orderByRaw(
+                '(SELECT c.begin_date FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+            );
+        } elseif ($sortKey === 'contract_until') {
+            // Contract End Date — customers.contract_until.
+            $summariesQuery->orderByRaw(
+                '(SELECT c.contract_until FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+            );
+        } elseif ($sortKey === 'location_type') {
+            // Location Type name — customers.location_type_id → location_types.name.
+            $summariesQuery->orderByRaw(
+                '(SELECT lt.name FROM customers c
+                  LEFT JOIN location_types lt ON lt.id = c.location_type_id
+                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+            );
+        } elseif ($sortKey === 'contract_attachment') {
+            // Contract Attachment — sort by the latest contract upload date
+            // (most recent FILE_TYPE_CONTRACT attachment). Customers with no
+            // contract resolve to NULL and sort to the end.
+            $summariesQuery->orderByRaw(
+                '(SELECT MAX(a.created_at) FROM attachments a
+                  WHERE a.modelable_type = ?
+                    AND a.modelable_id = customer_period_summaries.customer_id
+                    AND a.type = ?) ' . $sortDirection,
+                ['App\\Models\\Customer', Customer::FILE_TYPE_CONTRACT]
+            );
+        } elseif ($sortKey === 'gross_earning_rate') {
+            // Gross Earning rate (excl-GST) — mirrors the Vue grossEarningRate():
+            //   gross_earning_cents / (sales_cents / (1 + operator.gst%/100))
+            // operator_id is stored on the summary row, so we correlate to the
+            // operators table for the GST rate (0 when none configured).
+            $summariesQuery->orderByRaw(
+                '(customer_period_summaries.gross_earning_cents /
+                  NULLIF(customer_period_summaries.sales_cents /
+                    (1 + COALESCE((SELECT o.gst_vat_rate FROM operators o
+                                   WHERE o.id = customer_period_summaries.operator_id), 0) / 100), 0)) ' . $sortDirection
             );
         } else {
             $summariesQuery->orderBy($sortKey, $sortDirection);
@@ -566,7 +631,7 @@ class CustomerController extends Controller
      *                     incomplete) month appears at the top of each
      *                     customer's group.
      *   all             → rangeStart = earliest known year_month (clamped to
-     *                     self::SUMMARY_FLOOR_DATE — pre-2022 rows in the
+     *                     self::SUMMARY_FLOOR_DATE — pre-floor rows in the
      *                     table came from the Excel backfill and are
      *                     incomplete); rangeEnd = current month
      *   anything else   → falls back to "current"
@@ -589,7 +654,7 @@ class CustomerController extends Controller
             $rangeStart = $earliest
                 ? \Carbon\Carbon::parse($earliest)->startOfMonth()
                 : $currentMonthStart->copy();
-            // Hard floor — see self::SUMMARY_FLOOR_DATE. Pre-2022 rows exist in
+            // Hard floor — see self::SUMMARY_FLOOR_DATE. Pre-floor rows exist in
             // the table from the Excel backfill but are incomplete, so we
             // refuse to show or sum them. max() picks the later of the two,
             // i.e. clamps the start forward to the floor when needed.
@@ -646,6 +711,136 @@ class CustomerController extends Controller
     }
 
     /**
+     * Apply the Summary page's "Contract Attachment?" filter to a
+     * customers-table query.
+     *
+     * Semantics (per spec): show customers that DID ('true' / Yes) or did
+     * NOT ('false' / No) have ANY contract attachment uploaded during the
+     * selected Period Report window OR LATER — i.e. an attachment of type
+     * FILE_TYPE_CONTRACT whose created_at is on/after the period's starting
+     * month ($rangeStart). The value 'all' (or absent) is treated as "no
+     * filter" so the default selection still returns every customer.
+     *
+     * Uses the existing Customer::contracts() relation (already scoped to
+     * type = FILE_TYPE_CONTRACT) so the type rule stays in one place.
+     */
+    protected function applyContractAttachmentFilter($query, Request $request, \Carbon\Carbon $rangeStart): void
+    {
+        $raw = $request->input('contract_attachment');
+        if ($raw === null || $raw === '' || $raw === 'all') {
+            return;
+        }
+
+        // Threshold = first day of the period's starting month. Attachments
+        // uploaded on/after this count as "that period or onwards".
+        $threshold = $rangeStart->copy()->startOfMonth()->toDateString();
+
+        $wantsContract = filter_var($raw, FILTER_VALIDATE_BOOLEAN);
+
+        $scopeUploadedSince = function ($q) use ($threshold) {
+            $q->where('attachments.created_at', '>=', $threshold);
+        };
+
+        if ($wantsContract) {
+            $query->whereHas('contracts', $scopeUploadedSince);
+        } else {
+            $query->whereDoesntHave('contracts', $scopeUploadedSince);
+        }
+    }
+
+    /**
+     * Lock a Customer Summary row (action-triggered).
+     *
+     * Snapshots the row's CURRENT live figures + contract details into the
+     * stored columns and stamps locked_at / locked_by. After this the resource
+     * renders the frozen snapshot instead of re-deriving live. Only a
+     * COMPLETED month can be locked (the in-progress current month has no Lock
+     * button and is rejected here defensively). Requires 'admin-access customers'.
+     */
+    public function lockCustomerPeriodSummary(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->can('admin-access customers')) {
+            abort(403, 'You do not have permission to lock summary rows.');
+        }
+
+        $summary = \App\Models\CustomerPeriodSummary::with(['customer.operator'])->findOrFail($id);
+
+        if ($summary->is_current_month) {
+            return back()->withErrors(['lock' => 'The current month cannot be locked until it is complete.']);
+        }
+        if ($summary->locked_at !== null) {
+            return back()->with('success', 'This period is already locked.');
+        }
+
+        // Freeze the LIVE values (current contract applied to this month's
+        // stored sales/gross) into the stored columns — same derivation the
+        // resource uses for unlocked rows, so "what you see is what locks".
+        $c = $summary->customer;
+        if ($c) {
+            $gstRatePct = ($c->relationLoaded('operator') && $c->operator && $c->operator->gst_vat_rate !== null)
+                ? (float) $c->operator->gst_vat_rate
+                : 0.0;
+
+            $locFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                $c->contract_commission_type,
+                $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                (int) $summary->sales_cents,
+                (int) $summary->gross_earning_cents,
+                $gstRatePct
+            );
+            $extCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                : 0;
+            $earningCents = (int) $summary->gross_earning_cents - ($locFeeCents - $extCents);
+            $rate = (int) $summary->sales_cents > 0
+                ? round($earningCents / (int) $summary->sales_cents, 4)
+                : 0;
+
+            $summary->contract_commission_type = $c->contract_commission_type;
+            $summary->contract_commission_value = $c->contract_commission_value;
+            $summary->contract_commission_value2 = $c->contract_commission_value2;
+            $summary->contract_ps_term = $c->contract_ps_term;
+            $summary->location_fees_cents = $locFeeCents;
+            $summary->external_subsidize_cents = $extCents;
+            $summary->location_earning_cents = $earningCents;
+            $summary->location_earning_rate = $rate;
+        }
+
+        $summary->locked_at = now();
+        $summary->locked_by = $user->id;
+        $summary->save();
+
+        return back()->with('success', 'Period locked.');
+    }
+
+    /**
+     * Unlock a previously-locked Customer Summary row.
+     *
+     * Restricted to the top-tier roles (superadmin / admin) — a HIGHER access
+     * level than locking, per product requirement. Clears locked_at /
+     * locked_by so the row reverts to live re-derivation. The frozen stored
+     * columns stay as-is but are no longer authoritative (the resource
+     * recomputes live while unlocked).
+     */
+    public function unlockCustomerPeriodSummary(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->hasAnyRole(['superadmin', 'admin'])) {
+            abort(403, 'You do not have permission to unlock summary rows.');
+        }
+
+        $summary = \App\Models\CustomerPeriodSummary::findOrFail($id);
+        $summary->locked_at = null;
+        $summary->locked_by = null;
+        $summary->save();
+
+        return back()->with('success', 'Period unlocked.');
+    }
+
+    /**
      * Attach "Accumulate Vend Earning" to each summary row — now computed
      * PER ROW as the running prefix sum through that row's own year_month
      * (instead of a single lifetime-to-date figure per customer).
@@ -693,14 +888,14 @@ class CustomerController extends Controller
         // builds the prefix sum keyed by (customer_id, year_month).
         //
         // We also clamp at self::SUMMARY_FLOOR_DATE so the running sum starts
-        // at the system deployment date — pre-2022 rows (reconstructed from
+        // at the floor date — pre-floor rows (reconstructed from
         // Excel) are incomplete and would inflate / distort the lifetime
         // accumulated earning. This must stay in lockstep with the floor
         // applied in resolvePeriodReportRange() so the on-screen rows and
         // their running totals describe the same window.
         $floor = self::SUMMARY_FLOOR_DATE;
         $monthlyRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
-            ->select('customer_id', 'year_month', 'location_earning_cents')
+            ->select('customer_id', 'year_month', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
             ->whereIn('customer_id', $customerIds)
             ->where('year_month', '>=', $floor)
             ->where('year_month', '<=', $through)
@@ -708,8 +903,30 @@ class CustomerController extends Controller
             ->orderBy('year_month')
             ->get();
 
-        // running[$customer_id][$yearMonthYmd] = cumulative location_earning_cents
-        // through and including that month.
+        // Per-customer current contract + operator GST — used to recompute the
+        // LIVE vend earning for UNLOCKED months (locked months keep their
+        // frozen stored location_earning_cents). One batched query, O(1) lookup.
+        $contractMap = \Illuminate\Support\Facades\DB::table('customers')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->whereIn('customers.id', $customerIds)
+            ->select(
+                'customers.id',
+                'customers.contract_commission_type',
+                'customers.contract_commission_value',
+                'customers.contract_commission_value2',
+                'customers.contract_ps_term',
+                'customers.is_external_subsidize',
+                'customers.external_subsidize_amount',
+                'operators.gst_vat_rate'
+            )
+            ->get()
+            ->keyBy('id');
+
+        // running[$customer_id][$yearMonthYmd] = cumulative EFFECTIVE vend
+        // earning through and including that month. "Effective" = the frozen
+        // stored value for locked months, or the live re-derivation for
+        // unlocked months — keeping the Accumulate column in lockstep with the
+        // per-row Vend Earning shown (which the resource derives the same way).
         $running = [];
         $perCustomerSum = [];
         foreach ($monthlyRows as $r) {
@@ -719,43 +936,36 @@ class CustomerController extends Controller
             // normalises both to YYYY-MM-DD so it lines up with the row's
             // own ->year_month->toDateString() below.
             $key = \Carbon\Carbon::parse($r->year_month)->toDateString();
-            $perCustomerSum[$cid] = ($perCustomerSum[$cid] ?? 0) + (int) $r->location_earning_cents;
+
+            $effectiveEarning = (int) $r->location_earning_cents; // locked / fallback
+            if ($r->locked_at === null) {
+                // Unlocked → recompute live from the customer's current contract.
+                $c = $contractMap->get($cid);
+                if ($c) {
+                    $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                    $liveLocFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                        $c->contract_commission_type,
+                        $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                        $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                        $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                        (int) $r->sales_cents,
+                        (int) $r->gross_earning_cents,
+                        $gstRatePct
+                    );
+                    $liveExtCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                        ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                        : 0;
+                    $effectiveEarning = (int) $r->gross_earning_cents - ($liveLocFeeCents - $liveExtCents);
+                }
+            }
+
+            $perCustomerSum[$cid] = ($perCustomerSum[$cid] ?? 0) + $effectiveEarning;
             $running[$cid][$key] = $perCustomerSum[$cid];
         }
 
         foreach ($collection as $row) {
             $rowYm = optional($row->year_month)->toDateString();
-            $accum = (int) ($running[$row->customer_id][$rowYm] ?? 0);
-
-            // History-lock rule: the current ongoing month is NOT locked — its
-            // whole Placement Contract Detail (Location Fees + External
-            // Subsidize) is rendered live, so Vend Earning is too (see
-            // CustomerPeriodSummaryResource). Mirror that exact recompute here
-            // so this row's Accumulate includes the live current-month
-            // contribution instead of the last-aggregated stored one. Completed
-            // months keep their frozen stored values untouched.
-            if ($row->is_current_month && $row->relationLoaded('customer') && $row->customer) {
-                $c = $row->customer;
-                $gstRatePct = ($c->relationLoaded('operator') && $c->operator && $c->operator->gst_vat_rate !== null)
-                    ? (float) $c->operator->gst_vat_rate
-                    : 0.0;
-                $liveLocFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
-                    $c->contract_commission_type,
-                    $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
-                    $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
-                    $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
-                    (int) $row->sales_cents,
-                    (int) $row->gross_earning_cents,
-                    $gstRatePct
-                );
-                $liveExtCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
-                    ? (int) round(((float) $c->external_subsidize_amount) * 100)
-                    : 0;
-                $liveEarning = (int) $row->gross_earning_cents - ($liveLocFeeCents - $liveExtCents);
-                $accum = $accum - (int) $row->location_earning_cents + $liveEarning;
-            }
-
-            $row->accumulate_vending_earning_cents = $accum;
+            $row->accumulate_vending_earning_cents = (int) ($running[$row->customer_id][$rowYm] ?? 0);
         }
     }
 
@@ -927,6 +1137,9 @@ class CustomerController extends Controller
         // Mirror summary()'s Placement Contract Type filter so the export
         // honours the same dropdown selection.
         $this->applyContractCommissionTypeFilter($customerIdsQuery, $request);
+        // Mirror summary()'s Contract Attachment? filter so the export
+        // honours the same dropdown selection.
+        $this->applyContractAttachmentFilter($customerIdsQuery, $request, $rangeStart);
         $customerIds = $customerIdsQuery->pluck('customers.id')->unique()->values();
 
         // Mirror summary()'s per-month grain in the export — one row per
@@ -938,8 +1151,11 @@ class CustomerController extends Controller
             // export references below. Three previously-missing columns
             // (location_grading_*) made the "Location Grading" cell render
             // blank even when the on-screen Summary page showed a value.
-            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,termination_date',
-            'customer.operator:id,code,name',
+            // Contract + subsidy fields and operator GST are needed so the
+            // export can re-derive UNLOCKED rows live, exactly like the
+            // on-screen resource (CustomerPeriodSummaryResource).
+            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,termination_date,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount',
+            'customer.operator:id,code,name,gst_vat_rate',
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
             'customer.locationType:id,name',
@@ -977,7 +1193,8 @@ class CustomerController extends Controller
             if (in_array($type, ['PS', 'PS+U', 'PSORU'], true)) {
                 $base = $val !== null ? rtrim(rtrim(number_format((float) $val, 2, '.', ''), '0'), '.') . '%' : '';
                 if (in_array($type, ['PS+U', 'PSORU'], true) && $val2 !== null) {
-                    $base .= ' + $' . rtrim(rtrim(number_format((float) $val2, 2, '.', ''), '0'), '.');
+                    $sep = $type === 'PSORU' ? ' or $' : ' + $';
+                    $base .= $sep . rtrim(rtrim(number_format((float) $val2, 2, '.', ''), '0'), '.');
                 }
                 if ($psTerm !== null) {
                     $base .= ' (PS Term ' . rtrim(rtrim(number_format((float) $psTerm, 2, '.', ''), '0'), '.') . '%)';
@@ -993,16 +1210,60 @@ class CustomerController extends Controller
         // gross_earning_cents - location_fees_cents (already pre-computed and
         // stored as location_earning_cents on each monthly summary row).
         $accumThrough = $rangeEnd->copy()->startOfMonth()->toDateString();
-        // Floor matches attachAccumulatedVendingEarning() — pre-2022 rows are
+        // Floor matches attachAccumulatedVendingEarning() — pre-floor rows are
         // incomplete and excluded from the lifetime sum so the export agrees
         // with what's rendered on screen.
-        $accumulateMap = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
-            ->selectRaw('customer_id, SUM(location_earning_cents) AS accum')
+        //
+        // Lock-aware: each month contributes its EFFECTIVE vend earning —
+        // the frozen stored value for locked months, or the live re-derivation
+        // (current contract applied to that month's stored sales/gross) for
+        // unlocked months. Mirrors attachAccumulatedVendingEarning() so the
+        // export's Accumulate column matches the on-screen figure.
+        $accumRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
+            ->select('customer_id', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
             ->whereIn('customer_id', $customerIds)
             ->where('year_month', '>=', self::SUMMARY_FLOOR_DATE)
             ->where('year_month', '<=', $accumThrough)
-            ->groupBy('customer_id')
-            ->pluck('accum', 'customer_id');
+            ->get();
+        $accumContractMap = \Illuminate\Support\Facades\DB::table('customers')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->whereIn('customers.id', $customerIds)
+            ->select(
+                'customers.id',
+                'customers.contract_commission_type',
+                'customers.contract_commission_value',
+                'customers.contract_commission_value2',
+                'customers.contract_ps_term',
+                'customers.is_external_subsidize',
+                'customers.external_subsidize_amount',
+                'operators.gst_vat_rate'
+            )
+            ->get()
+            ->keyBy('id');
+        $accumulateMap = [];
+        foreach ($accumRows as $r) {
+            $eff = (int) $r->location_earning_cents;
+            if ($r->locked_at === null) {
+                $c = $accumContractMap->get($r->customer_id);
+                if ($c) {
+                    $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                    $fee = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                        $c->contract_commission_type,
+                        $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                        $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                        $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                        (int) $r->sales_cents,
+                        (int) $r->gross_earning_cents,
+                        $gstRatePct
+                    );
+                    $ext = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                        ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                        : 0;
+                    $eff = (int) $r->gross_earning_cents - ($fee - $ext);
+                }
+            }
+            $accumulateMap[$r->customer_id] = ($accumulateMap[$r->customer_id] ?? 0) + $eff;
+        }
 
         // Pre-fetch the latest API Invoice snapshot per (customer, period)
         // tuple so locked rows export their FROZEN values — same rule the
@@ -1074,6 +1335,40 @@ class CustomerController extends Controller
                     }
                 }
 
+                // Lock-aware live re-derivation — mirrors
+                // CustomerPeriodSummaryResource: an UNLOCKED row reflects the
+                // customer's CURRENT contract (contract details + Location
+                // Fees + Vend Earning re-derived from the row's stored
+                // sales/gross), while a LOCKED row keeps its frozen snapshot.
+                // Runs AFTER the invoice-snapshot override so the live recompute
+                // uses the same sales/gross base the on-screen page does.
+                if ($row->locked_at === null && $customer) {
+                    $gstRatePct = optional($customer->operator)->gst_vat_rate !== null
+                        ? (float) $customer->operator->gst_vat_rate
+                        : 0.0;
+                    $row->contract_commission_type = $customer->contract_commission_type;
+                    $row->contract_commission_value = $customer->contract_commission_value;
+                    $row->contract_commission_value2 = $customer->contract_commission_value2;
+                    $row->contract_ps_term = $customer->contract_ps_term;
+                    $liveFee = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                        $customer->contract_commission_type,
+                        $customer->contract_commission_value !== null ? (float) $customer->contract_commission_value : null,
+                        $customer->contract_commission_value2 !== null ? (float) $customer->contract_commission_value2 : null,
+                        $customer->contract_ps_term !== null ? (float) $customer->contract_ps_term : null,
+                        (int) $row->sales_cents,
+                        (int) $row->gross_earning_cents,
+                        $gstRatePct
+                    );
+                    $liveExt = ($customer->is_external_subsidize && $customer->external_subsidize_amount !== null)
+                        ? (int) round(((float) $customer->external_subsidize_amount) * 100)
+                        : 0;
+                    $row->location_fees_cents = $liveFee;
+                    $row->location_earning_cents = (int) $row->gross_earning_cents - ($liveFee - $liveExt);
+                    $row->location_earning_rate = (int) $row->sales_cents > 0
+                        ? round($row->location_earning_cents / (int) $row->sales_cents, 4)
+                        : 0;
+                }
+
                 return [
                     '#' => $rowIndex,
                     'Customer ID' => $customer ? ($customer->id + Customer::RUNNING_NUMBER_INIT) : null,
@@ -1091,6 +1386,7 @@ class CustomerController extends Controller
                     // its explicit column label.
                     'Sales ($) (incl GST)' => round(((int) $row->sales_cents) / $divisor, 2),
                     'Gross Earning (excl GST)' => round(((int) $row->gross_earning_cents) / $divisor, 2),
+                    '# of Job' => (int) $row->job_count,
                     'Placement Contract Type' => $contractTypeLabels[$row->contract_commission_type] ?? $row->contract_commission_type,
                     'Location Fees Rate' => $formatLocationFeesRate($row),
                     'Location Fees' => round(((int) $row->location_fees_cents) / $divisor, 2),
@@ -1109,6 +1405,9 @@ class CustomerController extends Controller
                     // false in cursor() context and silently dropping the value.
                     'Location Type' => optional($customer?->locationType)->name,
                     'Customer Tag' => $tagNames,
+                    // Lock state — blank when live; otherwise the lock date so
+                    // the export shows which months are frozen.
+                    'Locked' => $row->locked_at ? \Carbon\Carbon::parse($row->locked_at)->format('ymd') : '',
                     'CMS Txn #' => $cmsTxnId,
                 ];
             }

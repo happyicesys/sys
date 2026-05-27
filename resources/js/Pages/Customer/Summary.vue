@@ -105,6 +105,24 @@
               placeholder="Select" open-direction="bottom" class="mt-1"
             />
           </div>
+
+          <!--
+            Contract Attachment? filter — boolean dropdown (Yes / No).
+            Shows customers that did (Yes) / did not (No) have any contract
+            attachment uploaded within the selected Period Report window or
+            later (created_at >= period start). "All" = no filter.
+          -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Contract Attachment?
+            </label>
+            <MultiSelect
+              v-model="filters.contract_attachment"
+              :options="contractAttachmentOptions"
+              trackBy="id" valueProp="id" label="value"
+              placeholder="Select" open-direction="bottom" class="mt-1"
+            />
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -256,10 +274,18 @@
                   <TableHead>#</TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-1">
-                      <span>Customer</span>
-                      <span>Ref Price</span>
-                      <span>Begin Date</span>
-                      <span>Contract Attachment</span>
+                      <SingleSortItem modelName="customer_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_name')">
+                        Customer
+                      </SingleSortItem>
+                      <SingleSortItem modelName="selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('selling_price_type')">
+                        Ref Price
+                      </SingleSortItem>
+                      <SingleSortItem modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date')">
+                        Begin Date
+                      </SingleSortItem>
+                      <SingleSortItem modelName="contract_attachment" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('contract_attachment')">
+                        Contract Attachment
+                      </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead inputClass="w-[220px] max-w-[220px]">Address</TableHead>
@@ -276,14 +302,20 @@
                   <TableHead>
                     <div class="flex flex-col space-y-1">
                       <span>Period Report</span>
-                      <span >YYMM</span>
+                      <SingleSortItem modelName="year_month" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('year_month')">
+                        YYMM
+                      </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-1">
                       <span>Period</span>
-                      <span>Start Date</span>
-                      <span>End Date</span>
+                      <SingleSortItem modelName="period_start" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('period_start')">
+                        Start Date
+                      </SingleSortItem>
+                      <SingleSortItem modelName="period_end" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('period_end')">
+                        End Date
+                      </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
@@ -310,8 +342,15 @@
                         Gross Earing
                       </SingleSortItem>
                       <span >(excl GST)</span>
-                      <span>Rate</span>
+                      <SingleSortItem modelName="gross_earning_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('gross_earning_rate')">
+                        Rate
+                      </SingleSortItem>
                     </div>
+                  </TableHead>
+                  <TableHead>
+                    <SingleSortItem modelName="job_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('job_count')">
+                      # of Job
+                    </SingleSortItem>
                   </TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-4">
@@ -341,7 +380,9 @@
                       <SingleSortItem modelName="location_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_earning_cents')">
                         Vend Earning
                       </SingleSortItem>
-                      <span >Rate</span>
+                      <SingleSortItem modelName="location_earning_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_earning_rate')">
+                        Rate
+                      </SingleSortItem>
                     </div>
                   </TableHead>
                   <TableHead>
@@ -352,7 +393,9 @@
                   <TableHead>
                     <div class="flex flex-col space-y-4">
                       <span>Loc Grading</span>
-                      <span>Location Type</span>
+                      <SingleSortItem modelName="location_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type')">
+                        Location Type
+                      </SingleSortItem>
                     </div>
                   </TableHead>
                   <!--
@@ -364,7 +407,9 @@
                   -->
                   <TableHead>
                     <div class="flex flex-col space-y-1">
-                      <span>Contract End Date</span>
+                      <SingleSortItem modelName="contract_until" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('contract_until')">
+                        Contract End Date
+                      </SingleSortItem>
                       <span>Auto Renewal?</span>
                       <span>Notice Period</span>
                     </div>
@@ -389,6 +434,8 @@
                       <span>Customer Note</span>
                     </div>
                   </TableHead>
+                  <!-- Lock — action-triggered freeze of this month's figures. -->
+                  <TableHead>Lock</TableHead>
                 </tr>
               </thead>
               <tbody class="bg-white">
@@ -462,16 +509,28 @@
                         "Contract" link so the row stays compact. Hidden
                         when the customer has no contracts attached.
                       -->
+                      <!--
+                        Contract Attachment badge:
+                          - has contract → blue, clickable, opens the latest
+                            uploaded contract in a new tab.
+                          - no contract → red "No Contract" badge (static).
+                      -->
                       <a
                         v-if="row.customer.latest_contract && row.customer.latest_contract.full_url"
                         :href="row.customer.latest_contract.full_url"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="text-xs text-gray-900 underline hover:text-gray-700 truncate"
+                        class="inline-flex items-center rounded px-1.5 py-0.5 mt-1 text-[10px] font-medium border w-fit bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200"
                         :title="row.customer.latest_contract.name || 'Contract Attachment'"
                       >
                         Contract
                       </a>
+                      <span
+                        v-else
+                        class="inline-flex items-center rounded px-1.5 py-0.5 mt-1 text-[10px] font-medium border w-fit bg-red-100 text-red-800 border-red-300"
+                      >
+                        No Contract
+                      </span>
                     </div>
                   </TableData>
 
@@ -596,9 +655,15 @@
                         <span class="text-[11px] text-gray-600">
                           {{ formatMoney(row.sales_cents) }}
                         </span>
-                        <span>{{ formatMoney(row.sales_cents / (1 + Number(row.customer.operator.gst_vat_rate) / 100)) }}</span>
+                        <span class="inline-flex items-center">
+                          {{ formatMoney(row.sales_cents / (1 + Number(row.customer.operator.gst_vat_rate) / 100)) }}
+                          <TrendIcon :dir="trendSales(row)" />
+                        </span>
                       </template>
-                      <span v-else>{{ formatMoney(row.sales_cents) }}</span>
+                      <span v-else class="inline-flex items-center">
+                        {{ formatMoney(row.sales_cents) }}
+                        <TrendIcon :dir="trendSales(row)" />
+                      </span>
                     </div>
                   </TableData>
 
@@ -616,11 +681,21 @@
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
                     <div class="flex flex-col space-y-0.5">
-                      <span>{{ formatMoney(row.gross_earning_cents) }}</span>
-                      <span class="text-[11px] text-gray-600">
+                      <span class="inline-flex items-center">
+                        {{ formatMoney(row.gross_earning_cents) }}
+                        <TrendIcon :dir="trendGross(row)" />
+                      </span>
+                      <span class="text-[11px] text-gray-600 inline-flex items-center">
                         {{ formatPercent(grossEarningRate(row)) }}
+                        <TrendIcon :dir="trendGrossRate(row)" />
                       </span>
                     </div>
+                  </TableData>
+
+                  <!-- # of Job — ops job items that serviced this customer in the period -->
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
+                    <span v-if="row.job_count" class="font-medium">{{ row.job_count }}</span>
+                    <span v-else class="text-gray-400">—</span>
                   </TableData>
 
                   <!-- Placement Contract Type / Location Fees Rate -->
@@ -631,7 +706,7 @@
                         <span v-if="['PS','PS+U','PSORU'].includes(row.contract_commission_type)">
                           {{ Number(row.contract_commission_value) }}%<span
                             v-if="row.contract_commission_value2 != null && ['PS+U','PSORU'].includes(row.contract_commission_type)"
-                          >+${{ Number(row.contract_commission_value2) }}</span>
+                          >{{ row.contract_commission_type === 'PSORU' ? ' or ' : '+' }}${{ Number(row.contract_commission_value2) }}</span>
                         </span>
                         <span v-else>
                           ${{ Number(row.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}
@@ -650,8 +725,9 @@
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
                     <div class="flex flex-col space-y-4">
                       <div>
-                        <span :class="locationFeesColorClass(row.location_fees_cents, row.contract_commission_type)">
+                        <span class="inline-flex items-center" :class="locationFeesColorClass(row.location_fees_cents, row.contract_commission_type)">
                           {{ formatMoneySigned(row.location_fees_cents) }}
+                          <TrendIcon :dir="trendLocFees(row)" />
                         </span>
                         <div
                           v-if="row.contract_commission_type === 'S'"
@@ -667,10 +743,11 @@
                       </span>
                       <!-- Net Loc Fee = Location Fees − External Subsidize -->
                       <span
-                        class="font-medium"
+                        class="font-medium inline-flex items-center"
                         :class="netLocFeeCents(row) < 0 ? 'text-emerald-700' : 'text-gray-800'"
                       >
                         {{ formatMoneySigned(netLocFeeCents(row)) }}
+                        <TrendIcon :dir="trendNetLocFee(row)" />
                       </span>
                     </div>
                   </TableData>
@@ -678,8 +755,9 @@
                   <!-- Vend Earning $ / Rate (Vend Earning = Gross Earning - Location Fees) -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
                     <div class="flex flex-col space-y-0.5">
-                      <span :class="row.location_earning_cents >= 0 ? 'text-green-700 font-medium' : 'text-red-700 font-medium'">
+                      <span class="inline-flex items-center" :class="row.location_earning_cents >= 0 ? 'text-green-700 font-medium' : 'text-red-700 font-medium'">
                         {{ formatMoney(row.location_earning_cents) }}
+                        <TrendIcon :dir="trendVend(row)" />
                       </span>
                       <span class="text-[11px] text-gray-600">
                         {{ formatPercent(row.location_earning_rate) }}
@@ -933,10 +1011,52 @@
                       </div>
                     </template>
                   </TableData>
+
+                  <!--
+                    Lock — action-triggered freeze. No button on the current
+                    in-progress month. Completed + unlocked rows show a Lock
+                    button (admins). Locked rows show a closed-lock icon with a
+                    "locked by X at Y" tooltip + an Unlock button (superadmin/
+                    admin only — a higher access level than locking).
+                  -->
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
+                    <template v-if="row.is_current_month">
+                      <span class="text-gray-300" v-tooltip="'Current month — lock once the month is complete'">—</span>
+                    </template>
+                    <template v-else-if="row.is_locked">
+                      <div class="flex flex-col items-center space-y-1">
+                        <LockClosedIcon class="h-5 w-5 text-amber-600" aria-hidden="true" v-tooltip="lockedTooltip(row)" />
+                        <Button
+                          v-if="canUnlock"
+                          type="button"
+                          class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded"
+                          :disabled="lockingFor.has(row.id)"
+                          @click="onUnlockClicked(row)"
+                        >
+                          <LockOpenIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>Unlock</span>
+                        </Button>
+                      </div>
+                    </template>
+                    <template v-else-if="canLock">
+                      <Button
+                        type="button"
+                        class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-800 rounded"
+                        :disabled="lockingFor.has(row.id)"
+                        @click="onLockClicked(row)"
+                      >
+                        <LockOpenIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Lock</span>
+                      </Button>
+                    </template>
+                    <template v-else>
+                      <span class="text-gray-300">—</span>
+                    </template>
+                  </TableData>
                 </tr>
 
                 <tr v-if="!summaries.data?.length">
-                  <td colspan="17" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium text-center">
+                  <td colspan="19" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium text-center">
                     No Results Found — try a broader Period Report or fewer filters.
                   </td>
                 </tr>
@@ -1124,10 +1244,10 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, DocumentTextIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, DocumentTextIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import { computed, ref, onMounted, nextTick } from 'vue';
+import { computed, ref, onMounted, nextTick, h } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useToast } from 'vue-toastification';
 import { vTooltip } from 'floating-vue';
@@ -1164,6 +1284,15 @@ const props = defineProps({
 const authOperator = usePage().props.auth.operator;
 const operatorCountry = usePage().props.auth.operatorCountry;
 const permissions = usePage().props.auth.permissions;
+const roles = usePage().props.auth.roles ?? [];
+
+// Lock = admins (admin-access customers). Unlock requires a HIGHER access
+// level — restricted to the top-tier roles (superadmin / admin).
+const canLock = computed(() => (permissions ?? []).includes('admin-access customers'));
+const canUnlock = computed(() => (roles ?? []).includes('superadmin') || (roles ?? []).includes('admin'));
+
+// Per-row in-flight guard for the Lock / Unlock buttons (keyed by summary id).
+const lockingFor = ref(new Set());
 
 const toast = useToast();
 const loading = ref(false);
@@ -1221,6 +1350,8 @@ const filters = ref({
   period_report: '',
   // Multi-select tags of contract type codes (F, S, R, U, PS, PS+U, PSORU).
   contract_commission_types: [],
+  // Contract Attachment? boolean filter ('all' | 'true' | 'false').
+  contract_attachment: '',
   sortKey: 'year_month',
   sortBy: false,
   numberPerPage: 100,
@@ -1228,6 +1359,10 @@ const filters = ref({
 
 const activeOptions = ref([]);
 const booleanOptions = ref([]);
+// Dedicated options for the "Contract Attachment?" filter so its labels
+// (Yes / No) stay independent of the shared booleanOptions / activeOptions
+// sets and never resolve to the wrong label.
+const contractAttachmentOptions = ref([]);
 const locationTypeOptions = ref([]);
 const operatorOptions = ref([]);
 const tagOptions = ref([]);
@@ -1243,6 +1378,11 @@ onMounted(() => {
     { id: 'false', value: 'Not Active' },
   ];
   booleanOptions.value = [
+    { id: 'all', value: 'All' },
+    { id: 'true', value: 'Yes' },
+    { id: 'false', value: 'No' },
+  ];
+  contractAttachmentOptions.value = [
     { id: 'all', value: 'All' },
     { id: 'true', value: 'Yes' },
     { id: 'false', value: 'No' },
@@ -1284,6 +1424,8 @@ onMounted(() => {
   // Defaults
   filters.value.is_active = booleanOptions.value[1];
   filters.value.is_cms = booleanOptions.value[0];
+  // Contract Attachment? defaults to "All" (no filter).
+  filters.value.contract_attachment = contractAttachmentOptions.value[0];
   filters.value.location_types = [locationTypeOptions.value.find((o) => o.id === 'all')].filter(Boolean);
   // Operator default — mirrors Vend/CustomerIndex.vue:
   //   - logged in user: pre-select their own operator
@@ -1428,6 +1570,101 @@ function netLocFeeCents(row) {
   return Number(row.location_fees_cents || 0) - externalSubsidizeCents(row);
 }
 
+/* -------------------------------------------------------------------------
+ * Month-over-month trend arrows.
+ *
+ * For a customer with MORE THAN ONE period row visible (i.e. the multi-month
+ * "Last N months" / "All" reports), each metric shows a small heroicon next
+ * to its value comparing this month against the customer's PREVIOUS month
+ * shown on the page:
+ *   value increased → green up arrow
+ *   value decreased → red down arrow
+ *   unchanged       → grey neutral dash
+ * Customers with a single visible row (e.g. the "Current" report) show no
+ * indicator since there's nothing to compare against.
+ *
+ * "Previous month shown" is resolved by grouping the visible rows per
+ * customer and ordering them by year_month ascending, then taking the row
+ * immediately before this one — independent of whatever column the user has
+ * sorted the table by, so the comparison is always chronological.
+ * ---------------------------------------------------------------------- */
+
+// customer_id -> array of that customer's visible rows, ascending by year_month.
+const monthRowsByCustomer = computed(() => {
+  const map = {};
+  (props.summaries?.data ?? []).forEach((r) => {
+    const cid = r.customer_id ?? r.customer?.id;
+    if (cid == null) return;
+    (map[cid] = map[cid] || []).push(r);
+  });
+  Object.values(map).forEach((list) => {
+    list.sort((a, b) => new Date(a.year_month) - new Date(b.year_month));
+  });
+  return map;
+});
+
+// The row for the same customer's immediately-older visible month, or null.
+function prevMonthRow(row) {
+  const cid = row.customer_id ?? row.customer?.id;
+  if (cid == null) return null;
+  const list = monthRowsByCustomer.value[cid] || [];
+  const idx = list.indexOf(row);
+  if (idx <= 0) return null;
+  return list[idx - 1];
+}
+
+// Direction of a metric vs the previous month shown:
+//   'up' | 'down' | 'same' | null (no previous month / value missing).
+function trendDir(row, getter) {
+  const prev = prevMonthRow(row);
+  if (!prev) return null;
+  const cur = getter(row);
+  const old = getter(prev);
+  if (cur == null || old == null) return null;
+  if (cur > old) return 'up';
+  if (cur < old) return 'down';
+  return 'same';
+}
+
+// Per-metric convenience wrappers (used directly in the template).
+function trendSales(row)      { return trendDir(row, (r) => Number(r.sales_cents)); }
+function trendGross(row)      { return trendDir(row, (r) => Number(r.gross_earning_cents)); }
+function trendGrossRate(row)  { return trendDir(row, (r) => grossEarningRate(r)); }
+function trendLocFees(row)    { return trendDir(row, (r) => Number(r.location_fees_cents)); }
+function trendNetLocFee(row)  { return trendDir(row, (r) => netLocFeeCents(r)); }
+function trendVend(row)       { return trendDir(row, (r) => Number(r.location_earning_cents)); }
+
+/**
+ * Small inline trend indicator. Functional component so it can be dropped
+ * next to any value: <TrendIcon :dir="trendSales(row)" />. Renders nothing
+ * when dir is null (single-row customer / no previous month).
+ */
+const TrendIcon = (props) => {
+  const dir = props.dir;
+  if (!dir) return null;
+  const color = dir === 'up'
+    ? 'text-green-600'
+    : (dir === 'down' ? 'text-red-600' : 'text-gray-400');
+  // Custom thick-stroke arrow (stroke-width 3) — much more visible than the
+  // thin solid heroicons. Up / down arrows; a thick dash for "no change".
+  const d = dir === 'up'
+    ? 'M10 16 V5 M5.5 10 L10 5 L14.5 10'
+    : (dir === 'down'
+      ? 'M10 4 V15 M5.5 10 L10 15 L14.5 10'
+      : 'M5 10 H15');
+  return h('svg', {
+    viewBox: '0 0 20 20',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': 3,
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round',
+    xmlns: 'http://www.w3.org/2000/svg',
+    class: ['inline-block h-4 w-4 ml-0.5 align-middle shrink-0', color],
+  }, [h('path', { d })]);
+};
+TrendIcon.props = ['dir'];
+
 /**
  * Contract End Date colour rule for the Summary page.
  *
@@ -1521,6 +1758,7 @@ function onSearchFilterUpdated() {
       // as-is. Empty array = no filter (treated as "all" by the controller).
       contract_commission_types: (filters.value.contract_commission_types ?? [])
         .map((t) => (t && t.id !== undefined ? t.id : t)),
+      contract_attachment: filters.value.contract_attachment?.id,
       sortKey: filters.value.sortKey,
       sortBy: filters.value.sortBy,
       numberPerPage: filters.value.numberPerPage?.id ?? filters.value.numberPerPage,
@@ -1570,6 +1808,60 @@ function sortTable(sortKey) {
   onSearchFilterUpdated();
 }
 
+// Tooltip text for a locked row's closed-lock icon: who locked it and when.
+function lockedTooltip(row) {
+  if (!row?.is_locked) return '';
+  const who = row.locked_by_user?.name || 'someone';
+  const when = row.locked_at ? moment(row.locked_at).format('YYMMDD hh:mma') : '';
+  return when ? `Locked by ${who} (${when})` : `Locked by ${who}`;
+}
+
+// Lock a completed month's row — freezes its figures + contract details at
+// this moment. Confirms first; reloads only the summaries prop on success.
+function onLockClicked(row) {
+  if (!row?.id || row.is_current_month || row.is_locked) return;
+  if (lockingFor.value.has(row.id)) return;
+
+  const label = row.customer?.name || ('#' + row.customer?.id);
+  const ok = confirm(
+    `Lock ${label} — ${periodReportLabel(row)}?\n\nThe contract details, figures and accumulated vend earning for this period will be frozen at their current values.`
+  );
+  if (!ok) return;
+
+  lockingFor.value.add(row.id);
+  // Full reload (not only:['summaries']) so the aggregate totals boxes — which
+  // sum stored values — refresh in lockstep with the row's frozen figures.
+  router.post('/customers/summary/' + row.id + '/lock', {}, {
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => toast.success('Period locked.', { timeout: 3000 }),
+    onError: (errors) => toast.error(errors?.lock || 'Failed to lock period.', { timeout: 4000 }),
+    onFinish: () => lockingFor.value.delete(row.id),
+  });
+}
+
+// Unlock a locked row — reverts it to live re-derivation. Superadmin/admin
+// only (UI is gated by canUnlock; the server re-checks).
+function onUnlockClicked(row) {
+  if (!row?.id || !row.is_locked) return;
+  if (lockingFor.value.has(row.id)) return;
+
+  const label = row.customer?.name || ('#' + row.customer?.id);
+  const ok = confirm(
+    `Unlock ${label} — ${periodReportLabel(row)}?\n\nThis period will go back to live figures based on the customer's current contract.`
+  );
+  if (!ok) return;
+
+  lockingFor.value.add(row.id);
+  router.post('/customers/summary/' + row.id + '/unlock', {}, {
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => toast.success('Period unlocked.', { timeout: 3000 }),
+    onError: (errors) => toast.error(errors?.unlock || 'Failed to unlock period.', { timeout: 4000 }),
+    onFinish: () => lockingFor.value.delete(row.id),
+  });
+}
+
 // Build the param payload for backend calls (search + export). Centralised
 // so the export uses the same filter set the page is currently showing.
 function buildBackendParams() {
@@ -1586,6 +1878,7 @@ function buildBackendParams() {
     period_report: filters.value.period_report?.id || 'current',
     contract_commission_types: (filters.value.contract_commission_types ?? [])
       .map((t) => (t && t.id !== undefined ? t.id : t)),
+    contract_attachment: filters.value.contract_attachment?.id,
     sortKey: filters.value.sortKey,
     sortBy: filters.value.sortBy,
     numberPerPage: filters.value.numberPerPage?.id ?? filters.value.numberPerPage,

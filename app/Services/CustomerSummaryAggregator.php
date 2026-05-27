@@ -257,6 +257,26 @@ class CustomerSummaryAggregator
             ->selectRaw('vend_transactions.customer_id AS customer_id, SUM(vend_transactions.amount) AS sales_cents')
             ->pluck('sales_cents', 'customer_id');
 
+        // "# of Job" — count of ops job items that serviced each customer in
+        // the window. One row per (customer, item), so a job touching several
+        // of the customer's vends counts each vend. "Delivered" is an
+        // ITEM-level status (ops_job_items.status), mirroring how
+        // OpsJobController derives its delivered count — the parent
+        // ops_jobs.status does NOT reflect per-item completion. We count items
+        // that reached at least Stock In (DELIVERED = 3) and aren't Cancelled
+        // (99) — this matches the OpsJob page's "delivered" definition and so
+        // also includes Verified (4) and Flagged (98). Each job is placed in
+        // the month by ops_jobs.date.
+        $jobCountByCustomer = DB::table('ops_job_items')
+            ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+            ->whereNotNull('ops_job_items.customer_id')
+            ->where('ops_job_items.status', '>=', \App\Models\OpsJob::STATUS_DELIVERED)
+            ->where('ops_job_items.status', '<>', \App\Models\OpsJob::STATUS_CANCELLED)
+            ->whereBetween('ops_jobs.date', [$windowStart, $windowEnd])
+            ->groupBy('ops_job_items.customer_id')
+            ->selectRaw('ops_job_items.customer_id AS customer_id, COUNT(*) AS job_count')
+            ->pluck('job_count', 'customer_id');
+
         // We also need to emit "zero" rows for active customers that had no
         // transactions in the window — otherwise they'd disappear from the
         // Summary page even though their contract fees still apply (e.g. fix
@@ -271,6 +291,21 @@ class CustomerSummaryAggregator
             ->where(function ($q) use ($monthStart) {
                 $q->whereNull('termination_date')->orWhere('termination_date', '>=', $monthStart);
             });
+
+        // Locked rows are user-frozen snapshots — the aggregator must NOT
+        // overwrite them. Collect the locked customer_ids for this month so we
+        // can both skip building fresh payloads for them and exclude them from
+        // the delete-and-reinsert below. (The current in-progress month is
+        // never lockable, so nightly current-month runs see an empty set and
+        // behave exactly as before; this only matters for explicit backfills
+        // over historical months.)
+        $lockedCustomerIds = CustomerPeriodSummary::query()
+            ->where('year_month', $monthStart->toDateString())
+            ->whereNotNull('locked_at')
+            ->pluck('customer_id')
+            ->map(fn ($v) => (int) $v)
+            ->all();
+        $lockedCustomerIdSet = array_flip($lockedCustomerIds);
 
         // Pre-load operator GST rates as a single small lookup so the
         // per-customer chunk loop can resolve operator->gst_vat_rate in O(1)
@@ -293,8 +328,12 @@ class CustomerSummaryAggregator
             // location_earning_cents below.
             'is_external_subsidize',
             'external_subsidize_amount',
-        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, &$payloads) {
+        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $jobCountByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, $lockedCustomerIdSet, &$payloads) {
             foreach ($customers as $customer) {
+                // Never regenerate a locked row — it stays as the user froze it.
+                if (isset($lockedCustomerIdSet[$customer->id])) {
+                    continue;
+                }
                 $row = $rows->get($customer->id);
                 // sales_cents: from vend_transactions (cent-exact, matches
                 // Transactions page). Other metrics from gp_metrics rollup.
@@ -302,6 +341,8 @@ class CustomerSummaryAggregator
                 $grossEarningCents = (int) ($row->gross_earning_cents ?? 0);
                 $transactionCount = (int) ($row->transaction_count ?? 0);
                 $vendCount = (int) ($row->vend_count ?? 0);
+                // "# of Job" — pre-counted above from ops_job_items.
+                $jobCount = (int) ($jobCountByCustomer[$customer->id] ?? 0);
 
                 // Operator GST rate (e.g. 9.00 for 9%). Used by PS-family
                 // formulas to de-gross the INCL-GST sales basis before
@@ -334,10 +375,13 @@ class CustomerSummaryAggregator
                     : 0;
 
                 // Skip rows that have nothing useful to show: no sales AND no
-                // contract fee. Keeps the table compact for very long-tail
-                // customers that didn't trade in the window. (A standalone
-                // subsidy with zero rental/sales isn't meaningful to surface.)
-                if ($salesCents === 0 && $locationFeeCents === 0 && $transactionCount === 0) {
+                // contract fee AND no ops jobs. Keeps the table compact for
+                // very long-tail customers that didn't trade in the window.
+                // (A standalone subsidy with zero rental/sales isn't meaningful
+                // to surface.) job_count is included so a customer that only
+                // had a service visit (no sales yet) still surfaces with its
+                // "# of Job" count.
+                if ($salesCents === 0 && $locationFeeCents === 0 && $transactionCount === 0 && $jobCount === 0) {
                     continue;
                 }
 
@@ -357,6 +401,7 @@ class CustomerSummaryAggregator
                     'external_subsidize_cents' => $externalSubsidizeCents,
                     'transaction_count' => $transactionCount,
                     'vend_count' => $vendCount,
+                    'job_count' => $jobCount,
                     'contract_commission_type' => $customer->contract_commission_type,
                     'contract_commission_value' => $customer->contract_commission_value,
                     'contract_commission_value2' => $customer->contract_commission_value2,
@@ -368,17 +413,21 @@ class CustomerSummaryAggregator
         });
 
         if (empty($payloads)) {
-            // Still wipe any stale rows for this month that no longer qualify.
+            // Still wipe any stale rows for this month that no longer qualify —
+            // but leave locked rows intact.
             CustomerPeriodSummary::query()
                 ->where('year_month', $monthStart->toDateString())
+                ->when(!empty($lockedCustomerIds), fn ($q) => $q->whereNotIn('customer_id', $lockedCustomerIds))
                 ->delete();
             return 0;
         }
 
-        // Idempotent overwrite for this month.
-        DB::transaction(function () use ($payloads, $monthStart) {
+        // Idempotent overwrite for this month — excluding locked rows, which
+        // are preserved as the user's frozen snapshot.
+        DB::transaction(function () use ($payloads, $monthStart, $lockedCustomerIds) {
             CustomerPeriodSummary::query()
                 ->where('year_month', $monthStart->toDateString())
+                ->when(!empty($lockedCustomerIds), fn ($q) => $q->whereNotIn('customer_id', $lockedCustomerIds))
                 ->delete();
 
             foreach (array_chunk($payloads, 500) as $chunk) {

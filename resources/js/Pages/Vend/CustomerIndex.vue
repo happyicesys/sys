@@ -949,6 +949,14 @@
 						<SingleSortItem modelName="totals_json->last_3_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->last_3_mth_amount', false)">
 							Last 3Mth
 						</SingleSortItem>
+						<!-- Avg Mthly Sales $ — single projected-monthly figure using the
+							established Avg30dSales convention (30 × AvgDailySales Last30d,
+							see CustomerController/VendController thirty_days_amount_average*30).
+							It is a derived projection (not a stored totals_json field), so the
+							label carries no dedicated sort key. Matching <hr>/figure sits in
+							the TableData below. -->
+						<hr class="border-t border-gray-300 my-2" />
+						<span class="text-[11px] font-semibold text-gray-900">Avg Mthly Sales $</span>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
@@ -1805,6 +1813,19 @@
 								</span>
 							</div>
 						</div>
+						<!-- Avg Mthly Sales $ — projected average month = 30 × AvgDailySales
+							(Last30d), mirroring the Avg30dSales convention used in the
+							Avg30dSales/Full Load ratio. virtual_vend_records_thirty_days_amount_average
+							is already in currency units (divided by 100 in VendResource), so it
+							is only scaled by 30 here — no further exponent division. Rendered
+							outside the calendar-month v-if so it shows even when the
+							current_mth_amount split is absent. -->
+						<hr class="border-t border-gray-300 my-1" />
+						<div class="flex items-center justify-center">
+							<span :class="[vend.is_active || vend.is_testing ? 'text-gray-800 font-semibold' : 'text-gray-400']">
+								{{ operatorCountry.currency_symbol }}{{ ((vend.virtual_vend_records_thirty_days_amount_average || 0) * 30).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+							</span>
+						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1">
@@ -2181,7 +2202,7 @@
 									<span v-if="['PS','PS+U','PSORU'].includes(vend.contract_commission_type)">
 										{{ Number(vend.contract_commission_value) }}%<span
 											v-if="vend.contract_commission_value2 != null && ['PS+U','PSORU'].includes(vend.contract_commission_type)"
-										>+{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value2) }}</span>
+										>{{ vend.contract_commission_type === 'PSORU' ? ' or ' : '+' }}{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value2) }}</span>
 									</span>
 									<span v-else>
 										{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}

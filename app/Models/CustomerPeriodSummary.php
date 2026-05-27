@@ -33,10 +33,14 @@ class CustomerPeriodSummary extends Model
         'external_subsidize_cents',
         'transaction_count',
         'vend_count',
+        'job_count',
         'contract_commission_type',
         'contract_commission_value',
         'contract_commission_value2',
         'contract_ps_term',
+        // Action-triggered lock (see migration add_lock_to_customer_period_summaries).
+        'locked_at',
+        'locked_by',
     ];
 
     protected $casts = [
@@ -49,6 +53,7 @@ class CustomerPeriodSummary extends Model
         'contract_commission_value' => 'decimal:2',
         'contract_commission_value2' => 'decimal:2',
         'contract_ps_term' => 'decimal:2',
+        'locked_at' => 'datetime',
     ];
 
     public function customer()
@@ -59,5 +64,14 @@ class CustomerPeriodSummary extends Model
     public function operator()
     {
         return $this->belongsTo(Operator::class);
+    }
+
+    /**
+     * User who locked this row (null when unlocked). Drives the "Locked by X
+     * at Y" tooltip in the Lock column on the Customer Summary page.
+     */
+    public function lockedBy()
+    {
+        return $this->belongsTo(User::class, 'locked_by');
     }
 }
