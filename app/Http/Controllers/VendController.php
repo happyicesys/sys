@@ -846,10 +846,15 @@ class VendController extends Controller
                     // Hits the (customer_id, year_month) unique index on
                     // customer_period_summaries — cheap even at site scale.
                     $through = \Carbon\Carbon::now()->startOfMonth()->toDateString();
+                    // Floor — keep in lockstep with
+                    // CustomerController::SUMMARY_FLOOR_DATE so this matches the
+                    // Customer Summary page. Pre-floor rows are incomplete Excel
+                    // backfill and excluded from the lifetime sum.
+                    $floor = \App\Http\Controllers\CustomerController::SUMMARY_FLOOR_DATE;
                     $query->leftJoin(DB::raw("(
                 SELECT customer_id, SUM(location_earning_cents) AS accumulate_vending_earning_cents
                 FROM customer_period_summaries
-                WHERE `year_month` <= '{$through}'
+                WHERE `year_month` >= '{$floor}' AND `year_month` <= '{$through}'
                 GROUP BY customer_id
             ) AS accum_ve"), 'accum_ve.customer_id', '=', 'customers.id');
                 })
@@ -1271,9 +1276,14 @@ class VendController extends Controller
                 ->all();
             if (!empty($customerIds)) {
                 $through = Carbon::now()->startOfMonth()->toDateString();
+                // Floor — keep in lockstep with CustomerController::SUMMARY_FLOOR_DATE
+                // so the displayed Accumulated VendEarning matches the Customer
+                // Summary page (and the sort subquery above).
+                $floor = \App\Http\Controllers\CustomerController::SUMMARY_FLOOR_DATE;
                 $accumSums = DB::table('customer_period_summaries')
                     ->selectRaw('customer_id, SUM(location_earning_cents) AS accum')
                     ->whereIn('customer_id', $customerIds)
+                    ->where('year_month', '>=', $floor)
                     ->where('year_month', '<=', $through)
                     ->groupBy('customer_id')
                     ->pluck('accum', 'customer_id');
