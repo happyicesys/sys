@@ -568,7 +568,71 @@ class CustomerSummaryAggregator
                 'version' => self::versionActiveAt($versions, $segStart->copy()->endOfDay()),
             ];
         }
-        return $segments;
+
+        // Collapse adjacent segments whose contract values are IDENTICAL. A
+        // customer_contract_logs row only marks a real split when the contract
+        // it points to actually differs from the one before it — a re-save, a
+        // seeded duplicate, or a metadata-only edit (remarks / auto-renewal /
+        // notice period) must NOT carve the month into two financially
+        // identical rows. By merging here, splitting depends on a genuine
+        // change in plan / fees / contract dates, regardless of how the log
+        // rows were written. If everything collapses to one segment the caller
+        // keeps the single whole-month row.
+        $merged = [];
+        foreach ($segments as $seg) {
+            if (!empty($merged)) {
+                $lastIdx = count($merged) - 1;
+                if (self::contractVersionsEquivalent($merged[$lastIdx]['version'], $seg['version'])) {
+                    // Extend the previous segment over this one (same contract).
+                    $merged[$lastIdx]['end'] = $seg['end'];
+                    continue;
+                }
+            }
+            $merged[] = $seg;
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Whether two contract-log versions represent the SAME deal for reporting /
+     * segmentation purposes. Compares only the fields that change the money or
+     * the contract period — commission plan, PS term, effective external
+     * subsidy, and the contract from/until dates — with type-aware
+     * normalisation (so "9" == "9.00", a date == its ISO form, etc.).
+     *
+     * Deliberately ignores remarks, auto-renewal and notice period: those are
+     * metadata that don't alter Location Fees or the period boundary, so a
+     * change to them alone should never split a month into duplicate rows.
+     * (The "New" badge still surfaces those via the contract log.)
+     *
+     * null == null (no contract on either side). null vs a version = different.
+     */
+    protected static function contractVersionsEquivalent($a, $b): bool
+    {
+        if ($a === null && $b === null) {
+            return true;
+        }
+        if ($a === null || $b === null) {
+            return false;
+        }
+
+        $num = fn ($v) => ($v === null || $v === '') ? null : number_format((float) $v, 4, '.', '');
+        $date = fn ($v) => $v === null ? null : Carbon::parse($v)->toDateString();
+        $str = fn ($v) => $v === null ? '' : trim((string) $v);
+        // Effective subsidy: amount only counts when the toggle is on, so a
+        // stale amount behind an off toggle doesn't read as a difference.
+        $effSub = fn ($v) => ((bool) $v->is_external_subsidize && $v->external_subsidize_amount !== null)
+            ? number_format((float) $v->external_subsidize_amount, 4, '.', '')
+            : '0';
+
+        return $str($a->contract_commission_type) === $str($b->contract_commission_type)
+            && $num($a->contract_commission_value) === $num($b->contract_commission_value)
+            && $num($a->contract_commission_value2) === $num($b->contract_commission_value2)
+            && $num($a->contract_ps_term) === $num($b->contract_ps_term)
+            && $effSub($a) === $effSub($b)
+            && $date($a->contract_until ?? null) === $date($b->contract_until ?? null)
+            && $date($a->contract_from ?? null) === $date($b->contract_from ?? null);
     }
 
     /**

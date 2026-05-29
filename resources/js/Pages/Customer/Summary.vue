@@ -282,6 +282,7 @@
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
               {{ totals.expiring_in_30d_count || 0 }}
             </dd>
+            <dd class="mt-0.5 text-xs italic text-gray-400">excludes auto-renewal contracts</dd>
           </div>
         </dl>
       </div>

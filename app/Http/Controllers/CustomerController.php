@@ -573,6 +573,10 @@ class CustomerController extends Controller
         //    both ends, upcoming-only — already-expired contracts are
         //    excluded). App TZ is operator TZ on this per-country deployment,
         //    so Carbon::today() is correct without explicit conversion.
+        //
+        //    Auto-renewing contracts are EXCLUDED — a contract that renews
+        //    itself isn't really "expiring", so only non-auto-renewal
+        //    contracts (false OR not set) count toward this card.
         $today = \Carbon\Carbon::today();
         $expiringIn30dCount = Customer::query()
             ->whereIn('id', $customerIds)
@@ -581,6 +585,10 @@ class CustomerController extends Controller
                 $today->toDateString(),
                 $today->copy()->addDays(30)->toDateString(),
             ])
+            ->where(function ($q) {
+                $q->where('contract_auto_renewal', false)
+                  ->orWhereNull('contract_auto_renewal');
+            })
             ->count();
 
         $totals['no_contract_attachment_count'] = (int) $noContractAttachmentCount;
@@ -2797,14 +2805,53 @@ class CustomerController extends Controller
                 'contract_notice_period', 'contract_remarks',
             ];
             $contractChanged = false;
+
+            // Field groups for type-aware comparison. A naive (string) compare
+            // produced FALSE POSITIVES — e.g. a bool stored as true ("1") vs a
+            // form value of "true", or a decimal stored "9.00" vs an incoming
+            // "9", or a date "2027-12-27" vs an ISO "2027-12-27T00:00:00". Those
+            // spurious diffs wrote a new customer_contract_logs version on every
+            // re-save, which in turn split the month into segments and lit the
+            // "New" badge even though nothing actually changed. Normalise each
+            // field by its real type before comparing so only genuine edits log.
+            $boolFields = ['is_external_subsidize', 'contract_auto_renewal'];
+            $numFields  = ['contract_commission_value', 'contract_commission_value2', 'contract_ps_term', 'external_subsidize_amount'];
+            $dateFields = ['contract_from', 'contract_until'];
+
+            $normBool = fn ($v) => filter_var($v, FILTER_VALIDATE_BOOLEAN);
+            $normNum  = function ($v) {
+                if ($v === null || $v === '') {
+                    return null;
+                }
+                return number_format((float) $v, 4, '.', '');
+            };
+            $normDate = function ($v) {
+                if ($v === null || $v === '') {
+                    return null;
+                }
+                try {
+                    return \Carbon\Carbon::parse($v)->toDateString();
+                } catch (\Throwable $e) {
+                    return (string) $v;
+                }
+            };
+            $normStr = fn ($v) => $v === null ? '' : trim((string) $v);
+
             foreach ($contractFields as $field) {
                 $incoming = $requestCustomerArr[$field] ?? null;
                 $existing = $customer->{$field};
-                // normalise for comparison
-                if ($existing instanceof \Carbon\Carbon) {
-                    $existing = $existing->toDateString();
+
+                if (in_array($field, $boolFields, true)) {
+                    $changed = $normBool($incoming) !== $normBool($existing);
+                } elseif (in_array($field, $numFields, true)) {
+                    $changed = $normNum($incoming) !== $normNum($existing);
+                } elseif (in_array($field, $dateFields, true)) {
+                    $changed = $normDate($incoming) !== $normDate($existing);
+                } else {
+                    $changed = $normStr($incoming) !== $normStr($existing);
                 }
-                if ((string) $incoming !== (string) $existing) {
+
+                if ($changed) {
                     $contractChanged = true;
                     break;
                 }
