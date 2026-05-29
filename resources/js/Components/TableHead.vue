@@ -1,7 +1,7 @@
 <template>
   <th scope="col"
     :class="[
-      'sticky top-0 border-b-2 border-gray-500 py-3 pl-3 pr-3 text-center text-[11px] font-semibold text-gray-900 sm:pl-2 lg:pl-2',
+      'sticky top-0 border-b border-gray-300 py-3 pl-3 pr-3 text-center text-[11px] font-semibold text-gray-900 sm:pl-2 lg:pl-2',
       frozen
         ? 'z-30 bg-gray-100'
         : 'z-10 bg-gray-50 bg-opacity-75 backdrop-blur-3xl backdrop-filter',
