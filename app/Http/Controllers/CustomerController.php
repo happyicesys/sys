@@ -215,8 +215,12 @@ class CustomerController extends Controller
         // belong to customer_period_summaries (year_month, sales_cents, ...).
         // We must NOT let them flow into Customer::filterIndex(), which would
         // try to ORDER BY those columns on the customers table.
-        $summarySortKey = $request->sortKey ?: 'year_month';
-        $summarySortBy = $request->sortBy ?: 'false';
+        // Default sort: Machine ID ascending — matches the Vue side's
+        // initial filter so the column header indicator and the actual
+        // server order agree on first page load. sortBy 'true' = asc per
+        // the filter_var() conversion further below.
+        $summarySortKey = $request->sortKey ?: 'machine_id';
+        $summarySortBy = $request->sortBy ?: 'true';
 
         $request->merge([
             'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
@@ -437,29 +441,42 @@ class CustomerController extends Controller
             $summariesQuery->orderBy('customer_id', 'asc');
         }
 
+        // NULLs always sort to the END of the list, regardless of asc/desc.
+        // Pattern: `(expr) IS NULL ASC` evaluates 0 for non-null and 1 for
+        // null, so non-nulls land first; the user's direction is applied as
+        // the secondary order. Bindings (if any) are repeated because each
+        // orderByRaw consumes its own copy at SQL-compile time.
+        $nullsLastRaw = function (string $expr, string $dir, array $bindings = []) use ($summariesQuery) {
+            $summariesQuery->orderByRaw("({$expr}) IS NULL ASC", $bindings);
+            $summariesQuery->orderByRaw("({$expr}) {$dir}", $bindings);
+        };
+
         if ($sortKey === 'machine_id') {
-            $summariesQuery->orderByRaw(
-                '(SELECT v.code FROM vends v
+            $nullsLastRaw(
+                'SELECT v.code FROM vends v
                   WHERE v.customer_id = customer_period_summaries.customer_id
-                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) ' . $sortDirection
+                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1',
+                $sortDirection
             );
         } elseif ($sortKey === 'machine_prefix') {
-            $summariesQuery->orderByRaw(
-                '(SELECT vp.name FROM vends v
+            $nullsLastRaw(
+                'SELECT vp.name FROM vends v
                   LEFT JOIN vend_prefixes vp ON vp.id = v.vend_prefix_id
                   WHERE v.customer_id = customer_period_summaries.customer_id
-                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) ' . $sortDirection
+                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1',
+                $sortDirection
             );
         } elseif ($sortKey === 'external_subsidize') {
             // External Subsidize — per-period snapshot stored on the summary
             // row (locked history), already in cents.
-            $summariesQuery->orderBy('external_subsidize_cents', $sortDirection);
+            $nullsLastRaw('customer_period_summaries.external_subsidize_cents', $sortDirection);
         } elseif ($sortKey === 'net_loc_fee') {
             // Net Loc Fee = Location Fees − External Subsidize, both in cents
             // and both stored on the summary row.
-            $summariesQuery->orderByRaw(
-                '(customer_period_summaries.location_fees_cents
-                  - customer_period_summaries.external_subsidize_cents) ' . $sortDirection
+            $nullsLastRaw(
+                'customer_period_summaries.location_fees_cents
+                  - customer_period_summaries.external_subsidize_cents',
+                $sortDirection
             );
         } elseif ($sortKey === 'accumulate_vending_earning') {
             // Lifetime running sum of location_earning_cents for THIS row's
@@ -472,52 +489,59 @@ class CustomerController extends Controller
             // Efficient on the existing (customer_id, year_month) unique
             // index: each subquery is an index range scan, no full table
             // scan.
-            $summariesQuery->orderByRaw(
-                '(SELECT COALESCE(SUM(s2.location_earning_cents), 0)
+            $nullsLastRaw(
+                'SELECT COALESCE(SUM(s2.location_earning_cents), 0)
                   FROM customer_period_summaries s2
                   WHERE s2.customer_id = customer_period_summaries.customer_id
-                    AND s2.`year_month` <= customer_period_summaries.`year_month`) ' . $sortDirection
+                    AND s2.`year_month` <= customer_period_summaries.`year_month`',
+                $sortDirection
             );
         } elseif ($sortKey === 'customer_name') {
             // Customer name lives on the customers table; correlate by id.
-            $summariesQuery->orderByRaw(
-                '(SELECT c.name FROM customers c
-                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+            $nullsLastRaw(
+                'SELECT c.name FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
             );
         } elseif ($sortKey === 'selling_price_type') {
             // Ref Price (RP{selling_price_type}) — customers.selling_price_type.
-            $summariesQuery->orderByRaw(
-                '(SELECT c.selling_price_type FROM customers c
-                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+            $nullsLastRaw(
+                'SELECT c.selling_price_type FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
             );
         } elseif ($sortKey === 'begin_date') {
             // Begin Date — customers.begin_date.
-            $summariesQuery->orderByRaw(
-                '(SELECT c.begin_date FROM customers c
-                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+            $nullsLastRaw(
+                'SELECT c.begin_date FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
             );
         } elseif ($sortKey === 'contract_until') {
             // Contract End Date — customers.contract_until.
-            $summariesQuery->orderByRaw(
-                '(SELECT c.contract_until FROM customers c
-                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+            $nullsLastRaw(
+                'SELECT c.contract_until FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
             );
         } elseif ($sortKey === 'location_type') {
             // Location Type name — customers.location_type_id → location_types.name.
-            $summariesQuery->orderByRaw(
-                '(SELECT lt.name FROM customers c
+            $nullsLastRaw(
+                'SELECT lt.name FROM customers c
                   LEFT JOIN location_types lt ON lt.id = c.location_type_id
-                  WHERE c.id = customer_period_summaries.customer_id) ' . $sortDirection
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
             );
         } elseif ($sortKey === 'contract_attachment') {
             // Contract Attachment — sort by the latest contract upload date
             // (most recent FILE_TYPE_CONTRACT attachment). Customers with no
-            // contract resolve to NULL and sort to the end.
-            $summariesQuery->orderByRaw(
-                '(SELECT MAX(a.created_at) FROM attachments a
+            // contract resolve to NULL and sort to the end (via nullsLastRaw).
+            $nullsLastRaw(
+                'SELECT MAX(a.created_at) FROM attachments a
                   WHERE a.modelable_type = ?
                     AND a.modelable_id = customer_period_summaries.customer_id
-                    AND a.type = ?) ' . $sortDirection,
+                    AND a.type = ?',
+                $sortDirection,
                 ['App\\Models\\Customer', Customer::FILE_TYPE_CONTRACT]
             );
         } elseif ($sortKey === 'gross_earning_rate') {
@@ -525,14 +549,18 @@ class CustomerController extends Controller
             //   gross_earning_cents / (sales_cents / (1 + operator.gst%/100))
             // operator_id is stored on the summary row, so we correlate to the
             // operators table for the GST rate (0 when none configured).
-            $summariesQuery->orderByRaw(
-                '(customer_period_summaries.gross_earning_cents /
+            $nullsLastRaw(
+                'customer_period_summaries.gross_earning_cents /
                   NULLIF(customer_period_summaries.sales_cents /
                     (1 + COALESCE((SELECT o.gst_vat_rate FROM operators o
-                                   WHERE o.id = customer_period_summaries.operator_id), 0) / 100), 0)) ' . $sortDirection
+                                   WHERE o.id = customer_period_summaries.operator_id), 0) / 100), 0)',
+                $sortDirection
             );
         } else {
-            $summariesQuery->orderBy($sortKey, $sortDirection);
+            // Whitelisted scalar column on customer_period_summaries (e.g.
+            // year_month / sales_cents / …). Most are NOT NULL by schema, but
+            // route through nullsLastRaw for consistency.
+            $nullsLastRaw($sortKey, $sortDirection);
         }
 
         // Final tie-breaker: customer_id (in case the multi-month branch

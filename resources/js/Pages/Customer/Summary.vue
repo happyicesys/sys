@@ -1625,8 +1625,12 @@ const filters = ref({
   period_locked: '',
   // Location Fee Paid? filter ('all' | 'true' = paid | 'false' = unpaid).
   location_fee_paid: '',
-  sortKey: 'year_month',
-  sortBy: false,
+  // Default sort: Machine ID ascending. The controller maps sortBy boolean
+  // → 'asc'/'desc' (true = asc); the 'machine_id' sortKey is resolved server-
+  // side by ordering on the latest-bound vend's code (see CustomerController::
+  // summary's machine_id orderByRaw branch).
+  sortKey: 'machine_id',
+  sortBy: true,
   numberPerPage: 100,
 });
 
