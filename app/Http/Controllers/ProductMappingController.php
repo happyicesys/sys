@@ -151,7 +151,11 @@ class ProductMappingController extends Controller
                     'productMappingItemsNormalSequence.product:id,code,name,is_active',
                     'productMappingItemsNormalSequence.product.thumbnail',
                     'vends' => function ($query) use ($request) {
-                        $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed', 'binded_at', 'updated_at');
+                        // vend_transaction_totals_json — surfaces the L30d Sales
+                        // chip per binded machine in ProductMapping/Index.vue
+                        // (thirty_days_amount / thirty_days_count), mirroring
+                        // the rolling-totals convention used on Vend/CustomerIndex.vue.
+                        $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed', 'binded_at', 'updated_at', 'vend_transaction_totals_json');
 
                         if ($request->vendStatus and $request->vendStatus !== 'all') {
                             switch ($request->vendStatus) {
@@ -173,7 +177,11 @@ class ProductMappingController extends Controller
                             }
                         }
                     },
-                    'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
+                    // selling_price_type — drives the RP1..RP5 chip we render
+                    // next to each binded machine in ProductMapping/Index.vue
+                    // (same source customers.selling_price_type used on the
+                    // Vend/CustomerIndex Ref Price column).
+                    'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code,selling_price_type',
                     'vends.vendPrefix:id,name',
                     'vends.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
                     'vends.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',

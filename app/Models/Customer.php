@@ -31,6 +31,12 @@ class Customer extends Model
 
     const RUNNING_NUMBER_INIT = 20000;
 
+    // Customer lifecycle status. Stored on customers.status_id (integer).
+    // STATUS_POTENTIAL was added when the Customer/Edit "Is Active?" Yes/No
+    // field was replaced by a 5-value "Status" dropdown. The legacy is_active
+    // boolean is now a derived mirror: is_active = (status_id === STATUS_ACTIVE),
+    // kept in sync on save so existing infra reading is_active keeps working.
+    const STATUS_POTENTIAL = 5;
     const STATUS_NEW = 4;
     const STATUS_PENDING = 3;
     const STATUS_ACTIVE = 2;
@@ -43,11 +49,14 @@ class Customer extends Model
     const FILE_TYPE_PHOTO = 2;
     const FILE_TYPE_CONTRACT = 3;
 
+    // Order here drives the dropdown order in the UI (Customer/Edit,
+    // Customer/Index filter, etc.): Potential, New, Active, Pending, Inactive.
     const STATUSES_MAPPING = [
+        self::STATUS_POTENTIAL => 'Potential',
         self::STATUS_NEW => 'New',
-        self::STATUS_PENDING => 'Pending',
         self::STATUS_ACTIVE => 'Active',
-        self::STATUS_INACTIVE => 'Not Active',
+        self::STATUS_PENDING => 'Pending',
+        self::STATUS_INACTIVE => 'Inactive',
     ];
 
     // Notice Period dropdown options for the Placement Contract Detail
@@ -109,6 +118,7 @@ class Customer extends Model
         'begin_date' => 'datetime',
         'contract_auto_renewal' => 'boolean',
         'is_external_subsidize' => 'boolean',
+        'is_gst_registered' => 'boolean',
         'contract_from' => 'date',
         'contract_until' => 'date',
         'contract_detail_updated_at' => 'datetime',
@@ -161,6 +171,18 @@ class Customer extends Model
         'first_transaction_id',
         'frequency_per_week_status',
         'name',
+        // Read-only CMS mirror scalars (see migration
+        // 2026_05_27_000000_add_cms_mirror_fields_to_customers and the
+        // UpdateCustomerCmsFields job). Only written by the CMS sync,
+        // never edited in mark1.
+        'company_remark',
+        'site_name',
+        'cost_rate',
+        'payterm',
+        // "Payment To" tracking — sys-only (who Location Fees are paid to).
+        // See migration 2026_05_27_010000_add_payment_to_and_gst_registered.
+        'payment_to',
+        'is_gst_registered',
         'is_active',
         'is_restricted_access',
         'last_invoice_date',
@@ -519,7 +541,11 @@ class Customer extends Model
                 $query->where('customers.id', '=', ($search - 20000));
             })
             ->when($request->selling_price_type, fn($query, $input) => $query->where('selling_price_type', $input))
-            ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
+            ->when($request->status, function ($query, $input) {
+                if ($input != 'all') {
+                    $query->where('status_id', $input);
+                }
+            })
             ->when($request->vend_code, function ($query, $search) {
                 $query->whereIn(
                     'customers.id',

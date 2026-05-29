@@ -64,8 +64,8 @@
               Customer Status
             </label>
             <MultiSelect
-              v-model="filters.is_active"
-              :options="activeOptions"
+              v-model="filters.status"
+              :options="statusOptions"
               trackBy="id"
               valueProp="id"
               label="value"
@@ -749,16 +749,10 @@
                     <div class="flex flex-col space-y-2">
                       <span>
                         <div
-                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-green-300"
-                          v-if="customer.is_active"
+                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full"
+                          :class="customerStatusClass(customer)"
                         >
-                          Active
-                        </div>
-                        <div
-                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-red-300"
-                          v-if="!customer.is_active"
-                        >
-                          Not Active
+                          {{ customer.status_name || '—' }}
                         </div>
                       </span>
                       <span>
@@ -983,14 +977,28 @@ onMounted(() => {
       return { id: data.id, value: data.name };
     }),
   ];
+  // Customer Status options come from the controller (Customer::STATUSES_MAPPING
+  // with an 'all' entry prepended). Default the filter to Active so the list
+  // opens on active customers, matching the old is_active=true default.
+  statusOptions.value = (props.statuses ?? []).map((s) => ({ id: s.id, value: s.name }));
   filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0];
-  filters.value.is_active = booleanOptions.value[1];
+  filters.value.status = statusOptions.value.find((s) => s.id === 2) ?? statusOptions.value[0];
   filters.value.is_binded_vend = booleanOptions.value[0];
   filters.value.is_cms = booleanOptions.value[0];
   filters.value.location_types = [locationTypeOptions.value.find((locationType) => locationType.id == 'all')].filter(Boolean);
   filters.value.operators = [operatorOptions.value.find((operator) => operator.id == 'all')].filter(Boolean);
   filters.value.vend_model_id = vendModelOptions.value[0];
 });
+
+  // Badge colour for the Customer Status column: Active=green, Inactive=red,
+  // everything else (Potential / New / Pending) = amber.
+  function customerStatusClass(customer) {
+    switch (customer.status_id) {
+      case 2:  return 'bg-green-300';
+      case 1:  return 'bg-red-300';
+      default: return 'bg-amber-300';
+    }
+  }
 
   function getVendRecordsAmountAverageDayClass(amount) {
     if(amount >= 3000) {
@@ -1048,7 +1056,7 @@ function onSearchFilterUpdated() {
       frequency_per_week_status: filters.value.frequency_per_week_status.id,
       is_binded_vend: filters.value.is_binded_vend.id,
       is_cms: filters.value.is_cms.id,
-      is_active: filters.value.is_active.id,
+      status: filters.value.status?.id,
       location_types: filters.value.location_types.map((locationType) => locationType.id),
       operators: filters.value.operators.filter(operator => operator).map((operator) => operator.id),
       preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
@@ -1090,7 +1098,7 @@ function onExportExcelClicked() {
       frequency_per_week_status: filters.value.frequency_per_week_status?.id,
       is_binded_vend: filters.value.is_binded_vend?.id,
       is_cms: filters.value.is_cms?.id,
-      is_active: filters.value.is_active?.id,
+      status: filters.value.status?.id,
       location_types: filters.value.location_types.map((locationType) => locationType.id),
       operators: filters.value.operators.filter(o => o).map((o) => o.id),
       preferredDays: filters.value.preferredDays.map((d) => d.id),

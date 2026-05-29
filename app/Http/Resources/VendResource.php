@@ -69,6 +69,7 @@ class VendResource extends JsonResource
                 : null,
             'last_thirty_days_stock_in_amount' => isset($this->last_thirty_days_stock_in_amount) ? $this->last_thirty_days_stock_in_amount / 100 : 0,
             'last_thirty_days_stock_in_qty' => isset($this->last_thirty_days_stock_in_qty) ? $this->last_thirty_days_stock_in_qty : 0,
+            'last_thirty_days_jobs_done_count' => isset($this->last_thirty_days_jobs_done_count) ? (int) $this->last_thirty_days_jobs_done_count : 0,
             'thirty_days_stock_in_delta_amount' => isset($this->thirty_days_stock_in_delta_amount) ? $this->thirty_days_stock_in_delta_amount : 0,
             'thirty_days_stock_in_delta_percent' => isset($this->thirty_days_stock_in_delta_percent) ? $this->thirty_days_stock_in_delta_percent : 0,
             'last_updated_at' => isset($this->last_updated_at) ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,

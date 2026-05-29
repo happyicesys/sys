@@ -313,14 +313,20 @@
                       Count (Success Only)
                     </TableHeadSort>
                     <TableHeadSort v-if="showProductErrorCol" modelName="error_count_no_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_no_4_5')">
-                      Count (Error #3, #6, #7, #9)<br>Likely Stock Lost
+                      Count (Error #3, #6, #7, #9)<br>Likely Stock Lost<br><span class="font-normal text-xs">(Error Rate)</span>
                     </TableHeadSort>
                     <TableHeadSort v-if="showProductErrorCol" modelName="error_count_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_4_5')">
                       Count (Error #4, #5)<br>Unlikely Stock Lost as Motor Not Turning
                     </TableHeadSort>
-                    <TableHeadSort v-if="showProductErrorCol" modelName="channel_availability" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('channel_availability')">
-                      Channel Availability<br><span class="font-normal text-xs">(Total active channels × days)</span>
+                    <TableHeadSort v-if="showProductErrorCol" modelName="machine_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('machine_count')">
+                      Count of Machine<br><span class="font-normal text-xs">(as of last day of period)</span>
                     </TableHeadSort>
+                    <TableHeadSort v-if="showProductErrorCol" modelName="channel_availability" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('channel_availability')">
+                      Channel Availability<br><span class="font-normal text-xs">(In-stock channels × days)</span>
+                    </TableHeadSort>
+                    <TableHead v-if="showProductErrorCol">
+                      Average Daily Count<br>per Channel
+                    </TableHead>
                     <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount')">
                       Amount
                     </TableHeadSort>
@@ -334,12 +340,19 @@
                     </TableData>
                     <TableData v-if="showProductErrorCol" inputClass="text-right font-semibold">
                       {{(totals['total_error_count_no_4_5'] ?? 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                      <div class="text-xs font-normal text-gray-500">{{ formatPercent(totalErrorRate) }}</div>
                     </TableData>
                     <TableData v-if="showProductErrorCol" inputClass="text-right font-semibold">
                       {{(totals['total_error_count_4_5'] ?? 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                     </TableData>
                     <TableData v-if="showProductErrorCol" inputClass="text-right font-semibold">
+                      {{(totals['total_machine_count'] ?? 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    </TableData>
+                    <TableData v-if="showProductErrorCol" inputClass="text-right font-semibold">
                       {{(totals['total_channel_availability'] ?? 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    </TableData>
+                    <TableData v-if="showProductErrorCol" inputClass="text-right font-semibold">
+                      {{ formatRatio(totalAvgDailyPerChannel) }}
                     </TableData>
                     <TableData inputClass="text-right font-semibold">
                       {{totals['total_amount'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
@@ -380,13 +393,30 @@
                       </TableData>
                       <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ (item.error_count_no_4_5 || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                        <div class="text-xs text-gray-500">{{ formatPercent(errorRate(item.count, item.error_count_no_4_5)) }}</div>
                       </TableData>
                       <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ (item.error_count_4_5 || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </TableData>
                       <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
+                        <span v-if="item.machine_count !== null && item.machine_count !== undefined">
+                          {{ item.machine_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                        </span>
+                        <span v-else class="text-gray-400 text-xs">—</span>
+                      </TableData>
+                      <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         <span v-if="item.channel_availability !== null && item.channel_availability !== undefined">
                           {{ item.channel_availability.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                        </span>
+                        <span v-else class="text-gray-400 text-xs">—</span>
+                      </TableData>
+                      <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
+                        <span
+                          v-if="avgDailyPerChannel(item.count, item.channel_availability) !== null"
+                          :class="totalAvgDailyPerChannel !== null && avgDailyPerChannel(item.count, item.channel_availability) >= totalAvgDailyPerChannel
+                            ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'"
+                        >
+                          {{ formatRatio(avgDailyPerChannel(item.count, item.channel_availability)) }}
                         </span>
                         <span v-else class="text-gray-400 text-xs">—</span>
                       </TableData>
@@ -501,6 +531,43 @@ const showVendCustomerCols = computed(() =>
 
 const showProductErrorCol = computed(() =>
   currentTab.value.slug === 'product'
+);
+
+// --- Product tab derived metrics ---------------------------------------
+// Error Rate = Likely-Stock-Lost errors / (Success + Likely-Stock-Lost).
+// Excludes #4/#5 (motor-not-turning) errors, matching the column it sits under.
+function errorRate(successCount, errorNo45) {
+  const success = Number(successCount) || 0;
+  const err = Number(errorNo45) || 0;
+  const den = success + err;
+  return den > 0 ? (err / den) * 100 : null;
+}
+
+// Average Daily Count per Channel = Success count / Channel Availability.
+function avgDailyPerChannel(successCount, channelAvailability) {
+  const avail = Number(channelAvailability) || 0;
+  return avail > 0 ? (Number(successCount) || 0) / avail : null;
+}
+
+function formatPercent(value) {
+  return value === null || value === undefined
+    ? '—'
+    : value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+}
+
+function formatRatio(value) {
+  return value === null || value === undefined
+    ? '—'
+    : value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+const totalErrorRate = computed(() =>
+  errorRate(props.totals?.total_count, props.totals?.total_error_count_no_4_5)
+);
+
+// Total average is the benchmark used to colour each SKU green/red.
+const totalAvgDailyPerChannel = computed(() =>
+  avgDailyPerChannel(props.totals?.total_count, props.totals?.total_channel_availability)
 );
 
 watch(currentPath, (p) => { currentUrl.value = p; });

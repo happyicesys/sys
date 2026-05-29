@@ -182,6 +182,15 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->name('customers.summary.lock');
         Route::post('/summary/{id}/unlock', [CustomerController::class, 'unlockCustomerPeriodSummary'])
             ->name('customers.summary.unlock');
+        // Paid / Unpaid for a locked Customer Summary row. Paid = same
+        // permission as Lock (admin-access customers); Unpaid = same as
+        // Unlock (superadmin / admin) since it reverses a recorded action.
+        // Unlock is server-blocked when paid_at IS NOT NULL — the user has
+        // to Unpaid first (the UI also disables the Unlock button).
+        Route::post('/summary/{id}/paid', [CustomerController::class, 'markPaidCustomerPeriodSummary'])
+            ->name('customers.summary.paid');
+        Route::post('/summary/{id}/unpaid', [CustomerController::class, 'markUnpaidCustomerPeriodSummary'])
+            ->name('customers.summary.unpaid');
         // Performance Report email send (button on Customer Summary > Action).
         // Currently a stub — the actual queued send is wired in a follow-up.
         Route::post('/{id}/send-performance-report', [CustomerController::class, 'sendPerformanceReport'])

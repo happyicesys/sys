@@ -27,15 +27,10 @@
               <div class="sm:col-span-6 flex space-x-1">
                 <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
-                    :class="[customer.is_active ? 'bg-green-300' : 'bg-red-300']"
+                    :class="customer.status_id === 2 ? 'bg-green-300' : (customer.status_id === 1 ? 'bg-red-300' : 'bg-amber-300')"
                     v-if="customer.id"
                 >
-                  <span v-if="customer.is_active">
-                    Active
-                  </span>
-                  <span v-if="!customer.is_active">
-                    Not Active
-                  </span>
+                  <span>{{ customer.status_name || '—' }}</span>
                 </div>
                 <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-green-300"
@@ -55,7 +50,14 @@
                 </div> -->
               </div>
 
-              <fieldset class="sm:col-span-6" v-if="!customer.id">
+              <!--
+                "Pull From CMS" create option disabled — we're moving toward
+                detaching the mark1↔CMS link. The Create flow is forced to
+                "Create New Customer" via isExisting=0 below. Keep the markup
+                commented (not deleted) so it can be restored quickly if the
+                CMS link is re-enabled.
+              -->
+              <fieldset class="sm:col-span-6" v-if="false">
                 <legend class="sr-only">Plan</legend>
                 <div class="flex space-x-5">
                   <div class="relative flex items-start" v-if="cmsEndpoint">
@@ -365,7 +367,9 @@ const booleanStrictOptions = ref([
 
 const cmsCustomerOptions = ref([])
 const countryOptions = ref([])
-const isExisting = ref(props.cmsEndpoint ? 1 : 0)
+// Pull-From-CMS path is disabled — force the Create page into the
+// "Create New Customer" branch regardless of whether cmsEndpoint is set.
+const isExisting = ref(0)
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const vendOptions = ref([])
@@ -401,7 +405,8 @@ function getDefaultForm() {
     // },
     vend_id: '',
     cms_customer_id: '',
-    is_existing: 1,
+    // Pull-From-CMS path is disabled in the UI; always start as "Create New".
+    is_existing: 0,
     selling_price_type: '',
   }
 }

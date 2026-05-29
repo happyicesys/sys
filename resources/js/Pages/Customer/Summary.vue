@@ -3,9 +3,15 @@
 
   <BreezeAuthenticatedLayout>
     <template #header>
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Customer Summary
-      </h2>
+      <div class="flex flex-col">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+          Customer Summary
+        </h2>
+        <p class="text-sm text-black leading-tight mt-1">
+          (Data fr 230101).<br />
+          First calculation based on 2605 terms
+        </p>
+      </div>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
@@ -230,7 +236,7 @@
           income (negative cents) is visually distinct from expense. Vend
           Earnings flips red when the result is net-negative.
         -->
-        <dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
             <dt class="truncate text-sm font-medium text-gray-500">Total Sales</dt>
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
@@ -261,18 +267,53 @@
               {{ formatMoney(totals.location_earning_cents) }}
             </dd>
           </div>
+          <!--
+            Distinct-customer counts scoped to the same filtered customer
+            set as the money totals above.
+          -->
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+            <dt class="truncate text-sm font-medium text-gray-500"># without Contract Attachment</dt>
+            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+              {{ totals.no_contract_attachment_count || 0 }}
+            </dd>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+            <dt class="truncate text-sm font-medium text-gray-500"># To Be Expired in 30ds</dt>
+            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+              {{ totals.expiring_in_30d_count || 0 }}
+            </dd>
+          </div>
         </dl>
       </div>
 
       <!-- Table -->
       <div class="mt-6 flex flex-col">
         <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
+          <!--
+            max-h + overflow-scroll mirror CustomerIndex.vue — a fixed-height
+            scroll container is what lets TableHead's built-in
+            `sticky top-0 z-10` actually pin the header while the body
+            scrolls (without max-h, the page itself scrolls and sticky has
+            no containing block to stick to).
+          -->
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll max-h-[900px] md:max-h-[1500px]">
             <table class="min-w-full border-separate" style="border-spacing: 0">
               <thead class="bg-gray-100">
                 <tr class="divide-x divide-gray-200">
-                  <TableHead>#</TableHead>
-                  <TableHead>
+                  <!--
+                    Frozen first 2 columns — sticky horizontally so they stay
+                    visible while the user scrolls right. Cumulative left
+                    offsets must match the column widths so cells line up:
+                      #        → w-[50px],  left 0
+                      Customer → w-[170px], left 50
+                    Each frozen header gets opaque bg-gray-100 (via TableHead's
+                    frozen path) so scrolling content doesn't show through.
+                    Each frozen TableData below mirrors the same width + left
+                    offset, plus a row-alternating bg-* so the customer-group
+                    stripe stays visually continuous across the freeze line.
+                  -->
+                  <TableHead :frozen="true" frozenLeft="0px" inputClass="w-[50px] min-w-[50px]">#</TableHead>
+                  <TableHead :frozen="true" frozenLeft="50px" inputClass="w-[170px] min-w-[170px] border-r-2 border-gray-500">
                     <div class="flex flex-col space-y-1">
                       <SingleSortItem modelName="customer_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_name')">
                         Customer
@@ -288,7 +329,13 @@
                       </SingleSortItem>
                     </div>
                   </TableHead>
-                  <TableHead inputClass="w-[220px] max-w-[220px]">Address</TableHead>
+                  <TableHead inputClass="w-[220px] max-w-[220px]">
+                    <div class="flex flex-col space-y-1">
+                      <span>Address</span>
+                      <span>Company / Name</span>
+                      <span>Contact Person</span>
+                    </div>
+                  </TableHead>
                   <TableHead>
                     <SingleSortItem modelName="machine_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('machine_id')">
                       Machine ID
@@ -414,6 +461,16 @@
                       <span>Notice Period</span>
                     </div>
                   </TableHead>
+                  <TableHead inputClass="min-w-[150px] max-w-[150px]">
+                    <div class="flex flex-col space-y-1">
+                      <span>Customer Tag</span>
+                      <span>Customer Note</span>
+                    </div>
+                  </TableHead>
+                  <!-- Period Verify & Lock — action-triggered freeze of this
+                       month's figures. Sits after Customer Tag/Note; Action
+                       remains the rightmost column. -->
+                  <TableHead>Period Verify & Lock</TableHead>
                   <TableHead>
                     <template v-if="bulkMode">
                       <label class="inline-flex items-center space-x-1 cursor-pointer">
@@ -428,14 +485,6 @@
                     </template>
                     <template v-else>Action</template>
                   </TableHead>
-                  <TableHead inputClass="min-w-[150px] max-w-[150px]">
-                    <div class="flex flex-col space-y-1">
-                      <span>Customer Tag</span>
-                      <span>Customer Note</span>
-                    </div>
-                  </TableHead>
-                  <!-- Lock — action-triggered freeze of this month's figures. -->
-                  <TableHead>Lock</TableHead>
                 </tr>
               </thead>
               <tbody class="bg-white">
@@ -452,13 +501,28 @@
                     customerGroupIndex(rowIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-100',
                   ]"
                 >
+                  <!--
+                    First 2 cells are frozen (sticky horizontally) — widths
+                    and left offsets must match the matching <TableHead>
+                    above. Each frozen cell carries its own row-alternating
+                    bg-* (bg-white / bg-gray-100) so the customer-group
+                    stripe stays continuous after content scrolls under
+                    the freeze line.
+                  -->
                   <!-- # -->
-                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length"
+                    :frozen="true" frozenLeft="0px"
+                    :inputClass="`text-center w-[50px] min-w-[50px] ${customerGroupIndex(rowIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`">
                     {{ (summaries.meta?.from ?? 1) + rowIndex }}
                   </TableData>
 
-                  <!-- Customer / Ref Price / Begin Date / Contract Attachment -->
-                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-left">
+                  <!-- Customer / Ref Price / Begin Date / Contract Attachment
+                       Also the LAST frozen column → carries a bold right
+                       border (border-r-2 border-gray-500) to mark the X
+                       freeze line for the user. -->
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length"
+                    :frozen="true" frozenLeft="50px"
+                    :inputClass="`text-left w-[170px] min-w-[170px] border-r-2 border-gray-500 ${customerGroupIndex(rowIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`">
                     <div class="flex flex-col space-y-0.5" v-if="row.customer">
                       <a target="_blank" :href="'/customers/' + row.customer.id + '/edit'"
                         :class="[row.customer.person_id ? 'text-blue-700' : 'text-purple-700']"
@@ -520,7 +584,7 @@
                         :href="row.customer.latest_contract.full_url"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="inline-flex items-center rounded px-1.5 py-0.5 mt-1 text-[10px] font-medium border w-fit bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200"
+                        class="inline-flex items-center rounded px-1.5 py-0.5 mt-1 text-[10px] font-medium border w-fit bg-green-100 text-green-800 border-green-300 hover:bg-green-200"
                         :title="row.customer.latest_contract.name || 'Contract Attachment'"
                       >
                         Contract
@@ -534,11 +598,19 @@
                     </div>
                   </TableData>
 
-                  <!-- Address -->
+                  <!-- Address / Company (= CMS com_remark) / Contact Person -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-left w-[220px] max-w-[220px] break-words">
-                    <span v-if="row.customer?.delivery_address" class="text-[11px] leading-tight">
-                      {{ row.customer.delivery_address.full_address }}
-                    </span>
+                    <div class="flex flex-col space-y-1">
+                      <span v-if="row.customer?.delivery_address" class="text-[11px] leading-tight">
+                        {{ row.customer.delivery_address.full_address }}
+                      </span>
+                      <span v-if="row.customer?.company_remark" class="text-[11px] leading-tight text-blue-700">
+                        {{ row.customer.company_remark }}
+                      </span>
+                      <span v-if="row.customer?.contact?.name" class="text-[11px] leading-tight text-blue-700">
+                        {{ row.customer.contact.name }}
+                      </span>
+                    </div>
                   </TableData>
 
                   <!-- Vend ID -->
@@ -652,8 +724,9 @@
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
                     <div class="flex flex-col items-end space-y-0.5">
                       <template v-if="row.customer && row.customer.operator && Number(row.customer.operator.gst_vat_rate) > 0">
-                        <span class="text-[11px] text-gray-600">
+                        <span class="text-[11px] text-gray-600 inline-flex items-center">
                           {{ formatMoney(row.sales_cents) }}
+                          <TrendIcon :dir="null" />
                         </span>
                         <span class="inline-flex items-center">
                           {{ formatMoney(row.sales_cents / (1 + Number(row.customer.operator.gst_vat_rate) / 100)) }}
@@ -680,7 +753,7 @@
                     not the rendering style).
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
-                    <div class="flex flex-col space-y-0.5">
+                    <div class="flex flex-col items-end space-y-0.5">
                       <span class="inline-flex items-center">
                         {{ formatMoney(row.gross_earning_cents) }}
                         <TrendIcon :dir="trendGross(row)" />
@@ -701,7 +774,10 @@
                   <!-- Placement Contract Type / Location Fees Rate -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
                     <div class="flex flex-col items-center space-y-0.5 text-xs" v-if="row.contract_commission_type">
-                      <span class="font-semibold">{{ contractTypeLabel(row.contract_commission_type) }}</span>
+                      <span class="font-semibold inline-flex items-center">
+                        {{ contractTypeLabel(row.contract_commission_type) }}
+                        <span v-if="row.contract_diff?.placement_type" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="'Changed from the previous period'">New</span>
+                      </span>
                       <span v-if="row.contract_commission_value != null">
                         <span v-if="['PS','PS+U','PSORU'].includes(row.contract_commission_type)">
                           {{ Number(row.contract_commission_value) }}%<span
@@ -723,11 +799,10 @@
                        the data lines use the SAME vertical spacing (space-y-4)
                        as the header so each value lines up with its label. -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
-                    <div class="flex flex-col space-y-4">
+                    <div class="flex flex-col items-end space-y-4">
                       <div>
                         <span class="inline-flex items-center" :class="locationFeesColorClass(row.location_fees_cents, row.contract_commission_type)">
                           {{ formatMoneySigned(row.location_fees_cents) }}
-                          <TrendIcon :dir="trendLocFees(row)" />
                         </span>
                         <div
                           v-if="row.contract_commission_type === 'S'"
@@ -747,20 +822,20 @@
                         :class="netLocFeeCents(row) < 0 ? 'text-emerald-700' : 'text-gray-800'"
                       >
                         {{ formatMoneySigned(netLocFeeCents(row)) }}
-                        <TrendIcon :dir="trendNetLocFee(row)" />
                       </span>
                     </div>
                   </TableData>
 
                   <!-- Vend Earning $ / Rate (Vend Earning = Gross Earning - Location Fees) -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
-                    <div class="flex flex-col space-y-0.5">
+                    <div class="flex flex-col items-end space-y-0.5">
                       <span class="inline-flex items-center" :class="row.location_earning_cents >= 0 ? 'text-green-700 font-medium' : 'text-red-700 font-medium'">
                         {{ formatMoney(row.location_earning_cents) }}
                         <TrendIcon :dir="trendVend(row)" />
                       </span>
-                      <span class="text-[11px] text-gray-600">
+                      <span class="text-[11px] text-gray-600 inline-flex items-center">
                         {{ formatPercent(row.location_earning_rate) }}
+                        <TrendIcon :dir="null" />
                       </span>
                     </div>
                   </TableData>
@@ -818,13 +893,16 @@
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
                     <div class="flex flex-col items-center space-y-1 text-xs">
-                      <span
-                        v-if="row.customer?.contract_until"
-                        :class="[contractEndDateClass(row.customer.contract_until)]"
-                      >
-                        {{ formatYYMMDD(row.customer.contract_until) }}
+                      <span class="inline-flex items-center">
+                        <span
+                          v-if="row.customer?.contract_until"
+                          :class="[contractEndDateClass(row.customer.contract_until)]"
+                        >
+                          {{ formatYYMMDD(row.customer.contract_until) }}
+                        </span>
+                        <span v-else class="text-gray-400">—</span>
+                        <span v-if="row.contract_diff?.contract_until" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="'Changed from the previous period'">New</span>
                       </span>
-                      <span v-else class="text-gray-400">—</span>
                       <span class="inline-flex items-center justify-center">
                         <CheckCircleIcon
                           v-if="row.customer?.contract_auto_renewal"
@@ -838,116 +916,18 @@
                           aria-hidden="true"
                           v-tooltip="'Auto Renewal: No'"
                         />
+                        <span v-if="row.contract_diff?.auto_renewal" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="'Changed from the previous period'">New</span>
                       </span>
-                      <span
-                        v-if="row.customer?.contract_notice_period != null"
-                        class="text-gray-900"
-                      >
-                        {{ row.customer.contract_notice_period }}
+                      <span class="inline-flex items-center">
+                        <span
+                          v-if="row.customer?.contract_notice_period != null"
+                          class="text-gray-900"
+                        >
+                          {{ row.customer.contract_notice_period }}
+                        </span>
+                        <span v-else class="text-gray-400">—</span>
+                        <span v-if="row.contract_diff?.notice_period" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="'Changed from the previous period'">New</span>
                       </span>
-                      <span v-else class="text-gray-400">—</span>
-                    </div>
-                  </TableData>
-
-                  <!-- Action -->
-                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    <!--
-                      Bulk mode: replace the action buttons with a single
-                      checkbox so the user can multi-select rows for the
-                      "Create API Invoice(s)" submit at the top.
-                      Non-invoiceable rows (F/S/no-person_id/incomplete
-                      contract) get a disabled placeholder, mirroring
-                      OpsJob's bulk pattern.
-                    -->
-                    <template v-if="bulkMode">
-                      <input
-                        v-if="isInvoiceable(row)"
-                        type="checkbox"
-                        class="h-5 w-5 rounded border-gray-300 text-yellow-600 cursor-pointer accent-yellow-500"
-                        :value="rowKey(row)"
-                        v-model="selectedRowKeys"
-                      />
-                      <span v-else class="text-xs text-gray-400" v-tooltip="'Not invoiceable (F/S, missing person_id, or incomplete contract)'">—</span>
-                    </template>
-                    <div v-else class="flex flex-col items-stretch space-y-1">
-                      <!--
-                        Email button — sends the Performance Report for this
-                        row's period to the customer's report_email.
-                        Visibility gate: opt-in flag AND non-empty email AND
-                        the contract is complete enough that there'd actually
-                        be content to send (has_report_content). The
-                        controller re-checks the same conditions defensively.
-                      -->
-                      <Button
-                        v-if="row.customer?.is_report_email_enabled && row.customer?.report_email"
-                        type="button"
-                        :class="[
-                          'inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs',
-                          row.customer?.has_report_content
-                            ? 'bg-blue-100 hover:bg-blue-200 text-blue-800'
-                            : 'bg-gray-200 text-gray-400 cursor-not-allowed',
-                        ]"
-                        :disabled="!row.customer?.has_report_content"
-                        v-tooltip="!row.customer?.has_report_content
-                          ? 'Contract details incomplete — fill them in on Customer Edit first'
-                          : ''"
-                        @click="onEmailReportClicked(row)"
-                      >
-                        <span>Email</span>
-                      </Button>
-
-                      <!--
-                        Report Content preview — fetches the same payload
-                        the email body will carry and renders it in a modal
-                        so the user can inspect before sending. Disabled
-                        when the contract info is incomplete (F/S, or any
-                        type missing required values).
-                      -->
-                      <Button
-                        type="button"
-                        :class="[
-                          'inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs',
-                          row.customer?.has_report_content
-                            ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
-                            : 'bg-gray-200 text-gray-400 cursor-not-allowed',
-                        ]"
-                        :disabled="!row.customer?.has_report_content"
-                        v-tooltip="!row.customer?.has_report_content
-                          ? 'Free Placement / Subsidized Plan have no report content; other types need a complete contract'
-                          : 'Preview the report content that will be emailed'"
-                        @click="onReportContentClicked(row)"
-                      >
-                        <span>Report Content</span>
-                      </Button>
-
-                      <!--
-                        Create API Invoice — POSTs the period-line items
-                        (using hardcoded item codes 055/V01/60 per contract
-                        type) to /api/transactions/deals via the queued
-                        SyncCustomerInvoiceCMS job. When an invoice already
-                        exists for this period, the button changes copy to
-                        "Re-create" and asks for explicit confirmation
-                        before posting force=1.
-                      -->
-                      <!-- <Button
-                        v-if="cmsEndpoint && isInvoiceable(row)"
-                        type="button"
-                        :class="[
-                          'inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs',
-                          existingInvoice(row)
-                            ? 'bg-amber-100 hover:bg-amber-200 text-amber-800'
-                            : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800',
-                          creatingInvoiceFor.has(rowKey(row)) ? 'opacity-60 cursor-wait' : '',
-                        ]"
-                        :disabled="creatingInvoiceFor.has(rowKey(row))"
-                        v-tooltip="existingInvoice(row)
-                          ? `Re-create API Invoice (existing: #${existingInvoice(row).cms_transaction_id})`
-                          : 'Create API Invoice in CMS for this period'"
-                        @click="onCreateApiInvoiceClicked(row)"
-                      >
-                        <ReceiptPercentIcon class="w-4 h-4"></ReceiptPercentIcon>
-                        <span>{{ existingInvoice(row) ? 'Re-create Invoice' : 'Create API Invoice' }}</span>
-                      </Button> -->
                     </div>
                   </TableData>
 
@@ -1013,11 +993,19 @@
                   </TableData>
 
                   <!--
-                    Lock — action-triggered freeze. No button on the current
-                    in-progress month. Completed + unlocked rows show a Lock
-                    button (admins). Locked rows show a closed-lock icon with a
-                    "locked by X at Y" tooltip + an Unlock button (superadmin/
-                    admin only — a higher access level than locking).
+                    Period Verify & Lock cell — full state machine:
+                      current month        → em-dash (cannot lock yet)
+                      unlocked             → Lock button (admin-access customers)
+                      locked + unpaid      → closed-lock icon
+                                             + Unlock button (superadmin/admin)
+                                             + Paid button (admin-access customers)
+                      locked + paid        → closed-lock icon + green-check icon
+                                             + Unlock button (DISABLED — must Unpaid first)
+                                             + Unpaid button (superadmin/admin)
+                    Tooltips on the icons surface "Locked by X at Y" / "Paid by
+                    X at Y"; the reverse-action timestamps (last_unpaid_*,
+                    last_unlocked_*) are appended so the user can see the most
+                    recent reversal even after the row re-cycles.
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
                     <template v-if="row.is_current_month">
@@ -1025,33 +1013,204 @@
                     </template>
                     <template v-else-if="row.is_locked">
                       <div class="flex flex-col items-center space-y-1">
-                        <LockClosedIcon class="h-5 w-5 text-amber-600" aria-hidden="true" v-tooltip="lockedTooltip(row)" />
+                        <div class="flex items-center justify-center space-x-1">
+                          <LockClosedIcon class="h-5 w-5 text-amber-600" aria-hidden="true" v-tooltip="lockedTooltip(row)" />
+                          <CheckCircleIcon
+                            v-if="row.is_paid"
+                            class="h-5 w-5 text-emerald-600"
+                            aria-hidden="true"
+                            v-tooltip="paidTooltip(row)"
+                          />
+                        </div>
+                        <!--
+                          Visible inline audit — shown right in the cell (not
+                          just hover-tooltip) so the user SEES who did what
+                          and when the moment they click a button. Each line
+                          carries timestamp + actor; format mirrors the
+                          existing tooltips. last_unpaid_* surfaces only
+                          while the row is in the unpaid state (so the most
+                          recent Unpaid click stays visible).
+                        -->
+                        <div class="text-[10px] leading-tight text-center">
+                          <div class="text-amber-700">
+                            <span class="font-semibold">Locked</span> {{ formatYYMMDDHM(row.locked_at) }}
+                            <span v-if="row.locked_by_user">by {{ row.locked_by_user.name }}</span>
+                          </div>
+                          <div v-if="row.is_paid" class="text-emerald-700">
+                            <span class="font-semibold">Paid</span> {{ formatYYMMDDHM(row.paid_at) }}
+                            <span v-if="row.paid_by_user">by {{ row.paid_by_user.name }}</span>
+                          </div>
+                          <div v-if="!row.is_paid && row.last_unpaid_at" class="text-red-700">
+                            <span class="font-semibold">Unpaid</span> {{ formatYYMMDDHM(row.last_unpaid_at) }}
+                            <span v-if="row.last_unpaid_by_user">by {{ row.last_unpaid_by_user.name }}</span>
+                          </div>
+                        </div>
+                        <!-- Unlock — blocked while Paid; UI disables the
+                             button + tooltip explains why. Server re-checks. -->
                         <Button
                           v-if="canUnlock"
                           type="button"
-                          class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded"
-                          :disabled="lockingFor.has(row.id)"
+                          class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                          :disabled="lockingFor.has(row.id) || row.is_paid"
+                          v-tooltip="row.is_paid ? 'Mark Unpaid first before unlocking' : ''"
                           @click="onUnlockClicked(row)"
                         >
                           <LockOpenIcon class="h-3.5 w-3.5" aria-hidden="true" />
                           <span>Unlock</span>
                         </Button>
+                        <!-- Paid — only visible on a locked+unpaid row. -->
+                        <Button
+                          v-if="canPaid && !row.is_paid"
+                          type="button"
+                          class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded"
+                          :disabled="lockingFor.has(row.id)"
+                          @click="onPaidClicked(row)"
+                        >
+                          <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>Paid</span>
+                        </Button>
+                        <!-- Unpaid — only visible on a locked+paid row.
+                             Same access tier as Unlock (superadmin/admin). -->
+                        <Button
+                          v-if="canUnpaid && row.is_paid"
+                          type="button"
+                          class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-red-100 hover:bg-red-200 text-red-800 rounded"
+                          :disabled="lockingFor.has(row.id)"
+                          @click="onUnpaidClicked(row)"
+                        >
+                          <XCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>Unpaid</span>
+                        </Button>
                       </div>
                     </template>
                     <template v-else-if="canLock">
-                      <Button
-                        type="button"
-                        class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-800 rounded"
-                        :disabled="lockingFor.has(row.id)"
-                        @click="onLockClicked(row)"
-                      >
-                        <LockOpenIcon class="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Lock</span>
-                      </Button>
+                      <div class="flex flex-col items-center space-y-1">
+                        <Button
+                          type="button"
+                          class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-800 rounded"
+                          :disabled="lockingFor.has(row.id)"
+                          @click="onLockClicked(row)"
+                        >
+                          <LockOpenIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>Lock</span>
+                        </Button>
+                        <!--
+                          Last-unlocked caption — appears immediately after
+                          the user clicks Unlock (the row flips to this
+                          template) so the Unlock timestamp + actor are
+                          visible right in the cell, not buried in a tooltip.
+                        -->
+                        <div v-if="row.last_unlocked_at" class="text-[10px] text-gray-500 leading-tight text-center">
+                          <span class="font-semibold">Unlocked</span> {{ formatYYMMDDHM(row.last_unlocked_at) }}
+                          <span v-if="row.last_unlocked_by_user">by {{ row.last_unlocked_by_user.name }}</span>
+                        </div>
+                      </div>
                     </template>
                     <template v-else>
                       <span class="text-gray-300">—</span>
                     </template>
+                  </TableData>
+
+                  <!-- Action — now the LAST column (was 2 positions earlier). -->
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
+                    <!--
+                      Bulk mode: replace the action buttons with a single
+                      checkbox so the user can multi-select rows for the
+                      "Create API Invoice(s)" submit at the top.
+                      Non-invoiceable rows (F/S/no-person_id/incomplete
+                      contract) get a disabled placeholder, mirroring
+                      OpsJob's bulk pattern.
+                    -->
+                    <template v-if="bulkMode">
+                      <input
+                        v-if="isInvoiceable(row)"
+                        type="checkbox"
+                        class="h-5 w-5 rounded border-gray-300 text-yellow-600 cursor-pointer accent-yellow-500"
+                        :value="rowKey(row)"
+                        v-model="selectedRowKeys"
+                      />
+                      <span v-else class="text-xs text-gray-400" v-tooltip="'Not invoiceable (F/S, missing person_id, or incomplete contract)'">—</span>
+                    </template>
+                    <div v-else class="flex flex-col items-stretch space-y-1">
+                      <!--
+                        Email button used to live in this row. It's now inside
+                        the Report Content modal, and only shows on LOCKED
+                        rows (post-lock action). The click fires a `mailto:`
+                        from the operator's mail client and records the audit
+                        (timestamp + who) on the server.
+                      -->
+
+                      <!--
+                        Report Content preview — fetches the same payload
+                        the email body will carry and renders it in a modal
+                        so the user can inspect before sending. Disabled
+                        when the contract info is incomplete (F/S, or any
+                        type missing required values).
+                      -->
+                      <Button
+                        type="button"
+                        :class="[
+                          'inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs',
+                          row.customer?.has_report_content
+                            ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+                        ]"
+                        :disabled="!row.customer?.has_report_content"
+                        v-tooltip="!row.customer?.has_report_content
+                          ? 'Free Placement / Subsidized Plan have no report content; other types need a complete contract'
+                          : 'Preview the report content that will be emailed'"
+                        @click="onReportContentClicked(row)"
+                      >
+                        <span>Report Content</span>
+                      </Button>
+                      <!--
+                        Last-email audit — surfaces the same "Last sent by X
+                        on Y" line that appears at the bottom of the Report
+                        Content preview modal, but right here under the
+                        Report Content button so the user can see the most
+                        recent send at-a-glance without opening the modal.
+                        Only shown when the Performance Report has actually
+                        been emailed for this (customer, period) tuple.
+                      -->
+                      <div
+                        v-if="row.report_emailed_at"
+                        class="text-[10px] text-gray-600 leading-tight text-center mt-1"
+                      >
+                        Last sent by
+                        <span class="font-medium text-gray-800">{{ row.report_emailed_by_user?.name || 'someone' }}</span>
+                        on
+                        <span class="font-medium text-gray-800">{{ row.report_emailed_at }}</span>
+                      </div>
+
+                      <!--
+                        Create API Invoice — POSTs the period-line items
+                        (using hardcoded item codes 055/V01/60 per contract
+                        type) to /api/transactions/deals via the queued
+                        SyncCustomerInvoiceCMS job. When an invoice already
+                        exists for this period, the button changes copy to
+                        "Re-create" and asks for explicit confirmation
+                        before posting force=1.
+                      -->
+                      <!-- <Button
+                        v-if="cmsEndpoint && isInvoiceable(row)"
+                        type="button"
+                        :class="[
+                          'inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs',
+                          existingInvoice(row)
+                            ? 'bg-amber-100 hover:bg-amber-200 text-amber-800'
+                            : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800',
+                          creatingInvoiceFor.has(rowKey(row)) ? 'opacity-60 cursor-wait' : '',
+                        ]"
+                        :disabled="creatingInvoiceFor.has(rowKey(row))"
+                        v-tooltip="existingInvoice(row)
+                          ? `Re-create API Invoice (existing: #${existingInvoice(row).cms_transaction_id})`
+                          : 'Create API Invoice in CMS for this period'"
+                        @click="onCreateApiInvoiceClicked(row)"
+                      >
+                        <ReceiptPercentIcon class="w-4 h-4"></ReceiptPercentIcon>
+                        <span>{{ existingInvoice(row) ? 'Re-create Invoice' : 'Create API Invoice' }}</span>
+                      </Button> -->
+                    </div>
                   </TableData>
                 </tr>
 
@@ -1225,6 +1384,55 @@
           <div class="text-xs text-gray-500 italic mt-2">
             {{ reportContent.footnote }}
           </div>
+
+          <!--
+            ─────────────────────────────────────────────────────────────────
+            Email Performance Report — modal-only action.
+            Only visible on a LOCKED row (post-lock action: you don't email
+            a customer a report while the month's still moving). Clicking it:
+              1. opens the operator's own mail client via `mailto:`, prefilled
+                 with subject + a plain-text body of what's in this modal;
+              2. POSTs to the server to stamp "emailed at / by" on the row,
+                 so we have an audit trail of who sent which period.
+            The line below shows the last-send audit when present.
+          -->
+          <div
+            v-if="reportContentRow?.is_locked"
+            class="mt-4 border-t border-gray-200 pt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+          >
+            <div class="text-xs text-gray-600">
+              <template v-if="reportContentRow?.report_emailed_at">
+                Last sent by
+                <span class="font-medium text-gray-800">
+                  {{ reportContentRow.report_emailed_by_user?.name || 'someone' }}
+                </span>
+                on
+                <span class="font-medium text-gray-800">
+                  {{ reportContentRow.report_emailed_at }}
+                </span>
+              </template>
+              <template v-else>
+                Not yet emailed for this period.
+              </template>
+            </div>
+            <Button
+              v-if="reportContentRow?.customer?.is_report_email_enabled && reportContentRow?.customer?.report_email"
+              type="button"
+              class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800"
+              :disabled="sendingReportFor.has(reportContentRow.customer.id)"
+              v-tooltip="'Open your mail client to send this report, and record the send'"
+              @click="onModalEmailClicked"
+            >
+              <span>Email</span>
+            </Button>
+            <span
+              v-else
+              class="text-[11px] text-gray-400 italic"
+              v-tooltip="'Customer has no report-email address / opt-in. Set it on the Customer Edit page first.'"
+            >
+              Email not enabled on this customer
+            </span>
+          </div>
         </div>
 
         <div v-else class="text-center py-10 text-gray-500 text-sm">
@@ -1277,6 +1485,9 @@ const props = defineProps({
       gross_earning_cents: 0,
       location_fees_cents: 0,
       location_earning_cents: 0,
+      // Distinct-customer aggregate counts (filtered set).
+      no_contract_attachment_count: 0,
+      expiring_in_30d_count: 0,
     }),
   },
 });
@@ -1290,6 +1501,10 @@ const roles = usePage().props.auth.roles ?? [];
 // level — restricted to the top-tier roles (superadmin / admin).
 const canLock = computed(() => (permissions ?? []).includes('admin-access customers'));
 const canUnlock = computed(() => (roles ?? []).includes('superadmin') || (roles ?? []).includes('admin'));
+// Paid mirrors Lock's permission tier; Unpaid mirrors Unlock's tier (reverses
+// a recorded action → tighter role gate). Server re-checks both.
+const canPaid = computed(() => canLock.value);
+const canUnpaid = computed(() => canUnlock.value);
 
 // Per-row in-flight guard for the Lock / Unlock buttons (keyed by summary id).
 const lockingFor = ref(new Set());
@@ -1311,6 +1526,9 @@ const reportContentCustomerLabel = ref('');
 // extra API roundtrip is needed.
 const reportContentMachineId = ref('');
 const reportContentMachinePrefix = ref('');
+// The full summary row backing the open modal — drives the locked-only Email
+// button and the "Last sent by X at Y" audit line at the bottom of the modal.
+const reportContentRow = ref(null);
 const showMapMarkerModal = ref(false);
 const mapCustomers = ref([]);
 
@@ -1476,6 +1694,14 @@ function formatYYMMDD(d) {
   return moment(d).format('YYMMDD');
 }
 
+// Compact datetime — same shape as the lock/paid tooltip uses (`YYMMDD HH:mm`).
+// Used by the inline captions under the Lock cell icons so the user sees the
+// most recent action timestamp right after clicking, without hovering.
+function formatYYMMDDHM(d) {
+  if (!d) return '';
+  return moment(d).format('YYMMDD HH:mm');
+}
+
 function formatDate(d) {
   if (!d) return '';
   return moment(d).format('YYYY-MM-DD');
@@ -1580,8 +1806,10 @@ function netLocFeeCents(row) {
  *   value increased → green up arrow
  *   value decreased → red down arrow
  *   unchanged       → grey neutral dash
- * Customers with a single visible row (e.g. the "Current" report) show no
- * indicator since there's nothing to compare against.
+ * Customers with a single visible row (e.g. the "Current" report) fall back
+ * to the server-provided previous-month snapshot (row.prev_month) so the
+ * current month still shows arrows; only customers with no prior month on
+ * record show no indicator.
  *
  * "Previous month shown" is resolved by grouping the visible rows per
  * customer and ordering them by year_month ascending, then taking the row
@@ -1604,13 +1832,23 @@ const monthRowsByCustomer = computed(() => {
 });
 
 // The row for the same customer's immediately-older visible month, or null.
+//
+// When there's no older month VISIBLE on the page (e.g. the single-month
+// "Current" report shows just one row per customer), we fall back to the
+// server-provided previous-month snapshot (row.prev_month) so the current
+// month still shows month-over-month trend arrows. The customer relation is
+// carried over so the GST-dependent getters (grossEarningRate) resolve — it's
+// the same customer/operator, only the cent figures differ.
 function prevMonthRow(row) {
   const cid = row.customer_id ?? row.customer?.id;
   if (cid == null) return null;
   const list = monthRowsByCustomer.value[cid] || [];
   const idx = list.indexOf(row);
-  if (idx <= 0) return null;
-  return list[idx - 1];
+  if (idx > 0) return list[idx - 1];
+  if (row.prev_month) {
+    return { ...row.prev_month, customer: row.customer };
+  }
+  return null;
 }
 
 // Direction of a metric vs the previous month shown:
@@ -1630,8 +1868,7 @@ function trendDir(row, getter) {
 function trendSales(row)      { return trendDir(row, (r) => Number(r.sales_cents)); }
 function trendGross(row)      { return trendDir(row, (r) => Number(r.gross_earning_cents)); }
 function trendGrossRate(row)  { return trendDir(row, (r) => grossEarningRate(r)); }
-function trendLocFees(row)    { return trendDir(row, (r) => Number(r.location_fees_cents)); }
-function trendNetLocFee(row)  { return trendDir(row, (r) => netLocFeeCents(r)); }
+// Location Fees / Net Loc Fee intentionally show no trend arrow (per request).
 function trendVend(row)       { return trendDir(row, (r) => Number(r.location_earning_cents)); }
 
 /**
@@ -1641,7 +1878,12 @@ function trendVend(row)       { return trendDir(row, (r) => Number(r.location_ea
  */
 const TrendIcon = (props) => {
   const dir = props.dir;
-  if (!dir) return null;
+  // Reserve the same footprint when there's nothing to show, so the value to
+  // its left stays right-aligned in line with arrow-bearing rows — the arrow
+  // (when present) always sits in a fixed slot at the far right of the cell.
+  if (!dir) {
+    return h('span', { class: 'inline-block h-4 w-4 ml-0.5 align-middle shrink-0' });
+  }
   const color = dir === 'up'
     ? 'text-green-600'
     : (dir === 'down' ? 'text-red-600' : 'text-gray-400');
@@ -1691,53 +1933,122 @@ function hasAnyLocationGrading(customer) {
 }
 
 /**
- * Email Performance Report — confirms intent then POSTs to the stub
- * /customers/{id}/send-performance-report endpoint. Server re-validates
- * the opt-in (is_report_email_enabled + report_email present) so the
- * button vanishing on the next page reload mid-flight isn't a concern.
+ * Email Performance Report — modal-only action on a LOCKED row.
  *
- * `row` here is a customer_period_summary row, so period_start/period_end
- * already reflect what the user is looking at (clamped per-customer for
- * aggregated period reports — see CustomerController::clampAggregatedPeriodBounds).
+ * Composes a `mailto:` from the currently-open Report Content modal so the
+ * operator's own mail client (Outlook/Gmail/Apple Mail/etc.) sends the
+ * message — we don't dispatch a queued mailable any more. After firing the
+ * mailto we POST to /customers/{id}/send-performance-report (now an
+ * audit-only endpoint) to stamp `report_emailed_at` / `report_emailed_by`
+ * on the summary row, so we have a record of who clicked send for which
+ * (customer, period). The "Last sent by X at Y" line in the modal reflects
+ * that audit and updates optimistically here so the user sees feedback even
+ * before Inertia re-fetches.
  */
-function onEmailReportClicked(row) {
+function onModalEmailClicked() {
+  const row = reportContentRow.value;
   const cust = row?.customer;
-  if (!cust?.is_report_email_enabled || !cust?.report_email) return;
+  const content = reportContent.value;
+  if (!row || !cust) return;
+  if (!cust.is_report_email_enabled || !cust.report_email) return;
+  if (!row.is_locked) return; // server re-checks; this is just defensive
 
   const customerId = cust.id;
   if (sendingReportFor.value.has(customerId)) return;
 
-  const periodStart = row.period_start;
-  const periodEnd = row.period_end;
-  const label = cust.name || ('#' + customerId);
-  const ok = confirm(
-    `Send Performance Report for ${label}\nPeriod: ${periodStart} → ${periodEnd}\nTo: ${cust.report_email}\n\nProceed?`
-  );
-  if (!ok) return;
+  // Build the mailto. Subject mirrors the modal title + period label so the
+  // recipient can tell at a glance what's inside. Body is a plain-text
+  // rendering of the same content the modal shows — title banner → meta →
+  // calculation lines (only customer-facing ones; admin-only formula lines
+  // are skipped so we don't leak internal math) → total → footnote.
+  const periodLabel = content?.period_label || (row.period_start + ' → ' + row.period_end);
+  const subject = `Vending Machine Location Fees Report — ${cust.name || ('#' + customerId)} (${periodLabel})`;
 
-  sendingReportFor.value.add(customerId);
-  router.post(
-    '/customers/' + customerId + '/send-performance-report',
-    { period_start: periodStart, period_end: periodEnd },
-    {
-      preserveState: true,
-      preserveScroll: true,
-      onSuccess: (page) => {
-        const flashed = page?.props?.flash?.success;
-        toast.success(flashed || 'Performance report queued.', { timeout: 3500 });
-      },
-      onError: (errors) => {
-        const msg = errors?.send_performance_report
-          || errors?.period_start
-          || errors?.period_end
-          || 'Failed to send report. Please try again.';
-        toast.error(msg, { timeout: 4500 });
-      },
-      onFinish: () => {
-        sendingReportFor.value.delete(customerId);
-      },
+  const lines = [];
+  lines.push('Vending Machine Location Fees Report');
+  if (content?.contract_type_label) lines.push(content.contract_type_label);
+  lines.push('');
+  lines.push(`Period (YYMM): ${periodLabel}`);
+  if (content?.active_days != null && content?.month_days != null) {
+    lines.push(`Total number of days: ${content.active_days} / ${content.month_days}`);
+  }
+  if (reportContentMachineId.value) lines.push(`Machine ID: ${reportContentMachineId.value}`);
+  if (reportContentMachinePrefix.value) lines.push(`Machine Prefix: ${reportContentMachinePrefix.value}`);
+  lines.push('');
+  if (Array.isArray(content?.lines)) {
+    for (const l of content.lines) {
+      if (l?.formula_internal) continue; // admin-only — never in the email body
+      lines.push(`${l.label}: ${l.formula ? l.formula + ' = ' : ''}${l.value}`);
     }
-  );
+  }
+  if (content?.has_total) {
+    lines.push('');
+    lines.push(`Total: ${content.total_value}`);
+  }
+  if (content?.footnote) {
+    lines.push('');
+    lines.push(content.footnote);
+  }
+  const body = lines.join('\r\n');
+
+  const mailto = `mailto:${encodeURIComponent(cust.report_email)}`
+    + `?subject=${encodeURIComponent(subject)}`
+    + `&body=${encodeURIComponent(body)}`;
+
+  // Optimistic update so the modal's "Last sent by …" line reflects the click
+  // immediately. The authoritative timestamp + user come back in the axios
+  // response below and replace this in-place.
+  sendingReportFor.value.add(customerId);
+  const originalRow = row;
+  const optimisticNow = moment().format('YYYY-MM-DD HH:mm:ss');
+  reportContentRow.value = {
+    ...row,
+    report_emailed_at: optimisticNow,
+    report_emailed_by_user: row.report_emailed_by_user
+      ?? { id: usePage().props.auth?.user?.id, name: usePage().props.auth?.user?.name },
+  };
+
+  // Fire the audit POST FIRST via axios — not Inertia router.post — so the
+  // request is dispatched synchronously and is in-flight before we hand off
+  // to the mail client. Axios is also unaffected by the brief navigation
+  // some browsers do for `mailto:`. The endpoint returns JSON for AJAX
+  // callers, so we can update the audit line authoritatively from the
+  // response without a full page re-fetch.
+  window.axios.post(
+    '/customers/' + customerId + '/send-performance-report',
+    { period_start: row.period_start, period_end: row.period_end },
+  )
+    .then((res) => {
+      const data = res?.data || {};
+      // Only mutate if the same row is still open — the user may have closed
+      // the modal between firing and the response landing.
+      if (reportContentRow.value && reportContentRow.value.customer?.id === customerId) {
+        reportContentRow.value = {
+          ...reportContentRow.value,
+          report_emailed_at: data.report_emailed_at || reportContentRow.value.report_emailed_at,
+          report_emailed_by_user: data.report_emailed_by_user || reportContentRow.value.report_emailed_by_user,
+        };
+      }
+      toast.success(data.message || 'Send recorded.', { timeout: 3500 });
+    })
+    .catch((err) => {
+      // Roll back the optimistic update so the audit line reflects truth.
+      if (reportContentRow.value && reportContentRow.value.customer?.id === customerId) {
+        reportContentRow.value = originalRow;
+      }
+      const msg = err?.response?.data?.message
+        || err?.response?.data?.errors?.send_performance_report?.[0]
+        || 'Failed to record the send. Please try again.';
+      toast.error(msg, { timeout: 4500 });
+    })
+    .finally(() => {
+      sendingReportFor.value.delete(customerId);
+    });
+
+  // Now hand off to the mail client. The audit POST above is already in
+  // flight, so even if a particular browser treats `mailto:` as a
+  // navigation it can no longer cancel the audit request.
+  window.location.href = mailto;
 }
 
 function onSearchFilterUpdated() {
@@ -1809,11 +2120,35 @@ function sortTable(sortKey) {
 }
 
 // Tooltip text for a locked row's closed-lock icon: who locked it and when.
+// If this row has a prior Unlock event (last_unlocked_at — the row was
+// unlocked and re-locked at some point), append "last unlocked by X (Y)" so
+// the user can still see the most recent reversal at a glance.
 function lockedTooltip(row) {
   if (!row?.is_locked) return '';
   const who = row.locked_by_user?.name || 'someone';
   const when = row.locked_at ? moment(row.locked_at).format('YYMMDD hh:mma') : '';
-  return when ? `Locked by ${who} (${when})` : `Locked by ${who}`;
+  let tip = when ? `Locked by ${who} (${when})` : `Locked by ${who}`;
+  if (row.last_unlocked_at) {
+    const ulWho = row.last_unlocked_by_user?.name || 'someone';
+    const ulWhen = moment(row.last_unlocked_at).format('YYMMDD hh:mma');
+    tip += `\nLast unlocked by ${ulWho} (${ulWhen})`;
+  }
+  return tip;
+}
+
+// Tooltip for the green check (Paid) icon: who marked Paid + when, plus the
+// most recent Unpaid event if there was one.
+function paidTooltip(row) {
+  if (!row?.is_paid) return '';
+  const who = row.paid_by_user?.name || 'someone';
+  const when = row.paid_at ? moment(row.paid_at).format('YYMMDD hh:mma') : '';
+  let tip = when ? `Paid by ${who} (${when})` : `Paid by ${who}`;
+  if (row.last_unpaid_at) {
+    const upWho = row.last_unpaid_by_user?.name || 'someone';
+    const upWhen = moment(row.last_unpaid_at).format('YYMMDD hh:mma');
+    tip += `\nLast unpaid by ${upWho} (${upWhen})`;
+  }
+  return tip;
 }
 
 // Lock a completed month's row — freezes its figures + contract details at
@@ -1829,9 +2164,12 @@ function onLockClicked(row) {
   if (!ok) return;
 
   lockingFor.value.add(row.id);
-  // Full reload (not only:['summaries']) so the aggregate totals boxes — which
-  // sum stored values — refresh in lockstep with the row's frozen figures.
+  // Partial reload: refresh ONLY summaries (rows) + totals (aggregate boxes
+  // that sum stored values) so the locked snapshot's figures appear in
+  // lockstep with the row's frozen state. Filters, dropdown options, and
+  // other props stay as-is — no full page refresh, no scroll jump.
   router.post('/customers/summary/' + row.id + '/lock', {}, {
+    only: ['summaries', 'totals'],
     preserveScroll: true,
     preserveState: true,
     onSuccess: () => toast.success('Period locked.', { timeout: 3000 }),
@@ -1841,9 +2179,13 @@ function onLockClicked(row) {
 }
 
 // Unlock a locked row — reverts it to live re-derivation. Superadmin/admin
-// only (UI is gated by canUnlock; the server re-checks).
+// only (UI is gated by canUnlock; the server re-checks). Server also blocks
+// unlocking a Paid row (must Unpaid first); the UI already disables the
+// button in that state but we keep the early-return + error path so a stale
+// tab can't slip through.
 function onUnlockClicked(row) {
   if (!row?.id || !row.is_locked) return;
+  if (row.is_paid) return;
   if (lockingFor.value.has(row.id)) return;
 
   const label = row.customer?.name || ('#' + row.customer?.id);
@@ -1853,11 +2195,71 @@ function onUnlockClicked(row) {
   if (!ok) return;
 
   lockingFor.value.add(row.id);
+  // Partial reload — same rationale as onLockClicked. Unlock flips the row
+  // back to live re-derivation, so the displayed row figures + totals can
+  // shift; both summaries + totals are refreshed in lockstep.
   router.post('/customers/summary/' + row.id + '/unlock', {}, {
+    only: ['summaries', 'totals'],
     preserveScroll: true,
     preserveState: true,
     onSuccess: () => toast.success('Period unlocked.', { timeout: 3000 }),
     onError: (errors) => toast.error(errors?.unlock || 'Failed to unlock period.', { timeout: 4000 }),
+    onFinish: () => lockingFor.value.delete(row.id),
+  });
+}
+
+// Mark a locked row as Paid. Requires the row to be Locked + not already
+// Paid (UI hides the button otherwise). Same permission as Lock; server
+// re-checks. Reuses lockingFor to share the per-row spinner with Lock/Unlock.
+function onPaidClicked(row) {
+  if (!row?.id || !row.is_locked || row.is_paid) return;
+  if (lockingFor.value.has(row.id)) return;
+
+  const label = row.customer?.name || ('#' + row.customer?.id);
+  const ok = confirm(
+    `Mark ${label} — ${periodReportLabel(row)} as Paid?\n\nThis records the payment date + actor against the locked snapshot. The Unlock button will be blocked until the row is Unpaid again.`
+  );
+  if (!ok) return;
+
+  lockingFor.value.add(row.id);
+  // Partial reload — Paid only flips paid_at; row money figures + totals
+  // are unaffected. Refreshing summaries is enough to bring back the new
+  // paid_at / paid_by_user so the green-check icon + "Paid by X (Y)"
+  // tooltip render immediately on success.
+  router.post('/customers/summary/' + row.id + '/paid', {}, {
+    only: ['summaries'],
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => toast.success('Period marked Paid.', { timeout: 3000 }),
+    onError: (errors) => toast.error(errors?.paid || 'Failed to mark Paid.', { timeout: 4000 }),
+    onFinish: () => lockingFor.value.delete(row.id),
+  });
+}
+
+// Reverse Paid (mirror of onPaidClicked). Superadmin/admin only; server
+// re-checks. Stamps last_unpaid_at / last_unpaid_by for the audit trail.
+function onUnpaidClicked(row) {
+  if (!row?.id || !row.is_paid) return;
+  if (lockingFor.value.has(row.id)) return;
+
+  const label = row.customer?.name || ('#' + row.customer?.id);
+  const ok = confirm(
+    `Mark ${label} — ${periodReportLabel(row)} as Unpaid?\n\nClears the paid timestamp. After this, the Unlock button will be available again.`
+  );
+  if (!ok) return;
+
+  lockingFor.value.add(row.id);
+  // Partial reload — Unpaid only clears paid_at + stamps last_unpaid_*;
+  // money figures + totals are unaffected. Summaries refresh brings back
+  // is_paid=false and last_unpaid_at, so the Unlock button immediately
+  // re-enables and the tooltip on the next Paid cycle will surface the
+  // most recent Unpaid event.
+  router.post('/customers/summary/' + row.id + '/unpaid', {}, {
+    only: ['summaries'],
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => toast.success('Period marked Unpaid.', { timeout: 3000 }),
+    onError: (errors) => toast.error(errors?.unpaid || 'Failed to mark Unpaid.', { timeout: 4000 }),
     onFinish: () => lockingFor.value.delete(row.id),
   });
 }
@@ -1928,6 +2330,7 @@ function onReportContentClicked(row) {
   if (!cust?.has_report_content) return;
 
   reportContent.value = null;
+  reportContentRow.value = row;
   reportContentCustomerLabel.value = cust.name || ('#' + cust.id);
 
   // Machine ID + Prefix — mirror the on-screen Vend ID column logic:
@@ -1965,6 +2368,7 @@ function onReportContentClicked(row) {
 function onReportContentModalClose() {
   showReportContentModal.value = false;
   reportContent.value = null;
+  reportContentRow.value = null;
   reportContentCustomerLabel.value = '';
   reportContentMachineId.value = '';
   reportContentMachinePrefix.value = '';

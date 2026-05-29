@@ -307,6 +307,60 @@ class CustomerSummaryAggregator
             ->all();
         $lockedCustomerIdSet = array_flip($lockedCustomerIds);
 
+        // ── Mid-month contract SEGMENTATION setup ──────────────────────────
+        // A month whose segments the user explicitly MERGED stays single-row
+        // (recomputed under the latest contract) — the aggregator must NOT
+        // re-split it. Collect those customers and preserve the flag on
+        // re-insert.
+        $overriddenCustomerIds = CustomerPeriodSummary::query()
+            ->where('year_month', $monthStart->toDateString())
+            ->where('segmentation_overridden', true)
+            ->pluck('customer_id')
+            ->map(fn ($v) => (int) $v)
+            ->all();
+        $overriddenSet = array_flip($overriddenCustomerIds);
+
+        // Customers whose contract changed strictly INSIDE this month's window
+        // (a change effective on/before monthStart applies to the whole month →
+        // no split). Only these can ever produce more than one segment, so the
+        // common case stays exactly as before (one batched pass, single row).
+        $monthStartDay = $monthStart->copy()->startOfDay();
+        $windowEndForChanges = $periodEnd->copy()->endOfDay();
+        $inMonthChangeCustomerIds = DB::table('customer_contract_logs')
+            ->whereNotNull('customer_id')
+            ->where('effective_from', '>', $monthStartDay)
+            ->where('effective_from', '<=', $windowEndForChanges)
+            ->distinct()
+            ->pluck('customer_id')
+            ->map(fn ($v) => (int) $v)
+            ->all();
+
+        $segmentCandidateSet = [];
+        foreach ($inMonthChangeCustomerIds as $cid) {
+            // Locked rows are frozen; overridden months stay merged.
+            if (!isset($lockedCustomerIdSet[$cid]) && !isset($overriddenSet[$cid])) {
+                $segmentCandidateSet[$cid] = true;
+            }
+        }
+
+        // Contract versions overlapping this month for the candidates only —
+        // one batched query. Drives per-segment bounds + contract resolution.
+        $candidateVersions = [];
+        if (!empty($segmentCandidateSet)) {
+            $versionRows = DB::table('customer_contract_logs')
+                ->whereIn('customer_id', array_keys($segmentCandidateSet))
+                ->where('effective_from', '<=', $windowEndForChanges)
+                ->where(function ($q) use ($monthStartDay) {
+                    $q->whereNull('effective_to')->orWhere('effective_to', '>', $monthStartDay);
+                })
+                ->orderBy('customer_id')
+                ->orderBy('effective_from')
+                ->get();
+            foreach ($versionRows as $vrow) {
+                $candidateVersions[(int) $vrow->customer_id][] = $vrow;
+            }
+        }
+
         // Pre-load operator GST rates as a single small lookup so the
         // per-customer chunk loop can resolve operator->gst_vat_rate in O(1)
         // without an N+1 of `Customer::with('operator')` for every row.
@@ -328,7 +382,7 @@ class CustomerSummaryAggregator
             // location_earning_cents below.
             'is_external_subsidize',
             'external_subsidize_amount',
-        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $jobCountByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, $lockedCustomerIdSet, &$payloads) {
+        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $jobCountByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, $lockedCustomerIdSet, $overriddenSet, &$payloads) {
             foreach ($customers as $customer) {
                 // Never regenerate a locked row — it stays as the user froze it.
                 if (isset($lockedCustomerIdSet[$customer->id])) {
@@ -385,13 +439,18 @@ class CustomerSummaryAggregator
                     continue;
                 }
 
-                $payloads[] = [
+                // Keyed by customer_id (one whole-month payload per customer).
+                // Segment-candidate customers get expanded into per-segment
+                // payloads after the loop; everyone else stays this single row.
+                $payloads[$customer->id] = [
                     'customer_id' => $customer->id,
                     'operator_id' => $customer->operator_id,
                     'year_month' => $monthStart->toDateString(),
                     'period_start' => $monthStart->toDateString(),
                     'period_end' => $periodEnd->toDateString(),
                     'is_current_month' => $isCurrentMonth,
+                    'segment_index' => 0,
+                    'segmentation_overridden' => isset($overriddenSet[$customer->id]),
                     'as_of_date' => ($isCurrentMonth ? $asOf : $monthEndCalendar)->toDateString(),
                     'sales_cents' => $salesCents,
                     'gross_earning_cents' => $grossEarningCents,
@@ -406,11 +465,32 @@ class CustomerSummaryAggregator
                     'contract_commission_value' => $customer->contract_commission_value,
                     'contract_commission_value2' => $customer->contract_commission_value2,
                     'contract_ps_term' => $customer->contract_ps_term,
+                    'contract_log_id' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
             }
         });
+
+        // Expand segment-candidate customers (a contract change happened inside
+        // this month) into per-segment payloads; every other customer keeps its
+        // single whole-month row. Keyed → flat list for the insert below.
+        $finalPayloads = [];
+        foreach ($payloads as $cid => $payload) {
+            if (isset($segmentCandidateSet[$cid]) && !empty($candidateVersions[$cid])) {
+                $segments = self::buildMonthSegments($candidateVersions[$cid], $monthStart, $periodEnd);
+                if (count($segments) > 1) {
+                    foreach (self::buildSegmentPayloads(
+                        $payload, $segments, $monthStart, $isCurrentMonth, $asOf, $now, $operatorGstRates, $testingVendIds
+                    ) as $segPayload) {
+                        $finalPayloads[] = $segPayload;
+                    }
+                    continue;
+                }
+            }
+            $finalPayloads[] = $payload;
+        }
+        $payloads = array_values($finalPayloads);
 
         if (empty($payloads)) {
             // Still wipe any stale rows for this month that no longer qualify —
@@ -443,6 +523,203 @@ class CustomerSummaryAggregator
         ]);
 
         return count($payloads);
+    }
+
+    /**
+     * Build the segment date-ranges for a customer whose contract changed
+     * inside a month. Returns an ordered list of
+     *   ['start' => Carbon, 'end' => Carbon, 'version' => stdClass|null]
+     * where each segment is bounded by [start, end] (inclusive days) and
+     * `version` is the contract_contract_logs row in effect during it.
+     *
+     * Segment starts = month start + each in-month change date; a segment runs
+     * until the day before the next change (or the month's period_end for the
+     * last segment). The day a new contract version becomes effective belongs
+     * to that new version (standard effective-dating).
+     */
+    protected static function buildMonthSegments($versions, CarbonInterface $monthStart, CarbonInterface $periodEnd): array
+    {
+        $monthStartStr = $monthStart->toDateString();
+        $periodEndStr = $periodEnd->toDateString();
+
+        $starts = [$monthStartStr => true];
+        foreach ($versions as $v) {
+            $effDate = Carbon::parse($v->effective_from)->toDateString();
+            if ($effDate > $monthStartStr && $effDate <= $periodEndStr) {
+                $starts[$effDate] = true;
+            }
+        }
+        $startList = array_keys($starts);
+        sort($startList);
+
+        $segments = [];
+        $n = count($startList);
+        for ($i = 0; $i < $n; $i++) {
+            $segStart = Carbon::parse($startList[$i])->startOfDay();
+            $segEnd = ($i + 1 < $n)
+                ? Carbon::parse($startList[$i + 1])->subDay()->startOfDay()
+                : Carbon::parse($periodEndStr)->startOfDay();
+            if ($segEnd->lt($segStart)) {
+                continue;
+            }
+            $segments[] = [
+                'start' => $segStart,
+                'end' => $segEnd,
+                'version' => self::versionActiveAt($versions, $segStart->copy()->endOfDay()),
+            ];
+        }
+        return $segments;
+    }
+
+    /**
+     * The contract version in effect at $moment, or null. A version covers
+     * [effective_from, effective_to); effective_to NULL = currently active.
+     */
+    protected static function versionActiveAt($versions, CarbonInterface $moment)
+    {
+        $found = null;
+        foreach ($versions as $v) {
+            $from = Carbon::parse($v->effective_from);
+            $to = $v->effective_to !== null ? Carbon::parse($v->effective_to) : null;
+            if ($from->lte($moment) && ($to === null || $to->gt($moment))) {
+                $found = $v;
+            }
+        }
+        return $found;
+    }
+
+    /**
+     * Build per-segment payloads for one segmented customer. Each segment runs
+     * date-bounded aggregation (sales / gross / counts / jobs) over its own
+     * range and computes Location Fees from its own contract version. Mirrors
+     * the whole-month query filters exactly so a merged month reconciles to the
+     * sum of its segments.
+     *
+     * Only the segment-candidate customers (rare — those with a mid-month
+     * contract change) hit these per-segment queries, so page-wide cost is
+     * bounded.
+     */
+    protected static function buildSegmentPayloads(
+        array $base,
+        array $segments,
+        CarbonInterface $monthStart,
+        bool $isCurrentMonth,
+        CarbonInterface $asOf,
+        $now,
+        array $operatorGstRates,
+        array $testingVendIds
+    ): array {
+        $customerId = $base['customer_id'];
+        $operatorId = $base['operator_id'];
+        $gstRatePct = (float) ($operatorGstRates[$operatorId] ?? 0);
+
+        $out = [];
+        $lastIndex = count($segments) - 1;
+
+        foreach ($segments as $idx => $seg) {
+            /** @var \Carbon\Carbon $segStart */
+            $segStart = $seg['start'];
+            /** @var \Carbon\Carbon $segEnd */
+            $segEnd = $seg['end'];
+            $v = $seg['version'];
+
+            $wStart = $segStart->copy()->startOfDay();
+            $wEnd = $segEnd->copy()->endOfDay();
+
+            // Gross / counts ← gp_metrics (txn_date DATE range).
+            $gp = DB::table('gp_metrics')
+                ->where('customer_id', $customerId)
+                ->whereBetween('txn_date', [$segStart->toDateString(), $segEnd->toDateString()])
+                ->selectRaw('COALESCE(SUM(gross_profit_cents), 0) AS gross_earning_cents')
+                ->selectRaw('COALESCE(SUM(transaction_count), 0) AS transaction_count')
+                ->selectRaw('COUNT(DISTINCT vend_id) AS vend_count')
+                ->first();
+            $grossEarningCents = (int) ($gp->gross_earning_cents ?? 0);
+            $transactionCount = (int) ($gp->transaction_count ?? 0);
+            $vendCount = (int) ($gp->vend_count ?? 0);
+
+            // Sales ← vend_transactions, same filter as the whole-month query.
+            $salesCents = (int) round((float) DB::table('vend_transactions')
+                ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+                ->where('vend_transactions.customer_id', $customerId)
+                ->where(function ($q) use ($wStart, $wEnd) {
+                    $q->whereBetween('vend_transactions.transaction_datetime', [$wStart, $wEnd])
+                      ->orWhere(function ($or) use ($wStart, $wEnd) {
+                          $or->whereNull('vend_transactions.transaction_datetime')
+                             ->whereBetween('vend_transactions.created_at', [$wStart, $wEnd]);
+                      });
+                })
+                ->where(function ($q) {
+                    $q->whereIn('vend_channel_errors.code', [0, 6])
+                      ->orWhereNull('vend_channel_errors.code')
+                      ->orWhere('vend_transactions.is_multiple', true);
+                })
+                ->when(!empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+                ->where('vend_transactions.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
+                ->sum('vend_transactions.amount'));
+
+            // Jobs ← ops_job_items (ops_jobs.date range).
+            $jobCount = (int) DB::table('ops_job_items')
+                ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+                ->where('ops_job_items.customer_id', $customerId)
+                ->where('ops_job_items.status', '>=', \App\Models\OpsJob::STATUS_DELIVERED)
+                ->where('ops_job_items.status', '<>', \App\Models\OpsJob::STATUS_CANCELLED)
+                ->whereBetween('ops_jobs.date', [$wStart, $wEnd])
+                ->count();
+
+            // Contract terms from this segment's version (null = no contract).
+            $cType = $v ? $v->contract_commission_type : null;
+            $cVal = ($v && $v->contract_commission_value !== null) ? (float) $v->contract_commission_value : null;
+            $cVal2 = ($v && $v->contract_commission_value2 !== null) ? (float) $v->contract_commission_value2 : null;
+            $cPs = ($v && $v->contract_ps_term !== null) ? (float) $v->contract_ps_term : null;
+
+            $locationFeeCents = self::computeLocationFeeCents($cType, $cVal, $cVal2, $cPs, $salesCents, $grossEarningCents, $gstRatePct);
+            $externalSubsidizeCents = ($v && $v->is_external_subsidize && $v->external_subsidize_amount !== null)
+                ? (int) round(((float) $v->external_subsidize_amount) * 100)
+                : 0;
+            $netLocationFeeCents = $locationFeeCents - $externalSubsidizeCents;
+            $locationEarningCents = $grossEarningCents - $netLocationFeeCents;
+            $locationEarningRate = $salesCents > 0 ? round($locationEarningCents / $salesCents, 4) : 0;
+
+            // Drop wholly-empty segments (no sales / fee / txns / jobs).
+            if ($salesCents === 0 && $locationFeeCents === 0 && $transactionCount === 0 && $jobCount === 0) {
+                continue;
+            }
+
+            $segIsCurrent = $isCurrentMonth && ($idx === $lastIndex);
+
+            $out[] = [
+                'customer_id' => $customerId,
+                'operator_id' => $operatorId,
+                'year_month' => $monthStart->toDateString(),
+                'period_start' => $segStart->toDateString(),
+                'period_end' => $segEnd->toDateString(),
+                'is_current_month' => $segIsCurrent,
+                'segment_index' => $idx,
+                'segmentation_overridden' => false,
+                'as_of_date' => ($segIsCurrent ? $asOf->toDateString() : $segEnd->toDateString()),
+                'sales_cents' => $salesCents,
+                'gross_earning_cents' => $grossEarningCents,
+                'location_fees_cents' => $locationFeeCents,
+                'location_earning_cents' => $locationEarningCents,
+                'location_earning_rate' => $locationEarningRate,
+                'external_subsidize_cents' => $externalSubsidizeCents,
+                'transaction_count' => $transactionCount,
+                'vend_count' => $vendCount,
+                'job_count' => $jobCount,
+                'contract_commission_type' => $cType,
+                'contract_commission_value' => $cVal,
+                'contract_commission_value2' => $cVal2,
+                'contract_ps_term' => $cPs,
+                'contract_log_id' => $v ? $v->id : null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        // If every segment was empty, fall back to the single whole-month row
+        // so the customer doesn't vanish from the page.
+        return empty($out) ? [$base] : $out;
     }
 
     /**

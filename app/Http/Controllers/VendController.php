@@ -524,7 +524,7 @@ class VendController extends Controller
         $needsLastOpsJobs = in_array($sortKey, ['last_ops_job_acc_total_amount', 'last_ops_job_acc_total_count', 'last_ops_job_amount', 'last_ops_job_cash_amount', 'last_ops_job_count']);
         $needsLastSecondOpsJobs = in_array($sortKey, ['last_second_ops_job_acc_total_amount', 'last_second_ops_job_acc_total_count', 'last_second_ops_job_amount', 'last_second_ops_job_cash_amount', 'last_second_ops_job_count']);
         $needsNextOpsJobs = in_array($sortKey, ['next_ops_job_amount', 'next_ops_job_cash_amount', 'next_ops_job_count']);
-        $needsLastThirtyDaysStockIn = in_array($sortKey, ['last_thirty_days_stock_in_amount', 'last_thirty_days_stock_in_qty', 'thirty_days_stock_in_delta_amount', 'thirty_days_stock_in_delta_percent']);
+        $needsLastThirtyDaysStockIn = in_array($sortKey, ['last_thirty_days_stock_in_amount', 'last_thirty_days_stock_in_qty', 'thirty_days_stock_in_delta_amount', 'thirty_days_stock_in_delta_percent', 'last_thirty_days_jobs_done_count']);
         // Sort hooks for the Contract Type column's Accumulated VendEarning and
         // L30d VendEarning rows. Both are normally computed in PHP after the
         // page is fetched (see the post-query loops further down). When the
@@ -823,6 +823,7 @@ class VendController extends Controller
                         DB::raw("(
                 SELECT SUM(ojic.actual_qty) AS qty,
                        SUM(ojic.actual_qty * vc.amount) AS amount,
+                       COUNT(DISTINCT oji.id) AS jobs_done_count,
                        oji.customer_id
                 FROM ops_jobs oj
                 INNER JOIN ops_job_items oji ON oji.ops_job_id = oj.id
@@ -1046,6 +1047,10 @@ class VendController extends Controller
             if ($needsLastThirtyDaysStockIn) {
                 $selectColumns[] = 'last_thirty_days_stock_in.amount AS last_thirty_days_stock_in_amount';
                 $selectColumns[] = 'last_thirty_days_stock_in.qty AS last_thirty_days_stock_in_qty';
+                // # of Job Done L30d — count of completed ops_job_items for this
+                // customer in the trailing 30 days. Shares the same subquery as the
+                // stock-in sums so the sortable value matches the rendered count.
+                $selectColumns[] = 'last_thirty_days_stock_in.jobs_done_count AS last_thirty_days_jobs_done_count';
                 $selectColumns[] = DB::raw('
                     (last_thirty_days_stock_in.amount/100 - (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount"))/100)) AS thirty_days_stock_in_delta_amount
                 ');
@@ -4520,7 +4525,10 @@ class VendController extends Controller
                 ->select(
                     'ops_job_items.customer_id',
                     DB::raw('SUM(ops_job_item_channels.actual_qty) AS qty'),
-                    DB::raw('SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount')
+                    DB::raw('SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount'),
+                    // # of Job Done L30d — DISTINCT because the channel join fans out
+                    // one row per channel; we count completed ops_job_items, not rows.
+                    DB::raw('COUNT(DISTINCT ops_job_items.id) AS jobs_done_count')
                 )
                 ->whereBetween('ops_jobs.date', [DB::raw('CURDATE() - INTERVAL 29 DAY'), DB::raw('CURDATE()')])
                 ->groupBy('ops_job_items.customer_id')
@@ -4532,9 +4540,11 @@ class VendController extends Controller
                 if (isset($data[$cid])) {
                     $item->last_thirty_days_stock_in_amount = $data[$cid]->amount;
                     $item->last_thirty_days_stock_in_qty = $data[$cid]->qty;
+                    $item->last_thirty_days_jobs_done_count = $data[$cid]->jobs_done_count;
                 } else {
                     $item->last_thirty_days_stock_in_amount = 0;
                     $item->last_thirty_days_stock_in_qty = 0;
+                    $item->last_thirty_days_jobs_done_count = 0;
                 }
             }
         }

@@ -92,6 +92,33 @@ class CustomerPeriodSummaryResource extends JsonResource
             'locked_by_user' => $this->relationLoaded('lockedBy') && $this->lockedBy
                 ? ['id' => $this->lockedBy->id, 'name' => $this->lockedBy->name]
                 : null,
+            // "Email Performance Report" audit (from the Report Content modal
+            // button on a LOCKED row). The modal renders "Last sent by X at Y"
+            // when these are set; never sent stays null.
+            'report_emailed_at' => optional($this->report_emailed_at)->toDateTimeString(),
+            'report_emailed_by_user' => $this->relationLoaded('reportEmailedBy') && $this->reportEmailedBy
+                ? ['id' => $this->reportEmailedBy->id, 'name' => $this->reportEmailedBy->name]
+                : null,
+            // Paid state. is_paid drives the Paid/Unpaid button visibility on
+            // Customer/Summary.vue; paid_by_user powers the "Paid by X" tip.
+            // Only meaningful when is_locked = true (UI enforces the order).
+            'is_paid' => $this->paid_at !== null,
+            'paid_at' => optional($this->paid_at)->toDateTimeString(),
+            'paid_by_user' => $this->relationLoaded('paidBy') && $this->paidBy
+                ? ['id' => $this->paidBy->id, 'name' => $this->paidBy->name]
+                : null,
+            // Reverse-action audit — surfaces "last unpaid by X at Y" and
+            // "last unlocked by X at Y" in tooltips, so the user can see the
+            // most recent reversal even after the row goes back into a
+            // Locked / Paid state on the next cycle.
+            'last_unpaid_at' => optional($this->last_unpaid_at)->toDateTimeString(),
+            'last_unpaid_by_user' => $this->relationLoaded('lastUnpaidBy') && $this->lastUnpaidBy
+                ? ['id' => $this->lastUnpaidBy->id, 'name' => $this->lastUnpaidBy->name]
+                : null,
+            'last_unlocked_at' => optional($this->last_unlocked_at)->toDateTimeString(),
+            'last_unlocked_by_user' => $this->relationLoaded('lastUnlockedBy') && $this->lastUnlockedBy
+                ? ['id' => $this->lastUnlockedBy->id, 'name' => $this->lastUnlockedBy->name]
+                : null,
             'sales_cents' => (int) $this->sales_cents,
             'gross_earning_cents' => (int) $this->gross_earning_cents,
             // Completed months: frozen snapshot. Current month: re-derived live
@@ -126,6 +153,23 @@ class CustomerPeriodSummaryResource extends JsonResource
             'existing_invoice' => isset($this->existing_invoice)
                 ? $this->existing_invoice
                 : null,
+            // Resolved PREVIOUS-month figures for the current (in-progress)
+            // month — attached by CustomerController::attachPreviousMonthSummary()
+            // and only present on current-month rows. Lets the Vue side draw
+            // month-over-month trend arrows in the single-month "Current" view,
+            // where last month isn't itself a visible row. Same cent fields the
+            // trend getters read (sales / gross / location fees / vend earning /
+            // external subsidize). Null when there's no prior month on record.
+            'prev_month' => isset($this->previous_month_summary)
+                ? $this->previous_month_summary
+                : null,
+            // Which contract terms changed versus the immediately-preceding
+            // period — drives the tiny "New" badge on the Summary page. Keys:
+            // placement_type / contract_until / auto_renewal / notice_period.
+            // Attached by CustomerController::attachContractChangeFlags().
+            'contract_diff' => isset($this->contract_diff)
+                ? $this->contract_diff
+                : null,
             // Placement Contract Detail — completed months show the frozen
             // snapshot; the current month shows live contract terms.
             'contract_commission_type' => $contractType,
@@ -139,6 +183,16 @@ class CustomerPeriodSummaryResource extends JsonResource
                     'ref_id' => $c->id ? $c->id + \App\Models\Customer::RUNNING_NUMBER_INIT : null,
                     'name' => $c->name,
                     'code' => $c->code,
+                    // CMS "Company" field (com_remark). Rendered as the
+                    // "Company / Name" sub-line in the Address column on the
+                    // Summary page. See migration 2026_05_27_000000.
+                    'company_remark' => $c->company_remark,
+                    // Primary contact (morphOne). Only the name is surfaced —
+                    // used for the "Contact Person" sub-line stacked under the
+                    // Address column on the Summary page.
+                    'contact' => $c->relationLoaded('contact') && $c->contact
+                        ? ['name' => $c->contact->name]
+                        : null,
                     'virtual_customer_code' => $c->virtual_customer_code,
                     'virtual_customer_prefix' => $c->virtual_customer_prefix,
                     'person_id' => $c->person_id ?? null,

@@ -83,7 +83,9 @@ class CustomerController extends Controller
         $request->merge([
             'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
-            'is_active' => $request->is_active ? $request->is_active : 'true',
+            // Customer Status filter (replaces is_active). Default to Active so
+            // the list opens on active customers, matching prior behaviour.
+            'status' => $request->status ? $request->status : Customer::STATUS_ACTIVE,
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'customers.id',
             'sortBy' => $request->sortBy ? $request->sortBy : 'false',
@@ -305,12 +307,25 @@ class CustomerController extends Controller
         $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
-            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by',
+            'customer:id,name,code,company_remark,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by',
+            // Customer's primary contact (morphOne) — used to render the
+            // Contact Person line stacked under Address on the Summary page.
+            'customer.contact:id,modelable_id,modelable_type,name',
             // Customer-level note "last edited by" user — drives the
             // tiny audit line under the textarea on Customer Summary.
             'customer.notesUpdatedBy:id,name',
             // User who locked the row (if any) — "Locked by X" tooltip.
             'lockedBy:id,name',
+            // "Email Performance Report" audit — drives the "Last sent by X
+            // at Y" line in the Report Content modal.
+            'reportEmailedBy:id,name',
+            // User who marked the row Paid — "Paid by X" tooltip.
+            'paidBy:id,name',
+            // Reverse-action audit relations — used by the tooltip on the
+            // Period Verify & Lock cell so the next Lock/Paid cycle can
+            // show who last unpaid / unlocked. Light (id+name) selects.
+            'lastUnpaidBy:id,name',
+            'lastUnlockedBy:id,name',
             // gst_vat_rate is pulled here so the Sales column can render the
             // excl-GST sub-line right under the incl-GST main value.
             'customer.operator:id,code,name,gst_vat_rate',
@@ -487,6 +502,20 @@ class CustomerController extends Controller
         // Customer Summary page.
         $this->attachExistingInvoice($summaries->getCollection());
 
+        // Attach the resolved PREVIOUS-month snapshot to each current-month
+        // row, so the Vue side can render month-over-month trend arrows even
+        // in the single-month "Current" view (where last month isn't itself a
+        // visible row to compare against). No-op for non-current rows — in the
+        // multi-month views the previous month is already a visible row and
+        // the arrows resolve from that.
+        $this->attachPreviousMonthSummary($summaries->getCollection());
+
+        // Flag, per row, which contract terms changed versus the customer's
+        // immediately-preceding period — drives the tiny "New" badge beside
+        // Placement Contract Type / Contract End Date / Auto Renewal / Notice
+        // Period on the Summary page.
+        $this->attachContractChangeFlags($summaries->getCollection());
+
         // Aggregate totals — summed across the FULL filtered set (not just
         // the paginated rows visible on this page) so the 4 boxes above the
         // table (Total Sales / Gross Earning / Location Fees / Vend Earnings)
@@ -500,7 +529,8 @@ class CustomerController extends Controller
                 COALESCE(SUM(sales_cents), 0) AS sales_cents,
                 COALESCE(SUM(gross_earning_cents), 0) AS gross_earning_cents,
                 COALESCE(SUM(location_fees_cents), 0) AS location_fees_cents,
-                COALESCE(SUM(location_earning_cents), 0) AS location_earning_cents
+                COALESCE(SUM(location_earning_cents), 0) AS location_earning_cents,
+                MIN(period_start) AS earliest_period_start
             ')
             ->first();
         $totals = [
@@ -510,6 +540,52 @@ class CustomerController extends Controller
             'location_earning_cents' => (int) ($totalsRow->location_earning_cents ?? 0),
         ];
 
+        // Displayed "Period range" — collapse to where the FILTERED data
+        // actually starts. So e.g. picking "All" but with a filter whose
+        // earliest data is 2023-11 shows the range starting at 2023-11-01,
+        // not at the global floor (2023-01-01). The range END is left at the
+        // resolved end (end-of-current-month for "All") per user request.
+        // Falls back to the resolved range when the filter matches no rows.
+        $displayRangeStart = $totalsRow && $totalsRow->earliest_period_start
+            ? \Carbon\Carbon::parse($totalsRow->earliest_period_start)->toDateString()
+            : $rangeStart->toDateString();
+
+        // Distinct-customer aggregate counts scoped to the SAME filtered
+        // customer set as the totals above. Drives the two count cards
+        // ("# without Contract Attachment" / "# To Be Expired in 30ds") in
+        // the totals row on Customer/Summary.vue.
+        //
+        // 1) No-contract-attachment count — mirrors applyContractAttachmentFilter:
+        //    a customer counts as "no attachment" when they have no contract
+        //    attachment uploaded on/after the first day of the filtered
+        //    period's starting month (so older legacy attachments don't
+        //    inflate the count for the current reporting window).
+        $attachmentThreshold = $rangeStart->copy()->startOfMonth()->toDateString();
+        $noContractAttachmentCount = Customer::query()
+            ->whereIn('id', $customerIds)
+            ->whereDoesntHave('contracts', function ($q) use ($attachmentThreshold) {
+                $q->where('attachments.created_at', '>=', $attachmentThreshold);
+            })
+            ->count();
+
+        // 2) "To Be Expired in 30ds" — customers whose contract_until is
+        //    between today and 30 calendar days from today (inclusive on
+        //    both ends, upcoming-only — already-expired contracts are
+        //    excluded). App TZ is operator TZ on this per-country deployment,
+        //    so Carbon::today() is correct without explicit conversion.
+        $today = \Carbon\Carbon::today();
+        $expiringIn30dCount = Customer::query()
+            ->whereIn('id', $customerIds)
+            ->whereNotNull('contract_until')
+            ->whereBetween('contract_until', [
+                $today->toDateString(),
+                $today->copy()->addDays(30)->toDateString(),
+            ])
+            ->count();
+
+        $totals['no_contract_attachment_count'] = (int) $noContractAttachmentCount;
+        $totals['expiring_in_30d_count'] = (int) $expiringIn30dCount;
+
         $className = get_class(new Customer());
         $optionsService = app(\App\Services\OptionsService::class);
 
@@ -518,7 +594,7 @@ class CustomerController extends Controller
             'totals' => $totals,
             'periodReport' => $request->period_report,
             'periodReportOptions' => $this->periodReportOptions(),
-            'rangeStart' => $rangeStart->toDateString(),
+            'rangeStart' => $displayRangeStart,
             'rangeEnd' => $rangeEnd->copy()->endOfMonth()->toDateString(),
             'cmsEndpoint' => env('CMS_URL'),
             'locationTypeOptions' => $optionsService->locationTypes(),
@@ -591,6 +667,10 @@ class CustomerController extends Controller
     {
         return [
             ['id' => 'current',         'value' => 'Current'],
+            // "Last Month Only" → just the previous completed month (1 row per
+            // customer). Distinct from "Last month" which shows current + the
+            // last finished month (2 rows).
+            ['id' => 'last_month_only', 'value' => 'Last Month Only'],
             ['id' => 'last_1_month',    'value' => 'Last month'],
             ['id' => 'last_2_months',   'value' => 'Last 2 months'],
             ['id' => 'last_3_months',   'value' => 'Last 3 months'],
@@ -640,6 +720,13 @@ class CustomerController extends Controller
      */
     protected function resolvePeriodReportRange(?string $id, \Carbon\Carbon $currentMonthStart): array
     {
+        // "Last Month Only" — a single-month window for the previous completed
+        // month (excludes the in-progress current month).
+        if ($id === 'last_month_only') {
+            $lastMonth = $currentMonthStart->copy()->subMonthNoOverflow()->startOfMonth();
+            return [$lastMonth, $lastMonth->copy()];
+        }
+
         $monthsBack = $this->periodReportMonthsBack($id);
         if ($monthsBack !== null) {
             // Include the current (still-in-progress) month at the top of
@@ -672,12 +759,14 @@ class CustomerController extends Controller
 
     /**
      * Whether the supplied period_report id should produce ONE aggregated row
-     * per customer (true) instead of one row per stored month (false). Every
-     * option except 'current' aggregates.
+     * per customer (true) instead of one row per stored month (false). The
+     * single-month windows ('current', 'last_month_only') are NOT aggregated
+     * so the user-picked sort column stays primary; every other option
+     * (multi-month / all) clusters by customer.
      */
     protected function isAggregatedPeriodReport(?string $id): bool
     {
-        return $id !== null && $id !== 'current';
+        return $id !== null && !in_array($id, ['current', 'last_month_only'], true);
     }
 
     /**
@@ -824,6 +913,12 @@ class CustomerController extends Controller
      * locked_by so the row reverts to live re-derivation. The frozen stored
      * columns stay as-is but are no longer authoritative (the resource
      * recomputes live while unlocked).
+     *
+     * Blocked when the row is currently Paid — the Paid state implies the
+     * locked snapshot has already been actioned on, so the user must
+     * explicitly Unpaid first (audit trail discipline). last_unlocked_at /
+     * last_unlocked_by are stamped on every successful unlock so the next
+     * Lock cycle's tooltip can show the prior Unlock history.
      */
     public function unlockCustomerPeriodSummary(Request $request, $id)
     {
@@ -833,11 +928,83 @@ class CustomerController extends Controller
         }
 
         $summary = \App\Models\CustomerPeriodSummary::findOrFail($id);
+
+        // Hard guard: a Paid row must be Unpaid first. This matches the UI
+        // (Unlock button is disabled while paid) so the only way to hit this
+        // branch is a stale tab / direct POST.
+        if ($summary->paid_at !== null) {
+            return back()->withErrors(['unlock' => 'This period is marked Paid — Unpaid it first before unlocking.']);
+        }
+
         $summary->locked_at = null;
         $summary->locked_by = null;
+        $summary->last_unlocked_at = now();
+        $summary->last_unlocked_by = $user->id;
         $summary->save();
 
         return back()->with('success', 'Period unlocked.');
+    }
+
+    /**
+     * Mark a locked Customer Summary row as Paid.
+     *
+     * Same permission as Lock ('admin-access customers') — Paid is a forward
+     * action that anyone who can Lock should also be able to apply. Requires
+     * the row to be locked first (paid only makes sense on top of a frozen
+     * snapshot) and not already paid. Sets paid_at / paid_by; does NOT touch
+     * the lock fields.
+     */
+    public function markPaidCustomerPeriodSummary(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->can('admin-access customers')) {
+            abort(403, 'You do not have permission to mark summary rows Paid.');
+        }
+
+        $summary = \App\Models\CustomerPeriodSummary::findOrFail($id);
+
+        if ($summary->locked_at === null) {
+            return back()->withErrors(['paid' => 'Lock the period first before marking it Paid.']);
+        }
+        if ($summary->paid_at !== null) {
+            return back()->with('success', 'This period is already marked Paid.');
+        }
+
+        $summary->paid_at = now();
+        $summary->paid_by = $user->id;
+        $summary->save();
+
+        return back()->with('success', 'Period marked Paid.');
+    }
+
+    /**
+     * Mark a Paid row as Unpaid (reverses markPaidCustomerPeriodSummary).
+     *
+     * Same permission tier as Unlock (superadmin / admin) — Unpaid reverses
+     * a recorded action, so it sits at the higher access tier. Clears
+     * paid_at / paid_by and stamps last_unpaid_at / last_unpaid_by so the
+     * tooltip can surface "last unpaid by X at Y" on the next Paid cycle.
+     */
+    public function markUnpaidCustomerPeriodSummary(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->hasAnyRole(['superadmin', 'admin'])) {
+            abort(403, 'You do not have permission to mark summary rows Unpaid.');
+        }
+
+        $summary = \App\Models\CustomerPeriodSummary::findOrFail($id);
+
+        if ($summary->paid_at === null) {
+            return back()->with('success', 'This period is already Unpaid.');
+        }
+
+        $summary->paid_at = null;
+        $summary->paid_by = null;
+        $summary->last_unpaid_at = now();
+        $summary->last_unpaid_by = $user->id;
+        $summary->save();
+
+        return back()->with('success', 'Period marked Unpaid.');
     }
 
     /**
@@ -966,6 +1133,249 @@ class CustomerController extends Controller
         foreach ($collection as $row) {
             $rowYm = optional($row->year_month)->toDateString();
             $row->accumulate_vending_earning_cents = (int) ($running[$row->customer_id][$rowYm] ?? 0);
+        }
+    }
+
+    /**
+     * Attach the resolved PREVIOUS-month snapshot to each CURRENT-month row.
+     *
+     * Drives the month-over-month trend arrows for the current (in-progress)
+     * month. In the single-month "Current" view there is no previous-month row
+     * on screen to diff against, so without this the latest month shows no
+     * arrows at all. We resolve last month's figures the SAME way the row
+     * itself is resolved (CustomerPeriodSummaryResource): locked months keep
+     * their frozen snapshot; unlocked months are re-derived LIVE from the
+     * customer's current contract — mirroring attachAccumulatedVendingEarning()
+     * so the comparison is apples-to-apples with what's rendered elsewhere.
+     *
+     * Only current-month rows get this. The multi-month "Last N months" / "All"
+     * views already show the previous month as its own row, and the Vue side
+     * diffs against that visible row directly (so the fallback never fires).
+     *
+     * Cost: two batched queries per page (previous-month rows + the per-customer
+     * contract/GST map). Comparison is incomplete-month vs full prior month, so
+     * the arrows will typically point down early in the month and climb toward
+     * parity as the month progresses — which is the intended signal.
+     */
+    protected function attachPreviousMonthSummary($collection): void
+    {
+        if ($collection->isEmpty()) {
+            return;
+        }
+
+        // (customer_id, previous-month-first-of-month) we need, one per
+        // current-month row. Keyed maps keep the later lookups O(1).
+        $prevDateByCustomer = [];   // customer_id => 'Y-m-01' (previous month)
+        foreach ($collection as $row) {
+            if (!$row->is_current_month || $row->customer_id === null || !$row->year_month) {
+                continue;
+            }
+            $prevDateByCustomer[$row->customer_id] = $row->year_month
+                ->copy()->startOfMonth()->subMonth()->toDateString();
+        }
+        if (empty($prevDateByCustomer)) {
+            return;
+        }
+
+        $customerIds = array_keys($prevDateByCustomer);
+        $prevDates = array_values(array_unique($prevDateByCustomer));
+
+        // All candidate previous-month rows in one batched query; filter to the
+        // exact (customer, month) pair in-memory via the keyed map below.
+        $prevRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
+            ->select(
+                'customer_id', 'year_month', 'sales_cents', 'gross_earning_cents',
+                'location_fees_cents', 'external_subsidize_cents',
+                'location_earning_cents', 'transaction_count', 'locked_at'
+            )
+            ->whereIn('customer_id', $customerIds)
+            ->whereIn('year_month', $prevDates)
+            ->get()
+            ->keyBy(fn ($r) => $r->customer_id . '|' . \Carbon\Carbon::parse($r->year_month)->toDateString());
+
+        // Current contract + operator GST per customer — used to re-derive the
+        // LIVE figures for unlocked previous months. Same source/shape as
+        // attachAccumulatedVendingEarning().
+        $contractMap = \Illuminate\Support\Facades\DB::table('customers')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->whereIn('customers.id', $customerIds)
+            ->select(
+                'customers.id',
+                'customers.contract_commission_type',
+                'customers.contract_commission_value',
+                'customers.contract_commission_value2',
+                'customers.contract_ps_term',
+                'customers.is_external_subsidize',
+                'customers.external_subsidize_amount',
+                'operators.gst_vat_rate'
+            )
+            ->get()
+            ->keyBy('id');
+
+        foreach ($collection as $row) {
+            if (!$row->is_current_month || $row->customer_id === null || !$row->year_month) {
+                $row->previous_month_summary = null;
+                continue;
+            }
+
+            $prevKey = $prevDateByCustomer[$row->customer_id] ?? null;
+            $p = $prevKey ? $prevRows->get($row->customer_id . '|' . $prevKey) : null;
+            if (!$p) {
+                $row->previous_month_summary = null;
+                continue;
+            }
+
+            $locationFeesCents = (int) $p->location_fees_cents;
+            $externalSubsidizeCents = (int) $p->external_subsidize_cents;
+            $locationEarningCents = (int) $p->location_earning_cents;
+
+            if ($p->locked_at === null) {
+                $c = $contractMap->get($row->customer_id);
+                if ($c) {
+                    $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                    $locationFeesCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                        $c->contract_commission_type,
+                        $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                        $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                        $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                        (int) $p->sales_cents,
+                        (int) $p->gross_earning_cents,
+                        $gstRatePct
+                    );
+                    $externalSubsidizeCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                        ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                        : 0;
+                    $locationEarningCents = (int) $p->gross_earning_cents - ($locationFeesCents - $externalSubsidizeCents);
+                }
+            }
+
+            $row->previous_month_summary = [
+                'year_month' => $prevKey,
+                'sales_cents' => (int) $p->sales_cents,
+                'gross_earning_cents' => (int) $p->gross_earning_cents,
+                'location_fees_cents' => $locationFeesCents,
+                'external_subsidize_cents' => $externalSubsidizeCents,
+                'location_earning_cents' => $locationEarningCents,
+                'transaction_count' => (int) $p->transaction_count,
+            ];
+        }
+    }
+
+    /**
+     * Flag, per visible row, which contract terms changed during that period
+     * versus the previous period — drives the tiny "New" badge beside Placement
+     * Contract Type, Contract End Date, Auto Renewal and Notice Period on the
+     * Customer Summary page.
+     *
+     * Source of truth is customer_contract_logs — the append-only, effective-
+     * dated history written every time a customer's contract is edited (see
+     * the contract-log write in CustomerController::update). For each row we
+     * resolve the contract version in effect at:
+     *   - the END of this period   (period_end, end-of-day), and
+     *   - the END of the previous period (the instant before period_start),
+     * then compare each field group. This is reliable regardless of how the
+     * period summary rows themselves snapshot contract fields (which the
+     * aggregator overwrites for unlocked months), because the log is never
+     * rewritten.
+     *
+     * No baseline (the contract had no version in effect in the previous
+     * period — e.g. a brand-new customer) → no badge, so the very first
+     * contract isn't flagged as a change.
+     *
+     * Cost: one batched query per page pulling every visible customer's
+     * contract versions; a linear scan resolves the two as-of versions per row.
+     */
+    protected function attachContractChangeFlags($collection): void
+    {
+        $default = [
+            'placement_type' => false,
+            'contract_until' => false,
+            'auto_renewal' => false,
+            'notice_period' => false,
+        ];
+
+        if ($collection->isEmpty()) {
+            return;
+        }
+
+        $customerIds = $collection->pluck('customer_id')->filter()->unique()->values()->all();
+        if (empty($customerIds)) {
+            foreach ($collection as $row) {
+                $row->contract_diff = $default;
+            }
+            return;
+        }
+
+        // Every contract version for the visible customers, oldest first.
+        $versionsByCustomer = \App\Models\CustomerContractLog::query()
+            ->whereIn('customer_id', $customerIds)
+            ->orderBy('customer_id')
+            ->orderBy('effective_from')
+            ->get([
+                'customer_id', 'effective_from', 'effective_to',
+                'contract_commission_type', 'contract_commission_value',
+                'contract_commission_value2', 'contract_ps_term',
+                'contract_until', 'contract_auto_renewal', 'contract_notice_period',
+            ])
+            ->groupBy('customer_id');
+
+        $str = fn ($v) => ($v === null || $v === '') ? null : (string) $v;
+        $num = fn ($v) => ($v === null || $v === '') ? null : number_format((float) $v, 2, '.', '');
+        $date = fn ($v) => $v === null ? null : \Carbon\Carbon::parse($v)->toDateString();
+        $bool = fn ($v) => $v === null ? null : (bool) $v;
+
+        // The contract version in effect at instant $moment (or null).
+        // A version covers [effective_from, effective_to); effective_to NULL = current.
+        $activeAt = function ($versions, $moment) {
+            $found = null;
+            foreach ($versions as $v) {
+                if ($v->effective_from !== null
+                    && $v->effective_from->lte($moment)
+                    && ($v->effective_to === null || $v->effective_to->gt($moment))) {
+                    $found = $v;
+                }
+            }
+            return $found;
+        };
+
+        foreach ($collection as $row) {
+            $cid = $row->customer_id;
+            $versions = $versionsByCustomer->get($cid);
+
+            if ($cid === null || $versions === null || !$row->period_start || !$row->period_end) {
+                $row->contract_diff = $default;
+                continue;
+            }
+
+            $cur = $activeAt($versions, $row->period_end->copy()->endOfDay());
+            $prev = $activeAt($versions, $row->period_start->copy()->startOfDay()->subSecond());
+
+            // Nothing was in effect the previous period → no baseline, no badge.
+            if ($prev === null) {
+                $row->contract_diff = $default;
+                continue;
+            }
+
+            $curType   = $cur ? $cur->contract_commission_type : null;
+            $curVal    = $cur ? $cur->contract_commission_value : null;
+            $curVal2   = $cur ? $cur->contract_commission_value2 : null;
+            $curPsTerm = $cur ? $cur->contract_ps_term : null;
+            $curUntil  = $cur ? $cur->contract_until : null;
+            $curRenew  = $cur ? $cur->contract_auto_renewal : null;
+            $curNotice = $cur ? $cur->contract_notice_period : null;
+
+            $placementChanged =
+                $str($curType) !== $str($prev->contract_commission_type)
+                || $num($curVal) !== $num($prev->contract_commission_value)
+                || $num($curVal2) !== $num($prev->contract_commission_value2)
+                || $num($curPsTerm) !== $num($prev->contract_ps_term);
+
+            $row->contract_diff = [
+                'placement_type' => $placementChanged,
+                'contract_until' => $date($curUntil) !== $date($prev->contract_until),
+                'auto_renewal' => $bool($curRenew) !== $bool($prev->contract_auto_renewal),
+                'notice_period' => $str($curNotice) !== $str($prev->contract_notice_period),
+            ];
         }
     }
 
@@ -1148,19 +1558,34 @@ class CustomerController extends Controller
         // roll-up.
         $eagerLoads = [
             // Column-selection eager load — must include every column the
-            // export references below. Three previously-missing columns
-            // (location_grading_*) made the "Location Grading" cell render
-            // blank even when the on-screen Summary page showed a value.
-            // Contract + subsidy fields and operator GST are needed so the
-            // export can re-derive UNLOCKED rows live, exactly like the
-            // on-screen resource (CustomerPeriodSummaryResource).
-            'customer:id,name,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,termination_date,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount',
+            // export references below. Contract + subsidy fields and operator
+            // GST are needed so the export can re-derive UNLOCKED rows live,
+            // exactly like the on-screen resource (CustomerPeriodSummaryResource).
+            // contract_until / contract_auto_renewal / contract_notice_period
+            // and `notes` were added so the export now carries the stacked
+            // "Contract End Date / Auto Renewal / Notice Period" + Customer
+            // Note columns the on-screen page shows.
+            'customer:id,name,company_remark,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,termination_date,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,contract_until,contract_auto_renewal,contract_notice_period,notes',
             'customer.operator:id,code,name,gst_vat_rate',
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
             'customer.locationType:id,name',
             'customer.vend:id,customer_id,code,vend_prefix_id',
             'customer.vend.vendPrefix:id,name',
+            // Drives the Contact Person + Contact Phone columns (morphOne).
+            'customer.contact:id,modelable_id,modelable_type,name,phone_num,alt_phone_num',
+            // Drives the "Contract Attachment" Yes/No column — we only need to
+            // know whether the customer has at least one FILE_TYPE_CONTRACT
+            // attachment, so this is just the id list (very cheap).
+            'customer.contracts:id,modelable_id,modelable_type',
+            // Period-summary audit relations — drive the Locked/Unlocked/
+            // Paid/Unpaid/Report-Emailed "by" columns. All filtered to id+name
+            // so we don't drag whole user rows into memory.
+            'lockedBy:id,name',
+            'lastUnlockedBy:id,name',
+            'paidBy:id,name',
+            'lastUnpaidBy:id,name',
+            'reportEmailedBy:id,name',
         ];
 
         $query = \App\Models\CustomerPeriodSummary::query()
@@ -1220,10 +1645,12 @@ class CustomerController extends Controller
         // unlocked months. Mirrors attachAccumulatedVendingEarning() so the
         // export's Accumulate column matches the on-screen figure.
         $accumRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
-            ->select('customer_id', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
+            ->select('customer_id', 'year_month', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
             ->whereIn('customer_id', $customerIds)
             ->where('year_month', '>=', self::SUMMARY_FLOOR_DATE)
             ->where('year_month', '<=', $accumThrough)
+            ->orderBy('customer_id')
+            ->orderBy('year_month')
             ->get();
         $accumContractMap = \Illuminate\Support\Facades\DB::table('customers')
             ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
@@ -1240,7 +1667,13 @@ class CustomerController extends Controller
             )
             ->get()
             ->keyBy('id');
+        // accumulateMap[customer_id][YYYY-MM-DD] = RUNNING cumulative effective
+        // vend earning through that month — so each exported row shows the
+        // per-month running figure exactly like the web table, not a single
+        // lifetime total repeated on every row. Rows are ordered ascending by
+        // (customer, year_month) above so one linear pass builds the prefix sum.
         $accumulateMap = [];
+        $accumRunning = [];
         foreach ($accumRows as $r) {
             $eff = (int) $r->location_earning_cents;
             if ($r->locked_at === null) {
@@ -1262,7 +1695,9 @@ class CustomerController extends Controller
                     $eff = (int) $r->gross_earning_cents - ($fee - $ext);
                 }
             }
-            $accumulateMap[$r->customer_id] = ($accumulateMap[$r->customer_id] ?? 0) + $eff;
+            $accumRunning[$r->customer_id] = ($accumRunning[$r->customer_id] ?? 0) + $eff;
+            $ymKey = \Carbon\Carbon::parse($r->year_month)->toDateString();
+            $accumulateMap[$r->customer_id][$ymKey] = $accumRunning[$r->customer_id];
         }
 
         // Pre-fetch the latest API Invoice snapshot per (customer, period)
@@ -1363,51 +1798,131 @@ class CustomerController extends Controller
                         ? (int) round(((float) $customer->external_subsidize_amount) * 100)
                         : 0;
                     $row->location_fees_cents = $liveFee;
+                    // Stamp the live External Subsidize back on the row so the
+                    // new dedicated "External Subsidize" / "Net Loc Fee" columns
+                    // below render the same value as the on-screen page (which
+                    // also lives-derives this for unlocked rows).
+                    $row->external_subsidize_cents = $liveExt;
                     $row->location_earning_cents = (int) $row->gross_earning_cents - ($liveFee - $liveExt);
                     $row->location_earning_rate = (int) $row->sales_cents > 0
                         ? round($row->location_earning_cents / (int) $row->sales_cents, 4)
                         : 0;
                 }
 
+                // Sales — split the on-screen stacked "Sales ($) / (w/ GST) /
+                // (excl GST)" cell into two columns. The excl-GST figure is
+                // the de-grossed sales used for PS-family math; matches the
+                // primary line shown on the page.
+                $gstRatePct = optional(optional($customer)->operator)->gst_vat_rate !== null
+                    ? (float) $customer->operator->gst_vat_rate
+                    : 0.0;
+                $salesInclGstAmt = round(((int) $row->sales_cents) / $divisor, 2);
+                $salesExclGstAmt = $gstRatePct > 0
+                    ? round(((int) $row->sales_cents) / $divisor / (1 + $gstRatePct / 100), 2)
+                    : $salesInclGstAmt;
+                // Gross Earning Rate — mirrors Summary.vue's grossEarningRate():
+                // gross_earning_cents / sales_excl_gst_cents.
+                $salesExclGstCents = $gstRatePct > 0
+                    ? ((int) $row->sales_cents) / (1 + $gstRatePct / 100)
+                    : (int) $row->sales_cents;
+                $grossEarningRatePct = $salesExclGstCents > 0
+                    ? round(((int) $row->gross_earning_cents) / $salesExclGstCents * 100, 2)
+                    : null;
+
+                // Location Fees / External Subsidize / Net Loc Fee — three
+                // dedicated columns to mirror the on-screen stacked cell.
+                $extSubAmt = round(((int) ($row->external_subsidize_cents ?? 0)) / $divisor, 2);
+                $netLocFeeAmt = round((((int) $row->location_fees_cents) - ((int) ($row->external_subsidize_cents ?? 0))) / $divisor, 2);
+
+                // Contract Attachment Y/N — same gate the on-screen badge uses
+                // (any FILE_TYPE_CONTRACT attachment present → Yes). We rely on
+                // the eager load above; relationLoaded() returns false inside
+                // cursor() context (existing quirk — see the Location Type
+                // comment below), so check the collection directly.
+                $hasContract = $customer
+                    && $customer->contracts !== null
+                    && $customer->contracts->isNotEmpty();
+
+                $fmtAuditDate = fn ($v) => $v ? \Carbon\Carbon::parse($v)->format('Y-m-d H:i') : '';
+
                 return [
                     '#' => $rowIndex,
                     'Customer ID' => $customer ? ($customer->id + Customer::RUNNING_NUMBER_INIT) : null,
                     'Customer Name' => $customer?->name,
+                    // Company (CMS-mirrored `company_remark`) and Contact Person
+                    // (morphOne Contact relation). These exist on the customer
+                    // record but aren't shown in the on-screen Summary table;
+                    // useful in the export for offline contact lookup.
+                    'Company' => $customer?->company_remark,
+                    'Contact Person' => optional($customer?->contact)->name,
+                    'Contact Phone' => optional($customer?->contact)->phone_num,
+                    'Contact Alt Phone' => optional($customer?->contact)->alt_phone_num,
                     'Ref Price' => $customer?->selling_price_type ? ('RP' . $customer->selling_price_type) : null,
+                    // New: Begin Date + Contract Attachment — the on-screen
+                    // Customer cell stacks these below the name.
+                    'Begin Date' => $customer?->begin_date ? \Carbon\Carbon::parse($customer->begin_date)->format('ymd') : null,
+                    'Contract Attachment' => $hasContract ? 'Yes' : 'No',
                     'Address' => $fullAddress,
                     'Period Report (YYMM)' => $row->year_month ? \Carbon\Carbon::parse($row->year_month)->format('ym') : null,
                     'Machine ID' => $vend?->code,
                     'Machine Prefix' => $vend && $vend->relationLoaded('vendPrefix') ? optional($vend->vendPrefix)->name : null,
                     'Period Start Date' => $row->period_start ? (\Carbon\Carbon::parse($row->period_start))->format('ymd') : null,
                     'Period End Date' => $row->period_end ? (\Carbon\Carbon::parse($row->period_end))->format('ymd') : null,
-                    // Sales now sources gp_metrics.amount_cents (INCL-GST) to
-                    // match the Transactions page's "Total Sales" column.
-                    // Gross Earning stays revenue − unit_cost (excl-GST), per
-                    // its explicit column label.
-                    'Sales ($) (incl GST)' => round(((int) $row->sales_cents) / $divisor, 2),
+                    // Sales — split into incl-GST and excl-GST to mirror the
+                    // on-screen stacked cell.
+                    'Sales ($) (incl GST)' => $salesInclGstAmt,
+                    'Sales ($) (excl GST)' => $salesExclGstAmt,
+                    // Gross Earning — split into value + Rate (vs sales-excl-GST).
                     'Gross Earning (excl GST)' => round(((int) $row->gross_earning_cents) / $divisor, 2),
+                    'Gross Earning Rate %' => $grossEarningRatePct,
                     '# of Job' => (int) $row->job_count,
                     'Placement Contract Type' => $contractTypeLabels[$row->contract_commission_type] ?? $row->contract_commission_type,
                     'Location Fees Rate' => $formatLocationFeesRate($row),
+                    // Location Fees / External Subsidize / Net Loc Fee — split
+                    // out of the on-screen stacked cell.
                     'Location Fees' => round(((int) $row->location_fees_cents) / $divisor, 2),
+                    'External Subsidize' => $extSubAmt,
+                    'Net Loc Fee' => $netLocFeeAmt,
                     'Vending Earning' => round(((int) $row->location_earning_cents) / $divisor, 2),
                     'Vending Earning Rate %' => round(((float) $row->location_earning_rate) * 100, 2),
-                    'Accumulate Vending Earning' => round(((int) ($accumulateMap[$row->customer_id] ?? 0)) / $divisor, 2),
+                    'Accumulate Vending Earning' => round(((int) ($accumulateMap[$row->customer_id][
+                        $row->year_month instanceof \Carbon\Carbon
+                            ? $row->year_month->toDateString()
+                            : \Carbon\Carbon::parse($row->year_month)->toDateString()
+                    ] ?? 0)) / $divisor, 2),
                     // Location Grading: matches Summary.vue's "P, A, F" tooltip
                     // format — "{placement}, {access}, {flexibility}", each
                     // letter or '-' when blank. Hidden entirely if all three
                     // are null so the column doesn't carry meaningless "-, -, -"
                     // rows.
                     'Location Grading' => $this->formatLocationGradingForExport($customer),
-                    // Direct access — the relation is in $eagerLoads above, and
-                    // even if it weren't, optional() handles the null case.
-                    // The old relationLoaded() defensive check was returning
-                    // false in cursor() context and silently dropping the value.
                     'Location Type' => optional($customer?->locationType)->name,
+                    // New: Contract terms column on screen is three stacked
+                    // sub-fields — split here.
+                    'Contract End Date' => $customer?->contract_until ? \Carbon\Carbon::parse($customer->contract_until)->format('ymd') : null,
+                    'Auto Renewal' => $customer ? ($customer->contract_auto_renewal ? 'Yes' : 'No') : '',
+                    'Notice Period' => $customer?->contract_notice_period,
                     'Customer Tag' => $tagNames,
-                    // Lock state — blank when live; otherwise the lock date so
-                    // the export shows which months are frozen.
-                    'Locked' => $row->locked_at ? \Carbon\Carbon::parse($row->locked_at)->format('ymd') : '',
+                    // New: Customer Note (stacked with Customer Tag on screen).
+                    'Customer Note' => $customer?->notes,
+                    // Lock / Paid / Unlocked / Unpaid audit — the on-screen
+                    // Period Verify & Lock column shows all of these; split into
+                    // separate columns here so the CSV/Excel is easy to filter.
+                    // Note: relationLoaded() returns false in cursor() context
+                    // (see Location Type comment above), so we read through
+                    // optional() directly — the relations ARE eager-loaded.
+                    'Locked At' => $fmtAuditDate($row->locked_at),
+                    'Locked By' => optional($row->lockedBy)->name,
+                    'Last Unlocked At' => $fmtAuditDate($row->last_unlocked_at),
+                    'Last Unlocked By' => optional($row->lastUnlockedBy)->name,
+                    'Paid At' => $fmtAuditDate($row->paid_at),
+                    'Paid By' => optional($row->paidBy)->name,
+                    'Last Unpaid At' => $fmtAuditDate($row->last_unpaid_at),
+                    'Last Unpaid By' => optional($row->lastUnpaidBy)->name,
+                    // New: Email Performance Report audit (modal action; only
+                    // populated on locked rows that were emailed).
+                    'Report Emailed At' => $fmtAuditDate($row->report_emailed_at),
+                    'Report Emailed By' => optional($row->reportEmailedBy)->name,
                     'CMS Txn #' => $cmsTxnId,
                 ];
             }
@@ -1459,22 +1974,63 @@ class CustomerController extends Controller
 
         $customer = Customer::findOrFail($id);
 
+        // Returns JSON for AJAX callers (the Vue page now uses axios so the
+        // request survives the mailto handoff — see onModalEmailClicked) and
+        // falls back to a redirect for any browser-form caller.
+        $wantsJson = $request->wantsJson() || $request->ajax();
+        $fail = function (string $message, int $status) use ($wantsJson) {
+            if ($wantsJson) {
+                return response()->json(['message' => $message], $status);
+            }
+            return redirect()->back()->withErrors(['send_performance_report' => $message]);
+        };
+
         if (!$customer->is_report_email_enabled || empty($customer->report_email)) {
-            return redirect()->back()->withErrors([
-                'send_performance_report' => 'This customer has not opted-in to performance report emails. Enable it from the customer edit page first.',
+            return $fail('This customer has not opted-in to performance report emails. Enable it from the customer edit page first.', 422);
+        }
+
+        // The Vue side now composes the actual email via `mailto:` (the
+        // operator's own mail client sends it), so we don't dispatch a Mailable
+        // here anymore. This endpoint's job is purely to stamp the audit so the
+        // team has a record of who clicked send for which (customer, period).
+        //
+        // Guards: row must exist for the (customer, period_start, period_end)
+        // triple AND must be locked — audited mailing is a post-lock action.
+        // Direct column comparison so the new (customer_id, period_start)
+        // unique index resolves this as a primary-key-like lookup. Using
+        // whereDate() wraps the column in DATE(...) and disqualifies the
+        // index.
+        $summary = \App\Models\CustomerPeriodSummary::query()
+            ->where('customer_id', $customer->id)
+            ->where('period_start', $request->period_start)
+            ->where('period_end', $request->period_end)
+            ->first();
+
+        if (!$summary) {
+            return $fail('Could not find the matching summary row for that period.', 404);
+        }
+
+        if ($summary->locked_at === null) {
+            return $fail('Only locked periods can be marked as emailed — lock the row first.', 422);
+        }
+
+        $summary->forceFill([
+            'report_emailed_at' => now(),
+            'report_emailed_by' => auth()->id(),
+        ])->save();
+
+        $message = "Recorded email send for {$customer->report_email} ({$request->period_start} → {$request->period_end}).";
+
+        if ($wantsJson) {
+            $user = auth()->user();
+            return response()->json([
+                'message' => $message,
+                'report_emailed_at' => optional($summary->report_emailed_at)->toDateTimeString(),
+                'report_emailed_by_user' => $user ? ['id' => $user->id, 'name' => $user->name] : null,
             ]);
         }
 
-        // TODO: dispatch Mailable on the queue, e.g.
-        //   PerformanceReportMail::dispatch($customer, $request->period_start, $request->period_end)
-        //       ->onQueue('mail');
-        // For now we only confirm the request was accepted so the UI flow
-        // can be exercised end-to-end.
-
-        return redirect()->back()->with(
-            'success',
-            "Performance report queued for {$customer->report_email} ({$request->period_start} → {$request->period_end}). [send pipeline pending wiring]"
-        );
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -2116,11 +2672,18 @@ class CustomerController extends Controller
         $vend = Vend::find($request->id);
 
         $requestCustomerArr = $request->customer;
-        if (isset($requestCustomerArr['is_active']) and $requestCustomerArr['is_active'] === 'true') {
-            $requestCustomerArr['is_active'] = true;
-        } else {
-            $requestCustomerArr['is_active'] = false;
+        // Status drives the (now-derived) is_active mirror. The form sends an
+        // integer status_id; default to Active when absent/invalid so the
+        // NOT NULL customers.status_id column always receives a valid value.
+        $statusId = (isset($requestCustomerArr['status_id']) && $requestCustomerArr['status_id'] !== '' && $requestCustomerArr['status_id'] !== null)
+            ? (int) $requestCustomerArr['status_id']
+            : Customer::STATUS_ACTIVE;
+        if (!array_key_exists($statusId, Customer::STATUSES_MAPPING)) {
+            $statusId = Customer::STATUS_ACTIVE;
         }
+        $requestCustomerArr['status_id'] = $statusId;
+        // Keep the legacy boolean in sync: only "Active" maps to is_active=true.
+        $requestCustomerArr['is_active'] = ($statusId === Customer::STATUS_ACTIVE);
 
         if (isset($requestCustomerArr['is_restricted_access']) and $requestCustomerArr['is_restricted_access'] === 'true') {
             $requestCustomerArr['is_restricted_access'] = true;
@@ -2200,6 +2763,10 @@ class CustomerController extends Controller
                 'customer.location_grading_placement'      => 'nullable|in:A,B,C',
                 'customer.location_grading_access'         => 'nullable|in:A,B,C',
                 'customer.location_grading_flexibility'    => 'nullable|in:A,B,C',
+                // "Payment To" tracking (sys-only) — who Location Fees are
+                // paid to, and whether that payee is GST registered.
+                'customer.payment_to'                      => 'nullable|string|max:191',
+                'customer.is_gst_registered'               => 'nullable|boolean',
             ];
 
             $request->validate($contractRules);
@@ -2414,7 +2981,9 @@ class CustomerController extends Controller
         $request->merge([
             'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
-            'is_active' => $request->is_active ? $request->is_active : 'true',
+            // Mirror index()'s Customer Status filter so the export honours the
+            // same status selection sent from the Customer Index page.
+            'status' => $request->status ? $request->status : Customer::STATUS_ACTIVE,
             'sortKey' => $request->sortKey ? $request->sortKey : 'customers.id',
             'sortBy' => $request->sortBy ? $request->sortBy : 'false',
         ]);
@@ -2521,7 +3090,7 @@ class CustomerController extends Controller
                     'Postcode'                      => $customer->postcode,
                     'Tags'                          => $customer->tagBindings?->pluck('name')->implode(', '),
                     'Refilling Route'               => $customer->zone_name,
-                    'Status'                        => $customer->is_active ? 'Active' : 'Not Active',
+                    'Status'                        => Customer::STATUSES_MAPPING[$customer->status_id] ?? '—',
                     'Operator'                      => $customer->operator_code,
                     'Ref Price Type'                => 'RP' . $customer->selling_price_type,
                     'Begin Date'                    => $customer->begin_date

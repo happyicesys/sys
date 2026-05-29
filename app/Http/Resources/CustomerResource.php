@@ -29,6 +29,14 @@ class CustomerResource extends JsonResource
             'customerVendBindings' => CustomerVendBindingResource::collection($this->whenLoaded('customerVendBindings')),
             'person_json' => $this->person_json,
             'name' => $this->name,
+            // Read-only CMS mirror scalars (see UpdateCustomerCmsFields job).
+            'company_remark' => $this->company_remark,
+            'site_name' => $this->site_name,
+            'cost_rate' => $this->cost_rate,
+            'payterm' => $this->payterm,
+            // "Payment To" tracking (sys-only) — who Location Fees are paid to.
+            'payment_to' => $this->payment_to,
+            'is_gst_registered' => (bool) $this->is_gst_registered,
             'first_transaction_id' => $this->first_transaction_id,
             'frequency_per_week_status' => $this->frequency_per_week_status,
             'frequency_per_week_status_name' => $this->frequency_per_week_status ? Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING[$this->frequency_per_week_status] : null,
@@ -51,6 +59,7 @@ class CustomerResource extends JsonResource
             'profile_id' => $this->profile_id,
             'selling_price_type' => $this->selling_price_type,
             'status_id' => $this->status_id,
+            'status_name' => $this->status_id ? (Customer::STATUSES_MAPPING[$this->status_id] ?? null) : null,
             'thirty_days_over_full_load_ratio' => isset($this->thirty_days_over_full_load_ratio) ? $this->thirty_days_over_full_load_ratio : 0,
             'total_full_load_amount' => isset($this->total_full_load_amount) ? $this->total_full_load_amount/100 : 0,
             'updated_at' => Carbon::parse($this->updated_at)->toDateString(),

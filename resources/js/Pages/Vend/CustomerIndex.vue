@@ -990,6 +990,25 @@
 							<span>
 								Qty
 							</span>
+							<!-- # of Job Done L30d — count of completed ops_job_items
+								for this customer in the trailing 30 days. Sortable
+								via the last_thirty_days_jobs_done_count key (shares the
+								last_thirty_days_stock_in subquery in the backend). Only
+								rendered on the customers index, where the value is
+								computed; the matching <hr>/value sits at the bottom of
+								this column's TableData. -->
+							<div v-if="indexType === 'customers'" class="border-t border-gray-300 my-1 pt-1 flex flex-col space-y-1">
+								<SingleSortItem modelName="last_thirty_days_jobs_done_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_thirty_days_jobs_done_count', true)">
+									# of Job Done L30d
+								</SingleSortItem>
+								<!-- Avg $ per Job = L30d stock-in value ÷ # of Job Done L30d.
+									Display-only (derived in the cell from two already-exposed
+									fields); the matching value sits directly below the count
+									at the bottom of this column's TableData. -->
+								<span>
+									Avg {{ operatorCountry.currency_symbol }} per Job
+								</span>
+							</div>
 						</div>
 					</TableHead>
 					<TableHead v-if="indexType === 'customers' && !roles.includes('operator_driver')">
@@ -2034,6 +2053,23 @@
 									</span>
 								</div>
 							</div>
+							<!-- # of Job Done L30d — sits at the bottom of the Upcoming
+								Job column below a divider, mirroring the header label.
+								Counts completed ops_job_items for this customer in the
+								trailing 30 days. Locale-formatted (no decimals) to follow
+								the rest of the index's number formatting. -->
+							<hr class="border-t border-gray-300 my-2" />
+							<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
+								{{ (vend.last_thirty_days_jobs_done_count || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+							</span>
+							<!-- Avg $ per Job = L30d stock-in value ÷ # of Job Done L30d.
+								Both operands come from the backend already (stock-in value
+								is in dollars). Guards against divide-by-zero when no jobs
+								were done in the window. Locale currency format to match
+								the other money cells on this page. -->
+							<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
+								{{ operatorCountry.currency_symbol }}{{ (vend.last_thirty_days_jobs_done_count > 0 ? (vend.last_thirty_days_stock_in_amount / vend.last_thirty_days_jobs_done_count) : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+							</span>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_driver')">

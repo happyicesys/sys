@@ -28,10 +28,9 @@
                   <div class="sm:col-span-6 flex space-x-1">
                     <div
                       class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
-                      :class="[customer.is_active ? 'bg-green-300' : 'bg-red-300']"
+                      :class="statusBadgeClass"
                     >
-                      <span v-if="customer.is_active"> Active </span>
-                      <span v-if="!customer.is_active"> Not Active </span>
+                      <span> {{ statusLabel }} </span>
                     </div>
                     <div
                       class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-green-300"
@@ -105,6 +104,87 @@
                     </div>
                   </div>
 
+                  <!--
+                    CMS Customer Details — read-only mirror of the CMS person
+                    record (sys.happyice). Only shown for CMS-linked customers
+                    (person_id set). Values are pulled by the
+                    UpdateCustomerCmsFields job; edit them in CMS, not here.
+                  -->
+                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="customer.id && customer.person_id">
+                    <div class="sm:col-span-6 pt-2 pb-1 md:pt-4 md:pb-2">
+                      <div class="relative">
+                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                          <div class="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div class="relative flex justify-start">
+                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> CMS Customer Details </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Company </label>
+                      <input type="text" disabled :value="customer.company_remark || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Delivery Location Name </label>
+                      <input type="text" disabled :value="customer.site_name || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Billing Postcode </label>
+                      <input type="text" disabled :value="customer.billing_address?.postcode || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Delivery Postcode </label>
+                      <input type="text" disabled :value="customer.delivery_address?.postcode || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Billing Address </label>
+                      <textarea disabled rows="2" :value="customer.billing_address?.street_name || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"></textarea>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Delivery Address </label>
+                      <textarea disabled rows="2" :value="customer.delivery_address?.street_name || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"></textarea>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Billing Country </label>
+                      <input type="text" disabled :value="countryName(customer.billing_address?.country_id)" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Delivery Country </label>
+                      <input type="text" disabled :value="countryName(customer.delivery_address?.country_id)" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+
+                    <div class="sm:col-span-2">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Contact Person </label>
+                      <input type="text" disabled :value="customer.contact?.name || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+                    <div class="sm:col-span-2">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Phone Number </label>
+                      <input type="text" disabled :value="customer.contact?.phone_num || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+                    <div class="sm:col-span-2">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Alt Phone Number </label>
+                      <input type="text" disabled :value="customer.contact?.alt_phone_num || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Email </label>
+                      <input type="text" disabled :value="customer.contact?.email || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+                    <div class="sm:col-span-2">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Cost Rate (%) </label>
+                      <input type="text" disabled :value="customer.cost_rate ?? ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+                    <div class="sm:col-span-3">
+                      <label class="flex justify-start text-sm font-medium text-gray-700"> Terms </label>
+                      <input type="text" disabled :value="customer.payterm || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
+                    </div>
+                  </div>
+
                   <div class="sm:col-span-4 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
                     <div class="sm:col-span-5">
                       <FormInput v-model="form.name" :error="form.errors.name" required="true" :disabled="form.person_id">
@@ -126,11 +206,11 @@
                   </div>
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Is Active? (Customer)
+                      Status (Customer)
                     </label>
                     <MultiSelect
-                      v-model="form.is_active"
-                      :options="booleanStrictOptions"
+                      v-model="form.status_id"
+                      :options="statusOptions"
                       trackBy="id"
                       valueProp="id"
                       label="value"
@@ -138,8 +218,8 @@
                       open-direction="bottom"
                       class="mt-1"
                     ></MultiSelect>
-                    <div class="text-sm text-red-600" v-if="form.errors['customer.is_active']">
-                      {{ form.errors['customer.is_active'] }}
+                    <div class="text-sm text-red-600" v-if="form.errors['customer.status_id']">
+                      {{ form.errors['customer.status_id'] }}
                     </div>
                   </div>
                   <div class="sm:col-span-3">
@@ -842,6 +922,37 @@
                   </div>
                 </div>
 
+                <!-- Payment To / GST — sys-only fields (CMS does not record
+                     these). Shown for ALL customers, including CMS-linked
+                     ones, so the Location Fees payee is always captured. -->
+                <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
+                  <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
+                    <div class="relative">
+                      <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="w-full border-t border-gray-300"></div>
+                      </div>
+                      <div class="relative flex justify-start">
+                        <span class="px-4 bg-white text-lg font-medium text-gray-900 rounded"> Payment </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="sm:col-span-4">
+                    <FormInput v-model="form.payment_to" :error="form.errors['customer.payment_to']">
+                      Payment to (Full company name or Personal Name)
+                    </FormInput>
+                  </div>
+                  <div class="sm:col-span-2 flex items-end">
+                    <label class="flex items-center gap-2 pb-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        v-model="form.is_gst_registered"
+                        class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                      />
+                      <span class="text-sm font-medium text-gray-700"> GST Registered? </span>
+                    </label>
+                  </div>
+                </div>
+
                 <!-- Contact Section -->
                 <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
                   <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
@@ -1212,6 +1323,35 @@ const booleanStrictOptions = ref([
   { id: 'false', value: 'No' },
 ]);
 
+// Customer lifecycle status — replaces the old "Is Active?" Yes/No field.
+// `id` values are the integer customers.status_id stored server-side
+// (App\Models\Customer::STATUS_* constants). Display order matches the
+// product spec: Potential, New, Active, Pending, Inactive.
+const statusOptions = ref([
+  { id: 5, value: 'Potential' },
+  { id: 4, value: 'New' },
+  { id: 2, value: 'Active' },
+  { id: 3, value: 'Pending' },
+  { id: 1, value: 'Inactive' },
+]);
+
+// Resolve the status id from the live form selection, falling back to the
+// saved customer value (used by the header badge below).
+const currentStatusId = computed(() =>
+  form.value?.status_id?.id ?? customer.value?.status_id ?? null
+);
+const statusLabel = computed(() => {
+  const opt = statusOptions.value.find(o => o.id === currentStatusId.value);
+  return opt ? opt.value : '—';
+});
+const statusBadgeClass = computed(() => {
+  switch (currentStatusId.value) {
+    case 2:  return 'bg-green-300'; // Active
+    case 1:  return 'bg-red-300';   // Inactive
+    default: return 'bg-amber-300'; // Potential / New / Pending
+  }
+});
+
 const countryOptions = ref([]);
 const customer = ref([]);
 const customerTagOptions = ref([]);
@@ -1325,7 +1465,7 @@ function getDefaultForm() {
     operator_id: '',
     begin_date: '',
     frequency_per_week_status: '',
-    is_active: '',
+    status_id: '',
     is_restricted_access: '',
     location_type_id: '',
     ops_note: '',
@@ -1343,6 +1483,9 @@ function getDefaultForm() {
     termination_date: '',
     code: '',
     name: '',
+    // "Payment To" tracking — who Location Fees are paid to (sys-only).
+    payment_to: '',
+    is_gst_registered: false,
     address: {
       block_num: '',
       building: '',
@@ -1467,7 +1610,11 @@ onMounted(() => {
       street_name: '',
       unit_num: '',
     },
-    is_active: props.customer ? props.customer.is_active ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false') : booleanStrictOptions.value.find(option => option.id === 'true'),
+    // Status (replaces is_active). Pre-select the saved status_id; default a
+    // brand-new customer to Active (id 2), matching the old is_active default.
+    status_id: props.customer && props.customer.status_id
+      ? (statusOptions.value.find(option => option.id === props.customer.status_id) ?? statusOptions.value.find(option => option.id === 2))
+      : statusOptions.value.find(option => option.id === 2),
     is_restricted_access: props.customer ? props.customer.is_restricted_access ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false') : booleanStrictOptions.value.find(option => option.id === 'false'),
     preferred_visit_days_json: { ...initialPreferredVisitDays, ...props.customer.preferred_visit_days_json },
     selling_price_type: props.customer && props.customer.selling_price_type ? sellingPriceTypeOptions.value.find(option => option.id == props.customer.selling_price_type) : sellingPriceTypeOptions.value.find(option => option.value === 'RP2'),
@@ -1556,6 +1703,15 @@ function formatDatetime(datetime) {
   return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : '';
 }
 
+// Resolve a country_id to its display name using the already-loaded
+// countryOptions list. Used by the read-only "CMS Customer Details"
+// mirror block (billing / delivery country).
+function countryName(id) {
+  if (!id) return '';
+  const country = countryOptions.value.find(c => c.id === id);
+  return country ? country.name : '';
+}
+
 function toggleActivationCustomer(customerID) {
   form.value.clearErrors();
 
@@ -1589,8 +1745,14 @@ function saveCustomer(customerID) {
         ...data.address,
         country_id: data.address.country_id ? data.address.country_id.id : null,
       },
-      is_active: data.is_active.id,
+      // Status — send the integer status_id. The server mirrors is_active
+      // from this (is_active = status_id === STATUS_ACTIVE).
+      status_id: data.status_id ? data.status_id.id : null,
       is_restricted_access: data.is_restricted_access.id,
+      // Payment To (sys-only) — normalise empty string to null; GST flag
+      // is always a clean boolean.
+      payment_to: data.payment_to && String(data.payment_to).trim() !== '' ? String(data.payment_to).trim() : null,
+      is_gst_registered: data.is_gst_registered ?? false,
       selling_price_type: data.selling_price_type ? data.selling_price_type.id : null,
       vend_id: data.vend_id ? data.vend_id.id : null,
       zone_id: data.zone_id ? data.zone_id.id : null,

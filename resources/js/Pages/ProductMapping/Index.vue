@@ -179,8 +179,22 @@
                       Channel - Product
                     </TableHead>
                     <TableHead>
+                      <!--
+                        Binded Vending Machines header — same column now also
+                        carries two per-machine bits, inline, per ops request:
+                          (1) Ref Price tier chip (RP1..RP5) sourced from
+                              customers.selling_price_type — same source used
+                              by Vend/CustomerIndex.vue's "Ref Price" column.
+                          (2) L30d Sales = vendTransactionTotalsJson.thirty_days_amount
+                              ( thirty_days_count ) — identical formula/colours
+                              to Vend/CustomerIndex.vue's Last30d figure.
+                        Binded date stays as the subtitle / per-row chip; the
+                        header subtitle is expanded so users know what to look
+                        for inside this cell.
+                      -->
                       <div class="flex flex-col space-y-1">
                         <span>Binded Vending Machines</span>
+                        <span class="text-black font-normal text-xs">RP Tier • L30d Sales</span>
                         <span class="text-black font-normal text-xs">(binded date)</span>
                       </div>
                     </TableHead>
@@ -269,7 +283,19 @@
                             {{ productMapping.vends.length }} Machine(s)
                           </span>
                           <ul class="divide-y divide-gray-200">
-                            <li class="flex py-1 px-3 space-x-2" v-for="(vend, vendIndex) in productMapping.vends">
+                            <!--
+                              Each row is now flex-wrap so we can append a
+                              basis-full sub-row beneath the existing inline
+                              (#. code, customer block) row carrying:
+                                • RP tier chip — from vend.customer.selling_price_type
+                                • L30d Sales — from vend.vendTransactionTotalsJson
+                              Both pieces fall back gracefully (chip omitted if
+                              no selling_price_type; L30d omitted if the json
+                              hasn't been hydrated yet). Mirrors the styling
+                              used on Vend/CustomerIndex.vue so the values feel
+                              familiar to ops.
+                            -->
+                            <li class="flex flex-wrap gap-x-2 gap-y-1 py-1 px-3" v-for="(vend, vendIndex) in productMapping.vends">
                               <span>
                                 {{ vendIndex + 1 }}.
                               </span>
@@ -339,6 +365,34 @@
                                       <span class="text-black text-xs ml-1" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                   </span>
                               </span>
+                              <!--
+                                Per-machine RP chip + L30d Sales sub-row.
+                                basis-full forces this onto its own line under
+                                the inline customer info above. Indented to
+                                line up roughly under the customer text.
+                                RP chip styling matches Vend/CustomerIndex.vue
+                                (indigo pill). L30d uses the same currency
+                                exponent/symbol convention via operatorCountry.
+                              -->
+                              <div class="basis-full flex items-center space-x-2 pl-6 text-xs">
+                                <span
+                                  v-if="vend.customer && vend.customer.selling_price_type"
+                                  class="inline-flex rounded px-0.5 py-0.5 border bg-indigo-100 text-indigo-800 border-indigo-300"
+                                >
+                                  RP{{ vend.customer.selling_price_type }}
+                                </span>
+                                <span
+                                  v-if="vend.vendTransactionTotalsJson && 'thirty_days_amount' in vend.vendTransactionTotalsJson"
+                                  :class="[
+                                    vend.is_active || vend.is_testing
+                                      ? ((vend.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)) > 1000 ? 'text-green-700' : 'text-red-700')
+                                      : 'text-gray-400'
+                                  ]"
+                                  v-tooltip="'L30d Sales (qty)'"
+                                >
+                                  L30d: {{ operatorCountry.currency_symbol }}{{ (vend.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}({{ (vend.vendTransactionTotalsJson['thirty_days_count'] || 0).toLocaleString(undefined, { minimumFractionDigits: 0 }) }})
+                                </span>
+                              </div>
                             </li>
                           </ul>
                         </div>
@@ -507,6 +561,9 @@ const toast = useToast()
 const numberPerPageOptions = ref([])
 const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
+// operatorCountry — needed to format the per-machine L30d Sales figure with
+// the right currency symbol + exponent, identical to Vend/CustomerIndex.vue.
+const operatorCountry = usePage().props.auth.operatorCountry
 const vendPrefixOptions = ref([])
 const vendStatusOptions = ref([])
 

@@ -201,7 +201,7 @@ class ReportController extends Controller
             $items = new LengthAwarePaginator([], 0, $numberPerPage, 1, [
                 'path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(),
             ]);
-            $totals = ['total_count' => 0, 'total_amount' => 0.0, 'total_error_count' => 0, 'total_error_count_no_4_5' => 0, 'total_error_count_4_5' => 0, 'total_channel_availability' => 0];
+            $totals = ['total_count' => 0, 'total_amount' => 0.0, 'total_error_count' => 0, 'total_error_count_no_4_5' => 0, 'total_error_count_4_5' => 0, 'total_channel_availability' => 0, 'total_machine_count' => 0];
         }
 
         return Inertia::render('Report/Sales/Index', [
@@ -1600,9 +1600,17 @@ class ReportController extends Controller
             $data['Count (Success Only)'] = $item->count;
 
             if ($type === 'product') {
-                $data['Count (Error Exclude #4 and #5)'] = isset($item->error_count_no_4_5) ? (int) $item->error_count_no_4_5 : 0;
+                $errorNo45 = isset($item->error_count_no_4_5) ? (int) $item->error_count_no_4_5 : 0;
+                $successCount = (int) ($item->count ?? 0);
+                $errorRateDen = $successCount + $errorNo45;
+                $channelAvailability = isset($item->channel_availability) ? (int) $item->channel_availability : null;
+
+                $data['Count (Error Exclude #4 and #5)'] = $errorNo45;
+                $data['Error Rate (%)'] = $errorRateDen > 0 ? round($errorNo45 / $errorRateDen * 100, 2) : 0;
                 $data['Count (Error #4 and #5)'] = isset($item->error_count_4_5) ? (int) $item->error_count_4_5 : 0;
-                $data['Channel Availability'] = isset($item->channel_availability) ? (int) $item->channel_availability : null;
+                $data['Count of Machine'] = isset($item->machine_count) ? (int) $item->machine_count : null;
+                $data['Channel Availability'] = $channelAvailability;
+                $data['Average Daily Count per Channel'] = $channelAvailability > 0 ? round($successCount / $channelAvailability, 2) : null;
             }
 
             $data['Amount'] = $item->amount / 100;
@@ -1669,7 +1677,8 @@ class ReportController extends Controller
                         ->selectRaw('SUM(gm.error_count) AS error_count')
                         ->selectRaw('SUM(gm.error_count_no_4_5) AS error_count_no_4_5')
                         ->selectRaw('SUM(gm.error_count_4_5) AS error_count_4_5')
-                        ->selectRaw('MAX(pvc.channel_availability) AS channel_availability');
+                        ->selectRaw('MAX(pvc.channel_availability) AS channel_availability')
+                        ->selectRaw('MAX(pvc.machine_count) AS machine_count');
                     // Count (Success Only) = sale_count minus ALL errors (both #3,#6,#7,#9 and #4,#5).
                     // Previously this only subtracted error_count_4_5, which gave correct numbers in
                     // databases where every error happened to be code 4 or 5, but inflated the success
@@ -1924,8 +1933,15 @@ class ReportController extends Controller
             }
         }
 
+        // channel_availability: only count channels that STILL HAVE STOCK
+        //   (vc.qty > 0) — a sold-out channel cannot generate sales, so counting
+        //   it would unfairly inflate the denominator of "Average Daily Count per
+        //   Channel".  Requested by user 2026-05-27.
+        // machine_count: number of distinct machines carrying this SKU (on an
+        //   active channel) as of the latest snapshot — NOT restricted by stock,
+        //   so it reflects how many machines the product is loaded into.
         return $sub
-            ->selectRaw('vc.product_id, COUNT(vc.id) * ' . (int) $numDays . ' AS channel_availability')
+            ->selectRaw('vc.product_id, SUM(CASE WHEN vc.qty > 0 THEN 1 ELSE 0 END) * ' . (int) $numDays . ' AS channel_availability, COUNT(DISTINCT vc.vend_id) AS machine_count')
             ->groupBy('vc.product_id');
     }
 
@@ -3720,6 +3736,9 @@ class ReportController extends Controller
             $total_channel_availability = $item->sum(function ($item) {
                 return isset($item->channel_availability) ? (int)$item->channel_availability : 0;
             });
+            $total_machine_count = $item->sum(function ($item) {
+                return isset($item->machine_count) ? (int)$item->machine_count : 0;
+            });
             return [
                 'total_count' => $total_count,
                 'total_amount' => $total_amount,
@@ -3727,6 +3746,7 @@ class ReportController extends Controller
                 'total_error_count_no_4_5' => $total_error_count_no_4_5,
                 'total_error_count_4_5' => $total_error_count_4_5,
                 'total_channel_availability' => $total_channel_availability,
+                'total_machine_count' => $total_machine_count,
             ];
         });
     }
