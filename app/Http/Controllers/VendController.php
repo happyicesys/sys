@@ -475,14 +475,34 @@ class VendController extends Controller
     public function indexCustomer(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        if (!isset($request->is_active)) {
-            if (
-                auth()->user()->hasRole('superadmin') or
-                auth()->user()->hasRole('admin') or
-                auth()->user()->hasRole('supervisor') or
-                auth()->user()->hasRole('observer_transactions') or
-                auth()->user()->hasRole('driver')
-            ) {
+
+        // NB: || not `or` — `or` has lower precedence than `=` and would
+        // only assign the FIRST hasRole() result.
+        $isAdminish = auth()->user()->hasRole('superadmin')
+            || auth()->user()->hasRole('admin')
+            || auth()->user()->hasRole('supervisor')
+            || auth()->user()->hasRole('observer_transactions')
+            || auth()->user()->hasRole('driver');
+
+        if ($request->indexType === 'customers') {
+            // 5-value Customer Status (matches Customer::STATUSES_MAPPING),
+            // replacing the binary "Customer Active?" filter on this page.
+            // Defaults to Active for admin-ish roles, else "All" — mirrors the
+            // prior is_active default. Then we push customer_status into the
+            // request's `status` slot so Customer::filterIndex's existing
+            // status_id branch picks it up, and neutralise is_active so the
+            // legacy boolean filter doesn't conflict (`is_active=true` AND
+            // `status=1` would yield zero rows).
+            if ($request->customer_status === null || $request->customer_status === '') {
+                $request->merge(['customer_status' => $isAdminish ? Customer::STATUS_ACTIVE : 'all']);
+            }
+            $request->merge([
+                'status' => $request->customer_status,
+                'is_active' => 'all',
+            ]);
+        } else if (!isset($request->is_active)) {
+            // Vends list — keep the existing binary is_active default.
+            if ($isAdminish) {
                 $request->merge(['is_active' => 'true']);
             } else {
                 $request->merge(['is_active' => 'all']);
@@ -1517,6 +1537,16 @@ class VendController extends Controller
             'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
             'driverOptions' => ['data' => $driverOptions],
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
+            // 5-value Customer Status dropdown options for the customers view
+            // (Potential / New / Active / Pending / Inactive + "All" sentinel).
+            // Same shape as CustomerController::index()'s `statuses` prop.
+            'customerStatuses' => [
+                ['id' => 'all', 'name' => 'All'],
+                ...collect(Customer::STATUSES_MAPPING)->map(fn ($status, $index) => [
+                    'id' => $index,
+                    'name' => $status,
+                ]),
+            ],
             'indexType' => $request->indexType,
             'autoLoad' => $shouldAutoload,
             'locationTypeOptions' => ['data' => $locationTypeOptions],

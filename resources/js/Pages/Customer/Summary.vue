@@ -25,8 +25,8 @@
           <div>
             <label class="block text-sm font-medium text-gray-700">Customer Status</label>
             <MultiSelect
-              v-model="filters.is_active"
-              :options="activeOptions"
+              v-model="filters.status"
+              :options="statusOptions"
               trackBy="id" valueProp="id" label="value"
               placeholder="Select" open-direction="bottom" class="mt-1"
             />
@@ -1519,6 +1519,9 @@ const props = defineProps({
   vendPrefixOptions: Object,
   // Placement Contract Type dropdown options ([{id, value}, ...]).
   contractCommissionTypeOptions: Array,
+  // 5-value Customer Status dropdown options ([{id, name}, ...]). Includes
+  // an "All" sentinel ahead of the STATUSES_MAPPING entries.
+  statuses: Array,
   // Aggregate totals across the FULL filtered set (sales / gross earning /
   // location fees / vending earnings). Cents-typed — formatMoney() handles
   // currency exponent + symbol. Renders into the 4 boxes above the table.
@@ -1601,7 +1604,9 @@ const hasAnyAddressWithCoords = computed(() => {
 
 const filters = ref({
   customer: '',
-  is_active: '',
+  // Customer Status — 5-value (matches Customer::STATUSES_MAPPING). Stores the
+  // selected option object {id, value}; .id is sent to the server.
+  status: '',
   is_cms: '',
   ref_id: '',
   vend_code: '',
@@ -1625,11 +1630,13 @@ const filters = ref({
   numberPerPage: 100,
 });
 
-const activeOptions = ref([]);
+// Customer Status dropdown — populated from props.statuses (5-value:
+// Potential / New / Active / Pending / Inactive + an "All" sentinel).
+const statusOptions = ref([]);
 const booleanOptions = ref([]);
 // Dedicated options for the "Contract Attachment?" filter so its labels
-// (Yes / No) stay independent of the shared booleanOptions / activeOptions
-// sets and never resolve to the wrong label.
+// (Yes / No) stay independent of the shared booleanOptions set and never
+// resolve to the wrong label.
 const contractAttachmentOptions = ref([]);
 // "Replicated (same month)?" filter — All vs only rows whose month was split
 // into more than one row for the same customer.
@@ -1647,11 +1654,10 @@ const periodReportLocalOptions = ref([]);
 const contractCommissionTypeLocalOptions = ref([]);
 
 onMounted(() => {
-  activeOptions.value = [
-    { id: 'all', value: 'All' },
-    { id: 'true', value: 'Active' },
-    { id: 'false', value: 'Not Active' },
-  ];
+  // 5-value Customer Status — comes from the controller (Customer::STATUSES_MAPPING
+  // with an "All" sentinel prepended), labelled `name` server-side and remapped
+  // to `value` here for the MultiSelect `label` prop.
+  statusOptions.value = (props.statuses ?? []).map((s) => ({ id: s.id, value: s.name }));
   booleanOptions.value = [
     { id: 'all', value: 'All' },
     { id: 'true', value: 'Yes' },
@@ -1706,8 +1712,9 @@ onMounted(() => {
     value: opt.value,
   }));
 
-  // Defaults
-  filters.value.is_active = booleanOptions.value[1];
+  // Defaults — Customer Status opens on "Active" (id=2) to match the prior
+  // is_active=true default; mirrors Customer/Index.vue's behaviour.
+  filters.value.status = statusOptions.value.find((s) => s.id === 2) ?? statusOptions.value[0];
   filters.value.is_cms = booleanOptions.value[0];
   // Contract Attachment? defaults to "All" (no filter).
   filters.value.contract_attachment = contractAttachmentOptions.value[0];
@@ -1731,6 +1738,9 @@ onMounted(() => {
   filters.value.period_report =
     periodReportLocalOptions.value.find((o) => o.id === (props.periodReport || 'current'))
     ?? periodReportLocalOptions.value[0];
+  // NOTE: no re-fetch on mount — the server already renders with the same
+  // default operator set (see CustomerController::summary), so the first paint
+  // matches these chips with no flash.
 });
 
 function refIdFor(customer) {
@@ -2130,7 +2140,7 @@ function onSearchFilterUpdated() {
       customer: filters.value.customer,
       tags: (filters.value.tags ?? []).map ? filters.value.tags.map(t => t.id ?? t) : filters.value.tags,
       is_cms: filters.value.is_cms?.id,
-      is_active: filters.value.is_active?.id,
+      status: filters.value.status?.id,
       location_types: (filters.value.location_types ?? []).map((lt) => lt.id),
       operators: (filters.value.operators ?? []).filter(Boolean).map((o) => o.id),
       vendPrefixes: (filters.value.vendPrefixes ?? []).map((vp) => vp.id),
@@ -2138,6 +2148,10 @@ function onSearchFilterUpdated() {
       replicated_only: filters.value.replicated_only?.id,
       period_locked: filters.value.period_locked?.id,
       location_fee_paid: filters.value.location_fee_paid?.id,
+      // Marks this as an explicit user search so the server does NOT re-apply
+      // the initial-load operator default — lets "deselect all operators" mean
+      // "show all" instead of snapping back to the default set.
+      searched: 1,
       // MultiSelect in tags-mode emits an array of selected ids — pass through
       // as-is. Empty array = no filter (treated as "all" by the controller).
       contract_commission_types: (filters.value.contract_commission_types ?? [])
@@ -2346,7 +2360,7 @@ function buildBackendParams() {
     customer: filters.value.customer,
     tags: (filters.value.tags ?? []).map ? filters.value.tags.map(t => t.id ?? t) : filters.value.tags,
     is_cms: filters.value.is_cms?.id,
-    is_active: filters.value.is_active?.id,
+    status: filters.value.status?.id,
     location_types: (filters.value.location_types ?? []).map((lt) => lt.id),
     operators: (filters.value.operators ?? []).filter(Boolean).map((o) => o.id),
     vendPrefixes: (filters.value.vendPrefixes ?? []).map((vp) => vp.id),

@@ -93,11 +93,11 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Customer Active?
+							Customer Status
 						</label>
 						<MultiSelect
-							v-model="filters.is_active"
-							:options="booleanOptions"
+							v-model="filters.customer_status"
+							:options="customerStatusOptions"
 							trackBy="id"
 							valueProp="id"
 							label="value"
@@ -2781,6 +2781,10 @@ font-size:13px;
 	const props = defineProps({
 			autoLoad: Boolean,
 			cardTerminalOptions: [Array, Object],
+			// 5-value Customer Status options ([{id, name}, ...]) — only used
+			// on the customers view. Server passes STATUSES_MAPPING + an "All"
+			// sentinel.
+			customerStatuses: Array,
 			cmsEndpoint: String,
 			constTempError: Number,
 			dayOptions: [Array, Object],
@@ -2822,6 +2826,9 @@ font-size:13px;
 			frequency_per_week_status: [],
 			locationType: '',
 			is_active: true,
+			// Customer Status (5-value) — only used on the customers view.
+			// Stores the selected {id, value}; .id is forwarded as `customer_status`.
+			customer_status: '',
 			is_binded_customer: '',
 			tempHigherThan: '',
 			t2HigherThan: '',
@@ -2891,6 +2898,11 @@ font-size:13px;
 	const showPickListModal = ref(false)
 	const showProductAvailabilityModal = ref(false)
 	const statusOptions = ref([])
+	// 5-value Customer Status options — populated from props.customerStatuses
+	// (Potential / New / Active / Pending / Inactive + "All" sentinel). Only
+	// used on the customers view; the existing `statusOptions` is for vend
+	// machine status and stays untouched.
+	const customerStatusOptions = ref([])
 	const type = ref('')
 	const vend = ref()
 
@@ -3012,6 +3024,9 @@ statusOptions.value = [
 		{id: 'disposed', value: 'Disposed'},
 		{id: 'sold', value: 'Sold'},
 ]
+// 5-value Customer Status — controller passes {id, name}; remap to {id, value}
+// to match the MultiSelect `label` prop used by every other dropdown here.
+customerStatusOptions.value = (props.customerStatuses ?? []).map((s) => ({id: s.id, value: s.name}))
 vendConfigOptions.value = [
 		{id: 'all', value: 'All'},
 		...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -3043,6 +3058,10 @@ productMappingOptions.value = [
 filters.value.cashless_mfg = cardTerminalOptions.value[0]
 filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
 filters.value.is_active = booleanOptions.value[1]
+// Customer Status — defaults to "Active" (id=2), matching Customer/Index.vue
+// and the prior is_active=true default. Falls back to the first option ("All")
+// if STATUSES_MAPPING doesn't surface an Active entry for some reason.
+filters.value.customer_status = customerStatusOptions.value.find((s) => s.id === 2) ?? customerStatusOptions.value[0]
 filters.value.deviceType = deviceTypeOptions.value[0]
 // filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0]
 filters.value.is_door_open = doorOptions.value[0]
@@ -3107,6 +3126,7 @@ if(urlParams.has('channel_codes')) {
 		if(cleanKey === 'location_type_id') filters.value.locationType = locationTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.locationType;
 		if(cleanKey === 'next_planned_driver') filters.value.next_planned_driver = nextDeliveryDriverOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.next_planned_driver;
 		if(cleanKey === 'is_active') filters.value.is_active = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_active;
+		if(cleanKey === 'customer_status') filters.value.customer_status = customerStatusOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.customer_status;
 		if(cleanKey === 'is_binded_customer') filters.value.is_binded_customer = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_binded_customer;
 		if(cleanKey === 'is_door_open') filters.value.is_door_open = doorOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_door_open;
 		if(cleanKey === 'fan_rpm') filters.value.fan_rpm = fanRpmOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.fan_rpm;
@@ -3499,6 +3519,7 @@ function onSearchFilterUpdated() {
 			next_planned_driver: filters.value.next_planned_driver.id,
 			operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
 			is_active: filters.value.is_active.id,
+			customer_status: filters.value.customer_status?.id,
 			is_binded_customer: filters.value.is_binded_customer.id,
 			is_door_open: filters.value.is_door_open.id,
 			is_mqtt: filters.value.is_mqtt.id,
@@ -3665,6 +3686,7 @@ axios({
 				operators: filters.value.operators.map((operator) => { return operator.id }),
 				preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
 				is_active: filters.value.is_active.id,
+				customer_status: filters.value.customer_status?.id,
 				is_binded_customer: filters.value.is_binded_customer.id,
 				is_door_open: filters.value.is_door_open.id,
 				is_mqtt: filters.value.is_mqtt.id,

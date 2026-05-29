@@ -221,7 +221,12 @@ class CustomerController extends Controller
         $request->merge([
             'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
-            'is_active' => $request->is_active ? $request->is_active : 'true',
+            // Customer Status — 5-value dropdown (Potential / New / Active /
+            // Pending / Inactive). Default to Active so the page opens on the
+            // active book, matching the prior binary is_active=true default.
+            // Customer::filterIndex resolves `status` via the status_id column
+            // (and still honours legacy `is_active` URLs for backward compat).
+            'status' => $request->status ?: Customer::STATUS_ACTIVE,
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'period_report' => $request->period_report ?: 'current',
             // Strip sortKey/sortBy so filterIndex doesn't apply them to the
@@ -244,6 +249,32 @@ class CustomerController extends Controller
             $request->period_report,
             $currentMonthStart
         );
+
+        // Initial-load default for the Operator filter — mirror Summary.vue's
+        // onMounted default (the user's own operator, plus HIMD/LEA/HIESG/UL-ST
+        // for HIPL admins) so the FIRST server render already reflects the
+        // operator chips the form shows. Without this the initial render uses
+        // no operator filter (all operators) and the count visibly jumps when
+        // the form's first Search applies the default set.
+        //
+        // Applied ONLY on a fresh load (no `searched` flag). An explicit search
+        // sends searched=1, so deselecting every operator to "see all" is still
+        // honoured instead of snapping back to this default.
+        if (!$request->boolean('searched') && empty($request->operators)) {
+            $user = auth()->user();
+            if ($user && $user->operator_id) {
+                $defaultOperatorIds = [(int) $user->operator_id];
+                $userOperator = \App\Models\Operator::find($user->operator_id);
+                if ($userOperator && $userOperator->code === 'HIPL') {
+                    $defaultOperatorIds = array_merge(
+                        $defaultOperatorIds,
+                        \App\Models\Operator::whereIn('code', ['HIMD', 'LEA', 'HIESG', 'UL-ST'])
+                            ->pluck('id')->map(fn ($v) => (int) $v)->all()
+                    );
+                }
+                $request->merge(['operators' => array_values(array_unique($defaultOperatorIds))]);
+            }
+        }
 
         // Reuse the Customer Index filter scope to determine which customers
         // qualify, then join the pre-aggregated summary rows for the period.
@@ -656,6 +687,15 @@ class CustomerController extends Controller
             'periodReportOptions' => $this->periodReportOptions(),
             'rangeStart' => $displayRangeStart,
             'rangeEnd' => $rangeEnd->copy()->endOfMonth()->toDateString(),
+            // 5-value Customer Status dropdown options — same shape as
+            // CustomerController::index() so both pages stay in sync.
+            'statuses' => [
+                ['id' => 'all', 'name' => 'All'],
+                ...collect(Customer::STATUSES_MAPPING)->map(fn ($status, $index) => [
+                    'id' => $index,
+                    'name' => $status,
+                ]),
+            ],
             'cmsEndpoint' => env('CMS_URL'),
             'locationTypeOptions' => $optionsService->locationTypes(),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
@@ -1615,7 +1655,12 @@ class CustomerController extends Controller
         $request->merge([
             'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
-            'is_active' => $request->is_active ? $request->is_active : 'true',
+            // Customer Status — mirror summary(): default to Active and let
+            // filterIndex resolve `status` via status_id. The legacy is_active
+            // default is intentionally gone; with the new `status` filter,
+            // forcing is_active=true would conflict (e.g. status=Inactive AND
+            // is_active=true => 0 rows; status=All => only active exported).
+            'status' => $request->status ?: Customer::STATUS_ACTIVE,
             'period_report' => $request->period_report ?: 'current',
             // sortKey/sortBy don't apply to the Customer filter scope here.
             'sortKey' => null,
