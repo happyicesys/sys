@@ -358,6 +358,42 @@ class CustomerController extends Controller
             ->whereIn('customer_id', $customerIds)
             ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
 
+        // Row-level filters (replicated / locked / paid). Applied to the
+        // listing query AND — via this same closure — to the totals query and
+        // the count-card customer set below, so the cards stay in lockstep with
+        // the table. (Customer-level filters are already baked into
+        // $customerIds, so they flow into all three automatically.)
+        //
+        //  - Replicated: keep only rows in a (customer_id, year_month) bucket
+        //    holding more than one row (a segmented month). Correlated count on
+        //    the same table; customer_id is indexed so it stays cheap.
+        //  - Period Locked / Location Fee Paid: 'true' → only matching rows,
+        //    'false' → only the opposite, 'all'/absent → no filter.
+        $applyRowFilters = function ($q) use ($request) {
+            // Contract changes (same month): 'true'/Changes only → rows in a
+            // segmented month (count > 1); 'false'/No → rows in a single-row
+            // month (count = 1); 'all'/absent → no filter.
+            if (in_array($request->replicated_only, ['true', 'false'], true)) {
+                $op = $request->replicated_only === 'true' ? '>' : '=';
+                $q->whereRaw(
+                    '(SELECT COUNT(*) FROM customer_period_summaries s_rep
+                      WHERE s_rep.customer_id = customer_period_summaries.customer_id
+                        AND s_rep.`year_month` = customer_period_summaries.`year_month`) ' . $op . ' 1'
+                );
+            }
+            if (in_array($request->period_locked, ['true', 'false'], true)) {
+                $request->period_locked === 'true'
+                    ? $q->whereNotNull('locked_at')
+                    : $q->whereNull('locked_at');
+            }
+            if (in_array($request->location_fee_paid, ['true', 'false'], true)) {
+                $request->location_fee_paid === 'true'
+                    ? $q->whereNotNull('paid_at')
+                    : $q->whereNull('paid_at');
+            }
+        };
+        $applyRowFilters($summariesQuery);
+
         // For machine_id / machine_prefix sorting, attach a scalar subquery
         // that picks the latest-bound vend per customer (mirrors the
         // Customer::vend() relation: latest by begin_date, then created_at).
@@ -522,9 +558,11 @@ class CustomerController extends Controller
         // reflect every row matching the current filters. Same WHERE clause
         // as the listing query so the numbers stay in lockstep with the
         // table. Cents-typed; the Vue side runs them through formatMoney().
-        $totalsRow = \App\Models\CustomerPeriodSummary::query()
+        $totalsQuery = \App\Models\CustomerPeriodSummary::query()
             ->whereIn('customer_id', $customerIds)
-            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+        $applyRowFilters($totalsQuery);
+        $totalsRow = $totalsQuery
             ->selectRaw('
                 COALESCE(SUM(sales_cents), 0) AS sales_cents,
                 COALESCE(SUM(gross_earning_cents), 0) AS gross_earning_cents,
@@ -550,11 +588,25 @@ class CustomerController extends Controller
             ? \Carbon\Carbon::parse($totalsRow->earliest_period_start)->toDateString()
             : $rangeStart->toDateString();
 
-        // Distinct-customer aggregate counts scoped to the SAME filtered
-        // customer set as the totals above. Drives the two count cards
-        // ("# without Contract Attachment" / "# To Be Expired in 30ds") in
-        // the totals row on Customer/Summary.vue.
+        // Distinct-customer aggregate counts scoped to the SAME customer set
+        // the on-screen table actually shows — i.e. filtered customers that
+        // ALSO have at least one summary row in the resolved period window.
+        // Drives the two count cards ("# without Contract Attachment" /
+        // "# To Be Expired in 30ds") in the totals row on Customer/Summary.vue.
         //
+        // Without the period-window scope the counts include customers that
+        // match the filters but have no row in the selected period (e.g.
+        // brand-new or terminated customers under "Last Month Only"), so the
+        // counts drift higher than the row total visible in the table.
+        $displayedCustomerIdsQuery = \App\Models\CustomerPeriodSummary::query()
+            ->whereIn('customer_id', $customerIds)
+            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+        $applyRowFilters($displayedCustomerIdsQuery);
+        $displayedCustomerIds = $displayedCustomerIdsQuery
+            ->select('customer_id')
+            ->distinct()
+            ->pluck('customer_id');
+
         // 1) No-contract-attachment count — mirrors applyContractAttachmentFilter:
         //    a customer counts as "no attachment" when they have no contract
         //    attachment uploaded on/after the first day of the filtered
@@ -562,7 +614,7 @@ class CustomerController extends Controller
         //    inflate the count for the current reporting window).
         $attachmentThreshold = $rangeStart->copy()->startOfMonth()->toDateString();
         $noContractAttachmentCount = Customer::query()
-            ->whereIn('id', $customerIds)
+            ->whereIn('id', $displayedCustomerIds)
             ->whereDoesntHave('contracts', function ($q) use ($attachmentThreshold) {
                 $q->where('attachments.created_at', '>=', $attachmentThreshold);
             })
@@ -579,7 +631,7 @@ class CustomerController extends Controller
         //    contracts (false OR not set) count toward this card.
         $today = \Carbon\Carbon::today();
         $expiringIn30dCount = Customer::query()
-            ->whereIn('id', $customerIds)
+            ->whereIn('id', $displayedCustomerIds)
             ->whereNotNull('contract_until')
             ->whereBetween('contract_until', [
                 $today->toDateString(),
@@ -1069,13 +1121,19 @@ class CustomerController extends Controller
         // applied in resolvePeriodReportRange() so the on-screen rows and
         // their running totals describe the same window.
         $floor = self::SUMMARY_FLOOR_DATE;
+        // Ordered by period_start (NOT year_month) and keyed by period_start so
+        // a month split into segments accumulates CONTINUOUSLY: segment 1 (e.g.
+        // 1st–19th) shows the running total through the 19th, segment 2 (20th–
+        // end) shows that plus its own earning — instead of both segments
+        // sharing the whole-month total. period_start is unique per row
+        // (customer_id, period_start), so it sequences segments correctly.
         $monthlyRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
-            ->select('customer_id', 'year_month', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
+            ->select('customer_id', 'year_month', 'period_start', 'contract_log_id', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
             ->whereIn('customer_id', $customerIds)
             ->where('year_month', '>=', $floor)
             ->where('year_month', '<=', $through)
             ->orderBy('customer_id')
-            ->orderBy('year_month')
+            ->orderBy('period_start')
             ->get();
 
         // Per-customer current contract + operator GST — used to recompute the
@@ -1110,10 +1168,14 @@ class CustomerController extends Controller
             // string (e.g. "2024-03-01" or "2024-03-01 00:00:00"). Carbon
             // normalises both to YYYY-MM-DD so it lines up with the row's
             // own ->year_month->toDateString() below.
-            $key = \Carbon\Carbon::parse($r->year_month)->toDateString();
+            $key = \Carbon\Carbon::parse($r->period_start)->toDateString();
 
-            $effectiveEarning = (int) $r->location_earning_cents; // locked / fallback
-            if ($r->locked_at === null) {
+            $effectiveEarning = (int) $r->location_earning_cents; // locked / segment / fallback
+            // Segment rows (contract_log_id set) keep their stored per-segment
+            // earning — they were computed from that segment's own contract, so
+            // re-deriving live with the customer's current contract would be
+            // wrong. Only unlocked WHOLE-month rows re-derive live.
+            if ($r->locked_at === null && $r->contract_log_id === null) {
                 // Unlocked → recompute live from the customer's current contract.
                 $c = $contractMap->get($cid);
                 if ($c) {
@@ -1139,8 +1201,8 @@ class CustomerController extends Controller
         }
 
         foreach ($collection as $row) {
-            $rowYm = optional($row->year_month)->toDateString();
-            $row->accumulate_vending_earning_cents = (int) ($running[$row->customer_id][$rowYm] ?? 0);
+            $rowKey = optional($row->period_start)->toDateString();
+            $row->accumulate_vending_earning_cents = (int) ($running[$row->customer_id][$rowKey] ?? 0);
         }
     }
 
@@ -1297,6 +1359,7 @@ class CustomerController extends Controller
     {
         $default = [
             'placement_type' => false,
+            'external_subsidize' => false,
             'contract_until' => false,
             'auto_renewal' => false,
             'notice_period' => false,
@@ -1323,14 +1386,24 @@ class CustomerController extends Controller
                 'customer_id', 'effective_from', 'effective_to',
                 'contract_commission_type', 'contract_commission_value',
                 'contract_commission_value2', 'contract_ps_term',
+                'is_external_subsidize', 'external_subsidize_amount',
                 'contract_until', 'contract_auto_renewal', 'contract_notice_period',
             ])
             ->groupBy('customer_id');
 
         $str = fn ($v) => ($v === null || $v === '') ? null : (string) $v;
-        $num = fn ($v) => ($v === null || $v === '') ? null : number_format((float) $v, 2, '.', '');
+        // null / '' / 0 all mean "no value" for these commission fields, so
+        // they compare EQUAL — a version with value2 = null vs another with 0
+        // must NOT light a phantom "New" badge. A genuine change (0 → 80) is
+        // still detected.
+        $num = fn ($v) => ($v === null || $v === '') ? '0.00' : number_format((float) $v, 2, '.', '');
         $date = fn ($v) => $v === null ? null : \Carbon\Carbon::parse($v)->toDateString();
         $bool = fn ($v) => $v === null ? null : (bool) $v;
+        // Effective external subsidy of a version: the amount only counts when
+        // the toggle is on. "0" = no subsidy; any non-zero = subsidy present.
+        $effSub = fn ($v) => ($v !== null && (bool) $v->is_external_subsidize && $v->external_subsidize_amount !== null)
+            ? number_format((float) $v->external_subsidize_amount, 2, '.', '')
+            : '0.00';
 
         // The contract version in effect at instant $moment (or null).
         // A version covers [effective_from, effective_to); effective_to NULL = current.
@@ -1358,9 +1431,17 @@ class CustomerController extends Controller
             $cur = $activeAt($versions, $row->period_end->copy()->endOfDay());
             $prev = $activeAt($versions, $row->period_start->copy()->startOfDay()->subSecond());
 
-            // Nothing was in effect the previous period → no baseline, no badge.
+            // Nothing was in effect the previous period. If a contract now
+            // exists (one was ADDED mid-stream — e.g. a no-contract customer
+            // signing a contract part-way through the month), that IS a change,
+            // so flag the placement badge. If there's still no contract on
+            // either side, nothing changed.
             if ($prev === null) {
-                $row->contract_diff = $default;
+                $row->contract_diff = array_merge($default, [
+                    'placement_type' => $cur !== null && $cur->contract_commission_type !== null,
+                    // Subsidy newly present (nothing → a subsidy) counts as new.
+                    'external_subsidize' => $effSub($cur) !== '0.00',
+                ]);
                 continue;
             }
 
@@ -1380,9 +1461,19 @@ class CustomerController extends Controller
 
             $row->contract_diff = [
                 'placement_type' => $placementChanged,
-                'contract_until' => $date($curUntil) !== $date($prev->contract_until),
-                'auto_renewal' => $bool($curRenew) !== $bool($prev->contract_auto_renewal),
-                'notice_period' => $str($curNotice) !== $str($prev->contract_notice_period),
+                // External Subsidize IS stored + displayed per-segment, so a
+                // genuine change (e.g. none → $90) is visible on screen and is
+                // flagged "New" beside the External Subsidize value.
+                'external_subsidize' => $effSub($cur) !== $effSub($prev),
+                // End date / auto-renewal / notice period are rendered as the
+                // customer's LIVE value on every row and never change a figure
+                // in the row, so a log-history diff on them surfaces a "New"
+                // badge next to a value that looks identical on screen (it was
+                // firing on seeded end-date corrections). Only changes that are
+                // shown per-segment (commission / external subsidy) are flagged.
+                'contract_until' => false,
+                'auto_renewal' => false,
+                'notice_period' => false,
             ];
         }
     }
@@ -1653,12 +1744,12 @@ class CustomerController extends Controller
         // unlocked months. Mirrors attachAccumulatedVendingEarning() so the
         // export's Accumulate column matches the on-screen figure.
         $accumRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
-            ->select('customer_id', 'year_month', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
+            ->select('customer_id', 'year_month', 'period_start', 'contract_log_id', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
             ->whereIn('customer_id', $customerIds)
             ->where('year_month', '>=', self::SUMMARY_FLOOR_DATE)
             ->where('year_month', '<=', $accumThrough)
             ->orderBy('customer_id')
-            ->orderBy('year_month')
+            ->orderBy('period_start')
             ->get();
         $accumContractMap = \Illuminate\Support\Facades\DB::table('customers')
             ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
@@ -1680,11 +1771,14 @@ class CustomerController extends Controller
         // per-month running figure exactly like the web table, not a single
         // lifetime total repeated on every row. Rows are ordered ascending by
         // (customer, year_month) above so one linear pass builds the prefix sum.
+        // Keyed by period_start (NOT year_month) so a segmented month accumulates
+        // continuously across its segments rather than both sharing the month
+        // total. Segment rows (contract_log_id set) keep their stored earning.
         $accumulateMap = [];
         $accumRunning = [];
         foreach ($accumRows as $r) {
             $eff = (int) $r->location_earning_cents;
-            if ($r->locked_at === null) {
+            if ($r->locked_at === null && $r->contract_log_id === null) {
                 $c = $accumContractMap->get($r->customer_id);
                 if ($c) {
                     $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
@@ -1704,8 +1798,8 @@ class CustomerController extends Controller
                 }
             }
             $accumRunning[$r->customer_id] = ($accumRunning[$r->customer_id] ?? 0) + $eff;
-            $ymKey = \Carbon\Carbon::parse($r->year_month)->toDateString();
-            $accumulateMap[$r->customer_id][$ymKey] = $accumRunning[$r->customer_id];
+            $psKey = \Carbon\Carbon::parse($r->period_start)->toDateString();
+            $accumulateMap[$r->customer_id][$psKey] = $accumRunning[$r->customer_id];
         }
 
         // Pre-fetch the latest API Invoice snapshot per (customer, period)
@@ -1894,9 +1988,9 @@ class CustomerController extends Controller
                     'Vending Earning' => round(((int) $row->location_earning_cents) / $divisor, 2),
                     'Vending Earning Rate %' => round(((float) $row->location_earning_rate) * 100, 2),
                     'Accumulate Vending Earning' => round(((int) ($accumulateMap[$row->customer_id][
-                        $row->year_month instanceof \Carbon\Carbon
-                            ? $row->year_month->toDateString()
-                            : \Carbon\Carbon::parse($row->year_month)->toDateString()
+                        $row->period_start instanceof \Carbon\Carbon
+                            ? $row->period_start->toDateString()
+                            : \Carbon\Carbon::parse($row->period_start)->toDateString()
                     ] ?? 0)) / $divisor, 2),
                     // Location Grading: matches Summary.vue's "P, A, F" tooltip
                     // format — "{placement}, {access}, {flexibility}", each

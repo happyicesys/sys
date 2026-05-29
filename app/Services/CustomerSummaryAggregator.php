@@ -595,16 +595,19 @@ class CustomerSummaryAggregator
     }
 
     /**
-     * Whether two contract-log versions represent the SAME deal for reporting /
-     * segmentation purposes. Compares only the fields that change the money or
-     * the contract period — commission plan, PS term, effective external
-     * subsidy, and the contract from/until dates — with type-aware
-     * normalisation (so "9" == "9.00", a date == its ISO form, etc.).
+     * Whether two contract-log versions represent the SAME deal for
+     * segmentation purposes. Compares ONLY the fields that actually change the
+     * money in a summary row — commission plan / value(s), PS term, and
+     * effective external subsidy — with type-aware normalisation (so "9" ==
+     * "9.00", etc.).
      *
-     * Deliberately ignores remarks, auto-renewal and notice period: those are
-     * metadata that don't alter Location Fees or the period boundary, so a
-     * change to them alone should never split a month into duplicate rows.
-     * (The "New" badge still surfaces those via the contract log.)
+     * Deliberately ignores contract_until / contract_from, auto-renewal,
+     * notice period and remarks. None of those change any figure in the row,
+     * and the page shows the customer's LIVE value for them on every row, so
+     * splitting a month on one of them just produces two financially identical
+     * rows (the exact "consistent data splitting" we want to avoid — e.g. a
+     * seeded end-date being corrected to the real value). A split only survives
+     * when the fees genuinely differ.
      *
      * null == null (no contract on either side). null vs a version = different.
      */
@@ -617,8 +620,12 @@ class CustomerSummaryAggregator
             return false;
         }
 
-        $num = fn ($v) => ($v === null || $v === '') ? null : number_format((float) $v, 4, '.', '');
-        $date = fn ($v) => $v === null ? null : Carbon::parse($v)->toDateString();
+        // null / '' / 0 all mean "no value" for these commission fields, so
+        // they must compare EQUAL — otherwise a version with value2 = null and
+        // another with value2 = 0 reads as a phantom change and splits the
+        // month into two identical rows. A genuine change (e.g. 0 → 80) is
+        // still caught.
+        $num = fn ($v) => ($v === null || $v === '') ? '0.0000' : number_format((float) $v, 4, '.', '');
         $str = fn ($v) => $v === null ? '' : trim((string) $v);
         // Effective subsidy: amount only counts when the toggle is on, so a
         // stale amount behind an off toggle doesn't read as a difference.
@@ -630,9 +637,7 @@ class CustomerSummaryAggregator
             && $num($a->contract_commission_value) === $num($b->contract_commission_value)
             && $num($a->contract_commission_value2) === $num($b->contract_commission_value2)
             && $num($a->contract_ps_term) === $num($b->contract_ps_term)
-            && $effSub($a) === $effSub($b)
-            && $date($a->contract_until ?? null) === $date($b->contract_until ?? null)
-            && $date($a->contract_from ?? null) === $date($b->contract_from ?? null);
+            && $effSub($a) === $effSub($b);
     }
 
     /**

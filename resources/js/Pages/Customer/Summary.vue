@@ -129,6 +129,47 @@
               placeholder="Select" open-direction="bottom" class="mt-1"
             />
           </div>
+          <!--
+            Contract-changes filter — "Changes only" shows just the customers
+            whose month was split into more than one row (same customer +
+            year_month) because the contract changed mid-month. Quick way to
+            spot mid-month contract changes.
+          -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Contract changes (same month)?
+            </label>
+            <MultiSelect
+              v-model="filters.replicated_only"
+              :options="replicatedOptions"
+              trackBy="id" valueProp="id" label="value"
+              placeholder="Select" open-direction="bottom" class="mt-1"
+            />
+          </div>
+          <!-- Period Locked? — All / Yes (locked) / No (unlocked). -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Period Locked?
+            </label>
+            <MultiSelect
+              v-model="filters.period_locked"
+              :options="lockedPaidOptions"
+              trackBy="id" valueProp="id" label="value"
+              placeholder="Select" open-direction="bottom" class="mt-1"
+            />
+          </div>
+          <!-- Location Fee Paid? — All / Yes (paid) / No (unpaid). -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Location Fee Paid?
+            </label>
+            <MultiSelect
+              v-model="filters.location_fee_paid"
+              :options="lockedPaidOptions"
+              trackBy="id" valueProp="id" label="value"
+              placeholder="Select" open-direction="bottom" class="mt-1"
+            />
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -812,10 +853,12 @@
                           Subsidy income
                         </div>
                       </div>
-                      <!-- External Subsidize — live from the customer's current
-                           contract; shown only when the toggle is enabled. -->
-                      <span class="text-gray-600">
+                      <!-- External Subsidize — per-segment snapshot; shown only
+                           when present. "New" badge when it changed vs the
+                           previous period (e.g. none → a subsidy). -->
+                      <span class="text-gray-600 inline-flex items-center">
                         {{ externalSubsidizeCents(row) ? formatMoney(externalSubsidizeCents(row)) : '—' }}
+                        <span v-if="row.contract_diff?.external_subsidize" class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 align-middle" v-tooltip="'Changed from the previous period'">New</span>
                       </span>
                       <!-- Net Loc Fee = Location Fees − External Subsidize -->
                       <span
@@ -1571,6 +1614,12 @@ const filters = ref({
   contract_commission_types: [],
   // Contract Attachment? boolean filter ('all' | 'true' | 'false').
   contract_attachment: '',
+  // Replicated (same month)? filter ('all' | 'true' = only replicated rows).
+  replicated_only: '',
+  // Period Locked? filter ('all' | 'true' = locked | 'false' = unlocked).
+  period_locked: '',
+  // Location Fee Paid? filter ('all' | 'true' = paid | 'false' = unpaid).
+  location_fee_paid: '',
   sortKey: 'year_month',
   sortBy: false,
   numberPerPage: 100,
@@ -1582,6 +1631,13 @@ const booleanOptions = ref([]);
 // (Yes / No) stay independent of the shared booleanOptions / activeOptions
 // sets and never resolve to the wrong label.
 const contractAttachmentOptions = ref([]);
+// "Replicated (same month)?" filter — All vs only rows whose month was split
+// into more than one row for the same customer.
+const replicatedOptions = ref([]);
+// Dedicated All / Yes / No set for the Period Locked? and Location Fee Paid?
+// filters — kept separate from the shared booleanOptions so the labels stay
+// exactly "Yes" / "No".
+const lockedPaidOptions = ref([]);
 const locationTypeOptions = ref([]);
 const operatorOptions = ref([]);
 const tagOptions = ref([]);
@@ -1602,6 +1658,16 @@ onMounted(() => {
     { id: 'false', value: 'No' },
   ];
   contractAttachmentOptions.value = [
+    { id: 'all', value: 'All' },
+    { id: 'true', value: 'Yes' },
+    { id: 'false', value: 'No' },
+  ];
+  replicatedOptions.value = [
+    { id: 'all', value: 'All' },
+    { id: 'false', value: 'No' },
+    { id: 'true', value: 'Changes only' },
+  ];
+  lockedPaidOptions.value = [
     { id: 'all', value: 'All' },
     { id: 'true', value: 'Yes' },
     { id: 'false', value: 'No' },
@@ -1645,6 +1711,9 @@ onMounted(() => {
   filters.value.is_cms = booleanOptions.value[0];
   // Contract Attachment? defaults to "All" (no filter).
   filters.value.contract_attachment = contractAttachmentOptions.value[0];
+  filters.value.replicated_only = replicatedOptions.value[0];
+  filters.value.period_locked = lockedPaidOptions.value[0];
+  filters.value.location_fee_paid = lockedPaidOptions.value[0];
   filters.value.location_types = [locationTypeOptions.value.find((o) => o.id === 'all')].filter(Boolean);
   // Operator default — mirrors Vend/CustomerIndex.vue:
   //   - logged in user: pre-select their own operator
@@ -2066,6 +2135,9 @@ function onSearchFilterUpdated() {
       operators: (filters.value.operators ?? []).filter(Boolean).map((o) => o.id),
       vendPrefixes: (filters.value.vendPrefixes ?? []).map((vp) => vp.id),
       period_report: filters.value.period_report?.id || 'current',
+      replicated_only: filters.value.replicated_only?.id,
+      period_locked: filters.value.period_locked?.id,
+      location_fee_paid: filters.value.location_fee_paid?.id,
       // MultiSelect in tags-mode emits an array of selected ids — pass through
       // as-is. Empty array = no filter (treated as "all" by the controller).
       contract_commission_types: (filters.value.contract_commission_types ?? [])
@@ -2282,6 +2354,9 @@ function buildBackendParams() {
     contract_commission_types: (filters.value.contract_commission_types ?? [])
       .map((t) => (t && t.id !== undefined ? t.id : t)),
     contract_attachment: filters.value.contract_attachment?.id,
+    replicated_only: filters.value.replicated_only?.id,
+    period_locked: filters.value.period_locked?.id,
+    location_fee_paid: filters.value.location_fee_paid?.id,
     sortKey: filters.value.sortKey,
     sortBy: filters.value.sortBy,
     numberPerPage: filters.value.numberPerPage?.id ?? filters.value.numberPerPage,

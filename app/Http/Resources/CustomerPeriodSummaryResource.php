@@ -37,7 +37,16 @@ class CustomerPeriodSummaryResource extends JsonResource
         $locationEarningCents = (int) $this->location_earning_cents;
         $locationEarningRate = (float) $this->location_earning_rate;
 
-        if (!$isLocked && $this->relationLoaded('customer') && $this->customer) {
+        // A SEGMENT row (contract_log_id set) was computed under a SPECIFIC
+        // historical contract version, not the customer's current one. It must
+        // keep its own stored contract + fees — re-deriving live would paint
+        // every segment of a split month with the customer's current contract,
+        // making them look identical on screen even though each ran under a
+        // different deal. Only whole-month rows (no contract_log_id) re-derive
+        // live so a contract edit still reflects immediately for them.
+        $isSegment = $this->contract_log_id !== null;
+
+        if (!$isLocked && !$isSegment && $this->relationLoaded('customer') && $this->customer) {
             $c = $this->customer;
 
             // Live contract terms straight off the customer record.
