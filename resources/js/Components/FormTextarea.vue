@@ -9,9 +9,11 @@
       <div class="mt-1">
           <textarea
             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+            :class="[disabled ? 'bg-gray-200 hover:cursor-not-allowed' : '']"
             :placeholder="placeholderStr" @input="$emit('update:modelValue', $event.target.value)"
             :value="modelValue"
             :rows="rows"
+            :disabled="disabled"
           />
           <div class="text-sm text-red-600" v-if="error">
             {{ error }}
@@ -34,6 +36,7 @@
     rows: {
       type: [Number, String],
       default: 5
-    }
+    },
+    disabled: [Boolean, Object, String, Number],
   })
 </script>

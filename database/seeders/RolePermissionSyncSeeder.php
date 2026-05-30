@@ -287,6 +287,12 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                'banks',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+            ],
+
+            [
                 'hid-cards',
                 ['read', 'create', 'update', 'delete', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'hid_user']

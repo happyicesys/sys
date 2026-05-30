@@ -58,6 +58,12 @@ return [
 
     'cms_url' => env('CMS_URL', 'http://localhost'),
 
+    // Public base URL of CMS file storage (DigitalOcean Spaces), used to turn
+    // a CMS file_person `path` (e.g. /person_asset/file/x.pdf) into a fetchable
+    // URL when backfilling Customer "Attachment(s)". e.g.
+    // https://<bucket>.<region>.digitaloceanspaces.com
+    'cms_files_url' => env('CMS_FILES_URL'),
+
     'dcvend_url' => env('DCVEND_URL'),
 
     'log_server_url' => env('LOG_SERVER_URL'),

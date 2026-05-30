@@ -22,6 +22,7 @@ use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KeyController;
 use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
+use App\Http\Controllers\BankController;
 use App\Http\Controllers\ModemTypeController;
 use App\Http\Controllers\ModemUnitController;
 use App\Http\Controllers\OauthController;
@@ -476,6 +477,13 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/store', [ModemTypeController::class, 'store']);
         Route::post('/{id}/update', [ModemTypeController::class, 'update']);
         Route::delete('/{id}', [ModemTypeController::class, 'delete']);
+    });
+
+    Route::prefix('banks')->group(function () {
+        Route::get('/', [BankController::class, 'index'])->name('banks');
+        Route::post('/store', [BankController::class, 'store']);
+        Route::post('/{id}/update', [BankController::class, 'update']);
+        Route::delete('/{id}', [BankController::class, 'delete']);
     });
 
     Route::prefix('modem-units')->group(function () {

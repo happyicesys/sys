@@ -48,6 +48,36 @@ class SyncVendCustomerCms implements ShouldQueue
             return;
         }
 
+        // ──────────────────────────────────────────────────────────────────
+        // CMS → mark1 customer data sync is DISABLED.
+        //
+        // Customer details (name, status, delivery address, contact, profile,
+        // location type, etc.) are now owned and edited directly in mark1 and
+        // must NOT be overwritten by CMS person edits. We therefore skip the
+        // /api/person/migrate fetch and every Customer/Address/Contact write
+        // this job used to perform.
+        //
+        // The ONLY behaviour retained is the OUTBOUND vend-code callback to
+        // CMS during a binding (when a vendID is supplied), so CMS still
+        // learns which vend code is bound. That is a mark1 → CMS push, not an
+        // inbound data sync, so it is safe to keep.
+        //
+        // To re-enable the full inbound sync, restore the original handle()
+        // body from version control.
+        // ──────────────────────────────────────────────────────────────────
+        if ($this->personID && $this->vendID && ($vend = Vend::find($this->vendID))) {
+            $callBackVendCodeEndPoint = $baseUrl . '/api/sys/person/' . $this->personID . '/vendcode/';
+
+            Http::get($callBackVendCodeEndPoint . $vend->code, [
+                'vend_prefix' => $vend->vendPrefix ? $vend->vendPrefix->name : null,
+            ]);
+        }
+
+        return;
+
+        // NOTE: original inbound-sync implementation kept below (unreachable)
+        // for quick reference / restoration. Do not delete without restoring
+        // the documented behaviour above.
         $this->callBackVendCodeEndPoint = $baseUrl . '/api/sys/person/' . $this->personID . '/vendcode/';
         $this->endPointUrl = $baseUrl . '/api/person/migrate/' . $this->personID;
 

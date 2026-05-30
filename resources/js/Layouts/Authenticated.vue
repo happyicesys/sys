@@ -178,6 +178,7 @@ const navigation = computed(() => [
             {name: 'Location Types', href: '/location-types', permission: 'read location-types'},
             {name: 'HID Card', href: '/hid-cards', permission: 'read hid-cards'},
             {name: 'Refilling Routes', href: '/zones', permission: 'read zones'},
+            {name: 'Banks', href: '/banks', permission: 'read banks'},
         ],
     },
     {

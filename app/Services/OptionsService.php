@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Http\Resources\BankResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CountryResource;
@@ -19,6 +20,7 @@ use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\ZoneResource;
+use App\Models\Bank;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
@@ -59,6 +61,18 @@ class OptionsService
         return $this->loadOnce('operators', function () {
             return OperatorResource::collection(
                 Operator::orderBy('name')->get()
+            );
+        });
+    }
+
+    /**
+     * Get bank options (active only) for the Customer "Bank Details" dropdown.
+     */
+    public function banks()
+    {
+        return $this->loadOnce('banks', function () {
+            return BankResource::collection(
+                Bank::where('is_active', true)->orderBy('name')->get()
             );
         });
     }

@@ -1326,9 +1326,8 @@
 									:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 									v-if="vend.temp_updated_at"
 									>
-											<div class="flex items-center justify-between w-full">
+											<div class="flex items-center justify-center w-full">
 												<span class="text-blue-800 underline">{{ vend.is_temp_error ? 'Error' : vend.temp }}</span>
-												<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
 											</div>
 									</button>
 							</a>
@@ -1348,9 +1347,8 @@
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && 't2' in vend.parameterJson"
 									>
-											<div class="flex items-center justify-between w-full">
+											<div class="flex items-center justify-center w-full">
 												<span class="text-blue-800 underline">{{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)</span>
-												<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
 											</div>
 									</button>
 							</a>
@@ -1361,9 +1359,8 @@
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t3'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && vend.parameterJson['t3'] && vend.parameterJson['t3'] != constTempError"
 									>
-											<div class="flex items-center justify-between w-full">
+											<div class="flex items-center justify-center w-full">
 												<span class="text-blue-800 underline">{{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)</span>
-												<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
 											</div>
 									</button>
 							</a>
@@ -1374,14 +1371,13 @@
 											:class="[(vend.is_online || vend.is_testing) && vend.is_temp_active ? (vend.temp > -15 || vend.parameterJson['t4'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
 											v-if="vend.parameterJson && vend.parameterJson['t4'] && vend.parameterJson['t4'] != constTempError"
 									>
-											<div class="flex items-center justify-between w-full">
+											<div class="flex items-center justify-center w-full">
 												<span class="text-blue-800 underline">{{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)</span>
-												<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
 											</div>
 									</button>
 							</a>
 							<span class="mt-1">
-									{{ vend.temp_updated_at }}
+									{{ shortTimeAgo(vend.temp_updated_at) }}
 							</span>
 							<span
 									class="mt-1 text-xs font-semibold"
@@ -1427,7 +1423,6 @@
 									<span class="text-[10px] font-bold">Fan RPM</span>
 									<div class="flex items-center justify-center w-full">
 										<span class="text-blue-800 underline">{{ vend.parameterJson['fan'] }}</span>
-										<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
 									</div>
 								</button>
 							</a>
@@ -1445,7 +1440,6 @@
 									<span class="text-[10px] font-bold">Fan RPM</span>
 									<div class="flex items-center justify-center w-full">
 										<span class="text-blue-800 underline">--</span>
-										<CursorArrowRippleIcon class="w-3 h-3 flex-shrink-0 ml-1" />
 									</div>
 								</button>
 							</a>
@@ -2326,7 +2320,7 @@
 													{{vend.is_online ? 'HTTP Online' : 'HTTP Offline'}}
 											</span>
 											<span v-if="vend.last_online_at">
-													{{vend.last_online_at}}
+													{{ shortTimeAgo(vend.last_online_at) }}
 											</span>
 									</div>
 							</div>
@@ -2341,7 +2335,7 @@
 												{{vend.is_mqtt_active ? 'MQTT Online' : 'MQTT Offline'}}
 											</span>
 											<span v-if="vend.mqtt_last_updated_at">
-													{{ vend.mqtt_last_updated_at }}
+													{{ shortTimeAgo(vend.mqtt_last_updated_at) }}
 											</span>
 									</div>
 							</div>
@@ -2384,7 +2378,7 @@
 											N/A
 										</span>
 										<span v-if="vend.vend.modemUnit.last_updated_at">
-											{{ vend.vend.modemUnit.last_updated_at }}
+											{{ shortTimeAgo(vend.vend.modemUnit.last_updated_at) }}
 										</span>
 									</template>
 									<span v-else>
@@ -2759,7 +2753,7 @@ font-size:13px;
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
-	import { ArrowDownTrayIcon, ArrowUpIcon, ArrowDownIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CursorArrowRippleIcon, TableCellsIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ArrowUpIcon, ArrowDownIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, TableCellsIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -3202,6 +3196,23 @@ const getMachineAlerts = (vend, group) => {
 	const id = vend.vend_id || vend.id;
 	const alerts = activeMachineHealthAlerts.value[id] || [];
 	return alerts.filter(a => a.group === group);
+};
+
+// Shorten the backend "x seconds/minutes/... ago" string (VendResource uses
+// diffForHumans()) into a compact unit on this page only — e.g.
+// "39 seconds ago" -> "39s ago", "5 minutes ago" -> "5m ago". Done in the
+// frontend so we don't touch the shared VendResource (used by many pages).
+const shortTimeAgo = (str) => {
+	if (!str) return str;
+	return str
+		.replace(/\bseconds?\b/, 's')
+		.replace(/\bminutes?\b/, 'm')
+		.replace(/\bhours?\b/, 'h')
+		.replace(/\bdays?\b/, 'd')
+		.replace(/\bweeks?\b/, 'w')
+		.replace(/\bmonths?\b/, 'mo')
+		.replace(/\byears?\b/, 'y')
+		.replace(/(\d)\s+([smhdwy])/, '$1$2');
 };
 
 const getMachineAlertsGroup = (vend, numbers) => {

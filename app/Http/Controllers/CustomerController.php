@@ -2505,6 +2505,7 @@ class CustomerController extends Controller
             'countries' => $optionsService->countries(),
             'customer' => new Customer(),
             'operatorOptions' => $optionsService->operators(),
+            'bankOptions' => $optionsService->banks(),
             'vendOptions' => Vend::query()
                 ->select('id', 'code', 'customer_id')
                 ->where('customer_id', null)
@@ -2584,6 +2585,7 @@ class CustomerController extends Controller
             ->with([
                 'attachments',
                 'contracts',
+                'bank',
                 'billingAddress',
                 'category',
                 'category.categoryGroup',
@@ -2636,6 +2638,7 @@ class CustomerController extends Controller
             // Notice Period dropdown — see Customer::NOTICE_PERIOD_OPTIONS.
             'noticePeriodOptions' => Customer::NOTICE_PERIOD_OPTIONS,
             'operatorOptions' => $optionsService->operators(),
+            'bankOptions' => $optionsService->banks(),
             'sellingPriceTypeOptions' => collect(SellingPrice::TYPE_MAPPINGS),
             'vendOptions' => Vend::query()
                 ->select('id', 'code', 'customer_id')
@@ -2709,6 +2712,31 @@ class CustomerController extends Controller
         return $customers;
     }
 
+    /**
+     * Create/refresh the billing address row (addresses.type = 1) for a
+     * customer. When $same is true we mirror the delivery payload into the
+     * billing row (so anything reading billingAddress always has a valid
+     * address); otherwise we persist the dedicated billing payload. No-ops
+     * when the chosen source has no postcode.
+     *
+     * @param array|null $deliveryAddr
+     * @param array|null $billingAddr
+     */
+    private function syncBillingAddress(Customer $customer, bool $same, $deliveryAddr, $billingAddr): void
+    {
+        $fields = ['postcode', 'unit_num', 'block_num', 'building', 'street_name', 'country_id', 'latitude', 'longitude'];
+        $src = $same ? $deliveryAddr : $billingAddr;
+
+        if (!is_array($src) || empty($src['postcode'])) {
+            return;
+        }
+
+        $customer->billingAddress()->updateOrCreate(
+            ['type' => Customer::ADDRESS_TYPE_BILLING],
+            collect($src)->only($fields)->toArray()
+        );
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -2730,9 +2758,24 @@ class CustomerController extends Controller
                 ]);
             }
         } else {
-            $request->validate([
-                'name' => 'required',
-            ]);
+            $billingSame = filter_var($request->is_billing_same_as_delivery ?? true, FILTER_VALIDATE_BOOLEAN);
+
+            $rules = ['name' => 'required'];
+            if (!$billingSame) {
+                // "Billing Address same as Delivery" is unchecked → the billing
+                // fields are shown and must be filled.
+                $rules['billing_address.postcode'] = 'required';
+                $rules['billing_address.country_id'] = 'required';
+            }
+            // Bank Details — required together: if any bank field is filled,
+            // all three must be provided.
+            if ($request->bank_id || $request->bank_account_name || $request->bank_account_number) {
+                $rules['bank_id'] = 'required|integer';
+                $rules['bank_account_name'] = 'required|string|max:191';
+                $rules['bank_account_number'] = 'required|string|max:191';
+            }
+            $request->validate($rules);
+
             $customer = Customer::create($request->all());
 
             if ($request->contact and isset($request->contact['name']) and $request->contact['name']) {
@@ -2744,6 +2787,8 @@ class CustomerController extends Controller
                     'type' => Customer::ADDRESS_TYPE_DELIVERY,
                 ], $request->address);
             }
+
+            $this->syncBillingAddress($customer, $billingSame, $request->address, $request->billing_address);
         }
 
         return redirect()->route('customers.edit', [$customer->id]);
@@ -2946,6 +2991,23 @@ class CustomerController extends Controller
 
             $request->validate($contractRules);
 
+            // Billing address required only when "same as delivery" is off.
+            if (!filter_var($requestCustomerArr['is_billing_same_as_delivery'] ?? true, FILTER_VALIDATE_BOOLEAN)) {
+                $request->validate([
+                    'customer.billing_address.postcode' => 'required',
+                    'customer.billing_address.country_id' => 'required',
+                ]);
+            }
+
+            // Bank Details — required together (nested under customer.* on update).
+            if (!empty($requestCustomerArr['bank_id']) || !empty($requestCustomerArr['bank_account_name']) || !empty($requestCustomerArr['bank_account_number'])) {
+                $request->validate([
+                    'customer.bank_id' => 'required|integer',
+                    'customer.bank_account_name' => 'required|string|max:191',
+                    'customer.bank_account_number' => 'required|string|max:191',
+                ]);
+            }
+
             // Defensive: never let the DB hold "enabled = true" with a NULL/
             // empty email. The Vue side already enforces this on the form,
             // but if someone POSTs directly we still want clean data so the
@@ -3076,6 +3138,13 @@ class CustomerController extends Controller
                     'type' => Customer::ADDRESS_TYPE_DELIVERY,
                 ], $request->customer['address']);
             }
+
+            $this->syncBillingAddress(
+                $customer,
+                filter_var($requestCustomerArr['is_billing_same_as_delivery'] ?? true, FILTER_VALIDATE_BOOLEAN),
+                $request->customer['address'] ?? null,
+                $request->customer['billing_address'] ?? null
+            );
 
             if ($request->customer and isset($request->customer['vend_id']) and $request->customer['vend_id']) {
                 $vend = Vend::find($request->customer['vend_id']);

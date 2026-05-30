@@ -119,6 +119,7 @@ class Customer extends Model
         'contract_auto_renewal' => 'boolean',
         'is_external_subsidize' => 'boolean',
         'is_gst_registered' => 'boolean',
+        'is_billing_same_as_delivery' => 'boolean',
         'contract_from' => 'date',
         'contract_until' => 'date',
         'contract_detail_updated_at' => 'datetime',
@@ -183,6 +184,10 @@ class Customer extends Model
         // See migration 2026_05_27_010000_add_payment_to_and_gst_registered.
         'payment_to',
         'is_gst_registered',
+        'is_billing_same_as_delivery',
+        'bank_id',
+        'bank_account_name',
+        'bank_account_number',
         'is_active',
         'is_restricted_access',
         'last_invoice_date',
@@ -266,6 +271,11 @@ class Customer extends Model
     public function contracts()
     {
         return $this->morphMany(Attachment::class, 'modelable')->where('type', self::FILE_TYPE_CONTRACT)->latest();
+    }
+
+    public function bank()
+    {
+        return $this->belongsTo(Bank::class);
     }
 
     public function billingAddress()

@@ -19,7 +19,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-start">
-                    <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Customer </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Customer </span>
                   </div>
                 </div>
 
@@ -62,133 +62,19 @@
                       />
                     </div>
                   </div>
-                  <div class="sm:col-span-3">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Operator <span class="text-red-500">*</span>
-                    </label>
-                    <MultiSelect
-                      v-model="form.operator_id"
-                      :options="operatorOptions"
-                      trackBy="id"
-                      valueProp="id"
-                      label="full_name"
-                      placeholder="Select"
-                      open-direction="top"
-                      class="mt-1"
-                    ></MultiSelect>
-                    <div class="text-sm text-red-600" v-if="form.errors.operator_id">
-                      {{ form.errors.operator_id }}
-                    </div>
-                    <div class="text-blue-600 text-xs">
-                      ** Changing Operator will change Vending Machine's Operator as well
-                    </div>
-                  </div>
-
-                  <div class="sm:col-span-4" v-if="customer.id && customer.person_id">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Customer </label>
-                    <div class="mt-1">
-                      <input
-                        type="text"
-                        class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                        :value="customer.person_id ? ' (' + customer.virtual_customer_code + ')  ' + customer.name : customer.code + ' - ' + customer.name"
-                        disabled
-                      />
-                    </div>
-                    <div class="text-blue-600 text-xs" v-if="customer.person_id">
-                      ** Customer Data only editable from CMS
-                      <span>
-                        <a :class="[form.person_id ? 'text-blue-700' : 'text-gray-500']" target="_blank" :href="'//admin.happyice.com.sg/person/' + form.person_id + '/edit'">
-                          (Click Here)
-                        </a>
-                      </span>
-                    </div>
-                  </div>
 
                   <!--
-                    CMS Customer Details — read-only mirror of the CMS person
-                    record (sys.happyice). Only shown for CMS-linked customers
-                    (person_id set). Values are pulled by the
-                    UpdateCustomerCmsFields job; edit them in CMS, not here.
+                    Editable Customer Name. Previously locked + hidden for
+                    CMS-linked customers (person_id) and surfaced only as a
+                    read-only mirror. CMS → mark1 data sync is now disabled, so
+                    the name is editable for every customer, including
+                    CMS-linked ones. The "From CMS" badge above is retained for
+                    traceability of the original CMS link.
                   -->
-                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="customer.id && customer.person_id">
-                    <div class="sm:col-span-6 pt-2 pb-1 md:pt-4 md:pb-2">
-                      <div class="relative">
-                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                          <div class="w-full border-t border-gray-300"></div>
-                        </div>
-                        <div class="relative flex justify-start">
-                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> CMS Customer Details </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="sm:col-span-3">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Company </label>
-                      <input type="text" disabled :value="customer.company_remark || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-                    <div class="sm:col-span-3">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Delivery Location Name </label>
-                      <input type="text" disabled :value="customer.site_name || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-
-                    <div class="sm:col-span-3">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Billing Postcode </label>
-                      <input type="text" disabled :value="customer.billing_address?.postcode || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-                    <div class="sm:col-span-3">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Delivery Postcode </label>
-                      <input type="text" disabled :value="customer.delivery_address?.postcode || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-
-                    <div class="sm:col-span-3">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Billing Address </label>
-                      <textarea disabled rows="2" :value="customer.billing_address?.street_name || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"></textarea>
-                    </div>
-                    <div class="sm:col-span-3">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Delivery Address </label>
-                      <textarea disabled rows="2" :value="customer.delivery_address?.street_name || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"></textarea>
-                    </div>
-
-                    <div class="sm:col-span-3">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Billing Country </label>
-                      <input type="text" disabled :value="countryName(customer.billing_address?.country_id)" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-                    <div class="sm:col-span-3">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Delivery Country </label>
-                      <input type="text" disabled :value="countryName(customer.delivery_address?.country_id)" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-
-                    <div class="sm:col-span-2">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Contact Person </label>
-                      <input type="text" disabled :value="customer.contact?.name || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-                    <div class="sm:col-span-2">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Phone Number </label>
-                      <input type="text" disabled :value="customer.contact?.phone_num || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-                    <div class="sm:col-span-2">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Alt Phone Number </label>
-                      <input type="text" disabled :value="customer.contact?.alt_phone_num || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-
-                    <div class="sm:col-span-3">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Email </label>
-                      <input type="text" disabled :value="customer.contact?.email || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-                    <div class="sm:col-span-2">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Cost Rate (%) </label>
-                      <input type="text" disabled :value="customer.cost_rate ?? ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-                    <div class="sm:col-span-3">
-                      <label class="flex justify-start text-sm font-medium text-gray-700"> Terms </label>
-                      <input type="text" disabled :value="customer.payterm || ''" class="mt-1 shadow-sm block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed" />
-                    </div>
-                  </div>
-
-                  <div class="sm:col-span-4 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
+                  <div class="sm:col-span-4 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="customer.id || (!customer.id && isExisting != 1)">
                     <div class="sm:col-span-5">
-                      <FormInput v-model="form.name" :error="form.errors.name" required="true" :disabled="form.person_id">
-                        Cust Name
+                      <FormInput v-model="form.name" :error="form.errors.name" required="true" placeholderStr="Site Name">
+                        Site Name
                       </FormInput>
                     </div>
                   </div>
@@ -226,6 +112,286 @@
                     <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()" v-if="permissions.includes('update customers')">
                       Begin Date
                     </DatePicker>
+                  </div>
+                  <div class="sm:col-span-5">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      Reference Price Type
+                      <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Desired Price to be Set on Vending Machine'"></ExclamationCircleIcon>
+                    </label>
+                    <MultiSelect
+                      v-model="form.selling_price_type"
+                      :options="sellingPriceTypeOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="value"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                      @selected="onSellingPriceTypeSelected"
+                    ></MultiSelect>
+                    <div class="text-sm text-red-600" v-if="form.errors['customer.selling_price_type']">
+                      {{ form.errors['customer.selling_price_type'] }}
+                    </div>
+                  </div>
+
+                  <!-- Address Section -->
+                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
+                    <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 md:pb-3">
+                      <div class="relative">
+                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                          <div class="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div class="relative flex justify-start">
+                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Delivery Address </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="sm:col-span-6">
+                      <FormInput v-model="form.address.map_url" :error="form.errors['address.map_url']" placeholderStr="Google Map URL">
+                        <div class="flex space-x-1">
+                          <span> Google Map URL </span>
+                          <span v-if="form.address.map_url">
+                            <a class="text-blue-700" target="_blank" rel="noopener noreferrer" :href="'//' + form.address.map_url">
+                              <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                            </a>
+                          </span>
+                        </div>
+                      </FormInput>
+                    </div>
+                    <div class="sm:col-span-6">
+                      <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']"> Postcode <span class="text-gray-400 font-normal">(key in to autofill)</span> </SearchAddressInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.address.unit_num" :error="form.errors['address.unit_num']" placeholderStr="Unit Num"> Unit Num </FormInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.address.block_num" :error="form.errors['address.block_num']" placeholderStr="Block Num"> Block Num </FormInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.address.building" :error="form.errors['address.building']" placeholderStr="Building Name"> Building Name </FormInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" placeholderStr="Street Name"> Street Name </FormInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                        Country <span class="text-red-500">*</span>
+                      </label>
+                      <MultiSelect
+                        v-model="form.address.country_id"
+                        :options="countryOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="name"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                      ></MultiSelect>
+                      <div class="text-sm text-red-600" v-if="form.errors['address.country_id']">
+                        {{ form.errors['address.country_id'] }}
+                      </div>
+                    </div>
+                    <div class="sm:col-span-3 hidden">
+                      <FormInput v-model="form.address.latitude" placeholderStr="Latitude"> Latitude </FormInput>
+                    </div>
+                    <div class="sm:col-span-3 hidden">
+                      <FormInput v-model="form.address.longitude" placeholderStr="Longitude"> Longitude </FormInput>
+                    </div>
+                  </div>
+
+                  <!-- Billing Contact Section -->
+                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="customer.id || (!customer.id && isExisting != 1)">
+                    <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
+                      <div class="relative">
+                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                          <div class="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div class="relative flex justify-start">
+                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Billing Contact </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="sm:col-span-6">
+                      <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" placeholderStr="Company"> Company </FormInput>
+                    </div>
+                    <div class="sm:col-span-6">
+                      <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          v-model="form.is_gst_registered"
+                          class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        />
+                        <span class="text-sm font-medium text-gray-700"> Is GST Registered? </span>
+                      </label>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" placeholderStr="Contact Person"> Contact Person </FormInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormTextarea v-model="form.contact.email" :error="form.errors['contact.email']" placeholderStr="One email per line (or comma-separated)" rows="2"> Email </FormTextarea>
+                    </div>
+                    <div class="sm:col-span-2">
+                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Phone Code </label>
+                      <MultiSelect
+                        v-model="form.contact.phone_country_id"
+                        :options="countryOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="phone_code"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                      ></MultiSelect>
+                      <div class="text-sm text-red-600" v-if="form.errors['contact.phone_country_id']">
+                        {{ form.errors['contact.phone_country_id'] }}
+                      </div>
+                    </div>
+                    <div class="sm:col-span-4">
+                      <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" placeholderStr="Phone Number"> Phone Number </FormInput>
+                    </div>
+                    <div class="sm:col-span-2">
+                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Alt Phone Code </label>
+                      <MultiSelect
+                        v-model="form.contact.alt_phone_country_id"
+                        :options="countryOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="phone_code"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                      ></MultiSelect>
+                      <div class="text-sm text-red-600" v-if="form.errors['contact.alt_phone_country_id']">
+                        {{ form.errors['contact.alt_phone_country_id'] }}
+                      </div>
+                    </div>
+                    <div class="sm:col-span-4">
+                      <FormInput v-model="form.contact.alt_phone_num" :error="form.errors['contact.alt_phone_num']" placeholderStr="Alt Phone Number"> Alt Phone Number </FormInput>
+                    </div>
+
+                    <!-- Billing Address — "same as Delivery Address" toggle. When
+                         checked (default) the billing fields are hidden and the
+                         server mirrors the delivery address into the billing
+                         record. When unchecked the user fills a dedicated
+                         billing address. -->
+                    <div class="sm:col-span-6 flex items-center gap-2 mt-1">
+                      <input
+                        type="checkbox"
+                        id="billing_same_as_delivery"
+                        v-model="form.is_billing_same_as_delivery"
+                        class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                      />
+                      <label for="billing_same_as_delivery" class="text-sm font-medium text-gray-700 cursor-pointer">
+                        Billing Address same as Delivery Address
+                      </label>
+                    </div>
+
+                    <template v-if="!form.is_billing_same_as_delivery">
+                      <div class="sm:col-span-6">
+                        <SearchAddressInput v-model="form.billing_address.postcode" @selected="onBillingAddressSelected" :error="form.errors['customer.billing_address.postcode']"> Postcode <span class="text-gray-400 font-normal">(key in to autofill)</span> </SearchAddressInput>
+                      </div>
+                      <div class="sm:col-span-3">
+                        <FormInput v-model="form.billing_address.unit_num" :error="form.errors['customer.billing_address.unit_num']" placeholderStr="Unit Num"> Unit Num </FormInput>
+                      </div>
+                      <div class="sm:col-span-3">
+                        <FormInput v-model="form.billing_address.block_num" :error="form.errors['customer.billing_address.block_num']" placeholderStr="Block Num"> Block Num </FormInput>
+                      </div>
+                      <div class="sm:col-span-3">
+                        <FormInput v-model="form.billing_address.building" :error="form.errors['customer.billing_address.building']" placeholderStr="Building Name"> Building Name </FormInput>
+                      </div>
+                      <div class="sm:col-span-3">
+                        <FormInput v-model="form.billing_address.street_name" :error="form.errors['customer.billing_address.street_name']" placeholderStr="Street Name"> Street Name </FormInput>
+                      </div>
+                      <div class="sm:col-span-3">
+                        <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                          Country <span class="text-red-500">*</span>
+                        </label>
+                        <MultiSelect
+                          v-model="form.billing_address.country_id"
+                          :options="countryOptions"
+                          trackBy="id"
+                          valueProp="id"
+                          label="name"
+                          placeholder="Select"
+                          open-direction="bottom"
+                          class="mt-1"
+                        ></MultiSelect>
+                        <div class="text-sm text-red-600" v-if="form.errors['customer.billing_address.country_id']">
+                          {{ form.errors['customer.billing_address.country_id'] }}
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+
+                  <!-- Bank Details Section -->
+                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
+                    <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+                      <div class="relative">
+                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                          <div class="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div class="relative flex justify-start">
+                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Bank Details </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="sm:col-span-6">
+                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Bank Name </label>
+                      <MultiSelect
+                        v-model="form.bank_id"
+                        :options="bankOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="name"
+                        placeholder="Select"
+                        open-direction="top"
+                        class="mt-1"
+                      ></MultiSelect>
+                      <div class="text-sm text-red-600" v-if="form.errors['customer.bank_id']">
+                        {{ form.errors['customer.bank_id'] }}
+                      </div>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.bank_account_name" :error="form.errors['customer.bank_account_name']" placeholderStr="Account Name"> Account Name </FormInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.bank_account_number" :error="form.errors['customer.bank_account_number']" placeholderStr="Account Number"> Account Number </FormInput>
+                    </div>
+                  </div>
+
+                  <!-- Operator Section -->
+                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
+                    <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+                      <div class="relative">
+                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                          <div class="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div class="relative flex justify-start">
+                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Operator </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-span-12 sm:col-span-6">
+                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                        Operator <span class="text-red-500">*</span>
+                      </label>
+                      <MultiSelect
+                        v-model="form.operator_id"
+                        :options="operatorOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="full_name"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                      ></MultiSelect>
+                      <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                        {{ form.errors.operator_id }}
+                      </div>
+                      <div class="text-blue-600 text-xs">
+                        ** Changing Operator will change Vending Machine's Operator as well
+                      </div>
+                    </div>
                   </div>
 
                   <!-- Placement Contract Detail Section — highlighted container -->
@@ -595,8 +761,7 @@
                       v-model="form.report_email"
                       :error="form.errors['customer.report_email']"
                       type="email"
-                      placeholder="customer@example.com"
-                    >
+                      placeholder="customer@example.com" placeholderStr="Performance Report Email">
                       Performance Report Email
                     </FormInput>
                   </div>
@@ -684,7 +849,7 @@
                   <!-- end Location Grading Section -->
 
                   <div class="sm:col-span-3">
-                    <FormInput v-model="form.power_socket_key_number" :error="form.errors.power_socket_key_number"> Power Socket Key Num </FormInput>
+                    <FormInput v-model="form.power_socket_key_number" :error="form.errors.power_socket_key_number" placeholderStr="Power Socket Key Num"> Power Socket Key Num </FormInput>
                   </div>
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -720,26 +885,6 @@
                     ></MultiSelect>
                     <div class="text-sm text-red-600" v-if="form.errors['customer.is_restricted_access']">
                       {{ form.errors['customer.is_restricted_access'] }}
-                    </div>
-                  </div>
-                  <div class="sm:col-span-5">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Reference Price Type
-                      <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Desired Price to be Set on Vending Machine'"></ExclamationCircleIcon>
-                    </label>
-                    <MultiSelect
-                      v-model="form.selling_price_type"
-                      :options="sellingPriceTypeOptions"
-                      trackBy="id"
-                      valueProp="id"
-                      label="value"
-                      placeholder="Select"
-                      open-direction="bottom"
-                      class="mt-1"
-                      @selected="onSellingPriceTypeSelected"
-                    ></MultiSelect>
-                    <div class="text-sm text-red-600" v-if="form.errors['customer.selling_price_type']">
-                      {{ form.errors['customer.selling_price_type'] }}
                     </div>
                   </div>
                 </div>
@@ -922,78 +1067,7 @@
                   </div>
                 </div>
 
-                <!-- Payment To / GST — sys-only fields (CMS does not record
-                     these). Shown for ALL customers, including CMS-linked
-                     ones, so the Location Fees payee is always captured. -->
-                <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
-                  <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
-                    <div class="relative">
-                      <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div class="w-full border-t border-gray-300"></div>
-                      </div>
-                      <div class="relative flex justify-start">
-                        <span class="px-4 bg-white text-lg font-medium text-gray-900 rounded"> Payment </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="sm:col-span-4">
-                    <FormInput v-model="form.payment_to" :error="form.errors['customer.payment_to']">
-                      Payment to (Full company name or Personal Name)
-                    </FormInput>
-                  </div>
-                  <div class="sm:col-span-2 flex items-end">
-                    <label class="flex items-center gap-2 pb-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        v-model="form.is_gst_registered"
-                        class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                      />
-                      <span class="text-sm font-medium text-gray-700"> GST Registered? </span>
-                    </label>
-                  </div>
-                </div>
-
-                <!-- Contact Section -->
-                <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
-                  <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
-                    <div class="relative">
-                      <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div class="w-full border-t border-gray-300"></div>
-                      </div>
-                      <div class="relative flex justify-start">
-                        <span class="px-4 bg-white text-lg font-medium text-gray-900 rounded"> Contact </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="sm:col-span-3">
-                    <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" :disabled="customer.person_id"> Name </FormInput>
-                  </div>
-                  <div class="sm:col-span-3">
-                    <FormInput v-model="form.contact.email" :error="form.errors['contact.email']" :disabled="customer.person_id"> Email </FormInput>
-                  </div>
-                  <div class="sm:col-span-2">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Phone Code </label>
-                    <MultiSelect
-                      v-model="form.contact.phone_country_id"
-                      :options="countryOptions"
-                      :disabled="form.person_id"
-                      trackBy="id"
-                      valueProp="id"
-                      label="phone_code"
-                      placeholder="Select"
-                      open-direction="bottom"
-                      class="mt-1"
-                    ></MultiSelect>
-                    <div class="text-sm text-red-600" v-if="form.errors['contact.phone_country_id']">
-                      {{ form.errors['contact.phone_country_id'] }}
-                    </div>
-                  </div>
-                  <div class="sm:col-span-4">
-                    <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" :disabled="customer.person_id"> Phone Number </FormInput>
-                  </div>
-                </div>
-
-                <!-- Address Section -->
+                <!-- Operations Section -->
                 <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
                   <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 md:pb-3">
                     <div class="relative">
@@ -1060,77 +1134,6 @@
 
                 </div>
 
-                  <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 pb-3">
-                    <div class="relative">
-                      <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div class="w-full border-t border-gray-300"></div>
-                      </div>
-                      <div class="relative flex justify-start">
-                        <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Address </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="sm:col-span-6">
-                    <FormInput v-model="form.address.map_url" :error="form.errors['address.map_url']">
-                      <div class="flex space-x-1">
-                        <span>
-                          Google Map URL
-                        </span>
-                        <span v-if="form.address.map_url">
-                          <a class="text-blue-700" target="_blank" rel="noopener noreferrer" :href=" '//' + form.address.map_url">
-                            <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
-                          </a>
-                        </span>
-                      </div>
-                    </FormInput>
-                  </div>
-                  <div class="sm:col-span-6">
-                    <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :disabled="customer.person_id"> Postcode </SearchAddressInput>
-                  </div>
-                  <div class="col-span-3">
-                    <FormInput v-model="form.address.unit_num" :error="form.errors['address.unit_num']"> Unit Num </FormInput>
-                  </div>
-                  <div class="col-span-3">
-                    <FormInput v-model="form.address.block_num" :error="form.errors['address.block_num']" :disabled="customer.person_id"> Block Num </FormInput>
-                  </div>
-                  <div class="col-span-3">
-                    <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="customer.person_id"> Building Name </FormInput>
-                  </div>
-                  <div class="col-span-5">
-                    <FormTextarea v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="customer.person_id">
-                      Street Name
-                    </FormTextarea>
-                  </div>
-                  <div class="col-span-3">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Country
-                      <span class="text-red-500">
-                        *
-                      </span>
-                    </label>
-                    <MultiSelect
-                      v-model="form.address.country_id"
-                      :options="countryOptions"
-                      trackBy="id"
-                      valueProp="id"
-                      label="name"
-                      placeholder="Select"
-                      open-direction="bottom"
-                      class="mt-1"
-                      :disabled="customer.person_id"
-                    ></MultiSelect>
-                    <div class="text-sm text-red-600" v-if="form.errors['address.country_id']">
-                      {{ form.errors['address.country_id'] }}
-                    </div>
-                  </div>
-                  <div class="sm:col-span-3 hidden">
-                    <FormInput v-model="form.address.latitude"> Latitude </FormInput>
-                  </div>
-                  <div class="sm:col-span-3 hidden">
-                    <FormInput v-model="form.address.longitude"> Longitude </FormInput>
-                  </div>
-
                   <!-- Save and Delete Buttons -->
                   <div class="sm:col-span-6 mt-3 pt-2">
                     <span class="flex flex-col space-y-1 md:flex-row justify-between">
@@ -1179,7 +1182,7 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-start">
-                      <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Machine Binding History </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Machine Binding History </span>
                     </div>
                   </div>
                   <nav aria-label="Progress">
@@ -1229,7 +1232,7 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-center ">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Photo(s) </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Photo(s) </span>
                     </div>
                   </div>
                 </div>
@@ -1255,7 +1258,7 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-center ">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Attachment(s) </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Attachment(s) </span>
                     </div>
                   </div>
                 </div>
@@ -1310,6 +1313,7 @@ const props = defineProps({
   noticePeriodOptions: { type: Array, default: () => [] },
   locationTypeOptions: [Array, Object],
   operatorOptions: Object,
+  bankOptions: [Array, Object],
   customer: Object,
   sellingPriceTypeOptions: [Array, Object],
   type: String,
@@ -1361,6 +1365,7 @@ const isExisting = ref(1);
 const locationTypeOptions = ref([]);
 const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([]);
+const bankOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
 const profile = usePage().props.auth.profile;
 const toast = useToast();
@@ -1483,8 +1488,6 @@ function getDefaultForm() {
     termination_date: '',
     code: '',
     name: '',
-    // "Payment To" tracking — who Location Fees are paid to (sys-only).
-    payment_to: '',
     is_gst_registered: false,
     address: {
       block_num: '',
@@ -1498,10 +1501,29 @@ function getDefaultForm() {
     },
     contact: {
       name: '',
+      company: '',
       email: '',
       phone_country_id: '',
       phone_num: '',
+      alt_phone_country_id: '',
+      alt_phone_num: '',
     },
+    // Billing Address — defaults to "same as delivery" (checkbox checked).
+    is_billing_same_as_delivery: true,
+    billing_address: {
+      block_num: '',
+      building: '',
+      country_id: '',
+      latitude: '',
+      longitude: '',
+      postcode: '',
+      street_name: '',
+      unit_num: '',
+    },
+    // Bank Details — required together (Bank Name + Account Name + Number).
+    bank_id: '',
+    bank_account_name: '',
+    bank_account_number: '',
     vend_id: '',
     zone_id: '',
     contract_commission_type: null,
@@ -1553,6 +1575,7 @@ onMounted(() => {
   ];
 
   operatorOptions.value = props.operatorOptions.data;
+  bankOptions.value = props.bankOptions && props.bankOptions.data ? props.bankOptions.data : [];
   // Tag options come from OptionsService::tags('App\\Models\\Customer'),
   // wrapped in a Resource collection → unwrap .data and keep id+name only.
   customerTagOptions.value = (props.customerTagOptions?.data ?? [])
@@ -1588,18 +1611,41 @@ onMounted(() => {
     operator_id: props.customer ? props.customer.operator_id ? operatorOptions.value.find(operator => operator.id === props.customer.operator_id) : null : null,
     vend_id: '',
     person_id: props.customer ? props.customer.person_id : null,
+    // Bank Details — map stored bank_id to its option object for the dropdown;
+    // account name/number flow through via the JSON spread of props.customer.
+    bank_id: props.customer && props.customer.bank_id ? bankOptions.value.find(b => b.id === props.customer.bank_id) : null,
     contact: props.customer ? {
       ...JSON.parse(JSON.stringify(props.customer.contact)),
       phone_country_id: props.customer && props.customer.contact ? countryOptions.value.find(country => country.id === props.customer.contact.phone_country_id) : null,
+      alt_phone_country_id: props.customer && props.customer.contact ? countryOptions.value.find(country => country.id === props.customer.contact.alt_phone_country_id) : null,
     } : {
       name: '',
       email: '',
       phone_country_id: '',
       phone_num: '',
+      alt_phone_country_id: '',
+      alt_phone_num: '',
     },
     address: props.customer ? {
       ...props.customer.delivery_address,
       country_id: props.customer && props.customer.delivery_address ? countryOptions.value.find(country => country.id === props.customer.delivery_address.country_id) : null,
+    } : {
+      block_num: '',
+      building: '',
+      country_id: '',
+      latitude: '',
+      longitude: '',
+      postcode: '',
+      street_name: '',
+      unit_num: '',
+    },
+    // Billing Address — defaults to "same as delivery" when the flag is unset
+    // (e.g. before the migration backfill); maps the stored country_id to its
+    // option object like the delivery address above.
+    is_billing_same_as_delivery: (props.customer && props.customer.is_billing_same_as_delivery != null) ? !!props.customer.is_billing_same_as_delivery : true,
+    billing_address: (props.customer && props.customer.billing_address) ? {
+      ...props.customer.billing_address,
+      country_id: countryOptions.value.find(country => country.id === props.customer.billing_address.country_id) || null,
     } : {
       block_num: '',
       building: '',
@@ -1740,20 +1786,26 @@ function saveCustomer(customerID) {
       contact: {
         ...data.contact,
         phone_country_id: data.contact.phone_country_id ? data.contact.phone_country_id.id : null,
+        alt_phone_country_id: data.contact.alt_phone_country_id ? data.contact.alt_phone_country_id.id : null,
       },
       address: {
         ...data.address,
         country_id: data.address.country_id ? data.address.country_id.id : null,
       },
+      // Billing address — is_billing_same_as_delivery flows through via ...data.
+      // When checked the server ignores this payload and mirrors delivery.
+      billing_address: {
+        ...data.billing_address,
+        country_id: data.billing_address && data.billing_address.country_id ? data.billing_address.country_id.id : null,
+      },
       // Status — send the integer status_id. The server mirrors is_active
       // from this (is_active = status_id === STATUS_ACTIVE).
       status_id: data.status_id ? data.status_id.id : null,
       is_restricted_access: data.is_restricted_access.id,
-      // Payment To (sys-only) — normalise empty string to null; GST flag
-      // is always a clean boolean.
-      payment_to: data.payment_to && String(data.payment_to).trim() !== '' ? String(data.payment_to).trim() : null,
+      // GST flag is always a clean boolean.
       is_gst_registered: data.is_gst_registered ?? false,
       selling_price_type: data.selling_price_type ? data.selling_price_type.id : null,
+      bank_id: data.bank_id ? data.bank_id.id : null,
       vend_id: data.vend_id ? data.vend_id.id : null,
       zone_id: data.zone_id ? data.zone_id.id : null,
       // Contract details
@@ -1850,6 +1902,19 @@ function submit() {
 
 function onAddressSelected(address) {
   form.value.address = {
+    block_num: address.BLK_NO,
+    building: address.BUILDING,
+    country_id: countryOptions.value[0],
+    latitude: address.LATITUDE,
+    longitude: address.LONGTITUDE,
+    postcode: address.POSTAL,
+    street_name: address.ROAD_NAME,
+    unit_num: '',
+  };
+}
+
+function onBillingAddressSelected(address) {
+  form.value.billing_address = {
     block_num: address.BLK_NO,
     building: address.BUILDING,
     country_id: countryOptions.value[0],
