@@ -235,7 +235,7 @@
                     </h3>
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
                     <div class="sm:col-span-6">
-                      <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" placeholderStr="Company"> Company </FormInput>
+                      <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" placeholderStr="Company"> Billing To (Company Full Name or Personal Name) </FormInput>
                     </div>
                     <div class="sm:col-span-6">
                       <label class="flex items-center gap-2 cursor-pointer select-none">
@@ -248,7 +248,7 @@
                       </label>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" placeholderStr="Contact Person"> Contact Person </FormInput>
+                      <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" placeholderStr="Contact Person"> Billing Contact Person </FormInput>
                     </div>
                     <div class="sm:col-span-3">
                       <FormTextarea v-model="form.contact.email" :error="form.errors['contact.email']" placeholderStr="One email per line (or comma-separated)" rows="2"> Email </FormTextarea>
@@ -323,7 +323,7 @@
                       </div>
                     </div>
                     <div class="sm:col-span-3">
-                      <FormInput v-model="form.bank_account_name" :error="form.errors['customer.bank_account_name']" placeholderStr="Account Name"> Account Name </FormInput>
+                      <FormInput v-model="form.bank_account_name" :error="form.errors['customer.bank_account_name']" placeholderStr="Account Holder Name"> Account Holder Name </FormInput>
                     </div>
                     <div class="sm:col-span-3">
                       <FormInput v-model="form.bank_account_number" :error="form.errors['customer.bank_account_number']" placeholderStr="Account Number"> Account Number </FormInput>

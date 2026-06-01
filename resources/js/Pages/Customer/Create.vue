@@ -271,7 +271,7 @@
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" :disabled="customer.person_id" placeholderStr="Company">
-                Company
+                Billing To (Company Full Name or Personal Name)
               </FormInput>
             </div>
             <div class="sm:col-span-6">
@@ -286,7 +286,7 @@
             </div>
             <div class="sm:col-span-3">
               <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" :disabled="customer.person_id" placeholderStr="Contact Person">
-                Contact Person
+                Billing Contact Person
               </FormInput>
             </div>
             <div class="sm:col-span-3">
@@ -379,8 +379,8 @@
                 </div>
               </div>
               <div class="sm:col-span-3">
-                <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name" placeholderStr="Account Name">
-                  Account Name
+                <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name" placeholderStr="Account Holder Name">
+                  Account Holder Name
                 </FormInput>
               </div>
               <div class="sm:col-span-3">
