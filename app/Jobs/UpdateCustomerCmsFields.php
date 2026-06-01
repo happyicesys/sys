@@ -115,8 +115,12 @@ class UpdateCustomerCmsFields implements ShouldQueue
         // ── 1. Customer scalar fields ─────────────────────────────────────
         // CMS "Att To / Contact / Alt Contact" map to the SITE contact
         // (delivery), which lives on the customer row — NOT the billing contact.
+        //
+        // NOTE: CMS form labels are counterintuitive — "Cust Name" is the
+        // `company` column and "Company" is the `com_remark` column. So:
+        //   Site Name (#1) ← company   ·   Billing Company (#9) ← com_remark.
         $customer->update([
-            'name'                        => $data->get('name') ?: $customer->name, // #1 Site Name (never null the required name)
+            'name'                        => $data->get('company') ?: $customer->name, // #1 Site Name ← CMS "Cust Name" (company column); never null the required name
             'site_contact_person'         => $attn,                                 // #5 Att To
             'site_phone_number'           => $data->get('contact'),                 // #6 Contact
             'site_alt_phone_number'       => $data->get('alt_contact'),             // #7 Alt Contact
@@ -135,7 +139,7 @@ class UpdateCustomerCmsFields implements ShouldQueue
             [],
             [
                 'name'                 => null,
-                'company'              => $data->get('company'),
+                'company'              => $data->get('com_remark'), // #9 Billing Company ← CMS "Company" (com_remark column)
                 // Email may carry >1 address; Contact::setEmailAttribute
                 // normalises it (split / trim / dedupe → comma-separated).
                 'email'                => $data->get('email'),
@@ -200,8 +204,8 @@ class UpdateCustomerCmsFields implements ShouldQueue
         }
 
         // ── 4. Attachments (CMS "File" → mark1 "Attachment(s)") ───────────
-        // Reference-only: we record the CMS public URL, not a local copy.
-        // Isolated so a file hiccup never aborts the field backfill.
+        // Copy-bytes: each CMS file is downloaded and re-uploaded into mark1
+        // storage. Isolated so a file hiccup never aborts the field backfill.
         try {
             $this->syncAttachments($customer, rtrim($baseUrl, '/'));
         } catch (\Throwable $e) {
