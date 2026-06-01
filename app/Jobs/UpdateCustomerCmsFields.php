@@ -100,7 +100,9 @@ class UpdateCustomerCmsFields implements ShouldQueue
         $sgCountryId = optional(Country::where('name', 'Singapore')->first())->id;
 
         $profile = $data->get('profile');
-        $attn    = is_array($profile) ? ($profile['attn'] ?? null) : null;
+        // NOTE: GST is a company-profile attribute (shared) — that's correct.
+        // Do NOT read "Att To" from profile.attn: that is the shared profile's
+        // contact (same for every customer on the profile, e.g. "Daniel").
         $gstVal  = is_array($profile) ? ($profile['gst'] ?? null) : null;
         $payterm = $data->get('payterm');
 
@@ -116,12 +118,14 @@ class UpdateCustomerCmsFields implements ShouldQueue
         // CMS "Att To / Contact / Alt Contact" map to the SITE contact
         // (delivery), which lives on the customer row — NOT the billing contact.
         //
-        // NOTE: CMS form labels are counterintuitive — "Cust Name" is the
-        // `company` column and "Company" is the `com_remark` column. So:
-        //   Site Name (#1) ← company   ·   Billing Company (#9) ← com_remark.
+        // NOTE: CMS form labels are counterintuitive — "Cust Name" = `company`,
+        // "Company" = `com_remark`, and "Att To" = `name` (the people.name
+        // column, NOT profile.attn which is a shared company-profile field). So:
+        //   Site Name (#1) ← company · Billing Company (#9) ← com_remark
+        //   Site Contact Person (#5) ← name.
         $customer->update([
             'name'                        => $data->get('company') ?: $customer->name, // #1 Site Name ← CMS "Cust Name" (company column); never null the required name
-            'site_contact_person'         => $attn,                                 // #5 Att To
+            'site_contact_person'         => $data->get('name'),                    // #5 Att To ← CMS "Att To" (people.name)
             'site_phone_number'           => $data->get('contact'),                 // #6 Contact
             'site_alt_phone_number'       => $data->get('alt_contact'),             // #7 Alt Contact
             'address_remarks'             => $data->get('del_address'),             // #8 raw CMS delivery address text
