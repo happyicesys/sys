@@ -599,7 +599,7 @@ class VendController extends Controller
                     // Audit user for the inline Ops Note edit (same Customer
                     // row, same pattern as notesUpdatedBy).
                     'opsNoteUpdatedBy:id,name',
-                    'lastOpsJobItem:id,ops_job_id,status,vend_id,customer_id,stock_action_type',
+                    'lastOpsJobItem:id,ops_job_id,status,vend_id,customer_id,stock_action_type,frozen_at,frozen_snapshot',
                     'lastOpsJobItem.opsJob:id,code,date,delivered_by',
                     'lastOpsJobItem.opsJob.deliveredBy:id,name,username',
                     'lastOpsJobItem.vend:id,upcoming_product_mapping_id,product_mapping_id',
@@ -1116,6 +1116,7 @@ class VendController extends Controller
                 //   F      → fee 0
                 //   S      → fee = -value*100  (subsidy = income to operator)
                 //   R / U  → fee = value*100   (flat rent / utility)
+                //   R+U    → fee = value*100 + value2*100  (flat rent + utility)
                 //   PS     → fee = (sales_incl_gst / (1+gst%)) * ps_term% * value%
                 //   PS+U   → PS + value2*100
                 //   PSORU  → MAX(PS, value2*100)
@@ -1127,6 +1128,8 @@ class VendController extends Controller
                         WHEN \'S\' THEN -ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
                         WHEN \'R\' THEN ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
                         WHEN \'U\' THEN ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
+                        WHEN \'R+U\' THEN ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
+                            + ROUND(COALESCE(customers.contract_commission_value2, 0) * 100)
                         WHEN \'PS\' THEN
                             CASE WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) <= 0 THEN 0
                             ELSE ROUND(
@@ -1175,7 +1178,7 @@ class VendController extends Controller
                     // thirty_days_vending_earning_cents above (which mirrors
                     // CustomerSummaryAggregator::computeLocationFeeCents), so the
                     // sort order matches the value rendered in the cell:
-                    //   F → 0; S → -value*100; R/U → value*100;
+                    //   F → 0; S → -value*100; R/U → value*100; R+U → value*100 + value2*100;
                     //   PS → de-grossed sales * ps_term% * value%; PS+U → PS + value2*100;
                     //   PSORU → MAX(PS, value2*100). PS-family bails to 0 when sales <= 0.
                     $locationFeeCaseSql = '(CASE customers.contract_commission_type
@@ -1183,6 +1186,8 @@ class VendController extends Controller
                             WHEN \'S\' THEN -ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
                             WHEN \'R\' THEN ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
                             WHEN \'U\' THEN ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
+                            WHEN \'R+U\' THEN ROUND(COALESCE(customers.contract_commission_value, 0) * 100)
+                                + ROUND(COALESCE(customers.contract_commission_value2, 0) * 100)
                             WHEN \'PS\' THEN
                                 CASE WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount")) AS DECIMAL(20,4)) <= 0 THEN 0
                                 ELSE ROUND(

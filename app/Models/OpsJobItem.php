@@ -31,6 +31,8 @@ class OpsJobItem extends Model
         'customer_id',
         'flagged_at',
         'flagged_by',
+        'frozen_at',
+        'frozen_snapshot',
         'is_cash_collected',
         'is_ignore_limit',
         'is_inventory_adjusted',
@@ -69,6 +71,8 @@ class OpsJobItem extends Model
         'cancelled_at' => 'datetime',
         'cms_transaction_at' => 'datetime',
         'flagged_at' => 'datetime',
+        'frozen_at' => 'datetime',
+        'frozen_snapshot' => 'array',
         'is_ignore_limit' => 'boolean',
         'is_inventory_adjusted' => 'boolean',
         'picked_at' => 'datetime',
@@ -205,4 +209,156 @@ class OpsJobItem extends Model
         return $this->belongsTo(User::class, 'verified_by');
     }
 
+    /* ----------------------------------------------------------------------
+     |  Freeze ("snapshot 10 min after stock-in")
+     | ----------------------------------------------------------------------
+     |  Once a machine has been stocked-in (status >= STATUS_DELIVERED) for
+     |  10 minutes, the ops:freeze-stock-in command captures its displayed
+     |  figures into frozen_snapshot and stamps frozen_at. From then on the
+     |  row renders the stored snapshot instead of re-deriving from live data.
+     |  Undoing the stock-in (status drops below STATUS_DELIVERED) clears both
+     |  columns and the row goes live again.
+     */
+
+    public function isFrozen(): bool
+    {
+        return $this->frozen_at !== null;
+    }
+
+    /**
+     * Release a freeze (used when stock-in is undone). Persists immediately.
+     */
+    public function clearFreeze(): void
+    {
+        if ($this->frozen_at === null && $this->frozen_snapshot === null) {
+            return;
+        }
+
+        static::whereKey($this->getKey())->update([
+            'frozen_at' => null,
+            'frozen_snapshot' => null,
+        ]);
+
+        $this->setAttribute('frozen_at', null);
+        $this->setAttribute('frozen_snapshot', null);
+    }
+
+    /**
+     * Tally/error state — PHP port of opsJobItemChannelErrorCheck() in Edit.vue.
+     * Returns 0 = All tally, 1 = Not tally (fixed), 2 = Not tally (havent fixed).
+     * Requires opsJobItemChannels to be loaded.
+     */
+    public function computeTallyStatus(): int
+    {
+        if ((int) $this->status < (int) OpsJob::STATUS_DELIVERED) {
+            return 0;
+        }
+
+        $status = 0;
+        foreach ($this->opsJobItemChannels as $channel) {
+            if ($channel->virtual_is_error == 1 && $channel->is_error_settle == 0) {
+                $status = 2;
+            } elseif ($channel->virtual_is_error == 1 && $channel->is_error_settle == 1 && $status < 2) {
+                $status = 1;
+            } elseif ($channel->virtual_is_error == 0 && $status < 1) {
+                $status = 0;
+            }
+        }
+
+        return $status;
+    }
+
+    /**
+     * Coin float at freeze time — the machine's reported CoinCnt (raw, as the
+     * frontend divides by the currency exponent itself). Null when unavailable.
+     */
+    public function coinFloatValue()
+    {
+        $params = $this->vend?->parameter_json;
+
+        if (is_array($params) && isset($params['CoinCnt'])) {
+            return $params['CoinCnt'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolved mapping labels shown for the item — current mapping name, the
+     * upcoming mapping name, and the upcoming mapping's remarks text. These are
+     * derived from the (live) vend mapping relations, which is why they must be
+     * captured at freeze time. NOTE the two frontends resolve the upcoming
+     * NAME and the upcoming REMARKS in opposite preference order, mirrored here:
+     *   - name  (CustomerIndex): prefer productMapping.upcomingProductMapping
+     *   - remarks (Edit.vue):     prefer vend.upcomingProductMapping
+     */
+    public function resolveMappingSnapshot(): array
+    {
+        $vend = $this->vend;
+
+        if (!$vend) {
+            return [
+                'mapping_current_name' => null,
+                'mapping_upcoming_name' => null,
+                'mapping_remarks' => null,
+            ];
+        }
+
+        $current = $vend->productMapping?->name;
+        $viaCurrentUpcoming = $vend->productMapping?->upcomingProductMapping; // productMapping.upcomingProductMapping
+        $directUpcoming = $vend->upcomingProductMapping;                       // vend.upcomingProductMapping
+
+        $upcomingName = null;
+        if ($viaCurrentUpcoming && $viaCurrentUpcoming->name !== 'N/A') {
+            $upcomingName = $viaCurrentUpcoming->name;
+        } elseif ($directUpcoming && $directUpcoming->name !== 'N/A') {
+            $upcomingName = $directUpcoming->name;
+        }
+
+        $remarksSource = $directUpcoming ?: $viaCurrentUpcoming;
+
+        return [
+            'mapping_current_name' => $current,
+            'mapping_upcoming_name' => $upcomingName,
+            'mapping_remarks' => $remarksSource?->remarks,
+        ];
+    }
+
+    /**
+     * Build the snapshot of the fields we deliberately freeze 10 min after
+     * stock-in: the channel-error/tally verdict, coin float, the stock action
+     * badge, and the product-mapping labels (current/upcoming/remarks).
+     *
+     * Cash, amounts and counts are intentionally NOT frozen — they follow the
+     * original live behaviour. Requires opsJobItemChannels + vend (with mapping
+     * relations) eager-loaded; lazy-loads them otherwise.
+     */
+    public function buildFreezeSnapshot(): array
+    {
+        if (!$this->relationLoaded('opsJobItemChannels')) {
+            $this->load('opsJobItemChannels');
+        }
+        if (!$this->relationLoaded('vend')) {
+            $this->load([
+                'vend:id,parameter_json,vend_channel_error_logs_json,product_mapping_id,upcoming_product_mapping_id',
+                'vend.productMapping:id,name,upcoming_product_mapping_id',
+                'vend.productMapping.upcomingProductMapping:id,name,remarks',
+                'vend.upcomingProductMapping:id,name,remarks',
+            ]);
+        }
+
+        $snapshot = [
+            'stock_action_type' => $this->stock_action_type,
+            'tally_status' => $this->computeTallyStatus(),
+            'coin_float' => $this->coinFloatValue(),
+            // Machine-reported channel error logs at the moment of freeze — these
+            // are live telemetry that clears over time, so we keep the at-job copy.
+            'channel_error_logs' => $this->vend?->vend_channel_error_logs_json ?? null,
+            'frozen_schema_version' => 1,
+        ];
+
+        $snapshot += $this->resolveMappingSnapshot();
+
+        return $snapshot;
+    }
 }

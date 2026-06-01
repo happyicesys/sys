@@ -1,11 +1,11 @@
 <template>
-  <Head title="Customers Summary" />
+  <Head title="Sites Summary" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <div class="flex flex-col">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          Customer Summary
+          Site Summary
         </h2>
         <p class="text-sm text-black leading-tight mt-1">
           (Data fr 230101).<br />
@@ -18,12 +18,12 @@
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <!-- Filters -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="ID" v-model="filters.ref_id">Customer ID</SearchInput>
+          <SearchInput placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
           <SearchInput placeholderStr="ID" v-model="filters.vend_code">Machine ID</SearchInput>
-          <SearchInput placeholderStr="Customer" v-model="filters.customer">Customer</SearchInput>
+          <SearchInput placeholderStr="Site" v-model="filters.customer">Site</SearchInput>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Customer Status</label>
+            <label class="block text-sm font-medium text-gray-700">Site Status</label>
             <MultiSelect
               v-model="filters.status"
               :options="statusOptions"
@@ -347,7 +347,7 @@
                     visible while the user scrolls right. Cumulative left
                     offsets must match the column widths so cells line up:
                       #        → w-[50px],  left 0
-                      Customer → w-[170px], left 50
+                      Site → w-[170px], left 50
                     Each frozen header gets opaque bg-gray-100 (via TableHead's
                     frozen path) so scrolling content doesn't show through.
                     Each frozen TableData below mirrors the same width + left
@@ -358,7 +358,7 @@
                   <TableHead :frozen="true" frozenLeft="50px" inputClass="w-[170px] min-w-[170px] border-r-2 border-gray-500">
                     <div class="flex flex-col space-y-1">
                       <SingleSortItem modelName="customer_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_name')">
-                        Customer
+                        Site Name
                       </SingleSortItem>
                       <SingleSortItem modelName="selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('selling_price_type')">
                         Ref Price
@@ -373,9 +373,9 @@
                   </TableHead>
                   <TableHead inputClass="w-[220px] max-w-[220px]">
                     <div class="flex flex-col space-y-1">
-                      <span>Address</span>
-                      <span>Company / Name</span>
-                      <span>Contact Person</span>
+                      <span>Site Address</span>
+                      <span>Billing Company</span>
+                      <span>Billing Contact Person</span>
                     </div>
                   </TableHead>
                   <TableHead>
@@ -505,12 +505,12 @@
                   </TableHead>
                   <TableHead inputClass="min-w-[150px] max-w-[150px]">
                     <div class="flex flex-col space-y-1">
-                      <span>Customer Tag</span>
-                      <span>Customer Note</span>
+                      <span>Site Tag</span>
+                      <span>Site Note</span>
                     </div>
                   </TableHead>
                   <!-- Period Verify & Lock — action-triggered freeze of this
-                       month's figures. Sits after Customer Tag/Note; Action
+                       month's figures. Sits after Site Tag/Note; Action
                        remains the rightmost column. -->
                   <TableHead>Period Verify & Lock</TableHead>
                   <TableHead>
@@ -558,7 +558,7 @@
                     {{ (summaries.meta?.from ?? 1) + rowIndex }}
                   </TableData>
 
-                  <!-- Customer / Ref Price / Begin Date / Contract Attachment
+                  <!-- Site / Ref Price / Begin Date / Contract Attachment
                        Also the LAST frozen column → carries a bold right
                        border (border-r-2 border-gray-500) to mark the X
                        freeze line for the user. -->
@@ -827,7 +827,9 @@
                           >{{ row.contract_commission_type === 'PSORU' ? ' or ' : '+' }}${{ Number(row.contract_commission_value2) }}</span>
                         </span>
                         <span v-else>
-                          ${{ Number(row.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}
+                          ${{ Number(row.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}<span
+                            v-if="row.contract_commission_value2 != null && row.contract_commission_type === 'R+U'"
+                          > + ${{ Number(row.contract_commission_value2).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}</span>
                         </span>
                       </span>
                       <span v-if="row.contract_ps_term != null">
@@ -976,7 +978,7 @@
                   </TableData>
 
                   <!--
-                    Customer Tag — customer-level data, so only show on
+                    Site Tag — customer-level data, so only show on
                     the FIRST row of each customer's cluster (multi-month
                     view groups multiple rows per customer).
                   -->
@@ -1012,7 +1014,7 @@
                         </span>
                       </div>
                       <!--
-                        Customer-level Notes field — mirrors the Remarks
+                        Site-level Notes field — mirrors the Remarks
                         setup on /products/availability. The note is
                         stored on the customer record (not on the monthly
                         summary row), so it persists across whatever
@@ -1302,7 +1304,7 @@
         </div>
 
         <div v-else-if="reportContent" class="text-sm">
-          <!-- Customer chip -->
+          <!-- Site chip -->
           <div
             v-if="reportContentCustomerLabel"
             class="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs mb-4"
@@ -1472,7 +1474,7 @@
             <span
               v-else
               class="text-[11px] text-gray-400 italic"
-              v-tooltip="'Customer has no report-email address / opt-in. Set it on the Customer Edit page first.'"
+              v-tooltip="'Site has no report-email address / opt-in. Set it on the Site Edit page first.'"
             >
               Email not enabled on this customer
             </span>
@@ -1519,7 +1521,7 @@ const props = defineProps({
   vendPrefixOptions: Object,
   // Placement Contract Type dropdown options ([{id, value}, ...]).
   contractCommissionTypeOptions: Array,
-  // 5-value Customer Status dropdown options ([{id, name}, ...]). Includes
+  // 5-value Site Status dropdown options ([{id, name}, ...]). Includes
   // an "All" sentinel ahead of the STATUSES_MAPPING entries.
   statuses: Array,
   // Aggregate totals across the FULL filtered set (sales / gross earning /
@@ -1604,7 +1606,7 @@ const hasAnyAddressWithCoords = computed(() => {
 
 const filters = ref({
   customer: '',
-  // Customer Status — 5-value (matches Customer::STATUSES_MAPPING). Stores the
+  // Site Status — 5-value (matches Customer::STATUSES_MAPPING). Stores the
   // selected option object {id, value}; .id is sent to the server.
   status: '',
   is_cms: '',
@@ -1634,7 +1636,7 @@ const filters = ref({
   numberPerPage: 100,
 });
 
-// Customer Status dropdown — populated from props.statuses (5-value:
+// Site Status dropdown — populated from props.statuses (5-value:
 // Potential / New / Active / Pending / Inactive + an "All" sentinel).
 const statusOptions = ref([]);
 const booleanOptions = ref([]);
@@ -1658,7 +1660,7 @@ const periodReportLocalOptions = ref([]);
 const contractCommissionTypeLocalOptions = ref([]);
 
 onMounted(() => {
-  // 5-value Customer Status — comes from the controller (Customer::STATUSES_MAPPING
+  // 5-value Site Status — comes from the controller (Customer::STATUSES_MAPPING
   // with an "All" sentinel prepended), labelled `name` server-side and remapped
   // to `value` here for the MultiSelect `label` prop.
   statusOptions.value = (props.statuses ?? []).map((s) => ({ id: s.id, value: s.name }));
@@ -1716,7 +1718,7 @@ onMounted(() => {
     value: opt.value,
   }));
 
-  // Defaults — Customer Status opens on "Active" (id=2) to match the prior
+  // Defaults — Site Status opens on "Active" (id=2) to match the prior
   // is_active=true default; mirrors Customer/Index.vue's behaviour.
   filters.value.status = statusOptions.value.find((s) => s.id === 2) ?? statusOptions.value[0];
   filters.value.is_cms = booleanOptions.value[0];
@@ -1748,7 +1750,7 @@ onMounted(() => {
 });
 
 function refIdFor(customer) {
-  // Customer model adds ref_id mutator (id + 20000) but pivots may not include it.
+  // Site model adds ref_id mutator (id + 20000) but pivots may not include it.
   return customer.ref_id ?? (customer.id ? customer.id + 20000 : '');
 }
 
@@ -1799,6 +1801,7 @@ function contractTypeLabel(type) {
     case 'S':     return 'Subsidized Plan';
     case 'R':     return 'Fix Rental';
     case 'U':     return 'Utility only';
+    case 'R+U':   return 'R + U';
     case 'PS':    return 'PS';
     case 'PS+U':  return 'PS + U';
     case 'PSORU': return 'PS OR U';
@@ -1830,7 +1833,7 @@ function formatPercent(rate) {
 }
 
 /**
- * Gross Earning Rate for the Customer Summary table.
+ * Gross Earning Rate for the Site Summary table.
  *
  * Mirrors the in-cell formula spec from the feedback screenshot:
  *   Rate = gross_earning (excl GST) / sales (excl GST)
@@ -1890,7 +1893,7 @@ function netLocFeeCents(row) {
  *   value increased → green up arrow
  *   value decreased → red down arrow
  *   unchanged       → grey neutral dash
- * Customers with a single visible row (e.g. the "Current" report) fall back
+ * Sites with a single visible row (e.g. the "Current" report) fall back
  * to the server-provided previous-month snapshot (row.prev_month) so the
  * current month still shows arrows; only customers with no prior month on
  * record show no indicator.
@@ -2485,12 +2488,12 @@ function onExportExcelClicked() {
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// API Invoice (Customer Summary > Action ▸ "Create API Invoice")
+// API Invoice (Site Summary > Action ▸ "Create API Invoice")
 //
 // Mirrors OpsJob's "Create API Invoice(s)" pattern but at the customer +
 // period grain. The button is gated by:
 //   1. Customer has a CMS person_id (CMS-linked).
-//   2. Contract type is invoiceable (R, U, PS, PS+U, PSORU). F/S are out.
+//   2. Contract type is invoiceable (R, U, R+U, PS, PS+U, PSORU). F/S are out.
 //   3. Contract values are complete (PerformanceReportContentService says
 //      has_report_content = true).
 // All three are satisfied via row.customer.has_report_content (server
@@ -2508,7 +2511,7 @@ function rowKey(row) {
 /**
  * "Multi-month" period reports return one row per (customer, month). The
  * controller orders rows so a customer's months cluster together. For
- * customer-level columns (Accumulate Vend Earning, Customer Tag) we
+ * customer-level columns (Accumulate Vend Earning, Site Tag) we
  * only want to render content on the FIRST row of each customer's
  * cluster — the remaining rows in the cluster look intentionally blank
  * so the eye can read the group as a unit.
@@ -2526,8 +2529,8 @@ function isFirstRowForCustomer(rowIndex) {
 }
 
 /**
- * Group index of the row's customer in the current page. Customer A's
- * rows return 0, Customer B's rows return 1, Customer C's rows return 2,
+ * Group index of the row's customer in the current page. Site A's
+ * rows return 0, Site B's rows return 1, Site C's rows return 2,
  * etc. Used by the tr :class binding to stripe alternating backgrounds
  * by CUSTOMER GROUP instead of per-row — so a customer's 12 monthly
  * rows share one background colour.

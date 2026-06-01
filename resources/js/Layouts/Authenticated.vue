@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import BreezeDropdown from '@/Components/Dropdown.vue';
 import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
+import MonthlySalesPopup from '@/Components/MonthlySalesPopup.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { ArrowsPointingInIcon, BuildingOfficeIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, FolderIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon, BookOpenIcon, TicketIcon } from '@heroicons/vue/20/solid'
@@ -29,7 +30,7 @@ const navigation = computed(() => [
     //     current: false,
     //     href: 'vends.customer',
     //     permission: 'read vends',
-    //     tagline: 'Customer',
+    //     tagline: 'Site',
     // },
     // {
     //     name: 'Vending Machines',
@@ -47,7 +48,7 @@ const navigation = computed(() => [
         permission: 'read vends',
         tagline: null,
         // children: [
-        //     {name: 'View By Customers', href: '/vends/customers', permission: 'read vend-customers'},
+        //     {name: 'View By Sites', href: '/vends/customers', permission: 'read vend-customers'},
         // ]
     },
     {
@@ -118,14 +119,14 @@ const navigation = computed(() => [
         ]
     },
     {
-        name: 'Customer Management',
+        name: 'Site Management',
         icon: IdentificationIcon,
         current: false,
         href: 'customers',
         permission: 'read customers',
         tagline: null,
         children: [
-            {name: 'Customers', href: '/customers', permission: 'read customers'},
+            {name: 'Sites', href: '/customers', permission: 'read customers'},
             {name: 'Summary', href: '/customers/summary', permission: 'read customers'},
             {name: 'Tags', href: '/tags?classname=App\\Models\\Customer', permission: 'read customers'},
         ]
@@ -317,11 +318,15 @@ const smallLogoUrl = page.props.smallLogoUrl
 const defaultLogoUrl = computed(() => page.props.defaultLogoUrl)
 const useContainLogo = computed(() => logoUrl.value !== defaultLogoUrl.value)
 
+// Post-login "This month sales" popup — HIPL group only.
+const isHipl = computed(() => page.props.auth?.operator?.code === 'HIPL')
+
 
 </script>
 
 <template>
     <div>
+        <MonthlySalesPopup v-if="isHipl" />
         <div class="min-h-screen w-full md:flex bg-gray-100">
             <div
                 class="hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/6 xl:w-2/12 2xl:w-1/12 2xl:min-w-48">

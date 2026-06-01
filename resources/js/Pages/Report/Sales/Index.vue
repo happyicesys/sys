@@ -51,8 +51,8 @@
               ("," for multiple)
             </span>
           </SearchInput>
-          <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-            Customer
+          <SearchInput placeholderStr="Site" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+            Site
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -96,7 +96,7 @@
           </SearchInput>
           <div v-if="permissions.includes('admin-access vends')">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Customer Binded?
+              Site Binded?
             </label>
             <MultiSelect
               v-model="filters.is_binded_customer"
@@ -310,7 +310,7 @@
                       Location Type
                     </TableHeadSort>
                     <TableHeadSort modelName="count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('count')">
-                      Count (Success Only)
+                      Count (Success Only)<template v-if="showProductErrorCol"><br><span class="font-normal text-xs text-red-600">(% of overall)</span></template>
                     </TableHeadSort>
                     <TableHeadSort v-if="showProductErrorCol" modelName="error_count_no_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_no_4_5')">
                       Count (Error #3, #6, #7, #9)<br>Likely Stock Lost<br><span class="font-normal text-xs">(Error Rate)</span>
@@ -390,6 +390,7 @@
 
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ item.count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                        <div v-if="showProductErrorCol" class="text-xs text-red-600">({{ formatPercent(pctOfOverall(item.count)) }})</div>
                       </TableData>
                       <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ (item.error_count_no_4_5 || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
@@ -512,7 +513,7 @@ const vendPrefixOptions = ref([])
 const tabs = ref([
   { name: 'Operator', slug: 'operator', href: '/reports/sales/operator', current: false },
   { name: 'Vending Machines', slug: 'vend', href: '/reports/sales/vend', current: false },
-  { name: 'Customer', slug: 'customer', href: '/reports/sales/customer', current: false },
+  { name: 'Site', slug: 'customer', href: '/reports/sales/customer', current: false },
   { name: 'Product', slug: 'product', href: '/reports/sales/product', current: false },
   { name: 'Category', slug: 'category', href: '/reports/sales/category', current: false },
   { name: 'Location Type', slug: 'location-type', href: '/reports/sales/location-type', current: false },
@@ -541,6 +542,12 @@ function errorRate(successCount, errorNo45) {
   const err = Number(errorNo45) || 0;
   const den = success + err;
   return den > 0 ? (err / den) * 100 : null;
+}
+
+// % of Overall = this SKU's success count / total success count across all results.
+function pctOfOverall(successCount) {
+  const total = Number(props.totals?.total_count) || 0;
+  return total > 0 ? (Number(successCount) || 0) / total * 100 : null;
 }
 
 // Average Daily Count per Channel = Success count / Channel Availability.

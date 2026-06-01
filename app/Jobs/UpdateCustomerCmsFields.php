@@ -25,21 +25,19 @@ use Illuminate\Support\Facades\Storage;
  * (idempotent updateOrCreate) and overwrites: for this backfill CMS is treated
  * as the source of truth.
  *
- * Scope (agreed):
- *  - Delivery Address: derived from OneMap by `del_postcode` (block / building
- *    / street / lat-lng), Singapore country, with `unit_num` deduced from the
- *    CMS address string (the "#NN-NN" token, kept verbatim incl. the '#').
- *  - Billing "same as delivery": decided by postcode + country. Same → mirror
- *    delivery into billing and tick the flag. Different → a second OneMap call
- *    for the billing postcode and a dedicated billing row.
- *  - Billing Contact: attn → Contact Person, contact → Phone, alt_contact →
- *    Alt Phone, email → Email (normalised), company → Company, SG phone codes.
- *  - is_gst_registered: true when CMS profile.gst is present.
+ * Scope (per the numbered CMS↔mark1 field map):
+ *  - Site Name ← CMS Cust Name (customers.name).
+ *  - Delivery Address: OneMap by del_postcode → block/building/street/geocode;
+ *    Google Map URL from lat/lng; unit per-side from the CMS address ("#NN-NN").
+ *  - Site contact ← CMS Att To / Contact / Alt Contact (customers.site_*).
+ *  - Remarks for Address ← CMS raw delivery address (customers.address_remarks).
+ *  - Billing "same as delivery": by postcode; same → mirror delivery + flag on;
+ *    different → OneMap the billing postcode into its own row.
+ *  - Billing Contact: Company ← company, Email ← email (normalised). Contact
+ *    person / phones left null (the site contact lives on the customer).
+ *  - is_gst_registered ← CMS profile.gst presence.
  *  - cost_rate (Cost Rate %) and payterm (Terms label) mirror from CMS.
- *  - Attachments: CMS person files (file_person) are COPIED into mark1's own
- *    storage and recorded as Customer Attachment(s) (so they survive CMS being
- *    retired), de-duplicated by file name. config app.cms_files_url is only a
- *    fallback for any legacy relative file paths.
+ *  - Attachments: CMS person files copied into mark1 storage (see syncAttachments).
  *  - Bank Details: CMS has no bank fields → left untouched.
  *
  * Never creates a Customer. Source: CMS GET /api/person/migrate/{personID}.
@@ -101,62 +99,59 @@ class UpdateCustomerCmsFields implements ShouldQueue
 
         $sgCountryId = optional(Country::where('name', 'Singapore')->first())->id;
 
-        // ── 1. Billing Contact ────────────────────────────────────────────
         $profile = $data->get('profile');
         $attn    = is_array($profile) ? ($profile['attn'] ?? null) : null;
         $gstVal  = is_array($profile) ? ($profile['gst'] ?? null) : null;
+        $payterm = $data->get('payterm');
 
-        $altContact = $data->get('alt_contact');
+        // Address comparison drives the "Billing same as Delivery" flag.
+        // Singapore-only deployment → compare on postcode; a missing billing
+        // postcode is treated as "same" (mirror delivery).
+        $delPostcode  = $data->get('del_postcode');
+        $billPostcode = $data->get('bill_postcode');
+        $sameBilling  = !$billPostcode
+            || ((string) $delPostcode === (string) $billPostcode);
 
-        // contacts.name is NOT NULL. attn is the preferred Contact Person, but
-        // it can be blank in CMS — fall back to the CMS customer name, then any
-        // existing mark1 contact name, then a placeholder, so we never write
-        // null.
-        $contactName = $attn
-            ?: ($data->get('name')
-                ?: (optional($customer->contact)->name ?: 'N/A'));
+        // ── 1. Customer scalar fields ─────────────────────────────────────
+        // CMS "Att To / Contact / Alt Contact" map to the SITE contact
+        // (delivery), which lives on the customer row — NOT the billing contact.
+        $customer->update([
+            'name'                        => $data->get('name') ?: $customer->name, // #1 Site Name (never null the required name)
+            'site_contact_person'         => $attn,                                 // #5 Att To
+            'site_phone_number'           => $data->get('contact'),                 // #6 Contact
+            'site_alt_phone_number'       => $data->get('alt_contact'),             // #7 Alt Contact
+            'address_remarks'             => $data->get('del_address'),             // #8 raw CMS delivery address text
+            'is_gst_registered'           => !empty(is_string($gstVal) ? trim($gstVal) : $gstVal),
+            'cost_rate'                   => $data->get('cost_rate'),
+            // payterm column is varchar(64) — guard against an oversized label.
+            'payterm'                     => $payterm !== null ? mb_substr((string) $payterm, 0, 64) : null,
+            'is_billing_same_as_delivery' => $sameBilling,                          // #10
+        ]);
 
+        // ── 2. Billing Contact — only Company (#9) + Email (#11). Contact
+        // person / phones are intentionally left null (the site contact now
+        // lives on the customer). contacts.name is nullable via migration.
         $customer->contact()->updateOrCreate(
             [],
             [
-                // attn → Contact Person (the person to attention on billing).
-                'name'                 => $contactName,
+                'name'                 => null,
                 'company'              => $data->get('company'),
                 // Email may carry >1 address; Contact::setEmailAttribute
                 // normalises it (split / trim / dedupe → comma-separated).
                 'email'                => $data->get('email'),
-                'phone_num'            => $data->get('contact'),
-                'phone_country_id'     => $sgCountryId,
-                'alt_phone_num'        => $altContact ?: null,
-                'alt_phone_country_id' => $altContact ? $sgCountryId : null,
+                'phone_num'            => null,
+                'phone_country_id'     => null,
+                'alt_phone_num'        => null,
+                'alt_phone_country_id' => null,
             ]
         );
 
-        // ── 2. GST flag + Cost Rate / Terms ───────────────────────────────
-        // GST: registered when CMS holds a GST value for the customer's
-        // profile. cost_rate (percentage) and payterm (Terms label, e.g.
-        // "15 Days after EOM") mirror straight across from CMS.
-        $payterm = $data->get('payterm');
-
-        $customer->update([
-            'is_gst_registered' => !empty(is_string($gstVal) ? trim($gstVal) : $gstVal),
-            'cost_rate'         => $data->get('cost_rate'),
-            // payterm column is varchar(64) — guard against an oversized label.
-            'payterm'           => $payterm !== null ? mb_substr((string) $payterm, 0, 64) : null,
-        ]);
-
         // ── 3. Addresses ──────────────────────────────────────────────────
-        $delPostcode  = $data->get('del_postcode');
-        $billPostcode = $data->get('bill_postcode');
-        $delCountry   = $this->countryName($data->get('delivery_country'));
-        $billCountry  = $this->countryName($data->get('billing_country'));
-
-        // "Same as delivery" decided by postcode + country only (per spec).
-        // If billing has no postcode, treat as same (mirror delivery).
-        $sameBilling = !$billPostcode
-            || ($delPostcode && $billPostcode
-                && (string) $delPostcode === (string) $billPostcode
-                && strcasecmp((string) $delCountry, (string) $billCountry) === 0);
+        // Block / Building / Street / geocode come from OneMap (by postcode).
+        // Unit number is extracted from each side's own CMS address; when both
+        // are the same place, whichever side actually carries a unit wins.
+        $delUnit  = $this->extractUnit($data->get('del_address'));
+        $billUnit = $this->extractUnit($data->get('bill_address'));
 
         $deliveryPayload = $this->buildAddressPayload(
             $delPostcode,
@@ -167,6 +162,9 @@ class UpdateCustomerCmsFields implements ShouldQueue
         );
 
         if ($deliveryPayload) {
+            $deliveryPayload['unit_num'] = $sameBilling ? ($delUnit ?: $billUnit) : $delUnit;
+            $deliveryPayload['map_url']  = $this->mapUrl($deliveryPayload['latitude'] ?? null, $deliveryPayload['longitude'] ?? null);
+
             $customer->addresses()->updateOrCreate(
                 ['type' => Customer::ADDRESS_TYPE_DELIVERY],
                 $deliveryPayload
@@ -174,10 +172,7 @@ class UpdateCustomerCmsFields implements ShouldQueue
         }
 
         if ($sameBilling) {
-            $customer->update(['is_billing_same_as_delivery' => true]);
-
-            // Mirror delivery → billing so billingAddress() is valid immediately
-            // (matches what the server does on a normal save).
+            // Mirror delivery → billing so billingAddress() is valid.
             if ($deliveryPayload) {
                 $customer->addresses()->updateOrCreate(
                     ['type' => Customer::ADDRESS_TYPE_BILLING],
@@ -185,8 +180,6 @@ class UpdateCustomerCmsFields implements ShouldQueue
                 );
             }
         } else {
-            $customer->update(['is_billing_same_as_delivery' => false]);
-
             $billingPayload = $this->buildAddressPayload(
                 $billPostcode,
                 $data->get('bill_address'),
@@ -196,6 +189,9 @@ class UpdateCustomerCmsFields implements ShouldQueue
             );
 
             if ($billingPayload) {
+                $billingPayload['unit_num'] = $billUnit;
+                $billingPayload['map_url']  = $this->mapUrl($billingPayload['latitude'] ?? null, $billingPayload['longitude'] ?? null);
+
                 $customer->addresses()->updateOrCreate(
                     ['type' => Customer::ADDRESS_TYPE_BILLING],
                     $billingPayload
@@ -338,10 +334,11 @@ class UpdateCustomerCmsFields implements ShouldQueue
             return null;
         }
 
+        // unit_num and map_url are set by the caller (per-side rules); this
+        // builder only resolves postcode + country + OneMap geocode.
         $payload = [
             'postcode'   => $postcode,
             'country_id' => $sgCountryId,
-            'unit_num'   => $this->extractUnit($cmsAddress),
         ];
 
         $geo = null;
@@ -397,17 +394,16 @@ class UpdateCustomerCmsFields implements ShouldQueue
     }
 
     /**
-     * CMS exposes country as a relation object { id, name }. Pull the name out
-     * defensively (it may be an array, object, or absent).
+     * Build a Google Maps URL from a lat/lng. Stored WITHOUT a scheme because
+     * the Customer form renders the link as '//' + map_url. Null when there is
+     * no geocode.
      */
-    protected function countryName($country): ?string
+    protected function mapUrl($lat, $lng): ?string
     {
-        if (is_array($country)) {
-            return $country['name'] ?? null;
+        if (!$lat || !$lng) {
+            return null;
         }
-        if (is_object($country)) {
-            return $country->name ?? null;
-        }
-        return null;
+
+        return 'www.google.com/maps?q=' . $lat . ',' . $lng;
     }
 }

@@ -952,7 +952,6 @@ class OpsJobController extends Controller
     public function saveItem(Request $request, $id)
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
-
         // Per-SKU freeze semantics:
         //   - Front-end only sends channels the operator manually touched
         //     (is_user_modified or is_user_unfreeze).
@@ -1134,6 +1133,8 @@ class OpsJobController extends Controller
                         'refillable_count',
                         'completed_at',
                         'completed_by',
+                        'frozen_at',
+                        'frozen_snapshot',
                         'remarks',
                         'remarks_updated_at',
                         'remarks_updated_by',
@@ -1548,6 +1549,9 @@ class OpsJobController extends Controller
                     $opsJobItem->cancelled_at = Carbon::now();
                     $opsJobItem->cancelled_by = auth()->id();
                     $opsJobItem->save();
+                    // Cancelled items are excluded from stock-in display, so the
+                    // freeze no longer applies.
+                    $opsJobItem->clearFreeze();
                     break;
                 case -1:
                     $opsJobItem->opsJobItemChannels()->delete();
@@ -1563,7 +1567,6 @@ class OpsJobController extends Controller
     public function itemCashCollected(Request $request, $opsJobItemID)
     {
         $opsJobItem = OpsJobItem::findOrFail($opsJobItemID);
-
         $opsJobItem->update([
             'is_cash_collected' => true,
             'cash_amount' => $request->cash_amount ? $request->cash_amount : 0,
@@ -1839,7 +1842,6 @@ class OpsJobController extends Controller
     public function toggleIsIgnoreLimit(Request $request, $id)
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
-
         $opsJobItem->update([
             'is_ignore_limit' => !$opsJobItem->is_ignore_limit,
         ]);
@@ -1908,6 +1910,12 @@ class OpsJobController extends Controller
                 $opsJobItem->undo_flagged_by = auth()->id();
                 $opsJobItem->save();
                 break;
+        }
+
+        // Undoing the stock-in (status now below STATUS_DELIVERED) releases the
+        // freeze so the row re-derives from live data again.
+        if ((int) $opsJobItem->status < (int) OpsJob::STATUS_DELIVERED) {
+            $opsJobItem->clearFreeze();
         }
 
         return redirect()->back();
@@ -2047,7 +2055,6 @@ class OpsJobController extends Controller
     public function undoItemCashCollected(Request $request, $opsJobItemID)
     {
         $opsJobItem = OpsJobItem::findOrFail($opsJobItemID);
-
         $opsJobItem->update([
             'is_cash_collected' => false,
         ]);
@@ -2057,8 +2064,7 @@ class OpsJobController extends Controller
 
     public function updateStockAction(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);
-        $stockActionType = $request->stock_action_type;
+        $opsJobItem = OpsJobItem::findOrFail($id);        $stockActionType = $request->stock_action_type;
 
         $opsJobItem->update([
             'stock_action_type' => $stockActionType,
@@ -2265,7 +2271,6 @@ class OpsJobController extends Controller
     public function updateItemRemarks(Request $request, $id)
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
-
         $opsJobItem->update([
             'remarks' => $request->remarks,
             'remarks_updated_at' => Carbon::now(),

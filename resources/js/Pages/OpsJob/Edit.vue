@@ -305,7 +305,7 @@
                                 Status
                               </span>
                               <span>
-                                Customer
+                                Site
                               </span>
                               <SingleSortItem modelName="delivery_postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_postcode')">
                                 Postcode
@@ -539,6 +539,13 @@
                                   >
                                     <PaperClipIcon class="w-4 h-4"></PaperClipIcon>
                                   </span>
+                                  <span
+                                    v-if="row.frozen_at"
+                                    class="inline-flex items-center rounded px-1 py-0.5 text-xs font-medium border w-fit bg-gray-200 text-gray-700 border-gray-300"
+                                    :title="'Frozen ' + row.frozen_at + ' — snapshot taken 10 min after stock-in. Undo stock-in to edit.'"
+                                  >
+                                    🔒 Frozen
+                                  </span>
                                 </div>
                                 <span v-if="row.status_at" class="text-xs font-medium text-gray-600">
                                   {{ row.status_at }}
@@ -555,9 +562,9 @@
                                   </div>
                                   <div
                                       class="text-xs text-gray-700 whitespace-pre-line break-words max-w-40 border border-purple-300 rounded px-1.5 py-1 bg-purple-50"
-                                      v-if="row.stock_action_type == 'implement_new_mapping' && (row.vend && (row.vend.upcomingProductMapping || (row.vend.productMapping && row.vend.productMapping.upcomingProductMapping))) && ((row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).remarks)"
+                                      v-if="row.stock_action_type == 'implement_new_mapping' && rowMappingRemarks(row)"
                                   >
-                                      {{ (row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).remarks }}
+                                      {{ rowMappingRemarks(row) }}
                                   </div>
                                 </div>
                               </div>
@@ -653,25 +660,25 @@
                                   </span>
                                 </div>
                               </span>
-                              <!-- Coin Float: always show when CoinCnt exists; red when at/below COIN_FLOAT_LOW_THRESHOLD, green otherwise -->
+                              <!-- Coin Float: frozen rows use the snapshot (rowCoinFloat); red when at/below COIN_FLOAT_LOW_THRESHOLD, green otherwise -->
                               <div
                                 class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
-                                :class="row.vend && row.vend.parameterJson && row.vend.parameterJson['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200 text-gray-800 border-green-300' : 'bg-red-200 text-gray-800 border-red-300'"
-                                v-if="row.vend && row.vend.parameterJson && row.vend.parameterJson['CoinCnt']"
+                                :class="rowCoinFloat(row) > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200 text-gray-800 border-green-300' : 'bg-red-200 text-gray-800 border-red-300'"
+                                v-if="rowCoinFloat(row)"
                               >
                                 <span class="font-bold mr-1">Coin Float</span>
                                 <span>
-                                  {{ operatorCountry.currency_symbol }}{{ (row.vend.parameterJson['CoinCnt'] / Math.pow(10, operatorCountry.currency_exponent)).toFixed(operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }}
+                                  {{ operatorCountry.currency_symbol }}{{ (rowCoinFloat(row) / Math.pow(10, operatorCountry.currency_exponent)).toFixed(operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }}
                                 </span>
                               </div>
                               <!-- Channel Errors: single inline badge, channel + error code, comma-separated -->
                               <div
                                 class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-red-100 text-red-800 border-red-300"
-                                v-if="row.vend && row.vend.vendChannelErrorLogsJson && row.vend.vendChannelErrorLogsJson.length"
+                                v-if="rowChannelErrorLogs(row).length"
                               >
                                 <span class="font-semibold mr-1">Error:</span>
                                 <span>
-                                  <template v-for="(vendChannelErrorLog, errIndex) in row.vend.vendChannelErrorLogsJson" :key="vendChannelErrorLog.id">
+                                  <template v-for="(vendChannelErrorLog, errIndex) in rowChannelErrorLogs(row)" :key="vendChannelErrorLog.id">
                                     <span v-if="errIndex > 0">, </span>#{{ vendChannelErrorLog['vendChannel'] ? vendChannelErrorLog['vendChannel']['code'] : (vendChannelErrorLog['vend_channel'] ? vendChannelErrorLog['vend_channel']['code'] : '') }}<span class="font-bold">({{ vendChannelErrorLog['vendChannelError'] ? vendChannelErrorLog['vendChannelError']['code'] : (vendChannelErrorLog['vend_channel_error'] ? vendChannelErrorLog['vend_channel_error']['code'] : '') }})</span>
                                   </template>
                                 </span>
@@ -1644,7 +1651,43 @@ function onSearchFilterUpdated() {
   })
 }
 
+// Upcoming-mapping remarks for a row — frozen rows read the snapshot text, live
+// rows read the (live) upcoming mapping config. Mirrors the original preference:
+// vend.upcomingProductMapping first, else productMapping.upcomingProductMapping.
+function rowMappingRemarks(row) {
+  if (row.frozen_at) {
+    return row.frozen_mapping_remarks
+  }
+  if (row.vend && (row.vend.upcomingProductMapping || (row.vend.productMapping && row.vend.productMapping.upcomingProductMapping))) {
+    return (row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).remarks
+  }
+  return null
+}
+
+// Machine channel-error logs for a row — frozen rows read the snapshot copy
+// (what the machine reported at the job), live rows read current telemetry.
+function rowChannelErrorLogs(row) {
+  if (row.frozen_at) {
+    return row.frozen_channel_error_logs || []
+  }
+  return (row.vend && row.vend.vendChannelErrorLogsJson) ? row.vend.vendChannelErrorLogsJson : []
+}
+
+// Coin float for a row — frozen rows read the snapshot value, live rows read
+// the machine's current CoinCnt telemetry.
+function rowCoinFloat(row) {
+  if (row.frozen_at) {
+    return row.frozen_coin_float
+  }
+  return row.vend && row.vend.parameterJson ? row.vend.parameterJson['CoinCnt'] : null
+}
+
 function opsJobItemChannelErrorCheck(opsJobItem) {
+  // Frozen rows show the tally state captured at freeze time.
+  if (opsJobItem.frozen_at) {
+    return opsJobItem.frozen_tally_status != null ? opsJobItem.frozen_tally_status : 0
+  }
+
   let status = 0;
 
   opsJobItem.opsJobItemChannels.forEach(channel => {

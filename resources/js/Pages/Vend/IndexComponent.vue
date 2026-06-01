@@ -46,8 +46,8 @@
           <!-- <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
               Cust ID
           </SearchInput> -->
-          <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-              Customer
+          <SearchInput placeholderStr="Site" v-model="filters.customer" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+              Site
           </SearchInput>
           <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vends') && indexType === 'customers'">
               <label for="text" class="block text-sm font-medium text-gray-700">
@@ -101,7 +101,7 @@
           </div>
           <div v-if="permissions.includes('admin-access vends') && indexType === 'customers'">
               <label for="text" class="block text-sm font-medium text-gray-700">
-                  Customer Active?
+                  Site Active?
               </label>
               <MultiSelect
                   v-model="filters.is_active"
@@ -524,7 +524,7 @@
                         Machine ID
                     </TableHeadSort>
                     <TableHeadSort modelName="customers.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.name')">
-                        Customer
+                        Site
                     </TableHeadSort>
                     <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType === 'customers'">
                         Machine ID

@@ -14,8 +14,8 @@
           <SearchInput placeholderStr="Machine ID" v-model="filters.code" @keyup.enter="onSearch">
             Machine ID
           </SearchInput>
-          <SearchInput placeholderStr="Customer Name" v-model="filters.name" @keyup.enter="onSearch">
-            Customer Name
+          <SearchInput placeholderStr="Site Name" v-model="filters.name" @keyup.enter="onSearch">
+            Site Name
           </SearchInput>
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700">
@@ -173,7 +173,7 @@
                     Machine ID
                   </TableHead>
                   <TableHead>
-                    Customer Name
+                    Site Name
                   </TableHead>
                   <TableHead>
                     Operator

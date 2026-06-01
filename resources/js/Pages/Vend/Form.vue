@@ -323,7 +323,7 @@ function unbindCustomer(vendId) {
   form.value
       .post('/vends/' + vendId + '/unbind', {
         onSuccess: () => {
-          toast.success("Customer unbinded successfully", { timeout: 3000 })
+          toast.success("Site unbinded successfully", { timeout: 3000 })
           emit('modalClose')
         },
         onError: () => {

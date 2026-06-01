@@ -172,7 +172,7 @@
                               </TableHead>
                               <TableHead> Generated Sequence </TableHead>
                               <TableHead> Machine ID & Job ID# </TableHead>
-                              <TableHead> Customer & Ops Note </TableHead>
+                              <TableHead> Site & Ops Note </TableHead>
                               <TableHeadSort modelName="delivery_postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_postcode')">
                                 Postcode
                               </TableHeadSort>

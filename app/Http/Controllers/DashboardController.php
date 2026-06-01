@@ -151,6 +151,91 @@ class DashboardController extends Controller
         ]);
     }
 
+    /**
+     * Lightweight JSON for the post-login "This month sales" popup.
+     *
+     * Only the HIPL operator group (HIPL + HIMD + LEA + HIESG + UL-ST) is eligible.
+     * The figure mirrors the dashboard's sales total exactly: SUM(total_amount)
+     * from vend_records for every day from the 1st up to *yesterday*, plus today's
+     * live vend_transactions (success error codes 0/6/NULL, amount > 0). vend_records
+     * are T-1 daily aggregates, so combining "records up to yesterday" + "today's
+     * transactions" avoids any double count and stays fast (no full-month scan of
+     * vend_transactions). Amounts are stored in cents, so the total is divided by 100.
+     */
+    public function monthlySalesPopup(Request $request)
+    {
+        // ── SECURITY GATE ───────────────────────────────────────────────
+        // This is the ONLY authorization boundary that matters. The figure is
+        // group-level sales and must never reach a non-HIPL operator. The
+        // route already requires auth ('auth' middleware), and here we resolve
+        // the operator code straight from the authenticated user's own
+        // operator_id (DB-backed, server-side — cannot be spoofed by the
+        // client). Anyone whose operator is not exactly "HIPL" gets an
+        // identical, data-free {show:false} response: no amount, no leak.
+        $user = $request->user();
+        $operatorCode = $user
+            ? Operator::whereKey($user->operator_id)->value('code')
+            : null;
+
+        if ($operatorCode !== 'HIPL') {
+            return response()->json(['show' => false]);
+        }
+
+        // Show once per *login* session. The session is regenerated on login
+        // (AuthenticatedSessionController), so this flag resets on every fresh
+        // login and survives in-session page navigation. Using the server session
+        // instead of browser sessionStorage means logout→login re-shows it.
+        if ($request->session()->get('monthly_sales_popup_shown')) {
+            return response()->json(['show' => false]);
+        }
+        $request->session()->put('monthly_sales_popup_shown', true);
+
+        $operatorIds = Operator::whereIn('code', ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'])
+            ->pluck('id')
+            ->all();
+
+        $tz = $this->getUserTimezone();
+        $now = Carbon::now($tz);
+        $monthStart = $now->copy()->startOfMonth()->startOfDay();
+        // App timezone is authoritative for day boundaries (DB stores local time).
+        $appTzNow = Carbon::now(config('app.timezone'));
+        $todayStart = $appTzNow->copy()->startOfDay();
+        $todayEnd = $appTzNow->copy()->endOfDay();
+
+        $testingVendIds = Cache::remember('testing_vend_ids', 300, function () {
+            return \DB::table('vends')->where('is_testing', true)->pluck('id')->toArray();
+        });
+
+        // Past days of this month (1st .. end of yesterday) from the daily aggregates.
+        $recordsAmount = (float) VendRecord::query()
+            ->whereIn('operator_id', $operatorIds)
+            ->whereBetween('date', [$monthStart, $todayStart->copy()->subSecond()])
+            ->when($testingVendIds, fn ($q) => $q->whereNotIn('vend_id', $testingVendIds))
+            ->sum('total_amount');
+
+        // Today, live from vend_transactions (same success filter the dashboard uses).
+        $todayAmount = (float) VendTransaction::query()
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->whereIn('vend_transactions.operator_id', $operatorIds)
+            ->whereBetween('vend_transactions.transaction_datetime', [$todayStart, $todayEnd])
+            ->where('vend_transactions.amount', '>', 0)
+            ->where(function ($query) {
+                $query->whereIn('vend_channel_errors.code', [0, 6])
+                    ->orWhereNull('vend_channel_errors.code');
+            })
+            ->when($testingVendIds, fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->sum('vend_transactions.amount');
+
+        $total = round(($recordsAmount + $todayAmount) / 100, 2);
+
+        return response()->json([
+            'show' => true,
+            'amount' => $total,
+            'currency' => '$',
+            'as_of' => $now->format('d M Y H:i'),
+        ]);
+    }
+
     private function getSalesComparisonGraph(Request $request, array $testingVendIds)
     {
         if ($request->month_year) {

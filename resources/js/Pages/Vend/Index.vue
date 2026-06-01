@@ -64,7 +64,7 @@
         </SearchInput> -->
         <div>
           <label for="text" class="block text-sm font-medium text-gray-700">
-              Has Customer
+              Has Site
           </label>
           <MultiSelect
               v-model="filters.has_customer"
@@ -78,8 +78,8 @@
           >
           </MultiSelect>
         </div>
-        <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
-          Customer
+        <SearchInput placeholderStr="Site" v-model="filters.customer" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
+          Site
         </SearchInput>
         <div>
           <label for="text" class="block text-sm font-medium text-gray-700">
@@ -597,7 +597,7 @@
                 Product Mapping
               </SingleSortItem>
               <SingleSortItem modelName="customers.virtual_customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.virtual_customer_code')">
-                Customer
+                Site
               </SingleSortItem>
               <SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
                 Ref Price

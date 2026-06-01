@@ -738,6 +738,7 @@ class CustomerController extends Controller
                 ['id' => 'S',     'value' => 'Subsidized Plan'],
                 ['id' => 'R',     'value' => 'Fix Rental'],
                 ['id' => 'U',     'value' => 'Utility only'],
+                ['id' => 'R+U',   'value' => 'R + U'],
                 ['id' => 'PS',    'value' => 'PS'],
                 ['id' => 'PS+U',  'value' => 'PS + U'],
                 ['id' => 'PSORU', 'value' => 'PS OR U'],
@@ -918,7 +919,7 @@ class CustomerController extends Controller
             return;
         }
 
-        $allowed = ['F', 'S', 'R', 'U', 'PS', 'PS+U', 'PSORU'];
+        $allowed = ['F', 'S', 'R', 'U', 'R+U', 'PS', 'PS+U', 'PSORU'];
         $codes = array_values(array_intersect($values, $allowed));
         if (empty($codes)) {
             return;
@@ -1776,6 +1777,7 @@ class CustomerController extends Controller
             'S'     => 'Subsidized Plan',
             'R'     => 'Fix Rental',
             'U'     => 'Utility Only',
+            'R+U'   => 'Fix Rental + Utility',
             'PS'    => 'Profit Sharing Only',
             'PS+U'  => 'PS + Utility',
             'PSORU' => 'PS OR Utility (whichever higher)',
@@ -1797,6 +1799,12 @@ class CustomerController extends Controller
                     $base .= ' (PS Term ' . rtrim(rtrim(number_format((float) $psTerm, 2, '.', ''), '0'), '.') . '%)';
                 }
                 return $base;
+            }
+            if ($type === 'R+U') {
+                // Flat Fix Rental + Utility, both dollar amounts.
+                $rental  = $val !== null ? '$' . number_format((float) $val, 2) : '$0.00';
+                $utility = $val2 !== null ? '$' . number_format((float) $val2, 2) : '$0.00';
+                return $rental . ' + ' . $utility;
             }
             return $val !== null ? '$' . number_format((float) $val, 2) : '';
         };
@@ -2760,7 +2768,16 @@ class CustomerController extends Controller
         } else {
             $billingSame = filter_var($request->is_billing_same_as_delivery ?? true, FILTER_VALIDATE_BOOLEAN);
 
-            $rules = ['name' => 'required'];
+            $rules = [
+                'name' => 'required',
+                // Site-level contact (stored on customers table). Phone is plain
+                // text — no country code (single-country localized deployment).
+                'site_contact_person' => 'nullable|string|max:191',
+                'site_phone_number' => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
+                'site_alt_phone_number' => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
+                // Free-text remarks for the delivery address.
+                'address_remarks' => 'nullable|string|max:5000',
+            ];
             if (!$billingSame) {
                 // "Billing Address same as Delivery" is unchecked → the billing
                 // fields are shown and must be filled.
@@ -2954,10 +2971,10 @@ class CustomerController extends Controller
             // Contract detail conditional validation (all nullable, validate when filled)
             $commissionType = $requestCustomerArr['contract_commission_type'] ?? null;
             $psTypes = ['PS', 'PS+U', 'PSORU'];
-            $twoValueTypes = ['PS+U', 'PSORU'];
+            $twoValueTypes = ['PS+U', 'PSORU', 'R+U'];
 
             $contractRules = [
-                'customer.contract_commission_type'        => 'nullable|in:F,S,R,U,PS,PS+U,PSORU',
+                'customer.contract_commission_type'        => 'nullable|in:F,S,R,U,R+U,PS,PS+U,PSORU',
                 'customer.contract_commission_value'       => [
                     'nullable',
                     'numeric',
@@ -2987,6 +3004,13 @@ class CustomerController extends Controller
                 // paid to, and whether that payee is GST registered.
                 'customer.payment_to'                      => 'nullable|string|max:191',
                 'customer.is_gst_registered'               => 'nullable|boolean',
+                // Site-level contact (stored on customers table). Phone is plain
+                // text — no country code (single-country localized deployment).
+                'customer.site_contact_person'             => 'nullable|string|max:191',
+                'customer.site_phone_number'               => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
+                'customer.site_alt_phone_number'           => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
+                // Free-text remarks for the delivery address.
+                'customer.address_remarks'                 => 'nullable|string|max:5000',
             ];
 
             $request->validate($contractRules);
@@ -3324,6 +3348,7 @@ class CustomerController extends Controller
             'S'     => 'Subsidized Plan',
             'R'     => 'Fix Rental',
             'U'     => 'Utility Only',
+            'R+U'   => 'Fix Rental + Utility',
             'PS'    => 'Profit Sharing Only',
             'PS+U'  => 'PS + Utility',
             'PSORU' => 'PS OR Utility (whichever higher)',
@@ -3359,6 +3384,7 @@ class CustomerController extends Controller
                     'S'             => 'Subsidized Amt',
                     'R'             => 'Fix Rental Amt',
                     'U'             => 'Utility Amt',
+                    'R+U'           => 'Fix Rental + Utility Amt',
                     'PS', 'PS+U', 'PSORU' => 'Commission (%)',
                     default         => null,
                 };

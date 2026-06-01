@@ -195,13 +195,13 @@ const items = ref([
       },
       {
         sequence: 3.8,
-        name: 'How to Create [Potential Customer/ Location]',
+        name: 'How to Create [Potential Site/ Location]',
         url: 'https://www.youtube.com/embed/U9lzktMPWCE',
         div: 'cms-how-to-create-potential-customer-location',
       },
       {
         sequence: 3.9,
-        name: 'How to Change [Potential Customer to Active Customer]',
+        name: 'How to Change [Potential Site to Active Site]',
         url: 'https://www.youtube.com/embed/gcDdk4ZsUVM',
         div: 'cms-how-to-change-potential-customer-to-active-customer',
       },

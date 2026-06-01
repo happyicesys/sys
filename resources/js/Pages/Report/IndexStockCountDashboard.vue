@@ -18,8 +18,8 @@
               <span class="text-[9px]">( "," for multiple )</span>
             </SearchInput>
 
-            <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-              Customer
+            <SearchInput placeholderStr="Site" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+              Site
             </SearchInput>
 
             <div>

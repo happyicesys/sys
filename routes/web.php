@@ -238,6 +238,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
     Route::prefix('dashboard')->group(function () {
         Route::redirect('/', '/dashboard/performance');
         Route::get('/performance', [DashboardController::class, 'index'])->name('dashboard');
+        // Lightweight JSON used by the post-login "This month sales" popup (HIPL group only).
+        Route::get('/monthly-sales-popup', [DashboardController::class, 'monthlySalesPopup'])->name('dashboard.monthly-sales-popup');
     });
 
     Route::prefix('delivery-platform-campaigns')->group(function () {

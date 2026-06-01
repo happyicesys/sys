@@ -1,9 +1,9 @@
 <template>
-  <Head title="Customer" />
+  <Head title="Site" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Editing Customer
+        Editing Site
       </h2>
     </template>
 
@@ -13,17 +13,17 @@
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5 mb-3">
             <form @submit.prevent="submit" id="submit">
               <div class="pb-5">
-                <!-- Customer Header -->
+                <!-- Site Header -->
                 <div class="relative mb-5">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-start">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Customer </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Site </span>
                   </div>
                 </div>
 
-                <!-- Customer Form Fields -->
+                <!-- Site Form Fields -->
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2 mb-2">
                   <div class="sm:col-span-6 flex space-x-1">
                     <div
@@ -51,7 +51,7 @@
 
                   <div class="sm:col-span-3" v-if="customer.id">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Customer ID#
+                      Site ID#
                     </label>
                     <div class="mt-1">
                       <input
@@ -64,7 +64,7 @@
                   </div>
 
                   <!--
-                    Editable Customer Name. Previously locked + hidden for
+                    Editable Site Name. Previously locked + hidden for
                     CMS-linked customers (person_id) and surfaced only as a
                     read-only mirror. CMS → mark1 data sync is now disabled, so
                     the name is editable for every customer, including
@@ -92,7 +92,7 @@
                   </div>
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Status (Customer)
+                      Status (Site)
                     </label>
                     <MultiSelect
                       v-model="form.status_id"
@@ -113,7 +113,7 @@
                       Begin Date
                     </DatePicker>
                   </div>
-                  <div class="sm:col-span-5">
+                  <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                       Reference Price Type
                       <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Desired Price to be Set on Vending Machine'"></ExclamationCircleIcon>
@@ -134,8 +134,32 @@
                     </div>
                   </div>
 
+                  <!-- Operator — moved up from its own section; placed right after
+                       Reference Price Type. Inline with it on desktop. -->
+                  <div class="sm:col-span-3">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      Operator <span class="text-red-500">*</span>
+                    </label>
+                    <MultiSelect
+                      v-model="form.operator_id"
+                      :options="operatorOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="full_name"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                    ></MultiSelect>
+                    <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                      {{ form.errors.operator_id }}
+                    </div>
+                    <div class="text-blue-600 text-xs">
+                      ** Changing Operator will change Vending Machine's Operator as well
+                    </div>
+                  </div>
+
                   <!-- Address Section -->
-                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
+                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6 pb-6">
                     <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 md:pb-3">
                       <div class="relative">
                         <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -173,44 +197,43 @@
                     <div class="sm:col-span-3">
                       <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" placeholderStr="Street Name"> Street Name </FormInput>
                     </div>
-                    <div class="sm:col-span-3">
-                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                        Country <span class="text-red-500">*</span>
-                      </label>
-                      <MultiSelect
-                        v-model="form.address.country_id"
-                        :options="countryOptions"
-                        trackBy="id"
-                        valueProp="id"
-                        label="name"
-                        placeholder="Select"
-                        open-direction="bottom"
-                        class="mt-1"
-                      ></MultiSelect>
-                      <div class="text-sm text-red-600" v-if="form.errors['address.country_id']">
-                        {{ form.errors['address.country_id'] }}
-                      </div>
-                    </div>
+                    <!-- Country field removed from UI — single-country localized
+                         deployment. form.address.country_id is defaulted from the
+                         operator's country (operatorCountry) in onMounted. -->
                     <div class="sm:col-span-3 hidden">
                       <FormInput v-model="form.address.latitude" placeholderStr="Latitude"> Latitude </FormInput>
                     </div>
                     <div class="sm:col-span-3 hidden">
                       <FormInput v-model="form.address.longitude" placeholderStr="Longitude"> Longitude </FormInput>
                     </div>
+
+                    <!-- Site-level contact (distinct from the Billing Contact below).
+                         Stored directly on the customers table. Phone is plain text —
+                         no country code (single-country localized deployment). -->
+                    <div class="sm:col-span-6">
+                      <FormInput v-model="form.site_contact_person" :error="form.errors['customer.site_contact_person']" placeholderStr="Site Contact Person"> Site Contact Person </FormInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.site_phone_number" :error="form.errors['customer.site_phone_number']" placeholderStr="Site Phone Number"> Site Phone Number </FormInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.site_alt_phone_number" :error="form.errors['customer.site_alt_phone_number']" placeholderStr="Alt Site Phone Number"> Alt Site Phone Number </FormInput>
+                    </div>
+
+                    <!-- Remarks for the delivery address — free text, stored on the
+                         customers table (address_remarks). -->
+                    <div class="sm:col-span-6">
+                      <FormTextarea v-model="form.address_remarks" :error="form.errors['customer.address_remarks']" placeholderStr="e.g. Loading bay at rear, ask security for access" rows="2"> Remarks for Address </FormTextarea>
+                    </div>
                   </div>
 
-                  <!-- Billing Contact Section -->
-                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="customer.id || (!customer.id && isExisting != 1)">
-                    <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
-                      <div class="relative">
-                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                          <div class="w-full border-t border-gray-300"></div>
-                        </div>
-                        <div class="relative flex justify-start">
-                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Billing Contact </span>
-                        </div>
-                      </div>
-                    </div>
+                  <!-- Billing & Bank Section — highlighted container (matches Placement Contract Detail styling) -->
+                  <div class="sm:col-span-6 bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3 mb-3 shadow-sm" v-if="customer.id || (!customer.id && isExisting != 1)">
+                    <!-- Billing Contact -->
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-blue-200">
+                      Billing Contact
+                    </h3>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
                     <div class="sm:col-span-6">
                       <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" placeholderStr="Company"> Company </FormInput>
                     </div>
@@ -230,42 +253,14 @@
                     <div class="sm:col-span-3">
                       <FormTextarea v-model="form.contact.email" :error="form.errors['contact.email']" placeholderStr="One email per line (or comma-separated)" rows="2"> Email </FormTextarea>
                     </div>
-                    <div class="sm:col-span-2">
-                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Phone Code </label>
-                      <MultiSelect
-                        v-model="form.contact.phone_country_id"
-                        :options="countryOptions"
-                        trackBy="id"
-                        valueProp="id"
-                        label="phone_code"
-                        placeholder="Select"
-                        open-direction="bottom"
-                        class="mt-1"
-                      ></MultiSelect>
-                      <div class="text-sm text-red-600" v-if="form.errors['contact.phone_country_id']">
-                        {{ form.errors['contact.phone_country_id'] }}
-                      </div>
-                    </div>
-                    <div class="sm:col-span-4">
+                    <!-- Phone Code removed from UI — single-country localized
+                         deployment. form.contact.phone_country_id is defaulted
+                         from the operator's country (operatorCountry) in onMounted. -->
+                    <div class="sm:col-span-3">
                       <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" placeholderStr="Phone Number"> Phone Number </FormInput>
                     </div>
-                    <div class="sm:col-span-2">
-                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Alt Phone Code </label>
-                      <MultiSelect
-                        v-model="form.contact.alt_phone_country_id"
-                        :options="countryOptions"
-                        trackBy="id"
-                        valueProp="id"
-                        label="phone_code"
-                        placeholder="Select"
-                        open-direction="bottom"
-                        class="mt-1"
-                      ></MultiSelect>
-                      <div class="text-sm text-red-600" v-if="form.errors['contact.alt_phone_country_id']">
-                        {{ form.errors['contact.alt_phone_country_id'] }}
-                      </div>
-                    </div>
-                    <div class="sm:col-span-4">
+                    <!-- Alt Phone Code removed from UI — defaulted from operator country. -->
+                    <div class="sm:col-span-3">
                       <FormInput v-model="form.contact.alt_phone_num" :error="form.errors['contact.alt_phone_num']" placeholderStr="Alt Phone Number"> Alt Phone Number </FormInput>
                     </div>
 
@@ -302,39 +297,15 @@
                       <div class="sm:col-span-3">
                         <FormInput v-model="form.billing_address.street_name" :error="form.errors['customer.billing_address.street_name']" placeholderStr="Street Name"> Street Name </FormInput>
                       </div>
-                      <div class="sm:col-span-3">
-                        <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                          Country <span class="text-red-500">*</span>
-                        </label>
-                        <MultiSelect
-                          v-model="form.billing_address.country_id"
-                          :options="countryOptions"
-                          trackBy="id"
-                          valueProp="id"
-                          label="name"
-                          placeholder="Select"
-                          open-direction="bottom"
-                          class="mt-1"
-                        ></MultiSelect>
-                        <div class="text-sm text-red-600" v-if="form.errors['customer.billing_address.country_id']">
-                          {{ form.errors['customer.billing_address.country_id'] }}
-                        </div>
-                      </div>
+                      <!-- Country field removed from UI — defaulted from operator country. -->
                     </template>
-                  </div>
-
-                  <!-- Bank Details Section -->
-                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
-                    <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-                      <div class="relative">
-                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                          <div class="w-full border-t border-gray-300"></div>
-                        </div>
-                        <div class="relative flex justify-start">
-                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Bank Details </span>
-                        </div>
-                      </div>
                     </div>
+
+                    <!-- Bank Details -->
+                    <h3 class="text-lg font-semibold text-gray-900 mt-5 mb-3 pb-2 border-b border-blue-200">
+                      Bank Details
+                    </h3>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
                     <div class="sm:col-span-6">
                       <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Bank Name </label>
                       <MultiSelect
@@ -357,40 +328,6 @@
                     <div class="sm:col-span-3">
                       <FormInput v-model="form.bank_account_number" :error="form.errors['customer.bank_account_number']" placeholderStr="Account Number"> Account Number </FormInput>
                     </div>
-                  </div>
-
-                  <!-- Operator Section -->
-                  <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
-                    <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-                      <div class="relative">
-                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                          <div class="w-full border-t border-gray-300"></div>
-                        </div>
-                        <div class="relative flex justify-start">
-                          <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Operator </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col-span-12 sm:col-span-6">
-                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                        Operator <span class="text-red-500">*</span>
-                      </label>
-                      <MultiSelect
-                        v-model="form.operator_id"
-                        :options="operatorOptions"
-                        trackBy="id"
-                        valueProp="id"
-                        label="full_name"
-                        placeholder="Select"
-                        open-direction="bottom"
-                        class="mt-1"
-                      ></MultiSelect>
-                      <div class="text-sm text-red-600" v-if="form.errors.operator_id">
-                        {{ form.errors.operator_id }}
-                      </div>
-                      <div class="text-blue-600 text-xs">
-                        ** Changing Operator will change Vending Machine's Operator as well
-                      </div>
                     </div>
                   </div>
 
@@ -728,17 +665,17 @@
                   <!--
                     Performance Report Email opt-in.
                     The toggle is force-disabled (and force-false) when no
-                    valid email is entered, so the Customer Summary "Email"
+                    valid email is entered, so the Site Summary "Email"
                     button can rely on is_report_email_enabled === true to
                     mean "this customer has agreed to receive the report at
                     a known address".
                   -->
                   <div class="sm:col-span-6">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Customer Tags
+                      Site Tags
                       <ExclamationCircleIcon
                         class="w-5 h-5 self-center pl-1"
-                        v-tooltip="'Manage tag list under Customer Management → Tags'"
+                        v-tooltip="'Manage tag list under Site Management → Tags'"
                       ></ExclamationCircleIcon>
                     </label>
                     <MultiSelect
@@ -770,7 +707,7 @@
                       Enable Send Performance to Email?
                       <ExclamationCircleIcon
                         class="w-5 h-5 self-center pl-1"
-                        v-tooltip="'Toggle on to surface the Email action button on Customer Summary. Disabled until a valid email is entered.'"
+                        v-tooltip="'Toggle on to surface the Email action button on Site Summary. Disabled until a valid email is entered.'"
                       ></ExclamationCircleIcon>
                     </label>
                     <MultiSelect
@@ -977,7 +914,7 @@
                     >
                       <XCircleIcon class="w-4 h-4"></XCircleIcon>
                       <span>
-                        Unbind Machine & Deactivate Customer
+                        Unbind Machine & Deactivate Site
                       </span>
                     </Button>
                   </span>
@@ -1145,7 +1082,7 @@
                           @click.prevent="saveCustomer(form.id)"
                         >
                           <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                          <span> Save Customer </span>
+                          <span> Save Site </span>
                         </Button>
                         <Link :href="'/customers'">
                           <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 w-full">
@@ -1171,7 +1108,7 @@
                           @click.prevent="deleteCustomer(customer.id)"
                         >
                           <XCircleIcon class="w-4 h-4"></XCircleIcon>
-                          <span> Delete Customer </span>
+                          <span> Delete Site </span>
                         </Button>
                       </span>
                     </span>
@@ -1327,7 +1264,7 @@ const booleanStrictOptions = ref([
   { id: 'false', value: 'No' },
 ]);
 
-// Customer lifecycle status — replaces the old "Is Active?" Yes/No field.
+// Site lifecycle status — replaces the old "Is Active?" Yes/No field.
 // `id` values are the integer customers.status_id stored server-side
 // (App\Models\Customer::STATUS_* constants). Display order matches the
 // product spec: Potential, New, Active, Pending, Inactive.
@@ -1364,6 +1301,9 @@ const frequencyPerWeekOptions = ref([]);
 const isExisting = ref(1);
 const locationTypeOptions = ref([]);
 const operatorCountry = usePage().props.auth.operatorCountry;
+// Resolved operatorCountry as a countryOptions object — used to default the
+// (now hidden) Country / Phone Code fields so the saved payload stays complete.
+const operatorCountryOption = ref(null);
 const operatorOptions = ref([]);
 const bankOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
@@ -1386,13 +1326,18 @@ const commissionTypeOptions = [
   { id: 'S',     label: 'S: Subsidized Plan' },
   { id: 'R',     label: 'R: Fix Rental' },
   { id: 'U',     label: 'U: Utility only' },
+  { id: 'R+U',   label: 'R + U' },
   { id: 'PS',    label: 'PS: Profit sharing only' },
   { id: 'PS+U',  label: 'PS + U' },
   { id: 'PSORU', label: 'PS OR U (whichever higher)' },
 ];
 
 const PS_TYPES   = ['PS', 'PS+U', 'PSORU'];
-const TWO_VAL_TYPES = ['PS+U', 'PSORU'];
+// Types that render a second value field (Utility Amount). R+U is a flat
+// Fix-Rental + Utility combo (no PS Term), so it joins the PS+U / PSORU
+// two-value layout but stays out of PS_TYPES so its first field renders as a
+// dollar amount and no PS Term input appears.
+const TWO_VAL_TYPES = ['PS+U', 'PSORU', 'R+U'];
 
 const isPsCommission = computed(() => PS_TYPES.includes(form.value.contract_commission_type));
 const hasTwoValues   = computed(() => TWO_VAL_TYPES.includes(form.value.contract_commission_type));
@@ -1420,6 +1365,7 @@ const commissionValueLabel = computed(() => {
   switch (form.value.contract_commission_type) {
     case 'S':     return 'Subsidized Amount';
     case 'R':     return 'Fix Rental Amount';
+    case 'R+U':   return 'Fix Rental Amount';
     case 'U':     return 'Utility Amount';
     case 'PS':
     case 'PS+U':
@@ -1488,6 +1434,12 @@ function getDefaultForm() {
     termination_date: '',
     code: '',
     name: '',
+    // Site-level contact (separate from the billing contact relation).
+    site_contact_person: '',
+    site_phone_number: '',
+    site_alt_phone_number: '',
+    // Free-text remarks for the delivery address.
+    address_remarks: '',
     is_gst_registered: false,
     address: {
       block_num: '',
@@ -1537,7 +1489,7 @@ function getDefaultForm() {
     contract_auto_renewal: false,
     contract_notice_period: null,
     contract_remarks: null,
-    // Customer-scoped tag bindings — populated from props.customer.tag_bindings
+    // Site-scoped tag bindings — populated from props.customer.tag_bindings
     // on mount and synced server-side via TagBindingService::sync().
     tags: [],
     // Performance Report email opt-in. report_email is a plain string;
@@ -1555,6 +1507,13 @@ function getDefaultForm() {
 
 onMounted(() => {
   countryOptions.value = props.countries.data;
+  // Resolve operator's country to its option object (falls back to the raw
+  // model or first country) for defaulting the hidden Country/Phone Code fields.
+  operatorCountryOption.value =
+    countryOptions.value.find(c => c.id === operatorCountry?.id)
+    || operatorCountry
+    || countryOptions.value[0]
+    || null;
   customer.value = props.customer;
   frequencyPerWeekOptions.value = [
     { id: '', value: '--- Clear ---' },
@@ -1677,7 +1636,7 @@ onMounted(() => {
     contract_notice_period: props.customer ? (props.customer.contract_notice_period ?? null) : null,
     contract_remarks: props.customer ? (props.customer.contract_remarks ?? null) : null,
     // Pre-select the multiselect with already-bound tags. tag_bindings comes
-    // from the Customer model with `tagBindings.tag` eager-loaded, so each
+    // from the Site model with `tagBindings.tag` eager-loaded, so each
     // binding has a nested .tag object. Filter to options we know about so the
     // multiselect doesn't render orphan rows.
     tags: (props.customer?.tag_bindings ?? [])
@@ -1694,6 +1653,14 @@ onMounted(() => {
     location_grading_access: props.customer ? (props.customer.location_grading_access ?? null) : null,
     location_grading_flexibility: props.customer ? (props.customer.location_grading_flexibility ?? null) : null,
   }) : useForm(getDefaultForm());
+
+  // Country / Phone Code selectors were removed from the UI. Default these
+  // hidden fields to the operator's country when no saved value exists, so the
+  // payload stays complete without overwriting an existing record's values.
+  if (!form.value.address.country_id) form.value.address.country_id = operatorCountryOption.value;
+  if (!form.value.contact.phone_country_id) form.value.contact.phone_country_id = operatorCountryOption.value;
+  if (!form.value.contact.alt_phone_country_id) form.value.contact.alt_phone_country_id = operatorCountryOption.value;
+  if (form.value.billing_address && !form.value.billing_address.country_id) form.value.billing_address.country_id = operatorCountryOption.value;
 
   vendChannels.value = props.customer && props.customer.vend ? props.customer.vend.vend_channels : [];
 
@@ -1904,7 +1871,7 @@ function onAddressSelected(address) {
   form.value.address = {
     block_num: address.BLK_NO,
     building: address.BUILDING,
-    country_id: countryOptions.value[0],
+    country_id: operatorCountryOption.value,
     latitude: address.LATITUDE,
     longitude: address.LONGTITUDE,
     postcode: address.POSTAL,
@@ -1917,7 +1884,7 @@ function onBillingAddressSelected(address) {
   form.value.billing_address = {
     block_num: address.BLK_NO,
     building: address.BUILDING,
-    country_id: countryOptions.value[0],
+    country_id: operatorCountryOption.value,
     latitude: address.LATITUDE,
     longitude: address.LONGTITUDE,
     postcode: address.POSTAL,

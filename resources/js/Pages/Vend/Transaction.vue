@@ -130,8 +130,8 @@
                 </SearchInput>
             </div> -->
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-                    Customer
+                <SearchInput placeholderStr="Site" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                    Site
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
@@ -163,7 +163,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Customer Binded?
+                    Site Binded?
                 </label>
                 <MultiSelect
                     v-model="filters.is_binded_customer"
@@ -689,7 +689,7 @@
                             Machine Prefix
                         </TableHead>
                         <TableHead>
-                            Customer
+                            Site
                         </TableHead>
                         <TableHead>
                             Operator

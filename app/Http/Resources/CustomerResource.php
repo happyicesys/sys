@@ -29,6 +29,13 @@ class CustomerResource extends JsonResource
             'customerVendBindings' => CustomerVendBindingResource::collection($this->whenLoaded('customerVendBindings')),
             'person_json' => $this->person_json,
             'name' => $this->name,
+            // Site-level contact stored on the customers table (distinct from
+            // the billing Contact relation).
+            'site_contact_person' => $this->site_contact_person,
+            'site_phone_number' => $this->site_phone_number,
+            'site_alt_phone_number' => $this->site_alt_phone_number,
+            // Free-text remarks for the delivery address.
+            'address_remarks' => $this->address_remarks,
             // Read-only CMS mirror scalars (see UpdateCustomerCmsFields job).
             'company_remark' => $this->company_remark,
             'site_name' => $this->site_name,

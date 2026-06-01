@@ -55,8 +55,8 @@
 				<!-- <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 						Cust ID
 				</SearchInput> -->
-				<SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
-					Customer
+				<SearchInput placeholderStr="Site" v-model="filters.customer" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+					Site
 				</SearchInput>
 				<div v-if="showAllFilters">
 					<label for="text" class="block text-sm font-medium text-gray-700">
@@ -93,7 +93,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 						<label for="text" class="block text-sm font-medium text-gray-700">
-							Customer Status
+							Site Status
 						</label>
 						<MultiSelect
 							v-model="filters.customer_status"
@@ -627,39 +627,40 @@
 					</Button>
 				</div>
 			</div>
+			<h3 v-if="hasSearched" class="mt-4 text-sm font-semibold text-gray-700">Last 30 days</h3>
 			<dl v-if="hasSearched" class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Total Stock In (Last 30 days)</dt>
+					<dt class="truncate text-sm font-medium text-gray-500">Total Stock In</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{totals['thirthyDaysStockIn'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Total Sales (Last 30 days)</dt>
+					<dt class="truncate text-sm font-medium text-gray-500">Total Sales</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{totals['thirtyDays'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Avg Sales per VM (Last 30 days)</dt>
+					<dt class="truncate text-sm font-medium text-gray-500">Avg Sales per VM</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{(totals['thirtyDays']/vends.meta.to ? totals['thirtyDays']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Avg Daily Sales per VM (Last 30 days)</dt>
+					<dt class="truncate text-sm font-medium text-gray-500">Avg Daily Sales per VM</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{(totals['thirthyDaysAvg']/vends.meta.to ? totals['thirthyDaysAvg']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Total Gross Earning (Last 30 days)</dt>
+					<dt class="truncate text-sm font-medium text-gray-500">Total Gross Earning</dt>
 					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
 						{{(totals['thirtyDaysGrossEarning'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
 				</div>
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Total Vend Earning (Last 30 days)</dt>
+					<dt class="truncate text-sm font-medium text-gray-500">Total Vend Earning</dt>
 					<dd
 						class="mt-1 text-2xl font-semibold tracking-normal"
 						:class="(totals['thirtyDaysVendingEarning'] || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
@@ -692,7 +693,7 @@
 						Machine ID
 					</TableHeadSort>
 					<TableHead>
-						<div class="flex flex-col space-y-2">
+						<div class="flex flex-col space-y-2 max-w-[150px] mx-auto">
 							<SingleSortItem modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')">
 								Machine ID
 							</SingleSortItem>
@@ -706,7 +707,7 @@
 								Product Mapping
 							</SingleSortItem>
 							<SingleSortItem modelName="customers.virtual_customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.virtual_customer_code')">
-								Customer
+								Site
 							</SingleSortItem>
 							<SingleSortItem modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
 								Postcode
@@ -949,17 +950,18 @@
 						<SingleSortItem modelName="totals_json->last_3_mth_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->last_3_mth_amount', false)">
 							Last 3Mth
 						</SingleSortItem>
-						<!-- Avg Mthly Sales $ — single projected-monthly figure using the
-							established Avg30dSales convention (30 × AvgDailySales Last30d,
-							see CustomerController/VendController thirty_days_amount_average*30).
-							It is a derived projection (not a stored totals_json field), so the
-							label carries no dedicated sort key. Matching <hr>/figure sits in
-							the TableData below. -->
+						<!-- Avg Mthly Sales $ — true average monthly sales over the
+							machine's operating lifetime: lifetime sales
+							(totals_json.vend_records_amount_latest) ÷ months operating,
+							counted from begin_date but floored at 2023-01-01. Computed
+							client-side (avgMthlySales helper); it is a derived figure, not a
+							stored totals_json field, so the label carries no dedicated sort
+							key. Matching <hr>/figure sits in the TableData below. -->
 						<hr class="border-t border-gray-300 my-2" />
 						<span class="text-[11px] font-semibold text-gray-900">Avg Mthly Sales $</span>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
-						<div class="flex flex-col space-y-2">
+						<div class="flex flex-col space-y-2 max-w-28 mx-auto">
 							<span>
 								Last Job
 							</span>
@@ -1053,7 +1055,7 @@
 							</SingleSortItem>
 							<!-- Notice Period — string column (e.g. "1 mth"). Pairs
 								with Contract End Date so the contract summary reads
-								end-date + notice together. Same column as Customer
+								end-date + notice together. Same column as Site
 								Summary's Contract terms cluster. -->
 							<SingleSortItem modelName="customers.contract_notice_period" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_notice_period', false)">
 								Notice Period
@@ -1070,17 +1072,17 @@
 								AvgDailySales (Last30d)
 							</SingleSortItem>
 							<!-- Section divider — separates the daily-sales pair
-								from the Customer Tag chips below. Matching <hr>
+								from the Site Tag chips below. Matching <hr>
 								in the TableData. Gated on indexType so the line
-								only appears when Customer Tag is being shown. -->
+								only appears when Site Tag is being shown. -->
 							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-2" />
-							<!-- Customer Tag — chips render at the bottom of this
-								column's TableData, mirroring the Customer Summary
-								"Customer Tag" row. Header label only shows on the
+							<!-- Site Tag — chips render at the bottom of this
+								column's TableData, mirroring the Site Summary
+								"Site Tag" row. Header label only shows on the
 								customers-index path because tag_bindings is empty
 								on the regular /vends rows. -->
 							<span v-if="indexType === 'customers'">
-								Customer Tag
+								Site Tag
 							</span>
 						</div>
 					</TableHead>
@@ -1111,7 +1113,7 @@
 								L30d VendEarning
 							</SingleSortItem>
 							<!-- Section divider — splits the L30d earnings pair
-								from the Loc Grading + Customer Note cluster
+								from the Loc Grading + Site Note cluster
 								below. Matching <hr> in the TableData. -->
 							<hr class="border-t border-gray-300 my-2" />
 							<div class="flex justify-center items-center">
@@ -1120,13 +1122,13 @@
 								</span>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '<div class=&quot;text-left&quot;><b>Machine placement &amp; removal</b><br>A = Smooth surface, 1 person can perform<br>B = Smooth surface, need 2 persons to perform<br>C = Not smooth surface, need min 2 persons to perform<br><br><b>Easy access &amp; refill</b><br>A = Low/Free parking and easy access<br>B = Low/Free parking, but need to pre-apply entry<br>C = No proper parking space; need guide to go in<br><br><b>Flexible to terminate/ or replace with another machine later</b><br>A = Less than 1 week<br>B = Less than 2 week<br>C = 2 weeks and above</div>', html: true }"></ExclamationCircleIcon>
 							</div>
-							<!-- Customer Note — inline-editable textarea renders at
+							<!-- Site Note — inline-editable textarea renders at
 								the bottom of this column's TableData, mirroring the
-								Customer Summary "Note" row. Header label hidden on
+								Site Summary "Note" row. Header label hidden on
 								the regular /vends path since notes aren't loaded
 								for vend rows. -->
 							<span v-if="indexType === 'customers'">
-								Customer Note
+								Site Note
 							</span>
 						</div>
 					</TableHead>
@@ -1195,7 +1197,7 @@
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-						<div class="flex flex-col space-y-1">
+						<div class="flex flex-col space-y-1 max-w-[150px]">
 							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-if="permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings')">
 								{{ vend.code }}
 							</Link>
@@ -1224,6 +1226,15 @@
 									>
 										New
 									</span>
+								</span>
+								<!-- Mapping implementation date + age, so Ops can see how long the
+								     current mapping has run and plan the next implementation. -->
+								<span
+									v-if="getMappingDateInfo(vend.vend)"
+									class="text-[10px] text-gray-500 leading-none w-fit"
+									:title="getMappingDateInfo(vend.vend).title"
+								>
+									Mapped {{ getMappingDateInfo(vend.vend).date }} · {{ getMappingDateInfo(vend.vend).ageLabel }}
 								</span>
 
 							</span>
@@ -1820,28 +1831,43 @@
 									<ArrowDownIcon class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
 								</span>
 							</div>
-							<div class="flex items-center justify-center" v-if="'last_3_mth_amount' in vend.vendTransactionTotalsJson">
+							<div class="flex items-center justify-center gap-1" v-if="'last_3_mth_amount' in vend.vendTransactionTotalsJson">
 								<span :class="[vend.is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
 									{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['last_3_mth_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 								</span>
+								<span
+									v-if="'last_4_mth_amount' in vend.vendTransactionTotalsJson && vend.vendTransactionTotalsJson['last_3_mth_amount'] > vend.vendTransactionTotalsJson['last_4_mth_amount']"
+									class="inline-flex items-center justify-center"
+									v-tooltip="'Higher than 4 months ago'"
+								>
+									<ArrowUpIcon class="h-4 w-4 text-green-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
+								</span>
+								<span
+									v-else-if="'last_4_mth_amount' in vend.vendTransactionTotalsJson && vend.vendTransactionTotalsJson['last_3_mth_amount'] < vend.vendTransactionTotalsJson['last_4_mth_amount']"
+									class="inline-flex items-center justify-center"
+									v-tooltip="'Lower than 4 months ago'"
+								>
+									<ArrowDownIcon class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true" />
+								</span>
 							</div>
 						</div>
-						<!-- Avg Mthly Sales $ — projected average month = 30 × AvgDailySales
-							(Last30d), mirroring the Avg30dSales convention used in the
-							Avg30dSales/Full Load ratio. virtual_vend_records_thirty_days_amount_average
-							is already in currency units (divided by 100 in VendResource), so it
-							is only scaled by 30 here — no further exponent division. Rendered
-							outside the calendar-month v-if so it shows even when the
-							current_mth_amount split is absent. -->
+						<!-- Avg Mthly Sales $ — true average monthly sales over the
+							machine's operating lifetime: lifetime sales
+							(vend_records_amount_latest) ÷ months operating, where months
+							are counted from begin_date but floored at 2023-01-01. See the
+							avgMthlySales() helper for the rationale. This intentionally
+							differs from Last30d sales. Rendered outside the calendar-month
+							v-if so it shows even when the current_mth_amount split is
+							absent. -->
 						<hr class="border-t border-gray-300 my-1" />
 						<div class="flex items-center justify-center">
 							<span :class="[vend.is_active || vend.is_testing ? 'text-gray-800 font-semibold' : 'text-gray-400']">
-								{{ operatorCountry.currency_symbol }}{{ ((vend.virtual_vend_records_thirty_days_amount_average || 0) * 30).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+								{{ operatorCountry.currency_symbol }}{{ avgMthlySales(vend).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 							</span>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
-						<div class="flex flex-col space-y-1">
+						<div class="flex flex-col space-y-1 max-w-28 mx-auto">
 							<div v-if="vend && vend.lastOpsJobItem" class="flex flex-col space-y-1">
 								<a :href="'/ops-jobs/items/' + vend.lastOpsJobItem.id + '/edit'">
 									<div
@@ -1891,11 +1917,11 @@
 									<span class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-bold border w-full bg-purple-100 text-purple-700 border-purple-300">
 										Implement New Mapping
 									</span>
-									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.lastOpsJobItem.vend && (vend.lastOpsJobItem.vend.upcomingProductMapping || (vend.lastOpsJobItem.vend.productMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping))">
-										{{ vend.lastOpsJobItem.vend.productMapping ? vend.lastOpsJobItem.vend.productMapping.name : '' }}
-										<span v-if="(vend.lastOpsJobItem.vend.productMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.lastOpsJobItem.vend.upcomingProductMapping && vend.lastOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
+									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="lastJobMappingHas(vend.lastOpsJobItem)">
+										{{ lastJobMappingCurrent(vend.lastOpsJobItem) }}
+										<span v-if="lastJobMappingUpcoming(vend.lastOpsJobItem)">
 											&RightArrow;
-											{{ (vend.lastOpsJobItem.vend.productMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.lastOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.lastOpsJobItem.vend.upcomingProductMapping && vend.lastOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.lastOpsJobItem.vend.upcomingProductMapping.name : '') }}
+											{{ lastJobMappingUpcoming(vend.lastOpsJobItem) }}
 										</span>
 									</span>
 								</div>
@@ -2088,11 +2114,11 @@
 								</span>
 								<!--
 									Ops Note — inline-editable textarea matching the
-									Customer Note pattern. Edits POST to
+									Site Note pattern. Edits POST to
 									/customers/{id}/update-ops-note and the page only
 									reloads the `vends` prop so filters / scroll are
 									preserved. The audit line beneath shows who last
-									saved it and when, mirroring the Customer Note
+									saved it and when, mirroring the Site Note
 									footer for consistency. Gated on indexType ===
 									'customers' because ops_note + its audit columns
 									are only selected on the customers-index path.
@@ -2194,17 +2220,31 @@
 							>
 								{{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 							</span>
-							<span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
+							<span class="inline-flex items-center justify-center gap-1">
+								<span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
 									{{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+								</span>
+								<template v-if="(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson">
+									<ArrowUpIcon
+										v-if="vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100"
+										class="h-4 w-4 text-green-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"
+										v-tooltip="'Above lifetime daily average'"
+									/>
+									<ArrowDownIcon
+										v-else
+										class="h-4 w-4 text-red-600" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"
+										v-tooltip="'Below lifetime daily average'"
+									/>
+								</template>
 							</span>
 							<!-- Section divider — mirrors the <hr> in the TableHead
-								between AvgDailySales (Last30d) and Customer Tag.
+								between AvgDailySales (Last30d) and Site Tag.
 								Gated on indexType so the line only appears when
-								Customer Tag chips are being rendered below. -->
+								Site Tag chips are being rendered below. -->
 							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-2" />
-							<!-- Customer Tag chips — sit under the column's
+							<!-- Site Tag chips — sit under the column's
 								AvgDailySales (Last30d) value to match the column
-								header's "Customer Tag" label. Mirrors the Customer
+								header's "Site Tag" label. Mirrors the Site
 								Summary chip treatment: alternating bg-blue-50 /
 								bg-blue-100 with a darker blue-400 border so adjacent
 								tags read as distinct chips. break-all wrapping keeps
@@ -2235,7 +2275,9 @@
 										>{{ vend.contract_commission_type === 'PSORU' ? ' or ' : '+' }}{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value2) }}</span>
 									</span>
 									<span v-else>
-										{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}
+										{{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}<span
+										v-if="vend.contract_commission_value2 != null && vend.contract_commission_type === 'R+U'"
+									> + {{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value2).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}</span>
 									</span>
 								</span>
 								<span v-if="vend.contract_ps_term != null" class="block text-[11px] font-normal text-gray-600">
@@ -2281,8 +2323,8 @@
 								{{ vend.location_grading_placement || '-' }}, {{ vend.location_grading_access || '-' }}, {{ vend.location_grading_flexibility || '-' }}
 							</span>
 							<!--
-								Customer Note — inline-editable textarea matches the
-								Customer Summary "Note" row. Saves to the existing
+								Site Note — inline-editable textarea matches the
+								Site Summary "Note" row. Saves to the existing
 								/customers/{id}/update-notes endpoint and only reloads
 								the `vends` prop so filters / scroll are preserved.
 								Gated on indexType === 'customers' because notes
@@ -2775,7 +2817,7 @@ font-size:13px;
 	const props = defineProps({
 			autoLoad: Boolean,
 			cardTerminalOptions: [Array, Object],
-			// 5-value Customer Status options ([{id, name}, ...]) — only used
+			// 5-value Site Status options ([{id, name}, ...]) — only used
 			// on the customers view. Server passes STATUSES_MAPPING + an "All"
 			// sentinel.
 			customerStatuses: Array,
@@ -2820,7 +2862,7 @@ font-size:13px;
 			frequency_per_week_status: [],
 			locationType: '',
 			is_active: true,
-			// Customer Status (5-value) — only used on the customers view.
+			// Site Status (5-value) — only used on the customers view.
 			// Stores the selected {id, value}; .id is forwarded as `customer_status`.
 			customer_status: '',
 			is_binded_customer: '',
@@ -2892,7 +2934,7 @@ font-size:13px;
 	const showPickListModal = ref(false)
 	const showProductAvailabilityModal = ref(false)
 	const statusOptions = ref([])
-	// 5-value Customer Status options — populated from props.customerStatuses
+	// 5-value Site Status options — populated from props.customerStatuses
 	// (Potential / New / Active / Pending / Inactive + "All" sentinel). Only
 	// used on the customers view; the existing `statusOptions` is for vend
 	// machine status and stays untouched.
@@ -3018,7 +3060,7 @@ statusOptions.value = [
 		{id: 'disposed', value: 'Disposed'},
 		{id: 'sold', value: 'Sold'},
 ]
-// 5-value Customer Status — controller passes {id, name}; remap to {id, value}
+// 5-value Site Status — controller passes {id, name}; remap to {id, value}
 // to match the MultiSelect `label` prop used by every other dropdown here.
 customerStatusOptions.value = (props.customerStatuses ?? []).map((s) => ({id: s.id, value: s.name}))
 vendConfigOptions.value = [
@@ -3052,7 +3094,7 @@ productMappingOptions.value = [
 filters.value.cashless_mfg = cardTerminalOptions.value[0]
 filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
 filters.value.is_active = booleanOptions.value[1]
-// Customer Status — defaults to "Active" (id=2), matching Customer/Index.vue
+// Site Status — defaults to "Active" (id=2), matching Customer/Index.vue
 // and the prior is_active=true default. Falls back to the first option ("All")
 // if STATUSES_MAPPING doesn't surface an Active entry for some reason.
 filters.value.customer_status = customerStatusOptions.value.find((s) => s.id === 2) ?? customerStatusOptions.value[0]
@@ -3340,6 +3382,7 @@ function contractTypeLabel(type) {
 		case 'S':     return 'Subsidized Plan'
 		case 'R':     return 'Fix Rental'
 		case 'U':     return 'Utility only'
+		case 'R+U':   return 'R + U'
 		case 'PS':    return 'PS'
 		case 'PS+U':  return 'PS + U'
 		case 'PSORU': return 'PS OR U'
@@ -3397,6 +3440,50 @@ function getUpcomingMappingName(vendData) {
 	return fromVend
 }
 
+// Last Job mapping (the "Last Job" column) — frozen-aware. Once the last-job
+// item is frozen, use the snapshot mapping names so the column reflects what the
+// mapping was at that job; otherwise derive live from the vend mapping relations.
+function lastJobMappingHas(oji) {
+	if (!oji) return false
+	if (oji.frozen_at) return !!(oji.frozen_mapping_current_name || oji.frozen_mapping_upcoming_name)
+	return !!(oji.vend && (oji.vend.upcomingProductMapping || (oji.vend.productMapping && oji.vend.productMapping.upcomingProductMapping)))
+}
+function lastJobMappingCurrent(oji) {
+	if (!oji) return ''
+	if (oji.frozen_at) return oji.frozen_mapping_current_name || ''
+	return oji.vend && oji.vend.productMapping ? oji.vend.productMapping.name : ''
+}
+function lastJobMappingUpcoming(oji) {
+	if (!oji) return ''
+	if (oji.frozen_at) return oji.frozen_mapping_upcoming_name || ''
+	if (!oji.vend) return ''
+	if (oji.vend.productMapping && oji.vend.productMapping.upcomingProductMapping && oji.vend.productMapping.upcomingProductMapping.name !== 'N/A') {
+		return oji.vend.productMapping.upcomingProductMapping.name
+	}
+	if (oji.vend.upcomingProductMapping && oji.vend.upcomingProductMapping.name !== 'N/A') {
+		return oji.vend.upcomingProductMapping.name
+	}
+	return ''
+}
+
+// Mapping implementation date for a machine. binded_at is stamped (server-side,
+// in the operator's timezone) whenever a vend's product mapping is changed or an
+// upcoming mapping is promoted to current. Lets Ops see how long the current
+// mapping has run so they can plan the next implementation. Returns null when
+// binded_at is unset (e.g. mappings bound before the field existed).
+function getMappingDateInfo(vendData) {
+	if (!vendData || !vendData.binded_at) return null
+	const binded = moment(vendData.binded_at)
+	if (!binded.isValid()) return null
+	const days = moment().startOf('day').diff(binded.clone().startOf('day'), 'days')
+	const ageLabel = days <= 0 ? 'today' : days === 1 ? '1 day' : `${days} days`
+	return {
+		date: binded.format('YYMMDD'),
+		ageLabel,
+		title: `Current mapping implemented on ${binded.format('YYMMDD HH:mm')} (${ageLabel} ago)`,
+	}
+}
+
 function getVendsField() {
 	return {
 			...props.vends,
@@ -3419,6 +3506,40 @@ function getVendRecordsAmountAverageDayClass(amount) {
 		}else {
 				return 'text-gray-700 bg-red-300 px-1 rounded-sm'
 		}
+}
+
+// Avg Mthly Sales $ — true average monthly sales over the machine's operating
+// lifetime, NOT a 30-day projection. Numerator is lifetime sales
+// (vend_records_amount_latest, raw minor units). Denominator is the COUNT of
+// calendar months the machine has operated in, inclusive of both the begin
+// month and the current month — e.g. a machine that started 2026-03-10 and is
+// viewed in May 2026 has operated in Mar/Apr/May = 3 months, regardless of the
+// day of month it started. The begin month is floored at 2023-01 (earliest
+// reliable transaction data) so an abnormally old/garbage begin_date can't
+// inflate the month count and crush the average. Floor of 1 month guards
+// against bad data.
+function avgMthlySales(vend) {
+		const totals = vend.vendTransactionTotalsJson
+		if (!totals || !('vend_records_amount_latest' in totals)) {
+				return 0
+		}
+		const exponent = operatorCountry.currency_exponent ?? 2
+		const lifetime = (totals['vend_records_amount_latest'] || 0) / Math.pow(10, exponent)
+
+		const FLOOR = new Date('2023-01-01T00:00:00')
+		let begin = vend.begin_date ? new Date(vend.begin_date + 'T00:00:00') : null
+		if (!begin || isNaN(begin.getTime()) || begin < FLOOR) {
+				begin = FLOOR
+		}
+
+		const now = new Date()
+		// Inclusive calendar-month count between begin month and current month.
+		const months = Math.max(
+				1,
+				(now.getFullYear() - begin.getFullYear()) * 12 + (now.getMonth() - begin.getMonth()) + 1
+		)
+
+		return lifetime / months
 }
 
 function onChannelOverviewClicked(vendData) {
@@ -3638,7 +3759,7 @@ function onNotesChanged(vend) {
 		});
 }
 
-// Auto-grow the inline-edit textareas (Ops Note + Customer Note) so the
+// Auto-grow the inline-edit textareas (Ops Note + Site Note) so the
 // full content is visible without scrolling inside the cell. Bound via
 // :ref-callback (initial mount + after vends partial-reload swaps row
 // instances) and via @input for live typing. nextTick guarantees the
@@ -3652,7 +3773,7 @@ function autoGrowTextarea(el) {
 }
 
 // Same shape as onNotesChanged — separate endpoint so the two free-text
-// fields (Customer Note for finance/admin, Ops Note for refilling/operations)
+// fields (Site Note for finance/admin, Ops Note for refilling/operations)
 // have independent audit trails. Hits /customers/{id}/update-ops-note and
 // partial-reloads `vends` so the audit line refreshes without losing state.
 function onOpsNoteChanged(vend) {

@@ -32,7 +32,7 @@
           </SearchInput>
           <div v-if="permissions.includes('admin-access vends')">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Customer Binded?
+              Site Binded?
             </label>
             <MultiSelect
               v-model="filters.is_binded_customer"

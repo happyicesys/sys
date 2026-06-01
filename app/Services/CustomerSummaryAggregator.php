@@ -46,6 +46,7 @@ use Illuminate\Support\Facades\Log;
  *   S      Subsidized Plan             -value          (we receive)
  *   R      Fix Rental                  +value
  *   U      Utility only                +value
+ *   R+U    Fix Rental + Utility        +value + value2  (both flat $/period)
  *   PS     Profit Sharing              sales(excl) * ps_term% * value%
  *   PS+U   PS + Utility                sales(excl) * ps_term% * value% + value2
  *   PSORU  PS or Utility (whichever)   max(PS_amount, value2)
@@ -63,6 +64,7 @@ class CustomerSummaryAggregator
     public const CONTRACT_TYPE_SUBSIDIZED = 'S';
     public const CONTRACT_TYPE_RENTAL = 'R';
     public const CONTRACT_TYPE_UTILITY = 'U';
+    public const CONTRACT_TYPE_RENTAL_UTILITY = 'R+U';
     public const CONTRACT_TYPE_PS = 'PS';
     public const CONTRACT_TYPE_PS_U = 'PS+U';
     public const CONTRACT_TYPE_PS_OR_U = 'PSORU';
@@ -110,6 +112,10 @@ class CustomerSummaryAggregator
             case self::CONTRACT_TYPE_UTILITY:
                 // Flat amount in dollars per period
                 return (int) round($value * 100);
+
+            case self::CONTRACT_TYPE_RENTAL_UTILITY:
+                // Fix Rental ($value) + Utility ($value2), both flat $/period.
+                return (int) round($value * 100) + (int) round($value2 * 100);
 
             case self::CONTRACT_TYPE_PS:
                 return self::psAmountCents($salesCents, $psTerm, $value, $gstRatePct);

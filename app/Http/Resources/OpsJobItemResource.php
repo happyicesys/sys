@@ -16,6 +16,17 @@ class OpsJobItemResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // When the item is frozen (10 min after stock-in) we serve a few fields
+        // from the stored snapshot instead of re-deriving them live: the stock
+        // action badge, the channel-error/tally verdict, coin float and the
+        // product-mapping labels. Cash, amounts and counts are intentionally
+        // NOT frozen — they keep their original live behaviour. $pick() returns
+        // the frozen value when present, else the live one.
+        $frozen = $this->frozen_at ? ($this->frozen_snapshot ?? []) : null;
+        $pick = function (string $key, $live) use ($frozen) {
+            return ($frozen !== null && array_key_exists($key, $frozen)) ? $frozen[$key] : $live;
+        };
+
         // return parent::toArray($request);
         return [
             'id' => $this->id,
@@ -60,7 +71,7 @@ class OpsJobItemResource extends JsonResource
             'statusBy' => UserResource::make($this->whenLoaded('statusBy')),
             'status' => $this->status,
             'status_name' => OpsJob::STATUS_MAPPINGS[$this->status],
-            'stock_action_type' => $this->stock_action_type,
+            'stock_action_type' => $pick('stock_action_type', $this->stock_action_type),
             'refillable_amount' => isset($this->refillable_amount) ? $this->refillable_amount / 100 : 0,
             'refillable_count' => isset($this->refillable_count) ? $this->refillable_count : 0,
             'stock_in_amount' => isset($this->stock_in_amount) ? $this->stock_in_amount / 100 : 0,
@@ -70,6 +81,16 @@ class OpsJobItemResource extends JsonResource
             'total_cash_amount_from_vmc' => isset($this->total_cash_amount_from_vmc) ? $this->total_cash_amount_from_vmc / 100 : 0,
             'delivered_by' => UserResource::make($this->whenLoaded('deliveredBy')),
             'notes' => $this->notes,
+            // Freeze state — frontend renders the snapshot tally/coin-float for
+            // frozen rows and disables editing. frozen_at is null when live.
+            'frozen_at' => isset($this->frozen_at) ? $this->frozen_at->format('ymd h:i a (D)') : null,
+            'is_frozen' => $this->frozen_at !== null,
+            'frozen_tally_status' => $frozen !== null && array_key_exists('tally_status', $frozen) ? $frozen['tally_status'] : null,
+            'frozen_coin_float' => $frozen !== null && array_key_exists('coin_float', $frozen) ? $frozen['coin_float'] : null,
+            'frozen_mapping_current_name' => $frozen !== null && array_key_exists('mapping_current_name', $frozen) ? $frozen['mapping_current_name'] : null,
+            'frozen_mapping_upcoming_name' => $frozen !== null && array_key_exists('mapping_upcoming_name', $frozen) ? $frozen['mapping_upcoming_name'] : null,
+            'frozen_mapping_remarks' => $frozen !== null && array_key_exists('mapping_remarks', $frozen) ? $frozen['mapping_remarks'] : null,
+            'frozen_channel_error_logs' => $frozen !== null && array_key_exists('channel_error_logs', $frozen) ? $frozen['channel_error_logs'] : null,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'opsJob' => OpsJobResource::make($this->whenLoaded('opsJob')),
             'opsJobItemChannels' => OpsJobItemChannelResource::collection($this->whenLoaded('opsJobItemChannels')),

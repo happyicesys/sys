@@ -116,8 +116,8 @@
 						>
 						</MultiSelect>
 					</div>
-          <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-            Customer
+          <SearchInput placeholderStr="Site" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+            Site
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -253,7 +253,7 @@
                       Machine Info
                     </TableHead>
                     <TableHead colspan="4">
-                      Customer Info
+                      Site Info
                     </TableHead>
                   </tr>
                   <tr>
@@ -287,7 +287,7 @@
                       Contract
                     </TableHeadSort>
                     <TableHeadSort modelName="customer_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_name')">
-                      Customer Name
+                      Site Name
                     </TableHeadSort>
                     <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
                       Postcode

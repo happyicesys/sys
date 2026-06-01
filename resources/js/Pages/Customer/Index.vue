@@ -1,10 +1,10 @@
 <template>
-  <Head title="Customers" />
+  <Head title="Sites" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Customers
+        Sites
       </h2>
     </template>
 
@@ -20,13 +20,13 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="ID" v-model="filters.ref_id">
-            Customer ID
+            Site ID
           </SearchInput>
           <SearchInput placeholderStr="ID" v-model="filters.vend_code">
             Machine ID
           </SearchInput>
-          <SearchInput placeholderStr="Customer" v-model="filters.customer">
-            Customer
+          <SearchInput placeholderStr="Site" v-model="filters.customer">
+            Site
           </SearchInput>
           <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -61,7 +61,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Customer Status
+              Site Status
             </label>
             <MultiSelect
               v-model="filters.status"
@@ -344,7 +344,7 @@
                     :sortBy="filters.sortBy"
                     @sort-table="sortTable('id')"
                   >
-                    Customer ID
+                    Site ID
                   </TableHeadSort>
                   <TableHead>
                     <div class="flex flex-col space-y-2">
@@ -362,7 +362,7 @@
                   <TableHead>
                     <div class="flex flex-col space-y-2">
                       <SingleSortItem modelName="id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('id', true)">
-                        Customer
+                        Site
                       </SingleSortItem>
                     </div>
                   </TableHead>
@@ -716,7 +716,7 @@
                         <span class="ml-1" v-if="['PS', 'PS+U', 'PSORU'].includes(customer.contract_commission_type)">{{ customer.contract_commission_value }}%</span>
                         <span class="ml-1" v-else>${{ Number(customer.contract_commission_value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}</span>
                       </span>
-                      <span v-if="customer.contract_commission_value2 != null && ['PS+U', 'PSORU'].includes(customer.contract_commission_type)">
+                      <span v-if="customer.contract_commission_value2 != null && ['PS+U', 'PSORU', 'R+U'].includes(customer.contract_commission_type)">
                         <span class="font-semibold text-gray-500">Val2:</span>
                         <span class="ml-1">{{ customer.contract_commission_value2 }}</span>
                       </span>
@@ -977,7 +977,7 @@ onMounted(() => {
       return { id: data.id, value: data.name };
     }),
   ];
-  // Customer Status options come from the controller (Customer::STATUSES_MAPPING
+  // Site Status options come from the controller (Customer::STATUSES_MAPPING
   // with an 'all' entry prepended). Default the filter to Active so the list
   // opens on active customers, matching the old is_active=true default.
   statusOptions.value = (props.statuses ?? []).map((s) => ({ id: s.id, value: s.name }));
@@ -990,7 +990,7 @@ onMounted(() => {
   filters.value.vend_model_id = vendModelOptions.value[0];
 });
 
-  // Badge colour for the Customer Status column: Active=green, Inactive=red,
+  // Badge colour for the Site Status column: Active=green, Inactive=red,
   // everything else (Potential / New / Pending) = amber.
   function customerStatusClass(customer) {
     switch (customer.status_id) {
@@ -1110,7 +1110,7 @@ function onExportExcelClicked() {
     },
     responseType: 'blob',
   }).then(response => {
-    fileDownload(response.data, 'Customers' + moment().format('YYMMDDHHmmss') + '.xlsx');
+    fileDownload(response.data, 'Sites' + moment().format('YYMMDDHHmmss') + '.xlsx');
   }).catch(error => {
     console.log(error);
   }).finally(() => {

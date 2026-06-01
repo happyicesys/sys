@@ -40,6 +40,7 @@ use Carbon\CarbonInterface;
  *                               cent. "Total Revenue" here is the
  *                               negotiated PS BASE, not an accounting
  *                               figure.)
+ *   R+U                       : Rental amount + Utility amount
  *   PS+U                      : PS amount + Utility amount
  *   PSORU (whichever higher)  : max(PS amount, Utility amount)
  *
@@ -55,6 +56,7 @@ class PerformanceReportContentService
         'S'     => 'SUBSIDIZED PLAN',
         'R'     => 'FIX RENTAL',
         'U'     => 'UTILITY',
+        'R+U'   => 'FIX RENTAL + UTILITY',
         'PS'    => 'PROFIT SHARING',
         'PS+U'  => 'PROFIT SHARING + UTILITY',
         'PSORU' => 'PROFIT SHARING OR UTILITY (WHICHEVER HIGHER)',
@@ -81,6 +83,8 @@ class PerformanceReportContentService
             case 'R':
             case 'U':
                 return $value !== null;
+            case 'R+U':
+                return $value !== null && $value2 !== null;
             case 'PS':
                 return $value !== null && $psTerm !== null;
             case 'PS+U':
@@ -224,6 +228,26 @@ class PerformanceReportContentService
                     'formula' => $this->money($value) . ' × ' . $base['active_days'] . '/' . $base['month_days'],
                     'value'   => $this->money($amount),
                 ];
+                break;
+            }
+            case 'R+U': {
+                // Fix Rental + Utility — two flat lines, each day-prorated,
+                // then summed. Mirrors the R and U cases above.
+                $rental  = round($value * $dayRatio, 2);
+                $utility = round($value2 * $dayRatio, 2);
+                $total   = round($rental + $utility, 2);
+                $base['lines'][] = [
+                    'label'   => 'Rental',
+                    'formula' => $this->money($value) . ' × ' . $base['active_days'] . '/' . $base['month_days'],
+                    'value'   => $this->money($rental),
+                ];
+                $base['lines'][] = [
+                    'label'   => 'Utility',
+                    'formula' => $this->money($value2) . ' × ' . $base['active_days'] . '/' . $base['month_days'],
+                    'value'   => $this->money($utility),
+                ];
+                $base['has_total']   = true;
+                $base['total_value'] = $this->money($total);
                 break;
             }
             case 'PS': {

@@ -86,11 +86,11 @@ const managementItems = [
         ]
     },
     {
-        title: 'Customer Management Tab',
+        title: 'Site Management Tab',
         link: 'https://www.youtube.com/watch?v=LieUqAR9V-A',
         subtitles: [
             'Create new customer profile',
-            'Bind Machine to Customer'
+            'Bind Machine to Site'
         ]
     },
     {

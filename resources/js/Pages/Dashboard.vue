@@ -33,8 +33,8 @@
                                 ("," for multiple)
                             </span>
                         </SearchInput>
-                        <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-                            Customer
+                        <SearchInput placeholderStr="Site" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                            Site
                         </SearchInput>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -949,7 +949,7 @@
         plugins: {
             title: {
                 display: true,
-                text: 'Average Number of Vending Machines (Customer) in operation, by Month'
+                text: 'Average Number of Vending Machines (Site) in operation, by Month'
             },
             legend: {
                 labels: {

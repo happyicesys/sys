@@ -52,6 +52,7 @@ use Carbon\CarbonInterface;
  *   PS              -> 055    (Vending Machine Sales Commission)
  *   U               -> V01    (Utilities Subsidy)
  *   R (Fix Rental)  -> 60     (Rental payment to landlord)
+ *   R+U             -> 60 + V01
  *   PS+U            -> 055 + V01
  *   PSORU           -> 055 only when PS amount is higher,
  *                      V01 only when Utility amount is higher
@@ -244,6 +245,26 @@ class CustomerInvoiceService
                     qty: $totalRevenue,
                     unitPrice: $unitPrice,
                     amount: $amount,
+                );
+                break;
+            }
+            case 'R+U': {
+                // Fix Rental + Utility — two flat lines, each day-prorated.
+                // Emits both the Rental (60) and Utility (V01) product codes,
+                // mirroring how PS+U emits both PS and U lines.
+                $rAmount = round($value * $dayRatio, 2);
+                $uAmount = round($value2 * $dayRatio, 2);
+                $lines[$this->lineKey(self::ITEM_CODE_R)] = $this->makeLine(
+                    code: self::ITEM_CODE_R,
+                    qty: 1,
+                    unitPrice: $rAmount,
+                    amount: $rAmount,
+                );
+                $lines[$this->lineKey(self::ITEM_CODE_U)] = $this->makeLine(
+                    code: self::ITEM_CODE_U,
+                    qty: 1,
+                    unitPrice: $uAmount,
+                    amount: $uAmount,
                 );
                 break;
             }

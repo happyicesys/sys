@@ -68,8 +68,8 @@
                 </MultiSelect>
             </div> -->
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-                    Customer
+                <SearchInput placeholderStr="Site" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                    Site
                 </SearchInput>
             </div>
             <!-- <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
@@ -292,7 +292,7 @@
                             Machine Prefix
                         </TableHead>
                         <TableHead>
-                            Customer
+                            Site
                         </TableHead>
                         <TableHead>
                             Operator

@@ -17,8 +17,8 @@
               ("," for multiple)
             </span>
           </SearchInput>
-          <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
-            Customer
+          <SearchInput placeholderStr="Site" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+            Site
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -60,7 +60,7 @@
           </SearchInput>
           <div v-if="permissions.includes('admin-access vends')">
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Customer Binded?
+              Site Binded?
             </label>
             <MultiSelect
               v-model="filters.is_binded_customer"

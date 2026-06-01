@@ -20,6 +20,7 @@ use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ProductMappingController extends Controller
@@ -480,24 +481,63 @@ class ProductMappingController extends Controller
 
     public function replicate(Request $request)
     {
-        $productMapping = ProductMapping::withoutGlobalScopes()->findOrFail($request->id);
-        $replicated = $productMapping->replicate()->fill([
-            'name' => $productMapping->name . '-replicated',
-            'operator_id' => auth()->user()->operator_id,
-        ]);
-        $replicated->save();
+        $productMapping = ProductMapping::withoutGlobalScopes()
+            ->with(['productMappingItems', 'attachments'])
+            ->findOrFail($request->id);
 
-        if ($productMapping->productMappingItems()->exists()) {
+        return DB::transaction(function () use ($productMapping) {
+            $replicated = $productMapping->replicate()->fill([
+                'name' => $productMapping->name . '-replicated',
+                'operator_id' => auth()->user()->operator_id,
+            ]);
+            $replicated->save();
+
+            // Replicate the channel items (carry over display sequence and
+            // selling price level so the copy matches the source).
             foreach ($productMapping->productMappingItems as $productMappingItem) {
                 ProductMappingItem::create([
                     'channel_code' => $productMappingItem->channel_code,
                     'product_id' => $productMappingItem->product_id,
+                    'selling_price_id' => $productMappingItem->selling_price_id,
+                    'sequence' => $productMappingItem->sequence,
                     'product_mapping_id' => $replicated->id,
                 ]);
             }
-        }
 
-        return redirect()->route('product-mappings.edit', ['id' => $replicated->id]);
+            // Replicate the attachments. We copy the underlying file to a new
+            // path so the original and the replica stay independent (deleting an
+            // attachment hard-deletes its file). The file name (name) and the
+            // price level (type) are carried over.
+            foreach ($productMapping->attachments as $attachment) {
+                $localUrl = $attachment->local_url;
+                $fullUrl = $attachment->full_url;
+
+                if ($attachment->local_url && Storage::disk('public')->exists($attachment->local_url)) {
+                    $dir = trim(dirname($attachment->local_url), '.');
+                    $dir = $dir !== '' ? $dir : 'sys/product-mappings';
+                    $extension = pathinfo($attachment->local_url, PATHINFO_EXTENSION);
+                    $newFileName = Str::random(40) . ($extension ? '.' . $extension : '');
+                    $newLocalUrl = $dir . '/' . $newFileName;
+
+                    Storage::disk('public')->copy($attachment->local_url, $newLocalUrl);
+
+                    $localUrl = $newLocalUrl;
+                    $fullUrl = Storage::disk('public')->url($newLocalUrl);
+                }
+
+                $replicated->attachments()->create([
+                    'local_url' => $localUrl,
+                    'full_url' => $fullUrl,
+                    'name' => $attachment->name,
+                    'type' => $attachment->type,
+                    'sequence' => $attachment->sequence,
+                    'desc' => $attachment->desc,
+                    'is_active' => $attachment->is_active,
+                ]);
+            }
+
+            return redirect()->route('product-mappings.edit', ['id' => $replicated->id]);
+        });
     }
 
     public function bindVends(Request $request, $productMappingId)

@@ -36,8 +36,8 @@
           <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
             Cust Name
           </SearchInput> -->
-          <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access machine-settings')" @keyup.enter="onSearchFilterUpdated()">
-            Customer
+          <SearchInput placeholderStr="Site" v-model="filters.customer" v-if="permissions.includes('admin-access machine-settings')" @keyup.enter="onSearchFilterUpdated()">
+            Site
           </SearchInput>
           <div v-if="permissions.includes('admin-access machine-settings')">
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -75,7 +75,7 @@
           </div>
           <!-- <div v-if="permissions.includes('admin-access machine-settings')">
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Customer Binded?
+                Site Binded?
             </label>
             <MultiSelect
                 v-model="filters.is_binded_customer"
@@ -443,7 +443,7 @@
                     <TableHead>
                       <div class="flex flex-col space-y-1">
                         <SingleSortItem modelName="customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_code')">
-                          Customer
+                          Site
                         </SingleSortItem>
                         <SingleSortItem modelName="selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('selling_price_type', false)">
                           Ref Price

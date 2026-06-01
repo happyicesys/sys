@@ -39,6 +39,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('gp:compute-metrics')->dailyAt('00:40');
         $schedule->command('customer-summary:compute')->dailyAt('01:00');
         $schedule->command('vend:retry-jobs')->everyMinute();
+        $schedule->command('ops:freeze-stock-in')->everyMinute()->withoutOverlapping();
         $schedule->command('vend:cleanup-jobs')->dailyAt('02:00');
         $schedule->command('remove:today-odd-transactions')->dailyAt('23:59');
         $schedule->job(new \App\Jobs\DetectTempTrends, 'low')->hourly();

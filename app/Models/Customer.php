@@ -172,6 +172,15 @@ class Customer extends Model
         'first_transaction_id',
         'frequency_per_week_status',
         'name',
+        // Site-level contact — stored directly on the customers table, distinct
+        // from the polymorphic billing Contact relation. See migration
+        // 2026_06_01_000000_add_site_contact_to_customers.
+        'site_contact_person',
+        'site_phone_number',
+        'site_alt_phone_number',
+        // Free-text remarks for the delivery address. See migration
+        // 2026_06_01_000001_add_address_remarks_to_customers.
+        'address_remarks',
         // Read-only CMS mirror scalars (see migration
         // 2026_05_27_000000_add_cms_mirror_fields_to_customers and the
         // UpdateCustomerCmsFields job). Only written by the CMS sync,

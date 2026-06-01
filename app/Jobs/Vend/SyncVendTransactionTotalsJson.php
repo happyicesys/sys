@@ -106,6 +106,8 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
             $last2MthEnd = Carbon::now()->subMonthsNoOverflow(2)->endOfMonth()->endOfDay();
             $last3MthStart = Carbon::now()->subMonthsNoOverflow(3)->startOfMonth()->startOfDay();
             $last3MthEnd = Carbon::now()->subMonthsNoOverflow(3)->endOfMonth()->endOfDay();
+            $last4MthStart = Carbon::now()->subMonthsNoOverflow(4)->startOfMonth()->startOfDay();
+            $last4MthEnd = Carbon::now()->subMonthsNoOverflow(4)->endOfMonth()->endOfDay();
 
             $currentMthAmountRecords = (int) $vend->vendRecords()
                 ->whereBetween('date', [$currentMthStart, $currentMthEnd])
@@ -118,6 +120,9 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                 ->sum('total_amount');
             $last3MthAmount = (int) $vend->vendRecords()
                 ->whereBetween('date', [$last3MthStart, $last3MthEnd])
+                ->sum('total_amount');
+            $last4MthAmount = (int) $vend->vendRecords()
+                ->whereBetween('date', [$last4MthStart, $last4MthEnd])
                 ->sum('total_amount');
 
             $vend->update([
@@ -160,6 +165,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                     'last_mth_amount' => $lastMthAmount,
                     'last_2_mth_amount' => $last2MthAmount,
                     'last_3_mth_amount' => $last3MthAmount,
+                    'last_4_mth_amount' => $last4MthAmount,
                 ]
             ]);
         }
@@ -208,6 +214,8 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
             $last2MthEnd = Carbon::now()->subMonthsNoOverflow(2)->endOfMonth()->endOfDay();
             $last3MthStart = Carbon::now()->subMonthsNoOverflow(3)->startOfMonth()->startOfDay();
             $last3MthEnd = Carbon::now()->subMonthsNoOverflow(3)->endOfMonth()->endOfDay();
+            $last4MthStart = Carbon::now()->subMonthsNoOverflow(4)->startOfMonth()->startOfDay();
+            $last4MthEnd = Carbon::now()->subMonthsNoOverflow(4)->endOfMonth()->endOfDay();
 
             $currentMthAmountRecords = (int) $customer->vendRecords()
                 ->whereBetween('date', [$currentMthStart, $currentMthEnd])
@@ -220,6 +228,9 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                 ->sum('total_amount');
             $last3MthAmount = (int) $customer->vendRecords()
                 ->whereBetween('date', [$last3MthStart, $last3MthEnd])
+                ->sum('total_amount');
+            $last4MthAmount = (int) $customer->vendRecords()
+                ->whereBetween('date', [$last4MthStart, $last4MthEnd])
                 ->sum('total_amount');
 
             $customer->update([
@@ -262,6 +273,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
                     'last_mth_amount' => $lastMthAmount,
                     'last_2_mth_amount' => $last2MthAmount,
                     'last_3_mth_amount' => $last3MthAmount,
+                    'last_4_mth_amount' => $last4MthAmount,
                 ]
             ]);
         }

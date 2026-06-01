@@ -1882,7 +1882,7 @@ const loadMoreHistory = () => {
                           <div class="flex flex-col space-y-1">
                             <span>Machine</span>
                             <span>Vend Prefix</span>
-                            <span>Customer</span>
+                            <span>Site</span>
                           </div>
                         </th>
 

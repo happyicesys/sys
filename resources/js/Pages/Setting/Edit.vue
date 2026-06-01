@@ -235,7 +235,7 @@
                   {{ form.errors.operator_id }}
                 </div>
                 <div class="sm:col-span-3 text-blue-600 text-xs">
-                  ** If change Operator, the Binded Customer's Operator will be changed as well
+                  ** If change Operator, the Binded Site's Operator will be changed as well
                 </div>
             </div>
 
@@ -788,7 +788,7 @@
                 <div class="w-full border-t border-gray-300"></div>
               </div>
               <div class="relative flex justify-start">
-                <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Customer </span>
+                <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Site </span>
               </div>
             </div>
 
@@ -807,7 +807,7 @@
                     v-if="!vend.customer || !vend.customer.id"
                 >
                     <div class="flex flex-col">
-                      No Customer Binding
+                      No Site Binding
                     </div>
                 </div> -->
               </div>
@@ -822,7 +822,7 @@
                       <input id="isExisting" aria-describedby="is-existing-description" name="isExisting" type="radio" v-model="isExisting" value="1" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                     </div>
                     <div class="ml-3 text-sm leading-6">
-                      <label for="is_existing" class="font-medium text-gray-900">Select Existing Customer</label>
+                      <label for="is_existing" class="font-medium text-gray-900">Select Existing Site</label>
                     </div>
                   </div>
                   <!-- <div class="relative flex items-start">
@@ -830,7 +830,7 @@
                       <input id="isExisting" aria-describedby="is-new-description" name="isExisting" type="radio" v-model="isExisting" value="0" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                     </div>
                     <div class="ml-3 text-sm leading-6">
-                      <label for="is_new" class="font-medium text-gray-900">Create New Customer</label>
+                      <label for="is_new" class="font-medium text-gray-900">Create New Site</label>
                     </div>
                   </div> -->
                 </div>
@@ -839,7 +839,7 @@
               <div class="sm:col-span-6" v-if="!vend.customer && isExisting == 1">
                 <div class="sm:col-span-6">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Customer
+                    Site
                   </label>
                   <MultiSelect
                     v-model="form.customer_id"
@@ -857,7 +857,7 @@
 
               <div class="sm:col-span-6" v-if="vend.customer && vend.customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Customer
+                  Site
                 </label>
                 <div class="mt-1">
                   <input
@@ -870,7 +870,7 @@
               </div>
               <div class="sm:col-span-6" v-if="vend.customer && !vend.customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Customer
+                  Site
                 </label>
                 <div class="mt-1">
                   <input
@@ -921,7 +921,7 @@
                     >
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                       <span>
-                        Save Customer
+                        Save Site
                       </span>
                     </Button>
                     <Link :href="'/settings'">
@@ -943,7 +943,7 @@
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
                     <span>
-                      Unbind Machine & Customer
+                      Unbind Machine & Site
                     </span>
                   </Button>
                   <Button
@@ -954,7 +954,7 @@
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
                     <span>
-                      Unbind Machine & Deactivate Customer
+                      Unbind Machine & Deactivate Site
                     </span>
                   </Button>
                 </span>
@@ -967,7 +967,7 @@
               <div class="w-full border-t border-gray-300"></div>
             </div>
             <div class="relative flex justify-start">
-              <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Customer Binding History </span>
+              <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Site Binding History </span>
             </div>
           </div>
           <nav aria-label="Progress">
