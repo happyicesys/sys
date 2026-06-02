@@ -497,11 +497,11 @@
                               <span>
                                 {{ row.vend && row.vend.vendPrefix ? row.vend.vendPrefix.name : '' }}
                               </span>
-                              <span class="flex flex-col text-xs font-medium whitespace-normal break-all max-w-24 min-w-0 mt-1" v-if="row.vend && row.vend.productMapping">
-                                <span class="text-gray-500 break-all">{{ row.vend.productMapping.name }}</span>
-                                <span class="flex flex-wrap items-center justify-center gap-1 mt-0.5 max-w-24 min-w-0" v-if="row.vend.upcomingProductMapping || (row.vend.productMapping && row.vend.productMapping.upcomingProductMapping)">
+                              <span class="flex flex-col text-xs font-medium whitespace-normal break-all max-w-24 min-w-0 mt-1" v-if="rowMappingCurrent(row)">
+                                <span class="text-gray-500 break-all">{{ rowMappingCurrent(row) }}</span>
+                                <span class="flex flex-wrap items-center justify-center gap-1 mt-0.5 max-w-24 min-w-0" v-if="rowMappingUpcoming(row)">
                                   <span class="bg-purple-100 text-purple-700 text-xs font-medium px-1.5 py-0.5 rounded shrink-0">New</span>
-                                  <span class="text-red-500 text-xs font-medium break-all max-w-24 min-w-0">{{ (row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).name }}</span>
+                                  <span class="text-red-500 text-xs font-medium break-all max-w-24 min-w-0">{{ rowMappingUpcoming(row) }}</span>
                                 </span>
                               </span>
                               <div>
@@ -542,9 +542,9 @@
                                   <span
                                     v-if="row.frozen_at"
                                     class="inline-flex items-center rounded px-1 py-0.5 text-xs font-medium border w-fit bg-gray-200 text-gray-700 border-gray-300"
-                                    :title="'Frozen ' + row.frozen_at + ' — snapshot taken 10 min after stock-in. Undo stock-in to edit.'"
+                                    :title="'Freezed ' + row.frozen_at + ' — mapping / channel errors / coin float snapshotted 10 min after stock-in.'"
                                   >
-                                    🔒 Frozen
+                                    🔒 Freezed
                                   </span>
                                 </div>
                                 <span v-if="row.status_at" class="text-xs font-medium text-gray-600">
@@ -1662,6 +1662,20 @@ function rowMappingRemarks(row) {
     return (row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).remarks
   }
   return null
+}
+
+// Product-mapping names for a row — frozen rows read the snapshot, live rows
+// read the (live) vend mapping relations. Upcoming prefers vend.upcomingProductMapping
+// then productMapping.upcomingProductMapping (matches the live template order).
+function rowMappingCurrent(row) {
+  if (row.frozen_at) return row.frozen_mapping_current_name || ''
+  return row.vend && row.vend.productMapping ? row.vend.productMapping.name : ''
+}
+function rowMappingUpcoming(row) {
+  if (row.frozen_at) return row.frozen_mapping_upcoming_direct || row.frozen_mapping_upcoming_via_current || ''
+  if (!row.vend) return ''
+  const obj = row.vend.upcomingProductMapping || (row.vend.productMapping && row.vend.productMapping.upcomingProductMapping)
+  return obj ? obj.name : ''
 }
 
 // Machine channel-error logs for a row — frozen rows read the snapshot copy

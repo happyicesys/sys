@@ -346,6 +346,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
 
     Route::prefix('maps')->group(function () {
         Route::get('/', [MapController::class, 'index'])->name('maps');
+        Route::get('/search', [MapController::class, 'search'])->name('maps.search');
     });
 
     Route::prefix('oauth-clients')->group(function () {

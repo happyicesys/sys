@@ -88,7 +88,15 @@ class OpsJobItemResource extends JsonResource
             'frozen_tally_status' => $frozen !== null && array_key_exists('tally_status', $frozen) ? $frozen['tally_status'] : null,
             'frozen_coin_float' => $frozen !== null && array_key_exists('coin_float', $frozen) ? $frozen['coin_float'] : null,
             'frozen_mapping_current_name' => $frozen !== null && array_key_exists('mapping_current_name', $frozen) ? $frozen['mapping_current_name'] : null,
-            'frozen_mapping_upcoming_name' => $frozen !== null && array_key_exists('mapping_upcoming_name', $frozen) ? $frozen['mapping_upcoming_name'] : null,
+            'frozen_mapping_upcoming_via_current' => $frozen !== null && array_key_exists('mapping_upcoming_via_current', $frozen) ? $frozen['mapping_upcoming_via_current'] : null,
+            // Legacy fallback: snapshots frozen before the via/direct split stored a
+            // single pre-resolved `mapping_upcoming_name` (viaCurrent-preferred,
+            // N/A-filtered). Surface it via the direct slot so both consumers
+            // (OpsJob/Edit prefers direct; CustomerIndex falls through to direct)
+            // still render the "New" badge on historical frozen rows.
+            'frozen_mapping_upcoming_direct' => $frozen !== null && array_key_exists('mapping_upcoming_direct', $frozen)
+                ? $frozen['mapping_upcoming_direct']
+                : ($frozen !== null && array_key_exists('mapping_upcoming_name', $frozen) ? $frozen['mapping_upcoming_name'] : null),
             'frozen_mapping_remarks' => $frozen !== null && array_key_exists('mapping_remarks', $frozen) ? $frozen['mapping_remarks'] : null,
             'frozen_channel_error_logs' => $frozen !== null && array_key_exists('channel_error_logs', $frozen) ? $frozen['channel_error_logs'] : null,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),

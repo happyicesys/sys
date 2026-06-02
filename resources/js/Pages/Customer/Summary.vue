@@ -507,6 +507,11 @@
                     <div class="flex flex-col space-y-1">
                       <span>Site Tag</span>
                       <span>Site Note</span>
+                      <!-- Note Last Updated — sortable on customers.notes_updated_at.
+                           Drives the page's default sort (latest → oldest). -->
+                      <SingleSortItem modelName="notes_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('notes_updated_at')">
+                        Note Last Updated
+                      </SingleSortItem>
                     </div>
                   </TableHead>
                   <!-- Period Verify & Lock — action-triggered freeze of this
@@ -1627,12 +1632,13 @@ const filters = ref({
   period_locked: '',
   // Location Fee Paid? filter ('all' | 'true' = paid | 'false' = unpaid).
   location_fee_paid: '',
-  // Default sort: Machine ID ascending. The controller maps sortBy boolean
-  // → 'asc'/'desc' (true = asc); the 'machine_id' sortKey is resolved server-
-  // side by ordering on the latest-bound vend's code (see CustomerController::
-  // summary's machine_id orderByRaw branch).
-  sortKey: 'machine_id',
-  sortBy: true,
+  // Default sort: Note Last Updated, latest → oldest. The controller maps
+  // sortBy boolean → 'asc'/'desc' (false = desc); the 'notes_updated_at'
+  // sortKey is resolved server-side by ordering on customers.notes_updated_at
+  // (see CustomerController::summary's notes_updated_at orderByRaw branch).
+  // Sites whose Site Note was never edited sort to the bottom.
+  sortKey: 'notes_updated_at',
+  sortBy: false,
   numberPerPage: 100,
 });
 

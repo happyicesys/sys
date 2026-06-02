@@ -176,7 +176,7 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Delivery Address </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Site Address (Machine Placement Exact Location) </span>
                 </div>
               </div>
             </div>
@@ -195,7 +195,7 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
-              <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :disabled="customer.person_id">
+              <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :disabled="customer.person_id" :apiEnabled="addressApiEnabled" :provider="mapProvider">
                 Postcode <span class="text-gray-400 font-normal">(key in to autofill)</span>
               </SearchAddressInput>
             </div>
@@ -210,12 +210,12 @@
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="customer.person_id" placeholderStr="Building Name">
+              <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="lockAddressFields || !!customer.person_id" placeholderStr="Building Name">
                 Building Name
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="customer.person_id" placeholderStr="Street Name">
+              <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="lockAddressFields || !!customer.person_id" placeholderStr="Street Name">
                 Street Name
               </FormInput>
             </div>
@@ -271,7 +271,7 @@
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" :disabled="customer.person_id" placeholderStr="Company">
-                Billing To (Company Full Name or Personal Name)
+                Bill From (Company Full Name or Personal Name)
               </FormInput>
             </div>
             <div class="sm:col-span-6">
@@ -321,13 +321,13 @@
                 class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
               />
               <label for="billing_same_as_delivery" class="text-sm font-medium text-gray-700 cursor-pointer">
-                Billing Address same as Delivery Address
+                Billing Address same as Site Address
               </label>
             </div>
 
             <template v-if="!form.is_billing_same_as_delivery">
               <div class="sm:col-span-6">
-                <SearchAddressInput v-model="form.billing_address.postcode" @selected="onBillingAddressSelected" :error="form.errors['billing_address.postcode']">
+                <SearchAddressInput v-model="form.billing_address.postcode" @selected="onBillingAddressSelected" :error="form.errors['billing_address.postcode']" :apiEnabled="addressApiEnabled" :provider="mapProvider">
                   Postcode <span class="text-gray-400 font-normal">(key in to autofill)</span>
                 </SearchAddressInput>
               </div>
@@ -342,12 +342,12 @@
                 </FormInput>
               </div>
               <div class="sm:col-span-3">
-                <FormInput v-model="form.billing_address.building" :error="form.errors['billing_address.building']" placeholderStr="Building Name">
+                <FormInput v-model="form.billing_address.building" :error="form.errors['billing_address.building']" :disabled="lockAddressFields" placeholderStr="Building Name">
                   Building Name
                 </FormInput>
               </div>
               <div class="sm:col-span-3">
-                <FormInput v-model="form.billing_address.street_name" :error="form.errors['billing_address.street_name']" placeholderStr="Street Name">
+                <FormInput v-model="form.billing_address.street_name" :error="form.errors['billing_address.street_name']" :disabled="lockAddressFields" placeholderStr="Street Name">
                   Street Name
                 </FormInput>
               </div>
@@ -436,7 +436,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import { ArrowPathIcon, ArrowTopRightOnSquareIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon, ExclamationCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
 import { vTooltip } from 'floating-vue';
@@ -470,6 +470,15 @@ const countryOptions = ref([])
 // the (now hidden) Country and Phone Code fields so the saved payload stays
 // complete even though the selectors were removed from the UI.
 const operatorCountry = usePage().props.auth.operatorCountry
+// Address autofill provider (set via MAP_PROVIDER in .env): 'onemap' (SG) or
+// 'google' (e.g. Indonesia). When a supported provider is set the search API
+// is active; with none configured the API is skipped and Building/Street fall
+// back to manual entry.
+const mapProvider = usePage().props.mapProvider
+const addressApiEnabled = computed(() => ['onemap', 'google'].includes(mapProvider))
+// Lock Building/Street only for OneMap — its postcode→address data is
+// authoritative. Google's results are less consistent, so keep them editable.
+const lockAddressFields = computed(() => mapProvider === 'onemap')
 const operatorCountryOption = ref(null)
 // Pull-From-CMS path is disabled — force the Create page into the
 // "Create New Customer" branch regardless of whether cmsEndpoint is set.

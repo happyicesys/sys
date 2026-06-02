@@ -47,6 +47,73 @@ class MapService
     }
 
     /**
+     * Address search via the Google Geocoding API (server-side proxy).
+     *
+     * Returns results normalized to the SAME keys the OneMap response uses
+     * (ADDRESS, BLK_NO, ROAD_NAME, BUILDING, POSTAL, LATITUDE, LONGTITUDE),
+     * so the frontend SearchAddressInput / onAddressSelected mapping works
+     * unchanged regardless of provider. Used for deployments with
+     * MAP_PROVIDER=google (e.g. the Indonesia instance).
+     *
+     * @param  string  $query
+     * @param  string|null  $countryCode  optional ISO-3166 alpha-2 to bias results
+     */
+    public function searchAddressGoogle(string $query, ?string $countryCode = null): array
+    {
+        $key = env('GOOGLE_MAPS_API_KEY');
+        if (empty($key) || trim($query) === '') {
+            return [];
+        }
+
+        try {
+            $params = [
+                'address' => $query,
+                'key'     => $key,
+            ];
+            if (!empty($countryCode)) {
+                $params['components'] = 'country:' . strtoupper($countryCode);
+            }
+
+            $response = Http::timeout(5)->get('https://maps.googleapis.com/maps/api/geocode/json', $params);
+
+            if (!$response->successful()) {
+                return [];
+            }
+
+            $results = $response->json('results', []);
+
+            return collect($results)->map(function ($result) {
+                $components = collect($result['address_components'] ?? []);
+                $component = function (string $type) use ($components) {
+                    $match = $components->first(fn ($c) => in_array($type, $c['types'] ?? [], true));
+                    return $match['long_name'] ?? '';
+                };
+
+                $location = $result['geometry']['location'] ?? [];
+                $lat = $location['lat'] ?? '';
+                $lng = $location['lng'] ?? '';
+
+                return [
+                    'ADDRESS'    => $result['formatted_address'] ?? '',
+                    'BLK_NO'     => $component('street_number'),
+                    'ROAD_NAME'  => $component('route'),
+                    // Google has no clean "building name"; premise is the closest.
+                    'BUILDING'   => $component('premise'),
+                    'POSTAL'     => $component('postal_code'),
+                    'LATITUDE'   => $lat,
+                    // Frontend reads the (mis-spelled) LONGTITUDE key; include the
+                    // correctly-spelled one too for safety.
+                    'LONGTITUDE' => $lng,
+                    'LONGITUDE'  => $lng,
+                ];
+            })->values()->all();
+        } catch (\Throwable $e) {
+            Log::warning('Google geocoding failed for query "' . $query . '": ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Geocode a Singapore postcode using the OneMap API.
      * Returns ['latitude' => float|null, 'longitude' => float|null].
      */

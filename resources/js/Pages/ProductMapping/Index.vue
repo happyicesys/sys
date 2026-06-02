@@ -186,8 +186,8 @@
                               customers.selling_price_type — same source used
                               by Vend/CustomerIndex.vue's "Ref Price" column.
                           (2) L30d Sales = vendTransactionTotalsJson.thirty_days_amount
-                              ( thirty_days_count ) — identical formula/colours
-                              to Vend/CustomerIndex.vue's Last30d figure.
+                              — identical formula/colours to
+                              Vend/CustomerIndex.vue's Last30d figure.
                         Binded date stays as the subtitle / per-row chip; the
                         header subtitle is expanded so users know what to look
                         for inside this cell.
@@ -319,7 +319,6 @@
                                                   {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
                                               </span>
                                           </span>
-                                          <span class="text-black text-xs ml-1" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                       </a>
                                   </span>
                                   <span v-else>
@@ -334,7 +333,6 @@
                                               {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
                                           </span>
                                       </span>
-                                      <span class="text-black text-xs ml-1" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                   </span>
                               </span>
                               <span v-else-if="vend.customer && !vend.customer.person_id">
@@ -349,7 +347,6 @@
                                                   {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
                                               </span>
                                           </span>
-                                          <span class="text-black text-xs ml-1" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                       <!-- </a> -->
                                   </span>
                                   <span v-else :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
@@ -362,7 +359,6 @@
                                               {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
                                           </span>
                                       </span>
-                                      <span class="text-black text-xs ml-1" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                                   </span>
                               </span>
                               <!--
@@ -388,10 +384,12 @@
                                       ? ((vend.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)) > 1000 ? 'text-green-700' : 'text-red-700')
                                       : 'text-gray-400'
                                   ]"
-                                  v-tooltip="'L30d Sales (qty)'"
+                                  v-tooltip="'L30d Sales'"
                                 >
-                                  L30d: {{ operatorCountry.currency_symbol }}{{ (vend.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}({{ (vend.vendTransactionTotalsJson['thirty_days_count'] || 0).toLocaleString(undefined, { minimumFractionDigits: 0 }) }})
+                                  L30d: {{ operatorCountry.currency_symbol }}{{ (vend.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
                                 </span>
+                                <!-- Binded date — moved here from the customer-name line per the latest screenshot arrangement. -->
+                                <span class="text-black" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                               </div>
                             </li>
                           </ul>

@@ -228,11 +228,52 @@ class DashboardController extends Controller
 
         $total = round(($recordsAmount + $todayAmount) / 100, 2);
 
+        // ── LAST COMPLETE MONTHS ────────────────────────────────────────
+        // Show the 3 most recent *complete* months under the live figure,
+        // each with a month-over-month arrow. We compute 4 trailing months
+        // so the earliest displayed month also has a prior month to compare
+        // against. Complete months are fully captured by the daily
+        // aggregates (vend_records), so no live transaction scan is needed.
+        $monthlyTotals = [];
+        for ($i = 1; $i <= 4; $i++) {
+            $mStart = $monthStart->copy()->subMonths($i);
+            $mEnd = $mStart->copy()->endOfMonth()->endOfDay();
+
+            $amount = round(((float) VendRecord::query()
+                ->whereIn('operator_id', $operatorIds)
+                ->whereBetween('date', [$mStart, $mEnd])
+                ->when($testingVendIds, fn ($q) => $q->whereNotIn('vend_id', $testingVendIds))
+                ->sum('total_amount')) / 100, 2);
+
+            $monthlyTotals[$i] = [
+                'date' => $mStart,
+                'amount' => $amount,
+            ];
+        }
+
+        // Build the 3 displayed months (most recent first) with a trend
+        // direction vs the immediately preceding month ('up'|'down'|'flat').
+        $lastMonths = [];
+        for ($i = 1; $i <= 3; $i++) {
+            $prev = $monthlyTotals[$i + 1]['amount'];
+            $curr = $monthlyTotals[$i]['amount'];
+            $trend = $curr > $prev ? 'up' : ($curr < $prev ? 'down' : 'flat');
+            $pct = $prev > 0 ? round((($curr - $prev) / $prev) * 100, 1) : null;
+
+            $lastMonths[] = [
+                'label' => $monthlyTotals[$i]['date']->format('M y'),
+                'amount' => $curr,
+                'trend' => $trend,
+                'change_pct' => $pct,
+            ];
+        }
+
         return response()->json([
             'show' => true,
             'amount' => $total,
             'currency' => '$',
             'as_of' => $now->format('d M Y H:i'),
+            'last_months' => $lastMonths,
         ]);
     }
 

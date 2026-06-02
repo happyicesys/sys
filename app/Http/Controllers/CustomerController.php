@@ -215,12 +215,13 @@ class CustomerController extends Controller
         // belong to customer_period_summaries (year_month, sales_cents, ...).
         // We must NOT let them flow into Customer::filterIndex(), which would
         // try to ORDER BY those columns on the customers table.
-        // Default sort: Machine ID ascending — matches the Vue side's
-        // initial filter so the column header indicator and the actual
-        // server order agree on first page load. sortBy 'true' = asc per
-        // the filter_var() conversion further below.
-        $summarySortKey = $request->sortKey ?: 'machine_id';
-        $summarySortBy = $request->sortBy ?: 'true';
+        // Default sort: Note Last Updated, latest → oldest — matches the Vue
+        // side's initial filter so the column header indicator and the actual
+        // server order agree on first page load. sortBy 'false' = desc per the
+        // filter_var() conversion further below; customers whose Site Note was
+        // never edited resolve to NULL and sort to the end (nullsLastRaw).
+        $summarySortKey = $request->sortKey ?: 'notes_updated_at';
+        $summarySortBy = $request->sortBy ?: 'false';
 
         $request->merge([
             'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
@@ -321,6 +322,9 @@ class CustomerController extends Controller
             // Customer-table fields — resolved via correlated subqueries below.
             'customer_name', 'selling_price_type', 'begin_date',
             'contract_attachment', 'location_type', 'contract_until',
+            // Site Note last-updated timestamp — customers.notes_updated_at,
+            // resolved via correlated subquery below.
+            'notes_updated_at',
             // Computed Gross Earning rate (excl-GST) — see orderByRaw below.
             'gross_earning_rate',
         ], true) ? $summarySortKey : 'year_month';
@@ -521,6 +525,15 @@ class CustomerController extends Controller
             // Contract End Date — customers.contract_until.
             $nullsLastRaw(
                 'SELECT c.contract_until FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'notes_updated_at') {
+            // Note Last Updated — customers.notes_updated_at. Customers whose
+            // Site Note has never been edited resolve to NULL and sort to the
+            // end (via nullsLastRaw), so recently-noted sites cluster at top.
+            $nullsLastRaw(
+                'SELECT c.notes_updated_at FROM customers c
                   WHERE c.id = customer_period_summaries.customer_id',
                 $sortDirection
             );

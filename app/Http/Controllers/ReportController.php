@@ -1678,7 +1678,10 @@ class ReportController extends Controller
                         ->selectRaw('SUM(gm.error_count_no_4_5) AS error_count_no_4_5')
                         ->selectRaw('SUM(gm.error_count_4_5) AS error_count_4_5')
                         ->selectRaw('MAX(pvc.channel_availability) AS channel_availability')
-                        ->selectRaw('MAX(pvc.machine_count) AS machine_count');
+                        ->selectRaw('MAX(pvc.machine_count) AS machine_count')
+                        // Average Daily Count per Channel = Success count / Channel Availability.
+                        // Selected as an alias so the generic orderBy() can sort on it.
+                        ->selectRaw('CASE WHEN MAX(pvc.channel_availability) > 0 THEN SUM(gm.sale_count - gm.error_count) / MAX(pvc.channel_availability) ELSE NULL END AS avg_daily_per_channel');
                     // Count (Success Only) = sale_count minus ALL errors (both #3,#6,#7,#9 and #4,#5).
                     // Previously this only subtracted error_count_4_5, which gave correct numbers in
                     // databases where every error happened to be code 4 or 5, but inflated the success

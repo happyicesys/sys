@@ -3445,7 +3445,7 @@ function getUpcomingMappingName(vendData) {
 // mapping was at that job; otherwise derive live from the vend mapping relations.
 function lastJobMappingHas(oji) {
 	if (!oji) return false
-	if (oji.frozen_at) return !!(oji.frozen_mapping_current_name || oji.frozen_mapping_upcoming_name)
+	if (oji.frozen_at) return !!(oji.frozen_mapping_current_name || lastJobMappingUpcoming(oji))
 	return !!(oji.vend && (oji.vend.upcomingProductMapping || (oji.vend.productMapping && oji.vend.productMapping.upcomingProductMapping)))
 }
 function lastJobMappingCurrent(oji) {
@@ -3455,7 +3455,13 @@ function lastJobMappingCurrent(oji) {
 }
 function lastJobMappingUpcoming(oji) {
 	if (!oji) return ''
-	if (oji.frozen_at) return oji.frozen_mapping_upcoming_name || ''
+	if (oji.frozen_at) {
+		const via = oji.frozen_mapping_upcoming_via_current
+		const direct = oji.frozen_mapping_upcoming_direct
+		if (via && via !== 'N/A') return via
+		if (direct && direct !== 'N/A') return direct
+		return ''
+	}
 	if (!oji.vend) return ''
 	if (oji.vend.productMapping && oji.vend.productMapping.upcomingProductMapping && oji.vend.productMapping.upcomingProductMapping.name !== 'N/A') {
 		return oji.vend.productMapping.upcomingProductMapping.name

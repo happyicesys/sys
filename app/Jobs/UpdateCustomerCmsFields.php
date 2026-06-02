@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Bank;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Traits\SearchAddress;
@@ -38,7 +39,8 @@ use Illuminate\Support\Facades\Storage;
  *  - is_gst_registered ← CMS profile.gst presence.
  *  - cost_rate (Cost Rate %) and payterm (Terms label) mirror from CMS.
  *  - Attachments: CMS person files copied into mark1 storage (see syncAttachments).
- *  - Bank Details: CMS has no bank fields → left untouched.
+ *  - Bank Details: CMS bank name → mark1 banks.id (mapped); CMS account_number
+ *    is split into account number + holder name.
  *
  * Never creates a Customer. Source: CMS GET /api/person/migrate/{personID}.
  */
@@ -114,6 +116,11 @@ class UpdateCustomerCmsFields implements ShouldQueue
         $sameBilling  = !$billPostcode
             || ((string) $delPostcode === (string) $billPostcode);
 
+        // Bank Details — map the CMS bank name to a mark1 banks.id, and split
+        // the combined CMS account_number string into number + holder name.
+        $bankId = $this->resolveBankId(data_get($data->get('bank'), 'name'));
+        [$accountNumber, $accountHolder] = $this->parseAccountNumber($data->get('account_number'));
+
         // ── 1. Customer scalar fields ─────────────────────────────────────
         // CMS "Att To / Contact / Alt Contact" map to the SITE contact
         // (delivery), which lives on the customer row — NOT the billing contact.
@@ -134,6 +141,10 @@ class UpdateCustomerCmsFields implements ShouldQueue
             // payterm column is varchar(64) — guard against an oversized label.
             'payterm'                     => $payterm !== null ? mb_substr((string) $payterm, 0, 64) : null,
             'is_billing_same_as_delivery' => $sameBilling,                          // #10
+            // Bank Details ← CMS bank + account_number (parsed).
+            'bank_id'                     => $bankId,
+            'bank_account_name'           => $accountHolder,
+            'bank_account_number'         => $accountNumber,
         ]);
 
         // ── 2. Billing Contact — only Company (#9) + Email (#11). Contact
@@ -413,5 +424,92 @@ class UpdateCustomerCmsFields implements ShouldQueue
         }
 
         return 'www.google.com/maps?q=' . $lat . ',' . $lng;
+    }
+
+    /**
+     * Map a CMS bank name (short form, e.g. "OCBC", "UOB") to a mark1
+     * banks.id. Unmapped / unknown names are logged and left null (per spec),
+     * so an admin can fix them via the CSV round-trip.
+     */
+    protected function resolveBankId(?string $cmsBankName): ?int
+    {
+        if (!$cmsBankName || strcasecmp(trim($cmsBankName), 'None') === 0) {
+            return null;
+        }
+
+        // CMS short name (lowercased) → mark1 banks.name.
+        $map = [
+            'dbs'                     => 'DBS Bank',
+            'posb'                    => 'POSB Bank',
+            'ocbc'                    => 'OCBC Bank',
+            'uob'                     => 'United Overseas Bank (UOB)',
+            'maybank'                 => 'Maybank Singapore',
+            'hsbc'                    => 'HSBC Singapore',
+            'standard chartered bank' => 'Standard Chartered Bank',
+            'bank of china'           => 'Bank of China (Singapore)',
+            'cimb'                    => 'CIMB Bank Singapore',
+            'rhb bank'                => 'RHB Bank Singapore',
+            'citibank'                => 'Citibank Singapore',
+        ];
+
+        $mark1Name = $map[mb_strtolower(trim($cmsBankName))] ?? null;
+
+        if (!$mark1Name) {
+            Log::warning('UpdateCustomerCmsFields: unmapped CMS bank — left null', [
+                'person_id' => $this->personID,
+                'cms_bank'  => $cmsBankName,
+            ]);
+            return null;
+        }
+
+        return optional(Bank::where('name', $mark1Name)->first())->id;
+    }
+
+    /**
+     * Split the CMS `account_number` (which crams the account number and, often,
+     * a holder name into one string) into [account_number, account_holder_name].
+     *
+     *   "0100881386"                          → ["0100881386", null]
+     *   "0100881386 (NAME : ACS OLDHAM HALL)" → ["0100881386", "ACS OLDHAM HALL"]
+     *   "0100881386 ACS OLDHAM HALL"          → ["0100881386", "ACS OLDHAM HALL"]
+     *   "anything we can't parse"             → [null, "anything we can't parse"]
+     *
+     * Per spec: a clean number is the account number; otherwise we try to split
+     * out the holder; if we can't understand it, the whole string goes into the
+     * holder name so an admin can sort it out via the CSV.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    protected function parseAccountNumber($raw): array
+    {
+        if ($raw === null) {
+            return [null, null];
+        }
+
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return [null, null];
+        }
+
+        // 1) Pure number (digits, optional spaces / dashes) → account number.
+        if (preg_match('/^[0-9][0-9\s\-]*$/', $raw)) {
+            return [$raw, null];
+        }
+
+        // 2) "<number> (NAME : holder)" / "<number> NAME: holder" variants.
+        if (preg_match('/^([0-9][0-9\s\-]{2,})\s*\(?\s*NAME\s*[:\-]\s*(.+?)\)?\s*$/i', $raw, $m)) {
+            return [trim($m[1]), trim($m[2])];
+        }
+
+        // 3) Leading number then free text → number + the remainder as holder
+        //    (strip any "(", "NAME:" noise from the remainder).
+        if (preg_match('/^([0-9][0-9\s\-]{2,})\s+(.+)$/', $raw, $m)) {
+            $name = preg_replace('/^\(?\s*NAME\s*[:\-]?\s*/i', '', $m[2]);
+            $name = trim(rtrim(trim($name), ')'));
+            return [trim($m[1]), $name !== '' ? $name : null];
+        }
+
+        // 4) Can't confidently parse → everything into the holder name.
+        return [null, $raw];
     }
 }

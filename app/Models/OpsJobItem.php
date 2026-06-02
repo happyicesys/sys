@@ -299,27 +299,24 @@ class OpsJobItem extends Model
         if (!$vend) {
             return [
                 'mapping_current_name' => null,
-                'mapping_upcoming_name' => null,
+                'mapping_upcoming_via_current' => null,
+                'mapping_upcoming_direct' => null,
                 'mapping_remarks' => null,
             ];
         }
 
-        $current = $vend->productMapping?->name;
         $viaCurrentUpcoming = $vend->productMapping?->upcomingProductMapping; // productMapping.upcomingProductMapping
         $directUpcoming = $vend->upcomingProductMapping;                       // vend.upcomingProductMapping
 
-        $upcomingName = null;
-        if ($viaCurrentUpcoming && $viaCurrentUpcoming->name !== 'N/A') {
-            $upcomingName = $viaCurrentUpcoming->name;
-        } elseif ($directUpcoming && $directUpcoming->name !== 'N/A') {
-            $upcomingName = $directUpcoming->name;
-        }
-
+        // Store both upcoming-name sources raw so each view can apply its own
+        // resolution order: the Edit tab prefers vend.upcomingProductMapping;
+        // CustomerIndex prefers productMapping.upcomingProductMapping (N/A-filtered).
         $remarksSource = $directUpcoming ?: $viaCurrentUpcoming;
 
         return [
-            'mapping_current_name' => $current,
-            'mapping_upcoming_name' => $upcomingName,
+            'mapping_current_name' => $vend->productMapping?->name,
+            'mapping_upcoming_via_current' => $viaCurrentUpcoming?->name,
+            'mapping_upcoming_direct' => $directUpcoming?->name,
             'mapping_remarks' => $remarksSource?->remarks,
         ];
     }

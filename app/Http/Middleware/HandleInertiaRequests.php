@@ -90,6 +90,11 @@ class HandleInertiaRequests extends Middleware
             'smallLogoUrl' => $smallLogoUrl ?: $logoUrl,
             'defaultLogoUrl' => $defaultLogoUrl,
             'isCmsUrlSet' => !empty(env('CMS_URL')),
+            // Address-autofill map provider. When unset (or set to an
+            // unsupported value) the address search API is disabled and the
+            // Building/Street fields fall back to manual entry. Only 'onemap'
+            // is wired into the frontend SearchAddressInput today.
+            'mapProvider' => env('MAP_PROVIDER'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),

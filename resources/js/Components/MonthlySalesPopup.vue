@@ -55,8 +55,31 @@
                                 </svg>
                             </div>
 
+                            <!-- Last 3 complete months -->
+                            <div v-if="!loading && lastMonths.length" class="px-6 pt-1">
+                                <p class="mb-2 text-center text-[0.7rem] font-semibold uppercase tracking-wider text-gray-400">
+                                    Recent months
+                                </p>
+                                <ul class="space-y-1.5">
+                                    <li v-for="m in lastMonths" :key="m.label"
+                                        class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2.5 ring-1 ring-slate-100">
+                                        <span class="text-sm font-medium text-gray-500">{{ m.label }}</span>
+                                        <span class="flex items-center gap-2">
+                                            <span class="text-base font-bold tabular-nums text-gray-800">{{ currency }}{{ formatAmount(m.amount) }}</span>
+                                            <span class="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums"
+                                                  :class="trendClass(m.trend)">
+                                                <ArrowUpRightIcon v-if="m.trend === 'up'" class="h-3.5 w-3.5" aria-hidden="true"/>
+                                                <ArrowDownRightIcon v-else-if="m.trend === 'down'" class="h-3.5 w-3.5" aria-hidden="true"/>
+                                                <MinusSmallIcon v-else class="h-3.5 w-3.5" aria-hidden="true"/>
+                                                <span v-if="m.change_pct !== null">{{ Math.abs(m.change_pct).toFixed(1) }}%</span>
+                                            </span>
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+
                             <!-- Footer: as-of timestamp -->
-                            <div class="px-8 pb-7 pt-3">
+                            <div class="px-8 pb-7 pt-4">
                                 <p class="flex items-center justify-center gap-2 text-sm text-gray-500">
                                     <span class="relative flex h-2 w-2">
                                         <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
@@ -81,7 +104,7 @@
 
 <script setup>
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue'
-import { ArrowTrendingUpIcon, XMarkIcon } from '@heroicons/vue/20/solid'
+import { ArrowDownRightIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, MinusSmallIcon, XMarkIcon } from '@heroicons/vue/20/solid'
 import { computed, onMounted, ref } from 'vue'
 
 const open = ref(false)
@@ -90,6 +113,20 @@ const amount = ref(0)        // final value
 const display = ref(0)       // animated value
 const currency = ref('$')
 const asOf = ref(null)
+const lastMonths = ref([])
+
+function formatAmount(value) {
+    return Number(value).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })
+}
+
+function trendClass(trend) {
+    if (trend === 'up') return 'bg-emerald-50 text-emerald-600'
+    if (trend === 'down') return 'bg-rose-50 text-rose-600'
+    return 'bg-slate-100 text-slate-500'
+}
 
 const intPart = computed(() =>
     Math.floor(display.value).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -132,6 +169,7 @@ onMounted(async () => {
         amount.value = Number(data.amount) || 0
         currency.value = data.currency || '$'
         asOf.value = data.as_of || null
+        lastMonths.value = Array.isArray(data.last_months) ? data.last_months : []
         loading.value = false
         open.value = true
         countUp(amount.value)

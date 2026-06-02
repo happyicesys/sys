@@ -310,10 +310,10 @@
                       Location Type
                     </TableHeadSort>
                     <TableHeadSort modelName="count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('count')">
-                      Count (Success Only)<template v-if="showProductErrorCol"><br><span class="font-normal text-xs text-red-600">(% of overall)</span></template>
+                      Count (Success Only)<template v-if="showProductErrorCol"><br><span class="font-normal text-xs text-gray-500">(% of overall)</span></template>
                     </TableHeadSort>
                     <TableHeadSort v-if="showProductErrorCol" modelName="error_count_no_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_no_4_5')">
-                      Count (Error #3, #6, #7, #9)<br>Likely Stock Lost<br><span class="font-normal text-xs">(Error Rate)</span>
+                      Count (Error #3, #6, #7, #9)<br>Likely Stock Lost<br><span class="font-normal text-xs" title="Error Rate = Likely Stock Lost ÷ (Success + Likely Stock Lost).&#10;Green = lower than overall&#10;Red = higher than overall">(Error Rate)&nbsp;ⓘ</span>
                     </TableHeadSort>
                     <TableHeadSort v-if="showProductErrorCol" modelName="error_count_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_4_5')">
                       Count (Error #4, #5)<br>Unlikely Stock Lost as Motor Not Turning
@@ -324,9 +324,9 @@
                     <TableHeadSort v-if="showProductErrorCol" modelName="channel_availability" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('channel_availability')">
                       Channel Availability<br><span class="font-normal text-xs">(In-stock channels × days)</span>
                     </TableHeadSort>
-                    <TableHead v-if="showProductErrorCol">
-                      Average Daily Count<br>per Channel
-                    </TableHead>
+                    <TableHeadSort v-if="showProductErrorCol" modelName="avg_daily_per_channel" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('avg_daily_per_channel')">
+                      Average Daily Count<br><span title="Average Daily Count per Channel = Success count ÷ Channel Availability.&#10;Green = higher than overall&#10;Red = lower than overall">per Channel&nbsp;ⓘ</span>
+                    </TableHeadSort>
                     <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount')">
                       Amount
                     </TableHeadSort>
@@ -390,11 +390,14 @@
 
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ item.count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
-                        <div v-if="showProductErrorCol" class="text-xs text-red-600">({{ formatPercent(pctOfOverall(item.count)) }})</div>
+                        <div v-if="showProductErrorCol" class="text-xs text-gray-500">({{ formatPercent(pctOfOverall(item.count)) }})</div>
                       </TableData>
                       <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ (item.error_count_no_4_5 || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
-                        <div class="text-xs text-gray-500">{{ formatPercent(errorRate(item.count, item.error_count_no_4_5)) }}</div>
+                        <div
+                          class="text-xs"
+                          :class="errorRateColorClass(errorRate(item.count, item.error_count_no_4_5))"
+                        >{{ formatPercent(errorRate(item.count, item.error_count_no_4_5)) }}</div>
                       </TableData>
                       <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ (item.error_count_4_5 || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
@@ -542,6 +545,14 @@ function errorRate(successCount, errorNo45) {
   const err = Number(errorNo45) || 0;
   const den = success + err;
   return den > 0 ? (err / den) * 100 : null;
+}
+
+// Error Rate colour vs overall: lower is good (green), higher is bad (red).
+function errorRateColorClass(rate) {
+  if (rate === null || rate === undefined || totalErrorRate.value === null || totalErrorRate.value === undefined) {
+    return 'text-gray-500';
+  }
+  return rate <= totalErrorRate.value ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold';
 }
 
 // % of Overall = this SKU's success count / total success count across all results.

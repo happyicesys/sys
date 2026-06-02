@@ -39,10 +39,24 @@ import {
   ComboboxOptions,
 } from '@headlessui/vue'
 
-defineProps({
+const props = defineProps({
   disabled: [Boolean, String, Number],
   modelValue: String,
   required: [Boolean, String],
+  // When false, the autocomplete API is not called and no suggestion dropdown
+  // is shown — the field becomes a plain manual-entry input. Defaults to true
+  // so existing usages keep their autocomplete behaviour.
+  apiEnabled: {
+    type: [Boolean, String, Number],
+    default: true,
+  },
+  // Address-search provider. 'onemap' calls OneMap directly (CORS-open).
+  // 'google' calls the backend proxy (/maps/search) which queries the Google
+  // Geocoding API server-side and returns results in the same shape.
+  provider: {
+    type: String,
+    default: 'onemap',
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'selected'])
@@ -50,15 +64,35 @@ const emit = defineEmits(['update:modelValue', 'selected'])
 const options = ref([])
 
 const fetchAddresses = _.debounce(async (e) => {
-  const url = 'https://www.onemap.gov.sg/api/common/elastic/search?searchVal=' + e.target.value + '&returnGeom=Y&getAddrDetails=Y'
-  let response = await (await fetch(url)).json()
-  if(response) {
-    options.value = await response.results
+  const value = e.target.value
+  let url
+  if (props.provider === 'google') {
+    url = '/maps/search?q=' + encodeURIComponent(value)
+  } else {
+    url = 'https://www.onemap.gov.sg/api/common/elastic/search?searchVal=' + value + '&returnGeom=Y&getAddrDetails=Y'
+  }
+  // Fail soft: if the request errors or the provider isn't usable (e.g.
+  // MAP_PROVIDER=google but no GOOGLE_MAPS_API_KEY, which returns an empty
+  // result set), just show no suggestions instead of throwing.
+  try {
+    const res = await fetch(url)
+    if (!res.ok) {
+      options.value = []
+      return
+    }
+    const response = await res.json()
+    options.value = response?.results || []
+  } catch (err) {
+    options.value = []
   }
 }, 300)
 
 function onInputChanged(e) {
   emit('update:modelValue', e.target.value)
+  if (!props.apiEnabled) {
+    options.value = []
+    return
+  }
   fetchAddresses(e)
 }
 
