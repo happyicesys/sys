@@ -1470,7 +1470,7 @@ class VendController extends Controller
             LocationTypeResource::collection(LocationType::orderBy('sequence')->get())->resolve()
         );
 
-        $operatorOptions = Cache::remember('operator_options', $ttl, fn() =>
+        $operatorOptions = Cache::remember('operator_options_' . auth()->user()->operator_id, $ttl, fn() =>
             OperatorResource::collection(Operator::orderBy('name')->get())->resolve()
         );
 
@@ -1493,7 +1493,7 @@ class VendController extends Controller
         // Customer View filter: only list prefixes that still have at least
         // one Active machine — prefixes whose machines are all
         // inactive/testing should not clutter the dropdown.
-        $vendPrefixOptions = Cache::remember('vend_prefix_options_active', $ttl, fn() =>
+        $vendPrefixOptions = Cache::remember('vend_prefix_options_active_' . auth()->user()->operator_id, $ttl, fn() =>
             VendPrefixResource::collection(
                 VendPrefix::hasActiveVends()->orderBy('name')->get()
             )->resolve()
@@ -2791,7 +2791,7 @@ class VendController extends Controller
             LocationType::orderBy('sequence')->get()
         )->resolve());
 
-        $operatorOptions = Cache::remember('operator_options', $ttl, fn() => OperatorResource::collection(
+        $operatorOptions = Cache::remember('operator_options_' . auth()->user()->operator_id, $ttl, fn() => OperatorResource::collection(
             Operator::orderBy('name')->get()
         )->resolve());
 
@@ -2818,7 +2818,7 @@ class VendController extends Controller
         // Transaction filter: only list prefixes that still have at least
         // one Active machine — prefixes whose machines are all
         // inactive/testing should not clutter the dropdown.
-        $vendPrefixOptions = Cache::remember('vend_prefix_options_active', $ttl, fn() => VendPrefixResource::collection(
+        $vendPrefixOptions = Cache::remember('vend_prefix_options_active_' . auth()->user()->operator_id, $ttl, fn() => VendPrefixResource::collection(
             VendPrefix::hasActiveVends()->orderBy('name')->get()
         )->resolve());
 
@@ -3431,13 +3431,22 @@ class VendController extends Controller
         }
         $sortDir = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
+        // Pre-fetch testing vend IDs once (cached 1h) so the aggregates exclude
+        // testing machines — same source as the Sales Transactions totals query,
+        // keeping the two pages' figures in sync.
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
+            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int)$v)->all()
+        );
+
         // Base query (shared between paginated rows + totals + count).
         // skipSort = true because filterTransactionIndex doesn't drive sort here.
-        $makeBaseQuery = function () use ($request) {
+        $makeBaseQuery = function () use ($request, $testingVendIds) {
             return VendTransaction::query()
                 ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
                 ->filterTransactionIndex($request, true)
+                // Exclude testing machines so totals match the Sales Transactions page.
+                ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
                 // Unified transactions: exclude PENDING/REFUNDED gateway rows from
                 // the daily summary aggregates (no-op for legacy/non-gateway rows).
                 ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED);
@@ -3538,7 +3547,7 @@ class VendController extends Controller
             PaymentMethod::orderBy('name')->get()
         )->resolve());
 
-        $operatorOptions = Cache::remember('operator_options', $ttl, fn() => OperatorResource::collection(
+        $operatorOptions = Cache::remember('operator_options_' . auth()->user()->operator_id, $ttl, fn() => OperatorResource::collection(
             Operator::orderBy('name')->get()
         )->resolve());
 
@@ -3582,10 +3591,19 @@ class VendController extends Controller
         $request->date_from = $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
         $request->date_to = $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
 
+        // Keep the export in sync with the on-screen table (and the Sales
+        // Transactions page): exclude testing machines and PENDING/REFUNDED
+        // gateway rows.
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
+            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int)$v)->all()
+        );
+
         $rows = VendTransaction::query()
             ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->filterTransactionIndex($request, true)
+            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->select([
                 DB::raw('DATE(vend_transactions.transaction_datetime) AS transaction_date'),
                 'vend_transactions.payment_method_id',
