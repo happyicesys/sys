@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\AppendsUnreportedGatewayCsvRows;
 use App\Models\Operator;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
@@ -20,7 +21,7 @@ use Illuminate\Queue\SerializesModels;
 
 class ExportVendTransactionCsv implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, AppendsUnreportedGatewayCsvRows;
 
     public $tries = 1;
 
@@ -298,6 +299,9 @@ class ExportVendTransactionCsv implements ShouldQueue
                     }
                 });
 
+            // Append dispensed-but-unreported gateway revenue so the CSV total
+            // tallies with the dashboard "Total Sales" (from the cutoff onward).
+            $this->appendUnreportedGatewayRows($stream, $request, $user);
 
             rewind($stream);
 

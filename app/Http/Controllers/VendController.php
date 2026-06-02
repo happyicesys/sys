@@ -2724,40 +2724,12 @@ class VendController extends Controller
         //   (status 2 = approved and NOT refunded(98)/declined(99)).
         // Scope matches this card: same operators + date window (+ machine /
         // customer when filtered) and the same testing-machine exclusion.
+        // Only counted from PaymentGatewayLog::UNREPORTED_GATEWAY_CUTOFF onward
+        // (default true) so periods before that date stay aligned with prior
+        // accounting exports. Filters mirrored inside the scope so this headline
+        // and the CSV export count exactly the same rows.
         $unreportedGatewayAmount = PaymentGatewayLog::query()
-            ->where('payment_gateway_logs.status', PaymentGatewayLog::STATUS_APPROVE)
-            ->where('payment_gateway_logs.is_dispensed', true)
-            ->whereDoesntHave('vendTransaction')
-            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('payment_gateway_logs.vend_id', $testingVendIds))
-            ->when($request->operators, function ($q) use ($request) {
-                $ops = (array) $request->operators;
-                if (!in_array('all', $ops, true)) {
-                    $q->whereHas('operatorPaymentGateway', fn($sub) => $sub->whereIn('operator_id', $ops));
-                }
-            })
-            ->when($request->date_from, fn($q, $search) => $q->where('payment_gateway_logs.approved_at', '>=', $search))
-            ->when($request->date_to, fn($q, $search) => $q->where('payment_gateway_logs.approved_at', '<=', $search))
-            ->when($request->codes, function ($q, $search) {
-                if (strpos($search, ',') !== false) {
-                    $codes = array_map('trim', explode(',', $search));
-                    $q->whereHas('vend', fn($sub) => $sub->whereIn('code', $codes));
-                } else {
-                    $q->whereHas('vend', fn($sub) => $sub->where('code', 'LIKE', "%{$search}%"));
-                }
-            })
-            ->when($request->customer, function ($q, $search) {
-                if (strpos($search, '-')) {
-                    $parts = explode('-', $search, 2);
-                    $q->whereHas('vend.customer', fn($sub) => $sub
-                        ->where('virtual_customer_prefix', $parts[0])
-                        ->where('virtual_customer_code', $parts[1]));
-                } else {
-                    $q->whereHas('vend.customer', fn($sub) => $sub
-                        ->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                        ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere(DB::raw('lower(name)'), 'LIKE', '%' . strtolower($search) . '%'));
-                }
-            })
+            ->unreportedDispensed($request, $testingVendIds)
             ->sum('payment_gateway_logs.amount');
 
         // vend_transactions.amount is in minor units (cents); gateway log

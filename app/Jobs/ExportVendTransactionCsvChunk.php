@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\AppendsUnreportedGatewayCsvRows;
 use App\Models\Operator;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
@@ -22,7 +23,7 @@ use Illuminate\Queue\SerializesModels;
 
 class ExportVendTransactionCsvChunk implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, AppendsUnreportedGatewayCsvRows;
 
     public $tries = 1;
     public $timeout = 1800; // 30-minute hard cap
@@ -331,7 +332,11 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                     }
                 });
 
-
+            // Append dispensed-but-unreported gateway revenue once (first part
+            // only) so the combined zip tallies with the dashboard "Total Sales".
+            if ((int) $this->chunkIndex === 0) {
+                $this->appendUnreportedGatewayRows($stream, $request, $user);
+            }
 
             rewind($stream);
 
