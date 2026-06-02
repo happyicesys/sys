@@ -166,8 +166,19 @@ class CustomerSummaryAggregator
      *   period_end = $asOf, is_current_month = true.
      *
      * Idempotent — safe to run multiple times for the same month.
+     *
+     * $forceSingleRow (one-off backfill mode):
+     *   - Skips the mid-month contract SEGMENTATION pass entirely → every
+     *     customer gets exactly ONE whole-month row computed from their CURRENT
+     *     contract values (the customers.contract_* columns).
+     *   - Bypasses the locked-row preservation → locked rows in the month are
+     *     wiped and rebuilt too. Use ONLY when you explicitly want to treat
+     *     today's setup as the new latest and overwrite history.
+     *   - Stamps segmentation_overridden = true on every inserted row, so the
+     *     nightly aggregator will NOT re-split those months later.
+     *   Default false → preserves existing behaviour for nightly + ad-hoc runs.
      */
-    public static function persistMonth(CarbonInterface $reference, ?CarbonInterface $asOf = null): int
+    public static function persistMonth(CarbonInterface $reference, ?CarbonInterface $asOf = null, bool $forceSingleRow = false): int
     {
         $monthStart = Carbon::parse($reference)->startOfMonth();
         $monthEndCalendar = Carbon::parse($reference)->endOfMonth()->startOfDay();
@@ -305,65 +316,87 @@ class CustomerSummaryAggregator
         // never lockable, so nightly current-month runs see an empty set and
         // behave exactly as before; this only matters for explicit backfills
         // over historical months.)
-        $lockedCustomerIds = CustomerPeriodSummary::query()
-            ->where('year_month', $monthStart->toDateString())
-            ->whereNotNull('locked_at')
-            ->pluck('customer_id')
-            ->map(fn ($v) => (int) $v)
-            ->all();
-        $lockedCustomerIdSet = array_flip($lockedCustomerIds);
+        //
+        // $forceSingleRow short-circuits this: a one-off backfill that wants
+        // today's setup applied to every row treats no row as locked and
+        // overwrites them all.
+        if ($forceSingleRow) {
+            $lockedCustomerIds = [];
+            $lockedCustomerIdSet = [];
+        } else {
+            $lockedCustomerIds = CustomerPeriodSummary::query()
+                ->where('year_month', $monthStart->toDateString())
+                ->whereNotNull('locked_at')
+                ->pluck('customer_id')
+                ->map(fn ($v) => (int) $v)
+                ->all();
+            $lockedCustomerIdSet = array_flip($lockedCustomerIds);
+        }
 
         // ── Mid-month contract SEGMENTATION setup ──────────────────────────
         // A month whose segments the user explicitly MERGED stays single-row
         // (recomputed under the latest contract) — the aggregator must NOT
         // re-split it. Collect those customers and preserve the flag on
         // re-insert.
-        $overriddenCustomerIds = CustomerPeriodSummary::query()
-            ->where('year_month', $monthStart->toDateString())
-            ->where('segmentation_overridden', true)
-            ->pluck('customer_id')
-            ->map(fn ($v) => (int) $v)
-            ->all();
-        $overriddenSet = array_flip($overriddenCustomerIds);
+        //
+        // $forceSingleRow short-circuits the whole segmentation pass: every
+        // customer gets a single whole-month row regardless of mid-month
+        // contract changes, and every inserted row is stamped overridden=true
+        // so future nightly runs leave them merged.
+        if ($forceSingleRow) {
+            $overriddenCustomerIds = [];
+            $overriddenSet = [];
+            $inMonthChangeCustomerIds = [];
+            $segmentCandidateSet = [];
+            $candidateVersions = [];
+        } else {
+            $overriddenCustomerIds = CustomerPeriodSummary::query()
+                ->where('year_month', $monthStart->toDateString())
+                ->where('segmentation_overridden', true)
+                ->pluck('customer_id')
+                ->map(fn ($v) => (int) $v)
+                ->all();
+            $overriddenSet = array_flip($overriddenCustomerIds);
 
-        // Customers whose contract changed strictly INSIDE this month's window
-        // (a change effective on/before monthStart applies to the whole month →
-        // no split). Only these can ever produce more than one segment, so the
-        // common case stays exactly as before (one batched pass, single row).
-        $monthStartDay = $monthStart->copy()->startOfDay();
-        $windowEndForChanges = $periodEnd->copy()->endOfDay();
-        $inMonthChangeCustomerIds = DB::table('customer_contract_logs')
-            ->whereNotNull('customer_id')
-            ->where('effective_from', '>', $monthStartDay)
-            ->where('effective_from', '<=', $windowEndForChanges)
-            ->distinct()
-            ->pluck('customer_id')
-            ->map(fn ($v) => (int) $v)
-            ->all();
-
-        $segmentCandidateSet = [];
-        foreach ($inMonthChangeCustomerIds as $cid) {
-            // Locked rows are frozen; overridden months stay merged.
-            if (!isset($lockedCustomerIdSet[$cid]) && !isset($overriddenSet[$cid])) {
-                $segmentCandidateSet[$cid] = true;
-            }
-        }
-
-        // Contract versions overlapping this month for the candidates only —
-        // one batched query. Drives per-segment bounds + contract resolution.
-        $candidateVersions = [];
-        if (!empty($segmentCandidateSet)) {
-            $versionRows = DB::table('customer_contract_logs')
-                ->whereIn('customer_id', array_keys($segmentCandidateSet))
+            // Customers whose contract changed strictly INSIDE this month's window
+            // (a change effective on/before monthStart applies to the whole month →
+            // no split). Only these can ever produce more than one segment, so the
+            // common case stays exactly as before (one batched pass, single row).
+            $monthStartDay = $monthStart->copy()->startOfDay();
+            $windowEndForChanges = $periodEnd->copy()->endOfDay();
+            $inMonthChangeCustomerIds = DB::table('customer_contract_logs')
+                ->whereNotNull('customer_id')
+                ->where('effective_from', '>', $monthStartDay)
                 ->where('effective_from', '<=', $windowEndForChanges)
-                ->where(function ($q) use ($monthStartDay) {
-                    $q->whereNull('effective_to')->orWhere('effective_to', '>', $monthStartDay);
-                })
-                ->orderBy('customer_id')
-                ->orderBy('effective_from')
-                ->get();
-            foreach ($versionRows as $vrow) {
-                $candidateVersions[(int) $vrow->customer_id][] = $vrow;
+                ->distinct()
+                ->pluck('customer_id')
+                ->map(fn ($v) => (int) $v)
+                ->all();
+
+            $segmentCandidateSet = [];
+            foreach ($inMonthChangeCustomerIds as $cid) {
+                // Locked rows are frozen; overridden months stay merged.
+                if (!isset($lockedCustomerIdSet[$cid]) && !isset($overriddenSet[$cid])) {
+                    $segmentCandidateSet[$cid] = true;
+                }
+            }
+
+            // Contract versions overlapping this month for the candidates only —
+            // one batched query. Drives per-segment bounds + contract resolution.
+            $candidateVersions = [];
+            if (!empty($segmentCandidateSet)) {
+                $versionRows = DB::table('customer_contract_logs')
+                    ->whereIn('customer_id', array_keys($segmentCandidateSet))
+                    ->where('effective_from', '<=', $windowEndForChanges)
+                    ->where(function ($q) use ($monthStartDay) {
+                        $q->whereNull('effective_to')->orWhere('effective_to', '>', $monthStartDay);
+                    })
+                    ->orderBy('customer_id')
+                    ->orderBy('effective_from')
+                    ->get();
+                foreach ($versionRows as $vrow) {
+                    $candidateVersions[(int) $vrow->customer_id][] = $vrow;
+                }
             }
         }
 
@@ -388,7 +421,7 @@ class CustomerSummaryAggregator
             // location_earning_cents below.
             'is_external_subsidize',
             'external_subsidize_amount',
-        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $jobCountByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, $lockedCustomerIdSet, $overriddenSet, &$payloads) {
+        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $jobCountByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, $lockedCustomerIdSet, $overriddenSet, $forceSingleRow, &$payloads) {
             foreach ($customers as $customer) {
                 // Never regenerate a locked row — it stays as the user froze it.
                 if (isset($lockedCustomerIdSet[$customer->id])) {
@@ -456,7 +489,9 @@ class CustomerSummaryAggregator
                     'period_end' => $periodEnd->toDateString(),
                     'is_current_month' => $isCurrentMonth,
                     'segment_index' => 0,
-                    'segmentation_overridden' => isset($overriddenSet[$customer->id]),
+                    // force-single-row mode marks every row as overridden so the
+                    // nightly aggregator won't try to re-split them later.
+                    'segmentation_overridden' => $forceSingleRow ? true : isset($overriddenSet[$customer->id]),
                     'as_of_date' => ($isCurrentMonth ? $asOf : $monthEndCalendar)->toDateString(),
                     'sales_cents' => $salesCents,
                     'gross_earning_cents' => $grossEarningCents,

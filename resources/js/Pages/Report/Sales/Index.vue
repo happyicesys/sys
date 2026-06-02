@@ -313,7 +313,7 @@
                       Count (Success Only)<template v-if="showProductErrorCol"><br><span class="font-normal text-xs text-gray-500">(% of overall)</span></template>
                     </TableHeadSort>
                     <TableHeadSort v-if="showProductErrorCol" modelName="error_count_no_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_no_4_5')">
-                      Count (Error #3, #6, #7, #9)<br>Likely Stock Lost<br><span class="font-normal text-xs" title="Error Rate = Likely Stock Lost ÷ (Success + Likely Stock Lost).&#10;Green = lower than overall&#10;Red = higher than overall">(Error Rate)&nbsp;ⓘ</span>
+                      Count (Error #3, #6, #7, #9)<br>Likely Stock Lost<br><span class="font-normal text-xs" v-tooltip="{ content: 'Error Rate = Likely Stock Lost ÷ (Success + Likely Stock Lost).<br>Green = lower than overall<br>Red = higher than overall', html: true }">(Error Rate)&nbsp;ⓘ</span>
                     </TableHeadSort>
                     <TableHeadSort v-if="showProductErrorCol" modelName="error_count_4_5" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('error_count_4_5')">
                       Count (Error #4, #5)<br>Unlikely Stock Lost as Motor Not Turning
@@ -325,7 +325,7 @@
                       Channel Availability<br><span class="font-normal text-xs">(In-stock channels × days)</span>
                     </TableHeadSort>
                     <TableHeadSort v-if="showProductErrorCol" modelName="avg_daily_per_channel" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('avg_daily_per_channel')">
-                      Average Daily Count<br><span title="Average Daily Count per Channel = Success count ÷ Channel Availability.&#10;Green = higher than overall&#10;Red = lower than overall">per Channel&nbsp;ⓘ</span>
+                      Average Daily Count<br><span class="font-normal text-xs" v-tooltip="{ content: 'Average Daily Count per Channel = Success count ÷ Channel Availability.<br>Green = higher than overall<br>Red = lower than overall', html: true }">per Channel&nbsp;ⓘ</span>
                     </TableHeadSort>
                     <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount')">
                       Amount
@@ -390,7 +390,7 @@
 
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ item.count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
-                        <div v-if="showProductErrorCol" class="text-xs text-gray-500">({{ formatPercent(pctOfOverall(item.count)) }})</div>
+                        <div v-if="showProductErrorCol" class="text-xs text-gray-700">({{ formatPercent(pctOfOverall(item.count)) }})</div>
                       </TableData>
                       <TableData v-if="showProductErrorCol" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ (item.error_count_no_4_5 || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
@@ -457,6 +457,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import { ref, onMounted, computed, watch } from 'vue';
+import { vTooltip } from 'floating-vue';
 
 const props = defineProps({
   autoLoad: Boolean,

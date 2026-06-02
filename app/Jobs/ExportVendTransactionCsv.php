@@ -286,7 +286,10 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 $txn->location_type_name,
                                 $txn->operator_code,
                                 '',
-                                '',
+                                // Inherit the parent's refund flag so item rows of a
+                                // refunded multiple-purchase get filtered out together
+                                // with the parent (keeps Amount/Breakdown columns tallied).
+                                $txn->is_refunded ? 'Yes' : '',
                                 $txn->is_multiple ? 'Yes' : 'No',
                                 0,
                                 $txn->interface_type,

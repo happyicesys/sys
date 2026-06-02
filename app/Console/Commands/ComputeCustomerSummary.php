@@ -41,7 +41,8 @@ class ComputeCustomerSummary extends Command
         {--with-gp-metrics : Also rebuild gp_metrics for the range BEFORE the summary (chained per month)}
         {--gp-chunk=1000 : Chunk size for gp_metrics inserts when --with-gp-metrics is used}
         {--chunk= : Dispatch at most N months per invocation, save progress, resume on next run. Default 200.}
-        {--reset : Wipe the saved progress watermark for this range (start over from rangeStart).}';
+        {--reset : Wipe the saved progress watermark for this range (start over from rangeStart).}
+        {--force-single-row : One-off backfill mode. Skips mid-month contract segmentation, IGNORES locked rows (overwrites them), and stamps segmentation_overridden=true on every inserted row so future nightly runs leave them merged. --sync only.}';
 
     protected $description = 'Aggregate customer_period_summaries from gp_metrics + customer contract details';
 
@@ -68,17 +69,42 @@ class ComputeCustomerSummary extends Command
 
         $withGpMetrics = (bool) $this->option('with-gp-metrics');
         $gpChunk = (int) ($this->option('gp-chunk') ?: 1000);
+        $forceSingleRow = (bool) $this->option('force-single-row');
+
+        // --force-single-row is destructive (it wipes locked rows in range) and
+        // only applies through the sync paths below. Refuse to silently no-op
+        // when paired with the queued path.
+        if ($forceSingleRow && !$this->option('sync')) {
+            $this->error('--force-single-row requires --sync (the queued path does not support it).');
+            return self::FAILURE;
+        }
 
         $this->info(sprintf(
-            'Customer Summary aggregation: %s → %s (as_of=%s, sync=%s, queue=%s, backfill=%s, with_gp_metrics=%s)',
+            'Customer Summary aggregation: %s → %s (as_of=%s, sync=%s, queue=%s, backfill=%s, with_gp_metrics=%s, force_single_row=%s)',
             $rangeStart->format('Y-m'),
             $rangeEnd->format('Y-m'),
             $asOf->toDateString(),
             $this->option('sync') ? 'yes' : 'no',
             $queue,
             $isBackfill ? 'yes' : 'no',
-            $withGpMetrics ? 'yes' : 'no'
+            $withGpMetrics ? 'yes' : 'no',
+            $forceSingleRow ? 'yes' : 'no'
         ));
+
+        // Force-single-row blows away locked rows for every customer in every
+        // month of the range. Surface this loudly and ask for confirmation,
+        // unless --no-interaction is passed.
+        if ($forceSingleRow) {
+            $this->warn(sprintf(
+                '⚠  --force-single-row will WIPE every customer_period_summaries row from %s to %s (INCLUDING locked rows) and rebuild them from each customer\'s CURRENT contract values.',
+                $rangeStart->format('Y-m'),
+                $rangeEnd->format('Y-m')
+            ));
+            if (!$this->confirm('Continue?', false)) {
+                $this->comment('Aborted.');
+                return self::SUCCESS;
+            }
+        }
 
         // --with-gp-metrics + --sync: run everything inline. Days within a
         // month process before that month's summary; months are sequential.
@@ -98,7 +124,7 @@ class ComputeCustomerSummary extends Command
                     $day->addDay();
                 }
                 $this->info(' - sync customer_summary ' . $cursor->format('Y-m'));
-                CustomerSummaryAggregator::persistMonth($cursor->copy(), $asOf);
+                CustomerSummaryAggregator::persistMonth($cursor->copy(), $asOf, $forceSingleRow);
                 $cursor->addMonthNoOverflow();
             }
             $this->info('Done.');
@@ -112,7 +138,7 @@ class ComputeCustomerSummary extends Command
             $cursor = $rangeStart->copy();
             while ($cursor->lte($rangeEnd)) {
                 $this->info(' - sync ' . $cursor->format('Y-m'));
-                CustomerSummaryAggregator::persistMonth($cursor->copy(), $asOf);
+                CustomerSummaryAggregator::persistMonth($cursor->copy(), $asOf, $forceSingleRow);
                 $cursor->addMonthNoOverflow();
             }
             $this->info('Done.');
