@@ -628,45 +628,109 @@
 				</div>
 			</div>
 			<h3 v-if="hasSearched" class="mt-4 text-sm font-semibold text-gray-700">Last 30 days</h3>
-			<dl v-if="hasSearched" class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+			<dl v-if="hasSearched" class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 items-start">
+				<!-- Each card shows two figures: Total (sum over the rows on this
+				     page) and Avg/VM (Total ÷ number of machines = vends.data.length).
+				     vmCount guards divide-by-zero. -->
+				<!-- 1. Stock-in Value $ (was "Total Stock In") -->
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Total Stock In</dt>
-					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+					<dt class="truncate text-sm font-medium text-gray-500">Stock-in Value $</dt>
+					<dd class="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-gray-900">
 						{{totals['thirthyDaysStockIn'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
+					<dd class="mt-2 flex items-baseline justify-between border-t border-gray-200 pt-2">
+						<span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Avg / VM</span>
+						<span class="text-sm font-semibold tabular-nums text-gray-700">{{ (totals['thirthyDaysStockIn'] / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}</span>
+					</dd>
 				</div>
+				<!-- 2. Sales $ (was "Total Sales") -->
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Total Sales</dt>
-					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+					<dt class="truncate text-sm font-medium text-gray-500">Sales $</dt>
+					<dd class="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-gray-900">
 						{{totals['thirtyDays'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
-				</div>
-				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Avg Sales per VM</dt>
-					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-						{{(totals['thirtyDays']/vends.meta.to ? totals['thirtyDays']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+					<dd class="mt-2 flex items-baseline justify-between border-t border-gray-200 pt-2">
+						<span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Avg / VM</span>
+						<span class="text-sm font-semibold tabular-nums text-gray-700">{{ (totals['thirtyDays'] / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}</span>
 					</dd>
 				</div>
+				<!-- 3. VendEarning = Gross Earning − Location Fees (mirrors Site
+				     Summary "Total Vend Earnings"; was the "Total Vend Earning"
+				     card, here promoted ahead of LocEarning). -->
 				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Avg Daily Sales per VM</dt>
-					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-						{{(totals['thirthyDaysAvg']/vends.meta.to ? totals['thirthyDaysAvg']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-					</dd>
-				</div>
-				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Total Gross Earning</dt>
-					<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-						{{(totals['thirtyDaysGrossEarning'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-					</dd>
-				</div>
-				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-					<dt class="truncate text-sm font-medium text-gray-500">Total Vend Earning</dt>
+					<dt class="truncate text-sm font-medium text-gray-500">VendEarning</dt>
 					<dd
-						class="mt-1 text-2xl font-semibold tracking-normal"
+						class="mt-1 text-2xl font-semibold tracking-tight tabular-nums"
 						:class="(totals['thirtyDaysVendingEarning'] || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
 					>
 						{{(totals['thirtyDaysVendingEarning'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
 					</dd>
+					<dd class="mt-2 flex items-baseline justify-between border-t border-gray-200 pt-2">
+						<span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Avg / VM</span>
+						<span class="text-sm font-semibold tabular-nums text-gray-700">{{ ((totals['thirtyDaysVendingEarning'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}</span>
+					</dd>
+				</div>
+				<!-- 4. LocEarning = Location Fees total (mirrors Site Summary
+				     "Total Location Fees"). Emerald when negative = subsidy. -->
+				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+					<dt class="truncate text-sm font-medium text-gray-500">LocEarning</dt>
+					<dd
+						class="mt-1 text-2xl font-semibold tracking-tight tabular-nums"
+						:class="(totals['thirtyDaysLocationFees'] || 0) < 0 ? 'text-emerald-700' : 'text-gray-900'"
+					>
+						{{(totals['thirtyDaysLocationFees'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+					</dd>
+					<dd class="mt-2 flex items-baseline justify-between border-t border-gray-200 pt-2">
+						<span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Avg / VM</span>
+						<span class="text-sm font-semibold tabular-nums text-gray-700">{{ ((totals['thirtyDaysLocationFees'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}</span>
+					</dd>
+				</div>
+				<!-- 5. # of Job done = completed ops_job_items L30d (was "Avg
+				     Daily Sales per VM"). Total = integer count; Avg/VM may be
+				     fractional so show up to 1 decimal. -->
+				<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+					<dt class="truncate text-sm font-medium text-gray-500"># of Job done</dt>
+					<dd class="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-gray-900">
+						{{(totals['thirtyDaysJobsDone'] || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+					</dd>
+					<dd class="mt-2 flex items-baseline justify-between border-t border-gray-200 pt-2">
+						<span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Avg / VM</span>
+						<span class="text-sm font-semibold tabular-nums text-gray-700">{{ ((totals['thirtyDaysJobsDone'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 1}) }}</span>
+					</dd>
+				</div>
+				<!-- 6. Current — snapshot health of the filtered fleet (averages
+				     over all rows on the page). Distinct accent (white bg + ring)
+				     so it reads as a different aggregation from the L30D money
+				     cards. Driven by the currentStats computed. -->
+				<div class="overflow-hidden rounded-lg bg-white ring-1 ring-gray-200 mt-1 px-4 py-3 shadow md:block col-span-2 sm:col-span-2 lg:col-span-2">
+					<dt class="truncate text-sm font-semibold text-gray-700">Current</dt>
+					<div class="mt-2 divide-y divide-gray-100">
+						<!-- Stock Qty Bal rate -->
+						<div class="flex items-baseline justify-between py-1">
+							<span class="text-xs font-medium text-gray-500">Stock Qty Bal</span>
+							<span class="text-sm font-semibold tabular-nums text-gray-800">{{ currentStats.stockQtyBal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</span>
+						</div>
+						<!-- Stock SKU Bal rate -->
+						<div class="flex items-baseline justify-between py-1">
+							<span class="text-xs font-medium text-gray-500">Stock SKU Bal</span>
+							<span class="text-sm font-semibold tabular-nums text-gray-800">{{ currentStats.stockSkuBal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</span>
+						</div>
+						<!-- Today Error rate -->
+						<div class="flex items-baseline justify-between py-1">
+							<span class="text-xs font-medium text-gray-500">Today Error</span>
+							<span class="text-sm font-semibold tabular-nums" :class="currentStats.todayError >= 3 ? 'text-red-700' : 'text-gray-800'">{{ currentStats.todayError.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</span>
+						</div>
+						<!-- Rate of Avg Sales/Day ≥ L30D (green = trending up) -->
+						<div class="flex items-baseline justify-between py-1">
+							<span class="text-xs font-medium text-gray-500">Sales ≥ L30D</span>
+							<span class="text-sm font-semibold tabular-nums text-green-700">{{ currentStats.greenPct.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}% <span class="text-[11px] font-normal text-gray-400">({{ currentStats.greenCount }}/{{ currentStats.greenTotal }})</span></span>
+						</div>
+						<!-- # of Refillable > 150 -->
+						<div class="flex items-baseline justify-between py-1">
+							<span class="text-xs font-medium text-gray-500">Refill &gt; 150</span>
+							<span class="text-sm font-semibold tabular-nums text-gray-800">{{ currentStats.refillableOver150 }} <span class="text-[11px] font-normal text-gray-400">/ {{ currentStats.total }}</span></span>
+						</div>
+					</div>
 				</div>
 			</dl>
 	</div>
@@ -2800,7 +2864,7 @@ font-size:13px;
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
 	import SingleSortItem from '@/Components/SingleSortItem.vue';
-	import { ref, onMounted, defineAsyncComponent, watch, nextTick } from 'vue';
+	import { ref, computed, onMounted, defineAsyncComponent, watch, nextTick } from 'vue';
 	import { router, Link, Head, usePage } from '@inertiajs/vue3';
 	import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 	import moment from 'moment';
@@ -2845,6 +2909,83 @@ font-size:13px;
 			vendPrefixOptions: Object,
 			zoneOptions: Object,
 	})
+
+	// Number of machines (VMs) backing the "Avg/VM" figure on the L30d
+	// aggregate cards. The totals are summed over the rows on the current
+	// page, so the per-machine average divides by the row count. Guard against
+	// 0 so the cards never render NaN/Infinity before a search returns rows.
+	const vmCount = computed(() => {
+		const n = props.vends?.data?.length ?? 0;
+		return n > 0 ? n : 1;
+	});
+
+	// "Current" snapshot card — averages/counts over EVERY machine in the
+	// current filter (props.vends.data, the page rows, default ~50). All five
+	// figures are derived from per-row fields already present on each vend, so
+	// this is a pure client-side computed (no backend/SQL touched).
+	//   - stockQtyBal: avg of balance_percent (qty/capacity %)
+	//   - stockSkuBal: avg of (100 − out_of_stock_sku_percent) (in-stock SKU %)
+	//   - todayError:  avg of totals_json.one_day_error_rate (%)
+	//   - greenCount/greenPct: share of machines trending up — L30D daily avg
+	//     ≥ Avg Sales/Day. Mirrors the table's green rule at the Avg Sales/Day
+	//     cell EXACTLY (virtual_..._thirty_days_amount_average ≥
+	//     vend_records_amount_average_day / 100), so the card agrees with the
+	//     per-row colour.
+	//   - refillableOver150: count of machines whose Refillable Value
+	//     (actual_stock_in_value, already in currency units) exceeds a FIXED 150.
+	const currentStats = computed(() => {
+		const rows = props.vends?.data ?? [];
+		const n = rows.length;
+		const empty = { total: 0, stockTotal: 0, errTotal: 0, stockQtyBal: 0, stockSkuBal: 0, todayError: 0, greenCount: 0, greenPct: 0, greenTotal: 0, refillableOver150: 0 };
+		if (!n) return empty;
+
+		// Each rate is averaged over the machines for which that metric is
+		// actually DEFINED — not blindly over all n rows. Mixing "missing → 0"
+		// across metrics is wrong: a machine with no channel data would count
+		// as 0% Qty-Bal but 100% SKU-Bal. So Qty/SKU-Bal divide by the count of
+		// rows that have vendChannelTotalsJson (stock data), and Today-Error by
+		// the count that actually reports one_day_error_rate. Refillable>150 is
+		// defined for every machine (no data = 0, simply not >150), so its
+		// denominator is the full filtered count n.
+		let stockTotal = 0, sumQtyBal = 0, sumSkuBal = 0;
+		let errTotal = 0, sumErr = 0;
+		let greenTotal = 0, greenCount = 0;
+		let refillCount = 0;
+		for (const v of rows) {
+			if (v.vendChannelTotalsJson) {
+				stockTotal++;
+				sumQtyBal += Number(v.balance_percent ?? 0);
+				sumSkuBal += (100 - Number(v.out_of_stock_sku_percent ?? 0));
+			}
+			const json = v.vendTransactionTotalsJson;
+			if (json && 'one_day_error_rate' in json) {
+				errTotal++;
+				sumErr += Number(json.one_day_error_rate ?? 0);
+			}
+			// Only machines with an Avg Sales/Day figure can be classified
+			// up/down. Green mirrors the table's Avg Sales/Day colour rule
+			// EXACTLY: L30D daily avg (currency units) ≥ vend_records_amount_average_day/100.
+			if (json && 'vend_records_amount_average_day' in json) {
+				greenTotal++;
+				const l30d = Number(v.virtual_vend_records_thirty_days_amount_average ?? 0);
+				const avgDay = Number(json.vend_records_amount_average_day ?? 0) / 100;
+				if (l30d >= avgDay) greenCount++;
+			}
+			if (Number(v.actual_stock_in_value ?? 0) > 150) refillCount++;
+		}
+		return {
+			total: n,
+			stockTotal,
+			errTotal,
+			stockQtyBal: stockTotal > 0 ? sumQtyBal / stockTotal : 0,
+			stockSkuBal: stockTotal > 0 ? sumSkuBal / stockTotal : 0,
+			todayError: errTotal > 0 ? sumErr / errTotal : 0,
+			greenCount,
+			greenTotal,
+			greenPct: greenTotal > 0 ? (greenCount / greenTotal) * 100 : 0,
+			refillableOver150: refillCount,
+		};
+	});
 
 	const filters = ref({
 			account_manager_name: '',

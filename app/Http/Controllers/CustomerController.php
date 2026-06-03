@@ -436,7 +436,16 @@ class CustomerController extends Controller
         // For machine_id / machine_prefix sorting, attach a scalar subquery
         // that picks the latest-bound vend per customer (mirrors the
         // Customer::vend() relation: latest by begin_date, then created_at).
-        if ($isAggregated) {
+        // notes_updated_at is a CUSTOMER-level value (identical across all of a
+        // customer's monthly rows), so we can sort by it page-wide and still
+        // keep each customer's months contiguous using customer_id purely as a
+        // tie-breaker (applied after the sortKey block below). The Vue side's
+        // first-row-per-customer / striping logic is adjacency-based
+        // (isFirstRowForCustomer compares the previous row), so contiguity —
+        // not global customer_id order — is all it needs. For every OTHER sort
+        // key the legacy behaviour stands: cluster by customer_id first.
+        $clusterByCustomerFirst = $isAggregated && $sortKey !== 'notes_updated_at';
+        if ($clusterByCustomerFirst) {
             // Multi-month view: cluster a customer's months together so the
             // "Accumulate / Customer Tag" first-row-per-customer rendering
             // on the Vue side stays unambiguous, regardless of what column
@@ -576,11 +585,12 @@ class CustomerController extends Controller
             $nullsLastRaw($sortKey, $sortDirection);
         }
 
-        // Final tie-breaker: customer_id (in case the multi-month branch
-        // above didn't already apply it, e.g. single-month "current" view)
-        // + year_month DESC so a customer's most recent month sits at the
-        // top of their cluster.
-        if (!$isAggregated) {
+        // Final tie-breaker: customer_id (in any case the branch above didn't
+        // already apply it — single-month "current" view, or the multi-month
+        // notes_updated_at sort where customer_id is the tie-breaker that keeps
+        // each customer's months contiguous) + year_month DESC so a customer's
+        // most recent month sits at the top of their cluster.
+        if (!$clusterByCustomerFirst) {
             $summariesQuery->orderBy('customer_id', 'asc');
         }
         $summariesQuery->orderBy('year_month', 'desc');
@@ -1416,26 +1426,30 @@ class CustomerController extends Controller
     /**
      * Flag, per visible row, which contract terms changed during that period
      * versus the previous period — drives the tiny "New" badge beside Placement
-     * Contract Type, Contract End Date, Auto Renewal and Notice Period on the
-     * Customer Summary page.
+     * Contract Type / External Subsidize on the Customer Summary page.
      *
-     * Source of truth is customer_contract_logs — the append-only, effective-
-     * dated history written every time a customer's contract is edited (see
-     * the contract-log write in CustomerController::update). For each row we
-     * resolve the contract version in effect at:
-     *   - the END of this period   (period_end, end-of-day), and
-     *   - the END of the previous period (the instant before period_start),
-     * then compare each field group. This is reliable regardless of how the
-     * period summary rows themselves snapshot contract fields (which the
-     * aggregator overwrites for unlocked months), because the log is never
-     * rewritten.
+     * The badge must track WHAT IS ON SCREEN. Each row's displayed Placement
+     * Contract Detail is lock-aware (mirrors CustomerPeriodSummaryResource):
+     *   - a LOCKED row, or a SEGMENT row (contract_log_id set), shows its
+     *     frozen per-period snapshot, and
+     *   - an unlocked whole-month row shows the customer's LIVE contract.
+     * So we resolve the as-displayed contract for each row and compare it to
+     * the customer's immediately-preceding period (also resolved as-displayed).
+     * The badge then lands exactly where the value visibly changes.
      *
-     * No baseline (the contract had no version in effect in the previous
-     * period — e.g. a brand-new customer) → no badge, so the very first
-     * contract isn't flagged as a change.
+     * This is why we do NOT key off customer_contract_logs effective dates: a
+     * contract edit is stamped at the wall-clock edit time, but it visually
+     * takes effect from the START of the oldest still-unlocked period (every
+     * unlocked period re-derives live). Resolving by edit time put the badge on
+     * the wrong period (the current month) and missed the locked→unlocked
+     * boundary where the number actually changes.
      *
-     * Cost: one batched query per page pulling every visible customer's
-     * contract versions; a linear scan resolves the two as-of versions per row.
+     * No preceding period (the very first period on record for the customer)
+     * → no baseline → no badge, so a brand-new customer isn't flagged.
+     *
+     * Cost: one batched query per page pulling the visible customers' period
+     * summaries (light columns), grouped + ordered so a linear scan finds each
+     * row's previous period regardless of pagination.
      */
     protected function attachContractChangeFlags($collection): void
     {
@@ -1459,104 +1473,120 @@ class CustomerController extends Controller
             return;
         }
 
-        // Every contract version for the visible customers, oldest first.
-        $versionsByCustomer = \App\Models\CustomerContractLog::query()
+        // null / '' / 0 all mean "no value" for these commission fields, so
+        // they compare EQUAL — a value2 of null vs 0 must NOT light a phantom
+        // "New" badge. A genuine change (0 → 80) is still detected.
+        $num = fn ($v) => ($v === null || $v === '') ? '0.00' : number_format((float) $v, 2, '.', '');
+        $str = fn ($v) => ($v === null || $v === '') ? null : (string) $v;
+
+        // Live (current) contract terms per customer, taken from the loaded
+        // customer relation — the same source the Resource uses to re-derive
+        // unlocked rows. Keyed by customer_id.
+        $liveByCustomer = [];
+        foreach ($collection as $row) {
+            $cid = $row->customer_id;
+            if ($cid === null || isset($liveByCustomer[$cid])) {
+                continue;
+            }
+            if ($row->relationLoaded('customer') && $row->customer) {
+                $c = $row->customer;
+                $liveByCustomer[$cid] = [
+                    'type' => $c->contract_commission_type,
+                    'val'  => $c->contract_commission_value,
+                    'val2' => $c->contract_commission_value2,
+                    'ps'   => $c->contract_ps_term,
+                    'sub'  => ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                        ? (float) $c->external_subsidize_amount : null,
+                ];
+            }
+        }
+
+        // The as-displayed contract terms for a summary row: locked rows and
+        // segment rows show their frozen snapshot; unlocked whole-month rows
+        // show the customer's live contract (falling back to the snapshot when
+        // the live terms aren't available).
+        $effective = function ($s) use ($liveByCustomer) {
+            $isLocked  = $s->locked_at !== null;
+            $isSegment = $s->contract_log_id !== null;
+
+            if (!$isLocked && !$isSegment && isset($liveByCustomer[$s->customer_id])) {
+                return $liveByCustomer[$s->customer_id];
+            }
+
+            return [
+                'type' => $s->contract_commission_type,
+                'val'  => $s->contract_commission_value,
+                'val2' => $s->contract_commission_value2,
+                'ps'   => $s->contract_ps_term,
+                // Snapshot external subsidize is stored in cents on the row.
+                'sub'  => $s->external_subsidize_cents !== null
+                    ? ((int) $s->external_subsidize_cents) / 100.0 : null,
+            ];
+        };
+
+        // Every period summary for the visible customers, ordered so a customer's
+        // rows (including same-month segments) read oldest → newest. Lets us find
+        // each row's immediately-preceding period even when pagination cut it off.
+        $summariesByCustomer = \App\Models\CustomerPeriodSummary::query()
             ->whereIn('customer_id', $customerIds)
             ->orderBy('customer_id')
-            ->orderBy('effective_from')
+            ->orderBy('period_start')
+            ->orderBy('period_end')
+            ->orderBy('id')
             ->get([
-                'customer_id', 'effective_from', 'effective_to',
+                'id', 'customer_id', 'period_start', 'period_end',
+                'locked_at', 'contract_log_id',
                 'contract_commission_type', 'contract_commission_value',
                 'contract_commission_value2', 'contract_ps_term',
-                'is_external_subsidize', 'external_subsidize_amount',
-                'contract_until', 'contract_auto_renewal', 'contract_notice_period',
+                'external_subsidize_cents',
             ])
             ->groupBy('customer_id');
 
-        $str = fn ($v) => ($v === null || $v === '') ? null : (string) $v;
-        // null / '' / 0 all mean "no value" for these commission fields, so
-        // they compare EQUAL — a version with value2 = null vs another with 0
-        // must NOT light a phantom "New" badge. A genuine change (0 → 80) is
-        // still detected.
-        $num = fn ($v) => ($v === null || $v === '') ? '0.00' : number_format((float) $v, 2, '.', '');
-        $date = fn ($v) => $v === null ? null : \Carbon\Carbon::parse($v)->toDateString();
-        $bool = fn ($v) => $v === null ? null : (bool) $v;
-        // Effective external subsidy of a version: the amount only counts when
-        // the toggle is on. "0" = no subsidy; any non-zero = subsidy present.
-        $effSub = fn ($v) => ($v !== null && (bool) $v->is_external_subsidize && $v->external_subsidize_amount !== null)
-            ? number_format((float) $v->external_subsidize_amount, 2, '.', '')
-            : '0.00';
-
-        // The contract version in effect at instant $moment (or null).
-        // A version covers [effective_from, effective_to); effective_to NULL = current.
-        $activeAt = function ($versions, $moment) {
-            $found = null;
-            foreach ($versions as $v) {
-                if ($v->effective_from !== null
-                    && $v->effective_from->lte($moment)
-                    && ($v->effective_to === null || $v->effective_to->gt($moment))) {
-                    $found = $v;
-                }
-            }
-            return $found;
-        };
-
         foreach ($collection as $row) {
             $cid = $row->customer_id;
-            $versions = $versionsByCustomer->get($cid);
+            $list = $summariesByCustomer->get($cid);
 
-            if ($cid === null || $versions === null || !$row->period_start || !$row->period_end) {
+            if ($cid === null || $list === null || !$row->period_start) {
                 $row->contract_diff = $default;
                 continue;
             }
 
-            $cur = $activeAt($versions, $row->period_end->copy()->endOfDay());
-            $prev = $activeAt($versions, $row->period_start->copy()->startOfDay()->subSecond());
+            // The entry immediately before this row in period order. The list
+            // is ordered, so the last entry seen before this row's id is the
+            // previous period (or previous segment within a split month).
+            $prev = null;
+            foreach ($list as $s) {
+                if ((int) $s->id === (int) $row->id) {
+                    break;
+                }
+                $prev = $s;
+            }
 
-            // Nothing was in effect the previous period. If a contract now
-            // exists (one was ADDED mid-stream — e.g. a no-contract customer
-            // signing a contract part-way through the month), that IS a change,
-            // so flag the placement badge. If there's still no contract on
-            // either side, nothing changed.
+            // No preceding period → no baseline → first period isn't flagged.
             if ($prev === null) {
-                $row->contract_diff = array_merge($default, [
-                    'placement_type' => $cur !== null && $cur->contract_commission_type !== null,
-                    // Subsidy newly present (nothing → a subsidy) counts as new.
-                    'external_subsidize' => $effSub($cur) !== '0.00',
-                ]);
+                $row->contract_diff = $default;
                 continue;
             }
 
-            $curType   = $cur ? $cur->contract_commission_type : null;
-            $curVal    = $cur ? $cur->contract_commission_value : null;
-            $curVal2   = $cur ? $cur->contract_commission_value2 : null;
-            $curPsTerm = $cur ? $cur->contract_ps_term : null;
-            $curUntil  = $cur ? $cur->contract_until : null;
-            $curRenew  = $cur ? $cur->contract_auto_renewal : null;
-            $curNotice = $cur ? $cur->contract_notice_period : null;
+            $cur     = $effective($row);
+            $prevEff = $effective($prev);
 
             $placementChanged =
-                $str($curType) !== $str($prev->contract_commission_type)
-                || $num($curVal) !== $num($prev->contract_commission_value)
-                || $num($curVal2) !== $num($prev->contract_commission_value2)
-                || $num($curPsTerm) !== $num($prev->contract_ps_term);
+                $str($cur['type']) !== $str($prevEff['type'])
+                || $num($cur['val'])  !== $num($prevEff['val'])
+                || $num($cur['val2']) !== $num($prevEff['val2'])
+                || $num($cur['ps'])   !== $num($prevEff['ps']);
 
-            $row->contract_diff = [
+            $row->contract_diff = array_merge($default, [
                 'placement_type' => $placementChanged,
-                // External Subsidize IS stored + displayed per-segment, so a
-                // genuine change (e.g. none → $90) is visible on screen and is
-                // flagged "New" beside the External Subsidize value.
-                'external_subsidize' => $effSub($cur) !== $effSub($prev),
-                // End date / auto-renewal / notice period are rendered as the
+                // External Subsidize is shown per row, so a genuine change
+                // (e.g. none → $90) is visible on screen and flagged "New".
+                'external_subsidize' => $num($cur['sub']) !== $num($prevEff['sub']),
+                // End date / auto-renewal / notice period render as the
                 // customer's LIVE value on every row and never change a figure
-                // in the row, so a log-history diff on them surfaces a "New"
-                // badge next to a value that looks identical on screen (it was
-                // firing on seeded end-date corrections). Only changes that are
-                // shown per-segment (commission / external subsidy) are flagged.
-                'contract_until' => false,
-                'auto_renewal' => false,
-                'notice_period' => false,
-            ];
+                // in the row, so diffing them would surface a "New" badge next
+                // to an identical-looking value. Left unflagged on purpose.
+            ]);
         }
     }
 
@@ -2790,6 +2820,11 @@ class CustomerController extends Controller
                 'site_alt_phone_number' => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
                 // Free-text remarks for the delivery address.
                 'address_remarks' => 'nullable|string|max:5000',
+                // CMS Linking ID — manually entered CMS person id. Must be
+                // unique so two sites can't link to the same CMS person, which
+                // would double-target API invoicing. Empty → null (nullable),
+                // so unlinked sites are unaffected.
+                'person_id' => 'nullable|integer|unique:customers,person_id',
             ];
             if (!$billingSame) {
                 // "Billing Address same as Delivery" is unchecked → the billing
@@ -2806,7 +2841,22 @@ class CustomerController extends Controller
             }
             $request->validate($rules);
 
-            $customer = Customer::create($request->all());
+            // Status drives the (now-derived) is_active mirror, same as update().
+            // The create form sends an integer status_id (defaults to Potential);
+            // fall back to Active when absent/invalid so the NOT NULL status_id
+            // column always gets a valid value, and keep is_active in sync so
+            // legacy infra reading the boolean stays correct.
+            $createData = $request->all();
+            $statusId = (isset($createData['status_id']) && $createData['status_id'] !== '' && $createData['status_id'] !== null)
+                ? (int) $createData['status_id']
+                : Customer::STATUS_ACTIVE;
+            if (!array_key_exists($statusId, Customer::STATUSES_MAPPING)) {
+                $statusId = Customer::STATUS_ACTIVE;
+            }
+            $createData['status_id'] = $statusId;
+            $createData['is_active'] = ($statusId === Customer::STATUS_ACTIVE);
+
+            $customer = Customer::create($createData);
 
             if ($request->contact and isset($request->contact['name']) and $request->contact['name']) {
                 $customer->contact()->updateOrCreate($request->contact);
@@ -3024,6 +3074,10 @@ class CustomerController extends Controller
                 'customer.site_alt_phone_number'           => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
                 // Free-text remarks for the delivery address.
                 'customer.address_remarks'                 => 'nullable|string|max:5000',
+                // CMS Linking ID — unique across customers (ignoring this row),
+                // so two sites can't link to the same CMS person. Empty → null
+                // (nullable), so unlinked sites are unaffected.
+                'customer.person_id'                       => 'nullable|integer|unique:customers,person_id,' . $customer->id,
             ];
 
             $request->validate($contractRules);

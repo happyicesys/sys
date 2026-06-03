@@ -1294,10 +1294,14 @@ class VendController extends Controller
             }
 
             // Accumulated (lifetime-to-date) Vending Earning per customer.
-            // SUM(location_earning_cents) from customer_period_summaries up to
-            // and including the current month. Single batched query per page —
-            // hits the (customer_id, year_month) unique index. Same pattern as
-            // CustomerController::attachAccumulatedVendingEarning.
+            // EFFECTIVE sum of vend earning from customer_period_summaries up to
+            // and including the current month: locked months (and segment rows)
+            // keep their frozen stored location_earning_cents; UNLOCKED whole-
+            // month rows are re-derived LIVE from the customer's current
+            // contract. This mirrors CustomerController::attachAccumulatedVendingEarning
+            // EXACTLY, so the Ops Dashboard matches the Customer Summary page the
+            // moment a contract is edited — a plain SUM(location_earning_cents)
+            // lagged behind until the unlocked months were re-snapshotted.
             $customerIds = collect($vends->items())
                 ->pluck('customer_id')
                 ->filter()
@@ -1310,13 +1314,62 @@ class VendController extends Controller
                 // so the displayed Accumulated VendEarning matches the Customer
                 // Summary page (and the sort subquery above).
                 $floor = \App\Http\Controllers\CustomerController::SUMMARY_FLOOR_DATE;
-                $accumSums = DB::table('customer_period_summaries')
-                    ->selectRaw('customer_id, SUM(location_earning_cents) AS accum')
+
+                // Every monthly row for these customers up to the current month.
+                $monthlyRows = DB::table('customer_period_summaries')
+                    ->select('customer_id', 'contract_log_id', 'locked_at', 'location_earning_cents', 'sales_cents', 'gross_earning_cents')
                     ->whereIn('customer_id', $customerIds)
                     ->where('year_month', '>=', $floor)
                     ->where('year_month', '<=', $through)
-                    ->groupBy('customer_id')
-                    ->pluck('accum', 'customer_id');
+                    ->get();
+
+                // Per-customer current contract + operator GST — used to
+                // re-derive the LIVE vend earning for unlocked whole-month rows.
+                $contractMap = DB::table('customers')
+                    ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+                    ->whereIn('customers.id', $customerIds)
+                    ->select(
+                        'customers.id',
+                        'customers.contract_commission_type',
+                        'customers.contract_commission_value',
+                        'customers.contract_commission_value2',
+                        'customers.contract_ps_term',
+                        'customers.is_external_subsidize',
+                        'customers.external_subsidize_amount',
+                        'operators.gst_vat_rate'
+                    )
+                    ->get()
+                    ->keyBy('id');
+
+                $accumSums = [];
+                foreach ($monthlyRows as $r) {
+                    $cid = $r->customer_id;
+                    $effectiveEarning = (int) $r->location_earning_cents; // locked / segment / fallback
+                    // Segment rows (contract_log_id set) keep their stored
+                    // per-segment earning; only unlocked WHOLE-month rows
+                    // re-derive live from the customer's current contract.
+                    if ($r->locked_at === null && $r->contract_log_id === null) {
+                        $c = $contractMap->get($cid);
+                        if ($c) {
+                            $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                            $liveLocFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                                $c->contract_commission_type,
+                                $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                                $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                                $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                                (int) $r->sales_cents,
+                                (int) $r->gross_earning_cents,
+                                $gstRatePct
+                            );
+                            $liveExtCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                                ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                                : 0;
+                            $effectiveEarning = (int) $r->gross_earning_cents - ($liveLocFeeCents - $liveExtCents);
+                        }
+                    }
+                    $accumSums[$cid] = ($accumSums[$cid] ?? 0) + $effectiveEarning;
+                }
+
                 foreach ($vends->items() as $vend) {
                     $vend->accumulate_vending_earning_cents = (int) ($accumSums[$vend->customer_id] ?? 0);
                 }
@@ -1439,6 +1492,22 @@ class VendController extends Controller
                             : 0;
                         return $grossEarningCents - ($locationFeeCents - $extSubCents);
                     }) / 100,
+                // Last 30d Location Fees (LocEarning) — sum of per-customer
+                // location_fees_cents already computed in the per-vend loop
+                // above. Mirrors the Customer/Site Summary "Total Location
+                // Fees" card (gross location fee, before External Subsidize).
+                'thirtyDaysLocationFees' => collect($vends->items())
+                    ->sum(function ($vend) {
+                        return $vend->location_fees_cents ?? 0;
+                    }) / 100,
+                // Last 30d # of Job Done — sum of completed ops_job_items per
+                // customer (last_thirty_days_jobs_done_count), attached for
+                // every row via the stock-in join/loadAggregates path. Integer
+                // count, not currency.
+                'thirtyDaysJobsDone' => collect($vends->items())
+                    ->sum(function ($vend) {
+                        return (int) ($vend->last_thirty_days_jobs_done_count ?? 0);
+                    }),
             ];
         } else {
             $vends = new LengthAwarePaginator([], 0, $perPage, 1, [
@@ -1453,6 +1522,8 @@ class VendController extends Controller
                 'thirthyDaysStockIn' => 0,
                 'thirtyDaysGrossEarning' => 0,
                 'thirtyDaysVendingEarning' => 0,
+                'thirtyDaysLocationFees' => 0,
+                'thirtyDaysJobsDone' => 0,
             ];
         }
 

@@ -32,6 +32,23 @@ class DashboardController extends Controller
 {
     use GetUserTimezone;
 
+    /**
+     * Monthly-sales achievement tiers (thresholds in dollars).
+     *
+     * This is the single source of truth for the popup's tier styling. The
+     * figure and each recent-month row are highlighted with the colour/weight
+     * of the highest tier whose threshold the amount meets or exceeds.
+     *
+     * Set a tier to `null` to disable it — a null tier is omitted from the API
+     * response and never applied on the front end. Tiers are evaluated highest
+     * first (gold → silver → bronze), so keep thresholds in ascending order.
+     */
+    public const MONTHLY_SALES_TIERS = [
+        'bronze' => null,
+        'silver' => 300000,
+        'gold' => 320000,
+    ];
+
     protected $weatherService;
 
     public function __construct(\App\Services\WeatherService $weatherService)
@@ -185,10 +202,16 @@ class DashboardController extends Controller
         // (AuthenticatedSessionController), so this flag resets on every fresh
         // login and survives in-session page navigation. Using the server session
         // instead of browser sessionStorage means logout→login re-shows it.
-        if ($request->session()->get('monthly_sales_popup_shown')) {
-            return response()->json(['show' => false]);
+        //
+        // A manual refresh (?refresh=1) bypasses the once-per-session gate so the
+        // user can re-pull the live figure on demand. It does NOT touch the
+        // session flag, so the auto-show-once behaviour is unaffected.
+        if (! $request->boolean('refresh')) {
+            if ($request->session()->get('monthly_sales_popup_shown')) {
+                return response()->json(['show' => false]);
+            }
+            $request->session()->put('monthly_sales_popup_shown', true);
         }
-        $request->session()->put('monthly_sales_popup_shown', true);
 
         $operatorIds = Operator::whereIn('code', ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'])
             ->pluck('id')
@@ -268,12 +291,16 @@ class DashboardController extends Controller
             ];
         }
 
+        // Only expose enabled tiers (drop any with a null threshold).
+        $tiers = array_filter(self::MONTHLY_SALES_TIERS, fn ($t) => $t !== null);
+
         return response()->json([
             'show' => true,
             'amount' => $total,
             'currency' => '$',
             'as_of' => $now->format('d M Y H:i'),
             'last_months' => $lastMonths,
+            'tiers' => (object) $tiers,
         ]);
     }
 

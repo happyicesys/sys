@@ -1366,10 +1366,16 @@ function syncCMSInvoices() {
       return;
   }
   form.value.post('/ops-jobs/' + opsJob.value.id + '/sync-cms-invoices', {
-    onSuccess: () => {
-      toast.success("Data Sent to CMS", {
-        timeout: 3000
-      });
+    onSuccess: (page) => {
+      // Prefer the server's flash so skipped (unlinked) sites are surfaced
+      // instead of a blanket "sent" toast. flash.error = some sites had no
+      // CMS Linking ID; flash.success = all eligible sites were queued.
+      const flash = page?.props?.flash || {}
+      if (flash.error) {
+        toast.error(flash.error, { timeout: 8000 })
+      } else {
+        toast.success(flash.success || "Data Sent to CMS", { timeout: 3000 })
+      }
     },
     preserveState: true,
     replace: true,

@@ -50,6 +50,20 @@
                 </div> -->
               </div>
 
+              <!-- CMS Linking ID — the CMS person id this site links to, used by
+                   "Create API Invoice". Editable; paste the "SYS Linking ID" shown
+                   on the matching CMS person page. -->
+              <div class="sm:col-span-6">
+                <FormInput v-model="form.person_id" :error="form.errors.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
+                  <span class="inline-flex items-center gap-2">
+                    CMS Linking ID
+                    <a v-if="form.person_id && cmsEndpoint" :href="cmsEndpoint + '/person/' + form.person_id + '/edit'" target="_blank" rel="noopener noreferrer" class="text-blue-600 text-xs font-normal underline">
+                      Open in CMS ↗
+                    </a>
+                  </span>
+                </FormInput>
+              </div>
+
               <!--
                 "Pull From CMS" create option disabled — we're moving toward
                 detaching the mark1↔CMS link. The Create flow is forced to
@@ -101,12 +115,12 @@
 
               <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
                 <!-- <div class="sm:col-span-2">
-                  <FormInput v-model="form.code" :error="form.errors.code" :disabled="form.person_id" placeholderStr="Cust Code">
+                  <FormInput v-model="form.code" :error="form.errors.code" placeholderStr="Cust Code">
                     Cust Code
                   </FormInput>
                 </div> -->
                 <div class="sm:col-span-5">
-                  <FormInput v-model="form.name" :error="form.errors.name" required="true" :disabled="form.person_id" placeholderStr="Site Name">
+                  <FormInput v-model="form.name" :error="form.errors.name" required="true" placeholderStr="Site Name">
                     Site Name
                   </FormInput>
                 </div>
@@ -195,7 +209,7 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
-              <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :disabled="customer.person_id" :apiEnabled="addressApiEnabled" :provider="mapProvider">
+              <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :apiEnabled="addressApiEnabled" :provider="mapProvider">
                 Postcode <span class="text-gray-400 font-normal">(key in to autofill)</span>
               </SearchAddressInput>
             </div>
@@ -205,17 +219,17 @@
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.block_num" :error="form.errors['address.block_num']" :disabled="customer.person_id" placeholderStr="Block Num">
+              <FormInput v-model="form.address.block_num" :error="form.errors['address.block_num']" placeholderStr="Block Num">
                 Block Num
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="lockAddressFields || !!customer.person_id" placeholderStr="Building Name">
+              <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="lockAddressFields" placeholderStr="Building Name">
                 Building Name
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="lockAddressFields || !!customer.person_id" placeholderStr="Street Name">
+              <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="lockAddressFields" placeholderStr="Street Name">
                 Street Name
               </FormInput>
             </div>
@@ -237,17 +251,17 @@
                  Stored directly on the customers table. Phone is plain text —
                  no country code (single-country localized deployment). -->
             <div class="sm:col-span-6">
-              <FormInput v-model="form.site_contact_person" :error="form.errors.site_contact_person" :disabled="customer.person_id" placeholderStr="Site Contact Person">
+              <FormInput v-model="form.site_contact_person" :error="form.errors.site_contact_person" placeholderStr="Site Contact Person">
                 Site Contact Person
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.site_phone_number" :error="form.errors.site_phone_number" :disabled="customer.person_id" placeholderStr="Site Phone Number">
+              <FormInput v-model="form.site_phone_number" :error="form.errors.site_phone_number" placeholderStr="Site Phone Number">
                 Site Phone Number
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.site_alt_phone_number" :error="form.errors.site_alt_phone_number" :disabled="customer.person_id" placeholderStr="Alt Site Phone Number">
+              <FormInput v-model="form.site_alt_phone_number" :error="form.errors.site_alt_phone_number" placeholderStr="Alt Site Phone Number">
                 Alt Site Phone Number
               </FormInput>
             </div>
@@ -255,7 +269,7 @@
             <!-- Remarks for the delivery address — free text, stored on the
                  customers table (address_remarks). -->
             <div class="sm:col-span-6">
-              <FormTextarea v-model="form.address_remarks" :error="form.errors.address_remarks" :disabled="customer.person_id" placeholderStr="e.g. Loading bay at rear, ask security for access" rows="2">
+              <FormTextarea v-model="form.address_remarks" :error="form.errors.address_remarks" placeholderStr="e.g. Loading bay at rear, ask security for access" rows="2">
                 Remarks for Address
               </FormTextarea>
             </div>
@@ -270,7 +284,7 @@
               </h3>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
-              <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" :disabled="customer.person_id" placeholderStr="Company">
+              <FormInput v-model="form.contact.company" :error="form.errors['contact.company']" placeholderStr="Company">
                 Bill From (Company Full Name or Personal Name)
               </FormInput>
             </div>
@@ -285,12 +299,12 @@
               </label>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" :disabled="customer.person_id" placeholderStr="Contact Person">
+              <FormInput v-model="form.contact.name" :error="form.errors['contact.name']" placeholderStr="Contact Person">
                 Billing Contact Person
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormTextarea v-model="form.contact.email" :error="form.errors['contact.email']" :disabled="customer.person_id" placeholderStr="One email per line (or comma-separated)" rows="2">
+              <FormTextarea v-model="form.contact.email" :error="form.errors['contact.email']" placeholderStr="One email per line (or comma-separated)" rows="2">
                 Email
               </FormTextarea>
             </div>
@@ -298,13 +312,13 @@
                  form.contact.phone_country_id is defaulted from the operator's
                  country (auth.operatorCountry) in onMounted. -->
             <div class="sm:col-span-3">
-              <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" :disabled="customer.person_id" placeholderStr="Phone Number">
+              <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" placeholderStr="Phone Number">
                 Phone Number
               </FormInput>
             </div>
             <!-- Alt Phone Code removed from UI — defaulted from operator country. -->
             <div class="sm:col-span-3">
-              <FormInput v-model="form.contact.alt_phone_num" :error="form.errors['contact.alt_phone_num']" :disabled="customer.person_id" placeholderStr="Alt Phone Number">
+              <FormInput v-model="form.contact.alt_phone_num" :error="form.errors['contact.alt_phone_num']" placeholderStr="Alt Phone Number">
                 Alt Phone Number
               </FormInput>
             </div>
@@ -493,6 +507,8 @@ function getDefaultForm() {
   return {
     id: '',
     customer_id: '',
+    // CMS Linking ID — CMS person id used by "Create API Invoice".
+    person_id: '',
     // customer: {
     operator_id: '',
     begin_date: '',
@@ -551,6 +567,9 @@ function getDefaultForm() {
     // Pull-From-CMS path is disabled in the UI; always start as "Create New".
     is_existing: 0,
     selling_price_type: '',
+    // Default new sites to Potential (status_id 5). The backend store() falls
+    // back to Active when status_id is absent, so we send it explicitly here.
+    status_id: 5,
   }
 }
 

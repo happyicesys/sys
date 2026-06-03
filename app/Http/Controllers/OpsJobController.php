@@ -1058,21 +1058,48 @@ class OpsJobController extends Controller
             'customers' => [],
         ];
 
+        $dispatched = 0;
+        $skippedUnlinked = [];
+
         if ($opsJob->opsJobItems) {
             foreach ($opsJob->opsJobItems as $opsJobItem) {
+                // Not yet delivered, cancelled, or already pushed to CMS → leave untouched.
                 if (($opsJobItem->status < OpsJob::STATUS_DELIVERED) or ($opsJobItem->status == OpsJob::STATUS_CANCELLED) or ($opsJobItem->cms_transaction_id)) {
                     continue;
                 }
                 if ($opsJobItem->customer && $opsJobItem->customer->person_id) {
                     SyncOpsJobTransactionCMS::dispatch($opsJobItem, $data, auth()->user()->id);
                     $opsJobItem->update(['is_inventory_adjusted' => true]);
+                    $dispatched++;
+                } elseif ($opsJobItem->customer) {
+                    // Delivered & not yet invoiced, but the site has no CMS Linking
+                    // ID (person_id) — it cannot be pushed to CMS (SyncOpsJobTransactionCMS
+                    // keys the payload by person_id). Collect it so the user knows
+                    // which sites to link before re-running.
+                    $skippedUnlinked[] = $opsJobItem->customer->name
+                        ?: ($opsJobItem->customer->virtual_customer_code ?: ('Site #' . $opsJobItem->customer->id));
                 }
             }
         }
 
+        // Surface skipped (unlinked) sites so a missing CMS Linking ID doesn't
+        // silently drop a site from invoicing.
+        if (!empty($skippedUnlinked)) {
+            $skippedUnlinked = array_values(array_unique($skippedUnlinked));
+            $shown = array_slice($skippedUnlinked, 0, 10);
+            $more = count($skippedUnlinked) - count($shown);
+            $message = ($dispatched > 0 ? ('Queued ' . $dispatched . ' site(s). ') : '')
+                . count($skippedUnlinked) . ' skipped — no CMS Linking ID: '
+                . implode(', ', $shown)
+                . ($more > 0 ? ' +' . $more . ' more' : '')
+                . '. Set their CMS Linking ID on the Customer form, then run Create API Invoice(s) again.';
 
+            return redirect()->back()->with('error', $message);
+        }
 
-        return redirect()->back();
+        return redirect()->back()->with('success', $dispatched > 0
+            ? ('Queued API invoice(s) for ' . $dispatched . ' site(s).')
+            : 'No new sites to invoice — everything is already synced.');
     }
 
     public function syncInventory($id)

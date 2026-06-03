@@ -837,7 +837,7 @@
                           > + ${{ Number(row.contract_commission_value2).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}</span>
                         </span>
                       </span>
-                      <span v-if="row.contract_ps_term != null">
+                      <span v-if="row.contract_ps_term != null" class="text-gray-400">
                         PS Term: {{ Number(row.contract_ps_term) }}%
                       </span>
                     </div>
@@ -1109,9 +1109,11 @@
                           <LockOpenIcon class="h-3.5 w-3.5" aria-hidden="true" />
                           <span>Unlock</span>
                         </Button>
-                        <!-- Paid — only visible on a locked+unpaid row. -->
+                        <!-- Paid — only visible on a locked+unpaid row, and
+                             only from the paid-tracking cutoff (2605) onward;
+                             periods 2604 and earlier never show it. -->
                         <Button
-                          v-if="canPaid && !row.is_paid"
+                          v-if="canPaid && !row.is_paid && isPaidEligiblePeriod(row)"
                           type="button"
                           class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded"
                           :disabled="lockingFor.has(row.id)"
@@ -1559,6 +1561,15 @@ const canUnlock = computed(() => (roles ?? []).includes('superadmin') || (roles 
 // a recorded action → tighter role gate). Server re-checks both.
 const canPaid = computed(() => canLock.value);
 const canUnpaid = computed(() => canUnlock.value);
+
+// Paid-tracking go-live cutoff: the Paid button only appears for period 2605
+// (May 2026) onward. Locked periods 2604 and earlier predate paid
+// reconciliation and must NOT show a Paid button. year_month is an ISO
+// 'YYYY-MM-DD' first-of-month string, so a plain lexicographic compare is
+// correct and stable. Hardcoded per product decision.
+const PAID_CUTOFF_YEAR_MONTH = '2026-05-01';
+const isPaidEligiblePeriod = (row) =>
+  typeof row?.year_month === 'string' && row.year_month >= PAID_CUTOFF_YEAR_MONTH;
 
 // Per-row in-flight guard for the Lock / Unlock buttons (keyed by summary id).
 const lockingFor = ref(new Set());
