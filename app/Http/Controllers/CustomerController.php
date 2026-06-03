@@ -304,31 +304,9 @@ class CustomerController extends Controller
         $this->applyContractAttachmentFilter($customerIdsQuery, $request, $rangeStart);
         $customerIds = $customerIdsQuery->pluck('customers.id')->unique()->values();
 
-        // Sortable columns. machine_id / machine_prefix sort by the customer's
-        // latest-bound vend (resolved via scalar subqueries below).
-        // accumulate_vending_earning sorts by the lifetime running prefix sum
-        // of location_earning_cents per customer up to each row's year_month —
-        // computed via a correlated subquery (see orderByRaw below).
-        $sortKey = in_array($summarySortKey, [
-            'year_month', 'sales_cents', 'gross_earning_cents',
-            'location_fees_cents', 'location_earning_cents', 'location_earning_rate',
-            'transaction_count', 'job_count', 'customer_id',
-            'machine_id', 'machine_prefix',
-            'contract_commission_type', 'contract_commission_value',
-            'external_subsidize', 'net_loc_fee',
-            'accumulate_vending_earning',
-            // Real columns on customer_period_summaries — sortable directly.
-            'period_start', 'period_end',
-            // Customer-table fields — resolved via correlated subqueries below.
-            'customer_name', 'selling_price_type', 'begin_date',
-            'contract_attachment', 'location_type', 'contract_until',
-            // Site Note last-updated timestamp — customers.notes_updated_at,
-            // resolved via correlated subquery below.
-            'notes_updated_at',
-            // Computed Gross Earning rate (excl-GST) — see orderByRaw below.
-            'gross_earning_rate',
-        ], true) ? $summarySortKey : 'year_month';
-        $sortDirection = filter_var($summarySortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+        // Sort key/direction whitelist + the full ORDER BY decision tree now
+        // live in applySummaryOrdering() (shared with the Excel export), called
+        // after the listing query is built below.
 
         // ALWAYS render one row per (customer, year_month) — even when the
         // user picked a multi-month "Last N months" / "All" filter.
@@ -433,167 +411,11 @@ class CustomerController extends Controller
         };
         $applyRowFilters($summariesQuery);
 
-        // For machine_id / machine_prefix sorting, attach a scalar subquery
-        // that picks the latest-bound vend per customer (mirrors the
-        // Customer::vend() relation: latest by begin_date, then created_at).
-        // notes_updated_at is a CUSTOMER-level value (identical across all of a
-        // customer's monthly rows), so we can sort by it page-wide and still
-        // keep each customer's months contiguous using customer_id purely as a
-        // tie-breaker (applied after the sortKey block below). The Vue side's
-        // first-row-per-customer / striping logic is adjacency-based
-        // (isFirstRowForCustomer compares the previous row), so contiguity —
-        // not global customer_id order — is all it needs. For every OTHER sort
-        // key the legacy behaviour stands: cluster by customer_id first.
-        $clusterByCustomerFirst = $isAggregated && $sortKey !== 'notes_updated_at';
-        if ($clusterByCustomerFirst) {
-            // Multi-month view: cluster a customer's months together so the
-            // "Accumulate / Customer Tag" first-row-per-customer rendering
-            // on the Vue side stays unambiguous, regardless of what column
-            // the user sorted by. customer_id is primary; the user-picked
-            // sortKey becomes secondary within each customer's group.
-            $summariesQuery->orderBy('customer_id', 'asc');
-        }
-
-        // NULLs always sort to the END of the list, regardless of asc/desc.
-        // Pattern: `(expr) IS NULL ASC` evaluates 0 for non-null and 1 for
-        // null, so non-nulls land first; the user's direction is applied as
-        // the secondary order. Bindings (if any) are repeated because each
-        // orderByRaw consumes its own copy at SQL-compile time.
-        $nullsLastRaw = function (string $expr, string $dir, array $bindings = []) use ($summariesQuery) {
-            $summariesQuery->orderByRaw("({$expr}) IS NULL ASC", $bindings);
-            $summariesQuery->orderByRaw("({$expr}) {$dir}", $bindings);
-        };
-
-        if ($sortKey === 'machine_id') {
-            $nullsLastRaw(
-                'SELECT v.code FROM vends v
-                  WHERE v.customer_id = customer_period_summaries.customer_id
-                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1',
-                $sortDirection
-            );
-        } elseif ($sortKey === 'machine_prefix') {
-            $nullsLastRaw(
-                'SELECT vp.name FROM vends v
-                  LEFT JOIN vend_prefixes vp ON vp.id = v.vend_prefix_id
-                  WHERE v.customer_id = customer_period_summaries.customer_id
-                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1',
-                $sortDirection
-            );
-        } elseif ($sortKey === 'external_subsidize') {
-            // External Subsidize — per-period snapshot stored on the summary
-            // row (locked history), already in cents.
-            $nullsLastRaw('customer_period_summaries.external_subsidize_cents', $sortDirection);
-        } elseif ($sortKey === 'net_loc_fee') {
-            // Net Loc Fee = Location Fees − External Subsidize, both in cents
-            // and both stored on the summary row.
-            $nullsLastRaw(
-                'customer_period_summaries.location_fees_cents
-                  - customer_period_summaries.external_subsidize_cents',
-                $sortDirection
-            );
-        } elseif ($sortKey === 'accumulate_vending_earning') {
-            // Lifetime running sum of location_earning_cents for THIS row's
-            // customer up to and including THIS row's year_month. Same value
-            // that attachAccumulatedVendingEarning() later attaches as
-            // $row->accumulate_vending_earning_cents — we just need it visible
-            // to MySQL during ORDER BY so the page-window selection is
-            // accumulate-aware.
-            //
-            // Efficient on the existing (customer_id, year_month) unique
-            // index: each subquery is an index range scan, no full table
-            // scan.
-            $nullsLastRaw(
-                'SELECT COALESCE(SUM(s2.location_earning_cents), 0)
-                  FROM customer_period_summaries s2
-                  WHERE s2.customer_id = customer_period_summaries.customer_id
-                    AND s2.`year_month` <= customer_period_summaries.`year_month`',
-                $sortDirection
-            );
-        } elseif ($sortKey === 'customer_name') {
-            // Customer name lives on the customers table; correlate by id.
-            $nullsLastRaw(
-                'SELECT c.name FROM customers c
-                  WHERE c.id = customer_period_summaries.customer_id',
-                $sortDirection
-            );
-        } elseif ($sortKey === 'selling_price_type') {
-            // Ref Price (RP{selling_price_type}) — customers.selling_price_type.
-            $nullsLastRaw(
-                'SELECT c.selling_price_type FROM customers c
-                  WHERE c.id = customer_period_summaries.customer_id',
-                $sortDirection
-            );
-        } elseif ($sortKey === 'begin_date') {
-            // Begin Date — customers.begin_date.
-            $nullsLastRaw(
-                'SELECT c.begin_date FROM customers c
-                  WHERE c.id = customer_period_summaries.customer_id',
-                $sortDirection
-            );
-        } elseif ($sortKey === 'contract_until') {
-            // Contract End Date — customers.contract_until.
-            $nullsLastRaw(
-                'SELECT c.contract_until FROM customers c
-                  WHERE c.id = customer_period_summaries.customer_id',
-                $sortDirection
-            );
-        } elseif ($sortKey === 'notes_updated_at') {
-            // Note Last Updated — customers.notes_updated_at. Customers whose
-            // Site Note has never been edited resolve to NULL and sort to the
-            // end (via nullsLastRaw), so recently-noted sites cluster at top.
-            $nullsLastRaw(
-                'SELECT c.notes_updated_at FROM customers c
-                  WHERE c.id = customer_period_summaries.customer_id',
-                $sortDirection
-            );
-        } elseif ($sortKey === 'location_type') {
-            // Location Type name — customers.location_type_id → location_types.name.
-            $nullsLastRaw(
-                'SELECT lt.name FROM customers c
-                  LEFT JOIN location_types lt ON lt.id = c.location_type_id
-                  WHERE c.id = customer_period_summaries.customer_id',
-                $sortDirection
-            );
-        } elseif ($sortKey === 'contract_attachment') {
-            // Contract Attachment — sort by the latest contract upload date
-            // (most recent FILE_TYPE_CONTRACT attachment). Customers with no
-            // contract resolve to NULL and sort to the end (via nullsLastRaw).
-            $nullsLastRaw(
-                'SELECT MAX(a.created_at) FROM attachments a
-                  WHERE a.modelable_type = ?
-                    AND a.modelable_id = customer_period_summaries.customer_id
-                    AND a.type = ?',
-                $sortDirection,
-                ['App\\Models\\Customer', Customer::FILE_TYPE_CONTRACT]
-            );
-        } elseif ($sortKey === 'gross_earning_rate') {
-            // Gross Earning rate (excl-GST) — mirrors the Vue grossEarningRate():
-            //   gross_earning_cents / (sales_cents / (1 + operator.gst%/100))
-            // operator_id is stored on the summary row, so we correlate to the
-            // operators table for the GST rate (0 when none configured).
-            $nullsLastRaw(
-                'customer_period_summaries.gross_earning_cents /
-                  NULLIF(customer_period_summaries.sales_cents /
-                    (1 + COALESCE((SELECT o.gst_vat_rate FROM operators o
-                                   WHERE o.id = customer_period_summaries.operator_id), 0) / 100), 0)',
-                $sortDirection
-            );
-        } else {
-            // Whitelisted scalar column on customer_period_summaries (e.g.
-            // year_month / sales_cents / …). Most are NOT NULL by schema, but
-            // route through nullsLastRaw for consistency.
-            $nullsLastRaw($sortKey, $sortDirection);
-        }
-
-        // Final tie-breaker: customer_id (in any case the branch above didn't
-        // already apply it — single-month "current" view, or the multi-month
-        // notes_updated_at sort where customer_id is the tie-breaker that keeps
-        // each customer's months contiguous) + year_month DESC so a customer's
-        // most recent month sits at the top of their cluster.
-        if (!$clusterByCustomerFirst) {
-            $summariesQuery->orderBy('customer_id', 'asc');
-        }
-        $summariesQuery->orderBy('year_month', 'desc');
+        // Ordering — extracted to applySummaryOrdering() and shared with the
+        // Excel export (summaryExportExcel) so the download matches the
+        // on-screen sort exactly. Default sort is Note Last Updated, newest
+        // first; multi-month views cluster a customer's months together.
+        $this->applySummaryOrdering($summariesQuery, $summarySortKey, $summarySortBy, $isAggregated);
 
         $summaries = $summariesQuery;
 
@@ -1717,6 +1539,167 @@ class CustomerController extends Controller
     }
 
     /**
+     * Apply the Site Summary ORDER BY to a CustomerPeriodSummary query.
+     *
+     * Extracted from summary() so the on-screen listing AND the Excel export
+     * (summaryExportExcel) order rows IDENTICALLY — the export now honours the
+     * same sort the page shows (default: Note Last Updated, newest first)
+     * instead of the old hardcoded customer_id/year_month order.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string|null  $rawSortKey   request sortKey (defaults to notes_updated_at)
+     * @param  string|null  $rawSortBy    request sortBy ('true' = asc, else desc)
+     * @param  bool  $isAggregated  multi-month view → cluster a customer's months
+     */
+    protected function applySummaryOrdering($query, $rawSortKey, $rawSortBy, bool $isAggregated): void
+    {
+        $summarySortKey = $rawSortKey ?: 'notes_updated_at';
+        $summarySortBy = $rawSortBy ?: 'false';
+
+        // Sortable columns. machine_id / machine_prefix sort by the customer's
+        // latest-bound vend (resolved via scalar subqueries below).
+        // accumulate_vending_earning sorts by the lifetime running prefix sum
+        // of location_earning_cents per customer up to each row's year_month.
+        $sortKey = in_array($summarySortKey, [
+            'year_month', 'sales_cents', 'gross_earning_cents',
+            'location_fees_cents', 'location_earning_cents', 'location_earning_rate',
+            'transaction_count', 'job_count', 'customer_id',
+            'machine_id', 'machine_prefix',
+            'contract_commission_type', 'contract_commission_value',
+            'external_subsidize', 'net_loc_fee',
+            'accumulate_vending_earning',
+            'period_start', 'period_end',
+            'customer_name', 'selling_price_type', 'begin_date',
+            'contract_attachment', 'location_type', 'contract_until',
+            'notes_updated_at',
+            'gross_earning_rate',
+        ], true) ? $summarySortKey : 'year_month';
+        $sortDirection = filter_var($summarySortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+
+        // notes_updated_at is a CUSTOMER-level value (identical across all of a
+        // customer's monthly rows), so we can sort by it page-wide and still
+        // keep each customer's months contiguous using customer_id purely as a
+        // tie-breaker (applied at the end). For every OTHER sort key in a
+        // multi-month view the legacy behaviour stands: cluster by customer_id
+        // first so the per-customer grouping stays unambiguous.
+        $clusterByCustomerFirst = $isAggregated && $sortKey !== 'notes_updated_at';
+        if ($clusterByCustomerFirst) {
+            $query->orderBy('customer_id', 'asc');
+        }
+
+        // NULLs always sort to the END of the list, regardless of asc/desc.
+        // Pattern: `(expr) IS NULL ASC` evaluates 0 for non-null and 1 for
+        // null, so non-nulls land first; the user's direction is applied as
+        // the secondary order. Bindings (if any) are repeated because each
+        // orderByRaw consumes its own copy at SQL-compile time.
+        $nullsLastRaw = function (string $expr, string $dir, array $bindings = []) use ($query) {
+            $query->orderByRaw("({$expr}) IS NULL ASC", $bindings);
+            $query->orderByRaw("({$expr}) {$dir}", $bindings);
+        };
+
+        if ($sortKey === 'machine_id') {
+            $nullsLastRaw(
+                'SELECT v.code FROM vends v
+                  WHERE v.customer_id = customer_period_summaries.customer_id
+                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'machine_prefix') {
+            $nullsLastRaw(
+                'SELECT vp.name FROM vends v
+                  LEFT JOIN vend_prefixes vp ON vp.id = v.vend_prefix_id
+                  WHERE v.customer_id = customer_period_summaries.customer_id
+                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'external_subsidize') {
+            $nullsLastRaw('customer_period_summaries.external_subsidize_cents', $sortDirection);
+        } elseif ($sortKey === 'net_loc_fee') {
+            $nullsLastRaw(
+                'customer_period_summaries.location_fees_cents
+                  - customer_period_summaries.external_subsidize_cents',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'accumulate_vending_earning') {
+            $nullsLastRaw(
+                'SELECT COALESCE(SUM(s2.location_earning_cents), 0)
+                  FROM customer_period_summaries s2
+                  WHERE s2.customer_id = customer_period_summaries.customer_id
+                    AND s2.`year_month` <= customer_period_summaries.`year_month`',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'customer_name') {
+            $nullsLastRaw(
+                'SELECT c.name FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'selling_price_type') {
+            $nullsLastRaw(
+                'SELECT c.selling_price_type FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'begin_date') {
+            $nullsLastRaw(
+                'SELECT c.begin_date FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'contract_until') {
+            $nullsLastRaw(
+                'SELECT c.contract_until FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'notes_updated_at') {
+            // Note Last Updated — customers.notes_updated_at. Customers whose
+            // Site Note has never been edited resolve to NULL and sort to the
+            // end (via nullsLastRaw), so recently-noted sites cluster at top.
+            $nullsLastRaw(
+                'SELECT c.notes_updated_at FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'location_type') {
+            $nullsLastRaw(
+                'SELECT lt.name FROM customers c
+                  LEFT JOIN location_types lt ON lt.id = c.location_type_id
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'contract_attachment') {
+            $nullsLastRaw(
+                'SELECT MAX(a.created_at) FROM attachments a
+                  WHERE a.modelable_type = ?
+                    AND a.modelable_id = customer_period_summaries.customer_id
+                    AND a.type = ?',
+                $sortDirection,
+                ['App\\Models\\Customer', Customer::FILE_TYPE_CONTRACT]
+            );
+        } elseif ($sortKey === 'gross_earning_rate') {
+            $nullsLastRaw(
+                'customer_period_summaries.gross_earning_cents /
+                  NULLIF(customer_period_summaries.sales_cents /
+                    (1 + COALESCE((SELECT o.gst_vat_rate FROM operators o
+                                   WHERE o.id = customer_period_summaries.operator_id), 0) / 100), 0)',
+                $sortDirection
+            );
+        } else {
+            // Whitelisted scalar column on customer_period_summaries.
+            $nullsLastRaw($sortKey, $sortDirection);
+        }
+
+        // Final tie-breaker: customer_id (when the branch above didn't already
+        // cluster by it) + year_month DESC so a customer's most recent month
+        // sits at the top of their cluster.
+        if (!$clusterByCustomerFirst) {
+            $query->orderBy('customer_id', 'asc');
+        }
+        $query->orderBy('year_month', 'desc');
+    }
+
+    /**
      * Export the Customer Management > Summary table to .xlsx.
      *
      * Reuses the same filter + period resolution as summary(); streams rows
@@ -1724,6 +1707,12 @@ class CustomerController extends Controller
      */
     public function summaryExportExcel(Request $request)
     {
+        // Capture the on-screen sort BEFORE the merge below nulls it for the
+        // customer-filter scope — the export's row ordering reuses the same
+        // sort the page shows (default: Note Last Updated, newest first).
+        $summarySortKey = $request->sortKey ?: 'notes_updated_at';
+        $summarySortBy = $request->sortBy ?: 'false';
+
         $request->merge([
             'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
@@ -1807,9 +1796,13 @@ class CustomerController extends Controller
         $query = \App\Models\CustomerPeriodSummary::query()
             ->with($eagerLoads)
             ->whereIn('customer_id', $customerIds)
-            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
-            ->orderBy('customer_id', 'asc')
-            ->orderBy('year_month', 'desc');
+            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+
+        // Order the export rows with the SAME logic the on-screen table uses,
+        // so the .xlsx matches what the user sees (default: Note Last Updated,
+        // newest first) instead of the old hardcoded customer_id/year_month.
+        $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
+        $this->applySummaryOrdering($query, $summarySortKey, $summarySortBy, $isAggregated);
 
         $operatorCountry = auth()->user()->operator->country ?? null;
         $divisor = pow(10, $operatorCountry?->currency_exponent ?? 2);
@@ -2091,7 +2084,10 @@ class CustomerController extends Controller
                     'Address' => $fullAddress,
                     'Period Report (YYMM)' => $row->year_month ? \Carbon\Carbon::parse($row->year_month)->format('ym') : null,
                     'Machine ID' => $vend?->code,
-                    'Machine Prefix' => $vend && $vend->relationLoaded('vendPrefix') ? optional($vend->vendPrefix)->name : null,
+                    // relationLoaded() returns false in cursor() context (see the
+                    // Location Type / audit-column comments below), so read through
+                    // optional() directly — customer.vend.vendPrefix IS eager-loaded.
+                    'Machine Prefix' => optional($vend?->vendPrefix)->name,
                     'Period Start Date' => $row->period_start ? (\Carbon\Carbon::parse($row->period_start))->format('ymd') : null,
                     'Period End Date' => $row->period_end ? (\Carbon\Carbon::parse($row->period_end))->format('ymd') : null,
                     // Sales — split into incl-GST and excl-GST to mirror the
@@ -2149,7 +2145,6 @@ class CustomerController extends Controller
                     // populated on locked rows that were emailed).
                     'Report Emailed At' => $fmtAuditDate($row->report_emailed_at),
                     'Report Emailed By' => optional($row->reportEmailedBy)->name,
-                    'CMS Txn #' => $cmsTxnId,
                 ];
             }
         );

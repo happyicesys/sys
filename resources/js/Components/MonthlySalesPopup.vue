@@ -48,13 +48,15 @@
                                             <li v-for="t in tierLegend" :key="t.name"
                                                 class="flex items-center justify-between rounded-lg px-1.5 py-1">
                                                 <span class="flex items-center gap-1.5">
-                                                    <svg class="h-4 w-4 shrink-0" :class="t.color"
-                                                         viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                        <path d="M7.4 2h2.7l2.3 4.6-2.7 1.1L7.4 2z"/>
-                                                        <path d="M16.6 2h-2.7l-2.3 4.6 2.7 1.1L16.6 2z"/>
-                                                        <circle cx="12" cy="15.2" r="6.4"/>
-                                                        <path fill="#fff" d="M12 11.4l.96 1.95 2.15.31-1.56 1.52.37 2.14L12 16.86l-1.92 1.01.37-2.14-1.56-1.52 2.15-.31z"/>
-                                                    </svg>
+                                                    <span class="flex items-center -space-x-1" :class="t.color">
+                                                        <svg v-for="i in medalCount(t.amount)" :key="i" class="h-4 w-4 shrink-0"
+                                                             viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                            <path d="M7.4 2h2.7l2.3 4.6-2.7 1.1L7.4 2z"/>
+                                                            <path d="M16.6 2h-2.7l-2.3 4.6 2.7 1.1L16.6 2z"/>
+                                                            <circle cx="12" cy="15.2" r="6.4"/>
+                                                            <path fill="#fff" d="M12 11.4l.96 1.95 2.15.31-1.56 1.52.37 2.14L12 16.86l-1.92 1.01.37-2.14-1.56-1.52 2.15-.31z"/>
+                                                        </svg>
+                                                    </span>
                                                     <span class="text-sm font-semibold text-gray-700">{{ t.label }}</span>
                                                 </span>
                                                 <span class="text-sm font-bold tabular-nums text-gray-800">{{ currency }}{{ formatTarget(t.amount) }}</span>
@@ -74,7 +76,7 @@
                             </button>
 
                             <!-- Gradient header band -->
-                            <div class="relative overflow-hidden bg-gradient-to-br from-sky-400 via-blue-600 to-indigo-700 px-8 pb-16 pt-10">
+                            <div class="relative overflow-hidden bg-gradient-to-br from-sky-400 via-blue-600 to-indigo-700 px-8 pb-16 pt-16">
                                 <!-- decorative glows -->
                                 <div class="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-cyan-200/25 blur-3xl"></div>
                                 <div class="pointer-events-none absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-indigo-300/25 blur-3xl"></div>
@@ -90,13 +92,15 @@
                                             <span class="h-9 w-48 animate-pulse rounded-lg bg-white/30"></span>
                                         </div>
                                         <div v-else class="flex items-baseline justify-center drop-shadow-sm" :class="figureTierClass(amount)">
-                                            <svg v-if="tierFor(amount)" class="mr-1 h-7 w-7 self-center sm:h-8 sm:w-8"
-                                                 viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                <path d="M7.4 2h2.7l2.3 4.6-2.7 1.1L7.4 2z"/>
-                                                <path d="M16.6 2h-2.7l-2.3 4.6 2.7 1.1L16.6 2z"/>
-                                                <circle cx="12" cy="15.2" r="6.4"/>
-                                                <path fill="#fff" d="M12 11.4l.96 1.95 2.15.31-1.56 1.52.37 2.14L12 16.86l-1.92 1.01.37-2.14-1.56-1.52 2.15-.31z"/>
-                                            </svg>
+                                            <span v-if="medalCount(amount)" class="mr-1 flex items-center self-center -space-x-1.5">
+                                                <svg v-for="i in medalCount(amount)" :key="i" class="h-7 w-7 sm:h-8 sm:w-8"
+                                                     viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                    <path d="M7.4 2h2.7l2.3 4.6-2.7 1.1L7.4 2z"/>
+                                                    <path d="M16.6 2h-2.7l-2.3 4.6 2.7 1.1L16.6 2z"/>
+                                                    <circle cx="12" cy="15.2" r="6.4"/>
+                                                    <path fill="#fff" d="M12 11.4l.96 1.95 2.15.31-1.56 1.52.37 2.14L12 16.86l-1.92 1.01.37-2.14-1.56-1.52 2.15-.31z"/>
+                                                </svg>
+                                            </span>
                                             <span class="mr-0.5 self-start pt-2 text-2xl font-semibold text-sky-100 sm:text-3xl">{{ currency }}</span>
                                             <span class="text-5xl tracking-tight tabular-nums sm:text-6xl">{{ intPart }}</span>
                                             <span class="text-2xl font-bold text-sky-100 sm:text-3xl">.{{ decPart }}</span>
@@ -128,26 +132,32 @@
                                 </p>
                                 <ul class="space-y-1.5">
                                     <li v-for="m in lastMonths" :key="m.label"
-                                        class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2.5 ring-1 ring-slate-100">
-                                        <span class="text-sm font-medium text-gray-500">{{ m.label }}</span>
-                                        <span class="flex items-center gap-2">
+                                        class="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-2.5 ring-1 ring-slate-100">
+                                        <span class="w-14 shrink-0 text-sm font-medium text-gray-500">{{ m.label }}</span>
+                                        <!-- Amount column: right-aligned so all amounts share a clean right edge -->
+                                        <span class="flex flex-1 justify-end">
                                             <!-- Tier chip: medal + amount (medal shown only when a tier is reached) -->
                                             <span :class="monthChipClass(m.amount)">
-                                                <svg v-if="tierFor(m.amount)" class="h-4 w-4 shrink-0"
-                                                     viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                    <path d="M7.4 2h2.7l2.3 4.6-2.7 1.1L7.4 2z"/>
-                                                    <path d="M16.6 2h-2.7l-2.3 4.6 2.7 1.1L16.6 2z"/>
-                                                    <circle cx="12" cy="15.2" r="6.4"/>
-                                                    <path fill="#fff" d="M12 11.4l.96 1.95 2.15.31-1.56 1.52.37 2.14L12 16.86l-1.92 1.01.37-2.14-1.56-1.52 2.15-.31z"/>
-                                                </svg>
+                                                <span v-if="medalCount(m.amount)" class="flex items-center -space-x-1">
+                                                    <svg v-for="i in medalCount(m.amount)" :key="i" class="h-4 w-4 shrink-0"
+                                                         viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                        <path d="M7.4 2h2.7l2.3 4.6-2.7 1.1L7.4 2z"/>
+                                                        <path d="M16.6 2h-2.7l-2.3 4.6 2.7 1.1L16.6 2z"/>
+                                                        <circle cx="12" cy="15.2" r="6.4"/>
+                                                        <path fill="#fff" d="M12 11.4l.96 1.95 2.15.31-1.56 1.52.37 2.14L12 16.86l-1.92 1.01.37-2.14-1.56-1.52 2.15-.31z"/>
+                                                    </svg>
+                                                </span>
                                                 <span class="text-base tabular-nums" :class="monthWeightClass(m.amount)">{{ currency }}{{ formatAmount(m.amount) }}</span>
                                             </span>
+                                        </span>
+                                        <!-- Trend column: fixed width + right-aligned number so percentages line up -->
+                                        <span class="flex w-[4.75rem] shrink-0 justify-end">
                                             <span class="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums"
                                                   :class="trendClass(m.trend)">
-                                                <ArrowUpRightIcon v-if="m.trend === 'up'" class="h-3.5 w-3.5" aria-hidden="true"/>
-                                                <ArrowDownRightIcon v-else-if="m.trend === 'down'" class="h-3.5 w-3.5" aria-hidden="true"/>
-                                                <MinusSmallIcon v-else class="h-3.5 w-3.5" aria-hidden="true"/>
-                                                <span v-if="m.change_pct !== null">{{ Math.abs(m.change_pct).toFixed(1) }}%</span>
+                                                <ArrowUpRightIcon v-if="m.trend === 'up'" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"/>
+                                                <ArrowDownRightIcon v-else-if="m.trend === 'down'" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"/>
+                                                <MinusSmallIcon v-else class="h-3.5 w-3.5 shrink-0" aria-hidden="true"/>
+                                                <span v-if="m.change_pct !== null" class="w-9 text-right">{{ Math.abs(m.change_pct).toFixed(1) }}%</span>
                                             </span>
                                         </span>
                                     </li>
@@ -224,6 +234,16 @@ function tierFor(value) {
     return null
 }
 
+// Number of medals to show for a tier: bronze 1, silver 2, gold 3 (0 = none).
+function medalCount(value) {
+    switch (tierFor(value)) {
+        case 'gold':   return 3
+        case 'silver': return 2
+        case 'bronze': return 1
+        default:       return 0
+    }
+}
+
 // Recent-month chip (on the white card): tinted background + a coloured ring/
 // border so the tier reads clearly. The medal and amount inherit the chip's
 // text colour via currentColor. Normal (no tier) → no chip, plain dark text.
@@ -234,7 +254,9 @@ function monthChipClass(value) {
         case 'gold':   return base + chip + ' bg-gradient-to-b from-amber-50 to-amber-100 text-amber-600 ring-amber-400/80'
         case 'silver': return base + chip + ' bg-gradient-to-b from-slate-100 to-slate-300 text-slate-700 ring-slate-400'
         case 'bronze': return base + chip + ' bg-gradient-to-b from-orange-50 to-orange-100 text-orange-700 ring-orange-400/80'
-        default:       return base + ' text-gray-800'
+        // No tier: no chip, but keep the same right padding so the number lines
+        // up with the tiered amounts (whose chip insets the text by px-2.5).
+        default:       return base + ' pr-2.5 text-gray-800'
     }
 }
 
