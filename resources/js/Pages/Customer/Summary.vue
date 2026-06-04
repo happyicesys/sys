@@ -1033,7 +1033,7 @@
                           @input="autoGrowTextarea($event.target)"
                           :ref="(el) => autoGrowTextarea(el)"
                           rows="4"
-                          class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none overflow-hidden"
+                          class="text-[13px] text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none overflow-hidden"
                           placeholder="Notes"
                         ></textarea>
                         <span class="text-[10px] text-gray-500 mt-1" v-if="row.customer?.notes_updated_by_user">
@@ -2731,3 +2731,16 @@ function existingInvoiceAmountLabel(row) {
   return formatMoney(inv.total_amount_cents);
 }
 </script>
+
+<!--
+  Header font size, one step smaller than the shared TableHead default
+  (11px → 10px). Scoped to THIS page only so the shared TableHead.vue
+  component — used across ~75 other tables — is left untouched.
+  :deep() penetrates into the child TableHead's <th>; the attribute +
+  element selector outranks Tailwind's text-[11px] utility class.
+-->
+<style scoped>
+:deep(thead th) {
+  font-size: 10px;
+}
+</style>

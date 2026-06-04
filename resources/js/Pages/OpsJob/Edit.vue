@@ -643,7 +643,7 @@
                                     </span>
                                     <a
                                       :href="row.customer && row.customer.deliveryAddress && row.customer.deliveryAddress.map_url
-                                        ? row.customer.deliveryAddress.map_url
+                                        ? '//' + row.customer.deliveryAddress.map_url
                                         : (row.customer.deliveryAddress.latitude && row.customer.deliveryAddress.longitude
                                           ? 'https://www.google.com/maps/search/?api=1&query=' + row.customer.deliveryAddress.latitude + ',' + row.customer.deliveryAddress.longitude
                                           : '')"

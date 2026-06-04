@@ -48,14 +48,9 @@
                                             <li v-for="t in tierLegend" :key="t.name"
                                                 class="flex items-center justify-between rounded-lg px-1.5 py-1">
                                                 <span class="flex items-center gap-1.5">
-                                                    <span class="flex items-center -space-x-1" :class="t.color">
-                                                        <svg v-for="i in medalCount(t.amount)" :key="i" class="h-4 w-4 shrink-0"
-                                                             viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                            <path d="M7.4 2h2.7l2.3 4.6-2.7 1.1L7.4 2z"/>
-                                                            <path d="M16.6 2h-2.7l-2.3 4.6 2.7 1.1L16.6 2z"/>
-                                                            <circle cx="12" cy="15.2" r="6.4"/>
-                                                            <path fill="#fff" d="M12 11.4l.96 1.95 2.15.31-1.56 1.52.37 2.14L12 16.86l-1.92 1.01.37-2.14-1.56-1.52 2.15-.31z"/>
-                                                        </svg>
+                                                    <span class="flex items-center gap-0.5" :class="t.color">
+                                                        <HandThumbUpIcon v-for="i in medalCount(t.amount)" :key="i"
+                                                                         class="h-4 w-4 shrink-0" aria-hidden="true"/>
                                                     </span>
                                                     <span class="text-sm font-semibold text-gray-700">{{ t.label }}</span>
                                                 </span>
@@ -92,14 +87,9 @@
                                             <span class="h-9 w-48 animate-pulse rounded-lg bg-white/30"></span>
                                         </div>
                                         <div v-else class="flex items-baseline justify-center drop-shadow-sm" :class="figureTierClass(amount)">
-                                            <span v-if="medalCount(amount)" class="mr-1 flex items-center self-center -space-x-1.5">
-                                                <svg v-for="i in medalCount(amount)" :key="i" class="h-7 w-7 sm:h-8 sm:w-8"
-                                                     viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                    <path d="M7.4 2h2.7l2.3 4.6-2.7 1.1L7.4 2z"/>
-                                                    <path d="M16.6 2h-2.7l-2.3 4.6 2.7 1.1L16.6 2z"/>
-                                                    <circle cx="12" cy="15.2" r="6.4"/>
-                                                    <path fill="#fff" d="M12 11.4l.96 1.95 2.15.31-1.56 1.52.37 2.14L12 16.86l-1.92 1.01.37-2.14-1.56-1.52 2.15-.31z"/>
-                                                </svg>
+                                            <span v-if="medalCount(amount)" class="mr-1.5 flex items-center self-center gap-0.5">
+                                                <HandThumbUpIcon v-for="i in medalCount(amount)" :key="i"
+                                                                 class="h-7 w-7 sm:h-8 sm:w-8" aria-hidden="true"/>
                                             </span>
                                             <span class="mr-0.5 self-start pt-2 text-2xl font-semibold text-sky-100 sm:text-3xl">{{ currency }}</span>
                                             <span class="text-5xl tracking-tight tabular-nums sm:text-6xl">{{ intPart }}</span>
@@ -126,32 +116,27 @@
                             </div>
 
                             <!-- Last 3 complete months -->
-                            <div v-if="!loading && lastMonths.length" class="px-6 pt-1">
+                            <div v-if="!loading && lastMonths.length" class="px-4 pt-1 sm:px-6">
                                 <p class="mb-2 text-center text-[0.7rem] font-semibold uppercase tracking-wider text-gray-400">
                                     Recent months
                                 </p>
                                 <ul class="space-y-1.5">
                                     <li v-for="m in lastMonths" :key="m.label"
-                                        class="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-2.5 ring-1 ring-slate-100">
-                                        <span class="w-14 shrink-0 text-sm font-medium text-gray-500">{{ m.label }}</span>
+                                        class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100 sm:gap-3 sm:px-4">
+                                        <span class="w-11 shrink-0 text-sm font-medium text-gray-500 sm:w-14">{{ m.label }}</span>
                                         <!-- Amount column: right-aligned so all amounts share a clean right edge -->
-                                        <span class="flex flex-1 justify-end">
+                                        <span class="flex min-w-0 flex-1 justify-end">
                                             <!-- Tier chip: medal + amount (medal shown only when a tier is reached) -->
                                             <span :class="monthChipClass(m.amount)">
-                                                <span v-if="medalCount(m.amount)" class="flex items-center -space-x-1">
-                                                    <svg v-for="i in medalCount(m.amount)" :key="i" class="h-4 w-4 shrink-0"
-                                                         viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                        <path d="M7.4 2h2.7l2.3 4.6-2.7 1.1L7.4 2z"/>
-                                                        <path d="M16.6 2h-2.7l-2.3 4.6 2.7 1.1L16.6 2z"/>
-                                                        <circle cx="12" cy="15.2" r="6.4"/>
-                                                        <path fill="#fff" d="M12 11.4l.96 1.95 2.15.31-1.56 1.52.37 2.14L12 16.86l-1.92 1.01.37-2.14-1.56-1.52 2.15-.31z"/>
-                                                    </svg>
+                                                <span v-if="medalCount(m.amount)" class="flex items-center gap-0.5">
+                                                    <HandThumbUpIcon v-for="i in medalCount(m.amount)" :key="i"
+                                                                     class="h-4 w-4 shrink-0" aria-hidden="true"/>
                                                 </span>
                                                 <span class="text-base tabular-nums" :class="monthWeightClass(m.amount)">{{ currency }}{{ formatAmount(m.amount) }}</span>
                                             </span>
                                         </span>
                                         <!-- Trend column: fixed width + right-aligned number so percentages line up -->
-                                        <span class="flex w-[4.75rem] shrink-0 justify-end">
+                                        <span class="flex w-[4.25rem] shrink-0 justify-end sm:w-[4.75rem]">
                                             <span class="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums"
                                                   :class="trendClass(m.trend)">
                                                 <ArrowUpRightIcon v-if="m.trend === 'up'" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"/>
@@ -182,7 +167,7 @@
 
 <script setup>
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue'
-import { ArrowDownRightIcon, ArrowPathIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, InformationCircleIcon, MinusSmallIcon, XMarkIcon } from '@heroicons/vue/20/solid'
+import { ArrowDownRightIcon, ArrowPathIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, HandThumbUpIcon, InformationCircleIcon, MinusSmallIcon, XMarkIcon } from '@heroicons/vue/20/solid'
 import { computed, onMounted, ref } from 'vue'
 
 const open = ref(false)

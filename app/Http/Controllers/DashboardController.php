@@ -44,9 +44,9 @@ class DashboardController extends Controller
      * first (gold → silver → bronze), so keep thresholds in ascending order.
      */
     public const MONTHLY_SALES_TIERS = [
-        'bronze' => null,
+        'bronze' => 260000,
         'silver' => 300000,
-        'gold' => 320000,
+        'gold' => null,
     ];
 
     protected $weatherService;
