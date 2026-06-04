@@ -41,15 +41,15 @@ const navigation = computed(() => [
     //     tagline: 'Device',
     // },
     {
-        name: 'Ops Dashboard',
+        name: 'Operations',
         icon: CommandLineIcon,
         current: false,
         href: 'vends.customer',
         permission: 'read vends',
         tagline: null,
-        // children: [
-        //     {name: 'View By Sites', href: '/vends/customers', permission: 'read vend-customers'},
-        // ]
+        children: [
+            {name: 'Dashboard', href: '/vends/customers', permission: 'read vends'},
+        ]
     },
     {
         name: 'Transactions',
@@ -65,7 +65,7 @@ const navigation = computed(() => [
         ]
     },
     {
-        name: 'Daily Operations',
+        name: 'Daily Jobs',
         icon: ArrowsPointingInIcon,
         current: false,
         href: 'ops-jobs',
@@ -321,6 +321,58 @@ const useContainLogo = computed(() => logoUrl.value !== defaultLogoUrl.value)
 // Post-login "This month sales" popup — HIPL group only.
 const isHipl = computed(() => page.props.auth?.operator?.code === 'HIPL')
 
+// --- Active-nav highlighting -------------------------------------------------
+// Current path without query string.
+const currentPath = computed(() => (page.url || '/').split('?')[0])
+
+// Resolve a nav href to a URL path. Children use literal paths ('/foo');
+// parents use Ziggy route names ('vends.customer').
+function resolvePath(href) {
+    if (!href) return ''
+    if (href.startsWith('/')) return href
+    try { return new URL(route(href)).pathname } catch (e) { return '/' + href }
+}
+
+// A candidate path matches if it equals the current path or is a parent
+// segment of it.
+function pathMatches(path) {
+    if (!path) return false
+    if (path === '/') return currentPath.value === '/'
+    return currentPath.value === path || currentPath.value.startsWith(path + '/')
+}
+
+// The single active path: the LONGEST matching path across the whole nav.
+// Picking the longest disambiguates overlapping prefixes — e.g. on
+// '/vends/customers', the Operations sub-tab ('/vends/customers') wins over
+// Machine Management's "Machines View" ('/vends'), so only one item lights up.
+const activePath = computed(() => {
+    let best = '', bestLen = -1
+    for (const item of navigation.value) {
+        const candidates = (item.children && item.children.length)
+            ? item.children.map(c => c.href)
+            : [item.href]
+        for (const href of candidates) {
+            const p = resolvePath(href)
+            if (pathMatches(p) && p.length > bestLen) { best = p; bestLen = p.length }
+        }
+    }
+    return best
+})
+
+// A top-level item is active when it (leaf) or any of its children owns the
+// active path.
+function isItemActive(item) {
+    if (!activePath.value) return false
+    if (item.children && item.children.length) {
+        return item.children.some(c => resolvePath(c.href) === activePath.value)
+    }
+    return resolvePath(item.href) === activePath.value
+}
+
+// A sub-item is active when it owns the active path.
+function isSubItemActive(item, subItem) {
+    return !!activePath.value && resolvePath(subItem.href) === activePath.value
+}
 
 </script>
 
@@ -344,9 +396,9 @@ const isHipl = computed(() => page.props.auth?.operator?.code === 'HIPL')
                             <div v-if="!item.children">
                                 <Link :href="route(item.href)"
                                     v-if="permissions.includes(item.permission)"
-                                    :class="[$page.url === '/' + item.href ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 py-2 text-sm font-medium rounded-md']">
+                                    :class="[isItemActive(item) ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 py-2 text-sm font-medium rounded-md']">
                                 <component :is="item.icon"
-                                    :class="[$page.url === '/' + item.href ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', 'mr-3 flex-shrink-0 h-6 w-6']"
+                                    :class="[isItemActive(item) ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', 'mr-3 flex-shrink-0 h-6 w-6']"
                                     aria-hidden="true" />
                                 <span class="flex flex-col">
                                     <span>
@@ -358,10 +410,10 @@ const isHipl = computed(() => page.props.auth?.operator?.code === 'HIPL')
                                 </span>
                                 </Link>
                             </div>
-                            <Disclosure as="div" v-else class="flex flex-col justify-start space-y-1" v-slot="{ open }">
+                            <Disclosure as="div" v-else class="flex flex-col justify-start space-y-1" v-slot="{ open }" :default-open="isItemActive(item)">
                                 <DisclosureButton
                                     v-if="permissions.includes(item.permission)"
-                                    :class="[item.current ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 pr-1 py-2 text-left text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
+                                    :class="[isItemActive(item) ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 pr-1 py-2 text-left text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
                                     <component :is="item.icon"
                                         class="mr-3 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-gray-500"
                                         aria-hidden="true" />
@@ -382,7 +434,7 @@ const isHipl = computed(() => page.props.auth?.operator?.code === 'HIPL')
                                     <Link v-for="subItem in item.children" :key="subItem.name" as="a"
                                             :href="subItem.href">
                                         <DisclosureButton
-                                            class="group w-full flex items-center justify-start text-left pl-4 pr-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-200"
+                                            :class="[isSubItemActive(item, subItem) ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200', 'group w-full flex items-center justify-start text-left pl-4 pr-2 py-2 text-sm font-medium rounded-md']"
                                             v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
                                             >
                                             {{ subItem.name }}
@@ -466,7 +518,7 @@ const isHipl = computed(() => page.props.auth?.operator?.code === 'HIPL')
                         <div v-if="!item.children" class="py-1 space-y-1">
                             <BreezeResponsiveNavLink
                             v-if="permissions.includes(item.permission)"
-                            :href="route(item.href)" :active="route().current(item.href)">
+                            :href="route(item.href)" :active="isItemActive(item)">
                                 <span class="flex flex-col">
                                     <span>
                                         {{ item.name }}
@@ -477,8 +529,8 @@ const isHipl = computed(() => page.props.auth?.operator?.code === 'HIPL')
                                 </span>
                             </BreezeResponsiveNavLink>
                         </div>
-                        <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }">
-                            <DisclosureButton class="pt-2 pb-2 mb-1 pl-4 space-y-1 flex w-full justify-start text-left" v-if="permissions.includes(item.permission)">
+                        <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }" :default-open="isItemActive(item)">
+                            <DisclosureButton :class="[isItemActive(item) ? 'text-gray-900 font-bold' : '', 'pt-2 pb-2 mb-1 pl-4 space-y-1 flex w-full justify-start text-left']" v-if="permissions.includes(item.permission)">
                                 <span class="flex flex-col">
                                     <span>
                                         {{ item.name }}
@@ -498,7 +550,7 @@ const isHipl = computed(() => page.props.auth?.operator?.code === 'HIPL')
                                 >
                                     <DisclosureButton
                                         v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
-                                        class="group w-full flex items-center justify-start text-left pl-14 pr-2 py-3 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-50">
+                                        :class="[isSubItemActive(item, subItem) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50', 'group w-full flex items-center justify-start text-left pl-14 pr-2 py-3 text-sm font-medium rounded-md']">
                                         {{ subItem.name }}
                                     </DisclosureButton>
                                 </Link>
