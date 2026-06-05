@@ -1,11 +1,11 @@
 
 <template>
-	<Head title="Operations - Live Status" />
+	<Head title="Operation Dashboard - Live Status" />
 
 <BreezeAuthenticatedLayout>
 	<template #header>
 		<h2 class="font-semibold text-xl text-gray-800 leading-tight">
-				Operations (Live Status)
+				Operation Dashboard (Live Status)
 		</h2>
 	</template>
 
@@ -635,14 +635,14 @@
 				     Framed panel; each stat is a cell in a 5-up grid. The gap-px on a
 				     gray backing renders hairline separators between the white cells.
 				     Each cell: big Total + small darker (Avg/VM) in parens. -->
-				<section class="overflow-hidden rounded-xl bg-white ring-1 ring-gray-300 shadow-sm lg:col-span-3">
-					<header class="flex items-baseline gap-2 border-b border-gray-300 bg-gray-50 px-4 py-2.5">
+				<section class="overflow-hidden rounded-xl bg-sky-50 ring-1 ring-gray-300 shadow-sm lg:col-span-3">
+					<header class="flex items-baseline gap-2 border-b border-gray-300 bg-sky-100 px-4 py-2.5">
 						<h3 class="text-sm font-semibold text-gray-800">Last 30 days</h3>
-						<span class="text-xs font-medium text-gray-400">Total (Avg / VM)</span>
+						<span class="text-xs font-medium text-sky-700">Total (Avg / VM)</span>
 					</header>
-					<dl class="grid grid-cols-2 gap-px bg-gray-300 sm:grid-cols-3 lg:grid-cols-3">
+					<dl class="grid grid-cols-2 gap-px bg-gray-300 sm:grid-cols-3 lg:grid-cols-3 [&>div]:bg-sky-50">
 						<!-- 1. Stock-in Value $ -->
-						<div class="bg-white px-4 py-3">
+						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500">Stock-in Value $</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
 								{{totals['thirthyDaysStockIn'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -650,7 +650,7 @@
 							</dd>
 						</div>
 						<!-- 2. Sales $ -->
-						<div class="bg-white px-4 py-3">
+						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500">Sales $</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
 								{{totals['thirtyDays'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -658,7 +658,7 @@
 							</dd>
 						</div>
 						<!-- 3. VendEarning $ = Gross − Location Fees (mirrors Site Summary "Total Vend Earnings"). -->
-						<div class="bg-white px-4 py-3">
+						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500">VendEarning $</dt>
 							<dd
 								class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums"
@@ -669,7 +669,7 @@
 							</dd>
 						</div>
 						<!-- 4. LocEarning $ = Location Fees (mirrors Site Summary "Total Location Fees"). Emerald when negative = subsidy. -->
-						<div class="bg-white px-4 py-3">
+						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500">LocEarning $</dt>
 							<dd
 								class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums"
@@ -680,11 +680,21 @@
 							</dd>
 						</div>
 						<!-- 5. # of Job done = completed ops_job_items L30d. Integer total; Avg/VM to 1 dp. -->
-						<div class="bg-white px-4 py-3">
+						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500"># of Job done</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
 								{{(totals['thirtyDaysJobsDone'] || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
 								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ ((totals['thirtyDaysJobsDone'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 1}) }})</span>
+							</dd>
+						</div>
+						<!-- 6. % of VM, Sales L30D > LMonth — share of machines whose rolling
+							30-day sales beat the last full calendar month. Client-side
+							(currentStats), shown as % with (count/total). -->
+						<div class="px-4 py-3">
+							<dt class="text-xs font-medium leading-tight text-gray-500">% of VM, Sales L30D &gt; LMth</dt>
+							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
+								{{ currentStats.salesUpPct.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}%
+								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ currentStats.salesUpCount }}/{{ currentStats.salesUpTotal }})</span>
 							</dd>
 						</div>
 					</dl>
@@ -694,36 +704,43 @@
 				     Same framed-panel + 5-up grid styling as Last 30 days, but the
 				     figures are current-snapshot rates averaged over the filtered
 				     machines (currentStats computed). -->
-				<section class="overflow-hidden rounded-xl bg-white ring-1 ring-gray-300 shadow-sm lg:col-span-2">
-					<header class="flex items-baseline gap-2 border-b border-gray-300 bg-gray-50 px-4 py-2.5">
+				<section class="overflow-hidden rounded-xl bg-indigo-50 ring-1 ring-gray-300 shadow-sm lg:col-span-2">
+					<header class="flex items-baseline gap-2 border-b border-gray-300 bg-indigo-100 px-4 py-2.5">
 						<h3 class="text-sm font-semibold text-gray-800">Current</h3>
-						<span class="text-xs font-medium text-gray-400">Avg</span>
+						<span class="text-xs font-medium text-indigo-700">Avg</span>
 					</header>
-					<dl class="grid grid-cols-2 gap-px bg-gray-300 sm:grid-cols-3 lg:grid-cols-3">
+					<dl class="grid grid-cols-2 gap-px bg-gray-300 sm:grid-cols-3 lg:grid-cols-3 [&>div]:bg-indigo-50">
 						<!-- Stock Qty Bal — avg balance_percent over rows with stock data -->
-						<div class="bg-white px-4 py-3">
+						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500">Stock Qty Bal</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.stockQtyBal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</dd>
 						</div>
 						<!-- Stock SKU Bal — avg (100 − out_of_stock_sku_percent) -->
-						<div class="bg-white px-4 py-3">
+						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500">Stock SKU Bal</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.stockSkuBal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</dd>
 						</div>
 						<!-- Today Error rate — avg one_day_error_rate (red ≥ 3) -->
-						<div class="bg-white px-4 py-3">
+						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500">Today Error rate</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums" :class="currentStats.todayError >= 3 ? 'text-red-700' : 'text-gray-800'">{{ currentStats.todayError.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</dd>
 						</div>
-						<!-- L30D ≥ Avg/day — % of machines trending up (mirrors table green rule) -->
-						<div class="bg-white px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500">L30D ≥ Avg/day</dt>
+						<!-- % of VM, Avg Daily Sales L30D >= Avg/Day — % of machines whose
+							L30D avg daily sales are at/above the fleet-wide overall avg/day
+							(currentStats baseline). Label may wrap to 2 lines. -->
+						<div class="px-4 py-3">
+							<dt class="text-xs font-medium leading-tight text-gray-500">% of VM, Avg Daily Sales L30D &gt;= Avg/Day</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-green-700">{{ currentStats.greenPct.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}% <span class="text-xs font-normal text-gray-400">({{ currentStats.greenCount }}/{{ currentStats.greenTotal }})</span></dd>
 						</div>
 						<!-- Refillable > $150 — count of machines, fixed 150 -->
-						<div class="bg-white px-4 py-3">
+						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500">Refillable &gt; $150</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.refillableOver150 }} <span class="text-xs font-normal text-gray-400">/ {{ currentStats.total }}</span></dd>
+						</div>
+						<!-- # of Job, next day — machines with a scheduled ops job dated tomorrow -->
+						<div class="px-4 py-3">
+							<dt class="truncate text-xs font-medium text-gray-500"># of Job, next day</dt>
+							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.nextDayJobCount }} <span class="text-xs font-normal text-gray-400">/ {{ currentStats.total }}</span></dd>
 						</div>
 					</dl>
 				</section>
@@ -774,6 +791,9 @@
 							<SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
 								Ref Price
 							</SingleSortItem>
+							<span class="text-sm font-medium text-gray-700">
+								Campaign
+							</span>
 						</div>
 					</TableHead>
 					<TableHead>
@@ -1348,6 +1368,13 @@
 								v-if="vend.selling_price_type"
 							>
 								RP{{ vend.selling_price_type }}
+							</div>
+							<div
+								v-for="campaign in (vend.vend && vend.vend.campaigns) ? vend.vend.campaigns : []"
+								:key="campaign.id"
+								class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-pink-100 text-pink-800 border-pink-300"
+							>
+								{{ campaign.name }}
 							</div>
 							<span class="flex space-x-1 items-center">
 								<span>
@@ -2921,18 +2948,42 @@ font-size:13px;
 	//   - stockQtyBal: avg of balance_percent (qty/capacity %)
 	//   - stockSkuBal: avg of (100 − out_of_stock_sku_percent) (in-stock SKU %)
 	//   - todayError:  avg of totals_json.one_day_error_rate (%)
-	//   - greenCount/greenPct: share of machines trending up — L30D daily avg
-	//     ≥ Avg Sales/Day. Mirrors the table's green rule at the Avg Sales/Day
-	//     cell EXACTLY (virtual_..._thirty_days_amount_average ≥
-	//     vend_records_amount_average_day / 100), so the card agrees with the
-	//     per-row colour.
+	//   - greenCount/greenPct: share of machines whose L30D daily avg is at or
+	//     above the fleet-wide "Overall Avg/day" baseline (mean of L30D daily
+	//     avg across reporting VMs). This is fleet-RELATIVE and intentionally
+	//     does NOT mirror the per-row Avg Sales/Day colour (still per-machine).
+	//   - salesUpCount/salesUpPct: share of machines whose L30D sales
+	//     (thirty_days_amount) beat last calendar month (last_mth_amount).
+	//   - nextDayJobCount: machines whose next scheduled ops job is dated tomorrow.
 	//   - refillableOver150: count of machines whose Refillable Value
 	//     (actual_stock_in_value, already in currency units) exceeds a FIXED 150.
 	const currentStats = computed(() => {
 		const rows = props.vends?.data ?? [];
 		const n = rows.length;
-		const empty = { total: 0, stockTotal: 0, errTotal: 0, stockQtyBal: 0, stockSkuBal: 0, todayError: 0, greenCount: 0, greenPct: 0, greenTotal: 0, refillableOver150: 0 };
+		const empty = { total: 0, stockTotal: 0, errTotal: 0, stockQtyBal: 0, stockSkuBal: 0, todayError: 0, greenCount: 0, greenPct: 0, greenTotal: 0, refillableOver150: 0, salesUpCount: 0, salesUpTotal: 0, salesUpPct: 0, nextDayJobCount: 0 };
 		if (!n) return empty;
+
+		// "Overall Avg/day" baseline (fleet-wide): the mean of each VM's L30D
+		// average daily sales (virtual_vend_records_thirty_days_amount_average,
+		// currency units) over the VMs that report an avg/day figure. The
+		// "L30D ≥ Overall Avg/day" card then counts how many VMs sit at or above
+		// this single fleet mean. NOTE: this is a deliberately fleet-RELATIVE
+		// rule and no longer mirrors the per-row Avg Sales/Day colour (which
+		// stays per-machine: L30D ≥ that machine's own avg/day).
+		let baselineSum = 0, baselineN = 0;
+		for (const v of rows) {
+			const json = v.vendTransactionTotalsJson;
+			if (json && 'vend_records_amount_average_day' in json) {
+				baselineSum += Number(v.virtual_vend_records_thirty_days_amount_average ?? 0);
+				baselineN++;
+			}
+		}
+		const overallAvgDaily = baselineN > 0 ? baselineSum / baselineN : 0;
+
+		// "Next day" = tomorrow's date in the app/operator timezone. OpsJobResource
+		// already serialises opsJob.date as a plain 'Y-m-d' app-TZ string, so a
+		// string compare against moment().add(1,'day') is exact (no UTC shift).
+		const tomorrow = moment().add(1, 'day').format('YYYY-MM-DD');
 
 		// Each rate is averaged over the machines for which that metric is
 		// actually DEFINED — not blindly over all n rows. Mixing "missing → 0"
@@ -2946,6 +2997,8 @@ font-size:13px;
 		let errTotal = 0, sumErr = 0;
 		let greenTotal = 0, greenCount = 0;
 		let refillCount = 0;
+		let salesUpTotal = 0, salesUpCount = 0;
+		let nextDayJobCount = 0;
 		for (const v of rows) {
 			if (v.vendChannelTotalsJson) {
 				stockTotal++;
@@ -2957,15 +3010,23 @@ font-size:13px;
 				errTotal++;
 				sumErr += Number(json.one_day_error_rate ?? 0);
 			}
-			// Only machines with an Avg Sales/Day figure can be classified
-			// up/down. Green mirrors the table's Avg Sales/Day colour rule
-			// EXACTLY: L30D daily avg (currency units) ≥ vend_records_amount_average_day/100.
+			// L30D ≥ Overall Avg/day — share of VMs whose L30D average daily
+			// sales are at or above the fleet-wide baseline computed above. Same
+			// qualifying set (VMs reporting an avg/day) as before, so the
+			// denominator is unchanged; only the comparison baseline differs.
 			if (json && 'vend_records_amount_average_day' in json) {
 				greenTotal++;
 				const l30d = Number(v.virtual_vend_records_thirty_days_amount_average ?? 0);
-				const avgDay = Number(json.vend_records_amount_average_day ?? 0) / 100;
-				if (l30d >= avgDay) greenCount++;
+				if (l30d >= overallAvgDaily) greenCount++;
 			}
+			// % of VM, Sales L30D > LMonth — rolling 30-day sales beat the last
+			// full calendar month. Both are cents in vendTransactionTotalsJson.
+			if (json && 'thirty_days_amount' in json && 'last_mth_amount' in json) {
+				salesUpTotal++;
+				if (Number(json.thirty_days_amount ?? 0) > Number(json.last_mth_amount ?? 0)) salesUpCount++;
+			}
+			// # of Job, next day — VMs whose next scheduled ops job is dated tomorrow.
+			if (v.nextOpsJobItem?.opsJob?.date === tomorrow) nextDayJobCount++;
 			if (Number(v.actual_stock_in_value ?? 0) > 150) refillCount++;
 		}
 		return {
@@ -2979,6 +3040,10 @@ font-size:13px;
 			greenTotal,
 			greenPct: greenTotal > 0 ? (greenCount / greenTotal) * 100 : 0,
 			refillableOver150: refillCount,
+			salesUpCount,
+			salesUpTotal,
+			salesUpPct: salesUpTotal > 0 ? (salesUpCount / salesUpTotal) * 100 : 0,
+			nextDayJobCount,
 		};
 	});
 

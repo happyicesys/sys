@@ -203,6 +203,20 @@ class DashboardController extends Controller
         // login and survives in-session page navigation. Using the server session
         // instead of browser sessionStorage means logout→login re-shows it.
         //
+        // IMPORTANT: the flag is set ONLY when the user explicitly dismisses the
+        // popup (the client pings ?dismiss=1 on close), NOT on the auto-fetch.
+        // The Authenticated layout is a non-persistent Inertia layout, so it
+        // remounts on every navigation and re-fetches this endpoint. If we set
+        // the flag on fetch, an early remount right after login would flip the
+        // gate to "shown" before the user ever interacted with it, causing the
+        // popup to flash for ~1s and then never reappear. Deferring the flag to
+        // dismissal makes the popup persist across remounts until the user
+        // actually closes it.
+        if ($request->boolean('dismiss')) {
+            $request->session()->put('monthly_sales_popup_shown', true);
+            return response()->json(['show' => false]);
+        }
+
         // A manual refresh (?refresh=1) bypasses the once-per-session gate so the
         // user can re-pull the live figure on demand. It does NOT touch the
         // session flag, so the auto-show-once behaviour is unaffected.
@@ -210,7 +224,6 @@ class DashboardController extends Controller
             if ($request->session()->get('monthly_sales_popup_shown')) {
                 return response()->json(['show' => false]);
             }
-            $request->session()->put('monthly_sales_popup_shown', true);
         }
 
         $operatorIds = Operator::whereIn('code', ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'])

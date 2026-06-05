@@ -636,7 +636,14 @@ class VendController extends Controller
                     'vend.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
                     'vend.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
                     'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
-                    'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name'
+                    'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
+                    // Campaign(s) bound to the machine via its APK settings
+                    // (Vend -> apkSettings -> campaigns). Drives the new
+                    // "Campaign" badge under the Ref Price line on
+                    // Vend/CustomerIndex. Only active campaigns are surfaced
+                    // (filtered in VendResource).
+                    'vend.apkSettings:id,name',
+                    'vend.apkSettings.campaigns:id,name,is_active'
                 ]);
 
         // Conditional Joins for performance

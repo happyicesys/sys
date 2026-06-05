@@ -282,6 +282,18 @@ const decPart = computed(() => {
 
 function dismiss() {
     open.value = false
+    // Persist the once-per-session flag server-side so the popup won't
+    // auto-show again until the next login. The auto-fetch deliberately does
+    // NOT set this flag, so the popup survives layout remounts and stays
+    // visible until the user explicitly closes it here. Fire-and-forget:
+    // closing must never block on the network.
+    try {
+        window.axios.get(route('dashboard.monthly-sales-popup'), {
+            params: { dismiss: 1 },
+        })
+    } catch (e) {
+        // Non-fatal: worst case the popup may re-show on a later remount.
+    }
 }
 
 // Manual on-demand re-pull of the live figure. Uses ?refresh=1 so the server

@@ -36,6 +36,13 @@ class CampaignController extends Controller
         return Inertia::render('Campaign/Index', [
             'campaigns' => CampaignResource::collection(
                 Campaign::query()
+                    ->select('campaigns.*')
+                    ->selectSub(function ($query) {
+                        $query->from('apk_setting_campaign')
+                            ->join('apk_setting_vend', 'apk_setting_vend.apk_setting_id', '=', 'apk_setting_campaign.apk_setting_id')
+                            ->whereColumn('apk_setting_campaign.campaign_id', 'campaigns.id')
+                            ->selectRaw('COUNT(DISTINCT apk_setting_vend.vend_id)');
+                    }, 'bound_machines_count')
                     ->with(['operator', 'labelsX', 'labelsY'])
                     ->filterIndex($request)
                     ->when($request->sortKey, function ($query, $search) use ($request) {

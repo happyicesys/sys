@@ -127,6 +127,14 @@
                     <TableHead>
                       End
                     </TableHead>
+                    <TableHeadSort
+                      modelName="bound_machines_count"
+                      :sortKey="filters.sortKey"
+                      :sortBy="filters.sortBy"
+                      @sort-table="sortTable('bound_machines_count')"
+                    >
+                      Binded Machines
+                    </TableHeadSort>
                     <TableHead>
                       Labels X
                     </TableHead>
@@ -168,10 +176,13 @@
                       {{ campaign.operator?.name ?? '-' }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
-                      {{ campaign.start_at ?? '-' }}
+                      <span class="whitespace-nowrap">{{ campaign.start_at ?? '-' }}</span>
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
-                      {{ campaign.end_at ?? '-' }}
+                      <span class="whitespace-nowrap">{{ campaign.end_at ?? '-' }}</span>
+                    </TableData>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
+                      {{ campaign.bound_machines_count ?? 0 }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-left">
                       {{ formatLabels(campaign.labels_x) }}
@@ -232,6 +243,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
+import TableHeadSort from '@/Components/TableHeadSort.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';

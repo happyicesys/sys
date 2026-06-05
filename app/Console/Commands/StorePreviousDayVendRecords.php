@@ -36,8 +36,18 @@ class StorePreviousDayVendRecords extends Command
         $yesterday = Carbon::yesterday();
         RemoveOddTransactions::dispatch($yesterday->toDateString(), $yesterday->toDateString());
         RemoveEmptyOpsJob::dispatch($yesterday->toDateString());
-        StoreVendsRecord::dispatch($yesterday->toDateString(), $yesterday->toDateString(), true);
-        StoreVendProductRecords::dispatch($yesterday->toDateString(), $yesterday->toDateString());
         SyncAvgSalesQtyProducts::dispatch($yesterday->toDateString());
+
+        // Re-roll the day-level rollups over a trailing 3 days (was yesterday only)
+        // so late-arriving or edited transactions for the last couple of days are
+        // picked up, mirroring gp:compute-metrics' 3-day self-heal. Both jobs upsert,
+        // so re-rolling a settled day is idempotent. vend_records and
+        // vend_product_records stay in lockstep. The reconcile:sales-rollups command
+        // covers drift older than this window.
+        for ($i = 1; $i <= 3; $i++) {
+            $day = Carbon::today()->subDays($i)->toDateString();
+            StoreVendsRecord::dispatch($day, $day, true);
+            StoreVendProductRecords::dispatch($day, $day);
+        }
     }
 }

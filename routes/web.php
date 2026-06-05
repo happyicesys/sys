@@ -47,6 +47,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\OpsPerformanceController;
 use App\Http\Controllers\VendController;
 use App\Http\Controllers\VendConfigController;
 use App\Http\Controllers\VendContractController;
@@ -659,6 +660,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/create', [VendController::class, 'create']);
         Route::get('/channels/excel', [VendController::class, 'exportChannelExcel']);
         Route::get('/customers', [VendController::class, 'indexCustomer'])->name('vends.customer');
+        Route::get('/ops-performance', [OpsPerformanceController::class, 'index'])->name('vends.ops-performance');
+        Route::get('/ops-performance/excel', [OpsPerformanceController::class, 'export'])->name('vends.ops-performance.excel');
         Route::get('/', [VendController::class, 'index'])->name('vends');
         Route::get('/{id}/edit', [VendController::class, 'edit'])->name('vends.edit');
         Route::get('/{vend}/logs', [VendController::class, 'logs']);

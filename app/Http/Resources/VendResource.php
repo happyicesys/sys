@@ -264,6 +264,25 @@ class VendResource extends JsonResource
             'total_stock_amount' => isset($this->total_stock_amount) ? $this->total_stock_amount / 100 : null,
             'upcomingProductMapping' => ProductMappingResource::make($this->whenLoaded('upcomingProductMapping')),
             'upcoming_product_mapping_id' => isset($this->upcoming_product_mapping_id) ? $this->upcoming_product_mapping_id : null,
+            // Active campaign name(s) bound to this machine through its APK
+            // settings (Vend -> apkSettings -> campaigns). Drives the
+            // "Campaign" badge under the Ref Price line on Vend/CustomerIndex.
+            // Distinct, active campaigns only; empty array when none/unloaded.
+            'campaigns' => $this->whenLoaded('apkSettings', function () {
+                return $this->apkSettings
+                    ->flatMap(function ($apkSetting) {
+                        return $apkSetting->relationLoaded('campaigns')
+                            ? $apkSetting->campaigns
+                            : collect();
+                    })
+                    ->filter(fn ($campaign) => (bool) $campaign->is_active)
+                    ->unique('id')
+                    ->map(fn ($campaign) => [
+                        'id' => $campaign->id,
+                        'name' => $campaign->name,
+                    ])
+                    ->values();
+            }, []),
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),
             'vendChannelsJson' => isset($this->vend_channels_json) ? $this->vend_channels_json : null,

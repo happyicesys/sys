@@ -49,6 +49,7 @@ const navigation = computed(() => [
         tagline: null,
         children: [
             {name: 'Dashboard', href: '/vends/customers', permission: 'read vends'},
+            {name: 'Ops Performance', href: '/vends/ops-performance', permission: 'read vends'},
         ]
     },
     {
