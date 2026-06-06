@@ -13,16 +13,10 @@
               {{ opsJobItem.ref_id }}
             </span>
           </span>
-          <span v-if="opsJobItem.vend && opsJobItem.vend.vendPrefix">
-            Prefix
-            <span class="text-blue-800">
-              {{ opsJobItem.vend.vendPrefix.name }}
-            </span>
-          </span>
           <span v-if="opsJobItem.vend">
             Machine ID#
             <span class="text-blue-800">
-              <a :href="'/vends/customers?codes=' + opsJobItem.vend.code" target="_blank" class="text-blue-700">
+              <a :href="'/settings/vend/' + opsJobItem.vend.id + '/update'" target="_blank" class="text-blue-700">
                 <span>
                   {{ opsJobItem.vend.code }}
                 </span>
@@ -44,12 +38,21 @@
                   </span>
               </div>
             </div>
-            <div
-                class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit capitalize"
-                :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : opsJobItem.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700 border-teal-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
-                v-if="opsJobItem.stock_action_type"
-            >
-                {{ opsJobItem.stock_action_type.replace(/_/g, ' ') }}
+            <div class="flex flex-col" v-if="opsJobItem.stock_action_type">
+              <div
+                  class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit capitalize"
+                  :class="opsJobItem.stock_action_type == 'implement_new_mapping' ? 'bg-purple-100 text-purple-700 border-purple-200' : opsJobItem.stock_action_type == 'onsite_adjustment' ? 'bg-teal-100 text-teal-700 border-teal-200' : 'bg-orange-100 text-orange-700 border-orange-200'"
+              >
+                  {{ opsJobItem.stock_action_type.replace(/_/g, ' ') }}
+              </div>
+              <a
+                  v-if="opsJobItem.stock_action_type == 'implement_new_mapping' && upcomingMapping"
+                  :href="'/product-mappings/' + upcomingMapping.id + '/edit'"
+                  target="_blank"
+                  class="text-xs text-purple-700 underline hover:text-purple-900 mt-0.5"
+              >
+                  {{ upcomingMapping.name }}
+              </a>
             </div>
           </div>
         </div>
@@ -101,6 +104,22 @@
             </div>
             <div class="px-2 border-b mb-2 border-gray-100 text-left">
             <dl class="divide-y divide-gray-100">
+              <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.vend && opsJobItem.vend.vendPrefix">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Prefix
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <a
+                      :href="'/vend-prefixes?vendPrefixes%5B0%5D=' + opsJobItem.vend.vendPrefix.id"
+                      target="_blank"
+                      class="text-blue-800 hover:text-blue-600"
+                    >
+                      {{ opsJobItem.vend.vendPrefix.name }}
+                    </a>
+                  </div>
+                </dd>
+              </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.opsJob">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
                   Date
@@ -1533,6 +1552,13 @@ const addChannelFormRefMobile = ref(null)
 const addChannelFormRefDesktop = ref(null)
 const replaceRowRefMobile = ref(null)
 const replaceRowRefDesktop = ref(null)
+
+// The upcoming mapping that "implement new mapping" will switch the machine to
+const upcomingMapping = computed(() => {
+  const v = opsJobItem.value?.vend
+  if (!v) return null
+  return v.productMapping?.upcomingProductMapping || v.upcomingProductMapping || null
+})
 
 // Channels in product mapping that are NOT already in the job (capacity=0, driver activated them)
 const availableChannels = computed(() => {

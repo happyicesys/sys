@@ -156,9 +156,9 @@
               </tr>
             </thead>
             <tbody>
-              <ComponentGroup v-for="g in (component.groups || [])" :key="g.key"
+              <ComponentGroup v-for="(g, gi) in (component.groups || [])" :key="g.key"
                 :label="g.label" :rows="g.rows" :total="component.total"
-                :lead="g.lead" :leadValue="g.leadValue" />
+                :lead="g.lead" :leadValue="g.leadValue" :alt="gi % 2 === 1" />
             </tbody>
           </table>
         </div>
@@ -291,9 +291,11 @@ const ComponentGroup = (p) => {
   const rows = p.rows || [];
   const hasLead = p.lead !== undefined && p.lead !== null && p.lead !== '';
   const children = [];
+  // Alternate section background so adjacent groups are easy to tell apart.
+  const sectionBg = p.alt ? ' bg-gray-100' : '';
 
   if (hasLead) {
-    children.push(h('tr', { class: 'border-t bg-gray-50' }, [
+    children.push(h('tr', { class: 'border-t' + sectionBg }, [
       h('td', { class: 'px-3 py-1.5 font-semibold text-gray-700', rowspan: rows.length + 1 }, p.label),
       h('td', { class: 'px-3 py-1.5 font-medium text-gray-700' }, p.lead),
       h('td', { class: 'px-3 py-1.5 text-right font-medium' }, int(p.leadValue)),
@@ -308,9 +310,9 @@ const ComponentGroup = (p) => {
     cells.push(h('td', { class: 'px-3 py-1.5 text-gray-600' }, r.label));
     cells.push(h('td', { class: 'px-3 py-1.5 text-right' }, int(r.count)));
     cells.push(h('td', { class: 'px-3 py-1.5 text-right text-gray-400' }, pct(r.count, p.total)));
-    children.push(h('tr', { class: 'border-t' }, cells));
+    children.push(h('tr', { class: 'border-t' + sectionBg }, cells));
   });
   return children;
 };
-ComponentGroup.props = ['label', 'rows', 'total', 'lead', 'leadValue'];
+ComponentGroup.props = ['label', 'rows', 'total', 'lead', 'leadValue', 'alt'];
 </script>
