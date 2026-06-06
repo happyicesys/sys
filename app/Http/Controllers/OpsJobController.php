@@ -1401,18 +1401,44 @@ class OpsJobController extends Controller
         $vendIdsInJob = OpsJobItem::where('ops_job_id', $opsJob->id)
             ->pluck('vend_id');
 
+        // OpsJob/Edit.vue only consumes { id, cust_full_name } from each option
+        // (see onMounted: maps to { id, full_name }). Previously this shipped the
+        // full VendResource (~200 fields/row) for every unbinded vend, which for
+        // ~880 vends serialized to ~5.2MB — 95% of the page payload. On larger
+        // jobs that bloat pushed the response past the server's memory/time limit,
+        // dropping the connection mid-stream (ERR_QUIC_PROTOCOL_ERROR → blank page).
+        // We now emit only the two fields the dropdown needs. cust_full_name uses
+        // the SAME eager-loaded fields (customer:id,name) and the SAME branch logic
+        // as VendResource so the rendered label is byte-identical to before.
         $unbindedVendOptions = Vend::query()
             ->select(['id', 'customer_id', 'operator_id', 'code'])
             ->with(['customer:id,name'])
             ->whereNotNull('customer_id')
             ->when($vendIdsInJob->isNotEmpty(), fn($q) => $q->whereNotIn('id', $vendIdsInJob))
-            ->get();
+            ->get()
+            ->map(function ($vend) {
+                if ($vend->customer && $vend->customer->person_id) {
+                    $label = '(' . $vend->code . ')  - ' . $vend->customer->virtual_customer_code . ' - ' . $vend->customer->name;
+                } elseif ($vend->customer && !$vend->customer->person_id) {
+                    $label = '(' . $vend->code . ') ' . $vend->customer->code . ' - ' . $vend->customer->name;
+                } else {
+                    $label = '(' . $vend->code . ')' . ' - ' . $vend->label_name;
+                }
+
+                return [
+                    'id' => $vend->id,
+                    'cust_full_name' => $label,
+                ];
+            });
 
         return Inertia::render('OpsJob/Edit', [
             'cmsBaseUrl' => env('CMS_URL'),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => new OpsJobResource($opsJob),
-            'unbindedVendOptions' => VendResource::collection($unbindedVendOptions),
+            // Wrapped in { data: [...] } to preserve the envelope the frontend
+            // expects (props.unbindedVendOptions.data.map(...)) now that we no
+            // longer go through VendResource::collection.
+            'unbindedVendOptions' => ['data' => $unbindedVendOptions->values()],
             'userOptions' => UserResource::collection(
                 User::with('roles')->when(auth()->user()->hasRole('driver'), function ($q) {
                     $q->where('id', auth()->id());

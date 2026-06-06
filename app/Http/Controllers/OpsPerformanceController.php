@@ -12,6 +12,7 @@ use App\Services\OpsMachineDailySnapshotBuilder;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -113,6 +114,9 @@ class OpsPerformanceController extends Controller
             'vendIds' => $this->resolveVendIds($request->codes),
             'customerIds' => $this->resolveCustomerIds($request->customer),
             'siteStatusIds' => $siteStatusIds,
+            // Exclude test rigs from the financial/qty rows so they reconcile
+            // with the Transactions page (which also drops testing vends).
+            'testingVendIds' => Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->all()),
         ];
         $statuses = array_values(array_filter((array) $request->statuses));
 
@@ -312,7 +316,8 @@ class OpsPerformanceController extends Controller
             ->when($f['categoryIds'], fn ($q) => $q->whereIn('category_id', $f['categoryIds']))
             ->when($f['vendIds'], fn ($q) => $q->whereIn('vend_id', $f['vendIds']))
             ->when($f['customerIds'], fn ($q) => $q->whereIn('customer_id', $f['customerIds']))
-            ->when($f['siteStatusIds'] ?? [], fn ($q) => $q->whereIn('customer_id', $this->siteStatusCustomerSub($f['siteStatusIds'])));
+            ->when($f['siteStatusIds'] ?? [], fn ($q) => $q->whereIn('customer_id', $this->siteStatusCustomerSub($f['siteStatusIds'])))
+            ->when(! empty($f['testingVendIds']), fn ($q) => $q->whereNotIn('vend_id', $f['testingVendIds']));
     }
 
     /**
@@ -365,6 +370,7 @@ class OpsPerformanceController extends Controller
                 COALESCE(SUM(gross_profit_cents),0) AS gross_profit_cents,
                 COALESCE(SUM(unit_cost_cents),0) AS unit_cost_cents,
                 COALESCE(SUM(sale_count),0) AS sale_count,
+                COALESCE(SUM(sale_count),0) - COALESCE(SUM(error_count_4_5),0) AS purchased_qty,
                 COALESCE(SUM(transaction_count),0) AS transaction_count')
             ->get();
 
@@ -642,8 +648,8 @@ class OpsPerformanceController extends Controller
         // id, label, format, agg, scope, compareKey
         $defs = [
             ['total_active_machines', 'Total Active Machines', 'int', 'state', 'both', null],
-            ['txn_amount_cents', 'Transaction $', 'money', 'sum', 'both', null],
-            ['sale_count', '# of qty sold (Transaction)', 'int', 'sum', 'both', null],
+            ['amount_cents', 'Transaction $', 'money', 'sum', 'both', null],
+            ['purchased_qty', '# of qty sold (Transaction)', 'int', 'sum', 'both', null],
             ['gross_margin_pct', 'Total Gross Margin, %', 'percent', 'ratio', 'both', null],
             ['gross_profit_cents', 'Total Gross Margin, $', 'money', 'sum', 'both', null],
             ['vend_earning_per_vm', 'Avg per vm, L30d VendEarning, $', 'money', 'per_vm', 'both', null],

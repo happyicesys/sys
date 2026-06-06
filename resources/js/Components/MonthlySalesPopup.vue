@@ -46,14 +46,9 @@
                                         </p>
                                         <ul v-if="tierLegend.length" class="space-y-1">
                                             <li v-for="t in tierLegend" :key="t.name"
-                                                class="flex items-center justify-between rounded-lg px-1.5 py-1">
-                                                <span class="flex items-center gap-1.5">
-                                                    <span class="flex items-center gap-0.5" :class="t.color">
-                                                        <HandThumbUpIcon v-for="i in medalCount(t.amount)" :key="i"
-                                                                         class="h-4 w-4 shrink-0" aria-hidden="true"/>
-                                                    </span>
-                                                    <span class="text-sm font-semibold text-gray-700">{{ t.label }}</span>
-                                                </span>
+                                                class="flex items-center justify-between gap-2 rounded-lg px-1.5 py-1">
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold"
+                                                      :class="t.badge">{{ t.text }}</span>
                                                 <span class="text-sm font-bold tabular-nums text-gray-800">{{ currency }}{{ formatTarget(t.amount) }}</span>
                                             </li>
                                         </ul>
@@ -87,10 +82,9 @@
                                             <span class="h-9 w-48 animate-pulse rounded-lg bg-white/30"></span>
                                         </div>
                                         <div v-else class="flex items-baseline justify-center drop-shadow-sm" :class="figureTierClass(amount)">
-                                            <span v-if="medalCount(amount)" class="mr-1.5 flex items-center self-center gap-0.5">
-                                                <HandThumbUpIcon v-for="i in medalCount(amount)" :key="i"
-                                                                 class="h-7 w-7 sm:h-8 sm:w-8" aria-hidden="true"/>
-                                            </span>
+                                            <span v-if="bonusFor(amount)"
+                                                  class="mr-2 self-center inline-flex items-center rounded-full px-2.5 py-1 text-sm font-bold shadow-sm"
+                                                  :class="bonusFor(amount).badge">{{ bonusFor(amount).text }}</span>
                                             <span class="mr-0.5 self-start pt-2 text-2xl font-semibold text-sky-100 sm:text-3xl">{{ currency }}</span>
                                             <span class="text-5xl tracking-tight tabular-nums sm:text-6xl">{{ intPart }}</span>
                                             <span class="text-2xl font-bold text-sky-100 sm:text-3xl">.{{ decPart }}</span>
@@ -125,15 +119,12 @@
                                         class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100 sm:gap-3 sm:px-4">
                                         <span class="w-11 shrink-0 text-sm font-medium text-gray-500 sm:w-14">{{ m.label }}</span>
                                         <!-- Amount column: right-aligned so all amounts share a clean right edge -->
-                                        <span class="flex min-w-0 flex-1 justify-end">
-                                            <!-- Tier chip: medal + amount (medal shown only when a tier is reached) -->
-                                            <span :class="monthChipClass(m.amount)">
-                                                <span v-if="medalCount(m.amount)" class="flex items-center gap-0.5">
-                                                    <HandThumbUpIcon v-for="i in medalCount(m.amount)" :key="i"
-                                                                     class="h-4 w-4 shrink-0" aria-hidden="true"/>
-                                                </span>
-                                                <span class="text-base tabular-nums" :class="monthWeightClass(m.amount)">{{ currency }}{{ formatAmount(m.amount) }}</span>
-                                            </span>
+                                        <span class="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+                                            <!-- Bonus badge: shown only when a tier is reached -->
+                                            <span v-if="bonusFor(m.amount)"
+                                                  class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-bold"
+                                                  :class="bonusFor(m.amount).badge">{{ bonusFor(m.amount).text }}</span>
+                                            <span class="text-base font-bold tabular-nums text-gray-800">{{ currency }}{{ formatAmount(m.amount) }}</span>
                                         </span>
                                         <!-- Trend column: fixed width + right-aligned number so percentages line up -->
                                         <span class="flex w-[4.25rem] shrink-0 justify-end sm:w-[4.75rem]">
@@ -147,6 +138,17 @@
                                         </span>
                                     </li>
                                 </ul>
+                            </div>
+
+                            <!-- Bonus-policy fineprint -->
+                            <div v-if="!loading" class="px-6 pt-4 text-left">
+                                <p class="text-[0.7rem] leading-relaxed text-gray-500">
+                                    <span class="font-semibold text-gray-600">*集体销售奖金制度*：</span>一旦达标，全体职员将获得销售奖金。<br>
+                                    <span class="font-semibold text-gray-600">销售奖金发放条件（个别员工）：</span><br>
+                                    • 当月无 MC、无无薪假，可获得 100% 销售奖金。<br>
+                                    • 当月如有 MC 或无薪假累计 1–2 天，可获得 50% 销售奖金。<br>
+                                    • 当月如有 MC 或无薪假累计 3 天或以上，则不享有该月销售奖金。
+                                </p>
                             </div>
 
                             <!-- Footer -->
@@ -167,7 +169,7 @@
 
 <script setup>
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue'
-import { ArrowDownRightIcon, ArrowPathIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, HandThumbUpIcon, InformationCircleIcon, MinusSmallIcon, XMarkIcon } from '@heroicons/vue/20/solid'
+import { ArrowDownRightIcon, ArrowPathIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, InformationCircleIcon, MinusSmallIcon, XMarkIcon } from '@heroicons/vue/20/solid'
 import { computed, onMounted, ref } from 'vue'
 
 const open = ref(false)
@@ -196,16 +198,28 @@ function formatTarget(value) {
     return Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
-// Enabled tiers (highest first) for the legend tooltip, each with its target.
+// Staff bonus earned per achieved tier. The label is the bonus payout (not the
+// sales target) and is rendered as a coloured badge in place of the old medals.
+// bronze = lowest tier, gold = highest. Adjust labels/colours here if the bonus
+// scheme changes.
+const tierBonus = {
+    bronze: { text: '$100奖金', badge: 'bg-yellow-100 text-yellow-800 ring-1 ring-inset ring-yellow-300' },
+    silver: { text: '$300奖金', badge: 'bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-300' },
+    gold:   { text: '$500奖金', badge: 'bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-300' },
+}
+
+// Bonus badge config for the highest tier the amount reaches, or null if none.
+function bonusFor(value) {
+    const name = tierFor(value)
+    return name ? tierBonus[name] : null
+}
+
+// Enabled tiers (highest first) for the legend tooltip, each with its target
+// and bonus badge.
 const tierLegend = computed(() => {
-    const meta = {
-        gold:   { label: 'Gold',   color: 'text-amber-500' },
-        silver: { label: 'Silver', color: 'text-slate-500' },
-        bronze: { label: 'Bronze', color: 'text-orange-700' },
-    }
     return ['gold', 'silver', 'bronze']
         .filter((name) => tiers.value?.[name] != null)
-        .map((name) => ({ name, ...meta[name], amount: tiers.value[name] }))
+        .map((name) => ({ name, ...tierBonus[name], amount: tiers.value[name] }))
 })
 
 // Highest tier whose threshold the amount meets, or null if below them all.
@@ -217,42 +231,6 @@ function tierFor(value) {
         if (threshold != null && amt >= threshold) return name
     }
     return null
-}
-
-// Number of medals to show for a tier: bronze 1, silver 2, gold 3 (0 = none).
-function medalCount(value) {
-    switch (tierFor(value)) {
-        case 'gold':   return 3
-        case 'silver': return 2
-        case 'bronze': return 1
-        default:       return 0
-    }
-}
-
-// Recent-month chip (on the white card): tinted background + a coloured ring/
-// border so the tier reads clearly. The medal and amount inherit the chip's
-// text colour via currentColor. Normal (no tier) → no chip, plain dark text.
-function monthChipClass(value) {
-    const base = 'inline-flex items-center gap-1.5'
-    const chip = ' rounded-full px-2.5 py-1 ring-1 shadow-sm'
-    switch (tierFor(value)) {
-        case 'gold':   return base + chip + ' bg-gradient-to-b from-amber-50 to-amber-100 text-amber-600 ring-amber-400/80'
-        case 'silver': return base + chip + ' bg-gradient-to-b from-slate-100 to-slate-300 text-slate-700 ring-slate-400'
-        case 'bronze': return base + chip + ' bg-gradient-to-b from-orange-50 to-orange-100 text-orange-700 ring-orange-400/80'
-        // No tier: no chip, but keep the same right padding so the number lines
-        // up with the tiered amounts (whose chip insets the text by px-2.5).
-        default:       return base + ' pr-2.5 text-gray-800'
-    }
-}
-
-// Font weight for the recent-month amount, escalating with tier.
-function monthWeightClass(value) {
-    switch (tierFor(value)) {
-        case 'gold':   return 'font-black'
-        case 'silver': return 'font-extrabold'
-        case 'bronze': return 'font-bold'
-        default:       return 'font-bold'
-    }
 }
 
 // The big current figure (on the blue gradient header). Lighter shades so the

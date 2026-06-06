@@ -126,18 +126,18 @@
                 </Button>
               </div>
 
-              <div class="sm:col-span-6 flex justify-between space-x-1 text-sm mt-3">
-                <div class="flex flex-col md:flex-row space-x-1">
+              <div class="sm:col-span-6 flex flex-col md:flex-row md:justify-between md:items-start gap-3 text-sm mt-3">
+                <div class="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
-                    class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 hover:cursor-pointer ml-1 w-fit h-fit"
+                    class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-sky-300 px-4 py-2.5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 hover:cursor-pointer"
                     @click="onMapAllMarkerClicked"
                     v-if="opsJob.opsJobItems && opsJob.opsJobItems.some(item => item.customer && item.customer.deliveryAddress && item.customer.deliveryAddress.latitude && item.customer.deliveryAddress.longitude)"
                   >
                     <MapPinIcon class="h-4 w-4" aria-hidden="true" />
                     <span>Show Map Markers</span>
                   </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-blue bg-blue-400 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 w-fit h-fit"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-blue bg-blue-400 px-4 py-2.5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
                   @click.prevent="onGeneratePickListClicked()"
                   v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 2)"
                   >
@@ -148,7 +148,7 @@
                       </span>
                     </span>
                   </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 w-fit h-fit"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-4 py-2.5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
                   @click.prevent="onGenerateQtyListClicked(2)"
                   v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status == 2)"
                   >
@@ -159,7 +159,7 @@
                       </span>
                     </span>
                   </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 w-fit h-fit"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-4 py-2.5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                   @click.prevent="onGenerateQtyListClicked(3)"
                   v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status >= 3)"
                   >
@@ -170,8 +170,8 @@
                       </span>
                     </span>
                   </Button>
-                  <a :href="'/ops-jobs/' + opsJob.id + '/route'" target="_blank" class="text-blue-700" v-if="opsJob.opsJobItems">
-                    <span class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 hover:cursor-pointer">
+                  <a :href="'/ops-jobs/' + opsJob.id + '/route'" target="_blank" class="text-blue-700 inline-flex" v-if="opsJob.opsJobItems">
+                    <span class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-300 px-4 py-2.5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 hover:cursor-pointer">
                       <PlayIcon class="h-4 w-4" aria-hidden="true" />
                       <span>Route Planning</span>
                     </span>
@@ -183,7 +183,7 @@
                     <Button
                       v-if="batchMode && (selectedItemIds.length > 0 || selectedTaskIds.length > 0)"
                       type="button"
-                      class="inline-flex space-x-1 items-center rounded-md bg-green-500 hover:bg-green-600 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm w-fit h-fit"
+                      class="inline-flex space-x-1 items-center rounded-md bg-green-500 hover:bg-green-600 px-4 py-2.5 text-sm font-medium leading-4 text-white shadow-sm"
                       @click.prevent="onBatchAssignDriverClicked"
                     >
                       <UserGroupIcon class="h-4 w-4" aria-hidden="true" />
@@ -193,7 +193,7 @@
                     <Button
                       v-else-if="batchMode && selectedItemIds.length === 0 && selectedTaskIds.length === 0"
                       type="button"
-                      class="inline-flex space-x-1 items-center rounded-md bg-orange-400 hover:bg-orange-500 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm w-fit h-fit"
+                      class="inline-flex space-x-1 items-center rounded-md bg-orange-400 hover:bg-orange-500 px-4 py-2.5 text-sm font-medium leading-4 text-white shadow-sm"
                       @click.prevent="onBatchAssignDriverClicked"
                     >
                       <XMarkIcon class="h-4 w-4" aria-hidden="true" />
@@ -203,7 +203,7 @@
                     <Button
                       v-else
                       type="button"
-                      class="inline-flex space-x-1 items-center rounded-md bg-purple-500 hover:bg-purple-600 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm w-fit h-fit"
+                      class="inline-flex space-x-1 items-center rounded-md bg-purple-500 hover:bg-purple-600 px-4 py-2.5 text-sm font-medium leading-4 text-white shadow-sm"
                       @click.prevent="onBatchAssignDriverClicked"
                     >
                       <UserGroupIcon class="h-4 w-4" aria-hidden="true" />
@@ -216,7 +216,7 @@
                     v-if="permissions.includes('update operations')"
                     type="button"
                     @click="openNewTaskModal()"
-                    class="inline-flex space-x-1 items-center rounded-md bg-violet-500 hover:bg-violet-600 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm w-fit h-fit"
+                    class="inline-flex space-x-1 items-center rounded-md bg-violet-500 hover:bg-violet-600 px-4 py-2.5 text-sm font-medium leading-4 text-white shadow-sm"
                   >
                     <PlusCircleIcon class="h-4 w-4" aria-hidden="true" />
                     <span>New Task</span>

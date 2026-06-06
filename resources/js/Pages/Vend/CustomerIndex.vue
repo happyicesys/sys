@@ -732,10 +732,11 @@
 							<dt class="text-xs font-medium leading-tight text-gray-500">% of VM, Avg Daily Sales L30D &gt;= Avg/Day</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-green-700">{{ currentStats.greenPct.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}% <span class="text-xs font-normal text-gray-400">({{ currentStats.greenCount }}/{{ currentStats.greenTotal }})</span></dd>
 						</div>
-						<!-- Refillable > $150 — count of machines, fixed 150 -->
+						<!-- # of VM, Refillable > $150, $200, $250 — counts of machines whose
+							Refillable Value exceeds each fixed threshold -->
 						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500">Refillable &gt; $150</dt>
-							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.refillableOver150 }} <span class="text-xs font-normal text-gray-400">/ {{ currentStats.total }}</span></dd>
+							<dt class="truncate text-xs font-medium text-gray-500"># of VM, Refillable &gt; $150, $200, $250</dt>
+							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.refillableOver150 }}, {{ currentStats.refillableOver200 }}, {{ currentStats.refillableOver250 }}</dd>
 						</div>
 						<!-- # of Job, next day — machines with a scheduled ops job dated tomorrow -->
 						<div class="px-4 py-3">
@@ -2960,7 +2961,7 @@ font-size:13px;
 	const currentStats = computed(() => {
 		const rows = props.vends?.data ?? [];
 		const n = rows.length;
-		const empty = { total: 0, stockTotal: 0, errTotal: 0, stockQtyBal: 0, stockSkuBal: 0, todayError: 0, greenCount: 0, greenPct: 0, greenTotal: 0, refillableOver150: 0, salesUpCount: 0, salesUpTotal: 0, salesUpPct: 0, nextDayJobCount: 0 };
+		const empty = { total: 0, stockTotal: 0, errTotal: 0, stockQtyBal: 0, stockSkuBal: 0, todayError: 0, greenCount: 0, greenPct: 0, greenTotal: 0, refillableOver150: 0, refillableOver200: 0, refillableOver250: 0, salesUpCount: 0, salesUpTotal: 0, salesUpPct: 0, nextDayJobCount: 0 };
 		if (!n) return empty;
 
 		// "Overall Avg/day" baseline (fleet-wide): the mean of each VM's L30D
@@ -2996,7 +2997,7 @@ font-size:13px;
 		let stockTotal = 0, sumQtyBal = 0, sumSkuBal = 0;
 		let errTotal = 0, sumErr = 0;
 		let greenTotal = 0, greenCount = 0;
-		let refillCount = 0;
+		let refillCount = 0, refillCount200 = 0, refillCount250 = 0;
 		let salesUpTotal = 0, salesUpCount = 0;
 		let nextDayJobCount = 0;
 		for (const v of rows) {
@@ -3027,7 +3028,10 @@ font-size:13px;
 			}
 			// # of Job, next day — VMs whose next scheduled ops job is dated tomorrow.
 			if (v.nextOpsJobItem?.opsJob?.date === tomorrow) nextDayJobCount++;
-			if (Number(v.actual_stock_in_value ?? 0) > 150) refillCount++;
+			const refillVal = Number(v.actual_stock_in_value ?? 0);
+			if (refillVal > 150) refillCount++;
+			if (refillVal > 200) refillCount200++;
+			if (refillVal > 250) refillCount250++;
 		}
 		return {
 			total: n,
@@ -3040,6 +3044,8 @@ font-size:13px;
 			greenTotal,
 			greenPct: greenTotal > 0 ? (greenCount / greenTotal) * 100 : 0,
 			refillableOver150: refillCount,
+			refillableOver200: refillCount200,
+			refillableOver250: refillCount250,
 			salesUpCount,
 			salesUpTotal,
 			salesUpPct: salesUpTotal > 0 ? (salesUpCount / salesUpTotal) * 100 : 0,
