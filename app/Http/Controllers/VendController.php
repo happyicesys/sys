@@ -585,6 +585,13 @@ class VendController extends Controller
         $perPage = $perPage ?: 50;
         $mapApiKey = $this->mapService->getMapApiKeyByUser(auth()->user());
 
+        // Pre-Search aggregate cards ("Last 30 days" + "Current") — computed
+        // across ALL rows matching the current filters (NOT capped by
+        // numberPerPage) on the initial, non-autoload page load. Null on the
+        // Search/autoload path so the frontend falls back to its existing
+        // page-scoped totals/currentStats once the table is loaded.
+        $initialStats = null;
+
         if ($shouldAutoload) {
             $vends = Customer::query()
                 ->with([
@@ -1532,6 +1539,20 @@ class VendController extends Controller
                 'thirtyDaysLocationFees' => 0,
                 'thirtyDaysJobsDone' => 0,
             ];
+
+            // Initial page load (no Search yet): compute the two aggregate
+            // cards over the FULL filtered result set via a slim query —
+            // the heavy table itself still only loads on Search.
+            //
+            // Mirror the Search form's untouched Machine Status default
+            // ('Active' — CustomerIndex.vue statusOptions[2]) so the
+            // pre-Search cards equal what the first Search returns. Skipped
+            // for codes/channel_codes deep-links: the frontend resets Status
+            // to All for those and auto-triggers a Search immediately.
+            if (!$request->filled('status') && !$request->filled('codes') && !$request->filled('channel_codes')) {
+                $request->merge(['status' => 'active']);
+            }
+            $initialStats = $this->computeCustomerIndexCardStats($request);
         }
 
         // Cache static dropdown options — same pattern as transactionIndex (line ~2034).
@@ -1632,6 +1653,9 @@ class VendController extends Controller
             ],
             'indexType' => $request->indexType,
             'autoLoad' => $shouldAutoload,
+            // Pre-Search card stats over ALL filtered rows (null once a
+            // Search/autoload has populated the table).
+            'initialStats' => $initialStats,
             'locationTypeOptions' => ['data' => $locationTypeOptions],
             'mapApiKey' => $mapApiKey,
             'nextDeliveryDriverOptions' => ['data' => $driverOptions],
@@ -4364,6 +4388,243 @@ class VendController extends Controller
             }
         }
     }
+    /**
+     * Pre-Search aggregate cards for Vend/CustomerIndex ("Last 30 days" +
+     * "Current"), computed across ALL rows matching the current filters —
+     * deliberately NOT capped by numberPerPage. Used on the initial page load
+     * (autoload=false) so the operator sees fleet-level numbers before
+     * clicking Search; the heavy table query stays Search-only.
+     *
+     * The math mirrors, 1:1, what the page shows after a Search:
+     *  - the backend $totals block in indexCustomer() for the L30d card, and
+     *  - CustomerIndex.vue's `currentStats` computed for the Current card
+     *    (same per-metric denominators, same fleet-relative green baseline).
+     * Keep all three in sync when changing any of them.
+     *
+     * Only the slim set of columns the card math needs is selected (no eager
+     * loads, no VendResource) — see the OpsJob/Edit QUIC lesson: never ship
+     * heavy payloads for ancillary UI.
+     */
+    private function computeCustomerIndexCardStats(Request $request): array
+    {
+        // Same unconditional joins as the main indexCustomer query so every
+        // filterVendsDB/filterOperatorDB branch finds the tables it expects.
+        $query = Customer::query()
+            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+            ->leftJoin('addresses', function ($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                    ->where('addresses.type', '=', 2);
+            })
+            ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
+
+        $query = $this->filterVendsDB($query, $request);
+        $query = $this->filterOperatorDB($query, 'customers');
+
+        // reorder() drops the ORDER BY filterVendsDB added — sorting is
+        // irrelevant for aggregation and some sort keys reference SELECT
+        // aliases this slim query doesn't expose.
+        $rows = $query->reorder()
+            ->select([
+                'customers.id AS id',
+                'customers.id AS customer_id',
+                'vends.id AS vend_id',
+                'customers.totals_json AS vend_transaction_totals_json',
+                'customers.operator_id',
+                'customers.contract_commission_type',
+                'customers.contract_commission_value',
+                'customers.contract_commission_value2',
+                'customers.contract_ps_term',
+                'customers.is_external_subsidize',
+                'customers.external_subsidize_amount',
+                'vends.balance_percent',
+                'vends.out_of_stock_sku_percent',
+                'vends.virtual_vend_records_thirty_days_amount_average',
+                // Presence flag only — the full channel JSON is heavy and the
+                // card math just needs "does this machine report stock data".
+                DB::raw('(vends.vend_channel_totals_json IS NOT NULL) AS has_channel_totals'),
+            ])
+            ->get();
+
+        // Batched per-collection aggregates (same helpers the Search path
+        // uses): Refillable Value + L30d stock-in / # of job done.
+        $this->loadAggregates($rows, ['vc_stock', 'last_thirty_days_stock_in']);
+
+        // "# of Job, next day" — replicate Customer::nextOpsJobItem() (oldest
+        // pending item whose job is dated >= today) per customer in one query,
+        // then keep those whose next job lands tomorrow. Counted per ROW below
+        // (a multi-machine customer contributes one row per machine, matching
+        // the frontend's per-row currentStats loop).
+        $tomorrow = Carbon::tomorrow()->toDateString();
+        $customerIds = $rows->pluck('customer_id')->filter()->unique()->values()->all();
+        $nextDayCustomerIds = [];
+        if (!empty($customerIds)) {
+            $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
+            $nextDayRows = DB::select("
+                SELECT t.customer_id FROM (
+                    SELECT oji.customer_id, oj.date,
+                           ROW_NUMBER() OVER (PARTITION BY oji.customer_id ORDER BY oji.created_at ASC) AS rn
+                    FROM ops_job_items oji
+                    INNER JOIN ops_jobs oj ON oj.id = oji.ops_job_id AND oj.date >= CURDATE()
+                    WHERE oji.customer_id IN ($placeholders)
+                      AND oji.status < 3 AND oji.status <> 99
+                ) AS t
+                WHERE t.rn = 1 AND DATE(t.date) = ?
+            ", array_merge($customerIds, [$tomorrow]));
+            $nextDayCustomerIds = array_flip(array_map(fn ($r) => (int) $r->customer_id, $nextDayRows));
+        }
+
+        // Operator GST lookup for the PS-family location-fee math (same
+        // pre-load the Search path uses).
+        $gstRates = DB::table('operators')
+            ->pluck('gst_vat_rate', 'id')
+            ->map(fn ($v) => (float) $v)
+            ->all();
+
+        // Pass 1 — fleet-wide "Overall Avg/day" baseline for the green % card
+        // (mean of L30D avg daily sales over VMs that report an avg/day).
+        // Cents on both sides here vs dollars on the frontend — the >=
+        // comparison is scale-invariant so parity holds.
+        $baselineSum = 0.0;
+        $baselineN = 0;
+        foreach ($rows as $row) {
+            $json = $row->vend_transaction_totals_json;
+            if (is_array($json) && array_key_exists('vend_records_amount_average_day', $json)) {
+                $baselineSum += (float) ($row->virtual_vend_records_thirty_days_amount_average ?? 0);
+                $baselineN++;
+            }
+        }
+        $overallAvgDaily = $baselineN > 0 ? $baselineSum / $baselineN : 0.0;
+
+        // Pass 2 — everything else in a single per-row loop.
+        $n = $rows->count();
+        $sumThirtyDays = 0;          // cents
+        $sumStockIn = 0.0;           // cents
+        $sumVendEarning = 0;         // cents
+        $sumLocationFees = 0;        // cents
+        $sumJobsDone = 0;
+        $stockTotal = 0; $sumQtyBal = 0.0; $sumSkuBal = 0.0;
+        $errTotal = 0; $sumErr = 0.0;
+        $greenTotal = 0; $greenCount = 0;
+        $salesUpTotal = 0; $salesUpCount = 0;
+        $refill150 = 0; $refill200 = 0; $refill250 = 0; $refill350 = 0; $refill450 = 0;
+        $nextDayJobCount = 0;
+
+        foreach ($rows as $row) {
+            $json = $row->vend_transaction_totals_json;
+            if (is_array($json)) {
+                // L30d Sales / VendEarning / LocEarning — identical formulas
+                // to the Search path's $totals block (incl-GST sales basis,
+                // fee net of External Subsidize for VendEarning, gross fee
+                // for LocEarning).
+                $salesCents = (int) ($json['thirty_days_amount'] ?? 0);
+                $grossEarningCents = (int) ($json['thirty_days_gross_profit'] ?? 0);
+                $gstRatePct = (float) ($gstRates[$row->operator_id] ?? 0);
+                $locationFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
+                    $row->contract_commission_type,
+                    $row->contract_commission_value !== null ? (float) $row->contract_commission_value : null,
+                    $row->contract_commission_value2 !== null ? (float) $row->contract_commission_value2 : null,
+                    $row->contract_ps_term !== null ? (float) $row->contract_ps_term : null,
+                    $salesCents,
+                    $grossEarningCents,
+                    $gstRatePct
+                );
+                $extSubCents = ($row->is_external_subsidize && $row->external_subsidize_amount !== null)
+                    ? (int) round(((float) $row->external_subsidize_amount) * 100)
+                    : 0;
+                $sumThirtyDays += $salesCents;
+                $sumVendEarning += $grossEarningCents - ($locationFeeCents - $extSubCents);
+                $sumLocationFees += $locationFeeCents;
+
+                // % of VM, Sales L30D > LMth
+                if (array_key_exists('thirty_days_amount', $json) && array_key_exists('last_mth_amount', $json)) {
+                    $salesUpTotal++;
+                    if ((float) ($json['thirty_days_amount'] ?? 0) > (float) ($json['last_mth_amount'] ?? 0)) {
+                        $salesUpCount++;
+                    }
+                }
+                // Today Error rate — only over machines that report one.
+                if (array_key_exists('one_day_error_rate', $json)) {
+                    $errTotal++;
+                    $sumErr += (float) ($json['one_day_error_rate'] ?? 0);
+                }
+                // % of VM at/above the fleet Overall Avg/day baseline.
+                if (array_key_exists('vend_records_amount_average_day', $json)) {
+                    $greenTotal++;
+                    if ((float) ($row->virtual_vend_records_thirty_days_amount_average ?? 0) >= $overallAvgDaily) {
+                        $greenCount++;
+                    }
+                }
+            }
+
+            $sumStockIn += (float) ($row->last_thirty_days_stock_in_amount ?? 0);
+            $sumJobsDone += (int) ($row->last_thirty_days_jobs_done_count ?? 0);
+
+            // Stock Qty/SKU Bal — only over machines with channel stock data.
+            if ($row->has_channel_totals) {
+                $stockTotal++;
+                $sumQtyBal += (float) ($row->balance_percent ?? 0);
+                $sumSkuBal += 100 - (float) ($row->out_of_stock_sku_percent ?? 0);
+            }
+
+            // Refillable Value thresholds — /100 to currency units, matching
+            // VendResource's serialisation the frontend compares against.
+            $refillVal = ((float) ($row->actual_stock_in_value ?? 0)) / 100;
+            if ($refillVal > 150) $refill150++;
+            if ($refillVal > 200) $refill200++;
+            if ($refillVal > 250) $refill250++;
+            if ($refillVal > 350) $refill350++;
+            if ($refillVal > 450) $refill450++;
+
+            if (isset($nextDayCustomerIds[(int) $row->customer_id])) {
+                $nextDayJobCount++;
+            }
+        }
+
+        return [
+            // All-rows machine count — drives the (Avg / VM) figures.
+            'vmCount' => $n,
+            // Same keys/units (currency units, not cents) as the Search
+            // path's `totals` prop so the template can swap sources directly.
+            'totals' => [
+                'thirtyDays' => $sumThirtyDays / 100,
+                'thirthyDaysStockIn' => $sumStockIn / 100,
+                'thirtyDaysVendingEarning' => $sumVendEarning / 100,
+                'thirtyDaysLocationFees' => $sumLocationFees / 100,
+                'thirtyDaysJobsDone' => $sumJobsDone,
+            ],
+            // Same shape as CustomerIndex.vue's `currentStats` computed.
+            'current' => [
+                'total' => $n,
+                'stockTotal' => $stockTotal,
+                'errTotal' => $errTotal,
+                'stockQtyBal' => $stockTotal > 0 ? $sumQtyBal / $stockTotal : 0,
+                'stockSkuBal' => $stockTotal > 0 ? $sumSkuBal / $stockTotal : 0,
+                'todayError' => $errTotal > 0 ? $sumErr / $errTotal : 0,
+                'greenCount' => $greenCount,
+                'greenTotal' => $greenTotal,
+                'greenPct' => $greenTotal > 0 ? ($greenCount / $greenTotal) * 100 : 0,
+                'refillableOver150' => $refill150,
+                'refillableOver200' => $refill200,
+                'refillableOver250' => $refill250,
+                'refillableOver350' => $refill350,
+                'refillableOver450' => $refill450,
+                'salesUpCount' => $salesUpCount,
+                'salesUpTotal' => $salesUpTotal,
+                'salesUpPct' => $salesUpTotal > 0 ? ($salesUpCount / $salesUpTotal) * 100 : 0,
+                'nextDayJobCount' => $nextDayJobCount,
+            ],
+        ];
+    }
+
     private function loadAggregates($items, $types = ['vc', 'vc_cost'])
     {
         $vendIds = $items->map(function ($item) {

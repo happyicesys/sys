@@ -630,7 +630,15 @@
 			<!-- Two groups: stacked on mobile/tablet, side-by-side on desktop
 			     (lg+) split 50/50 — widened from the original 3:2 so the five
 			     Refillable counts in Current fit on one line. -->
-			<div v-if="hasSearched" class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2 items-start">
+			<!-- Cards render pre-Search too (backend initialStats over ALL
+			     filtered rows); the table below still loads only on Search. -->
+			<!-- Fine print — init view only: tells the user the card totals span
+			     the FULL filtered fleet, not the 50-per-page table scope they'll
+			     get after clicking Search. -->
+			<div v-if="!hasSearched && initialStats" class="mt-4 text-xs italic text-gray-500">
+				Based on all {{ (initialStats.vmCount ?? 0).toLocaleString() }} units matching the current filters
+			</div>
+			<div v-if="hasSearched || initialStats" :class="(!hasSearched && initialStats) ? 'mt-2' : 'mt-4'" class="grid grid-cols-1 gap-3 lg:grid-cols-2 items-start">
 				<!-- ============ Group 1: Last 30 days (Total / Avg per VM) ============
 				     Framed panel; each stat is a cell in a 5-up grid. The gap-px on a
 				     gray backing renders hairline separators between the white cells.
@@ -645,16 +653,16 @@
 						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500">Stock-in Value $</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
-								{{totals['thirthyDaysStockIn'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ (totals['thirthyDaysStockIn'] / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})</span>
+								{{cardTotals['thirthyDaysStockIn'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ (cardTotals['thirthyDaysStockIn'] / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})</span>
 							</dd>
 						</div>
 						<!-- 2. Sales $ -->
 						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500">Sales $</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
-								{{totals['thirtyDays'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ (totals['thirtyDays'] / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})</span>
+								{{cardTotals['thirtyDays'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ (cardTotals['thirtyDays'] / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})</span>
 							</dd>
 						</div>
 						<!-- 3. VendEarning $ = Gross − Location Fees (mirrors Site Summary "Total Vend Earnings"). -->
@@ -662,10 +670,10 @@
 							<dt class="truncate text-xs font-medium text-gray-500">VendEarning $</dt>
 							<dd
 								class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums"
-								:class="(totals['thirtyDaysVendingEarning'] || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
+								:class="(cardTotals['thirtyDaysVendingEarning'] || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
 							>
-								{{(totals['thirtyDaysVendingEarning'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ ((totals['thirtyDaysVendingEarning'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})</span>
+								{{(cardTotals['thirtyDaysVendingEarning'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ ((cardTotals['thirtyDaysVendingEarning'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})</span>
 							</dd>
 						</div>
 						<!-- 4. LocEarning $ = Location Fees (mirrors Site Summary "Total Location Fees"). Emerald when negative = subsidy. -->
@@ -673,18 +681,18 @@
 							<dt class="truncate text-xs font-medium text-gray-500">LocEarning $</dt>
 							<dd
 								class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums"
-								:class="(totals['thirtyDaysLocationFees'] || 0) < 0 ? 'text-emerald-700' : 'text-gray-900'"
+								:class="(cardTotals['thirtyDaysLocationFees'] || 0) < 0 ? 'text-emerald-700' : 'text-gray-900'"
 							>
-								{{(totals['thirtyDaysLocationFees'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ ((totals['thirtyDaysLocationFees'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})</span>
+								{{(cardTotals['thirtyDaysLocationFees'] || 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ ((cardTotals['thirtyDaysLocationFees'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})</span>
 							</dd>
 						</div>
 						<!-- 5. # of Job done = completed ops_job_items L30d. Integer total; Avg/VM to 1 dp. -->
 						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500"># of Job done</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums text-gray-900">
-								{{(totals['thirtyDaysJobsDone'] || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
-								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ ((totals['thirtyDaysJobsDone'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 1}) }})</span>
+								{{(cardTotals['thirtyDaysJobsDone'] || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+								<span class="text-sm font-semibold tabular-nums text-gray-600">({{ ((cardTotals['thirtyDaysJobsDone'] || 0) / vmCount).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 1}) }})</span>
 							</dd>
 						</div>
 						<!-- 6. % of VM, Sales L30D > LMonth — share of machines whose rolling
@@ -2917,6 +2925,12 @@ font-size:13px;
 			driverOptions: Object,
 			frequencyPerWeekOptions: [Array, Object],
 			indexType: String,
+			// Pre-Search aggregate cards — backend-computed over ALL rows
+			// matching the filters (not capped by itemPerPage). Only set on
+			// the initial non-autoload load; null after a Search, at which
+			// point the cards fall back to the page-scoped totals/currentStats.
+			// Shape: { vmCount, totals: {...}, current: {...} }.
+			initialStats: Object,
 			locationTypeOptions: Object,
 			mapApiKey: String,
 			nextDeliveryDriverOptions: [Array, Object],
@@ -2939,8 +2953,23 @@ font-size:13px;
 	// page, so the per-machine average divides by the row count. Guard against
 	// 0 so the cards never render NaN/Infinity before a search returns rows.
 	const vmCount = computed(() => {
+		// Pre-Search: the backend's all-rows count (full filtered fleet, not
+		// capped by itemPerPage). After Search: the page rows, as before.
+		if (!hasSearched.value && props.initialStats) {
+			const n = props.initialStats.vmCount ?? 0;
+			return n > 0 ? n : 1;
+		}
 		const n = props.vends?.data?.length ?? 0;
 		return n > 0 ? n : 1;
+	});
+
+	// Source for the "Last 30 days" card: pre-Search the backend-computed
+	// all-rows initialStats.totals, after Search the page-scoped `totals`
+	// prop (previous behaviour). Same keys/units either way.
+	const cardTotals = computed(() => {
+		return (!hasSearched.value && props.initialStats)
+			? props.initialStats.totals
+			: props.totals;
 	});
 
 	// "Current" snapshot card — averages/counts over EVERY machine in the
@@ -2960,6 +2989,11 @@ font-size:13px;
 	//   - refillableOver150: count of machines whose Refillable Value
 	//     (actual_stock_in_value, already in currency units) exceeds a FIXED 150.
 	const currentStats = computed(() => {
+		// Pre-Search: backend-computed over ALL filtered rows (same shape,
+		// same per-metric denominators — see VendController::computeCustomerIndexCardStats).
+		if (!hasSearched.value && props.initialStats?.current) {
+			return props.initialStats.current;
+		}
 		const rows = props.vends?.data ?? [];
 		const n = rows.length;
 		const empty = { total: 0, stockTotal: 0, errTotal: 0, stockQtyBal: 0, stockSkuBal: 0, todayError: 0, greenCount: 0, greenPct: 0, greenTotal: 0, refillableOver150: 0, refillableOver200: 0, refillableOver250: 0, refillableOver350: 0, refillableOver450: 0, salesUpCount: 0, salesUpTotal: 0, salesUpPct: 0, nextDayJobCount: 0 };
