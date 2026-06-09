@@ -324,10 +324,12 @@ class CustomerController extends Controller
         $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
-            'customer:id,name,code,company_remark,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by',
+            'customer:id,name,code,company_remark,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,status_id,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by',
             // Customer's primary contact (morphOne) — used to render the
-            // Contact Person line stacked under Address on the Summary page.
-            'customer.contact:id,modelable_id,modelable_type,name',
+            // Billing Company (`company`, the Edit form's "Bill From" field)
+            // and Billing Contact Person (`name`) lines stacked under Address
+            // on the Summary page.
+            'customer.contact:id,modelable_id,modelable_type,name,company',
             // Customer-level note "last edited by" user — drives the
             // tiny audit line under the textarea on Customer Summary.
             'customer.notesUpdatedBy:id,name',
@@ -1569,7 +1571,7 @@ class CustomerController extends Controller
             'external_subsidize', 'net_loc_fee',
             'accumulate_vending_earning',
             'period_start', 'period_end',
-            'customer_name', 'selling_price_type', 'begin_date',
+            'customer_name', 'selling_price_type', 'begin_date', 'site_status',
             'contract_attachment', 'location_type', 'contract_until',
             'notes_updated_at',
             'gross_earning_rate',
@@ -1643,6 +1645,16 @@ class CustomerController extends Controller
         } elseif ($sortKey === 'begin_date') {
             $nullsLastRaw(
                 'SELECT c.begin_date FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'site_status') {
+            // Site Status — customers.status_id (lifecycle: 1=Inactive,
+            // 2=Active, 3=Pending, 4=New, 5=Potential). Sorting by the raw
+            // id groups rows by status; drives the "Site Status" sort item
+            // stacked in the Site column header on Customer/Summary.vue.
+            $nullsLastRaw(
+                'SELECT c.status_id FROM customers c
                   WHERE c.id = customer_period_summaries.customer_id',
                 $sortDirection
             );
@@ -1777,8 +1789,9 @@ class CustomerController extends Controller
             'customer.locationType:id,name',
             'customer.vend:id,customer_id,code,vend_prefix_id',
             'customer.vend.vendPrefix:id,name',
-            // Drives the Contact Person + Contact Phone columns (morphOne).
-            'customer.contact:id,modelable_id,modelable_type,name,phone_num,alt_phone_num',
+            // Drives the Company + Contact Person + Contact Phone columns (morphOne).
+            // `company` = the Edit form's "Bill From" billing-company field.
+            'customer.contact:id,modelable_id,modelable_type,name,company,phone_num,alt_phone_num',
             // Drives the "Contract Attachment" Yes/No column — we only need to
             // know whether the customer has at least one FILE_TYPE_CONTRACT
             // attachment, so this is just the id list (very cheap).
@@ -2068,11 +2081,12 @@ class CustomerController extends Controller
                     '#' => $rowIndex,
                     'Customer ID' => $customer ? ($customer->id + Customer::RUNNING_NUMBER_INIT) : null,
                     'Customer Name' => $customer?->name,
-                    // Company (CMS-mirrored `company_remark`) and Contact Person
-                    // (morphOne Contact relation). These exist on the customer
-                    // record but aren't shown in the on-screen Summary table;
-                    // useful in the export for offline contact lookup.
-                    'Company' => $customer?->company_remark,
+                    // Company = billing company from the morphOne Contact
+                    // (`contact.company`, the Edit form's "Bill From" field),
+                    // falling back to the legacy CMS-mirrored `company_remark`
+                    // for customers never edited in mark1. Mirrors the
+                    // Billing Company line on the on-screen Summary table.
+                    'Company' => optional($customer?->contact)->company ?: $customer?->company_remark,
                     'Contact Person' => optional($customer?->contact)->name,
                     'Contact Phone' => optional($customer?->contact)->phone_num,
                     'Contact Alt Phone' => optional($customer?->contact)->alt_phone_num,

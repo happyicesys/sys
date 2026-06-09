@@ -1382,9 +1382,12 @@
 							<div
 								v-for="campaign in (vend.vend && vend.vend.campaigns) ? vend.vend.campaigns : []"
 								:key="campaign.id"
-								class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-pink-100 text-pink-800 border-pink-300"
+								class="inline-flex flex-col rounded px-0.5 py-0.5 text-xs border w-fit bg-pink-100 text-pink-800 border-pink-300"
 							>
-								{{ campaign.name }}
+								<span>{{ campaign.name }}</span>
+								<span v-if="campaign.end_at" class="text-pink-600">
+									Exp: {{ campaign.end_at }}
+								</span>
 							</div>
 							<span class="flex space-x-1 items-center">
 								<span>

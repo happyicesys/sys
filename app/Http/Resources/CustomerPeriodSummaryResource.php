@@ -196,16 +196,26 @@ class CustomerPeriodSummaryResource extends JsonResource
                     // "Company / Name" sub-line in the Address column on the
                     // Summary page. See migration 2026_05_27_000000.
                     'company_remark' => $c->company_remark,
-                    // Primary contact (morphOne). Only the name is surfaced —
-                    // used for the "Contact Person" sub-line stacked under the
-                    // Address column on the Summary page.
+                    // Primary contact (morphOne). `name` renders the "Billing
+                    // Contact Person" sub-line; `company` (the Edit form's
+                    // "Bill From" field) renders the "Billing Company" sub-line
+                    // stacked under the Address column on the Summary page.
                     'contact' => $c->relationLoaded('contact') && $c->contact
-                        ? ['name' => $c->contact->name]
+                        ? [
+                            'name' => $c->contact->name,
+                            'company' => $c->contact->company,
+                        ]
                         : null,
                     'virtual_customer_code' => $c->virtual_customer_code,
                     'virtual_customer_prefix' => $c->virtual_customer_prefix,
                     'person_id' => $c->person_id ?? null,
                     'is_active' => (bool) $c->is_active,
+                    // Site Status (customers.status_id) — drives the colored
+                    // status badge in the Site column on the Summary page.
+                    // Name resolved via STATUSES_MAPPING so the Vue side
+                    // doesn't need its own id→label copy.
+                    'status_id' => $c->status_id,
+                    'status_name' => \App\Models\Customer::STATUSES_MAPPING[$c->status_id] ?? null,
                     'selling_price_type' => $c->selling_price_type,
                     'contract_commission_type' => $c->contract_commission_type,
                     // Begin Date — rendered in the Customer column on the

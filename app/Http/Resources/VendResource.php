@@ -267,19 +267,35 @@ class VendResource extends JsonResource
             // Active campaign name(s) bound to this machine through its APK
             // settings (Vend -> apkSettings -> campaigns). Drives the
             // "Campaign" badge under the Ref Price line on Vend/CustomerIndex.
-            // Distinct, active campaigns only; empty array when none/unloaded.
+            // "Active" = is_active flag set AND not yet expired (end_at has not
+            // passed; a null end_at never expires). The badge also shows the
+            // expiry date (end_at). Empty array when none/unloaded.
             'campaigns' => $this->whenLoaded('apkSettings', function () {
+                $now = Carbon::now();
+
                 return $this->apkSettings
                     ->flatMap(function ($apkSetting) {
                         return $apkSetting->relationLoaded('campaigns')
                             ? $apkSetting->campaigns
                             : collect();
                     })
-                    ->filter(fn ($campaign) => (bool) $campaign->is_active)
+                    ->filter(function ($campaign) use ($now) {
+                        if (! $campaign->is_active) {
+                            return false;
+                        }
+
+                        // Not expired: no end date, or end_at (end of day) is
+                        // still in the future.
+                        return $campaign->end_at === null
+                            || Carbon::parse($campaign->end_at)->endOfDay()->gte($now);
+                    })
                     ->unique('id')
                     ->map(fn ($campaign) => [
                         'id' => $campaign->id,
                         'name' => $campaign->name,
+                        'end_at' => $campaign->end_at
+                            ? Carbon::parse($campaign->end_at)->setTimezone($this->getUserTimezone())->format('Y-m-d')
+                            : null,
                     ])
                     ->values();
             }, []),

@@ -650,7 +650,7 @@ class VendController extends Controller
                     // Vend/CustomerIndex. Only active campaigns are surfaced
                     // (filtered in VendResource).
                     'vend.apkSettings:id,name',
-                    'vend.apkSettings.campaigns:id,name,is_active'
+                    'vend.apkSettings.campaigns:id,name,is_active,start_at,end_at'
                 ]);
 
         // Conditional Joins for performance

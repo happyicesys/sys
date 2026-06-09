@@ -357,6 +357,9 @@
                   <TableHead :frozen="true" frozenLeft="0px" inputClass="w-[50px] min-w-[50px]">#</TableHead>
                   <TableHead :frozen="true" frozenLeft="50px" inputClass="w-[170px] min-w-[170px] border-r-2 border-gray-500">
                     <div class="flex flex-col space-y-1">
+                      <SingleSortItem modelName="site_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('site_status')">
+                        Site Status
+                      </SingleSortItem>
                       <SingleSortItem modelName="customer_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_name')">
                         Site Name
                       </SingleSortItem>
@@ -579,6 +582,19 @@
                         {{ row.customer.name }}
                       </a>
                       <div class="flex flex-wrap items-center gap-1 mt-0.5">
+                        <!--
+                          Site Status badge — customers.status_id resolved to
+                          its label server-side (status_name). Colors follow
+                          the Customer Index convention: Active=green,
+                          Inactive=red, others (Pending/New/Potential)=amber.
+                        -->
+                        <span
+                          v-if="row.customer.status_name"
+                          class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit h-fit"
+                          :class="siteStatusBadgeClass(row.customer.status_id)"
+                        >
+                          {{ row.customer.status_name }}
+                        </span>
                         <span
                           v-if="row.customer.selling_price_type"
                           class="inline-flex rounded px-0.5 py-0.5 text-[10px] border w-fit h-fit bg-indigo-100 text-indigo-800 border-indigo-300"
@@ -651,10 +667,16 @@
                       <span v-if="row.customer?.delivery_address" class="text-[11px] leading-tight">
                         {{ row.customer.delivery_address.full_address }}
                       </span>
-                      <span v-if="row.customer?.company_remark" class="text-[11px] leading-tight text-blue-700">
-                        {{ row.customer.company_remark }}
+                      <!-- Billing Company — contact.company (Edit form's "Bill From"
+                           field), falling back to the legacy CMS-mirrored
+                           company_remark for customers never edited in mark1. -->
+                      <span v-if="row.customer?.contact?.company || row.customer?.company_remark" class="text-[11px] leading-tight text-blue-700">
+                        {{ row.customer?.contact?.company || row.customer.company_remark }}
                       </span>
-                      <span v-if="row.customer?.contact?.name" class="text-[11px] leading-tight text-blue-700">
+                      <!-- Billing Contact Person — black (not blue) so the three
+                           stacked lines alternate: address black / company blue /
+                           contact black. -->
+                      <span v-if="row.customer?.contact?.name" class="text-[11px] leading-tight text-gray-900">
                         {{ row.customer.contact.name }}
                       </span>
                     </div>
@@ -1765,6 +1787,18 @@ onMounted(() => {
   // default operator set (see CustomerController::summary), so the first paint
   // matches these chips with no flash.
 });
+
+// Badge colour for the Site Status badge in the Site column.
+// Mirrors Customer/Index.vue's convention (Active=green, Inactive=red,
+// everything else amber) but in the bordered badge style used by the
+// Contract / No Contract badges in the same cell.
+function siteStatusBadgeClass(statusId) {
+  switch (statusId) {
+    case 2:  return 'bg-green-100 text-green-800 border-green-300';   // Active
+    case 1:  return 'bg-red-100 text-red-800 border-red-300';         // Inactive
+    default: return 'bg-amber-100 text-amber-800 border-amber-300';   // Pending / New / Potential
+  }
+}
 
 function refIdFor(customer) {
   // Site model adds ref_id mutator (id + 20000) but pivots may not include it.
