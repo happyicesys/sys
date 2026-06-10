@@ -2,6 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\OpsJobItemChannel;
+use App\Models\ProductChild;
+use App\Models\UnitCost;
+use App\Observers\OpsJobItemChannelObserver;
+use App\Observers\ProductChildObserver;
+use App\Observers\UnitCostObserver;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 
@@ -25,5 +31,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         Inertia::share('initBinded', env('VEND_INIT_BINDED'));
+
+        // Blind SKU: keep per-product blended unit costs in sync.
+        UnitCost::observe(UnitCostObserver::class);
+        ProductChild::observe(ProductChildObserver::class);
+        // Blind SKU: snapshot the flavour set onto each ops job channel at creation.
+        OpsJobItemChannel::observe(OpsJobItemChannelObserver::class);
     }
 }

@@ -326,7 +326,7 @@ class ProductMappingController extends Controller
                 }
                 // else: leave DB default order
             },
-            'productMappingItemsNormalSequence.product:id,code,name,is_active,category_id,category_group_id',
+            'productMappingItemsNormalSequence.product:id,code,name,is_active,is_parent_sku,category_id,category_group_id',
             'productMappingItemsNormalSequence.product.thumbnail',
             'productMappingItemsNormalSequence.product.category',
             'productMappingItemsNormalSequence.product.categoryGroup',
@@ -335,7 +335,10 @@ class ProductMappingController extends Controller
                     $query->where('type', $request->selling_price_type);
                 }
             },
-            'productMappingItemsNormalSequence.product:id,code,name,is_active',
+            // Blind SKU: read-only flavour summary under a parent row (defined on
+            // the product; shown here for visibility, edited in Product → Edit).
+            'productMappingItemsNormalSequence.product.blindChildren.childProduct:id,code,name',
+            'productMappingItemsNormalSequence.product.blindChildren.childProduct.thumbnail',
             'upcomingProductMappings',
             'upcomingProductMapping',
             'vends:id,code,name,product_mapping_id,customer_id,vend_prefix_id,binded_at,updated_at',
@@ -349,8 +352,11 @@ class ProductMappingController extends Controller
             'productMapping' => ProductMappingResource::make($productMapping),
             'products' => ProductResource::collection(
                 Product::with(['thumbnail'])
-                    ->where('is_inventory', true)
                     ->where('is_active', true)
+                    // Channel-facing products: stocked SKUs OR blind housings.
+                    ->where(function ($q) {
+                        $q->where('is_inventory', true)->orWhere('is_parent_sku', true);
+                    })
                     ->orderBy('code')
                     ->get()
             ),

@@ -27,6 +27,20 @@ class Product extends Model
     protected static function booted()
     {
         static::addGlobalScope(new OperatorProductFilterScope);
+
+        // Blind SKU: stamp WHEN a product became (or stopped being) a housing, so
+        // ops jobs created before the flip keep treating it as a normal product.
+        static::saving(function (Product $product) {
+            if ($product->isDirty('is_parent_sku')) {
+                if ($product->is_parent_sku) {
+                    if (empty($product->is_parent_sku_since)) {
+                        $product->is_parent_sku_since = now();
+                    }
+                } else {
+                    $product->is_parent_sku_since = null;
+                }
+            }
+        });
     }
 
     protected $fillable = [
@@ -44,6 +58,8 @@ class Product extends Model
         'is_healthier_choice',
         'is_halal',
         'is_inventory',
+        'is_parent_sku',
+        'is_parent_sku_since',
         'is_supermarket_fee',
         'max_ops_job_pick_limit_json',
         'measurement_count',
@@ -70,6 +86,8 @@ class Product extends Model
         'is_healthier_choice' => 'boolean',
         'is_halal' => 'boolean',
         'is_inventory' => 'boolean',
+        'is_parent_sku' => 'boolean',
+        'is_parent_sku_since' => 'datetime',
         'is_supermarket_fee' => 'boolean',
     ];
 
@@ -106,7 +124,10 @@ class Product extends Model
 
     public function latestUnitCost()
     {
-        return $this->hasOne(UnitCost::class)->where('is_current', true)->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
+        // whereNull(product_mapping_id): a product's OWN cost excludes blind
+        // per-mapping blended rows (those belong to a parent+mapping, not the
+        // product's intrinsic cost history). No effect on normal products.
+        return $this->hasOne(UnitCost::class)->whereNull('product_mapping_id')->where('is_current', true)->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
     }
 
     public function operator()
@@ -156,12 +177,35 @@ class Product extends Model
 
     public function unitCosts()
     {
-        return $this->hasMany(UnitCost::class)->orderBy('is_current', 'desc')->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
+        // Intrinsic cost history only — blind per-mapping blended rows are kept
+        // out (see latestUnitCost). No effect on normal products.
+        return $this->hasMany(UnitCost::class)->whereNull('product_mapping_id')->orderBy('is_current', 'desc')->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
     }
 
     public function vendChannels()
     {
         return $this->hasMany(VendChannel::class);
+    }
+
+    // Blind SKU: flavours bound under THIS product (only when is_parent_sku).
+    public function blindChildren()
+    {
+        return $this->hasMany(ProductChild::class, 'parent_product_id')->orderBy('sort');
+    }
+
+    public function activeBlindChildren()
+    {
+        return $this->hasMany(ProductChild::class, 'parent_product_id')
+            ->where('is_active', true)
+            ->orderBy('sort');
+    }
+
+    // Blind SKU: rows where THIS product is used as a child flavour under some
+    // parent. Used to fan out blended-cost recompute when this product's cost
+    // changes.
+    public function blindParentLinks()
+    {
+        return $this->hasMany(ProductChild::class, 'child_product_id');
     }
 
     public function vendTransactions()

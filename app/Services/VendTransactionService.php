@@ -670,6 +670,8 @@ class VendTransactionService
             $productMappingItem = $this->productMappingItems->get($vendChannel->code);
             if ($productMappingItem) {
                 $product = $productMappingItem->product;
+                // For a blind parent, its current cost IS the derived blended cost
+                // (one per product), so the normal resolution path covers both.
                 $unitCost = $product->unitCosts->where('is_current', true)->first();
                 if ($unitCost) {
                     $unitCostId = $unitCost->id;

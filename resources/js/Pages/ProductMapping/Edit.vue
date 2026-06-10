@@ -222,12 +222,14 @@
                             </tr>
                           </thead>
                           <tbody class="bg-white">
-                            <tr
+                            <template
                                 v-for="(productMappingItem, idx) in productMappingItems"
                                 :key="productMappingItem.id ?? productMappingItem.channel_code ?? idx"
-                                :class="idx % 2 === 0 ? undefined : 'bg-gray-50'"
                               >
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            <tr
+                                :class="(productMappingItem.product && productMappingItem.product.is_parent_sku) ? '!bg-indigo-50 border-t-2 border-indigo-200' : (idx % 2 === 0 ? undefined : 'bg-gray-50')"
+                              >
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center" :class="[(productMappingItem.product && productMappingItem.product.is_parent_sku) ? 'border-l-4 border-indigo-400' : '']">
                                 <select v-model="productMappingItem.sequence" @change="onSequenceChanged(productMappingItem)">
                                   <option :value="null"></option>
                                   <option v-for="n in productMappingItems.length" :key="n" :value="n">{{ n }}</option>
@@ -273,6 +275,46 @@
                                 </Button>
                               </td>
                             </tr>
+                            <tr
+                              v-if="productMappingItem.product && productMappingItem.product.is_parent_sku"
+                              class="!bg-indigo-50 border-b-2 border-indigo-200"
+                            >
+                              <td colspan="7" class="border-l-4 border-indigo-400 px-6 pb-3 pt-0">
+                                <div class="pl-8 text-left">
+                                  <div class="flex items-center justify-between flex-wrap gap-2">
+                                    <span class="text-xs font-semibold text-indigo-700">
+                                      ↳ Blind flavours of {{ productMappingItem.product.code }} ({{ (productMappingItem.product.blindChildren || []).length }})
+                                    </span>
+                                    <Link :href="'/products/' + productMappingItem.product.id + '/edit'" class="text-[11px] text-indigo-600 hover:text-indigo-800 underline">
+                                      Edit on product →
+                                    </Link>
+                                  </div>
+                                  <div v-if="(productMappingItem.product.blindChildren || []).length" class="mt-1.5 flex flex-wrap gap-1.5">
+                                    <span
+                                      v-for="child in productMappingItem.product.blindChildren"
+                                      :key="child.id"
+                                      class="inline-flex items-center gap-1.5 rounded-full bg-white ring-1 ring-indigo-200 py-0.5 pl-0.5 pr-2 text-[11px] font-medium text-indigo-700"
+                                    >
+                                      <img
+                                        v-if="child.child_product && child.child_product.thumbnail_url"
+                                        :src="child.child_product.thumbnail_url"
+                                        class="h-8 w-8 rounded-full object-cover ring-1 ring-indigo-200 cursor-zoom-in hover:ring-2 hover:ring-indigo-400 transition"
+                                        alt=""
+                                        title="Click to enlarge"
+                                        @click="openImagePreview(child)"
+                                      />
+                                      <span v-else class="h-8 w-8 rounded-full bg-indigo-100"></span>
+                                      {{ child.child_product ? (child.child_product.code + ' - ' + child.child_product.name) : 'Flavour' }}
+                                      <span class="text-indigo-500">{{ child.weight_pct }}%</span>
+                                    </span>
+                                  </div>
+                                  <p v-else class="mt-1 text-[11px] text-amber-600">
+                                    No flavours bound yet — set them in Product → Edit.
+                                  </p>
+                                </div>
+                              </td>
+                            </tr>
+                            </template>
                             <tr v-if="!productMappingItems.length">
                               <td colspan="7" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
                                 No Records Found
@@ -346,6 +388,16 @@
         </div>
       </div>
     </div>
+
+    <!-- Flavour thumbnail enlarge popup -->
+    <Modal :open="imagePreview.open" @modal-close="imagePreview.open = false">
+      <template #header>
+        <span class="text-base">{{ imagePreview.title }}</span>
+      </template>
+      <div class="flex justify-center">
+        <img :src="imagePreview.url" class="max-h-[70vh] w-auto rounded-lg object-contain" alt="" />
+      </div>
+    </Modal>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -357,6 +409,7 @@ import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import Modal from '@/Components/Modal.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
@@ -382,6 +435,13 @@ const priceTypeOptions = ref([])
 const productOptions = ref([])
 const productMappingItems = ref([])
 const upcomingOptions = ref([])
+// Flavour thumbnail enlarge popup
+const imagePreview = ref({ open: false, url: '', title: '' })
+function openImagePreview(child) {
+  const cp = child?.child_product
+  if (!cp || !cp.thumbnail_url) return
+  imagePreview.value = { open: true, url: cp.thumbnail_url, title: `${cp.code} - ${cp.name}` }
+}
 const toast = useToast()
 
 onMounted(() => {

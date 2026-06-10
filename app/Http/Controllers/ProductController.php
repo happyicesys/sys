@@ -13,6 +13,7 @@ use App\Models\CategoryGroup;
 use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\Product;
+use App\Models\ProductChild;
 use App\Models\ProductUom;
 use App\Models\SellingPrice;
 use App\Models\Tag;
@@ -227,6 +228,12 @@ class ProductController extends Controller
                 },
                 'productLimits.createdBy',
                 'thumbnail',
+                // Blind SKU: detect housings (have flavours) and child flavours,
+                // and load the flavour summary (weights + thumbnails) for display.
+                'blindChildren:id,parent_product_id,child_product_id,weight_pct,sort',
+                'blindChildren.childProduct:id,code,name',
+                'blindChildren.childProduct.thumbnail',
+                'blindParentLinks.parentProduct:id,code',
             ])
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
@@ -252,6 +259,7 @@ class ProductController extends Controller
                 'products.desc',
                 'products.name',
                 'products.is_available',
+                'products.is_parent_sku',
                 'products.is_available_updated_at',
                 'products.is_available_updated_by',
                 'products.remarks',
@@ -699,6 +707,9 @@ class ProductController extends Controller
             'unitCosts' => function ($query) {
                 $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
             },
+            // Blind SKU: flavours bound under this product (when is_parent_sku).
+            'blindChildren.childProduct:id,code,name',
+            'blindChildren.childProduct.thumbnail',
         ])->findOrFail($productId);
 
         $className = get_class(new Product());
@@ -731,7 +742,93 @@ class ProductController extends Controller
                     ->get()
             ),
             'product' => ProductResource::make($product),
+            // Blind SKU: real flavours selectable as children (never a housing).
+            'flavourOptions' => ProductResource::collection(
+                Product::with(['thumbnail', 'latestUnitCost'])
+                    ->where('is_active', true)
+                    ->where('is_inventory', true)
+                    ->where('is_parent_sku', false)
+                    ->where('id', '!=', $product->id)
+                    ->orderBy('code')
+                    ->get()
+            ),
         ]);
+    }
+
+    /**
+     * Blind SKU: replace the flavour children + weights bound to a parent product.
+     * Mirrored client-side: weights are 1..100 and the active children sum to 100.
+     */
+    public function saveChildren(Request $request, $productId)
+    {
+        $product = Product::findOrFail($productId);
+
+        if (!$product->is_parent_sku) {
+            return back()->withErrors(['children' => 'This product is not a blind parent SKU.']);
+        }
+
+        $validated = $request->validate([
+            'children' => ['present', 'array'],
+            'children.*.child_product_id' => ['required', 'integer', 'distinct', 'exists:products,id'],
+            'children.*.weight_pct' => ['required', 'integer', 'min:1', 'max:100'],
+            'children.*.sort' => ['nullable', 'integer'],
+        ]);
+
+        $children = $validated['children'];
+
+        if (count($children) > 0) {
+            $sum = array_sum(array_column($children, 'weight_pct'));
+            if ($sum !== 100) {
+                return back()->withErrors(['children' => "Flavour ratios must add up to 100% (currently {$sum}%)."]);
+            }
+
+            $childIds = array_column($children, 'child_product_id');
+            if (in_array($product->id, $childIds)) {
+                return back()->withErrors(['children' => 'A housing cannot contain itself.']);
+            }
+
+            // No nested housings: a child cannot itself be a parent SKU.
+            $parentChildCount = Product::withoutGlobalScopes()
+                ->whereIn('id', $childIds)
+                ->where('is_parent_sku', true)
+                ->count();
+            if ($parentChildCount > 0) {
+                return back()->withErrors(['children' => 'A flavour cannot itself be a parent SKU.']);
+            }
+        }
+
+        DB::transaction(function () use ($product, $children) {
+            $keepIds = [];
+            foreach ($children as $i => $c) {
+                $row = ProductChild::updateOrCreate(
+                    [
+                        'parent_product_id' => $product->id,
+                        'child_product_id' => $c['child_product_id'],
+                    ],
+                    [
+                        'weight_pct' => $c['weight_pct'],
+                        'sort' => $c['sort'] ?? $i,
+                        'is_active' => true,
+                    ]
+                );
+                $keepIds[] = $row->id;
+            }
+
+            ProductChild::where('parent_product_id', $product->id)
+                ->when(!empty($keepIds), fn ($q) => $q->whereNotIn('id', $keepIds))
+                ->delete();
+        });
+
+        // Immediately tabulate the ratio-weighted blended unit cost from the
+        // children's current costs and save it as the parent's current cost
+        // (synchronous, so the new entry appears right after Save Flavours).
+        $result = \App\Services\BlindSkuService::recomputeForParent($product->fresh());
+
+        if ($result === 'incomplete') {
+            return back()->with('warning', 'Flavours saved, but the blended unit cost was not generated — one or more flavours have no current unit cost yet. Set their unit cost, then re-save.');
+        }
+
+        return back()->with('success', 'Flavours saved — blended unit cost auto-generated.');
     }
 
     public function updateMaxOpsJobPickLimit(Request $request, $productID)

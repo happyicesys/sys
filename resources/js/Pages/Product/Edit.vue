@@ -186,9 +186,35 @@
                 </label>
               </div>
               <div class="sm:col-span-2">
+                <label class="flex items-center space-x-2 text-sm font-medium text-gray-700 mt-5">
+                  <input
+                    type="checkbox"
+                    v-model="form.is_parent_sku"
+                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                    :disabled="!permissions.includes('update products')"
+                  />
+                  <span>Parent SKU (blind housing)</span>
+                </label>
+                <p class="text-xs text-gray-400 mt-1">A housing holds no stock itself — bind its flavours &amp; ratios below.</p>
+              </div>
+              <div class="sm:col-span-2">
                 <FormInput v-model="form.nutri_grade" :error="form.errors.nutri_grade" :disabled="!permissions.includes('update products')">
                   Nutri Grade
                 </FormInput>
+              </div>
+              <div class="sm:col-span-6" v-if="form.is_parent_sku && form.id">
+                <FlavourBinding
+                  v-if="isPersistedParentSku"
+                  :product-id="form.id"
+                  :parent-code="form.code"
+                  :parent-name="form.name"
+                  :parent-thumbnail="parentThumbnailUrl"
+                  :initial-children="blindChildrenData"
+                  :flavour-options="flavourOptionsData"
+                />
+                <p v-else class="text-xs text-amber-600 rounded-md bg-amber-50 border border-amber-200 p-2">
+                  Save the product first (with “Parent SKU” ticked) — then you can bind its flavours here.
+                </p>
               </div>
 
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
@@ -262,18 +288,29 @@
                               {{ unitCostIndex + 1 }}
                             </td>
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                              {{ unitCost.cost ? unitCost.cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+                              <div class="flex flex-col items-center gap-1">
+                                <span>{{ unitCost.cost ? unitCost.cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}</span>
+                                <span
+                                  v-if="unitCost.is_blended"
+                                  class="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700"
+                                  title="Ratio-weighted average of the blind flavours' unit costs"
+                                >
+                                  auto-generated from blind flavours
+                                </span>
+                              </div>
                             </td>
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                               {{ unitCost.date_from }}
                             </td>
                             <td class="whitespace-nowrap py-4 text-sm text-center">
                               <Button
+                                v-if="!unitCost.is_blended"
                                 class="bg-red-400 hover:bg-red-500 text-white"
                                 @click.prevent="removeUnitCost(unitCost)"
                               >
                                 <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                               </Button>
+                              <span v-else class="text-[10px] text-gray-400 italic">auto</span>
                             </td>
                           </tr>
                           <tr v-if="!unitCosts.length">
@@ -533,8 +570,9 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import FlavourBinding from '@/Pages/Product/FlavourBinding.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon, RectangleStackIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
@@ -551,7 +589,15 @@ const props = defineProps({
     operatorOptions: Object,
     permissions: [Array, Object],
     productTagOptions: Object,
+    flavourOptions: Object,
   })
+
+// Blind SKU: flavour-binding data (product-level).
+const flavourOptionsData = computed(() => props.flavourOptions?.data ?? []);
+const blindChildrenData = computed(() => props.product?.data?.blindChildren ?? []);
+const parentThumbnailUrl = computed(() => props.product?.data?.thumbnail?.full_url ?? '');
+// Only allow binding once is_parent_sku is persisted (the save endpoint requires it).
+const isPersistedParentSku = computed(() => !!props.product?.data?.is_parent_sku);
 
 const categoryOptions = ref([]);
 const categoryGroupOptions = ref([]);
@@ -594,6 +640,7 @@ onMounted(() => {
     category_group_id: categoryGroupOptions.value.find(categoryGroupOption => categoryGroupOption.id === product.value.category_group_id),
     is_halal: product.value.is_halal ?? false,
     is_healthier_choice: product.value.is_healthier_choice ?? false,
+    is_parent_sku: product.value.is_parent_sku ?? false,
     tags: product.value.tagBindings?.map(tagBinding => productTagOptions.value.find(productTagOption => productTagOption.id === tagBinding.tag.id)),
   }) : useForm(getDefaultForm());
 });
@@ -624,6 +671,7 @@ function getDefaultForm() {
     is_commission: '',
     is_halal: '',
     is_healthier_choice: '',
+    is_parent_sku: false,
     is_supermarket_fee: '',
     category_id: '',
     measurement_count: '',

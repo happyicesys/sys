@@ -37,7 +37,36 @@ class ProductResource extends JsonResource
             'is_halal' => $this->is_halal ? true : false,
             'is_healthier_choice' => $this->is_healthier_choice ? true : false,
             'is_inventory' => $this->is_inventory ? true : false,
+            'is_parent_sku' => $this->is_parent_sku ? true : false,
             'is_supermarket_fee' => $this->is_supermarket_fee ? true : false,
+            // Blind SKU: convenience flags for badges on listings.
+            'has_current_unit_cost' => $this->whenLoaded('latestUnitCost', fn () => $this->latestUnitCost !== null),
+            'has_blind_children' => $this->whenLoaded('blindChildren', fn () => $this->blindChildren->isNotEmpty()),
+            'blind_parent_codes' => $this->whenLoaded('blindParentLinks', function () {
+                return $this->blindParentLinks
+                    ->map(fn ($link) => $link->relationLoaded('parentProduct') && $link->parentProduct ? $link->parentProduct->code : null)
+                    ->filter()
+                    ->unique()
+                    ->values();
+            }),
+            // Blind SKU: flavours bound under this product (parent SKUs only).
+            'blindChildren' => $this->whenLoaded('blindChildren', function () {
+                return $this->blindChildren->map(function ($child) {
+                    return [
+                        'id' => $child->id,
+                        'child_product_id' => $child->child_product_id,
+                        'weight_pct' => (int) $child->weight_pct,
+                        'sort' => (int) $child->sort,
+                        'is_active' => (bool) $child->is_active,
+                        'child_product' => $child->relationLoaded('childProduct') && $child->childProduct ? [
+                            'id' => $child->childProduct->id,
+                            'code' => $child->childProduct->code,
+                            'name' => $child->childProduct->name,
+                            'thumbnail_url' => optional($child->childProduct->thumbnail)->full_url,
+                        ] : null,
+                    ];
+                })->values();
+            }),
             'category' => CategoryResource::make($this->whenLoaded('category')),
             'category_id' => $this->category_id,
             'categoryGroup' => CategoryGroupResource::make($this->whenLoaded('categoryGroup')),

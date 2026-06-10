@@ -41,6 +41,8 @@ class OpsJobItemChannelResource extends JsonResource
             'vmc_before_qty' => $this->vmc_before_qty,
             'vmc_after_qty' => $this->vmc_after_qty,
             'virtual_is_error' => $this->virtual_is_error,
+            // Blind SKU: suggested per-flavour To-Pick split (parent housings only).
+            'blind_children' => $this->blind_children ?? null,
         ];
     }
 }

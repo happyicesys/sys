@@ -226,6 +226,9 @@
                                                       {{ product.remarksUpdatedBy.name }} ({{ moment(product.remarks_updated_at).format('YYMMDD hh:mma') }})
                                                     </span>
                                                 </div>
+                                                <span v-if="product.is_parent_sku" class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white">Blind housing</span>
+                                                <span v-else-if="product.blind_parent_codes && product.blind_parent_codes.length" class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">child of {{ product.blind_parent_codes.join(', ') }}</span>
+                                                <BlindFlavourChips v-if="product.is_parent_sku" :product="product" />
                                             </div>
                                         </td>
                                         <td class="whitespace-nowrap py-1 pl-1 pr-1 text-xs font-medium sm:py-4 sm:pl-6 sm:pr-3 sm:text-sm text-center border-r border-gray-300" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
@@ -372,10 +375,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { Head, router, usePage, useForm, Link } from '@inertiajs/vue3'
 import { MagnifyingGlassIcon, XMarkIcon, PlusIcon, CalendarIcon, CheckCircleIcon, XCircleIcon, BackspaceIcon, ClipboardDocumentListIcon, ArrowDownTrayIcon, ClockIcon, ExclamationCircleIcon } from '@heroicons/vue/24/solid'
 import MultiSelect from '@/Components/MultiSelect.vue'
+import BlindFlavourChips from '@/Components/BlindFlavourChips.vue'
 import DatePicker from '@/Components/DatePicker.vue'
 import SearchInput from '@/Components/SearchInput.vue'
 import moment from 'moment'
@@ -390,6 +394,9 @@ const props = defineProps({
     products: Object,
     filters: Object,
 })
+
+// Blind SKU: exclude housings from the bottom subtotal — only real flavours count.
+const subtotalProducts = computed(() => (props.products?.data ?? []).filter(p => !p.is_parent_sku))
 
 const permissions = usePage().props.auth.permissions
 const authOperator = usePage().props.auth.operator
@@ -617,11 +624,11 @@ const onRemarksChanged = (product) => {
 }
 
 function getTotalMovementsQty() {
-  return props.products.data.reduce((acc, product) => acc + (Number(product.total_movements_qty) || 0), 0);
+  return subtotalProducts.value.reduce((acc, product) => acc + (Number(product.total_movements_qty) || 0), 0);
 }
 
 function getTotalMovementsCost() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const qty = Number(product.total_movements_qty) || 0;
     const cost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qty * cost);
@@ -629,11 +636,11 @@ function getTotalMovementsCost() {
 }
 
 function getPickedQtyTotal() {
-  return props.products.data.reduce((acc, product) => acc + (Number(product.picked_qty_on_date) || 0), 0);
+  return subtotalProducts.value.reduce((acc, product) => acc + (Number(product.picked_qty_on_date) || 0), 0);
 }
 
 function getPickedQtyTotalCost() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const qty = Number(product.picked_qty_on_date) || 0;
     const cost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qty * cost);
@@ -641,19 +648,19 @@ function getPickedQtyTotalCost() {
 }
 
 function getPickedValueTotal() {
-  return props.products.data.reduce((acc, product) => acc + (Number(product.picked_value_on_date) || 0), 0);
+  return subtotalProducts.value.reduce((acc, product) => acc + (Number(product.picked_value_on_date) || 0), 0);
 }
 
 function getNeededValueTotal() {
-  return props.products.data.reduce((acc, product) => acc + (product.is_available ? (Number(product.needed_value) || 0) : 0), 0);
+  return subtotalProducts.value.reduce((acc, product) => acc + (product.is_available ? (Number(product.needed_value) || 0) : 0), 0);
 }
 
 function getCalculatedWarehouseQtyTotal() {
-  return props.products.data.reduce((acc, product) => acc + (Number(product.calculated_warehouse_qty) || 0), 0);
+  return subtotalProducts.value.reduce((acc, product) => acc + (Number(product.calculated_warehouse_qty) || 0), 0);
 }
 
 function getCalculatedWarehouseQtyTotalCost() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const qty = Number(product.calculated_warehouse_qty) || 0;
     const cost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qty * cost);
@@ -661,11 +668,11 @@ function getCalculatedWarehouseQtyTotalCost() {
 }
 
 function getNeededQtyTotal() {
-  return props.products.data.reduce((acc, product) => acc + (product.is_available ? (Number(product.needed_qty) || 0) : 0), 0);
+  return subtotalProducts.value.reduce((acc, product) => acc + (product.is_available ? (Number(product.needed_qty) || 0) : 0), 0);
 }
 
 function getNeededQtyTotalCost() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const qty = product.is_available ? (Number(product.needed_qty) || 0) : 0;
     const cost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qty * cost);
@@ -673,14 +680,14 @@ function getNeededQtyTotalCost() {
 }
 
 function getDailySoldQtyTotal() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const qty = Number(product.avg_seven_days_count) || 0;
     return acc + qty;
   }, 0);
 }
 
 function getDailySoldQtyTotalCost() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const qty = Number(product.avg_seven_days_count) || 0;
     const cost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qty * cost);

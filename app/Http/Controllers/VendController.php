@@ -284,6 +284,9 @@ class VendController extends Controller
                         unit_costs ON products.id = unit_costs.product_id
                     WHERE
                         unit_costs.is_current = true
+                    -- Blind SKU: exclude per-mapping blended rows so a parent with
+                    -- multiple current blended costs cannot multiply this sum.
+                    AND unit_costs.product_mapping_id IS NULL
                     AND vend_channels.is_active = true
                     AND vend_channels.capacity > 0
                     GROUP BY
@@ -724,6 +727,9 @@ class VendController extends Controller
                         unit_costs ON vend_channels.product_id = unit_costs.product_id
                     WHERE
                         unit_costs.is_current = true
+                    -- Blind SKU: exclude per-mapping blended rows so a parent with
+                    -- multiple current blended costs cannot multiply this sum.
+                    AND unit_costs.product_mapping_id IS NULL
                     AND vend_channels.is_active = true
                     AND vend_channels.capacity > 0
                     GROUP BY
@@ -4688,6 +4694,8 @@ class VendController extends Controller
                 ->join('unit_costs', 'vend_channels.product_id', '=', 'unit_costs.product_id')
                 ->select('vend_channels.vend_id', DB::raw('SUM(vend_channels.qty * unit_costs.cost) as total_stock_cost'))
                 ->where('unit_costs.is_current', true)
+                // Blind SKU: exclude per-mapping blended rows (prevents multiplying the sum).
+                ->whereNull('unit_costs.product_mapping_id')
                 ->where('vend_channels.is_active', true)
                 ->where('vend_channels.capacity', '>', 0)
                 ->whereIn('vend_channels.vend_id', $vendIds)

@@ -25,6 +25,7 @@ class Kernel extends ConsoleKernel
         // $schedule->command('scheduler:heartbeat')->everyFiveMinutes();
         $schedule->command('sync:totals-json')->dailyAt('00:10');
         $schedule->command('sync:product-unit-costs-timing')->dailyAt('00:05');
+        $schedule->command('blind:recompute-costs')->dailyAt('00:20'); // after unit-cost timing settles
         $schedule->command('sync:product-vend-channels')->dailyAt('00:08');
         $schedule->command('export:vends-status')->monthly();
         $schedule->command('store:previous-day-vend-records')->daily();

@@ -57,4 +57,10 @@ class OpsJobItemChannel extends Model
     {
         return $this->belongsTo(VendChannel::class);
     }
+
+    // Blind SKU: per-flavour ledger when this channel's product is a parent housing.
+    public function children()
+    {
+        return $this->hasMany(OpsJobItemChannelChild::class)->orderBy('sort');
+    }
 }

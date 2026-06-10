@@ -1480,6 +1480,9 @@ class OpsJobController extends Controller
                     ) AS max_ops_job_pick_limit', [$opsJob->date->toDateString()]);
                 },
                 'opsJobItemChannels.product.thumbnail',
+                // Blind SKU: per-job frozen flavour set (snapshotted at creation).
+                'opsJobItemChannels.children.childProduct:id,code,name,is_available',
+                'opsJobItemChannels.children.childProduct.thumbnail',
                 'opsJobItemChannels.vendChannel.product' => function ($query) use ($opsJob) {
                     $query->select('*')
                         ->selectRaw('(
@@ -1549,11 +1552,68 @@ class OpsJobController extends Controller
                 ) as picked_amount')
             ->findOrFail($id);
 
-
+        $this->attachBlindChildren($opsJobItem);
 
         return Inertia::render('OpsJob/EditItem', [
             'opsJobItem' => OpsJobItemResource::make($opsJobItem),
         ]);
+    }
+
+    /**
+     * Blind SKU: for each parent-housing channel, attach the suggested per-flavour
+     * To-Pick split (Largest-Remainder allocation of the slot's needed qty across
+     * its active, available flavours). Display-only — the parent stays the actual
+     * pickable channel, so picking math and subtotals are untouched.
+     */
+    private function attachBlindChildren(OpsJobItem $opsJobItem): void
+    {
+        if (!$opsJobItem->relationLoaded('opsJobItemChannels')) {
+            return;
+        }
+
+        $status = (int) $opsJobItem->status;
+
+        foreach ($opsJobItem->opsJobItemChannels as $channel) {
+            // The per-job frozen flavour set (snapshotted at channel creation) is the
+            // single source of truth — a channel only has ledger rows if its product
+            // was a blind housing AT THE TIME this job was created. This is immune to
+            // later is_parent_sku toggles or product flavour edits.
+            $children = $channel->children;
+            if (!$children || $children->isEmpty()) {
+                continue;
+            }
+
+            // Mirror the frontend's needed calc: live vendChannel pre-stock-in,
+            // frozen channel once delivered (status >= 3). The To-Pick split stays
+            // live (it follows current need); only the flavour SET is frozen.
+            $vc = $channel->vendChannel;
+            $capacity = $status >= 3 ? (int) $channel->capacity : (int) optional($vc)->capacity;
+            $currentQty = $status >= 3 ? (int) $channel->qty : (int) optional($vc)->qty;
+            $needed = max(0, $capacity - $currentQty);
+
+            $allocInput = $children->map(fn ($c) => [
+                'key' => (int) $c->child_product_id,
+                'weight' => (int) $c->weight_pct,
+                'available' => (bool) (optional($c->childProduct)->is_available ?? true),
+                'cap' => null,
+                'sort' => (int) $c->sort,
+            ])->all();
+
+            $alloc = \App\Services\BlindSkuService::allocateToPick($needed, $allocInput);
+
+            $channel->blind_children = $children->map(function ($c) use ($alloc) {
+                $cp = $c->childProduct;
+                return [
+                    'child_product_id' => (int) $c->child_product_id,
+                    'code' => $cp?->code,
+                    'name' => $cp?->name,
+                    'thumbnail_url' => optional($cp?->thumbnail)->full_url,
+                    'weight_pct' => (int) $c->weight_pct,
+                    'to_pick' => $alloc[(int) $c->child_product_id] ?? 0,
+                    'is_available' => (bool) ($cp?->is_available ?? true),
+                ];
+            })->values()->all();
+        }
     }
 
     public function assign(Request $request)

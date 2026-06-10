@@ -526,6 +526,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/{id}/edit', [ProductController::class, 'edit'])->name('products.edit');
         Route::post('/store', [ProductController::class, 'store']);
         Route::post('/{id}/update', [ProductController::class, 'update']);
+        Route::post('/{id}/children', [ProductController::class, 'saveChildren']);
         Route::delete('/{id}', [ProductController::class, 'delete']);
         Route::delete('/selling-prices/{sellingPriceId}', [ProductController::class, 'deleteSellingPrice']);
         Route::get('/availability', [ProductController::class, 'availability'])->name('products-availability');

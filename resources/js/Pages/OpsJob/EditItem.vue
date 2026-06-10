@@ -472,7 +472,8 @@
                       </tr>
                     </thead>
                     <tbody class="bg-white">
-                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channel.is_manually_replaced ? 'bg-orange-50 border-2 border-dashed border-orange-300' + (channels[channelIndex + 1] && channels[channelIndex + 1].replaces_channel_id == channel.id ? ' border-b-0' : '') : (channel.replaces_channel_id ? 'border-2 border-dashed border-orange-300 border-t-0' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))))]">
+                      <template v-for="(channel, channelIndex) in channels" :key="channel.id">
+                      <tr :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channel.is_manually_replaced ? 'bg-orange-50 border-2 border-dashed border-orange-300' + (channels[channelIndex + 1] && channels[channelIndex + 1].replaces_channel_id == channel.id ? ' border-b-0' : '') : (channel.replaces_channel_id ? 'border-2 border-dashed border-orange-300 border-t-0' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50')))), isBlindParent(channel) ? '!bg-indigo-50 border-t-2 border-indigo-300' : '']">
                         <td class="whitespace py-5 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-left text-gray-800 text-center">
                           <div class="flex flex-col space-y-1">
                             <div class="flex items-center justify-center space-x-1">
@@ -532,7 +533,7 @@
                               <select v-else-if="channel.is_return_stock || channel.is_onsite_adjustment" name="channel_picked" :id="channel.is_onsite_adjustment ? 'channel_picked_onsite' : 'channel_picked_return'" class="rounded" :class="channel.is_onsite_adjustment ? 'text-teal-600' : 'text-orange-600'" v-model="channel.picked" @change="onPickQtyChanged(channel)">
                                 <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
                               </select>
-                              <select v-else name="channel_picked" id="channel_picked" class="rounded" :class="[(channel.saved_picked_qty != null && !channel.is_user_unfreeze) || channel.is_user_modified ? 'text-red-500 font-semibold' : 'text-blue-600', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" @change="onPickQtyChanged(channel)" v-if="opsJobItem.status < 2">
+                              <select v-else name="channel_picked" id="channel_picked" class="rounded" :class="[(channel.saved_picked_qty != null && !channel.is_user_unfreeze) || channel.is_user_modified ? 'text-red-500 font-semibold' : 'text-blue-600', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" @change="onPickQtyChanged(channel)" v-show="!isBlindParent(channel)" v-if="opsJobItem.status < 2">
                                 <option v-for="v in getPickOptions(channel)" :key="v" :value="v">{{ v }}</option>
                               </select>
                               <!-- "↺ Live" reset: only meaningful for an already-frozen row
@@ -552,7 +553,7 @@
                               </span>
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                              <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                              <select name="channel_refill" id="channel_refill" v-show="!isBlindParent(channel)" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                                 <option v-for="v in getRefillOptions(channel)" :key="v" :value="v">{{ v }}</option>
                               </select>
                               <span v-if="opsJobItem.status > 2" :class="[opsJobItem.status >= 2 || (channel.product && channel.product.is_available) ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
@@ -621,6 +622,43 @@
                           </template>
                         </td>
                       </tr>
+                      <tr
+                        v-for="child in (channel.blind_children || [])"
+                        :key="'bc-' + channel.id + '-' + child.child_product_id"
+                        class="bg-indigo-50"
+                      >
+                        <td colspan="11" class="py-2.5 px-6 border-l-4 border-indigo-300">
+                          <div class="flex items-center gap-3 pl-8">
+                            <span class="text-indigo-400 font-bold">↳</span>
+                            <img
+                              v-if="child.thumbnail_url"
+                              :src="child.thumbnail_url"
+                              class="h-10 w-10 rounded-lg object-cover"
+                              :class="[child.is_available ? '' : 'opacity-40']"
+                              alt=""
+                            />
+                            <div class="flex-1 text-left" :class="[child.is_available ? 'text-gray-700' : 'text-gray-400']">
+                              <span class="text-xs font-semibold">{{ child.code }}</span>
+                              <span class="text-xs"> — {{ child.name }}</span>
+                              <span class="ml-2 inline-flex items-center rounded bg-indigo-100 px-1 py-0.5 text-[10px] font-medium text-indigo-700">{{ child.weight_pct }}%</span>
+                              <span v-if="!child.is_available" class="ml-1 text-[10px] font-medium text-red-500">unavailable</span>
+                            </div>
+                            <div class="flex items-center gap-2 pr-2">
+                              <select
+                                v-if="opsJobItem.status < 2"
+                                class="rounded font-semibold text-indigo-700"
+                                v-model.number="child.picked"
+                                :disabled="!child.is_available"
+                                @change="onChildPickChanged(channel)"
+                              >
+                                <option v-for="v in getChildPickOptions(channel, child)" :key="v" :value="v">{{ v }}</option>
+                              </select>
+                              <span v-else class="text-lg font-bold" :class="[child.is_available ? 'text-indigo-700' : 'text-gray-400']">{{ child.picked }}</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      </template>
                       <tr v-if="channels && channels.length" class="bg-gray-200 shadow-lg rounded">
                         <td class="py-6 text-sm font-bold text-center text-gray-800" colspan="1">
                           <div class="flex justify-center">
@@ -861,8 +899,9 @@
                       </tr>
                     </thead>
                     <tbody class="bg-white">
-                      <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channel.is_manually_replaced ? 'bg-orange-50 border-2 border-dashed border-orange-300' + (channels[channelIndex + 1] && channels[channelIndex + 1].replaces_channel_id == channel.id ? ' border-b-0' : '') : (channel.replaces_channel_id ? 'border-2 border-dashed border-orange-300 border-t-0' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50'))))]">
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-800">
+                      <template v-for="(channel, channelIndex) in channels" :key="channel.id">
+                      <tr :class="[channel.is_replaced ? ('bg-red-50 border-t-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex + 1] && channels[channelIndex + 1].is_upcoming_product && channels[channelIndex + 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-b-2')) : (channel.is_upcoming_product ? ('border-b-2 border-r-2 border-l-2 border-dashed border-gray-400 ' + (channels[channelIndex - 1] && channels[channelIndex - 1].is_replaced && channels[channelIndex - 1].vend_channel_id == channel.vend_channel_id ? '' : 'border-t-2')) : (channel.is_manually_replaced ? 'bg-orange-50 border-2 border-dashed border-orange-300' + (channels[channelIndex + 1] && channels[channelIndex + 1].replaces_channel_id == channel.id ? ' border-b-0' : '') : (channel.replaces_channel_id ? 'border-2 border-dashed border-orange-300 border-t-0' : (channelIndex % 2 === 0 ? undefined : 'bg-gray-50')))), isBlindParent(channel) ? '!bg-indigo-50 border-t-2 border-indigo-300' : '']">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-800" :class="[isBlindParent(channel) ? 'border-l-4 border-indigo-400' : '']">
                           <div class="flex flex-col items-center space-y-1">
                             <span>{{ channel.code }}</span>
                             <span v-if="channel.is_upcoming_product" class="inline-flex items-center rounded bg-purple-100 px-1 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-inset ring-purple-700/10">Upcoming</span>
@@ -885,6 +924,11 @@
                               <br> {{ channel.product.name }}
                             </span>
                           </span>
+                          <div v-if="isBlindParent(channel)" class="mt-1.5 flex justify-center">
+                            <span class="inline-flex items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                              Blind housing
+                            </span>
+                          </div>
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[channel.is_replaced ? 'line-through text-gray-400' : (channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400')]">
                           <template v-if="channel.capacity > 0">
@@ -920,7 +964,7 @@
                             <select v-else-if="channel.is_return_stock || channel.is_onsite_adjustment" name="channel_picked" :id="channel.is_onsite_adjustment ? 'channel_picked_onsite' : 'channel_picked_return'" class="rounded w-fit" :class="channel.is_onsite_adjustment ? 'text-teal-600' : 'text-orange-600'" v-model="channel.picked" @change="onPickQtyChanged(channel)">
                               <option v-for="n in channel.qty + 1" :key="-(n-1)" :value="-(n-1)">{{ -(n-1) }}</option>
                             </select>
-                            <select v-else name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[(channel.saved_picked_qty != null && !channel.is_user_unfreeze) || channel.is_user_modified ? 'text-red-500 font-semibold' : 'text-blue-600', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" @change="onPickQtyChanged(channel)" v-if="opsJobItem.status < 2">
+                            <select v-else name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[(channel.saved_picked_qty != null && !channel.is_user_unfreeze) || channel.is_user_modified ? 'text-red-500 font-semibold' : 'text-blue-600', channel.is_upcoming_product ? 'ring-2 ring-purple-500' : '']" v-model="channel.picked" @change="onPickQtyChanged(channel)" v-show="!isBlindParent(channel)" v-if="opsJobItem.status < 2">
                               <option v-for="v in getPickOptions(channel)" :key="v" :value="v">{{ v }}</option>
                             </select>
                             <!-- "↺ Live" reset: only meaningful for an already-frozen row
@@ -942,7 +986,7 @@
                         </td>
 
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                          <select v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill">
+                          <select v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" name="channel_refill" id="channel_refill" v-show="!isBlindParent(channel)" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill">
                             <option v-for="v in getRefillOptions(channel)" :key="v" :value="v">{{ v }}</option>
                           </select>
 
@@ -1007,6 +1051,61 @@
                           </template>
                         </td>
                       </tr>
+                      <tr
+                        v-for="(child, ci) in (channel.blind_children || [])"
+                        :key="'bc-' + channel.id + '-' + child.child_product_id"
+                        class="bg-indigo-50 hover:bg-indigo-100/70 transition-colors"
+                        :class="[ci === (channel.blind_children.length - 1) ? 'border-b-2 border-indigo-200' : '']"
+                      >
+                        <td colspan="4" class="py-2 px-6 border-l-4 border-indigo-400">
+                          <div class="flex items-center gap-3 pl-8">
+                            <span class="text-indigo-300 font-bold text-lg leading-none">&#8627;</span>
+                            <img
+                              v-if="child.thumbnail_url"
+                              :src="child.thumbnail_url"
+                              class="h-11 w-11 rounded-xl object-cover ring-1 ring-indigo-200 shadow-sm"
+                              :class="[child.is_available ? '' : 'opacity-40 grayscale']"
+                              alt=""
+                            />
+                            <div class="text-left leading-tight" :class="[child.is_available ? 'text-gray-700' : 'text-gray-400']">
+                              <div class="flex items-center gap-2">
+                                <span class="text-sm font-semibold">{{ child.code }}</span>
+                                <span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{{ child.weight_pct }}%</span>
+                                <span v-if="!child.is_available" class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600 ring-1 ring-inset ring-red-200">unavailable</span>
+                              </div>
+                              <div class="text-xs text-gray-500">{{ child.name }}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="py-2 pl-3 pr-3 text-center">
+                          <select
+                            v-if="opsJobItem.status < 2"
+                            class="rounded-md border-gray-300 font-semibold text-indigo-700 shadow-sm focus:border-indigo-400 focus:ring-indigo-400"
+                            v-model.number="child.picked"
+                            :disabled="!child.is_available"
+                            @change="onChildPickChanged(channel)"
+                          >
+                            <option v-for="v in getChildPickOptions(channel, child)" :key="v" :value="v">{{ v }}</option>
+                          </select>
+                          <span v-else class="text-lg font-bold" :class="[child.is_available ? 'text-indigo-700' : 'text-gray-300']">{{ child.picked }}</span>
+                        </td>
+                        <td v-if="opsJobItem.status >= 2" class="py-2 pl-3 pr-3 text-center">
+                          <select
+                            v-if="opsJobItem.status == 2"
+                            class="rounded-md border-gray-300 font-semibold text-indigo-700 shadow-sm focus:border-indigo-400 focus:ring-indigo-400"
+                            v-model.number="child.refill"
+                            :disabled="!child.is_available"
+                            @change="onChildRefillChanged(channel)"
+                          >
+                            <option v-for="v in getChildRefillOptions(channel, child)" :key="v" :value="v">{{ v }}</option>
+                          </select>
+                          <span v-else class="text-lg font-bold" :class="[child.is_available ? 'text-indigo-700' : 'text-gray-300']">{{ child.refill }}</span>
+                        </td>
+                        <!-- VMC Inventory Count column: kept at the parent/slot level,
+                             so the flavour cell is empty (just carries the group highlight). -->
+                        <td v-if="opsJobItem.status >= 2" class="py-2"></td>
+                      </tr>
+                      </template>
                       <tr v-if="channels && channels.length" class="bg-gray-200 shadow-lg rounded">
                         <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" colspan="3">
                           <div class="flex flex-col space-y-2">
@@ -1755,6 +1854,15 @@ function loadingData() {
       } : null),
       vmc_before_qty: opsJobItemChannel.vmc_before_qty,
       vmc_after_qty: opsJobItemChannel.vmc_after_qty,
+      // Blind SKU: per-flavour rows. Initialise each flavour's pick by splitting
+      // the parent channel's pick across flavours by weight (sums to the parent).
+      blind_children: (() => {
+        const kids = opsJobItemChannel.blind_children || [];
+        if (!kids.length) return [];
+        const pAlloc = jsAllocateByWeight(pickedQty, kids);
+        const rAlloc = jsAllocateByWeight(refill, kids);
+        return kids.map((c, i) => ({ ...c, picked: pAlloc[i], refill: rAlloc[i] }));
+      })(),
       // set static capacity and qty once opsJobItem status is more than 3 (stocked in)
       capacity: props.opsJobItem.data.status >= 3 ? opsJobItemChannel.capacity : opsJobItemChannel.vendChannel.capacity,
       qty: opsJobItemChannel.is_upcoming_product ? 0 : (props.opsJobItem.data.vendChannelRecord ? opsJobItemChannel.vmc_before_qty : (props.opsJobItem.data.status >= 3 ? opsJobItemChannel.qty : opsJobItemChannel.vendChannel.qty)),
@@ -1801,6 +1909,73 @@ function getDefaultForm() {
 // Refill options: original is_replaced/is_return_stock logic preserved;
 // normal channels get full range from -currentQty to +capacity so user can reduce stock.
 // Unavailable products also get the full range (both negative and positive).
+// ---- Blind SKU helpers --------------------------------------------------
+function isBlindParent(channel) {
+  return !!(channel.blind_children && channel.blind_children.length);
+}
+
+// Largest-Remainder split of `total` whole units across children by weight,
+// excluding unavailable flavours. Mirrors the backend allocator so parent and
+// children always reconcile exactly.
+function jsAllocateByWeight(total, children) {
+  const t = Math.max(0, Number(total) || 0);
+  const res = children.map(() => 0);
+  const elig = children
+    .map((c, i) => ({ i, w: c.is_available ? (Number(c.weight_pct) || 0) : 0 }))
+    .filter((c) => c.w > 0);
+  const W = elig.reduce((s, c) => s + c.w, 0);
+  if (t <= 0 || W <= 0) return res;
+  let used = 0;
+  const rema = [];
+  elig.forEach((c) => {
+    const share = Math.floor((t * c.w) / W);
+    res[c.i] = share;
+    used += share;
+    rema.push({ i: c.i, r: t * c.w - share * W, w: c.w });
+  });
+  rema.sort((a, b) => b.r - a.r || b.w - a.w || a.i - b.i);
+  for (let k = 0; k < t - used; k++) res[rema[k].i]++;
+  return res;
+}
+
+// Per-child To-Pick options: 0 .. (parent need minus what siblings already take),
+// so the flavours can never collectively over-pick the housing.
+function getChildPickOptions(channel, child) {
+  const need = Math.max(0, (Number(channel.capacity) || 0) - (Number(channel.qty) || 0));
+  const others = (channel.blind_children || [])
+    .filter((c) => c !== child)
+    .reduce((s, c) => s + (Number(c.picked) || 0), 0);
+  const max = Math.max(0, need - others);
+  const opts = [];
+  for (let i = 0; i <= max; i++) opts.push(i);
+  return opts;
+}
+
+// A flavour's pick changed -> parent (physical channel) pick = sum of flavours,
+// then run the normal pick handler so freeze/cap/save logic stays intact.
+function onChildPickChanged(channel) {
+  channel.picked = (channel.blind_children || []).reduce((s, c) => s + (Number(c.picked) || 0), 0);
+  onPickQtyChanged(channel);
+}
+
+// Per-child Stock-In (refill) options: 0 .. (room left minus what siblings stock),
+// so the flavours can never collectively over-fill the housing.
+function getChildRefillOptions(channel, child) {
+  const room = Math.max(0, (Number(channel.capacity) || 0) - (Number(channel.qty) || 0));
+  const others = (channel.blind_children || [])
+    .filter((c) => c !== child)
+    .reduce((s, c) => s + (Number(c.refill) || 0), 0);
+  const max = Math.max(0, room - others);
+  const opts = [];
+  for (let i = 0; i <= max; i++) opts.push(i);
+  return opts;
+}
+
+// A flavour's stock-in changed -> parent (physical channel) refill = sum of flavours.
+function onChildRefillChanged(channel) {
+  channel.refill = (channel.blind_children || []).reduce((s, c) => s + (Number(c.refill) || 0), 0);
+}
+
 function getRefillOptions(channel) {
   if (channel.is_replaced || channel.is_return_stock) {
     // Return stock: 0 to -capacity (negative-only range)

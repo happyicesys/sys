@@ -23,6 +23,7 @@ class UnitCostResource extends JsonResource
             'date_from' => $this->date_from ? Carbon::parse($this->date_from)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'date_to' => $this->date_to ? Carbon::parse($this->date_to)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'is_current' => $this->is_current,
+            'is_blended' => $this->is_blended ? true : false,
         ];
     }
 }

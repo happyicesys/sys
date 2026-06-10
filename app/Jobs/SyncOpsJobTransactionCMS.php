@@ -57,6 +57,8 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
             'customer',
             'opsJobItemChannels.vendChannel',
             'opsJobItemChannels.product',
+            // Blind SKU: frozen flavour set, to deduct flavours (not the housing) in CMS.
+            'opsJobItemChannels.children.childProduct:id,code,is_available',
             'attachments',
         ]);
 
@@ -70,24 +72,77 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
             ];
 
             if ($opsJobItem->opsJobItemChannels) {
-                foreach ($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
-                    if ($opsJobItemChannel->actual_qty != 0) {
-                        $product = $opsJobItemChannel->product ?? $opsJobItemChannel->vendChannel->product;
+                $personId = $opsJobItem->customer->person_id;
 
-                        if (!$product || !$product->code) {
-                            Log::warning('Product code is missing, skipped bindings: ' . $opsJobItemChannel->vend_channel_code, ['ops_job_item_id' => $opsJobItem->id]);
-                            continue;
+                foreach ($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
+                    if ($opsJobItemChannel->actual_qty == 0) {
+                        continue;
+                    }
+
+                    $unitPrice = $opsJobItemChannel->vendChannel->amount;
+                    $channelCode = $opsJobItemChannel->vend_channel_code;
+
+                    // Blind SKU: a housing channel must deduct its FLAVOURS in CMS,
+                    // not the parent (CMS has no stock for the housing). Split the
+                    // stock-in qty across the frozen flavour set by weight — same
+                    // logic/result as the OpsJob screen — and emit one line per flavour.
+                    $ledger = $opsJobItemChannel->children;
+                    if ($ledger && $ledger->isNotEmpty()) {
+                        $allocInput = $ledger->map(fn ($c) => [
+                            'key' => (int) $c->child_product_id,
+                            'weight' => (int) $c->weight_pct,
+                            'available' => (bool) (optional($c->childProduct)->is_available ?? true),
+                            'cap' => null,
+                            'sort' => (int) $c->sort,
+                        ])->all();
+
+                        $alloc = \App\Services\BlindSkuService::allocateToPick(
+                            (int) $opsJobItemChannel->actual_qty,
+                            $allocInput
+                        );
+
+                        $emitted = 0;
+                        foreach ($ledger as $c) {
+                            $childQty = $alloc[(int) $c->child_product_id] ?? 0;
+                            $childCode = optional($c->childProduct)->code;
+                            if ($childQty <= 0 || !$childCode) {
+                                continue;
+                            }
+                            $data['customers'][$personId]['channels'][$channelCode . '_' . $childCode] = [
+                                'amount' => $childQty * $unitPrice,
+                                'unit_price' => $unitPrice,
+                                'product_code' => $childCode,
+                                'capacity' => $opsJobItemChannel->capacity,
+                                'qty' => $opsJobItemChannel->vendChannel->qty,
+                                'needed' => $childQty,
+                            ];
+                            $emitted += $childQty;
                         }
 
-                        $data['customers'][$opsJobItem->customer->person_id]['channels'][$opsJobItemChannel->vend_channel_code . '_' . $product->code] = [
-                            'amount' => $opsJobItemChannel->actual_qty * $opsJobItemChannel->vendChannel->amount,
-                            'unit_price' => $opsJobItemChannel->vendChannel->amount,
-                            'product_code' => $product->code,
-                            'capacity' => $opsJobItemChannel->capacity,
-                            'qty' => $opsJobItemChannel->vendChannel->qty,
-                            'needed' => $opsJobItemChannel->actual_qty,
-                        ];
+                        // If at least one flavour absorbed the stock-in, the housing
+                        // line is intentionally omitted. Only fall through to the parent
+                        // line as a safety net when NOTHING could be allocated.
+                        if ($emitted > 0) {
+                            continue;
+                        }
                     }
+
+                    // Normal product (or blind safety fallback): emit the channel's own line.
+                    $product = $opsJobItemChannel->product ?? $opsJobItemChannel->vendChannel->product;
+
+                    if (!$product || !$product->code) {
+                        Log::warning('Product code is missing, skipped bindings: ' . $opsJobItemChannel->vend_channel_code, ['ops_job_item_id' => $opsJobItem->id]);
+                        continue;
+                    }
+
+                    $data['customers'][$personId]['channels'][$channelCode . '_' . $product->code] = [
+                        'amount' => $opsJobItemChannel->actual_qty * $unitPrice,
+                        'unit_price' => $unitPrice,
+                        'product_code' => $product->code,
+                        'capacity' => $opsJobItemChannel->capacity,
+                        'qty' => $opsJobItemChannel->vendChannel->qty,
+                        'needed' => $opsJobItemChannel->actual_qty,
+                    ];
                 }
             }
 

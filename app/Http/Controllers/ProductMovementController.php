@@ -441,6 +441,11 @@ class ProductMovementController extends Controller
                 },
                 'productLimits.createdBy',
                 'thumbnail',
+                // Blind SKU: flavour summary (weights + thumbnails) for parent rows.
+                'blindChildren:id,parent_product_id,child_product_id,weight_pct,sort',
+                'blindChildren.childProduct:id,code,name',
+                'blindChildren.childProduct.thumbnail',
+                'blindParentLinks.parentProduct:id,code',
             ])
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
@@ -466,6 +471,7 @@ class ProductMovementController extends Controller
                 'products.desc',
                 'products.name',
                 'products.is_available',
+                'products.is_parent_sku',
                 'products.is_available_updated_at',
                 'products.is_available_updated_by',
                 'products.remarks',

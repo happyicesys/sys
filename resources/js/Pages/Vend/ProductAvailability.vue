@@ -205,6 +205,20 @@
                             <span class="text-[10px] text-gray-500 mt-1" v-if="product.remarksUpdatedBy">
                               {{ product.remarksUpdatedBy.name }} ({{ moment(product.remarks_updated_at).format('YYMMDD hh:mma') }})
                             </span>
+                            <!-- Blind SKU badges -->
+                            <span
+                              v-if="product.is_parent_sku"
+                              class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white"
+                            >
+                              Blind housing
+                            </span>
+                            <span
+                              v-else-if="product.blind_parent_codes && product.blind_parent_codes.length"
+                              class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700"
+                            >
+                              child of {{ product.blind_parent_codes.join(', ') }}
+                            </span>
+                            <BlindFlavourChips v-if="product.is_parent_sku" :product="product" />
                         </div>
                       </div>
                     </td>
@@ -311,10 +325,11 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon, CalendarIcon, ExclamationCircleIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
 import DatePicker from '@/Components/DatePicker.vue';
 import SearchInput from '@/Components/SearchInput.vue';
-import { onBeforeMount, onMounted, ref, watch } from 'vue';
+import { onBeforeMount, onMounted, ref, watch, computed } from 'vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import BlindFlavourChips from '@/Components/BlindFlavourChips.vue';
 const props = defineProps({
   operatorOptions: Object,
   products: Object,
@@ -369,16 +384,20 @@ onMounted(() => {
   }
 })
 
+// Blind SKU: a housing's quantities/costs must NOT feed the bottom subtotal —
+// only its real flavours (children) contribute. Exclude parent SKUs from totals.
+const subtotalProducts = computed(() => (props.products?.data ?? []).filter(p => !p.is_parent_sku));
+
 // Functions to calculate total available, net, and needed quantities and costs
 function getProductAvailablePcsApiTotal() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const qtyAvailable = Number(product.qty_available_pcs_api) || 0;
     return acc + qtyAvailable;
   }, 0);
 }
 
 function getProductAvailablePcsApiTotalCost() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const qtyAvailable = Number(product.qty_available_pcs_api) || 0;
     const unitCost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qtyAvailable * unitCost);
@@ -386,14 +405,14 @@ function getProductAvailablePcsApiTotalCost() {
 }
 
 function getProductNotYetSyncApiQtyTotal() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const notYetSyncApiQty = Number(product.not_yet_sync_api_qty) || 0;
     return acc + notYetSyncApiQty;
   }, 0);
 }
 
 function getProductNotYetSyncApiQtyTotalCost() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const notYetSyncApiQty = Number(product.not_yet_sync_api_qty) || 0;
     const unitCost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (notYetSyncApiQty * unitCost);
@@ -401,28 +420,28 @@ function getProductNotYetSyncApiQtyTotalCost() {
 }
 
 function getProductPickedValueTotal() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const pickedValue = Number(product.picked_value_on_date) || 0;
     return acc + pickedValue;
   }, 0);
 }
 
 function getProductNeededValueTotal() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const neededValue = product.is_available ? (Number(product.needed_value) || 0) : 0;
     return acc + neededValue;
   }, 0);
 }
 
 function getProductNetAvailableQtyPcsApiTotal() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const netAvailableQty = Number(product.net_available_qty_pcs_api) || 0;
     return acc + netAvailableQty;
   }, 0);
 }
 
 function getProductNetAvailableQtyPcsApiTotalCost() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const netAvailableQty = Number(product.net_available_qty_pcs_api) || 0;
     const unitCost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (netAvailableQty * unitCost);
@@ -430,14 +449,14 @@ function getProductNetAvailableQtyPcsApiTotalCost() {
 }
 
 function getProductNeededQtyTotal() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const neededQty = product.is_available ? (Number(product.needed_qty) || 0) : 0;
     return acc + neededQty;
   }, 0);
 }
 
 function getProductNeededQtyTotalCost() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const neededQty = product.is_available ? (Number(product.needed_qty) || 0) : 0;
     const unitCost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (neededQty * unitCost);
@@ -445,14 +464,14 @@ function getProductNeededQtyTotalCost() {
 }
 
 function getDailySoldQtyTotal() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const qty = Number(product.avg_seven_days_count) || 0;
     return acc + qty;
   }, 0);
 }
 
 function getDailySoldQtyTotalCost() {
-  return props.products.data.reduce((acc, product) => {
+  return subtotalProducts.value.reduce((acc, product) => {
     const qty = Number(product.avg_seven_days_count) || 0;
     const unitCost = Number(product.latestUnitCost?.cost) || 0;
     return acc + (qty * unitCost);
