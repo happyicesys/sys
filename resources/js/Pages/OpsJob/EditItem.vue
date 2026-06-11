@@ -2380,6 +2380,11 @@ function onZeroUpPickQtyClicked() {
       channel.is_user_unfreeze = false;
       cleared++;
     }
+    // Blind SKU: also zero the per-flavour rows so the display matches the
+    // (now-zero) housing total instead of keeping their old split.
+    if (channel.blind_children && channel.blind_children.length) {
+      channel.blind_children.forEach((child) => { child.picked = 0; });
+    }
   });
   toast.success(`Zeroed To Pick Qty on ${cleared} channel${cleared === 1 ? '' : 's'}. Click "Save & Freeze 'To Pick Qty'" to persist.`, {
     timeout: 4000
