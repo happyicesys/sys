@@ -1572,6 +1572,33 @@ class OpsJobController extends Controller
         }
 
         $status = (int) $opsJobItem->status;
+        $ignoreLimit = (bool) $opsJobItem->is_ignore_limit;
+
+        // Per-flavour "Capped Qty per Channel" = each child's product_limit for the
+        // job's date. Loaded once for all blind flavours (one indexed query), unless
+        // the driver chose "Bypass Capped Qty".
+        $childLimitMap = collect();
+        if (!$ignoreLimit && optional($opsJobItem->opsJob)->date) {
+            $childIds = collect();
+            foreach ($opsJobItem->opsJobItemChannels as $channel) {
+                foreach (($channel->children ?? []) as $c) {
+                    $childIds->push((int) $c->child_product_id);
+                }
+            }
+            $childIds = $childIds->unique()->values();
+            if ($childIds->isNotEmpty()) {
+                $childLimitMap = DB::table('product_limits')
+                    ->whereIn('product_id', $childIds->all())
+                    ->whereDate('date', $opsJobItem->opsJob->date->toDateString())
+                    ->pluck('qty', 'product_id');
+            }
+        }
+
+        $childCapFor = function ($childProductId) use ($childLimitMap, $ignoreLimit) {
+            return (!$ignoreLimit && $childLimitMap->has($childProductId))
+                ? (int) $childLimitMap->get($childProductId)
+                : null;
+        };
 
         foreach ($opsJobItem->opsJobItemChannels as $channel) {
             // The per-job frozen flavour set (snapshotted at channel creation) is the
@@ -1591,17 +1618,26 @@ class OpsJobController extends Controller
             $currentQty = $status >= 3 ? (int) $channel->qty : (int) optional($vc)->qty;
             $needed = max(0, $capacity - $currentQty);
 
+            // Parent ("housing") cap limits the TOTAL across flavours; per-flavour caps
+            // limit each flavour, and the allocator redistributes around capped ones.
+            $parentCap = (!$ignoreLimit && optional($channel->product)->max_ops_job_pick_limit !== null)
+                ? (int) $channel->product->max_ops_job_pick_limit
+                : null;
+            if ($parentCap !== null) {
+                $needed = min($needed, max(0, $parentCap));
+            }
+
             $allocInput = $children->map(fn ($c) => [
                 'key' => (int) $c->child_product_id,
                 'weight' => (int) $c->weight_pct,
                 'available' => (bool) (optional($c->childProduct)->is_available ?? true),
-                'cap' => null,
+                'cap' => $childCapFor((int) $c->child_product_id),
                 'sort' => (int) $c->sort,
             ])->all();
 
             $alloc = \App\Services\BlindSkuService::allocateToPick($needed, $allocInput);
 
-            $channel->blind_children = $children->map(function ($c) use ($alloc) {
+            $channel->blind_children = $children->map(function ($c) use ($alloc, $childCapFor) {
                 $cp = $c->childProduct;
                 return [
                     'child_product_id' => (int) $c->child_product_id,
@@ -1611,6 +1647,7 @@ class OpsJobController extends Controller
                     'weight_pct' => (int) $c->weight_pct,
                     'to_pick' => $alloc[(int) $c->child_product_id] ?? 0,
                     'is_available' => (bool) ($cp?->is_available ?? true),
+                    'cap' => $childCapFor((int) $c->child_product_id),
                 ];
             })->values()->all();
         }

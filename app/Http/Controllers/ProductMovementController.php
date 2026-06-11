@@ -6,8 +6,10 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
 use App\Models\Operator;
 use App\Models\OpsJob;
+use App\Models\OpsJobItemChannel;
 use App\Models\Product;
 use App\Models\ProductMovement;
+use App\Services\BlindPlanningService;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -39,6 +41,36 @@ class ProductMovementController extends Controller
             $product->calculated_warehouse_qty = $product->total_movements_qty - $product->total_delivered_qty;
 
 
+        }
+
+        // Blind SKU: split each housing's To-Pick / Picked / Daily-Sold down to its
+        // flavour rows. Parent planning values are fetched in bounded grouped queries
+        // (robust even when the housing isn't in the current result set).
+        $blindParentIds = $products
+            ->flatMap(fn ($p) => $p->relationLoaded('blindParentLinks') ? $p->blindParentLinks->pluck('parent_product_id') : collect())
+            ->map(fn ($v) => (int) $v)
+            ->unique()->values()->all();
+
+        if (!empty($blindParentIds)) {
+            $date = $request->productAvailableDate ?: Carbon::today()->addDay()->toDateString();
+
+            $parentPicked = OpsJobItemChannel::query()
+                ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+                ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+                ->whereIn('ops_job_item_channels.product_id', $blindParentIds)
+                ->where('ops_job_items.status', '>=', 2)
+                ->where('ops_job_items.status', '!=', 99)
+                ->whereDate('ops_jobs.date', $date)
+                ->groupBy('ops_job_item_channels.product_id')
+                ->selectRaw('ops_job_item_channels.product_id as pid, COALESCE(SUM(ops_job_item_channels.picked_qty), 0) as qty')
+                ->pluck('qty', 'pid');
+
+            BlindPlanningService::attributeToChildren(
+                $products,
+                $this->parentNeededMap($blindParentIds, $date),
+                $parentPicked,
+                'picked_qty_on_date'
+            );
         }
 
         return Inertia::render('Vend/ProductMovement', [
@@ -409,6 +441,44 @@ class ProductMovementController extends Controller
             'metadata' => $metadata,
         ]);
     }
+    /**
+     * Blind SKU: a housing's To-Pick ("needed") aggregated per parent product,
+     * mirroring this page's own needed_qty formula. Used to split blind demand onto
+     * the flavour rows (works even when the housing isn't in the current result).
+     */
+    private function parentNeededMap(array $parentIds, $date)
+    {
+        return OpsJobItemChannel::query()
+            ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->leftJoin('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
+            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
+            ->leftJoin('product_limits', function ($join) use ($date) {
+                $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
+                    ->whereDate('product_limits.date', '=', $date);
+            })
+            ->whereIn('ops_job_item_channels.product_id', $parentIds)
+            ->whereDate('ops_jobs.date', $date)
+            ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+            ->groupBy('ops_job_item_channels.product_id')
+            ->selectRaw('ops_job_item_channels.product_id as pid, COALESCE(SUM(
+                CASE
+                    WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
+                    WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty
+                    WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN
+                        CASE
+                            WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                                COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+                            WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN
+                                product_limits.qty - COALESCE(vend_channels.qty, 0)
+                            ELSE 0
+                        END
+                    ELSE
+                        COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0)
+                END
+            ), 0) as needed_qty')
+            ->pluck('needed_qty', 'pid');
+    }
+
     private function getProductQuery(Request $request)
     {
         if ($request->operators == null) {

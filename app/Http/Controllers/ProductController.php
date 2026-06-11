@@ -280,6 +280,16 @@ class ProductController extends Controller
 
         $productIds = $products->pluck('id')->toArray();
 
+        // Blind SKU: also aggregate the PARENTS of any displayed flavours, so each
+        // housing's planning quantities can be split down onto the flavour rows.
+        // Folding the parent ids into the existing IN-lists keeps it to zero extra
+        // aggregate queries (and works even when the housing isn't on screen).
+        $blindParentIds = $products
+            ->flatMap(fn ($p) => $p->relationLoaded('blindParentLinks') ? $p->blindParentLinks->pluck('parent_product_id') : collect())
+            ->map(fn ($v) => (int) $v)
+            ->unique()->values()->all();
+        $productIds = array_values(array_unique(array_merge($productIds, $blindParentIds)));
+
         // 1. Calculate needed_qty and needed_value
         $neededData = OpsJobItemChannel::query()
             ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
@@ -395,6 +405,20 @@ class ProductController extends Controller
                 $product->qty_available_pcs_api = 0;
                 $product->net_available_qty_pcs_api = 0 - $product->not_yet_sync_api_qty;
             }
+        }
+
+        // Blind SKU: split each housing's To-Pick / Picked / Daily-Sold down to its
+        // flavours so the flavour rows forecast blind demand. Housing rows keep their
+        // own figures (greyed, already excluded from the subtotal).
+        \App\Services\BlindPlanningService::attributeToChildren(
+            $products,
+            $neededData->map(fn ($r) => $r->needed_qty),
+            $notYetSyncData->map(fn ($r) => $r->qty),
+            'not_yet_sync_api_qty'
+        );
+        // Re-derive Remaining for any flavour whose Picked just gained a blind share.
+        foreach ($products as $product) {
+            $product->net_available_qty_pcs_api = ($product->qty_available_pcs_api ?? 0) - ($product->not_yet_sync_api_qty ?? 0);
         }
 
         return Inertia::render('Vend/ProductAvailability', [

@@ -1072,6 +1072,7 @@
                                 <span class="text-sm font-semibold">{{ child.code }}</span>
                                 <span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{{ child.weight_pct }}%</span>
                                 <span v-if="!child.is_available" class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600 ring-1 ring-inset ring-red-200">unavailable</span>
+                                <span v-if="!opsJobItem.is_ignore_limit && child.cap != null" class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600 ring-1 ring-inset ring-amber-200">capped ({{ child.cap }})</span>
                               </div>
                               <div class="text-xs text-gray-500">{{ child.name }}</div>
                             </div>
@@ -1816,6 +1817,27 @@ function loadingData() {
     }
 
 
+    // Blind SKU: while the channel is still LIVE (not frozen, not yet picked), the
+    // flavour rows initialise from the cap-aware backend split (respects each
+    // flavour's "Capped Qty per Channel" + the housing cap) and the parent pick /
+    // refill is their sum. Once frozen (saved_picked_qty) or picked (status >= 2),
+    // the parent's own value (saved / actual picked / actual stock-in) stays
+    // authoritative and is only SPLIT onto the flavour rows for display — the
+    // backend to_pick is always live-needed and must not overwrite those.
+    const blindRaw = opsJobItemChannel.blind_children || [];
+    const blindIsLive = opsJobItem.value.status < 2 && opsJobItemChannel.saved_picked_qty == null;
+    let blindKids = [];
+    if (blindRaw.length) {
+      if (blindIsLive) {
+        blindKids = blindRaw.map((c) => ({ ...c, picked: c.to_pick, refill: c.to_pick }));
+      } else {
+        const pAlloc = jsAllocateByWeight(pickedQty, blindRaw);
+        const rAlloc = jsAllocateByWeight(refill, blindRaw);
+        blindKids = blindRaw.map((c, i) => ({ ...c, picked: pAlloc[i], refill: rAlloc[i] }));
+      }
+    }
+    const blindTotal = blindKids.reduce((s, c) => s + (Number(c.picked) || 0), 0);
+
     return {
       ...opsJobItemChannel.vendChannel,
       id: opsJobItemChannel.id,
@@ -1832,7 +1854,7 @@ function loadingData() {
       ops_job_item_channel_id: opsJobItemChannel.id,
       picked_limit: (opsJobItemChannel.product || opsJobItemChannel.vendChannel.product) && (opsJobItemChannel.product || opsJobItemChannel.vendChannel.product).max_ops_job_pick_limit != null && !opsJobItem.value.is_ignore_limit ? (opsJobItemChannel.product || opsJobItemChannel.vendChannel.product).max_ops_job_pick_limit : null,
       before_picked: opsJobItemChannel.picked_before_qty,
-      picked: pickedQty,
+      picked: (blindKids.length && blindIsLive) ? blindTotal : pickedQty,
       // Per-SKU freeze tracking:
       //   saved_picked_qty != null  -> SKU is "frozen" (RED): qty was
       //     manually fixed by an operator and will NOT follow live Needed
@@ -1848,21 +1870,13 @@ function loadingData() {
       is_user_modified: false,
       is_user_unfreeze: false,
       before_refill: opsJobItemChannel.actual_before_qty,
-      refill: refill,
+      refill: (blindKids.length && blindIsLive) ? blindTotal : refill,
       product: opsJobItemChannel.product ? opsJobItemChannel.product : (opsJobItemChannel.vendChannel.product ? {
         ...opsJobItemChannel.vendChannel.product,
       } : null),
       vmc_before_qty: opsJobItemChannel.vmc_before_qty,
       vmc_after_qty: opsJobItemChannel.vmc_after_qty,
-      // Blind SKU: per-flavour rows. Initialise each flavour's pick by splitting
-      // the parent channel's pick across flavours by weight (sums to the parent).
-      blind_children: (() => {
-        const kids = opsJobItemChannel.blind_children || [];
-        if (!kids.length) return [];
-        const pAlloc = jsAllocateByWeight(pickedQty, kids);
-        const rAlloc = jsAllocateByWeight(refill, kids);
-        return kids.map((c, i) => ({ ...c, picked: pAlloc[i], refill: rAlloc[i] }));
-      })(),
+      blind_children: blindKids,
       // set static capacity and qty once opsJobItem status is more than 3 (stocked in)
       capacity: props.opsJobItem.data.status >= 3 ? opsJobItemChannel.capacity : opsJobItemChannel.vendChannel.capacity,
       qty: opsJobItemChannel.is_upcoming_product ? 0 : (props.opsJobItem.data.vendChannelRecord ? opsJobItemChannel.vmc_before_qty : (props.opsJobItem.data.status >= 3 ? opsJobItemChannel.qty : opsJobItemChannel.vendChannel.qty)),
@@ -1938,14 +1952,22 @@ function jsAllocateByWeight(total, children) {
   return res;
 }
 
-// Per-child To-Pick options: 0 .. (parent need minus what siblings already take),
-// so the flavours can never collectively over-pick the housing.
+// Per-child To-Pick options: 0 .. (housing room minus what siblings already take),
+// further clamped by the housing's cap and this flavour's own "Capped Qty per
+// Channel". Bypass Capped Qty (is_ignore_limit) lifts the caps.
 function getChildPickOptions(channel, child) {
-  const need = Math.max(0, (Number(channel.capacity) || 0) - (Number(channel.qty) || 0));
+  const ignore = !!opsJobItem.value.is_ignore_limit;
+  let roomTotal = Math.max(0, (Number(channel.capacity) || 0) - (Number(channel.qty) || 0));
+  if (!ignore && channel.picked_limit != null) {
+    roomTotal = Math.min(roomTotal, Number(channel.picked_limit));
+  }
   const others = (channel.blind_children || [])
     .filter((c) => c !== child)
     .reduce((s, c) => s + (Number(c.picked) || 0), 0);
-  const max = Math.max(0, need - others);
+  let max = Math.max(0, roomTotal - others);
+  if (!ignore && child.cap != null) {
+    max = Math.min(max, Number(child.cap));
+  }
   const opts = [];
   for (let i = 0; i <= max; i++) opts.push(i);
   return opts;
@@ -1958,14 +1980,21 @@ function onChildPickChanged(channel) {
   onPickQtyChanged(channel);
 }
 
-// Per-child Stock-In (refill) options: 0 .. (room left minus what siblings stock),
-// so the flavours can never collectively over-fill the housing.
+// Per-child Stock-In (refill) options: same clamps as To-Pick (housing room +
+// housing cap + per-flavour cap), minus what siblings already stock.
 function getChildRefillOptions(channel, child) {
-  const room = Math.max(0, (Number(channel.capacity) || 0) - (Number(channel.qty) || 0));
+  const ignore = !!opsJobItem.value.is_ignore_limit;
+  let room = Math.max(0, (Number(channel.capacity) || 0) - (Number(channel.qty) || 0));
+  if (!ignore && channel.picked_limit != null) {
+    room = Math.min(room, Number(channel.picked_limit));
+  }
   const others = (channel.blind_children || [])
     .filter((c) => c !== child)
     .reduce((s, c) => s + (Number(c.refill) || 0), 0);
-  const max = Math.max(0, room - others);
+  let max = Math.max(0, room - others);
+  if (!ignore && child.cap != null) {
+    max = Math.min(max, Number(child.cap));
+  }
   const opts = [];
   for (let i = 0; i <= max; i++) opts.push(i);
   return opts;
