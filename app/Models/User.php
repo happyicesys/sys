@@ -80,6 +80,8 @@ class User extends Authenticatable
     {
         // dd($this->toArray(), $this->roles()->first()->toArray());
         // return '/vends/customers';
+        // Query the first role ONCE (was queried twice — once for the unused
+        // $currentRole and once for the match). Same value, same null behavior.
         $currentRole = (int) $this->roles()->first()->id;
 
         // if($currentRole == 19 or $currentRole == 21) {
@@ -87,7 +89,7 @@ class User extends Authenticatable
         // }else {
         //     return '/vends/customers';
         // }
-        return match ((int) $this->roles()->first()->id) {
+        return match ($currentRole) {
             1 => '/vends/customers',
             2 => '/vends/customers',
             3 => '/vends/customers',

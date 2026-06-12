@@ -1589,7 +1589,7 @@ class OpsJobController extends Controller
             if ($childIds->isNotEmpty()) {
                 $childLimitMap = DB::table('product_limits')
                     ->whereIn('product_id', $childIds->all())
-                    ->whereDate('date', $opsJobItem->opsJob->date->toDateString())
+                    ->where('date', $opsJobItem->opsJob->date->toDateString()) // DATE column — where() ≡ whereDate(), index-friendly
                     ->pluck('qty', 'product_id');
             }
         }

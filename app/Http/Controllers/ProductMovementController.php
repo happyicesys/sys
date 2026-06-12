@@ -60,7 +60,7 @@ class ProductMovementController extends Controller
                 ->whereIn('ops_job_item_channels.product_id', $blindParentIds)
                 ->where('ops_job_items.status', '>=', 2)
                 ->where('ops_job_items.status', '!=', 99)
-                ->whereDate('ops_jobs.date', $date)
+                ->where('ops_jobs.date', $date) // DATE column — where() ≡ whereDate(), index-friendly
                 ->groupBy('ops_job_item_channels.product_id')
                 ->selectRaw('ops_job_item_channels.product_id as pid, COALESCE(SUM(ops_job_item_channels.picked_qty), 0) as qty')
                 ->pluck('qty', 'pid');
@@ -216,10 +216,13 @@ class ProductMovementController extends Controller
                 $q->where('product_movements.product_id', $request->product_id);
             })
             ->when($request->date_from, function ($q) use ($request) {
-                $q->whereDate('product_movements.created_at', '>=', $request->date_from);
+                // Same rows as whereDate('created_at','>=',date) but sargable
+                // (no DATE() wrap), so an index on created_at can be used.
+                $q->where('product_movements.created_at', '>=', Carbon::parse($request->date_from)->startOfDay());
             })
             ->when($request->date_to, function ($q) use ($request) {
-                $q->whereDate('product_movements.created_at', '<=', $request->date_to);
+                // whereDate('<=', d) ≡ created_at < d+1day — same rows, sargable.
+                $q->where('product_movements.created_at', '<', Carbon::parse($request->date_to)->startOfDay()->addDay());
             })
             ->when($request->vend_code, function ($q) use ($request) {
                 if (strpos($request->vend_code, ',') !== false) {
@@ -391,7 +394,10 @@ class ProductMovementController extends Controller
             ->whereNotNull('batch_number');
 
         if ($request->has('date') && $request->date) {
-            $query->whereDate('created_at', $request->date);
+            // whereDate('=', d) ≡ [d 00:00, d+1day) — same rows, sargable.
+            $day = Carbon::parse($request->date)->startOfDay();
+            $query->where('created_at', '>=', $day)
+                ->where('created_at', '<', $day->copy()->addDay());
         }
 
         $history = $query->select('batch_number')
@@ -404,9 +410,14 @@ class ProductMovementController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $history->getCollection()->transform(function ($item) {
-            $item->operator = Operator::find($item->operator_id);
-            $item->user = \App\Models\User::find($item->user_id);
+        // Batch the operator/user lookups (was 2 queries PER ROW — 40 queries
+        // per page of 20). Same models attached, same output.
+        $collection = $history->getCollection();
+        $operatorsById = Operator::findMany($collection->pluck('operator_id')->filter()->unique())->keyBy('id');
+        $usersById = \App\Models\User::findMany($collection->pluck('user_id')->filter()->unique())->keyBy('id');
+        $collection->transform(function ($item) use ($operatorsById, $usersById) {
+            $item->operator = $operatorsById->get($item->operator_id);
+            $item->user = $usersById->get($item->user_id);
             return $item;
         });
 
@@ -454,11 +465,11 @@ class ProductMovementController extends Controller
             ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
             ->leftJoin('product_limits', function ($join) use ($date) {
                 $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
-                    ->whereDate('product_limits.date', '=', $date);
+                    ->where('product_limits.date', '=', $date); // DATE column — where() ≡ whereDate(), index-friendly
             })
             ->whereIn('ops_job_item_channels.product_id', $parentIds)
-            ->whereDate('ops_jobs.date', $date)
-            ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+            ->where('ops_jobs.date', $date) // DATE column — where() ≡ whereDate(), index-friendly
+            ->where('ops_jobs.date', '>=', Carbon::today()->toDateString()) // DATE column — where() ≡ whereDate(), index-friendly
             ->groupBy('ops_job_item_channels.product_id')
             ->selectRaw('ops_job_item_channels.product_id as pid, COALESCE(SUM(
                 CASE
@@ -507,7 +518,7 @@ class ProductMovementController extends Controller
                 'remarksUpdatedBy',
                 'latestUnitCost',
                 'productLimits' => function ($query) use ($request) {
-                    $query->whereDate('date', $request->productAvailableDate);
+                    $query->where('date', $request->productAvailableDate); // DATE column — where() ≡ whereDate(), index-friendly
                 },
                 'productLimits.createdBy',
                 'thumbnail',
@@ -563,12 +574,12 @@ class ProductMovementController extends Controller
                     ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
                     ->leftJoin('product_limits', function ($join) use ($request) {
                         $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
-                            ->whereDate('product_limits.date', '=', $request->productAvailableDate);
+                            ->where('product_limits.date', '=', $request->productAvailableDate); // DATE column — where() ≡ whereDate(), index-friendly
                     })
                     ->whereColumn('ops_job_item_channels.product_id', 'products.id')
                     ->whereRaw('products.is_available = 1')
-                    ->whereDate('ops_jobs.date', $request->productAvailableDate)
-                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+                    ->where('ops_jobs.date', $request->productAvailableDate) // DATE column — where() ≡ whereDate(), index-friendly
+                    ->where('ops_jobs.date', '>=', Carbon::today()->toDateString()) // DATE column — where() ≡ whereDate(), index-friendly
                     ->selectRaw('COALESCE(SUM(
                         CASE
                             WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
@@ -594,12 +605,12 @@ class ProductMovementController extends Controller
                     ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
                     ->leftJoin('product_limits', function ($join) use ($request) {
                         $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
-                            ->whereDate('product_limits.date', '=', $request->productAvailableDate);
+                            ->where('product_limits.date', '=', $request->productAvailableDate); // DATE column — where() ≡ whereDate(), index-friendly
                     })
                     ->whereColumn('ops_job_item_channels.product_id', 'products.id')
                     ->whereRaw('products.is_available = 1')
-                    ->whereDate('ops_jobs.date', $request->productAvailableDate)
-                    ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+                    ->where('ops_jobs.date', $request->productAvailableDate) // DATE column — where() ≡ whereDate(), index-friendly
+                    ->where('ops_jobs.date', '>=', Carbon::today()->toDateString()) // DATE column — where() ≡ whereDate(), index-friendly
                     ->selectRaw('COALESCE(SUM(
                         (CASE
                             WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty
@@ -622,7 +633,7 @@ class ProductMovementController extends Controller
                 $sub->from('product_limits')
                     ->select('qty')
                     ->whereColumn('product_limits.product_id', 'products.id')
-                    ->whereDate('product_limits.date', $request->productAvailableDate)
+                    ->where('product_limits.date', $request->productAvailableDate) // DATE column — where() ≡ whereDate(), index-friendly
                     ->limit(1);
             }, 'max_ops_job_pick_limit')
             // Calculate limit_is_created_by_system (same as existing)
@@ -630,7 +641,7 @@ class ProductMovementController extends Controller
                 $sub->from('product_limits')
                     ->select('is_created_by_system')
                     ->whereColumn('product_limits.product_id', 'products.id')
-                    ->whereDate('product_limits.date', $request->productAvailableDate)
+                    ->where('product_limits.date', $request->productAvailableDate) // DATE column — where() ≡ whereDate(), index-friendly
                     ->limit(1);
             }, 'limit_is_created_by_system')
             // Sum of Product Movements (Incoming + Adjustments)
@@ -649,7 +660,7 @@ class ProductMovementController extends Controller
                     ->whereColumn('ops_job_item_channels.product_id', 'products.id')
                     ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
                     ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
-                    ->whereDate('ops_jobs.date', '>=', '2025-12-06');
+                    ->where('ops_jobs.date', '>=', '2025-12-06'); // DATE column — where() ≡ whereDate(), index-friendly
             }, 'total_delivered_qty')
             // Calculate Picked Qty (on specific Date)
             ->selectSub(function ($sub) use ($request) {
@@ -660,7 +671,7 @@ class ProductMovementController extends Controller
                     ->whereColumn('ops_job_item_channels.product_id', 'products.id')
                     ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
                     ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
-                    ->whereDate('ops_jobs.date', $request->productAvailableDate);
+                    ->where('ops_jobs.date', $request->productAvailableDate); // DATE column — where() ≡ whereDate(), index-friendly
             }, 'picked_qty_on_date')
             // Calculate Picked Value (on specific Date)
             ->selectSub(function ($sub) use ($request) {
@@ -672,7 +683,7 @@ class ProductMovementController extends Controller
                     ->whereColumn('ops_job_item_channels.product_id', 'products.id')
                     ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
                     ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
-                    ->whereDate('ops_jobs.date', $request->productAvailableDate);
+                    ->where('ops_jobs.date', $request->productAvailableDate); // DATE column — where() ≡ whereDate(), index-friendly
             }, 'picked_value_on_date');
     }
 }

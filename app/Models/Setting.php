@@ -4,10 +4,33 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class Setting extends Model
 {
     use HasFactory;
+
+    /**
+     * Cache key for the singleton settings row (read on every request by
+     * HandleInertiaRequests). Flushed automatically on save/delete below so
+     * the cached copy can never go stale.
+     */
+    const SINGLETON_CACHE_KEY = 'setting_singleton_row';
+
+    protected static function booted()
+    {
+        static::saved(fn () => Cache::forget(self::SINGLETON_CACHE_KEY));
+        static::deleted(fn () => Cache::forget(self::SINGLETON_CACHE_KEY));
+    }
+
+    /**
+     * The single settings row, cached. Identical result to
+     * Setting::query()->first() — just without the per-request query.
+     */
+    public static function singleton(): ?self
+    {
+        return Cache::remember(self::SINGLETON_CACHE_KEY, 600, fn () => static::query()->first());
+    }
 
     // customer index view
     const CUSTOMER_INDEX = [

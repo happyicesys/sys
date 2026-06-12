@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Http\Resources\UserResource;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 use Tightenco\Ziggy\Ziggy;
 
@@ -42,7 +43,9 @@ class HandleInertiaRequests extends Middleware
             $operator->loadMissing('logo');
         }
 
-        $setting = Setting::query()->first();
+        // Cached singleton — flushed automatically whenever the Setting row
+        // is saved, so the value is always identical to a fresh query.
+        $setting = Setting::singleton();
         $allowOverrideIds = collect($setting?->allow_overwrite_logo_operator_ids_array ?? [])
             ->map(fn($id) => (int) $id)
             ->filter()
@@ -82,7 +85,7 @@ class HandleInertiaRequests extends Middleware
                 'operatorLogoUrl' => $operator?->logo?->full_url,
             ],
             'ziggy' => function () use ($request) {
-                return array_merge((new Ziggy)->toArray(), [
+                return array_merge($this->cachedZiggyArray(), [
                     'location' => $request->url(),
                 ]);
             },
@@ -101,5 +104,25 @@ class HandleInertiaRequests extends Middleware
                 'info'    => fn () => $request->session()->get('info'),
             ],
         ]);
+    }
+
+    /**
+     * The Ziggy route map (~540 routes) is identical for every request until
+     * the route files change, yet it was being rebuilt on each request. Cache
+     * it keyed by the route files' mtimes + the request root URL (Ziggy embeds
+     * url('/') in its payload, which is host-dependent), so any deploy that
+     * touches a route file generates a new key and the stale entry simply
+     * expires. Output is byte-identical to (new Ziggy)->toArray().
+     */
+    protected function cachedZiggyArray(): array
+    {
+        $stamp = rtrim(url('/'), '/');
+        foreach (glob(base_path('routes/*.php')) ?: [] as $file) {
+            $stamp .= '|' . $file . ':' . @filemtime($file);
+        }
+
+        return Cache::remember('ziggy_routes_' . md5($stamp), 86400, function () {
+            return (new Ziggy)->toArray();
+        });
     }
 }

@@ -224,7 +224,9 @@ class ProductController extends Controller
                 'remarksUpdatedBy',
                 'latestUnitCost',
                 'productLimits' => function ($query) use ($request) {
-                    $query->whereDate('date', $request->productAvailableDate);
+                    // `date` is a DATE column, so a plain where() is identical to whereDate()
+                    // but doesn't wrap the column in DATE(), keeping it index-friendly.
+                    $query->where('date', $request->productAvailableDate);
                 },
                 'productLimits.createdBy',
                 'thumbnail',
@@ -297,14 +299,14 @@ class ProductController extends Controller
             ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
             ->leftJoin('product_limits', function ($join) use ($request) {
                 $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
-                    ->whereDate('product_limits.date', '=', $request->productAvailableDate);
+                    ->where('product_limits.date', '=', $request->productAvailableDate); // DATE column — where() ≡ whereDate(), index-friendly
             })
             ->whereIn('ops_job_item_channels.product_id', $productIds)
             // Note: products.is_available = 1 check is implicit effectively since we only have IDs from the filtered product list
             // but strictly speaking we are aggregating channels for these products.
             // The original subquery filtered by products.is_available = 1. Since $productIds comes from queries with that check (or not), we are good.
             ->whereBetween('ops_jobs.date', [$productAvailableDateStart, $productAvailableDateEnd])
-            ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+            ->where('ops_jobs.date', '>=', Carbon::today()->toDateString()) // DATE column — where() ≡ whereDate(), index-friendly
             ->groupBy('ops_job_item_channels.product_id')
             ->selectRaw('ops_job_item_channels.product_id,
                 COALESCE(SUM(
@@ -349,7 +351,7 @@ class ProductController extends Controller
             ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
             ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
             ->whereIn('ops_job_item_channels.product_id', $productIds)
-            ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+            ->where('ops_jobs.date', '>=', Carbon::today()->toDateString()) // DATE column — where() ≡ whereDate(), index-friendly
             ->whereNull('ops_job_items.cms_transaction_id')
             ->groupBy('ops_job_item_channels.product_id')
             ->selectRaw('ops_job_item_channels.product_id, SUM(ops_job_item_channels.picked_qty) as qty')
@@ -364,7 +366,7 @@ class ProductController extends Controller
             ->whereIn('ops_job_item_channels.product_id', $productIds)
             ->where('ops_job_items.status', '>=', 2) // OpsJob::STATUS_PICKED
             ->where('ops_job_items.status', '!=', 99) // OpsJob::STATUS_CANCELLED
-            ->whereDate('ops_jobs.date', $request->productAvailableDate)
+            ->where('ops_jobs.date', $request->productAvailableDate) // DATE column — where() ≡ whereDate(), index-friendly
             ->groupBy('ops_job_item_channels.product_id')
             ->selectRaw('ops_job_item_channels.product_id, COALESCE(SUM(ops_job_item_channels.picked_qty * vend_channels.amount), 0) as value')
             ->get()
@@ -460,7 +462,9 @@ class ProductController extends Controller
 
         $products = Product::query()
             ->with(['isAvailableUpdatedBy', 'remarksUpdatedBy', 'latestUnitCost', 'productLimits' => function ($query) use ($request) {
-                $query->whereDate('date', $request->productAvailableDate);
+                // `date` is a DATE column, so a plain where() is identical to whereDate()
+                    // but doesn't wrap the column in DATE(), keeping it index-friendly.
+                    $query->where('date', $request->productAvailableDate);
             }, 'productLimits.createdBy', 'thumbnail'])
             ->when($request->operators, function ($query, $search) {
                 $search = is_array($search) ? $search : [$search];
@@ -489,11 +493,11 @@ class ProductController extends Controller
             ->leftJoin('vend_channels', 'vend_channels.id', '=', 'ops_job_item_channels.vend_channel_id')
             ->leftJoin('product_limits', function ($join) use ($request) {
                 $join->on('product_limits.product_id', '=', 'ops_job_item_channels.product_id')
-                    ->whereDate('product_limits.date', '=', $request->productAvailableDate);
+                    ->where('product_limits.date', '=', $request->productAvailableDate); // DATE column — where() ≡ whereDate(), index-friendly
             })
             ->whereIn('ops_job_item_channels.product_id', $productIds)
             ->whereBetween('ops_jobs.date', [$productAvailableDateStart, $productAvailableDateEnd])
-            ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+            ->where('ops_jobs.date', '>=', Carbon::today()->toDateString()) // DATE column — where() ≡ whereDate(), index-friendly
             ->groupBy('ops_job_item_channels.product_id')
             ->selectRaw('ops_job_item_channels.product_id,
                 COALESCE(SUM(CASE WHEN ops_job_items.status >= 2 THEN ops_job_item_channels.picked_qty WHEN ops_job_item_channels.saved_picked_qty IS NOT NULL THEN ops_job_item_channels.saved_picked_qty WHEN product_limits.qty IS NOT NULL AND (ops_job_items.is_ignore_limit = 0 OR ops_job_items.is_ignore_limit IS NULL) THEN CASE WHEN product_limits.qty > COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0) WHEN product_limits.qty <= COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) AND product_limits.qty >= COALESCE(vend_channels.qty, 0) THEN product_limits.qty - COALESCE(vend_channels.qty, 0) ELSE 0 END ELSE COALESCE(vend_channels.capacity, ops_job_item_channels.capacity) - COALESCE(vend_channels.qty, 0) END), 0) as needed_qty')
@@ -504,7 +508,7 @@ class ProductController extends Controller
             ->join('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
             ->join('ops_jobs', 'ops_jobs.id', '=', 'ops_job_items.ops_job_id')
             ->whereIn('ops_job_item_channels.product_id', $productIds)
-            ->whereDate('ops_jobs.date', '>=', Carbon::today()->toDateString())
+            ->where('ops_jobs.date', '>=', Carbon::today()->toDateString()) // DATE column — where() ≡ whereDate(), index-friendly
             ->whereNull('ops_job_items.cms_transaction_id')
             ->groupBy('ops_job_item_channels.product_id')
             ->selectRaw('ops_job_item_channels.product_id, SUM(ops_job_item_channels.picked_qty) as qty')

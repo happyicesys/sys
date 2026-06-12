@@ -31,7 +31,9 @@ use Inertia\Inertia;
  * L7d / L30d, the anchor day + 7 prior, and This Mth / L1m-L3m.
  *
  * The three "higher than" rows are per-machine counts (machines meeting the
- * condition, with % of active machines), per the spec. Their definitions:
+ * condition, with % of active machines), per the spec. The two daily ones are
+ * computed for every day column (each day evaluated "as of" that day); the
+ * monthly one shows under This Mth only. Their definitions:
  *   - L30d sales higher than LastMth: machine's trailing-30d sales vs its full
  *     previous-calendar-month sales.
  *   - Current Mth sales higher than Previous Mth: current MTD vs the same span
@@ -132,16 +134,17 @@ class OpsPerformanceController extends Controller
         // ---- per-machine "higher than" counts (spec rows 13/16/17) ----
         $monthStart = $anchor->copy()->startOfMonth();
         $prevMonthStart = $monthStart->copy()->subMonthNoOverflow();
-        $prevMonthEnd = $prevMonthStart->copy()->endOfMonth();
         $prevSameSpanEnd = $prevMonthStart->copy()->addDays($monthStart->diffInDays($anchor));
-        $l30Start = $anchor->copy()->subDays(29)->toDateString();
         $rangeStartStr = $rangeStart->toDateString();
-        $rangeDays = $rangeStart->diffInDays($anchor) + 1;
+
+        // The two daily comparison rows are computed for EVERY day column, each
+        // day evaluated "as of" that day; the monthly one stays anchor-only.
+        $compareSeries = $this->perMachineCompareSeries($f, $dayColumns, $activeByDate, $activeTotal, $rangeStartStr);
 
         $perMachine = [
-            'l30d_vs_lastmth' => $this->perMachineGreater($f, $prevMonthStart->toDateString(), $anchorKey, $l30Start, $anchorKey, $prevMonthStart->toDateString(), $prevMonthEnd->toDateString(), $activeTotal),
+            'l30d_vs_lastmth' => $compareSeries['l30d_vs_lastmth'],
             'curr_vs_prev' => $this->perMachineGreater($f, $prevMonthStart->toDateString(), $anchorKey, $monthStart->toDateString(), $anchorKey, $prevMonthStart->toDateString(), $prevSameSpanEnd->toDateString(), $activeTotal),
-            'l30d_avg_vs_overall' => $this->perMachineGreater($f, $rangeStartStr, $anchorKey, $l30Start, $anchorKey, $rangeStartStr, $anchorKey, $activeTotal, true, 30, $rangeDays),
+            'l30d_avg_vs_overall' => $compareSeries['l30d_avg_vs_overall'],
         ];
 
         // Net VendEarning (gross − location fee), computed from the same blessed
@@ -446,6 +449,86 @@ class OpsPerformanceController extends Controller
         return $count . ' (' . $pct . '%)';
     }
 
+    /**
+     * Per-day series for the two daily per-machine comparison rows, one value
+     * per day column. Each day D is evaluated "as of D":
+     *   - l30d_vs_lastmth: trailing-30d sales ending D vs the full calendar
+     *     month before D's month.
+     *   - l30d_avg_vs_overall: trailing-30d avg/day ending D vs avg/day over
+     *     date_from..D.
+     * One gp_metrics scan covers every window; per-vend daily sums are then
+     * windowed in PHP. The % denominator is that day's active-machine count
+     * (snapshot), falling back to the anchor total when no snapshot exists.
+     *
+     * @return array{l30d_vs_lastmth: array<string,string>, l30d_avg_vs_overall: array<string,string>}
+     */
+    private function perMachineCompareSeries(array $f, array $dayColumns, array $activeByDate, int $activeTotal, string $rangeStartStr): array
+    {
+        $windows = [];
+        $scanStart = $rangeStartStr;
+        foreach ($dayColumns as $col) {
+            $d = $col['date'];
+            $day = Carbon::parse($d);
+            $pmStart = $day->copy()->startOfMonth()->subMonthNoOverflow();
+            $windows[$d] = [
+                'l30Start' => $day->copy()->subDays(29)->toDateString(),
+                'pmStart' => $pmStart->toDateString(),
+                'pmEnd' => $pmStart->copy()->endOfMonth()->toDateString(),
+                'rangeDays' => max(1, Carbon::parse($rangeStartStr)->diffInDays($day) + 1),
+            ];
+            $scanStart = min($scanStart, $windows[$d]['l30Start'], $windows[$d]['pmStart']);
+        }
+        $scanEnd = $dayColumns[0]['date'];
+
+        $q = GpMetric::query()->whereBetween('txn_date', [$scanStart, $scanEnd]);
+        $this->applyGpFilters($q, $f);
+        $rows = $q->groupBy('vend_id', 'txn_date')
+            ->selectRaw('vend_id, txn_date, COALESCE(SUM(amount_cents),0) AS amt')
+            ->get();
+
+        $byVend = [];
+        foreach ($rows as $r) {
+            $byVend[$r->vend_id][substr((string) $r->txn_date, 0, 10)] = (float) $r->amt;
+        }
+
+        $out = ['l30d_vs_lastmth' => [], 'l30d_avg_vs_overall' => []];
+        if (empty($byVend)) {
+            return $out;
+        }
+
+        foreach ($windows as $d => $w) {
+            $cVsLastMth = 0;
+            $cVsOverall = 0;
+            foreach ($byVend as $amts) {
+                $l30 = $this->sumDateWindow($amts, $w['l30Start'], $d);
+                if ($l30 > $this->sumDateWindow($amts, $w['pmStart'], $w['pmEnd'])) {
+                    $cVsLastMth++;
+                }
+                if ($l30 / 30 > $this->sumDateWindow($amts, $rangeStartStr, $d) / $w['rangeDays']) {
+                    $cVsOverall++;
+                }
+            }
+            $act = (int) ($activeByDate[$d] ?? $activeTotal);
+            $pct = fn (int $c) => $act > 0 ? (int) round($c / $act * 100) : 0;
+            $out['l30d_vs_lastmth'][$d] = $cVsLastMth . ' (' . $pct($cVsLastMth) . '%)';
+            $out['l30d_avg_vs_overall'][$d] = $cVsOverall . ' (' . $pct($cVsOverall) . '%)';
+        }
+
+        return $out;
+    }
+
+    /** Sum a per-vend [date => amount] map over an inclusive date window. */
+    private function sumDateWindow(array $amts, string $start, string $end): float
+    {
+        $sum = 0.0;
+        foreach ($amts as $date => $amt) {
+            if ($date >= $start && $date <= $end) {
+                $sum += $amt;
+            }
+        }
+        return $sum;
+    }
+
     // ===================== component section =====================
 
     /**
@@ -667,7 +750,11 @@ class OpsPerformanceController extends Controller
 
             if ($scope === 'both' || $scope === 'daily') {
                 if ($agg === 'compare') {
-                    $daily[$anchorKey] = $perMachine[$compareKey] ?? null;
+                    // Per-day series: one "N (P%)" per day column.
+                    $series = $perMachine[$compareKey] ?? [];
+                    foreach ($dayColumns as $col) {
+                        $daily[$col['key']] = $series[$col['key']] ?? null;
+                    }
                 } elseif ($agg === 'trailing30_gp') {
                     foreach ($dayColumns as $col) {
                         $daily[$col['key']] = $this->sumFin($fin, $this->trailingDates($col['date'], 30), 'gross_profit_cents');

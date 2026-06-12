@@ -2138,9 +2138,11 @@ class CustomerController extends Controller
                     'Contract End Date' => $customer?->contract_until ? \Carbon\Carbon::parse($customer->contract_until)->format('ymd') : null,
                     'Auto Renewal' => $customer ? ($customer->contract_auto_renewal ? 'Yes' : 'No') : '',
                     'Notice Period' => $customer?->contract_notice_period,
-                    'Customer Tag' => $tagNames,
-                    // New: Customer Note (stacked with Customer Tag on screen).
-                    'Customer Note' => $customer?->notes,
+                    // Header says "Site Tag" / "Site Note" to match the on-screen
+                    // column (Customer→Site display rename) — data unchanged.
+                    'Site Tag' => $tagNames,
+                    // New: Site Note (stacked with Site Tag on screen).
+                    'Site Note' => $customer?->notes,
                     // Lock / Paid / Unlocked / Unpaid audit — the on-screen
                     // Period Verify & Lock column shows all of these; split into
                     // separate columns here so the CSV/Excel is easy to filter.
