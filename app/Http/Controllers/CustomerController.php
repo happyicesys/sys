@@ -2981,6 +2981,32 @@ class CustomerController extends Controller
         $vend = Vend::find($request->id);
 
         $requestCustomerArr = $request->customer;
+
+        // Server-managed audit columns — never trust these from the payload.
+        // The Edit page builds its form by spreading the serialized Customer
+        // model, where the eager-loaded contractDetailUpdatedBy relation
+        // overrides the raw contract_detail_updated_by column with an
+        // {id, name} OBJECT. Shipping that back stringifies to "Array" → 0
+        // on the int column and trips the customers_contract_detail_updated_by
+        // users FK (SQLSTATE 23000/1452) on ANY save of a customer that has a
+        // prior contract audit stamp — e.g. just changing Refilling Routes.
+        // Strip them here; they are re-stamped below when a genuine contract
+        // change is detected. Timestamps are likewise model-managed.
+        if (is_array($requestCustomerArr)) {
+            unset(
+                $requestCustomerArr['contract_detail_updated_at'],
+                $requestCustomerArr['contract_detail_updated_by'],
+                $requestCustomerArr['created_at'],
+                $requestCustomerArr['updated_at'],
+            );
+
+            // Refilling Routes "--- Clear ---" option posts zone_id = '' — coerce
+            // to NULL so the zones FK on the int column isn't fed an empty string.
+            if (($requestCustomerArr['zone_id'] ?? null) === '') {
+                $requestCustomerArr['zone_id'] = null;
+            }
+            $request->merge(['customer' => $requestCustomerArr]);
+        }
         // Status drives the (now-derived) is_active mirror. The form sends an
         // integer status_id; default to Active when absent/invalid so the
         // NOT NULL customers.status_id column always receives a valid value.

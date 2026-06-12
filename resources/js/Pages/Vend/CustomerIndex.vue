@@ -571,9 +571,9 @@
 						</div>
 					</Button>
 					<Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-					:class="{ 'opacity-50 cursor-not-allowed': vends.data.filter(vend => vend.is_selected).length === 0 }"
+					:class="{ 'opacity-50 cursor-not-allowed': selectedVends.length === 0 }"
 					@click="onGeneratePickListClicked()"
-					:disabled="vends.data.filter(vend => vend.is_selected).length === 0"
+					:disabled="selectedVends.length === 0"
 					>
 						<ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
 						<span class="flex flex-col space-y-1">
@@ -598,9 +598,9 @@
 
 					<!-- if there is any checkbox selected (vend.is_selected) -->
 					<Button class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-					:class="{ 'opacity-50 cursor-not-allowed': vends.data.filter(vend => vend.is_selected).length === 0 }"
+					:class="{ 'opacity-50 cursor-not-allowed': selectedVends.length === 0 }"
 					@click="onAssignJobClicked()"
-					:disabled="vends.data.filter(vend => vend.is_selected).length === 0"
+					:disabled="selectedVends.length === 0"
 					>
 						<ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
 						<span class="flex flex-col space-y-1">
@@ -2838,7 +2838,7 @@ v-if="showAssignJobModal"
 :showModal="showAssignJobModal"
 @modalClose="onAssignJobModalClose"
 @jobAssigned="onJobAssigned"
-:vends="vends.data.filter(vend => vend.is_selected)"
+:vends="selectedVends"
 >
 </AssignJob>
 <MapMarker
@@ -3094,6 +3094,12 @@ font-size:13px;
 			nextDayJobCount,
 		};
 	});
+
+	// PERF: single cached source for "which rows are checkbox-selected". The
+	// template previously ran vends.data.filter(...) inline in 5 places (two
+	// :class bindings, two :disabled bindings, the AssignJob :vends prop) on
+	// every re-render. Same output, computed once per change.
+	const selectedVends = computed(() => vends.value.data.filter((v) => v.is_selected))
 
 	const filters = ref({
 			account_manager_name: '',
@@ -3479,9 +3485,16 @@ const fetchActiveAlerts = (data) => {
 	}
 };
 
+// PERF: no `deep` here on purpose. The row set only ever changes when
+// `vends.value` is reassigned wholesale (onSearchFilterUpdated's onFinish),
+// which already swaps the `data` array reference and re-fires this watcher.
+// With deep:true, EVERY row mutation — each keystroke in the Ops/Site Note
+// textareas (v-model), every is_selected checkbox toggle — forced Vue to
+// re-traverse all ~50-880 nested row objects AND re-POSTed
+// /reports/machine-health/active-alerts each time (same ids, same response).
 watch(() => vends.value.data, (newData) => {
 	fetchActiveAlerts(newData);
-}, { immediate: true, deep: true });
+}, { immediate: true });
 
 const getMachineAlerts = (vend, group) => {
 	const id = vend.vend_id || vend.id;
@@ -3506,8 +3519,39 @@ const shortTimeAgo = (str) => {
 		.replace(/(\d)\s+([smhdwy])/, '$1$2');
 };
 
+// PERF: pre-bucket the alerts per vend id once per alerts payload instead of
+// re-running getAlertLabel + filter for every row on every re-render (each
+// badge block calls getMachineAlertsGroup twice — once in v-if, once in
+// v-for). Buckets are keyed by the joined `numbers` arg; only '1,2,3' and
+// '4' are used in the template today, the function below falls back to the
+// original filter for any other grouping. Output is identical.
+const machineAlertsBuckets = computed(() => {
+	const buckets = {};
+	const map = activeMachineHealthAlerts.value || {};
+	for (const id in map) {
+		const alerts = map[id] || [];
+		const g123 = [];
+		const g4 = [];
+		for (const a of alerts) {
+			const label = getAlertLabel(a);
+			if (!label) continue;
+			if (label.startsWith('1') || label.startsWith('2') || label.startsWith('3')) g123.push(a);
+			if (label.startsWith('4')) g4.push(a);
+		}
+		buckets[id] = { '1,2,3': g123, '4': g4 };
+	}
+	return buckets;
+});
+
+const EMPTY_ALERTS = [];
+
 const getMachineAlertsGroup = (vend, numbers) => {
 	const id = vend.vend_id || vend.id;
+	const bucket = machineAlertsBuckets.value[id];
+	if (!bucket) return EMPTY_ALERTS;
+	const cached = bucket[numbers.join(',')];
+	if (cached) return cached;
+	// Fallback — same logic as before for groupings not pre-bucketed above.
 	const alerts = activeMachineHealthAlerts.value[id] || [];
 	return alerts.filter(a => {
 		const label = getAlertLabel(a);
@@ -3726,17 +3770,28 @@ function lastJobMappingUpcoming(oji) {
 // upcoming mapping is promoted to current. Lets Ops see how long the current
 // mapping has run so they can plan the next implementation. Returns null when
 // binded_at is unset (e.g. mappings bound before the field existed).
+// PERF: memoized per vend object (WeakMap) — the template calls this up to
+// 3× per row per render, and each cold call builds several moment instances.
+// The cache entry is keyed on binded_at AND today's date, so the result is
+// byte-identical to recomputing (including the day-age rolling over at
+// midnight or after a data reload swaps in new row objects).
+const mappingDateInfoCache = new WeakMap()
 function getMappingDateInfo(vendData) {
 	if (!vendData || !vendData.binded_at) return null
+	const today = moment().format('YYYY-MM-DD')
+	const hit = mappingDateInfoCache.get(vendData)
+	if (hit && hit.bindedAt === vendData.binded_at && hit.today === today) return hit.info
 	const binded = moment(vendData.binded_at)
 	if (!binded.isValid()) return null
 	const days = moment().startOf('day').diff(binded.clone().startOf('day'), 'days')
 	const ageLabel = days <= 0 ? 'today' : days === 1 ? '1 day' : `${days} days`
-	return {
+	const info = {
 		date: binded.format('YYMMDD'),
 		ageLabel,
 		title: `Current mapping implemented on ${binded.format('YYMMDD HH:mm')} (${ageLabel} ago)`,
 	}
+	mappingDateInfoCache.set(vendData, { bindedAt: vendData.binded_at, today, info })
+	return info
 }
 
 function getVendsField() {
@@ -4019,8 +4074,21 @@ function onNotesChanged(vend) {
 // :ref-callback (initial mount + after vends partial-reload swaps row
 // instances) and via @input for live typing. nextTick guarantees the
 // new value is in the DOM before we measure scrollHeight.
+// PERF: skip re-measuring when the content hasn't changed since the last
+// grow. The inline :ref="(el) => autoGrowTextarea(el)" callbacks are
+// re-created on every re-render of this (very large) page, so Vue re-invokes
+// them for every textarea on every render — and each scrollHeight read forces
+// a full layout pass (2 textareas × every row × every render). The height
+// only depends on the value (the wrapper width is fixed at w-[82px]), so
+// re-measuring the same value is pure waste. @input still passes here with a
+// changed value, so live typing keeps auto-growing as before. The last-grown
+// value is tracked in a WeakMap (not a data- attribute) so the rendered DOM
+// stays byte-identical; entries are GC'd with their elements.
+const autoGrowLastValue = new WeakMap();
 function autoGrowTextarea(el) {
 	if (!el) return;
+	if (autoGrowLastValue.get(el) === el.value) return;
+	autoGrowLastValue.set(el, el.value);
 	nextTick(() => {
 		el.style.height = 'auto';
 		el.style.height = el.scrollHeight + 'px';
