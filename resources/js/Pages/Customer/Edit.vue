@@ -70,7 +70,7 @@
                        Reading the wrong key made unique/integer rejections
                        invisible — the save silently "did nothing". -->
                   <div class="sm:col-span-3">
-                    <FormInput v-model="form.person_id" :error="form.errors['customer.person_id'] || form.errors.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
+                    <FormInput v-model="form.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
                       <span class="inline-flex items-center gap-2">
                         CMS Linking ID
                         <a v-if="form.person_id && cmsEndpoint" :href="cmsEndpoint + '/person/' + form.person_id + '/edit'" target="_blank" rel="noopener noreferrer" class="text-blue-600 text-xs font-normal underline">
@@ -78,6 +78,16 @@
                         </a>
                       </span>
                     </FormInput>
+                    <!-- person_id error is rendered with v-html (not FormInput's
+                         text slot) so the duplicate-binding message's <a> link to
+                         the already-bound site is clickable. Server escapes the
+                         name; only safe markup reaches here. Key is the nested
+                         customer.person_id (update() validates it nested). -->
+                    <div
+                      v-if="form.errors['customer.person_id'] || form.errors.person_id"
+                      class="text-sm text-red-600 mt-1"
+                      v-html="form.errors['customer.person_id'] || form.errors.person_id"
+                    ></div>
                   </div>
 
                   <!--

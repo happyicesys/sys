@@ -9,7 +9,6 @@ use App\Http\Resources\OpsJobItemResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
 use App\Jobs\PublishMqtt;
-use App\Jobs\SyncOpsJobItemTransactionItemCMS;
 use App\Jobs\SyncOpsJobTransactionCMS;
 use App\Models\Address;
 use App\Models\Operator;
@@ -1919,29 +1918,6 @@ class OpsJobController extends Controller
         return redirect()->route('ops-jobs');
     }
 
-    // public function syncCmsInvoices($id)
-    // {
-    //     $opsJob = OpsJob::findOrFail($id);
-
-    //     foreach($opsJob->opsJobItems as $opsJobItem) {
-    //         if($opsJobItem->cms_transaction_id) {
-    //             continue;
-    //         }
-
-    //         $dataArr[] = [
-    //             'ops_job_item_id' => $opsJobItem->id,
-    //             'customer_id' => $opsJobItem->customer_id,
-    //             'person_id' => $opsJobItem->customer?->person_id,
-    //         ];
-    //     }
-
-    //     $this->opsJobService->createCMSEmptyInvoicesByOpsJobItem($dataArr, $opsJob->date, $opsJob->deliveredBy);
-
-    //     SyncOpsJobItemTransactionItemCMS::dispatch($opsJobItem->id);
-
-    //     return redirect()->back();
-    // }
-
     public function delete($id)
     {
         $opsJob = OpsJob::findOrFail($id);
@@ -1976,17 +1952,6 @@ class OpsJobController extends Controller
         $opsJobItem->delete();
 
         return redirect('/ops-jobs/' . $opsJobId . '/edit');
-    }
-
-    public function syncOpsJobItem(Request $request, $opsJobItemID)
-    {
-        $opsJobItem = OpsJobItem::findOrFail($opsJobItemID);
-
-        $opsJobItem->update([
-            'sequence' => $request->sequence,
-        ]);
-
-        return redirect()->back();
     }
 
     public function toggleIsIgnoreLimit(Request $request, $id)

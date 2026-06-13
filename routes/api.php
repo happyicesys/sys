@@ -35,23 +35,12 @@ Route::prefix('v1')->group(function () {
         );
 
         Route::post('/vend-data', [VendDataController::class , 'create']);
-        // Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
-        Route::post('/customers/person/{personID?}', [CustomerController::class , 'getCustomersByPersonID']);
         Route::post('/payment-gateway-status/{company?}', [PaymentController::class , 'createPaymentGatewayLog']);
         Route::get('/binded-vends', [VendDataController::class , 'getBindedVends']);
         Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class , 'getPaymentMerchantsApi']);
         Route::post('/vends/{id}/upload-log', [VendDataController::class , 'uploadLog']);
         Route::post('/content/vends/{code}', [VendDataController::class , 'getVendMediaContent']);
 
-        Route::prefix('customers')->group(function () {
-            Route::post('/people', [CustomerController::class , 'syncNextDeliveryDate']);
-        }
-        );
-
-        Route::prefix('ops-jobs')->group(function () {
-            Route::post('/item/{opsJobItemID}', [OpsJobController::class , 'syncOpsJobItem']);
-        }
-        );
     });
 
 Route::prefix('delivery')->group(function () {

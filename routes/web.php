@@ -230,13 +230,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/toggle-activation', [CustomerController::class, 'toggleActivation']);
         Route::delete('/{id}', [CustomerController::class, 'delete']);
         Route::get('/excel', [CustomerController::class, 'exportExcel']);
-        Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
         Route::post('/{id}/upload-attachments', [CustomerController::class, 'uploadAttachment']);
         Route::post('/{id}/upload-photos', [CustomerController::class, 'uploadPhoto']);
         Route::post('/{id}/upload-contracts', [CustomerController::class, 'uploadContract']);
         Route::post('/{id}/bind-vend', [CustomerController::class, 'bindVend']);
         Route::get('/{id}/selling-prices/type/{type}', [CustomerController::class, 'getProductSellingPrices']);
-        Route::post('/sync-cms-invoice-items', [CustomerController::class, 'syncCmsInvoiceItems']);
         Route::post('/{id}/disconnect-cms', [CustomerController::class, 'disconnectCms']);
         // Customer-level notes — edited inline on the Customer Summary page
         // (Customer Tag column). Mirrors products-availability.update-remarks.

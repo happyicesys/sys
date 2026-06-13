@@ -112,7 +112,7 @@
                 </th>
               </tr>
               <tr class="bg-amber-100 text-gray-700">
-                <th class="text-left px-3 py-2 font-semibold sticky left-0 bg-amber-100 z-10">Key KPI</th>
+                <th class="text-left px-3 py-2 font-semibold sticky left-0 bg-amber-100 z-10 max-w-[140px] whitespace-normal break-words sm:max-w-none sm:whitespace-nowrap">Key KPI</th>
                 <th class="px-2 py-2 font-medium border-l-2 border-gray-700">Avg L7d</th>
                 <th class="px-2 py-2 font-medium">Avg L30d</th>
                 <th v-for="col in dayColumns" :key="col.key" class="px-2 py-2 font-medium whitespace-nowrap border-l">
@@ -127,18 +127,22 @@
             </thead>
             <tbody>
               <tr v-for="row in kpis" :key="row.id" class="border-t hover:bg-gray-50">
-                <td class="text-left px-3 py-1.5 font-medium text-gray-700 sticky left-0 bg-white z-10 whitespace-nowrap">
+                <td class="text-left px-3 py-1.5 font-medium text-gray-700 sticky left-0 bg-white z-10 max-w-[140px] whitespace-normal break-words sm:max-w-none sm:whitespace-nowrap">
                   {{ row.label }}
                 </td>
-                <td class="px-2 py-1.5 border-l-2 border-gray-700" :class="bg(row.daily.avg_l7d, row.daily.avg_l30d, row.format)">{{ fmt(row.daily.avg_l7d, row.format) }}</td>
-                <td class="px-2 py-1.5 text-gray-500">{{ fmt(row.daily.avg_l30d, row.format) }}</td>
+                <td class="px-2 py-1.5 border-l-2 border-gray-700" :class="bg(row.daily.avg_l7d, row.daily.avg_l30d, row.format)">
+                  <div v-for="(ln, li) in lines(row.daily.avg_l7d, row.format)" :key="li" :class="li > 0 ? 'text-gray-500' : ''">{{ ln }}</div>
+                </td>
+                <td class="px-2 py-1.5 text-gray-500">
+                  <div v-for="(ln, li) in lines(row.daily.avg_l30d, row.format)" :key="li">{{ ln }}</div>
+                </td>
                 <td v-for="(col, i) in dayColumns" :key="col.key" class="px-2 py-1.5 border-l"
                   :class="bg(row.daily[col.key], row.daily[dayColumns[i + 1]?.key], row.format)">
-                  {{ fmt(row.daily[col.key], row.format) }}
+                  <div v-for="(ln, li) in lines(row.daily[col.key], row.format)" :key="li" :class="li > 0 ? 'text-gray-500' : ''">{{ ln }}</div>
                 </td>
                 <td v-for="(col, i) in monthColumns" :key="col.key" class="px-2 py-1.5"
                   :class="[bg(row.monthly[col.key], row.monthly[monthColumns[i + 1]?.key], row.format), i === 0 ? 'border-l-2 border-gray-700' : 'border-l']">
-                  {{ fmt(row.monthly[col.key], row.format) }}
+                  <div v-for="(ln, li) in lines(row.monthly[col.key], row.format)" :key="li" :class="li > 0 ? 'text-gray-500' : ''">{{ ln }}</div>
                 </td>
               </tr>
             </tbody>
@@ -269,6 +273,15 @@ function fmt(v, format) {
   return int(v);
 }
 function pct(count, total) { return (!total || total <= 0) ? '' : Math.round((Number(count) / total) * 100) + '%'; }
+
+// Render a cell across two lines when it carries a value AND a percentage, e.g.
+// "53 (14%)" -> ["53", "14%"]. Plain cells (money/int/–) return a single line,
+// so this is safe to apply to every data cell uniformly.
+function lines(v, format) {
+  const s = fmt(v, format);
+  const m = (typeof s === 'string') ? s.match(/^(.*?)\s*\(([^)]*)\)\s*$/) : null;
+  return m ? [m[1].trim(), '(' + m[2].trim() + ')'] : [s];
+}
 
 // 'YYYY-MM-DD' -> 'yymmdd' (e.g. 2026-06-04 -> 260604)
 function ymd(d) { return d ? d.slice(2).replace(/-/g, '') : ''; }

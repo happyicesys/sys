@@ -54,7 +54,7 @@
                    "Create API Invoice". Editable; paste the "SYS Linking ID" shown
                    on the matching CMS person page. -->
               <div class="sm:col-span-6">
-                <FormInput v-model="form.person_id" :error="form.errors.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
+                <FormInput v-model="form.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
                   <span class="inline-flex items-center gap-2">
                     CMS Linking ID
                     <a v-if="form.person_id && cmsEndpoint" :href="cmsEndpoint + '/person/' + form.person_id + '/edit'" target="_blank" rel="noopener noreferrer" class="text-blue-600 text-xs font-normal underline">
@@ -62,6 +62,14 @@
                     </a>
                   </span>
                 </FormInput>
+                <!-- person_id error rendered with v-html so the duplicate-binding
+                     message's <a> link to the already-bound site is clickable.
+                     store() validates this top-level, so the key is person_id. -->
+                <div
+                  v-if="form.errors.person_id"
+                  class="text-sm text-red-600 mt-1"
+                  v-html="form.errors.person_id"
+                ></div>
               </div>
 
               <!--

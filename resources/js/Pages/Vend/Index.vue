@@ -706,10 +706,6 @@
             Last Visited <br>
             yymmdd
           </TableHeadSort>
-          <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')" v-if="indexType === 'customers'">
-            Next Planned Visit <br>
-            yymmdd
-          </TableHeadSort>
           <TableHead>
             <div class="flex flex-col space-y-2">
               <SingleSortItem modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
@@ -1319,23 +1315,6 @@
                 </div>
             </span>
           </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-            <span v-if="vend.cms_invoice_history && 'next_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
-                  {{ vend.cms_invoice_history['next_delivery_driver'] }} <br>
-            </span>
-            <span  :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
-                {{ vend.next_invoice_date }} <br>
-                <div
-                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-                  :class="[(vend.next_invoice_diff_count < 1 &&  vend.next_invoice_diff_count > 0) ? 'bg-green-200' : ((vend.next_invoice_diff_count > -1 && vend.next_invoice_diff_count < 0) ? 'bg-yellow-200' : '') ]"
-                  v-if="vend.next_invoice_diff"
-                >
-                  <span>
-                    {{ vend.next_invoice_diff }}
-                  </span>
-                </div>
-            </span>
-          </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <div class="flex flex-col space-y-1">
               <span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
@@ -1606,7 +1585,6 @@ import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleU
   const isSelectedAll = ref(false)
   const lcdMonitorOptions = ref([])
   const loading = ref(false)
-  const loadingSyncNextDeliveryDate = ref(false)
   const locationTypeOptions = ref([])
   const modemTypeOptions = ref([])
   const modemUnitOptions = ref([])
@@ -1915,18 +1893,6 @@ function onSearchFilterUpdated() {
           now.value = moment().format('HH:mm:ss')
       },
   })
-}
-
-function onSyncNextDeliveryDate() {
-    loadingSyncNextDeliveryDate.value = true
-    axios({
-        method: 'get',
-        url: '/customers/sync-next-delivery-date',
-    }).then(response => {
-    }).catch(error => {
-    }).finally(() => {
-        loadingSyncNextDeliveryDate.value = false
-    })
 }
 
 function onVendTempClicked(vendId, type) {

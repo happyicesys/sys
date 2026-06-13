@@ -18,7 +18,6 @@ use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\ZoneResource;
 use App\Jobs\SyncVendCustomerCms;
-use App\Jobs\SyncTransactionItemCMS;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
@@ -2739,9 +2738,9 @@ class CustomerController extends Controller
         $optionsService = app(\App\Services\OptionsService::class);
 
         return Inertia::render('Customer/Create', [
-            'cmsCustomerOptions' => env('CMS_URL') ? (Http::get(env('CMS_URL') . '/api/vends/unbind')->collect() ?
-                Http::get(env('CMS_URL') . '/api/vends/unbind')->collect()->whereNotIn('id', Customer::select('person_id')->pluck('person_id'))->all() :
-                []) : [],
+            // Pull-From-CMS picker is retired (CMS deprecation). Prop kept as an
+            // empty list so Create.vue's Object.values() mapping stays safe.
+            'cmsCustomerOptions' => [],
             'countries' => $optionsService->countries(),
             'customer' => new Customer(),
             'operatorOptions' => $optionsService->operators(),
@@ -3011,24 +3010,6 @@ class CustomerController extends Controller
         return CustomerResource::collection($customers);
     }
 
-    // retrieve all or single vendcodes from sys.happyice
-    public function getCustomersByPersonID($personID = null)
-    {
-        $customers = Customer::query()
-            ->with(['vends'])
-            ->when($personID, fn($query, $input) => $query->where('person_id', $input))
-            ->get();
-
-        SyncVendCustomerCms::dispatch($personID, null);
-        return $customers;
-    }
-
-    // public function migrate(Request $request)
-    // {
-    //     $value = $request->all();
-    //     SyncVendCustomerCms::dispatch(null, $value['id']);
-    // }
-
     public function search(Request $request)
     {
         $search = $request->search;
@@ -3080,17 +3061,24 @@ class CustomerController extends Controller
     /**
      * Human-readable label for a customer already holding a CMS Linking ID,
      * used in the duplicate-person_id validation message so the user can see
-     * which site the ID is bound to. Prefers "CODE - Name"; falls back to
-     * whichever is present, then to "customer #id".
+     * exactly which site the ID is bound to AND jump straight to it.
+     *
+     * Returns an HTML <a> linking to that site's edit page, labelled with the
+     * Site ID# (id + RUNNING_NUMBER_INIT — the same number shown in the form's
+     * read-only "Site ID#" box, NOT the CMS virtual_customer_code) and the site
+     * name. The customer name is the only user-controlled part, so it's escaped
+     * with e() — the rest are integers. The form renders this via v-html, so
+     * keeping the markup minimal + escaped here is what makes that safe.
      */
     private function describeBoundCustomer(Customer $customer): string
     {
-        $parts = array_filter([
-            $customer->virtual_customer_code,
-            $customer->name,
-        ], fn($v) => $v !== null && $v !== '');
+        $siteId = $customer->id + Customer::RUNNING_NUMBER_INIT;
+        $name = $customer->name ?: ($customer->virtual_customer_code ?: ('customer #' . $customer->id));
+        $label = 'Site ' . $siteId . ' (' . e($name) . ')';
 
-        return !empty($parts) ? implode(' - ', $parts) : ('customer #' . $customer->id);
+        return '<a href="/customers/' . $customer->id . '/edit" target="_blank" rel="noopener noreferrer" class="underline font-medium">'
+            . $label
+            . '</a>';
     }
 
     public function store(Request $request)
@@ -3187,97 +3175,6 @@ class CustomerController extends Controller
         }
 
         return redirect()->route('customers.edit', [$customer->id]);
-    }
-
-    public function syncFromCms(Request $request)
-    {
-        $response = Http::get(env('CMS_URL') . '/api/people');
-        $people = $response->collect();
-
-        if ($people) {
-            foreach ($people as $person) {
-                $customer = Customer::where('person_id', $person['id'])->first();
-
-                if ($customer) {
-                    $customer->update([
-                        'cms_customer' => $person,
-                    ]);
-                }
-            }
-        }
-
-        return true;
-    }
-
-    public function syncCmsInvoiceItems(Request $request)
-    {
-        $customers = Customer::query()
-            ->whereIn('id', $request->customerIDs)
-            ->get();
-
-        if ($customers) {
-            foreach ($customers as $customer) {
-                SyncTransactionItemCMS::dispatch($customer->id)->onQueue('default');
-                // SyncTransactionItemCMS::dispatchSync($customer->id);
-            }
-        }
-    }
-
-    public function syncNextDeliveryDate($people = [])
-    {
-        if (!$people) {
-            // get all people from cms
-            $response = Http::get(env('CMS_URL') . '/api/people/last-invoice-date');
-            $people = $response->collect();
-        }
-
-        if (empty($people)) {
-            return true;
-        }
-
-        // Batch load all customers by person_id
-        $personIds = collect($people)->pluck('id')->toArray();
-        $customers = Customer::whereIn('person_id', $personIds)
-            ->get()
-            ->keyBy('person_id');
-
-        // Batch load all ops job items by cms_transaction_id
-        $transactionIds = collect($people)
-            ->pluck('next_transaction_id')
-            ->filter()
-            ->toArray();
-        $opsJobItems = OpsJobItem::whereIn('cms_transaction_id', $transactionIds)
-            ->get()
-            ->keyBy('cms_transaction_id');
-
-        // Prepare bulk updates
-        $now = now();
-
-        foreach ($people as $person) {
-            $customer = $customers->get($person['id']);
-
-            if ($customer) {
-                $customer->update([
-                    'cms_invoice_history' => $person,
-                    'last_invoice_date' => $person['last_delivery_date'],
-                    'next_invoice_date' => $person['next_delivery_date'],
-                    'updated_at' => $now,
-                ]);
-            }
-
-            if ($person['next_transaction_id'] && $person['next_transaction_sequence']) {
-                $opsJobItem = $opsJobItems->get($person['next_transaction_id']);
-
-                if ($opsJobItem) {
-                    $opsJobItem->update([
-                        'sequence' => $person['next_transaction_sequence'],
-                        'updated_at' => $now,
-                    ]);
-                }
-            }
-        }
-
-        return true;
     }
 
     public function update(Request $request, $id)

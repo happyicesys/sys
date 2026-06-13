@@ -612,19 +612,6 @@
 							</span>
 						</span>
 					</Button>
-					<Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-					@click="onSyncCMSInvoiceItemsClicked()"
-					>
-						<ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
-						<span class="flex flex-col space-y-1">
-							<span>
-									Sync CMS Invoice Items
-							</span>
-							<span class="text-xs leading-3">
-									(Filter)
-							</span>
-						</span>
-					</Button>
 				</div>
 			</div>
 			<!-- Two groups: stacked on mobile/tablet, side-by-side on desktop
@@ -3173,7 +3160,6 @@ font-size:13px;
 	const isShowOperationDiv = ref(false)
 	const isSelectedAll = ref(false)
 	const loading = ref(false)
-	const loadingSyncNextDeliveryDate = ref(false)
 	const locationTypeOptions = ref([])
 	const nextDeliveryDriverOptions = ref([])
 	const numberPerPageOptions = ref([])
@@ -3989,30 +3975,6 @@ function onSearchFilterUpdated() {
 					hasSearched.value = true
 			},
 	})
-}
-
-function onSyncCMSInvoiceItemsClicked() {
-	axios({
-			method: 'POST',
-			url: '/customers/sync-cms-invoice-items',
-			data: {customerIDs: vends.value.data.map((vend) => { return vend.customer_id })},
-	}).then(response => {
-	}).catch(error => {
-	}).finally(() => {
-	})
-}
-
-
-function onSyncNextDeliveryDate() {
-		loadingSyncNextDeliveryDate.value = true
-		axios({
-				method: 'get',
-				url: '/customers/sync-next-delivery-date',
-		}).then(response => {
-		}).catch(error => {
-		}).finally(() => {
-				loadingSyncNextDeliveryDate.value = false
-		})
 }
 
 function onVendTempClicked(vendId, type) {

@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Services;
-use App\Jobs\CreateTransactionsCMS;
 use App\Jobs\DeleteTransactionsCMS;
 use App\Models\Customer;
 use App\Models\OpsJobItem;
@@ -9,19 +8,6 @@ use Carbon\Carbon;
 
 class OpsJobService
 {
-  public function createCMSEmptyInvoicesByOpsJobItem($customersArr, $date, $driver)
-  {
-    $data = [
-        'date' => Carbon::parse($date)->format('Y-m-d'),
-        'driver' => $driver->username,
-        'created_by' => auth()->user()->username,
-        'customers' => $customersArr,
-    ];
-
-    CreateTransactionsCMS::dispatch($data);
-
-    return $data;
-  }
 
   public function updateJobItemCMSTransactionID($data)
   {
