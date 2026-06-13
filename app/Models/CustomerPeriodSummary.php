@@ -44,8 +44,14 @@ class CustomerPeriodSummary extends Model
         // Action-triggered lock (see migration add_lock_to_customer_period_summaries).
         'locked_at',
         'locked_by',
+        // Explicit boolean state flags — mirror locked_at / paid_at (which
+        // stay the audit source of truth). Synced at every lock/unlock/
+        // paid/unpaid writer; backfilled by BackfillSummaryLockedPaidFlagsSeeder.
+        'is_locked',
+        'is_paid',
         // Paid + audit timestamps (see migration add_paid_and_audit_to_customer_period_summaries).
         'paid_at',
+        'paid_date',
         'paid_by',
         'last_unpaid_at',
         'last_unpaid_by',
@@ -72,7 +78,10 @@ class CustomerPeriodSummary extends Model
         'contract_commission_value2' => 'decimal:2',
         'contract_ps_term' => 'decimal:2',
         'locked_at' => 'datetime',
+        'is_locked' => 'boolean',
+        'is_paid' => 'boolean',
         'paid_at' => 'datetime',
+        'paid_date' => 'date',
         'last_unpaid_at' => 'datetime',
         'last_unlocked_at' => 'datetime',
         'report_emailed_at' => 'datetime',

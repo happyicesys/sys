@@ -100,6 +100,7 @@ class LockCustomerSummaryHistorical extends Command
             return (clone $base)->update([
                 'locked_at' => $now,
                 'locked_by' => $lockedBy,
+                'is_locked' => true,
                 'updated_at' => $now,
             ]);
         });

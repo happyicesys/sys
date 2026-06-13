@@ -64,9 +64,13 @@
                   </div>
 
                   <!-- CMS Linking ID — CMS person id used by "Create API Invoice".
-                       Editable; paste the "SYS Linking ID" from the CMS person. -->
+                       Editable; paste the "SYS Linking ID" from the CMS person.
+                       NOTE: update() validates this nested as customer.person_id,
+                       so the error key is 'customer.person_id' (NOT 'person_id').
+                       Reading the wrong key made unique/integer rejections
+                       invisible — the save silently "did nothing". -->
                   <div class="sm:col-span-3">
-                    <FormInput v-model="form.person_id" :error="form.errors.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
+                    <FormInput v-model="form.person_id" :error="form.errors['customer.person_id'] || form.errors.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
                       <span class="inline-flex items-center gap-2">
                         CMS Linking ID
                         <a v-if="form.person_id && cmsEndpoint" :href="cmsEndpoint + '/person/' + form.person_id + '/edit'" target="_blank" rel="noopener noreferrer" class="text-blue-600 text-xs font-normal underline">

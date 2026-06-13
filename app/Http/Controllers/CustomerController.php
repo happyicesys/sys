@@ -410,6 +410,24 @@ class CustomerController extends Controller
                     ? $q->whereNotNull('paid_at')
                     : $q->whereNull('paid_at');
             }
+            // Payment Date range — filters on paid_date (the actual payment
+            // date entered in the Paid popup). Either bound may be empty for
+            // an open-ended range; rows with no paid_date drop out whenever a
+            // bound is set (SQL NULL comparison). Malformed values are
+            // ignored rather than erroring.
+            $parseDate = function ($v) {
+                try {
+                    return $v ? \Carbon\Carbon::parse($v)->toDateString() : null;
+                } catch (\Throwable $e) {
+                    return null;
+                }
+            };
+            if ($from = $parseDate($request->paid_date_from)) {
+                $q->where('paid_date', '>=', $from);
+            }
+            if ($to = $parseDate($request->paid_date_to)) {
+                $q->where('paid_date', '<=', $to);
+            }
         };
         $applyRowFilters($summariesQuery);
 
@@ -838,9 +856,24 @@ class CustomerController extends Controller
             return back()->with('success', 'This period is already locked.');
         }
 
-        // Freeze the LIVE values (current contract applied to this month's
-        // stored sales/gross) into the stored columns — same derivation the
-        // resource uses for unlocked rows, so "what you see is what locks".
+        $this->applyLockToSummary($summary, $user->id);
+
+        return back()->with('success', 'Period locked.');
+    }
+
+    /**
+     * Freeze + stamp a summary row as Locked. Shared by the single-row lock
+     * endpoint and the batch-lock endpoint so both produce IDENTICAL
+     * snapshots. Caller is responsible for permission + eligibility guards
+     * (not current month, not already locked).
+     *
+     * Freezes the LIVE values (current contract applied to this month's
+     * stored sales/gross) into the stored columns — same derivation the
+     * resource uses for unlocked rows, so "what you see is what locks".
+     * Expects customer.operator to be eager-loaded for the GST rate.
+     */
+    protected function applyLockToSummary(\App\Models\CustomerPeriodSummary $summary, int $userId): void
+    {
         $c = $summary->customer;
         if ($c) {
             $gstRatePct = ($c->relationLoaded('operator') && $c->operator && $c->operator->gst_vat_rate !== null)
@@ -875,10 +908,9 @@ class CustomerController extends Controller
         }
 
         $summary->locked_at = now();
-        $summary->locked_by = $user->id;
+        $summary->locked_by = $userId;
+        $summary->is_locked = true;
         $summary->save();
-
-        return back()->with('success', 'Period locked.');
     }
 
     /**
@@ -914,6 +946,7 @@ class CustomerController extends Controller
 
         $summary->locked_at = null;
         $summary->locked_by = null;
+        $summary->is_locked = false;
         $summary->last_unlocked_at = now();
         $summary->last_unlocked_by = $user->id;
         $summary->save();
@@ -946,8 +979,20 @@ class CustomerController extends Controller
             return back()->with('success', 'This period is already marked Paid.');
         }
 
+        // Actual payment date from the Paid popup — optional; empty defaults
+        // to today. paid_at stays the audit timestamp of the click itself.
+        $validated = $request->validate([
+            'paid_date' => ['nullable', 'date'],
+        ], [
+            'paid_date.date' => 'Payment date must be a valid date.',
+        ]);
+
         $summary->paid_at = now();
+        $summary->paid_date = !empty($validated['paid_date'])
+            ? \Carbon\Carbon::parse($validated['paid_date'])->toDateString()
+            : now()->toDateString();
         $summary->paid_by = $user->id;
+        $summary->is_paid = true;
         $summary->save();
 
         return back()->with('success', 'Period marked Paid.');
@@ -975,12 +1020,119 @@ class CustomerController extends Controller
         }
 
         $summary->paid_at = null;
+        $summary->paid_date = null;
         $summary->paid_by = null;
+        $summary->is_paid = false;
         $summary->last_unpaid_at = now();
         $summary->last_unpaid_by = $user->id;
         $summary->save();
 
         return back()->with('success', 'Period marked Unpaid.');
+    }
+
+    /**
+     * Batch Lock — locks every eligible id in one request (Customer Summary
+     * batch bar). Per-row eligibility mirrors the single lock endpoint:
+     * not the current month + not already locked. Ineligible ids are
+     * SKIPPED (not errored) — the UI only sends eligible rows, so skips can
+     * only come from a stale tab racing another user. Same permission tier
+     * as single Lock ('admin-access customers'). All-or-nothing write via
+     * transaction so a mid-batch failure can't leave a half-locked set.
+     */
+    public function batchLockCustomerPeriodSummaries(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->can('admin-access customers')) {
+            abort(403, 'You do not have permission to lock summary rows.');
+        }
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $summaries = \App\Models\CustomerPeriodSummary::with(['customer.operator'])
+            ->whereIn('id', $validated['ids'])
+            ->get();
+
+        $locked = 0;
+        \Illuminate\Support\Facades\DB::transaction(function () use ($summaries, $user, &$locked) {
+            foreach ($summaries as $summary) {
+                if ($summary->is_current_month || $summary->locked_at !== null) {
+                    continue;
+                }
+                $this->applyLockToSummary($summary, $user->id);
+                $locked++;
+            }
+        });
+
+        if ($locked === 0) {
+            return back()->withErrors(['batch' => 'No selected rows were eligible to lock.']);
+        }
+
+        return back()->with('success', sprintf('Locked %d period(s).', $locked));
+    }
+
+    /**
+     * Batch Mark Paid — marks every eligible id Paid in one request, with a
+     * SHARED payment date from the batch popup (empty → today). Per-row
+     * eligibility mirrors the single Paid flow + the UI's paid-tracking
+     * cutoff: locked + not already paid + not current month + period 2605
+     * (2026-05-01) onward. Ineligible ids are skipped. Same permission tier
+     * as single Paid ('admin-access customers').
+     */
+    public function batchMarkPaidCustomerPeriodSummaries(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->can('admin-access customers')) {
+            abort(403, 'You do not have permission to mark summary rows Paid.');
+        }
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+            'paid_date' => ['nullable', 'date'],
+        ], [
+            'paid_date.date' => 'Payment date must be a valid date.',
+        ]);
+
+        $paidDate = !empty($validated['paid_date'])
+            ? \Carbon\Carbon::parse($validated['paid_date'])->toDateString()
+            : now()->toDateString();
+
+        $summaries = \App\Models\CustomerPeriodSummary::query()
+            ->whereIn('id', $validated['ids'])
+            ->get();
+
+        $paid = 0;
+        \Illuminate\Support\Facades\DB::transaction(function () use ($summaries, $user, $paidDate, &$paid) {
+            $now = now();
+            foreach ($summaries as $summary) {
+                if ($summary->locked_at === null || $summary->paid_at !== null) {
+                    continue;
+                }
+                if ($summary->is_current_month) {
+                    continue;
+                }
+                // Paid-tracking cutoff — same gate as Summary.vue's
+                // isPaidEligiblePeriod (period 2605 onward only).
+                if ($summary->year_month && $summary->year_month->toDateString() < '2026-05-01') {
+                    continue;
+                }
+                $summary->paid_at = $now;
+                $summary->paid_date = $paidDate;
+                $summary->paid_by = $user->id;
+                $summary->is_paid = true;
+                $summary->save();
+                $paid++;
+            }
+        });
+
+        if ($paid === 0) {
+            return back()->withErrors(['batch' => 'No selected rows were eligible to mark Paid.']);
+        }
+
+        return back()->with('success', sprintf('Marked %d period(s) Paid.', $paid));
     }
 
     /**
@@ -1811,6 +1963,24 @@ class CustomerController extends Controller
             ->whereIn('customer_id', $customerIds)
             ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
 
+        // Payment Date range — mirror summary()'s paid_date filter so the
+        // export matches the on-screen rows when this filter is active.
+        // (NOTE: the older Period Locked? / Location Fee Paid? dropdowns do
+        // NOT filter the export — pre-existing behaviour, left unchanged.)
+        $parseDate = function ($v) {
+            try {
+                return $v ? \Carbon\Carbon::parse($v)->toDateString() : null;
+            } catch (\Throwable $e) {
+                return null;
+            }
+        };
+        if ($from = $parseDate($request->paid_date_from)) {
+            $query->where('paid_date', '>=', $from);
+        }
+        if ($to = $parseDate($request->paid_date_to)) {
+            $query->where('paid_date', '<=', $to);
+        }
+
         // Order the export rows with the SAME logic the on-screen table uses,
         // so the .xlsx matches what the user sees (default: Note Last Updated,
         // newest first) instead of the old hardcoded customer_id/year_month.
@@ -2149,11 +2319,18 @@ class CustomerController extends Controller
                     // Note: relationLoaded() returns false in cursor() context
                     // (see Location Type comment above), so we read through
                     // optional() directly — the relations ARE eager-loaded.
+                    // Explicit boolean state columns (mirror locked_at /
+                    // paid_at; backfilled by BackfillSummaryLockedPaidFlagsSeeder).
+                    'Locked?' => $row->is_locked ? 'Yes' : 'No',
+                    'Paid?' => $row->is_paid ? 'Yes' : 'No',
                     'Locked At' => $fmtAuditDate($row->locked_at),
                     'Locked By' => optional($row->lockedBy)->name,
                     'Last Unlocked At' => $fmtAuditDate($row->last_unlocked_at),
                     'Last Unlocked By' => optional($row->lastUnlockedBy)->name,
                     'Paid At' => $fmtAuditDate($row->paid_at),
+                    // Actual payment date entered in the Paid popup (defaults
+                    // to the click date when left empty). Date-only column.
+                    'Payment Date' => $row->paid_date ? \Carbon\Carbon::parse($row->paid_date)->format('ymd') : null,
                     'Paid By' => optional($row->paidBy)->name,
                     'Last Unpaid At' => $fmtAuditDate($row->last_unpaid_at),
                     'Last Unpaid By' => optional($row->lastUnpaidBy)->name,
@@ -2850,7 +3027,7 @@ class CustomerController extends Controller
                 $rules['bank_account_name'] = 'required|string|max:191';
                 $rules['bank_account_number'] = 'required|string|max:191';
             }
-            $request->validate($rules);
+            $request->validate($rules, [], ['person_id' => 'CMS Linking ID']);
 
             // Status drives the (now-derived) is_active mirror, same as update().
             // The create form sends an integer status_id (defaults to Potential);
@@ -3117,7 +3294,10 @@ class CustomerController extends Controller
                 'customer.person_id'                       => 'nullable|integer|unique:customers,person_id,' . $customer->id,
             ];
 
-            $request->validate($contractRules);
+            // Friendly attribute name so a unique/integer rejection reads
+            // "CMS Linking ID has already been taken" instead of the raw
+            // "customer.person id" dot-path.
+            $request->validate($contractRules, [], ['customer.person_id' => 'CMS Linking ID']);
 
             // Billing address required only when "same as delivery" is off.
             if (!filter_var($requestCustomerArr['is_billing_same_as_delivery'] ?? true, FILTER_VALIDATE_BOOLEAN)) {

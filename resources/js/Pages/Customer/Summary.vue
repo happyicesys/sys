@@ -170,6 +170,32 @@
               placeholder="Select" open-direction="bottom" class="mt-1"
             />
           </div>
+          <!--
+            Payment Date range — filters rows by the ACTUAL payment date
+            (paid_date, recorded via the Paid popup). Either side can be
+            left empty for an open-ended range. Rows without a payment
+            date are excluded whenever a bound is set.
+          -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Payment Date (From)
+            </label>
+            <input
+              type="date"
+              v-model="filters.paid_date_from"
+              class="mt-1 w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Payment Date (To)
+            </label>
+            <input
+              type="date"
+              v-model="filters.paid_date_to"
+              class="mt-1 w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500"
+            />
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -328,6 +354,49 @@
         </dl>
       </div>
 
+      <!--
+        Batch action bar — appears only while at least one row on the
+        CURRENT page is selected. Sticky so it stays reachable while the
+        user scrolls the table. Each button shows how many of the selected
+        rows are eligible for THAT action (a selection can mix lock-eligible
+        and paid-eligible rows); 0-eligible buttons are disabled.
+      -->
+      <div
+        v-if="canLock && selectedRows.length > 0"
+        class="sticky top-0 z-40 mt-4 flex flex-wrap items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 shadow-md"
+      >
+        <span class="text-sm font-semibold text-emerald-900">
+          {{ selectedRows.length }} row(s) selected on this page
+        </span>
+        <Button
+          type="button"
+          class="inline-flex items-center space-x-1 rounded-md px-3 py-2 text-xs font-semibold bg-amber-100 hover:bg-amber-200 text-amber-800 ring-1 ring-inset ring-amber-300 disabled:opacity-40 disabled:cursor-not-allowed"
+          :disabled="!selectedLockRows.length || batchSubmitting"
+          v-tooltip="selectedLockRows.length ? '' : 'No selected rows are eligible to Lock'"
+          @click="showBatchLockModal = true"
+        >
+          <LockClosedIcon class="h-3.5 w-3.5" aria-hidden="true" />
+          <span>Lock ({{ selectedLockRows.length }})</span>
+        </Button>
+        <Button
+          type="button"
+          class="inline-flex items-center space-x-1 rounded-md px-3 py-2 text-xs font-semibold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 ring-1 ring-inset ring-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed"
+          :disabled="!selectedPaidRows.length || batchSubmitting"
+          v-tooltip="selectedPaidRows.length ? '' : 'No selected rows are eligible to mark Paid (must be locked + unpaid, period 2605 onward)'"
+          @click="onBatchPaidClicked"
+        >
+          <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
+          <span>Mark Paid ({{ selectedPaidRows.length }})</span>
+        </Button>
+        <Button
+          type="button"
+          class="ml-auto rounded-md px-3 py-2 text-xs font-semibold bg-white hover:bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300"
+          @click="clearBatchSelection"
+        >
+          Clear selection
+        </Button>
+      </div>
+
       <!-- Table -->
       <div class="mt-6 flex flex-col">
         <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
@@ -354,8 +423,30 @@
                     offset, plus a row-alternating bg-* so the customer-group
                     stripe stays visually continuous across the freeze line.
                   -->
-                  <TableHead :frozen="true" frozenLeft="0px" inputClass="w-[50px] min-w-[50px]">#</TableHead>
-                  <TableHead :frozen="true" frozenLeft="50px" inputClass="w-[170px] min-w-[170px] border-r-2 border-gray-500">
+                  <!--
+                    Batch-select column (admins only — mirrors canLock).
+                    Master checkbox selects ONLY the selectable rows on the
+                    CURRENT page (never the whole filtered set across pages);
+                    indeterminate when some-but-not-all are selected.
+                    Row eligibility self-evaluates per action: unlocked past
+                    months are selectable for batch Lock, locked+unpaid
+                    periods (2605+) for batch Paid.
+                    When hidden, the # / Site freeze offsets fall back to
+                    their original 0 / 50px (see :frozenLeft bindings below).
+                  -->
+                  <TableHead v-if="canLock" :frozen="true" frozenLeft="0px" inputClass="w-[40px] min-w-[40px] text-center">
+                    <input
+                      type="checkbox"
+                      class="h-4 w-4 rounded border-gray-400 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                      :checked="allPageSelected"
+                      :indeterminate="somePageSelected && !allPageSelected"
+                      :disabled="!selectableRows.length"
+                      v-tooltip="'Select / deselect all selectable rows on this page'"
+                      @change="toggleSelectAllPage"
+                    />
+                  </TableHead>
+                  <TableHead :frozen="true" :frozenLeft="canLock ? '40px' : '0px'" inputClass="w-[50px] min-w-[50px]">#</TableHead>
+                  <TableHead :frozen="true" :frozenLeft="canLock ? '90px' : '50px'" inputClass="w-[170px] min-w-[170px] border-r-2 border-gray-500">
                     <div class="flex flex-col space-y-1">
                       <SingleSortItem modelName="site_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('site_status')">
                         Site Status
@@ -559,9 +650,25 @@
                     stripe stays continuous after content scrolls under
                     the freeze line.
                   -->
+                  <!-- Batch-select checkbox — disabled (with tooltip reason)
+                       on rows that aren't eligible for either batch action. -->
+                  <TableData v-if="canLock" :currentIndex="rowIndex" :totalLength="summaries.data.length"
+                    :frozen="true" frozenLeft="0px"
+                    :inputClass="`text-center w-[40px] min-w-[40px] ${customerGroupIndex(rowIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`">
+                    <span v-tooltip="batchCheckboxTooltip(row)">
+                      <input
+                        type="checkbox"
+                        class="h-4 w-4 rounded border-gray-400 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                        :checked="batchSelected.has(row.id)"
+                        :disabled="!isBatchSelectable(row)"
+                        @change="toggleRowSelected(row)"
+                      />
+                    </span>
+                  </TableData>
+
                   <!-- # -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length"
-                    :frozen="true" frozenLeft="0px"
+                    :frozen="true" :frozenLeft="canLock ? '40px' : '0px'"
                     :inputClass="`text-center w-[50px] min-w-[50px] ${customerGroupIndex(rowIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`">
                     {{ (summaries.meta?.from ?? 1) + rowIndex }}
                   </TableData>
@@ -571,7 +678,7 @@
                        border (border-r-2 border-gray-500) to mark the X
                        freeze line for the user. -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length"
-                    :frozen="true" frozenLeft="50px"
+                    :frozen="true" :frozenLeft="canLock ? '90px' : '50px'"
                     :inputClass="`text-left w-[170px] min-w-[170px] border-r-2 border-gray-500 ${customerGroupIndex(rowIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`">
                     <div class="flex flex-col space-y-0.5" v-if="row.customer">
                       <a target="_blank" :href="'/customers/' + row.customer.id + '/edit'"
@@ -1113,6 +1220,11 @@
                             <span class="font-semibold">Paid</span> {{ formatYYMMDDHM(row.paid_at) }}
                             <span v-if="row.paid_by_user">by {{ row.paid_by_user.name }}</span>
                           </div>
+                          <!-- Actual payment date from the Paid popup (may
+                               differ from the click timestamp above). -->
+                          <div v-if="row.is_paid && row.paid_date" class="text-emerald-700">
+                            <span class="font-semibold">Pymt</span> {{ moment(row.paid_date).format('YYMMDD') }}
+                          </div>
                           <div v-if="!row.is_paid && row.last_unpaid_at" class="text-red-700">
                             <span class="font-semibold">Unpaid</span> {{ formatYYMMDDHM(row.last_unpaid_at) }}
                             <span v-if="row.last_unpaid_by_user">by {{ row.last_unpaid_by_user.name }}</span>
@@ -1515,6 +1627,161 @@
         </div>
       </template>
     </Modal>
+
+    <!--
+      Paid confirmation modal — opened by the Paid button on a locked row.
+      Captures the ACTUAL payment date (paid_date) before marking Paid.
+      Left empty / cleared → defaults to today (client pre-fills today and
+      the server also falls back to today). paid_at (the click-audit
+      timestamp) is always stamped server-side regardless of this date.
+    -->
+    <Modal :open="showPaidModal" @modalClose="onPaidModalClose">
+      <template #header>
+        <div class="flex items-center space-x-2">
+          <CheckCircleIcon class="w-5 h-5 text-emerald-600" />
+          <span>Mark as Paid</span>
+        </div>
+      </template>
+      <template #default>
+        <div class="text-sm text-left">
+          <p class="mb-4 text-gray-700">
+            Mark <span class="font-semibold">{{ paidModalLabel }}</span> as Paid?
+          </p>
+          <label class="block text-xs font-medium text-gray-600 mb-1" for="paid-date-input">
+            Payment date
+          </label>
+          <input
+            id="paid-date-input"
+            v-model="paidModalDate"
+            type="date"
+            class="w-48 rounded border-gray-300 text-sm focus:border-emerald-500 focus:ring-emerald-500"
+          />
+          <p class="text-[11px] text-gray-500 mt-1">
+            Leave empty to use today's date.
+          </p>
+          <p class="text-[11px] text-gray-500 mt-3">
+            This records the payment date + actor against the locked snapshot.
+            The Unlock button will be blocked until the row is Unpaid again.
+          </p>
+          <div class="flex justify-end space-x-2 mt-5">
+            <Button
+              type="button"
+              class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700"
+              @click="onPaidModalClose"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-800"
+              :disabled="paidModalRow && lockingFor.has(paidModalRow.id)"
+              @click="onPaidModalConfirm"
+            >
+              <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Confirm Paid</span>
+            </Button>
+          </div>
+        </div>
+      </template>
+    </Modal>
+
+    <!--
+      Batch Lock confirmation modal — locks every lock-eligible selected
+      row in one request. Snapshot semantics are identical to single Lock.
+    -->
+    <Modal :open="showBatchLockModal" @modalClose="showBatchLockModal = false">
+      <template #header>
+        <div class="flex items-center space-x-2">
+          <LockClosedIcon class="w-5 h-5 text-amber-600" />
+          <span>Batch Lock</span>
+        </div>
+      </template>
+      <template #default>
+        <div class="text-sm text-left">
+          <p class="mb-3 text-gray-700">
+            Lock <span class="font-semibold">{{ selectedLockRows.length }}</span> selected period(s)?
+          </p>
+          <p class="text-[11px] text-gray-500">
+            Each period's live figures (current contract applied to that
+            month's sales/gross) are frozen into a snapshot — same as
+            clicking Lock on each row individually.
+          </p>
+          <div class="flex justify-end space-x-2 mt-5">
+            <Button
+              type="button"
+              class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700"
+              @click="showBatchLockModal = false"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-amber-100 hover:bg-amber-200 text-amber-800"
+              :disabled="batchSubmitting || !selectedLockRows.length"
+              @click="onBatchLockConfirm"
+            >
+              <LockClosedIcon class="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Confirm Lock ({{ selectedLockRows.length }})</span>
+            </Button>
+          </div>
+        </div>
+      </template>
+    </Modal>
+
+    <!--
+      Batch Mark Paid modal — one SHARED payment date applied to every
+      paid-eligible selected row. Same empty→today rule as the single-row
+      Paid popup.
+    -->
+    <Modal :open="showBatchPaidModal" @modalClose="showBatchPaidModal = false">
+      <template #header>
+        <div class="flex items-center space-x-2">
+          <CheckCircleIcon class="w-5 h-5 text-emerald-600" />
+          <span>Batch Mark as Paid</span>
+        </div>
+      </template>
+      <template #default>
+        <div class="text-sm text-left">
+          <p class="mb-4 text-gray-700">
+            Mark <span class="font-semibold">{{ selectedPaidRows.length }}</span> selected period(s) as Paid?
+          </p>
+          <label class="block text-xs font-medium text-gray-600 mb-1" for="batch-paid-date-input">
+            Payment date (applied to ALL selected rows)
+          </label>
+          <input
+            id="batch-paid-date-input"
+            v-model="batchPaidDate"
+            type="date"
+            class="w-48 rounded border-gray-300 text-sm focus:border-emerald-500 focus:ring-emerald-500"
+          />
+          <p class="text-[11px] text-gray-500 mt-1">
+            Leave empty to use today's date.
+          </p>
+          <p class="text-[11px] text-gray-500 mt-3">
+            This records the payment date + actor against each locked
+            snapshot. Unlock will be blocked on these rows until Unpaid.
+          </p>
+          <div class="flex justify-end space-x-2 mt-5">
+            <Button
+              type="button"
+              class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700"
+              @click="showBatchPaidModal = false"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-800"
+              :disabled="batchSubmitting || !selectedPaidRows.length"
+              @click="onBatchPaidConfirm"
+            >
+              <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Confirm Paid ({{ selectedPaidRows.length }})</span>
+            </Button>
+          </div>
+        </div>
+      </template>
+    </Modal>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -1596,6 +1863,120 @@ const isPaidEligiblePeriod = (row) =>
 // Per-row in-flight guard for the Lock / Unlock buttons (keyed by summary id).
 const lockingFor = ref(new Set());
 
+// ---------------------------------------------------------------------------
+// Batch actions (Lock / Mark Paid) — row checkboxes + page-scoped select-all.
+//
+// Selection is keyed by summary row id. Eligibility SELF-EVALUATES per
+// action, mirroring the per-row buttons:
+//   - Lock-eligible:  past month + not locked yet
+//   - Paid-eligible:  past month + locked + not paid + period 2605 onward
+// A row is selectable if it qualifies for EITHER action; the batch bar then
+// shows per-action counts so a mixed selection is never ambiguous. The
+// master checkbox only ever touches the CURRENT page's selectable rows.
+// Server re-checks eligibility per row and skips anything stale.
+// ---------------------------------------------------------------------------
+const batchSelected = ref(new Set());
+const batchSubmitting = ref(false);
+const showBatchLockModal = ref(false);
+const showBatchPaidModal = ref(false);
+const batchPaidDate = ref('');
+
+const isLockEligibleRow = (row) => !row.is_current_month && !row.is_locked;
+const isPaidEligibleRow = (row) =>
+  !row.is_current_month && row.is_locked && !row.is_paid && isPaidEligiblePeriod(row);
+const isBatchSelectable = (row) => isLockEligibleRow(row) || isPaidEligibleRow(row);
+
+// Current-page derivations. selectedRows intersects the selection with the
+// page's rows, so ids left over from a previous page/filter can never leak
+// into counts or into the ids POSTed to the server.
+const selectableRows = computed(() => (props.summaries?.data ?? []).filter(isBatchSelectable));
+const selectedRows = computed(() => selectableRows.value.filter((r) => batchSelected.value.has(r.id)));
+const selectedLockRows = computed(() => selectedRows.value.filter(isLockEligibleRow));
+const selectedPaidRows = computed(() => selectedRows.value.filter(isPaidEligibleRow));
+const allPageSelected = computed(
+  () => selectableRows.value.length > 0 && selectableRows.value.every((r) => batchSelected.value.has(r.id))
+);
+const somePageSelected = computed(() => selectableRows.value.some((r) => batchSelected.value.has(r.id)));
+
+function toggleRowSelected(row) {
+  if (!isBatchSelectable(row)) return;
+  batchSelected.value.has(row.id) ? batchSelected.value.delete(row.id) : batchSelected.value.add(row.id);
+}
+
+// Master checkbox — page-scoped on purpose: ticking it must NEVER select
+// filtered rows that aren't visible on this page.
+function toggleSelectAllPage() {
+  if (allPageSelected.value) {
+    selectableRows.value.forEach((r) => batchSelected.value.delete(r.id));
+  } else {
+    selectableRows.value.forEach((r) => batchSelected.value.add(r.id));
+  }
+}
+
+function clearBatchSelection() {
+  batchSelected.value.clear();
+}
+
+// Tooltip on each row checkbox — says what the row is selectable FOR, or
+// why it isn't selectable at all.
+function batchCheckboxTooltip(row) {
+  if (row.is_current_month) return 'Current month — cannot lock yet';
+  if (isLockEligibleRow(row)) return 'Select for batch Lock';
+  if (isPaidEligibleRow(row)) return 'Select for batch Mark Paid';
+  if (row.is_locked && row.is_paid) return 'Already Paid';
+  if (row.is_locked && !isPaidEligiblePeriod(row)) return 'Locked — period predates paid tracking (2605)';
+  return '';
+}
+
+function onBatchPaidClicked() {
+  if (!selectedPaidRows.value.length) return;
+  batchPaidDate.value = moment().format('YYYY-MM-DD'); // pre-fill today
+  showBatchPaidModal.value = true;
+}
+
+function onBatchLockConfirm() {
+  const ids = selectedLockRows.value.map((r) => r.id);
+  if (!ids.length || batchSubmitting.value) return;
+
+  batchSubmitting.value = true;
+  showBatchLockModal.value = false;
+  // Lock freezes money figures → refresh summaries + totals in lockstep,
+  // same as the single-row Lock.
+  router.post('/customers/summary/batch-lock', { ids }, {
+    only: ['summaries', 'totals'],
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => {
+      toast.success(`Locked ${ids.length} period(s).`, { timeout: 3000 });
+      clearBatchSelection();
+    },
+    onError: (errors) => toast.error(errors?.batch || 'Failed to batch lock.', { timeout: 4000 }),
+    onFinish: () => { batchSubmitting.value = false; },
+  });
+}
+
+function onBatchPaidConfirm() {
+  const ids = selectedPaidRows.value.map((r) => r.id);
+  if (!ids.length || batchSubmitting.value) return;
+
+  // Empty/cleared field → today (server defaults too — belt and braces).
+  const paidDate = batchPaidDate.value || moment().format('YYYY-MM-DD');
+
+  batchSubmitting.value = true;
+  showBatchPaidModal.value = false;
+  router.post('/customers/summary/batch-paid', { ids, paid_date: paidDate }, {
+    only: ['summaries'],
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => {
+      toast.success(`Marked ${ids.length} period(s) Paid.`, { timeout: 3000 });
+      clearBatchSelection();
+    },
+    onError: (errors) => toast.error(errors?.batch || errors?.paid_date || 'Failed to batch mark Paid.', { timeout: 4000 }),
+    onFinish: () => { batchSubmitting.value = false; },
+  });
+}
+
 const toast = useToast();
 const loading = ref(false);
 // Per-row in-flight guard so the Email button can't be clicked twice while
@@ -1665,6 +2046,10 @@ const filters = ref({
   period_locked: '',
   // Location Fee Paid? filter ('all' | 'true' = paid | 'false' = unpaid).
   location_fee_paid: '',
+  // Payment Date range filter (on paid_date). 'YYYY-MM-DD' strings from the
+  // native date inputs; empty = open-ended on that side.
+  paid_date_from: '',
+  paid_date_to: '',
   // Default sort: Note Last Updated, latest → oldest. The controller maps
   // sortBy boolean → 'asc'/'desc' (false = desc); the 'notes_updated_at'
   // sortKey is resolved server-side by ordering on customers.notes_updated_at
@@ -2190,6 +2575,9 @@ function onModalEmailClicked() {
 }
 
 function onSearchFilterUpdated() {
+  // New search → new row set; drop any batch selection so stale ids from
+  // the previous result set can't linger.
+  clearBatchSelection();
   router.get(
     '/customers/summary',
     {
@@ -2206,6 +2594,8 @@ function onSearchFilterUpdated() {
       replicated_only: filters.value.replicated_only?.id,
       period_locked: filters.value.period_locked?.id,
       location_fee_paid: filters.value.location_fee_paid?.id,
+      paid_date_from: filters.value.paid_date_from,
+      paid_date_to: filters.value.paid_date_to,
       // Marks this as an explicit user search so the server does NOT re-apply
       // the initial-load operator default — lets "deselect all operators" mean
       // "show all" instead of snapping back to the default set.
@@ -2288,6 +2678,9 @@ function paidTooltip(row) {
   const who = row.paid_by_user?.name || 'someone';
   const when = row.paid_at ? moment(row.paid_at).format('YYMMDD hh:mma') : '';
   let tip = when ? `Paid by ${who} (${when})` : `Paid by ${who}`;
+  if (row.paid_date) {
+    tip += `\nPayment date: ${moment(row.paid_date).format('YYMMDD')}`;
+  }
   if (row.last_unpaid_at) {
     const upWho = row.last_unpaid_by_user?.name || 'someone';
     const upWhen = moment(row.last_unpaid_at).format('YYMMDD hh:mma');
@@ -2353,30 +2746,60 @@ function onUnlockClicked(row) {
   });
 }
 
-// Mark a locked row as Paid. Requires the row to be Locked + not already
-// Paid (UI hides the button otherwise). Same permission as Lock; server
-// re-checks. Reuses lockingFor to share the per-row spinner with Lock/Unlock.
+// Paid popup state — the Paid button opens a modal that captures the ACTUAL
+// payment date (paid_date) instead of firing straight away. The field is
+// pre-filled with today; emptied/cleared → today is used (server defaults
+// too, so both paths agree).
+const showPaidModal = ref(false);
+const paidModalRow = ref(null);
+const paidModalDate = ref('');
+
+const paidModalLabel = computed(() => {
+  const row = paidModalRow.value;
+  if (!row) return '';
+  const label = row.customer?.name || ('#' + row.customer?.id);
+  return `${label} — ${periodReportLabel(row)}`;
+});
+
+// Mark a locked row as Paid — STEP 1: open the payment-date popup. Requires
+// the row to be Locked + not already Paid (UI hides the button otherwise).
 function onPaidClicked(row) {
   if (!row?.id || !row.is_locked || row.is_paid) return;
   if (lockingFor.value.has(row.id)) return;
+  paidModalRow.value = row;
+  paidModalDate.value = moment().format('YYYY-MM-DD'); // pre-fill today
+  showPaidModal.value = true;
+}
 
-  const label = row.customer?.name || ('#' + row.customer?.id);
-  const ok = confirm(
-    `Mark ${label} — ${periodReportLabel(row)} as Paid?\n\nThis records the payment date + actor against the locked snapshot. The Unlock button will be blocked until the row is Unpaid again.`
-  );
-  if (!ok) return;
+function onPaidModalClose() {
+  showPaidModal.value = false;
+  paidModalRow.value = null;
+}
+
+// STEP 2: confirm from the popup. Same permission as Lock; server re-checks.
+// Reuses lockingFor to share the per-row spinner with Lock/Unlock.
+function onPaidModalConfirm() {
+  const row = paidModalRow.value;
+  if (!row?.id || !row.is_locked || row.is_paid) return;
+  if (lockingFor.value.has(row.id)) return;
+
+  // Empty/cleared field → today (server defaults too — belt and braces).
+  const paidDate = paidModalDate.value || moment().format('YYYY-MM-DD');
+
+  showPaidModal.value = false;
+  paidModalRow.value = null;
 
   lockingFor.value.add(row.id);
-  // Partial reload — Paid only flips paid_at; row money figures + totals
-  // are unaffected. Refreshing summaries is enough to bring back the new
-  // paid_at / paid_by_user so the green-check icon + "Paid by X (Y)"
-  // tooltip render immediately on success.
-  router.post('/customers/summary/' + row.id + '/paid', {}, {
+  // Partial reload — Paid only flips paid_at / paid_date; row money figures
+  // + totals are unaffected. Refreshing summaries is enough to bring back
+  // the new paid_at / paid_date / paid_by_user so the green-check icon +
+  // "Paid by X (Y)" tooltip render immediately on success.
+  router.post('/customers/summary/' + row.id + '/paid', { paid_date: paidDate }, {
     only: ['summaries'],
     preserveScroll: true,
     preserveState: true,
     onSuccess: () => toast.success('Period marked Paid.', { timeout: 3000 }),
-    onError: (errors) => toast.error(errors?.paid || 'Failed to mark Paid.', { timeout: 4000 }),
+    onError: (errors) => toast.error(errors?.paid || errors?.paid_date || 'Failed to mark Paid.', { timeout: 4000 }),
     onFinish: () => lockingFor.value.delete(row.id),
   });
 }
@@ -2429,6 +2852,8 @@ function buildBackendParams() {
     replicated_only: filters.value.replicated_only?.id,
     period_locked: filters.value.period_locked?.id,
     location_fee_paid: filters.value.location_fee_paid?.id,
+    paid_date_from: filters.value.paid_date_from,
+    paid_date_to: filters.value.paid_date_to,
     sortKey: filters.value.sortKey,
     sortBy: filters.value.sortBy,
     numberPerPage: filters.value.numberPerPage?.id ?? filters.value.numberPerPage,

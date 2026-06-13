@@ -193,6 +193,14 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->name('customers.summary.paid');
         Route::post('/summary/{id}/unpaid', [CustomerController::class, 'markUnpaidCustomerPeriodSummary'])
             ->name('customers.summary.unpaid');
+        // Batch bar — Lock / Mark Paid for MANY summary rows in one request
+        // (row checkboxes + select-all on the Summary page). Same permission
+        // tiers as the single-row endpoints; per-row eligibility is
+        // re-checked server-side and ineligible ids are skipped.
+        Route::post('/summary/batch-lock', [CustomerController::class, 'batchLockCustomerPeriodSummaries'])
+            ->name('customers.summary.batch-lock');
+        Route::post('/summary/batch-paid', [CustomerController::class, 'batchMarkPaidCustomerPeriodSummaries'])
+            ->name('customers.summary.batch-paid');
         // Performance Report email send (button on Customer Summary > Action).
         // Currently a stub — the actual queued send is wired in a follow-up.
         Route::post('/{id}/send-performance-report', [CustomerController::class, 'sendPerformanceReport'])

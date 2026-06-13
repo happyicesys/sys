@@ -113,6 +113,9 @@ class CustomerPeriodSummaryResource extends JsonResource
             // Only meaningful when is_locked = true (UI enforces the order).
             'is_paid' => $this->paid_at !== null,
             'paid_at' => optional($this->paid_at)->toDateTimeString(),
+            // Actual payment date from the Paid popup (date-only; defaults to
+            // the click date when the popup field was left empty).
+            'paid_date' => optional($this->paid_date)->toDateString(),
             'paid_by_user' => $this->relationLoaded('paidBy') && $this->paidBy
                 ? ['id' => $this->paidBy->id, 'name' => $this->paidBy->name]
                 : null,
