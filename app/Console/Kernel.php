@@ -38,6 +38,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('save:today-stock-count')->dailyAt('23:59');
         $schedule->command('vend-temp:compute-metrics')->dailyAt('00:20');
         $schedule->command('gp:compute-metrics')->dailyAt('00:40');
+        // Apply any future-dated placement-contract changes whose effective date
+        // has arrived BEFORE the summary recompute, so the new contract version
+        // is in customer_contract_logs when customer-summary:compute runs.
+        $schedule->command('contract:apply-scheduled')->dailyAt('00:50')->withoutOverlapping();
         $schedule->command('customer-summary:compute')->dailyAt('01:00');
         $schedule->command('vend:retry-jobs')->everyMinute();
         $schedule->command('ops:freeze-stock-in')->everyMinute()->withoutOverlapping();

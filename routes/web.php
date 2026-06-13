@@ -222,6 +222,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/create', [CustomerController::class, 'create']);
         Route::post('/store', [CustomerController::class, 'store']);
         Route::post('/{id}/update', [CustomerController::class, 'update']);
+        // Future-dated placement contract change (applied by contract:apply-scheduled).
+        Route::post('/{id}/scheduled-contract', [CustomerController::class, 'storeScheduledContract'])
+            ->name('customers.scheduled-contract.store');
+        Route::delete('/{id}/scheduled-contract', [CustomerController::class, 'cancelScheduledContract'])
+            ->name('customers.scheduled-contract.cancel');
         Route::post('/{id}/toggle-activation', [CustomerController::class, 'toggleActivation']);
         Route::delete('/{id}', [CustomerController::class, 'delete']);
         Route::get('/excel', [CustomerController::class, 'exportExcel']);

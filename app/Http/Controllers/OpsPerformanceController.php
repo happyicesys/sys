@@ -38,8 +38,10 @@ use Inertia\Inertia;
  *     previous-calendar-month sales.
  *   - Current Mth sales higher than Previous Mth: current MTD vs the same span
  *     of the previous month.
- *   - Avg Daily Sales L30d > Overall Avg/day: machine's L30d avg/day vs its
- *     avg/day over the whole loaded range.
+ *   - Avg Daily Sales L30d >= Overall Avg/day: machine's L30d avg/day vs the
+ *     fleet-wide mean of all machines' L30d avg/day (the same definition the
+ *     CustomerIndex "% of VM, Avg Daily Sales L30D >= Avg/Day" card uses, so
+ *     the two readings agree).
  */
 class OpsPerformanceController extends Controller
 {
@@ -454,8 +456,10 @@ class OpsPerformanceController extends Controller
      * per day column. Each day D is evaluated "as of D":
      *   - l30d_vs_lastmth: trailing-30d sales ending D vs the full calendar
      *     month before D's month.
-     *   - l30d_avg_vs_overall: trailing-30d avg/day ending D vs avg/day over
-     *     date_from..D.
+     *   - l30d_avg_vs_overall: machines whose trailing-30d avg/day ending D is
+     *     >= the fleet-wide mean of all machines' trailing-30d avg/day as of D
+     *     (mirrors the CustomerIndex green-% card; the /30 scaling cancels on
+     *     both sides, so 30-day sums are compared directly).
      * One gp_metrics scan covers every window; per-vend daily sums are then
      * windowed in PHP. The % denominator is that day's active-machine count
      * (snapshot), falling back to the anchor total when no snapshot exists.
@@ -474,7 +478,6 @@ class OpsPerformanceController extends Controller
                 'l30Start' => $day->copy()->subDays(29)->toDateString(),
                 'pmStart' => $pmStart->toDateString(),
                 'pmEnd' => $pmStart->copy()->endOfMonth()->toDateString(),
-                'rangeDays' => max(1, Carbon::parse($rangeStartStr)->diffInDays($day) + 1),
             ];
             $scanStart = min($scanStart, $windows[$d]['l30Start'], $windows[$d]['pmStart']);
         }
@@ -498,14 +501,26 @@ class OpsPerformanceController extends Controller
 
         foreach ($windows as $d => $w) {
             $cVsLastMth = 0;
-            $cVsOverall = 0;
+            $l30Values = [];
             foreach ($byVend as $amts) {
                 $l30 = $this->sumDateWindow($amts, $w['l30Start'], $d);
                 if ($l30 > $this->sumDateWindow($amts, $w['pmStart'], $w['pmEnd'])) {
                     $cVsLastMth++;
                 }
-                if ($l30 / 30 > $this->sumDateWindow($amts, $rangeStartStr, $d) / $w['rangeDays']) {
-                    $cVsOverall++;
+                $l30Values[] = $l30;
+            }
+            // Fleet-wide "Overall Avg/day" baseline = mean of each machine's
+            // L30d sales as of D (the /30 scaling cancels on both sides, so we
+            // compare 30-day sums directly). Counting machines at/above this
+            // mirrors VendController's CustomerIndex "% of VM, Avg Daily Sales
+            // L30D >= Avg/Day" card, so the two readings agree.
+            $cVsOverall = 0;
+            if (!empty($l30Values)) {
+                $baseline = array_sum($l30Values) / count($l30Values);
+                foreach ($l30Values as $v) {
+                    if ($v >= $baseline) {
+                        $cVsOverall++;
+                    }
                 }
             }
             $act = (int) ($activeByDate[$d] ?? $activeTotal);
@@ -740,7 +755,7 @@ class OpsPerformanceController extends Controller
             ['l30d_vendearning', 'L30d VendEarning, $', 'money', 'trailing30_gp', 'daily', null],
             ['monthly_vendearning', 'Monthly VendEarning, $', 'money', 'month_gp', 'monthly', null],
             ['current_mth_vs_prev', 'Current Mth sales higher than Previous Mth', 'text', 'compare', 'monthly', 'curr_vs_prev'],
-            ['avg_daily_l30d_vs_overall', 'Avg Daily Sales, L30D > Overall Avg/day', 'text', 'compare', 'daily', 'l30d_avg_vs_overall'],
+            ['avg_daily_l30d_vs_overall', 'Avg Daily Sales, L30D >= Overall Avg/day', 'text', 'compare', 'daily', 'l30d_avg_vs_overall'],
         ];
 
         $rows = [];

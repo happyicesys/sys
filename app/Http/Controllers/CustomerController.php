@@ -24,6 +24,7 @@ use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CustomerContractLog;
+use App\Models\CustomerScheduledContract;
 use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\OpsJobItem;
@@ -2856,6 +2857,8 @@ class CustomerController extends Controller
                 },
                 'vend.vendChannels.product.thumbnail',
                 'contractDetailUpdatedBy:id,name',
+                // Pending future contract change (one at a time) + who set it.
+                'scheduledContract.createdBy:id,name',
                 'zone',
             ])
             ->find($id);
@@ -2888,6 +2891,104 @@ class CustomerController extends Controller
             'type' => 'update',
             'zoneOptions' => $optionsService->zones(),
         ]);
+    }
+
+    /**
+     * Create or replace the single PENDING future contract change for a
+     * customer. The values sit dormant until `contract:apply-scheduled` runs
+     * on the chosen effective_date (see that command + the
+     * customer_scheduled_contracts migration). Only one pending row is allowed
+     * at a time, so this upserts: any existing pending row is overwritten.
+     *
+     * The live contract is NOT touched here — it only changes when the
+     * schedule applies on its date.
+     */
+    public function storeScheduledContract(Request $request, $id)
+    {
+        $customer = Customer::findOrFail($id);
+
+        $commissionType = $request->input('contract_commission_type');
+        $psTypes = ['PS', 'PS+U', 'PSORU'];
+
+        $validated = $request->validate([
+            // Must be a real future date — scheduling "today or earlier" makes
+            // no sense (use the normal contract fields for an immediate change).
+            'effective_date'             => 'required|date|after:today',
+            'contract_commission_type'   => 'nullable|in:F,S,R,U,R+U,PS,PS+U,PSORU',
+            'contract_commission_value'  => [
+                'nullable', 'numeric', 'min:0',
+                ...($commissionType && in_array($commissionType, $psTypes, true) ? ['max:100'] : []),
+            ],
+            'contract_commission_value2' => 'nullable|numeric|min:0',
+            'contract_ps_term'           => 'nullable|numeric|min:0|max:100',
+            'is_external_subsidize'      => 'nullable|boolean',
+            'external_subsidize_amount'  => 'nullable|numeric|min:0',
+            'contract_from'              => 'nullable|date',
+            'contract_until'             => 'nullable|date',
+            'contract_auto_renewal'      => 'nullable|boolean',
+            'contract_notice_period'     => 'nullable|string|in:' . implode(',', Customer::NOTICE_PERIOD_OPTIONS),
+            'contract_remarks'           => 'nullable|string|max:5000',
+        ]);
+
+        // Mirror the live-form rule: never persist a subsidy amount while the
+        // toggle is off.
+        $isExternalSubsidize = (bool) ($validated['is_external_subsidize'] ?? false);
+        $externalSubsidizeAmount = $isExternalSubsidize ? ($validated['external_subsidize_amount'] ?? null) : null;
+
+        $payload = [
+            'customer_id'                => $customer->id,
+            'effective_date'             => \Carbon\Carbon::parse($validated['effective_date'])->toDateString(),
+            'status'                     => CustomerScheduledContract::STATUS_PENDING,
+            'applied_at'                 => null,
+            'contract_commission_type'   => $validated['contract_commission_type'] ?? null,
+            'contract_commission_value'  => $validated['contract_commission_value'] ?? null,
+            'contract_commission_value2' => $validated['contract_commission_value2'] ?? null,
+            'contract_ps_term'           => $validated['contract_ps_term'] ?? null,
+            'is_external_subsidize'      => $isExternalSubsidize,
+            'external_subsidize_amount'  => $externalSubsidizeAmount,
+            'contract_from'              => !empty($validated['contract_from']) ? \Carbon\Carbon::parse($validated['contract_from'])->toDateString() : null,
+            'contract_until'             => !empty($validated['contract_until']) ? \Carbon\Carbon::parse($validated['contract_until'])->toDateString() : null,
+            'contract_auto_renewal'      => (bool) ($validated['contract_auto_renewal'] ?? false),
+            'contract_notice_period'     => $validated['contract_notice_period'] ?? null,
+            'contract_remarks'           => $validated['contract_remarks'] ?? null,
+            'updated_by'                 => auth()->id(),
+        ];
+
+        // One pending row per customer: reuse the existing one if present so we
+        // never stack two schedules, otherwise create it (stamping created_by).
+        $existing = CustomerScheduledContract::query()
+            ->where('customer_id', $customer->id)
+            ->where('status', CustomerScheduledContract::STATUS_PENDING)
+            ->latest('id')
+            ->first();
+
+        if ($existing) {
+            $existing->update($payload);
+        } else {
+            $payload['created_by'] = auth()->id();
+            CustomerScheduledContract::create($payload);
+        }
+
+        return redirect()->back();
+    }
+
+    /**
+     * Cancel the pending future contract change for a customer (keeps the row
+     * as a status = cancelled audit trail). No-op if there is none.
+     */
+    public function cancelScheduledContract(Request $request, $id)
+    {
+        $customer = Customer::findOrFail($id);
+
+        CustomerScheduledContract::query()
+            ->where('customer_id', $customer->id)
+            ->where('status', CustomerScheduledContract::STATUS_PENDING)
+            ->update([
+                'status' => CustomerScheduledContract::STATUS_CANCELLED,
+                'updated_by' => auth()->id(),
+            ]);
+
+        return redirect()->back();
     }
 
     public function getMap(Request $request)
@@ -2976,6 +3077,22 @@ class CustomerController extends Controller
         );
     }
 
+    /**
+     * Human-readable label for a customer already holding a CMS Linking ID,
+     * used in the duplicate-person_id validation message so the user can see
+     * which site the ID is bound to. Prefers "CODE - Name"; falls back to
+     * whichever is present, then to "customer #id".
+     */
+    private function describeBoundCustomer(Customer $customer): string
+    {
+        $parts = array_filter([
+            $customer->virtual_customer_code,
+            $customer->name,
+        ], fn($v) => $v !== null && $v !== '');
+
+        return !empty($parts) ? implode(' - ', $parts) : ('customer #' . $customer->id);
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -3011,8 +3128,18 @@ class CustomerController extends Controller
                 // CMS Linking ID — manually entered CMS person id. Must be
                 // unique so two sites can't link to the same CMS person, which
                 // would double-target API invoicing. Empty → null (nullable),
-                // so unlinked sites are unaffected.
-                'person_id' => 'nullable|integer|unique:customers,person_id',
+                // so unlinked sites are unaffected. Closure (instead of the plain
+                // `unique` rule) so the rejection names the site already holding
+                // the ID, e.g. "...already bound to ABC - Foo".
+                'person_id' => ['nullable', 'integer', function ($attribute, $value, $fail) {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+                    $existing = Customer::where('person_id', $value)->first();
+                    if ($existing) {
+                        $fail('The CMS Linking ID ' . $value . ' is already bound to ' . $this->describeBoundCustomer($existing) . '.');
+                    }
+                }],
             ];
             if (!$billingSame) {
                 // "Billing Address same as Delivery" is unchecked → the billing
@@ -3290,8 +3417,20 @@ class CustomerController extends Controller
                 'customer.address_remarks'                 => 'nullable|string|max:5000',
                 // CMS Linking ID — unique across customers (ignoring this row),
                 // so two sites can't link to the same CMS person. Empty → null
-                // (nullable), so unlinked sites are unaffected.
-                'customer.person_id'                       => 'nullable|integer|unique:customers,person_id,' . $customer->id,
+                // (nullable), so unlinked sites are unaffected. Closure (instead
+                // of the plain `unique` rule) so the rejection names the site
+                // already holding the ID, e.g. "...already bound to ABC - Foo".
+                'customer.person_id'                       => ['nullable', 'integer', function ($attribute, $value, $fail) use ($customer) {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+                    $existing = Customer::where('person_id', $value)
+                        ->where('id', '!=', $customer->id)
+                        ->first();
+                    if ($existing) {
+                        $fail('The CMS Linking ID ' . $value . ' is already bound to ' . $this->describeBoundCustomer($existing) . '.');
+                    }
+                }],
             ];
 
             // Friendly attribute name so a unique/integer rejection reads

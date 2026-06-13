@@ -430,6 +430,18 @@ class Customer extends Model
         return $this->belongsTo(User::class, 'contract_detail_updated_by');
     }
 
+    /**
+     * The single PENDING future contract change for this customer, if any.
+     * Only one pending row is ever allowed (enforced in the controller), so
+     * hasOne is correct. Applied / cancelled rows are excluded.
+     */
+    public function scheduledContract()
+    {
+        return $this->hasOne(CustomerScheduledContract::class)
+            ->where('status', CustomerScheduledContract::STATUS_PENDING)
+            ->latest('id');
+    }
+
     public function notesUpdatedBy()
     {
         return $this->belongsTo(User::class, 'notes_updated_by');

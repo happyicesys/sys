@@ -350,9 +350,20 @@
 
                   <!-- Placement Contract Detail Section — highlighted container -->
                   <div class="sm:col-span-6 bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3 mb-3 shadow-sm">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-blue-200">
-                      Placement Contract Detail
-                    </h3>
+                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-blue-200">
+                      <h3 class="text-lg font-semibold text-gray-900">
+                        Placement Contract Detail
+                      </h3>
+                      <button
+                        type="button"
+                        v-if="customer.id"
+                        @click.prevent="openScheduleForm(!!scheduledRow)"
+                        :class="['text-xs px-3 py-1.5 rounded-md text-white hover:opacity-90 flex items-center gap-1 whitespace-nowrap', scheduledRow ? 'bg-amber-500' : 'bg-indigo-600']"
+                      >
+                        <CheckCircleIcon class="w-4 h-4" />
+                        {{ scheduledRow ? 'View Future Contract' : 'Set Future Contract' }}
+                      </button>
+                    </div>
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
                   <!-- Audit info -->
                   <div class="sm:col-span-6 mb-2" v-if="customer.contract_detail_updated_at">
@@ -678,6 +689,288 @@
                       {{ form.errors['customer.contract_remarks'] }}
                     </div>
                   </div>
+
+                  <!-- ── Schedule Future Contract Change ──────────────────────
+                       Lets the user queue the NEXT contract (date + terms). It
+                       stays dormant until contract:apply-scheduled runs on the
+                       effective date, which then writes the live contract +
+                       contract log (start-of-month = single row, mid-month =
+                       split, same as an immediate edit). One pending at a time. -->
+                  <!-- Inline status banner — a pending schedule exists. The
+                       create/edit form itself lives in the modal below. -->
+                  <div class="sm:col-span-6 mt-2 border-t border-blue-200 pt-3" v-if="customer.id && scheduledRow">
+                    <div class="rounded-md bg-amber-50 border border-amber-200 p-3">
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="text-sm text-amber-900">
+                          <div class="font-medium">
+                            A contract change is scheduled for
+                            <span class="font-semibold">{{ formatDate(scheduledRow.effective_date) }}</span>.
+                          </div>
+                          <div class="text-xs text-amber-800 mt-1">
+                            {{ scheduleSummary(scheduledRow) }}
+                          </div>
+                          <div class="text-xs text-amber-700 italic mt-1" v-if="scheduledRow.created_by">
+                            Set by: {{ scheduledRow.created_by.name }}
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            @click.prevent="openScheduleForm(true)"
+                            class="text-xs px-2.5 py-1 rounded-md bg-white border border-amber-300 text-amber-800 hover:bg-amber-100"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            @click.prevent="cancelScheduledContract(customer.id)"
+                            class="text-xs px-2.5 py-1 rounded-md bg-red-100 text-red-700 hover:bg-red-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- ── Set Future Contract (modal) ──────────────────────────
+                       Create/overwrite the single pending future contract. It
+                       keeps getting overwritten until the effective date arrives;
+                       then contract:apply-scheduled writes it onto the live
+                       contract + contract log and clears this pending entry. -->
+                  <Teleport to="body">
+                    <Modal :open="sf.open" @modalClose="closeScheduleForm">
+                      <template #header>
+                        <span>{{ scheduledRow ? 'Edit Future Contract' : 'Set Future Contract' }}</span>
+                      </template>
+                      <div class="text-left">
+                        <p class="text-xs text-gray-500 mb-3">
+                          These details stay pending and can be overwritten any time until the effective date.
+                          On that day they automatically replace the current contract, and this scheduled entry is cleared.
+                        </p>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
+                        <!-- Effective date -->
+                        <div class="sm:col-span-3">
+                          <DatePicker
+                            v-model="sf.effective_date"
+                            :error="sfErrors.effective_date"
+                            :minDate="minScheduleDate"
+                            :isPreviousNextButton="false"
+                          >
+                            Effective Date <span class="text-red-500">*</span>
+                          </DatePicker>
+                          <p class="text-xs text-gray-500 mt-1">Must be a future date. The change applies automatically on this day.</p>
+                          <p class="text-xs text-red-600 mt-1" v-if="sfErrors.effective_date">{{ sfErrors.effective_date }}</p>
+                        </div>
+
+                        <!-- Location Fees / commission type -->
+                        <div class="sm:col-span-6">
+                          <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">
+                            Location Fees <span class="ml-1 text-red-500 text-xs font-normal">(choose 1 only)</span>
+                          </label>
+                          <div class="flex flex-wrap gap-x-6 gap-y-2">
+                            <label
+                              v-for="opt in commissionTypeOptions"
+                              :key="'sf-' + opt.id"
+                              class="flex items-center gap-2 cursor-pointer select-none"
+                            >
+                              <input
+                                type="radio"
+                                name="sf_contract_commission_type"
+                                :value="opt.id"
+                                v-model="sf.contract_commission_type"
+                                class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                @change="onSfCommissionTypeChange"
+                              />
+                              <span class="text-sm text-gray-700">{{ opt.label }}</span>
+                            </label>
+                            <button
+                              type="button"
+                              v-if="sf.contract_commission_type"
+                              @click="clearSfCommissionType"
+                              class="text-xs text-red-500 hover:text-red-700 underline self-center"
+                            >
+                              Clear
+                            </button>
+                          </div>
+                        </div>
+
+                        <!-- Commission value + utility amount -->
+                        <template v-if="sf.contract_commission_type && sf.contract_commission_type !== 'F'">
+                          <div class="sm:col-span-3">
+                            <label class="flex justify-start text-sm font-medium text-gray-700">
+                              {{ sfCommissionValueLabel }}
+                              <span class="ml-1 text-gray-400 text-xs font-normal">({{ sfIsPs ? '%' : 'Amount' }})</span>
+                            </label>
+                            <div class="mt-1 relative rounded-md shadow-sm">
+                              <div v-if="!sfIsPs" class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <span class="text-gray-500 sm:text-sm">$</span>
+                              </div>
+                              <input
+                                type="number" step="0.01" min="0" :max="sfIsPs ? 100 : undefined"
+                                v-model="sf.contract_commission_value"
+                                :class="['shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md', !sfIsPs ? 'pl-7' : 'pr-8']"
+                                :placeholder="sfIsPs ? 'e.g. 30' : 'e.g. 100.00'"
+                              />
+                              <div v-if="sfIsPs" class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                <span class="text-gray-500 sm:text-sm">%</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="sm:col-span-3" v-if="sfHasTwoValues">
+                            <label class="flex justify-start text-sm font-medium text-gray-700">
+                              Utility Amount <span class="ml-1 text-gray-400 text-xs font-normal">(Amount)</span>
+                            </label>
+                            <div class="mt-1 relative rounded-md shadow-sm">
+                              <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <span class="text-gray-500 sm:text-sm">$</span>
+                              </div>
+                              <input
+                                type="number" step="0.01" min="0"
+                                v-model="sf.contract_commission_value2"
+                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md pl-7"
+                                placeholder="e.g. 50.00"
+                              />
+                            </div>
+                          </div>
+                        </template>
+
+                        <!-- PS Term -->
+                        <div class="sm:col-span-3" v-if="sfShowPsTerm">
+                          <label class="flex justify-start text-sm font-medium text-gray-700">
+                            PS Term <span class="ml-1 text-gray-400 text-xs font-normal">(%)</span>
+                          </label>
+                          <div class="mt-1 relative rounded-md shadow-sm">
+                            <input
+                              type="number" step="0.01" min="0" max="100"
+                              v-model="sf.contract_ps_term"
+                              class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md pr-8"
+                              placeholder="e.g. 70"
+                            />
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                              <span class="text-gray-500 sm:text-sm">%</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- External Subsidize -->
+                        <div class="sm:col-span-6 grid grid-cols-6 gap-4">
+                          <div class="col-span-6 sm:col-span-3 flex flex-col justify-end pb-1">
+                            <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">External Subsidize</label>
+                            <div class="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                v-model="sf.is_external_subsidize"
+                                @change="onSfExternalSubsidizeToggle"
+                                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span class="text-sm text-gray-600">{{ sf.is_external_subsidize ? 'Enabled' : 'Disabled' }}</span>
+                            </div>
+                          </div>
+                          <div class="col-span-6 sm:col-span-3">
+                            <label class="flex justify-start text-sm font-medium text-gray-700">
+                              External Subsidize Amount <span class="ml-1 text-gray-400 text-xs font-normal">(Amount)</span>
+                            </label>
+                            <div class="mt-1 relative rounded-md shadow-sm">
+                              <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <span class="text-gray-500 sm:text-sm">$</span>
+                              </div>
+                              <input
+                                type="number" step="0.01" min="0"
+                                v-model="sf.external_subsidize_amount"
+                                :readonly="!sf.is_external_subsidize"
+                                :disabled="!sf.is_external_subsidize"
+                                :class="['shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md pl-7', !sf.is_external_subsidize ? 'bg-gray-200 text-gray-500 hover:cursor-not-allowed' : '']"
+                                placeholder="e.g. 100.00"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Contract From / Until -->
+                        <div class="sm:col-span-6 grid grid-cols-6 gap-4">
+                          <div class="col-span-6 sm:col-span-3">
+                            <DatePicker v-model="sf.contract_from">Contract From</DatePicker>
+                          </div>
+                          <div class="col-span-6 sm:col-span-3">
+                            <DatePicker v-model="sf.contract_until">Contract Until</DatePicker>
+                          </div>
+                        </div>
+
+                        <!-- Auto Renewal / Notice Period -->
+                        <div class="sm:col-span-6 grid grid-cols-6 gap-4">
+                          <div class="col-span-6 sm:col-span-3 flex flex-col justify-end pb-1">
+                            <label class="flex justify-start text-sm font-medium text-gray-700 mb-2">Auto Renewal</label>
+                            <div class="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                v-model="sf.contract_auto_renewal"
+                                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span class="text-sm text-gray-600">{{ sf.contract_auto_renewal ? 'Yes' : 'No' }}</span>
+                            </div>
+                          </div>
+                          <div class="col-span-6 sm:col-span-3">
+                            <label class="flex justify-start text-sm font-medium text-gray-700">Notice Period</label>
+                            <div class="mt-1">
+                              <select
+                                v-model="sf.contract_notice_period"
+                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                              >
+                                <option :value="null">-- Select --</option>
+                                <option v-for="opt in (noticePeriodOptions || [])" :key="'sf-np-' + opt" :value="opt">{{ opt }}</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Remarks -->
+                        <div class="sm:col-span-6">
+                          <label class="flex justify-start text-sm font-medium text-gray-700">Remarks for Contract</label>
+                          <div class="mt-1">
+                            <textarea
+                              v-model="sf.contract_remarks"
+                              rows="2" maxlength="5000"
+                              class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                              placeholder="e.g. Special clauses, agreed adjustments, etc."
+                            ></textarea>
+                          </div>
+                        </div>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2 mt-5 border-t border-gray-200 pt-3">
+                          <button
+                            type="button"
+                            v-if="scheduledRow"
+                            @click.prevent="cancelScheduledContract(customer.id)"
+                            class="text-sm px-3 py-1.5 rounded-md bg-red-100 text-red-700 hover:bg-red-200"
+                          >
+                            Cancel scheduled change
+                          </button>
+                          <span v-else></span>
+                          <div class="flex items-center gap-2">
+                            <button
+                              type="button"
+                              @click.prevent="closeScheduleForm"
+                              class="text-sm px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            >
+                              Close
+                            </button>
+                            <button
+                              type="button"
+                              :disabled="isSavingSchedule"
+                              @click.prevent="submitScheduledContract(customer.id)"
+                              :class="['text-sm px-3 py-1.5 rounded-md text-white flex items-center gap-1', isSavingSchedule ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700']"
+                            >
+                              <CheckCircleIcon class="w-4 h-4" />
+                              {{ isSavingSchedule ? 'Saving...' : 'Confirm & Schedule' }}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </Modal>
+                  </Teleport>
+                  <!-- end Set Future Contract (modal) -->
 
                   <!--
                     Performance Report Email opt-in.
@@ -1243,6 +1536,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
+import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
@@ -1431,6 +1725,242 @@ function onExternalSubsidizeToggle() {
   if (!form.value.is_external_subsidize) {
     form.value.external_subsidize_amount = null;
   }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Schedule Future Contract Change ───────────────────────────────────────────
+// A single pending future contract per customer. The form (sf) sits in the
+// Placement Contract Detail section; on Confirm it POSTs to
+// /customers/{id}/scheduled-contract. It does NOT change the live contract —
+// the contract:apply-scheduled command does that on the effective date.
+function blankScheduleForm() {
+  return {
+    open: false,
+    effective_date: null,
+    contract_commission_type: null,
+    contract_commission_value: null,
+    contract_commission_value2: null,
+    contract_ps_term: null,
+    is_external_subsidize: false,
+    external_subsidize_amount: null,
+    contract_from: null,
+    contract_until: null,
+    contract_auto_renewal: false,
+    contract_notice_period: null,
+    contract_remarks: null,
+  };
+}
+const sf = ref(blankScheduleForm());
+const sfErrors = ref({});
+const isSavingSchedule = ref(false);
+
+// The customer's pending scheduled contract (eager-loaded on the customer
+// prop as `scheduled_contract`). Null when none is pending.
+const scheduledRow = computed(() => customer.value?.scheduled_contract ?? null);
+
+// Earliest selectable effective date = tomorrow. A future contract can never
+// be backdated — the calendar disables today and earlier, the back-stepper is
+// hidden, submitScheduledContract re-checks, and the server validates
+// `after:today`.
+const minScheduleDate = computed(() => moment().add(1, 'day').startOf('day').toDate());
+
+const sfIsPs        = computed(() => PS_TYPES.includes(sf.value.contract_commission_type));
+const sfHasTwoValues= computed(() => TWO_VAL_TYPES.includes(sf.value.contract_commission_type));
+const sfShowPsTerm  = computed(() => sfIsPs.value);
+const sfCommissionValueLabel = computed(() => {
+  switch (sf.value.contract_commission_type) {
+    case 'S':     return 'Subsidized Amount';
+    case 'R':     return 'Fix Rental Amount';
+    case 'R+U':   return 'Fix Rental Amount';
+    case 'U':     return 'Utility Amount';
+    case 'PS':
+    case 'PS+U':
+    case 'PSORU': return 'Commission';
+    default:      return 'Value';
+  }
+});
+
+function formatDate(d) {
+  return d ? moment(d).format('YYYY-MM-DD') : '';
+}
+
+// Human-readable one-liner describing a scheduled change for the banner.
+function scheduleSummary(row) {
+  if (!row) return '';
+  const typeOpt = commissionTypeOptions.find(o => o.id === row.contract_commission_type);
+  const parts = [];
+  parts.push('Location Fees: ' + (typeOpt ? typeOpt.label : (row.contract_commission_type || '—')));
+  if (row.contract_commission_value !== null && row.contract_commission_value !== '') {
+    parts.push('Value: ' + row.contract_commission_value);
+  }
+  if (row.contract_commission_value2 !== null && row.contract_commission_value2 !== '') {
+    parts.push('Utility: ' + row.contract_commission_value2);
+  }
+  if (row.contract_ps_term !== null && row.contract_ps_term !== '') {
+    parts.push('PS Term: ' + row.contract_ps_term + '%');
+  }
+  if (row.is_external_subsidize) {
+    parts.push('Ext. Subsidize: ' + (row.external_subsidize_amount ?? '—'));
+  }
+  return parts.join(' · ');
+}
+
+function openScheduleForm(fromExisting) {
+  sfErrors.value = {};
+  if (fromExisting && scheduledRow.value) {
+    const r = scheduledRow.value;
+    sf.value = {
+      open: true,
+      effective_date: r.effective_date ? moment(r.effective_date).format('YYYY-MM-DD') : null,
+      contract_commission_type: r.contract_commission_type ?? null,
+      contract_commission_value: r.contract_commission_value ?? null,
+      contract_commission_value2: r.contract_commission_value2 ?? null,
+      contract_ps_term: r.contract_ps_term ?? null,
+      is_external_subsidize: r.is_external_subsidize ?? false,
+      external_subsidize_amount: r.external_subsidize_amount ?? null,
+      contract_from: r.contract_from ? moment(r.contract_from).format('YYYY-MM-DD') : null,
+      contract_until: r.contract_until ? moment(r.contract_until).format('YYYY-MM-DD') : null,
+      contract_auto_renewal: r.contract_auto_renewal ?? false,
+      contract_notice_period: r.contract_notice_period ?? null,
+      contract_remarks: r.contract_remarks ?? null,
+    };
+  } else {
+    // New schedule — start from the customer's CURRENT live contract as a
+    // template, with a blank effective date for the user to pick.
+    sf.value = {
+      open: true,
+      effective_date: null,
+      contract_commission_type: form.value.contract_commission_type ?? null,
+      contract_commission_value: form.value.contract_commission_value ?? null,
+      contract_commission_value2: form.value.contract_commission_value2 ?? null,
+      contract_ps_term: form.value.contract_ps_term ?? null,
+      is_external_subsidize: form.value.is_external_subsidize ?? false,
+      external_subsidize_amount: form.value.external_subsidize_amount ?? null,
+      contract_from: form.value.contract_from ? moment(form.value.contract_from).format('YYYY-MM-DD') : null,
+      contract_until: form.value.contract_until ? moment(form.value.contract_until).format('YYYY-MM-DD') : null,
+      contract_auto_renewal: form.value.contract_auto_renewal ?? false,
+      contract_notice_period: form.value.contract_notice_period ?? null,
+      contract_remarks: form.value.contract_remarks ?? null,
+    };
+  }
+}
+
+function closeScheduleForm() {
+  sf.value = blankScheduleForm();
+  sfErrors.value = {};
+}
+
+function onSfCommissionTypeChange() {
+  if (sf.value.contract_commission_type === 'F') {
+    sf.value.contract_commission_value  = null;
+    sf.value.contract_commission_value2 = null;
+    sf.value.contract_ps_term           = null;
+  }
+  if (!TWO_VAL_TYPES.includes(sf.value.contract_commission_type)) {
+    sf.value.contract_commission_value2 = null;
+  }
+  if (!PS_TYPES.includes(sf.value.contract_commission_type)) {
+    sf.value.contract_ps_term = null;
+  } else if (sf.value.contract_ps_term === null || sf.value.contract_ps_term === '') {
+    sf.value.contract_ps_term = 70;
+  }
+}
+
+function clearSfCommissionType() {
+  sf.value.contract_commission_type   = null;
+  sf.value.contract_commission_value  = null;
+  sf.value.contract_commission_value2 = null;
+  sf.value.contract_ps_term           = null;
+}
+
+function onSfExternalSubsidizeToggle() {
+  if (!sf.value.is_external_subsidize) {
+    sf.value.external_subsidize_amount = null;
+  }
+}
+
+function submitScheduledContract(customerID) {
+  sfErrors.value = {};
+
+  // Client-side guard: a real future date is required.
+  if (!sf.value.effective_date || sf.value.effective_date === 'Invalid date') {
+    sfErrors.value.effective_date = 'Please pick an effective date.';
+    return;
+  }
+  if (!moment(sf.value.effective_date).isAfter(moment(), 'day')) {
+    sfErrors.value.effective_date = 'The effective date must be in the future.';
+    return;
+  }
+
+  const effLabel = moment(sf.value.effective_date).format('YYYY-MM-DD');
+  const approval = confirm(
+    'Schedule this contract change to take effect on ' + effLabel + '?\n\n' +
+    'It will not change the current contract now — it applies automatically on that date.'
+  );
+  if (!approval) return;
+
+  const payload = {
+    effective_date: effLabel,
+    contract_commission_type: sf.value.contract_commission_type || null,
+    contract_commission_value: (sf.value.contract_commission_value !== null && sf.value.contract_commission_value !== '') ? parseFloat(sf.value.contract_commission_value) : null,
+    contract_commission_value2: (sf.value.contract_commission_value2 !== null && sf.value.contract_commission_value2 !== '') ? parseFloat(sf.value.contract_commission_value2) : null,
+    contract_ps_term: (sf.value.contract_ps_term !== null && sf.value.contract_ps_term !== '') ? parseFloat(sf.value.contract_ps_term) : null,
+    is_external_subsidize: sf.value.is_external_subsidize ?? false,
+    external_subsidize_amount: (sf.value.is_external_subsidize && sf.value.external_subsidize_amount !== null && sf.value.external_subsidize_amount !== '') ? parseFloat(sf.value.external_subsidize_amount) : null,
+    contract_from: (sf.value.contract_from && sf.value.contract_from !== 'Invalid date') ? moment(sf.value.contract_from).format('YYYY-MM-DD') : null,
+    contract_until: (sf.value.contract_until && sf.value.contract_until !== 'Invalid date') ? moment(sf.value.contract_until).format('YYYY-MM-DD') : null,
+    contract_auto_renewal: sf.value.contract_auto_renewal ?? false,
+    contract_notice_period: (sf.value.contract_notice_period && String(sf.value.contract_notice_period).trim() !== '') ? sf.value.contract_notice_period : null,
+    contract_remarks: (sf.value.contract_remarks && String(sf.value.contract_remarks).trim() !== '') ? sf.value.contract_remarks : null,
+  };
+
+  isSavingSchedule.value = true;
+  router.post('/customers/' + customerID + '/scheduled-contract', payload, {
+    preserveScroll: true,
+    onSuccess: () => {
+      router.reload({
+        only: ['customer'],
+        data: { id: customerID },
+        preserveState: true,
+        replace: true,
+        onSuccess: () => {
+          customer.value = props.customer;
+          closeScheduleForm();
+          toast.success('Future contract change scheduled', { timeout: 3000 });
+        },
+      });
+    },
+    onError: (errors) => {
+      sfErrors.value = errors || {};
+      toast.error('Failed to schedule. Please check the form.', { timeout: 3000 });
+    },
+    onFinish: () => { isSavingSchedule.value = false; },
+  });
+}
+
+function cancelScheduledContract(customerID) {
+  const approval = confirm('Cancel the scheduled contract change? This removes the pending change.');
+  if (!approval) return;
+
+  router.delete('/customers/' + customerID + '/scheduled-contract', {
+    preserveScroll: true,
+    onSuccess: () => {
+      router.reload({
+        only: ['customer'],
+        data: { id: customerID },
+        preserveState: true,
+        replace: true,
+        onSuccess: () => {
+          customer.value = props.customer;
+          closeScheduleForm();
+          toast.success('Scheduled contract change cancelled', { timeout: 3000 });
+        },
+      });
+    },
+    onError: () => {
+      toast.error('Failed to cancel. Please try again.', { timeout: 3000 });
+    },
+  });
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
