@@ -179,14 +179,14 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/summary/excel', [CustomerController::class, 'summaryExportExcel'])->name('customers.summary.excel');
         // Action-triggered lock / unlock for a single Customer Summary row
         // (by customer_period_summaries.id). Lock = admin-access customers;
-        // unlock is gated to superadmin/admin in the controller.
+        // unlock is gated to superadmin/admin/supervisor in the controller.
         Route::post('/summary/{id}/lock', [CustomerController::class, 'lockCustomerPeriodSummary'])
             ->name('customers.summary.lock');
         Route::post('/summary/{id}/unlock', [CustomerController::class, 'unlockCustomerPeriodSummary'])
             ->name('customers.summary.unlock');
         // Paid / Unpaid for a locked Customer Summary row. Paid = same
         // permission as Lock (admin-access customers); Unpaid = same as
-        // Unlock (superadmin / admin) since it reverses a recorded action.
+        // Unlock (superadmin / admin / supervisor) since it reverses a recorded action.
         // Unlock is server-blocked when paid_at IS NOT NULL — the user has
         // to Unpaid first (the UI also disables the Unlock button).
         Route::post('/summary/{id}/paid', [CustomerController::class, 'markPaidCustomerPeriodSummary'])

@@ -542,6 +542,27 @@ class Vend extends Model
         return $this->belongsTo(VendModel::class);
     }
 
+    /**
+     * Whether this vend is an AI smart freezer (model = VendModel::SMART_VEND).
+     *
+     * The single gate for smart-vs-default behaviour: branch on this, never on a raw vend_model_id,
+     * so the divergence (its own ProductMapping, smart-only ApkSetting params, future features) is
+     * driven from one place (Open/Closed). Eager-load `vendModel` when calling this in a loop to
+     * avoid N+1 (e.g. Vend::with('vendModel')).
+     */
+    public function isSmart(): bool
+    {
+        return $this->vendModel?->name === VendModel::SMART_VEND;
+    }
+
+    /** Restricts a query to smart vends only — for admin lists, reports and smart-only jobs. */
+    public function scopeSmart($query)
+    {
+        return $query->whereHas('vendModel', function ($q) {
+            $q->where('name', VendModel::SMART_VEND);
+        });
+    }
+
     public function vendPrefix()
     {
         return $this->belongsTo(VendPrefix::class);

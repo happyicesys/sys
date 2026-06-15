@@ -36,6 +36,11 @@ class ProductMappingResource extends JsonResource
             ),
             // 'productMappingItemsJson' => $this->product_mapping_items_json,
             'selling_price_type' => $this->selling_price_type,
+            // Smart-freezer planogram fields. is_smart drives the Edit-page UI
+            // branch (basket grid vs the classic channel-row table); the layout
+            // JSON shapes the per-basket division count (1a/1b/... vs single "3").
+            'is_smart' => (bool) $this->is_smart,
+            'basket_layout_json' => $this->basket_layout_json,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
             'vends_count' => isset($this->vends_count) ? $this->vends_count : null,
             'vendPrefixes' => VendPrefixResource::collection($this->whenLoaded('vendPrefixes')),

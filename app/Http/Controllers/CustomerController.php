@@ -916,8 +916,8 @@ class CustomerController extends Controller
     /**
      * Unlock a previously-locked Customer Summary row.
      *
-     * Restricted to the top-tier roles (superadmin / admin) — a HIGHER access
-     * level than locking, per product requirement. Clears locked_at /
+     * Restricted to the top-tier roles (superadmin / admin / supervisor) — a
+     * HIGHER access level than locking, per product requirement. Clears locked_at /
      * locked_by so the row reverts to live re-derivation. The frozen stored
      * columns stay as-is but are no longer authoritative (the resource
      * recomputes live while unlocked).
@@ -931,7 +931,7 @@ class CustomerController extends Controller
     public function unlockCustomerPeriodSummary(Request $request, $id)
     {
         $user = auth()->user();
-        if (!$user || !$user->hasAnyRole(['superadmin', 'admin'])) {
+        if (!$user || !$user->hasAnyRole(['superadmin', 'admin', 'supervisor'])) {
             abort(403, 'You do not have permission to unlock summary rows.');
         }
 
@@ -1001,15 +1001,15 @@ class CustomerController extends Controller
     /**
      * Mark a Paid row as Unpaid (reverses markPaidCustomerPeriodSummary).
      *
-     * Same permission tier as Unlock (superadmin / admin) — Unpaid reverses
-     * a recorded action, so it sits at the higher access tier. Clears
+     * Same permission tier as Unlock (superadmin / admin / supervisor) — Unpaid
+     * reverses a recorded action, so it sits at the higher access tier. Clears
      * paid_at / paid_by and stamps last_unpaid_at / last_unpaid_by so the
      * tooltip can surface "last unpaid by X at Y" on the next Paid cycle.
      */
     public function markUnpaidCustomerPeriodSummary(Request $request, $id)
     {
         $user = auth()->user();
-        if (!$user || !$user->hasAnyRole(['superadmin', 'admin'])) {
+        if (!$user || !$user->hasAnyRole(['superadmin', 'admin', 'supervisor'])) {
             abort(403, 'You do not have permission to mark summary rows Unpaid.');
         }
 

@@ -25,6 +25,11 @@ class ProductMapping extends Model
 
     protected $casts = [
         // 'product_mapping_items_json' => 'json',
+        // Smart-freezer planogram flag + per-basket layout. See migration
+        // 2026_06_14 for the JSON shape. is_smart is the single switch the
+        // ProductMapping/Edit UI branches on (basket grid vs channel-row table).
+        'is_smart' => 'boolean',
+        'basket_layout_json' => 'array',
     ];
 
     protected $fillable = [
@@ -35,6 +40,8 @@ class ProductMapping extends Model
         // 'product_mapping_items_json',
         'selling_price_type',
         'upcoming_product_mapping_id',
+        'is_smart',
+        'basket_layout_json',
     ];
 
 

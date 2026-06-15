@@ -746,7 +746,7 @@
 
 	<div class="mt-6 flex flex-col" v-if="hasSearched">
 	<div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-	<div class="overflow-scroll max-h-[900px] md:max-h-[1500px] shadow-sm ring-1 ring-black ring-opacity-5">
+	<div class="cv-scroll overflow-scroll max-h-[900px] md:max-h-[1500px] shadow-sm ring-1 ring-black ring-opacity-5">
 		<table class="min-w-full border-separate" style="border-spacing: 0">
 			<thead class="bg-gray-100">
 				<tr class="divide-x divide-gray-200">
@@ -1252,7 +1252,7 @@
 			</thead>
 			<tbody class="bg-white">
 				<tr v-for="(vend, vendIndex) in vends.data" :key="vendIndex"
-					class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
+					class="cv-row divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="isShowOperationDiv">
 						<input type="checkbox" v-model="vend.is_selected" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
 					</TableData>
@@ -2840,6 +2840,35 @@ v-if="showMapMarkerModal"
 </template>
 
 <style setup>
+/* PERF (scroll): when "All" is selected the table can hold thousands of very
+   heavy rows (each row inlines a per-channel <li> grid). content-visibility
+   lets the browser skip layout/paint for rows that are off-screen, so
+   scrolling stays smooth instead of repainting the whole tree.
+   - contain-intrinsic-size reserves an estimated row height so the scrollbar
+     and row positions stay stable; the `auto` keyword makes the browser
+     remember each row's real height once it has been rendered.
+   - Only <tbody> rows get this; <thead> stays fully rendered so its
+     fixed-width header cells keep the column widths anchored (no jitter). */
+.cv-row {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 480px;
+}
+/* PERF (scroll): the shared TableHead applies `backdrop-blur-3xl` + a
+   translucent bg to the sticky header. A backdrop-filter re-samples and
+   re-blurs everything behind it on EVERY scroll frame as rows pass under
+   the header — across a full-width header that is the dominant scroll cost.
+   Scoped to this page's table only (via .cv-scroll), so the shared
+   component and every other table that uses it are untouched. We drop the
+   blur and make the header opaque (visually near-identical, just not
+   see-through). */
+.cv-scroll thead th {
+	-webkit-backdrop-filter: none !important;
+	backdrop-filter: none !important;
+}
+.cv-scroll thead th.bg-opacity-75 {
+	--tw-bg-opacity: 1 !important;
+	background-color: rgb(249 250 251) !important; /* solid gray-50 */
+}
 .quick-look
 {
 -webkit-border-horizontal-spacing: 0px;

@@ -1843,9 +1843,9 @@ const permissions = usePage().props.auth.permissions;
 const roles = usePage().props.auth.roles ?? [];
 
 // Lock = admins (admin-access customers). Unlock requires a HIGHER access
-// level — restricted to the top-tier roles (superadmin / admin).
+// level — restricted to the top-tier roles (superadmin / admin / supervisor).
 const canLock = computed(() => (permissions ?? []).includes('admin-access customers'));
-const canUnlock = computed(() => (roles ?? []).includes('superadmin') || (roles ?? []).includes('admin'));
+const canUnlock = computed(() => (roles ?? []).includes('superadmin') || (roles ?? []).includes('admin') || (roles ?? []).includes('supervisor'));
 // Paid mirrors Lock's permission tier; Unpaid mirrors Unlock's tier (reverses
 // a recorded action → tighter role gate). Server re-checks both.
 const canPaid = computed(() => canLock.value);

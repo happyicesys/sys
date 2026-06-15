@@ -233,14 +233,35 @@ class ProductMappingController extends Controller
     {
         $request->validate([
             'name' => 'required',
+            // Smart-freezer planogram flag. Optional; defaults to false at the
+            // DB layer. The UI sends it from the create modal radio.
+            'is_smart' => ['nullable', 'boolean'],
+            // basket_layout_json is set later from the Edit page once the
+            // mapping exists — not required at create time.
         ]);
 
         $productMapping = new ProductMapping();
         $productMapping->fill($request->all());
         $productMapping->operator_id = auth()->user()->operator_id;
+
+        // Seed a sensible default basket layout for smart-freezer mappings so
+        // the Edit page can render the grid immediately. Six baskets, each
+        // with two divisions (a/b) — the common physical shape for our smart
+        // freezers. Users can bump divisions to 3 or 4 per basket on the Edit
+        // UI when a basket has more columns. Vending mappings stay null.
+        if ($productMapping->is_smart && empty($productMapping->basket_layout_json)) {
+            $productMapping->basket_layout_json = collect(range(1, 6))
+                ->map(fn ($basket) => ['basket' => $basket, 'divisions' => 2])
+                ->all();
+        }
+
         $productMapping->save();
 
-        return redirect()->route('product-mappings');
+        // Land the user straight on the new mapping's Edit page so they can
+        // start binding products immediately — especially important for smart
+        // freezers, where the basket grid is the whole reason they came here.
+        // Mirrors the redirect target `update()` already uses on save.
+        return redirect()->route('product-mappings.edit', ['id' => $productMapping->id]);
     }
 
 
@@ -380,6 +401,13 @@ class ProductMappingController extends Controller
                 'nullable',
                 'not_in:' . $productMappingId,
             ],
+            // Smart-freezer planogram fields. is_smart can be toggled on Edit
+            // (cheap migration of mapping type); basket_layout_json is the
+            // per-basket division shape sent by the SmartFreezerLayout grid.
+            'is_smart' => ['nullable', 'boolean'],
+            'basket_layout_json' => ['nullable', 'array'],
+            'basket_layout_json.*.basket' => ['required_with:basket_layout_json', 'integer', 'min:1'],
+            'basket_layout_json.*.divisions' => ['required_with:basket_layout_json', 'integer', 'min:0', 'max:26'],
         ], [
             'upcoming_product_mapping_id.not_in' => 'Upcoming product mapping cannot be the same as the current product mapping.',
         ]);

@@ -28,6 +28,43 @@
               </FormTextarea>
             </div>
 
+            <!--
+              Mapping type radio. Only meaningful at create time — once a mapping
+              has items, switching the type would mix channel_code formats. The
+              Edit page surfaces the type as a read-only badge.
+
+              is_smart = true ⇒ ProductMapping/Edit.vue renders SmartFreezerLayout
+              (6 baskets × 0-4 divisions, channel codes "1a", "2b", "3"); a
+              default basket layout is seeded server-side at create.
+            -->
+            <div class="sm:col-span-6" v-if="type === 'create'">
+              <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">
+                Mapping Type
+              </label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label
+                  class="flex items-start gap-2 rounded-md border p-3 cursor-pointer transition"
+                  :class="!form.is_smart ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/40' : 'border-gray-200 hover:bg-gray-50'"
+                >
+                  <input type="radio" :value="false" v-model="form.is_smart" class="mt-1" />
+                  <span class="flex flex-col">
+                    <span class="text-sm font-semibold text-gray-900">Vending Machine</span>
+                    <span class="text-xs text-gray-500">Numeric channels (11, 12, 13…). Classic channel-row editor.</span>
+                  </span>
+                </label>
+                <label
+                  class="flex items-start gap-2 rounded-md border p-3 cursor-pointer transition"
+                  :class="form.is_smart ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/40' : 'border-gray-200 hover:bg-gray-50'"
+                >
+                  <input type="radio" :value="true" v-model="form.is_smart" class="mt-1" />
+                  <span class="flex flex-col">
+                    <span class="text-sm font-semibold text-gray-900">Smart Freezer</span>
+                    <span class="text-xs text-gray-500">Basket grid (1a, 1b, 2a…). 6 baskets × up to 4 divisions.</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -235,7 +272,20 @@ function getDefaultForm() {
     remarks: '',
     channel_code: '',
     product_id: '',
+    // Mapping type. Only used at create time; the Edit page reads this from
+    // the persisted record and renders the matching layout editor.
+    is_smart: false,
   }
+}
+
+// Natural-order channel_code comparator. The original `a - b` subtraction
+// produces NaN for alphanumeric codes ("1a" - "1b" === NaN), which leaves the
+// list in unspecified order. Intl.Collator with numeric:true sorts
+// "1a","1b","1c","2a","2b","3","10" the way a human reads them, and degrades
+// gracefully for the legacy numeric vending codes too.
+const channelCodeCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+function compareChannelCodes(a, b) {
+  return channelCodeCollator.compare(String(a ?? ''), String(b ?? ''))
 }
 
 function submit() {
@@ -279,7 +329,9 @@ function submit() {
 function bindProductMappingItem() {
   if(productMappingItems.value.map(function(productMapping) { return productMapping.channel_code; }).indexOf(form.value.channel_code) < 0) {
     productMappingItems.value.push({product: form.value.product_id, channel_code: form.value.channel_code})
-    productMappingItems.value.sort((a, b) => a.channel_code - b.channel_code)
+    // Use the natural-order comparator so smart-freezer alphanumeric codes
+    // (1a, 1b, 2a…) and legacy numeric codes both sort correctly.
+    productMappingItems.value.sort((a, b) => compareChannelCodes(a.channel_code, b.channel_code))
   }
 }
 

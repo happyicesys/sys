@@ -2,12 +2,25 @@
   <Head title="VM Edit" />
   <BreezeAuthenticatedLayout>
     <template #header>
-      <div class="flex flex-col md:flex-row space-x-2">
+      <div class="flex flex-col md:flex-row md:items-center md:space-x-2 gap-1">
         <span class="text-gray-600" v-if="productMapping.data && productMapping.data.id">
           Editing
         </span>
         <span v-if="productMapping.data && productMapping.data.id">
           {{ productMapping.data.name }}
+        </span>
+        <!--
+          Mapping type badge. The same ProductMapping table powers both planograms;
+          this chip surfaces which editor mode the page is in. is_smart is set at
+          create-time (Form.vue radio) and read-only here to keep channel_code
+          formats consistent with what's already bound.
+        -->
+        <span
+          v-if="productMapping.data && productMapping.data.id"
+          class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold w-fit"
+          :class="productMapping.data.is_smart ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-800'"
+        >
+          {{ productMapping.data.is_smart ? 'Smart Freezer' : 'Vending Machine' }}
         </span>
       </div>
     </template>
@@ -111,23 +124,43 @@
                       <div class="w-full border-t border-gray-300"></div>
                     </div>
                     <div class="relative flex justify-center">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Vend Channels Product Mapping </span>
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">
+                        {{ form.is_smart ? 'Smart Freezer Basket Layout' : 'Vend Channels Product Mapping' }}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div class="sm:col-span-1" v-if="form.id">
+                <!--
+                  Smart-freezer planogram editor. Drives the SAME backend endpoints
+                  the vending row below uses (POST /items/create, DELETE /items/{id}),
+                  so storage in product_mapping_items is identical (channel_code is
+                  already varchar). Basket layout shape persists on save via
+                  form.basket_layout_json. Vending UI below is unchanged.
+                -->
+                <div class="sm:col-span-6" v-if="form.id && form.is_smart">
+                  <SmartFreezerLayout
+                    :productMappingId="form.id"
+                    :products="productOptions"
+                    :productMappingItems="productMappingItems"
+                    :basketLayout="form.basket_layout_json || []"
+                    @layout-changed="onSmartLayoutChanged"
+                    @items-changed="onSmartItemsChanged"
+                  />
+                </div>
+
+                <div class="sm:col-span-1" v-if="form.id && !form.is_smart">
                   <label class="flex justify-start text-sm font-medium text-gray-700">Display Sequence</label>
                   <select v-model="form.sequence" class="mt-1 block w-full rounded-md border-gray-300">
                     <option v-for="n in productMappingItems.length + 1" :key="n" :value="n">{{ n }}</option>
                   </select>
                 </div>
-                <div class="sm:col-span-1" v-if="form.id">
+                <div class="sm:col-span-1" v-if="form.id && !form.is_smart">
                   <FormInput v-model="form.channel_code" :error="form.errors.channel_code" placeholderStr="Channel ID">
                     Channel ID
                   </FormInput>
                 </div>
-                <div class="sm:col-span-3" v-if="form.id">
+                <div class="sm:col-span-3" v-if="form.id && !form.is_smart">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                     Product
                   </label>
@@ -147,7 +180,7 @@
                   </div>
                 </div>
 
-                <div class="sm:col-span-1" v-if="form.id">
+                <div class="sm:col-span-1" v-if="form.id && !form.is_smart">
                   <Button
                     type="button"
                     @click.prevent="bindProductMappingItem()"
@@ -162,7 +195,7 @@
                   </Button>
                 </div>
 
-                <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+                <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id && !form.is_smart">
                   <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                     <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                       <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg pb-24">
@@ -410,6 +443,7 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import Modal from '@/Components/Modal.vue';
+import SmartFreezerLayout from '@/Pages/ProductMapping/SmartFreezerLayout.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
@@ -484,9 +518,36 @@ function getDefaultForm() {
     sequence: '',
     operator_id: props.operatorOptions?.data?.find(op => op.id === 1),
     upcoming_product_mapping_id: '',
+    // Smart-freezer planogram. is_smart is read-only on Edit (set at creation
+    // time); basket_layout_json carries the per-basket division shape and is
+    // mutated locally by SmartFreezerLayout, persisted on Save via the
+    // existing /update endpoint.
+    is_smart: false,
+    basket_layout_json: [],
     sortKey: '',
     sortBy: false,
   }
+}
+
+// SmartFreezerLayout bubbles the latest per-basket division shape up here so
+// it ships with the next Save round-trip.
+function onSmartLayoutChanged(layout) {
+  form.value.basket_layout_json = layout
+}
+
+// SmartFreezerLayout binds/unbinds via the same endpoints the vending row uses.
+// The child's router.post/router.delete already returned a redirect-back, so by
+// the time this handler runs Inertia has already refreshed props.productMapping
+// with the new items (with real DB IDs). We just re-derive the local ref from
+// those fresh props — mirroring the immediate re-derive in the vending
+// bindProductMappingItem onSuccess. An extra router.reload here used to cause
+// the "needs refresh to take effect + scroll jumps to top" symptom because two
+// chained Inertia visits stopped honouring preserveScroll/preserveState
+// reliably; trusting the post/delete's own redirect-back avoids that.
+function onSmartItemsChanged() {
+  productMappingItems.value = props.productMapping
+    ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
+    : []
 }
 
 

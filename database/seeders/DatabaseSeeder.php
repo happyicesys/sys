@@ -54,6 +54,7 @@ class DatabaseSeeder extends Seeder
             // VendCardTerminalSeeder::class,
             // TelcoSeeder::class,
             // VendTypeSeeder::class,
+            // VendModelSeeder::class,
             // UomSeeder::class,
             // UserAssignProfileSeeder::class,
             // RoleSeeder::class,
