@@ -577,6 +577,21 @@ class Customer extends Model
                     $query->where('status_id', $input);
                 }
             })
+            ->when($request->tags, function ($query, $search) {
+                // Tags filter (multi-select). Keep customers bound to ANY of
+                // the selected tag ids — mirrors the whereIn semantics used by
+                // the other multi-selects here (location_types, operators).
+                // Empty array is falsy, so no selection = no filter ("all").
+                $tagIds = array_values(array_filter(
+                    is_array($search) ? $search : [$search],
+                    fn ($v) => $v !== null && $v !== '' && $v !== 'all'
+                ));
+                if (!empty($tagIds)) {
+                    $query->whereHas('tagBindings', function ($q) use ($tagIds) {
+                        $q->whereIn('tag_id', $tagIds);
+                    });
+                }
+            })
             ->when($request->vend_code, function ($query, $search) {
                 $query->whereIn(
                     'customers.id',

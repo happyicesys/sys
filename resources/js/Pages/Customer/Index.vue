@@ -867,6 +867,10 @@ const filters = ref({
   sortBy: false,
   numberPerPage: 100,
   zones: [],
+  // Tags multi-select. Holds full option objects (the shared MultiSelect runs
+  // with :object="true"); mapped to bare ids in the submit payload below, like
+  // every other multi-select here. Initialised so reset/clear stays consistent.
+  tags: [],
 });
 const activeOptions = ref([]);
 const authOperator = usePage().props.auth.operator;
@@ -1066,6 +1070,9 @@ function onSearchFilterUpdated() {
       vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       numberPerPage: filters.value.numberPerPage.id,
       zones: filters.value.zones.map((zone) => zone.id),
+      // Ship bare tag ids (the MultiSelect holds full objects). Backend
+      // scopeFilterIndex does whereHas('tagBindings')->whereIn('tag_id', ...).
+      tags: (filters.value.tags ?? []).map((tag) => tag.id),
     },
     {
       preserveState: true,
