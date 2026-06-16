@@ -44,7 +44,7 @@ class SimulatePsTermTotals extends Command
         {--ul-st-ps=100 : PS Term % to apply to the excluded operator.}
         {--ul-st-code=UL-ST : Operator code that gets --ul-st-ps instead of --ps.}
         {--status=2 : Customer status_id to include (2=Active). Use "all" for every status.}
-        {--operators=HIPL,HIMD,LEA,HIESG,UL-ST : Restrict to these operators (comma-separated IDs or codes). Default mirrors the Summary page''s default operator chips. Pass "all" for every operator.}';
+        {--operators=HIPL,HIMD,LEA,HIESG,UL-ST : Restrict to these operators (comma-separated IDs or codes). Default mirrors the Summary page default operator chips. Pass "all" for every operator.}';
 
     protected $description = 'What-if: recompute Summary header totals with PS Term flattened (read-only, no writes)';
 
