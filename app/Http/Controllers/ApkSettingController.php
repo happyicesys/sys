@@ -171,7 +171,9 @@ class ApkSettingController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'productTagOptions' => TagResource::collection(
-                Tag::orderBy('name')->get()
+                // Campaign-item labels are Product-scoped tags; filter by
+                // classname so Customer/Site tags don't appear here.
+                Tag::where('classname', \App\Models\Product::class)->orderBy('name')->get()
             ),
             'unbindedVendOptions' => VendResource::collection(
                 Vend::with([

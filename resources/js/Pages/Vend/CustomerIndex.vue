@@ -745,6 +745,17 @@
 	</div>
 
 	<div class="mt-6 flex flex-col" v-if="hasSearched">
+	<!-- Deferred-load notice: heavy $/stock/job columns stream in via a 2nd
+	     request after the table paints; this tells the user those cells (and
+	     the matching cards) are still populating so brief 0s aren't mistaken
+	     for real values. -->
+	<div v-if="aggregatesLoading" class="mb-2 flex items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+		<svg class="h-4 w-4 animate-spin text-sky-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+			<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+			<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+		</svg>
+		<span>Loading financial &amp; stock columns…</span>
+	</div>
 	<div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
 	<div class="cv-scroll overflow-scroll max-h-[900px] md:max-h-[1500px] shadow-sm ring-1 ring-black ring-opacity-5">
 		<table class="min-w-full border-separate" style="border-spacing: 0">
@@ -2971,6 +2982,22 @@ font-size:13px;
 	// aggregate cards. The totals are summed over the rows on the current
 	// page, so the per-machine average divides by the row count. Guard against
 	// 0 so the cards never render NaN/Infinity before a search returns rows.
+	// ── Deferred aggregates (perf) ──────────────────────────────────────────
+	// The heavy $/stock/job columns are loaded in a 2nd background request so
+	// the table paints fast on big page sizes ("All"). See VendController
+	// @indexCustomer ($deferAggregates) + @customerIndexAggregates.
+	//
+	// KILL SWITCH: set to false to fully restore the old synchronous load —
+	// the page stops sending defer_aggregates and never calls Phase 2.
+	const ENABLE_DEFERRED_AGGREGATES = true;
+	// Only defer for page sizes big enough to be slow; small pages compute
+	// inline as before (no extra round-trip).
+	const DEFER_PAGE_SIZES = ['All', 500, 200];
+	// Phase-2 card totals once they arrive (overrides props.totals).
+	const deferredTotals = ref(null);
+	// True while the Phase-2 request is in flight (drives the table banner).
+	const aggregatesLoading = ref(false);
+
 	const vmCount = computed(() => {
 		// Pre-Search: the backend's all-rows count (full filtered fleet, not
 		// capped by itemPerPage). After Search: the page rows, as before.
@@ -2986,9 +3013,12 @@ font-size:13px;
 	// all-rows initialStats.totals, after Search the page-scoped `totals`
 	// prop (previous behaviour). Same keys/units either way.
 	const cardTotals = computed(() => {
-		return (!hasSearched.value && props.initialStats)
-			? props.initialStats.totals
-			: props.totals;
+		if (!hasSearched.value && props.initialStats) {
+			return props.initialStats.totals;
+		}
+		// After a deferred load, Phase 2 supplies the heavy card totals; until
+		// it returns we fall back to props.totals (Sales filled, rest 0).
+		return deferredTotals.value ?? props.totals;
 	});
 
 	// "Current" snapshot card — averages/counts over EVERY machine in the
@@ -3472,6 +3502,10 @@ if(urlParams.has('channel_codes')) {
 	// loaded data (autoload=true means the server already ran the query — no need to re-fetch)
 	if((urlParams.get('codes') || urlParams.get('channel_codes')) && !urlParams.get('autoload')) {
 		onSearchFilterUpdated();
+	} else if (props.autoLoad) {
+		// Initial server-rendered page: if it came back deferred, pull the
+		// heavy columns in now. No-op for normal (non-deferred) renders.
+		maybeFetchDeferredAggregates();
 	}
 })
 
@@ -3964,6 +3998,9 @@ function onShowAllFiltersClicked() {
 function onSearchFilterUpdated() {
 	router.get(baseUrl.value, {
 			autoload: true,
+			// Defer the heavy columns for big page sizes so the table paints
+			// fast; the backend ignores this when sorting by a heavy column.
+			defer_aggregates: (ENABLE_DEFERRED_AGGREGATES && DEFER_PAGE_SIZES.includes(filters.value.numberPerPage?.id)) ? 1 : 0,
 			...filters.value,
 			cashless_mfg: filters.value.cashless_mfg?.id ?? '',
 			delivery_platform_id: filters.value.delivery_platform_id.id,
@@ -4002,8 +4039,64 @@ function onSearchFilterUpdated() {
 					vends.value = getVendsField()
 					now.value = moment().format('HH:mm:ss')
 					hasSearched.value = true
+					// Clear any prior deferred state so a non-deferred load (e.g.
+					// switching All → 50) doesn't keep stale Phase-2 totals/banner.
+					deferredTotals.value = null
+					aggregatesLoading.value = false
+					// If the server returned a deferred page, fetch the heavy
+					// columns now and merge them in.
+					maybeFetchDeferredAggregates()
 			},
 	})
+}
+
+// Phase 2 of the deferred load: when the server returned a deferred page
+// (totals.deferred === true), POST the on-screen rows and merge the heavy
+// $/stock/job columns + recomputed card totals back in. No-op when deferral
+// is off or the page wasn't deferred. Fully revertible via the kill switch.
+function maybeFetchDeferredAggregates() {
+	if (!ENABLE_DEFERRED_AGGREGATES) return;
+	if (!props.totals || props.totals.deferred !== true) return;
+
+	const list = vends.value?.data ?? [];
+	const rows = list
+			.filter(r => r && r.customer_id != null)
+			.map(r => ({ vend_id: r.vend_id ?? null, customer_id: r.customer_id }));
+	if (!rows.length) { deferredTotals.value = null; return; }
+
+	aggregatesLoading.value = true;
+	deferredTotals.value = null;
+	axios.post('/vends/customers/aggregates', {
+			rows,
+			operators: filters.value.operators.filter(o => o).map(o => o.id),
+	})
+	.then(({ data: resp }) => {
+			const map = (resp && resp.rows) ? resp.rows : {};
+			const target = vends.value?.data ?? [];
+			for (const row of target) {
+					const key = row.vend_id != null ? String(row.vend_id) : ('cust-' + row.customer_id);
+					const agg = map[key];
+					if (agg) Object.assign(row, agg);
+			}
+			// New array reference so the table + cards re-render with merged values.
+			vends.value = { ...vends.value, data: [...target] };
+			if (resp && resp.totals) deferredTotals.value = resp.totals;
+			aggregatesLoading.value = false;
+	})
+	.catch(() => {
+			// Phase 2 failed — recover by loading the heavy columns the normal
+			// (synchronous) way so the user never sees permanent placeholder 0s.
+			router.reload({
+					data: { defer_aggregates: 0 },
+					only: ['vends', 'totals'],
+					preserveScroll: true,
+					onFinish: () => {
+							vends.value = getVendsField();
+							deferredTotals.value = null;
+							aggregatesLoading.value = false;
+					},
+			});
+	});
 }
 
 function onVendTempClicked(vendId, type) {

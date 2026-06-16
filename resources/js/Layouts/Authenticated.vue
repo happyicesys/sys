@@ -316,6 +316,31 @@ const logoUrl = computed(() => page.props.logoUrl)
 const permissions = page.props.auth.permissions
 const roles = page.props.auth.roles
 const smallLogoUrl = page.props.smallLogoUrl
+
+// Messenger-style unread-note badges, keyed by menu href (shared by
+// HandleInertiaRequests::share → NoteNotificationService). subBadge() reads a
+// single link's count; sectionBadge() rolls children up onto the collapsed
+// parent so the red dot is visible even when the section is closed.
+const noteBadges = computed(() => page.props.noteBadges || {})
+function subBadge(href) {
+    if (!href) return 0
+    return noteBadges.value[href.split('?')[0]] || 0
+}
+function sectionBadge(item) {
+    if (!item || !item.children) return 0
+    return item.children.reduce((sum, sub) => sum + subBadge(sub.href), 0)
+}
+// Separate @-mention badges (indigo), keyed by href just like noteBadges.
+// Shown alongside the red unread badge so mentions stand out.
+const noteMentionBadges = computed(() => page.props.noteMentionBadges || {})
+function subMentionBadge(href) {
+    if (!href) return 0
+    return noteMentionBadges.value[href.split('?')[0]] || 0
+}
+function sectionMentionBadge(item) {
+    if (!item || !item.children) return 0
+    return item.children.reduce((sum, sub) => sum + subMentionBadge(sub.href), 0)
+}
 const defaultLogoUrl = computed(() => page.props.defaultLogoUrl)
 const useContainLogo = computed(() => logoUrl.value !== defaultLogoUrl.value)
 
@@ -426,6 +451,14 @@ function isSubItemActive(item, subItem) {
                                             {{ item.tagline }}
                                         </span>
                                     </span>
+                                    <span v-if="!open && sectionMentionBadge(item) > 0"
+                                        class="mr-1 inline-flex items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                        @{{ sectionMentionBadge(item) }}
+                                    </span>
+                                    <span v-if="!open && sectionBadge(item) > 0"
+                                        class="mr-2 inline-flex items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                        {{ sectionBadge(item) }}
+                                    </span>
                                     <svg :class="[open ? 'text-gray-400 rotate-90' : 'text-gray-300', 'ml-3 flex-shrink-0 h-5 w-5 transform group-hover:text-gray-400 transition-colors ease-in-out duration-150']"
                                         viewBox="0 0 20 20" aria-hidden="true">
                                         <path d="M6 6L14 10L6 14V6Z" fill="currentColor" />
@@ -438,7 +471,17 @@ function isSubItemActive(item, subItem) {
                                             :class="[isSubItemActive(item, subItem) ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200', 'group w-full flex items-center justify-start text-left pl-4 pr-2 py-2 text-sm font-medium rounded-md']"
                                             v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
                                             >
-                                            {{ subItem.name }}
+                                            <span>{{ subItem.name }}</span>
+                                            <span class="ml-auto flex items-center gap-1">
+                                                <span v-if="subMentionBadge(subItem.href) > 0"
+                                                    class="inline-flex items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                                    @{{ subMentionBadge(subItem.href) }}
+                                                </span>
+                                                <span v-if="subBadge(subItem.href) > 0"
+                                                    class="inline-flex items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                                    {{ subBadge(subItem.href) }}
+                                                </span>
+                                            </span>
                                         </DisclosureButton>
                                     </Link>
                                 </DisclosurePanel>
@@ -540,6 +583,14 @@ function isSubItemActive(item, subItem) {
                                         {{ item.tagline }}
                                     </span>
                                 </span>
+                                <span v-if="!open && sectionMentionBadge(item) > 0"
+                                    class="ml-2 inline-flex items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                    @{{ sectionMentionBadge(item) }}
+                                </span>
+                                <span v-if="!open && sectionBadge(item) > 0"
+                                    class="ml-1 inline-flex items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                    {{ sectionBadge(item) }}
+                                </span>
                                 <svg :class="[open ? 'text-gray-400 rotate-90' : 'text-gray-300', 'ml-3 flex-shrink-0 h-5 w-5 transform group-hover:text-gray-400 transition-colors ease-in-out duration-150']"
                                     viewBox="0 0 20 20" aria-hidden="true">
                                     <path d="M6 6L14 10L6 14V6Z" fill="currentColor" />
@@ -552,7 +603,17 @@ function isSubItemActive(item, subItem) {
                                     <DisclosureButton
                                         v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
                                         :class="[isSubItemActive(item, subItem) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50', 'group w-full flex items-center justify-start text-left pl-14 pr-2 py-3 text-sm font-medium rounded-md']">
-                                        {{ subItem.name }}
+                                        <span>{{ subItem.name }}</span>
+                                        <span class="ml-auto flex items-center gap-1">
+                                            <span v-if="subMentionBadge(subItem.href) > 0"
+                                                class="inline-flex items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                                @{{ subMentionBadge(subItem.href) }}
+                                            </span>
+                                            <span v-if="subBadge(subItem.href) > 0"
+                                                class="inline-flex items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                                {{ subBadge(subItem.href) }}
+                                            </span>
+                                        </span>
                                     </DisclosureButton>
                                 </Link>
                             </DisclosurePanel>

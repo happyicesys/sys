@@ -18,6 +18,15 @@ use Inertia\Inertia;
 class CampaignController extends Controller
 {
     use GetUserTimezone;
+
+    /**
+     * Classname under which campaign labels (the "Labels X / Labels Y" tags)
+     * live in the shared, polymorphic `tags` table. Campaign labels reuse the
+     * Product scope — see CampaignSeeder::resolveTags() and the "Product
+     * Labels" nav entry (/tags?classname=App\Models\Product).
+     */
+    private const CAMPAIGN_LABEL_CLASSNAME = 'App\\Models\\Product';
+
     /**
      * Display a listing of the resource.
      */
@@ -67,7 +76,14 @@ class CampaignController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'tagOptions' => TagResource::collection(
-                Tag::orderBy('name')->get()
+                // Campaign labels are stored as Product-scoped Tag rows (see
+                // CampaignSeeder + the "Product Labels" nav at
+                // /tags?classname=App\Models\Product). Without this classname
+                // filter the dropdown also surfaced Customer/Site-scoped tags
+                // (e.g. "Already Inform For Renewal"), which don't belong here.
+                Tag::where('classname', self::CAMPAIGN_LABEL_CLASSNAME)
+                    ->orderBy('name')
+                    ->get()
             ),
             'promoTypeOptions' => $this->promoTypeOptions(),
         ]);
@@ -160,7 +176,11 @@ class CampaignController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'tagOptions' => TagResource::collection(
-                Tag::orderBy('name')->get()
+                // Same Product-scoped filter as createView() — keep the edit
+                // form's label dropdown limited to campaign labels only.
+                Tag::where('classname', self::CAMPAIGN_LABEL_CLASSNAME)
+                    ->orderBy('name')
+                    ->get()
             ),
             'promoTypeOptions' => $this->promoTypeOptions(),
         ]);

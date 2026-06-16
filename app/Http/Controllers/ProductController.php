@@ -214,6 +214,37 @@ class ProductController extends Controller
             'productAvailableDate' => $request->productAvailableDate ? $request->productAvailableDate : Carbon::today()->addDay()->toDateString(),
         ]);
 
+        // --- Unread Remarks tracking (messenger-style badges) ------------
+        // Stamp "viewed" only on a genuine page arrival: a full Inertia visit
+        // (not the note-save partial reload, router.reload only:['products'])
+        // that isn't an in-page filter search (searched=1) or the Unread view
+        // (unread=1). See NoteNotificationService.
+        $authUser = auth()->user();
+        $noteService = app(\App\Services\NoteNotificationService::class);
+        $isUnreadView = $request->boolean('unread');
+        // "@Me Mentioned" view — products whose Remarks @-mention this user.
+        $isMentionView = $request->boolean('mentioned');
+        $isPartialReload = $request->hasHeader('X-Inertia-Partial-Data');
+        if ($authUser && !$request->boolean('searched') && !$isPartialReload) {
+            $noteService->markViewed($authUser, \App\Services\NoteNotificationService::PAGE_AVAILABILITY);
+        }
+        $availUnreadSince = $authUser
+            ? $noteService->unreadSince($authUser, \App\Services\NoteNotificationService::PAGE_AVAILABILITY)
+            : null;
+        $availUnreadCount = $authUser
+            ? $noteService->productUnreadCount($authUser, $availUnreadSince)
+            : 0;
+        $availUnreadIds = ($isUnreadView && $authUser)
+            ? $noteService->productUnreadIds($authUser, $availUnreadSince)
+            : [];
+        // Mention badge count + (when in the view) the matching product ids.
+        $availMentionCount = $authUser
+            ? $noteService->productMentionedCount($authUser)
+            : 0;
+        $availMentionIds = ($isMentionView && $authUser)
+            ? $noteService->productMentionedIds($authUser)
+            : [];
+
         $userTimezone = $this->getUserTimezone();
         $productAvailableDateStart = Carbon::parse($request->productAvailableDate, $userTimezone)->startOfDay()->setTimezone('UTC');
         $productAvailableDateEnd = Carbon::parse($request->productAvailableDate, $userTimezone)->endOfDay()->setTimezone('UTC');
@@ -270,6 +301,19 @@ class ProductController extends Controller
             ])
             ->where('is_active', true)
             ->where('is_inventory', true)
+            ->when($isUnreadView, function ($query) use ($availUnreadIds) {
+                // Unread view: only products whose Remarks changed (by someone
+                // else) since the user's previous visit, newest first. An empty
+                // id set yields whereIn([]) → no rows, as intended.
+                $query->whereIn('products.id', $availUnreadIds)
+                    ->orderByDesc('products.remarks_updated_at');
+            })
+            ->when($isMentionView, function ($query) use ($availMentionIds) {
+                // Mentioned view: only products whose Remarks @-mention the user,
+                // newest-updated first. Empty id set → whereIn([]) → no rows.
+                $query->whereIn('products.id', $availMentionIds)
+                    ->orderByDesc('products.remarks_updated_at');
+            })
             ->when($request->sortKey, function ($query, $sortKey) use ($request) {
                 // If sorting by calculated fields, keep simple sorts here and handle complex sorts if needed in JS or dedicated query
                 if (!in_array($sortKey, ['needed_qty', 'needed_value', 'not_yet_sync_api_qty', 'picked_value_on_date'])) {
@@ -430,6 +474,12 @@ class ProductController extends Controller
             'products' => ProductResource::collection(
                 $products
             ),
+            // Unread Remarks count for the on-page "Unread" toggle button.
+            'unreadCount' => $availUnreadCount,
+            // Count of products that @-mention the user, for the "@Me Mentioned" button.
+            'mentionCount' => $availMentionCount,
+            // Same-operator users for the @-mention dropdown in the remarks cell.
+            'mentionableUsers' => $authUser ? $noteService->mentionableUsers($authUser) : [],
         ]);
     }
 

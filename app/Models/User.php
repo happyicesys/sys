@@ -25,6 +25,7 @@ class User extends Authenticatable
     protected $fillable = [
         'access_token',
         'name',
+        'alias',
         'email',
         'is_active',
         'is_production_status_only',

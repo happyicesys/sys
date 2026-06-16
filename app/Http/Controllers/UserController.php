@@ -105,6 +105,7 @@ class UserController extends Controller
             'username' => 'nullable|required_without:email|unique:users,username',
             'password' => 'required',
             'operator_id' => 'required',
+            'alias' => 'nullable|string|max:50',
         ]);
         $user = new User();
         $user->fill($request->all());
@@ -219,12 +220,13 @@ class UserController extends Controller
             'phone_number' => 'nullable|numeric',
             'username' => 'nullable|required_without:email|unique:users,username,'.$userId,
             'password' => 'nullable',
+            'alias' => 'nullable|string|max:50',
         ]);
 
         if($request->password) {
-            $validated = $request->only('name', 'email', 'username', 'password', 'operator_id', 'phone_country_id', 'phone_number');
+            $validated = $request->only('name', 'alias', 'email', 'username', 'password', 'operator_id', 'phone_country_id', 'phone_number');
         }else {
-            $validated = $request->only('name', 'email', 'username', 'operator_id', 'phone_country_id', 'phone_number');
+            $validated = $request->only('name', 'alias', 'email', 'username', 'operator_id', 'phone_country_id', 'phone_number');
         }
 
         $user = User::findOrFail($userId);

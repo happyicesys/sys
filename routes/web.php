@@ -672,6 +672,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/create', [VendController::class, 'create']);
         Route::get('/channels/excel', [VendController::class, 'exportChannelExcel']);
         Route::get('/customers', [VendController::class, 'indexCustomer'])->name('vends.customer');
+        // Phase 2 of the Customer Index deferred-load: returns the heavy
+        // aggregate columns for the on-screen rows (see indexCustomer
+        // $deferAggregates). Same group/middleware as the page above.
+        Route::post('/customers/aggregates', [VendController::class, 'customerIndexAggregates'])->name('vends.customer.aggregates');
         Route::get('/ops-performance', [OpsPerformanceController::class, 'index'])->name('vends.ops-performance');
         Route::get('/ops-performance/excel', [OpsPerformanceController::class, 'export'])->name('vends.ops-performance.excel');
         Route::get('/', [VendController::class, 'index'])->name('vends');

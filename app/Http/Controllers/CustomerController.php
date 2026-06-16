@@ -223,6 +223,38 @@ class CustomerController extends Controller
         $summarySortKey = $request->sortKey ?: 'notes_updated_at';
         $summarySortBy = $request->sortBy ?: 'false';
 
+        // --- Unread Site-Note tracking (messenger-style badges) ----------
+        // Stamp "viewed" (which resets this page's sidebar badge and slides the
+        // Unread-button window) ONLY on a genuine page arrival: a full Inertia
+        // visit — not a partial reload such as the note-save refresh
+        // (router.reload only:['summaries']) — and not an in-page filter search
+        // (searched=1) or the Unread view itself (unread=1).
+        $authUser = auth()->user();
+        $noteService = app(\App\Services\NoteNotificationService::class);
+        $isUnreadView = $request->boolean('unread');
+        // "@Me Mentioned" view — sites whose Site Note @-mentions this user.
+        $isMentionView = $request->boolean('mentioned');
+        $isPartialReload = $request->hasHeader('X-Inertia-Partial-Data');
+        if ($authUser && !$request->boolean('searched') && !$isPartialReload) {
+            $noteService->markViewed($authUser, \App\Services\NoteNotificationService::PAGE_SUMMARY);
+        }
+        $summaryUnreadSince = $authUser
+            ? $noteService->unreadSince($authUser, \App\Services\NoteNotificationService::PAGE_SUMMARY)
+            : null;
+        $summaryUnreadCount = $authUser
+            ? $noteService->customerUnreadCount($authUser, $summaryUnreadSince)
+            : 0;
+        // Badge count for the "@Me Mentioned" button (sites mentioning the user).
+        $summaryMentionCount = $authUser
+            ? $noteService->customerMentionedCount($authUser)
+            : 0;
+        // Unread / mention views always list newest-changed notes first,
+        // regardless of the column the user had previously sorted by.
+        if ($isUnreadView || $isMentionView) {
+            $summarySortKey = 'notes_updated_at';
+            $summarySortBy = 'false';
+        }
+
         $request->merge([
             'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
@@ -303,6 +335,21 @@ class CustomerController extends Controller
         // selected period window or later.
         $this->applyContractAttachmentFilter($customerIdsQuery, $request, $rangeStart);
         $customerIds = $customerIdsQuery->pluck('customers.id')->unique()->values();
+
+        // Unread view → keep only sites whose Site Note was changed by someone
+        // else since the user's previous visit (intersect with the already
+        // filtered/operator-scoped set so visibility rules still hold).
+        if ($isUnreadView && $authUser) {
+            $unreadCustomerIds = $noteService->customerUnreadIds($authUser, $summaryUnreadSince);
+            $customerIds = $customerIds->intersect($unreadCustomerIds)->values();
+        }
+
+        // Mentioned view → keep only sites whose Site Note @-mentions the user
+        // (intersect with the already filtered/operator-scoped set).
+        if ($isMentionView && $authUser) {
+            $mentionedCustomerIds = $noteService->customerMentionedIds($authUser);
+            $customerIds = $customerIds->intersect($mentionedCustomerIds)->values();
+        }
 
         // Sort key/direction whitelist + the full ORDER BY decision tree now
         // live in applySummaryOrdering() (shared with the Excel export), called
@@ -576,6 +623,12 @@ class CustomerController extends Controller
         return Inertia::render('Customer/Summary', [
             'summaries' => CustomerPeriodSummaryResource::collection($summaries),
             'totals' => $totals,
+            // Unread Site-Note count for the on-page "Unread" toggle button.
+            'unreadCount' => $summaryUnreadCount,
+            // Count of sites that @-mention the user, for the "@Me Mentioned" button.
+            'mentionCount' => $summaryMentionCount,
+            // Same-operator users for the @-mention dropdown in the note cell.
+            'mentionableUsers' => $authUser ? $noteService->mentionableUsers($authUser) : [],
             'periodReport' => $request->period_report,
             'periodReportOptions' => $this->periodReportOptions(),
             'rangeStart' => $displayRangeStart,

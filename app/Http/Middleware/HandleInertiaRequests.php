@@ -103,6 +103,27 @@ class HandleInertiaRequests extends Middleware
                 'error'   => fn () => $request->session()->get('error'),
                 'info'    => fn () => $request->session()->get('info'),
             ],
+            // Messenger-style unread-note badges for the sidebar, keyed by menu
+            // href. Resolved as a closure so it evaluates AFTER the controller
+            // body — the page being opened has already stamped last_viewed_at,
+            // so its own badge reads 0 ("clear on visit") while other pages
+            // keep their accurate counts. See NoteNotificationService.
+            'noteBadges' => function () use ($user) {
+                if (!$user) {
+                    return new \stdClass();
+                }
+                return app(\App\Services\NoteNotificationService::class)
+                    ->badgeCounts($user);
+            },
+            // Separate @-mention badge counts keyed by href — clears on visit
+            // (uses last_viewed_at) just like noteBadges. See NoteNotificationService.
+            'noteMentionBadges' => function () use ($user) {
+                if (!$user) {
+                    return new \stdClass();
+                }
+                return app(\App\Services\NoteNotificationService::class)
+                    ->mentionBadgeCounts($user);
+            },
         ]);
     }
 

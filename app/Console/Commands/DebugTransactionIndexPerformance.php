@@ -250,7 +250,7 @@ class DebugTransactionIndexPerformance extends Command
                 'vend_contract_options',
                 'vend_model_options',
                 'vend_prefix_options_active',
-                'tag_options',
+                'tag_options_product',
                 'location_type_options',
             ];
             if ($noCache) {

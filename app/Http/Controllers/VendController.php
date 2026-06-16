@@ -588,6 +588,22 @@ class VendController extends Controller
         $perPage = $perPage ?: 50;
         $mapApiKey = $this->mapService->getMapApiKeyByUser(auth()->user());
 
+        // Deferred aggregates (perf): when the frontend opts in via
+        // defer_aggregates=1, skip the heavy per-row aggregate computation
+        // (loadAggregates + ops-job / earning / PWRON enrichment) so the table
+        // paints fast; the frontend then fetches those columns in the
+        // background via customerIndexAggregates() and merges them in.
+        //
+        // GUARD: never defer when the user sorts by a heavy column — the row
+        // ORDER depends on those values, so they must be computed inline. In
+        // that case we silently ignore the flag and behave exactly as before.
+        $deferAggregates = $request->boolean('defer_aggregates')
+            && !$needsVc && !$needsVcCost && !$needsVcStock
+            && !$needsLastOpsJobs && !$needsLastSecondOpsJobs && !$needsNextOpsJobs
+            && !$needsLastThirtyDaysStockIn && !$needsAccumulatedVendingEarning
+            && !$needsThirtyDaysVendingEarning && !$needsExternalSubsidize
+            && !$needsNetLocFee && !$needsPwron && !$needsNofoundTxn;
+
         // Pre-Search aggregate cards ("Last 30 days" + "Current") — computed
         // across ALL rows matching the current filters (NOT capped by
         // numberPerPage) on the initial, non-autoload page load. Null on the
@@ -1250,6 +1266,45 @@ class VendController extends Controller
                 'query' => $request->query(),
             ]);
 
+            if ($deferAggregates) {
+                // ── DEFERRED PATH ────────────────────────────────────────────
+                // Skip every heavy aggregate. Seed safe numeric defaults on each
+                // row so VendResource's formatters (toLocaleString etc.) never
+                // receive null, then hand the frontend cheap "Sales" totals only.
+                // The PWRON / No-Found counts are intentionally left UNSET (null)
+                // so their trend blocks stay hidden until the real values arrive.
+                foreach ($vends->items() as $vend) {
+                    foreach ([
+                        'total_stock_amount', 'total_full_load_amount', 'total_stock_cost',
+                        'actual_stock_in_value', 'actual_stock_in_qty', 'thirty_days_over_full_load_ratio',
+                        'last_thirty_days_stock_in_amount', 'last_thirty_days_stock_in_qty', 'last_thirty_days_jobs_done_count',
+                        'thirty_days_stock_in_delta_amount', 'thirty_days_stock_in_delta_percent',
+                        'last_ops_job_acc_total_amount', 'last_ops_job_acc_total_count', 'last_ops_job_amount', 'last_ops_job_cash_amount', 'last_ops_job_count',
+                        'last_second_ops_job_acc_total_amount', 'last_second_ops_job_acc_total_count', 'last_second_ops_job_amount', 'last_second_ops_job_cash_amount', 'last_second_ops_job_count',
+                        'next_ops_job_amount', 'next_ops_job_cash_amount', 'next_ops_job_count',
+                        'location_fees_cents', 'thirty_days_vending_earning_cents', 'accumulate_vending_earning_cents',
+                    ] as $field) {
+                        $vend->{$field} = 0;
+                    }
+                }
+
+                // Cheap card totals available without any aggregate query — the
+                // sales figures come straight from the stored totals JSON already
+                // selected onto each row. The rest are filled by Phase 2.
+                $totals = [
+                    'mapApiKey' => $mapApiKey,
+                    'thirtyDays' => collect($vends->items())->sum(fn ($v) => $v->vend_transaction_totals_json ? ($v->vend_transaction_totals_json['thirty_days_amount'] ?? 0) : 0) / 100,
+                    'thirthyDaysAvg' => collect($vends->items())->sum(fn ($v) => $v->vend_transaction_totals_json ? ($v->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] ?? 0) : 0) / 100,
+                    'thirthyDaysStockIn' => 0,
+                    'thirtyDaysGrossEarning' => collect($vends->items())->sum(fn ($v) => $v->vend_transaction_totals_json ? ($v->vend_transaction_totals_json['thirty_days_gross_profit'] ?? 0) : 0) / 100,
+                    'thirtyDaysVendingEarning' => 0,
+                    'thirtyDaysLocationFees' => 0,
+                    'thirtyDaysJobsDone' => 0,
+                    // Frontend signal: tells CustomerIndex.vue to fetch the heavy
+                    // columns via customerIndexAggregates() and merge them in.
+                    'deferred' => true,
+                ];
+            } else {
             if (!$needsVc || !$needsVcCost || !$needsVcStock || !$needsLastOpsJobs || !$needsLastSecondOpsJobs || !$needsNextOpsJobs || !$needsLastThirtyDaysStockIn) {
                 $types = [];
                 if (!$needsVc)
@@ -1529,6 +1584,7 @@ class VendController extends Controller
                         return (int) ($vend->last_thirty_days_jobs_done_count ?? 0);
                     }),
             ];
+            } // end else (non-deferred enrichment)
         } else {
             $vends = new LengthAwarePaginator([], 0, $perPage, 1, [
                 'path' => Paginator::resolveCurrentPath(),
@@ -1678,6 +1734,281 @@ class VendController extends Controller
             'vendPrefixOptions' => ['data' => $vendPrefixOptions],
             'zoneOptions' => ['data' => $zoneOptions],
         ]);
+    }
+
+    /**
+     * Phase 2 of the Customer Index deferred-load (perf). The page first
+     * renders fast WITHOUT the heavy per-row aggregates (see $deferAggregates
+     * in indexCustomer); the frontend then POSTs the displayed rows here and
+     * we compute exactly those columns and return them keyed by row, plus the
+     * recomputed card totals.
+     *
+     * Reuses the same loadAggregates() method and the same enrichment math as
+     * indexCustomer so the values are identical to the non-deferred path. The
+     * output transforms mirror VendResource field-for-field so the frontend
+     * can merge the map straight onto each row.
+     *
+     * Input  : rows = [{ vend_id, customer_id }, ...]  (the on-screen rows)
+     * Output : { rows: { <vend_id|cust-customer_id>: {<heavy fields>} }, totals: {...} }
+     *
+     * Authorization: requested customers are constrained to the caller's
+     * operator scope, so a tampered id list cannot read other operators' data.
+     */
+    public function customerIndexAggregates(Request $request)
+    {
+        $rows = $request->input('rows', []);
+        if (empty($rows) || !is_array($rows)) {
+            return response()->json(['rows' => [], 'totals' => []]);
+        }
+
+        // Resolve operator scope — mirrors indexCustomer's HIPL expansion, but
+        // hardened: non-admins are ALWAYS constrained to their own operator
+        // scope, so a tampered operators[] in the POST body cannot widen it.
+        $userOperator = auth()->user()->operator;
+        if ($userOperator && $userOperator->code === 'HIPL') {
+            $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST'];
+            $scopeOperatorIds = Operator::whereIn('code', $relatedCodes)->pluck('id')->filter()->values()->toArray();
+        } else {
+            $scopeOperatorIds = array_values(array_filter([$userOperator?->id]));
+        }
+        // Admins may narrow to specific operators via the posted filter (same
+        // capability as the page's Operator dropdown); everyone else is pinned
+        // to their own scope regardless of what was posted.
+        if (auth()->user()->can('admin-access vend-customers') && $request->operators) {
+            $operatorIds = array_values(array_filter((array) $request->operators));
+        } else {
+            $operatorIds = $scopeOperatorIds;
+        }
+        if (empty($operatorIds)) {
+            return response()->json(['rows' => [], 'totals' => []]);
+        }
+
+        $reqCustomerIds = collect($rows)->pluck('customer_id')->filter()->map(fn ($v) => (int) $v)->unique()->values()->all();
+        if (empty($reqCustomerIds)) {
+            return response()->json(['rows' => [], 'totals' => []]);
+        }
+
+        // Fetch the per-row customer/contract fields, constrained to the
+        // caller's operators (this is the authorization gate).
+        $customerData = DB::table('customers')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->whereIn('customers.id', $reqCustomerIds)
+            ->whereIn('customers.operator_id', $operatorIds)
+            ->select(
+                'customers.id',
+                'customers.operator_id',
+                'customers.contract_commission_type',
+                'customers.contract_commission_value',
+                'customers.contract_commission_value2',
+                'customers.contract_ps_term',
+                'customers.is_external_subsidize',
+                'customers.external_subsidize_amount',
+                'customers.totals_json',
+                'operators.gst_vat_rate'
+            )
+            ->get()
+            ->keyBy('id');
+
+        // Build pseudo-rows (one per requested on-screen row) shaped like the
+        // indexCustomer rows that loadAggregates + the enrichment loops expect.
+        $items = collect();
+        foreach ($rows as $r) {
+            $cid = isset($r['customer_id']) ? (int) $r['customer_id'] : null;
+            if ($cid === null || !$customerData->has($cid)) {
+                continue; // unknown / out-of-scope rows are dropped
+            }
+            $c = $customerData->get($cid);
+            $item = new \stdClass();
+            $item->vend_id = isset($r['vend_id']) && $r['vend_id'] !== null && $r['vend_id'] !== '' ? (int) $r['vend_id'] : null;
+            $item->id = $item->vend_id; // loadAggregates fallback key
+            $item->customer_id = $cid;
+            $item->operator_id = (int) $c->operator_id;
+            $item->contract_commission_type = $c->contract_commission_type;
+            $item->contract_commission_value = $c->contract_commission_value;
+            $item->contract_commission_value2 = $c->contract_commission_value2;
+            $item->contract_ps_term = $c->contract_ps_term;
+            $item->is_external_subsidize = $c->is_external_subsidize;
+            $item->external_subsidize_amount = $c->external_subsidize_amount;
+            $item->vend_transaction_totals_json = $c->totals_json
+                ? (is_string($c->totals_json) ? json_decode($c->totals_json, true) : (array) $c->totals_json)
+                : null;
+            $items->push($item);
+        }
+        if ($items->isEmpty()) {
+            return response()->json(['rows' => [], 'totals' => []]);
+        }
+
+        // ── Heavy aggregates (same shared method as indexCustomer) ───────────
+        $this->loadAggregates($items, ['vc', 'vc_cost', 'vc_stock', 'last_ops_jobs', 'last_second_ops_jobs', 'next_ops_jobs', 'last_thirty_days_stock_in']);
+
+        // ── Per-vend Location Fees + L30d Vending Earning (mirrors indexCustomer) ─
+        $vendOperatorGstRates = DB::table('operators')->pluck('gst_vat_rate', 'id')->map(fn ($v) => (float) $v)->all();
+        foreach ($items as $item) {
+            $totalsJson = $item->vend_transaction_totals_json;
+            if (!$totalsJson) {
+                $item->location_fees_cents = null;
+                $item->thirty_days_vending_earning_cents = null;
+                continue;
+            }
+            $salesCents = (int) ($totalsJson['thirty_days_amount'] ?? 0);
+            $grossEarningCents = (int) ($totalsJson['thirty_days_gross_profit'] ?? 0);
+            $gstRatePct = (float) ($vendOperatorGstRates[$item->operator_id] ?? 0);
+            $locationFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
+                $item->contract_commission_type,
+                $item->contract_commission_value !== null ? (float) $item->contract_commission_value : null,
+                $item->contract_commission_value2 !== null ? (float) $item->contract_commission_value2 : null,
+                $item->contract_ps_term !== null ? (float) $item->contract_ps_term : null,
+                $salesCents,
+                $grossEarningCents,
+                $gstRatePct
+            );
+            $extSubCents = ($item->is_external_subsidize && $item->external_subsidize_amount !== null)
+                ? (int) round(((float) $item->external_subsidize_amount) * 100)
+                : 0;
+            $item->location_fees_cents = $locationFeeCents;
+            $item->thirty_days_vending_earning_cents = $grossEarningCents - ($locationFeeCents - $extSubCents);
+        }
+
+        // ── Accumulated Vending Earning per customer (mirrors indexCustomer) ─
+        $accCustomerIds = $items->pluck('customer_id')->filter()->unique()->values()->all();
+        $accumSums = [];
+        if (!empty($accCustomerIds)) {
+            $through = Carbon::now()->startOfMonth()->toDateString();
+            $floor = \App\Http\Controllers\CustomerController::SUMMARY_FLOOR_DATE;
+
+            $monthlyRows = DB::table('customer_period_summaries')
+                ->select('customer_id', 'contract_log_id', 'locked_at', 'location_earning_cents', 'sales_cents', 'gross_earning_cents')
+                ->whereIn('customer_id', $accCustomerIds)
+                ->where('year_month', '>=', $floor)
+                ->where('year_month', '<=', $through)
+                ->get();
+
+            $contractMap = DB::table('customers')
+                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+                ->whereIn('customers.id', $accCustomerIds)
+                ->select(
+                    'customers.id',
+                    'customers.contract_commission_type',
+                    'customers.contract_commission_value',
+                    'customers.contract_commission_value2',
+                    'customers.contract_ps_term',
+                    'customers.is_external_subsidize',
+                    'customers.external_subsidize_amount',
+                    'operators.gst_vat_rate'
+                )
+                ->get()
+                ->keyBy('id');
+
+            foreach ($monthlyRows as $mr) {
+                $mcid = $mr->customer_id;
+                $effectiveEarning = (int) $mr->location_earning_cents;
+                if ($mr->locked_at === null && $mr->contract_log_id === null) {
+                    $c = $contractMap->get($mcid);
+                    if ($c) {
+                        $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                        $liveLocFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
+                            $c->contract_commission_type,
+                            $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                            $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                            $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                            (int) $mr->sales_cents,
+                            (int) $mr->gross_earning_cents,
+                            $gstRatePct
+                        );
+                        $liveExtCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                            ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                            : 0;
+                        $effectiveEarning = (int) $mr->gross_earning_cents - ($liveLocFeeCents - $liveExtCents);
+                    }
+                }
+                $accumSums[$mcid] = ($accumSums[$mcid] ?? 0) + $effectiveEarning;
+            }
+        }
+        foreach ($items as $item) {
+            $item->accumulate_vending_earning_cents = (int) ($accumSums[$item->customer_id] ?? 0);
+        }
+
+        // ── PWRON / No-Found-in-Txn counts (mirrors indexCustomer) ───────────
+        $pwronDate1d = Carbon::today()->toDateString();
+        $pwronDate2d = Carbon::today()->subDay()->toDateString();
+        $pwronDate3d = Carbon::today()->subDays(2)->toDateString();
+        $aggVendIds = $items->pluck('vend_id')->filter()->unique()->values()->all();
+        $pwronByVend = [];
+        $nofoundByVend = [];
+        if (!empty($aggVendIds)) {
+            $statsRows = DB::table('vend_daily_stats')
+                ->whereIn('vend_id', $aggVendIds)
+                ->whereIn('metric', ['pwron', 'nofound_txn'])
+                ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
+                ->get(['vend_id', 'date', 'metric', 'count']);
+            foreach ($statsRows as $row) {
+                $vid = (int) $row->vend_id;
+                $dateKey = substr((string) $row->date, 0, 10);
+                if ($row->metric === 'pwron') {
+                    $pwronByVend[$vid][$dateKey] = (int) $row->count;
+                } elseif ($row->metric === 'nofound_txn') {
+                    $nofoundByVend[$vid][$dateKey] = (int) $row->count;
+                }
+            }
+        }
+
+        // ── Build the response map (VendResource-identical transforms) ───────
+        $map = [];
+        foreach ($items as $item) {
+            $vid = $item->vend_id;
+            $key = $vid !== null ? (string) $vid : ('cust-' . $item->customer_id);
+            $pw = $vid !== null ? ($pwronByVend[$vid] ?? null) : null;
+            $nf = $vid !== null ? ($nofoundByVend[$vid] ?? null) : null;
+
+            $map[$key] = [
+                'actual_stock_in_value' => isset($item->actual_stock_in_value) ? $item->actual_stock_in_value / 100 : null,
+                'actual_stock_in_qty' => isset($item->actual_stock_in_qty) ? $item->actual_stock_in_qty : null,
+                'total_full_load_amount' => isset($item->total_full_load_amount) ? $item->total_full_load_amount / 100 : null,
+                'total_stock_cost' => isset($item->total_stock_cost) ? $item->total_stock_cost / 100 : null,
+                'total_stock_amount' => isset($item->total_stock_amount) ? $item->total_stock_amount / 100 : null,
+                'thirty_days_over_full_load_ratio' => isset($item->thirty_days_over_full_load_ratio) ? $item->thirty_days_over_full_load_ratio : 0,
+                'last_thirty_days_stock_in_amount' => isset($item->last_thirty_days_stock_in_amount) ? $item->last_thirty_days_stock_in_amount / 100 : 0,
+                'last_thirty_days_stock_in_qty' => isset($item->last_thirty_days_stock_in_qty) ? $item->last_thirty_days_stock_in_qty : 0,
+                'last_thirty_days_jobs_done_count' => isset($item->last_thirty_days_jobs_done_count) ? (int) $item->last_thirty_days_jobs_done_count : 0,
+                'thirty_days_stock_in_delta_amount' => isset($item->thirty_days_stock_in_delta_amount) ? $item->thirty_days_stock_in_delta_amount : 0,
+                'thirty_days_stock_in_delta_percent' => isset($item->thirty_days_stock_in_delta_percent) ? $item->thirty_days_stock_in_delta_percent : 0,
+                'last_ops_job_acc_total_amount' => isset($item->last_ops_job_acc_total_amount) ? $item->last_ops_job_acc_total_amount / 100 : 0,
+                'last_ops_job_acc_total_count' => isset($item->last_ops_job_acc_total_count) ? $item->last_ops_job_acc_total_count : 0,
+                'last_ops_job_amount' => isset($item->last_ops_job_amount) ? $item->last_ops_job_amount / 100 : null,
+                'last_ops_job_cash_amount' => isset($item->last_ops_job_cash_amount) ? $item->last_ops_job_cash_amount / 100 : null,
+                'last_ops_job_count' => isset($item->last_ops_job_count) ? $item->last_ops_job_count : null,
+                'last_second_ops_job_acc_total_amount' => isset($item->last_second_ops_job_acc_total_amount) ? $item->last_second_ops_job_acc_total_amount / 100 : 0,
+                'last_second_ops_job_acc_total_count' => isset($item->last_second_ops_job_acc_total_count) ? $item->last_second_ops_job_acc_total_count : 0,
+                'last_second_ops_job_amount' => isset($item->last_second_ops_job_amount) ? $item->last_second_ops_job_amount / 100 : null,
+                'last_second_ops_job_cash_amount' => isset($item->last_second_ops_job_cash_amount) ? $item->last_second_ops_job_cash_amount / 100 : null,
+                'last_second_ops_job_count' => isset($item->last_second_ops_job_count) ? $item->last_second_ops_job_count : null,
+                'next_ops_job_amount' => isset($item->next_ops_job_amount) ? $item->next_ops_job_amount / 100 : null,
+                'next_ops_job_cash_amount' => isset($item->next_ops_job_cash_amount) ? $item->next_ops_job_cash_amount / 100 : null,
+                'next_ops_job_count' => isset($item->next_ops_job_count) ? $item->next_ops_job_count : null,
+                'location_fees_cents' => isset($item->location_fees_cents) ? (int) $item->location_fees_cents : null,
+                'thirty_days_vending_earning_cents' => isset($item->thirty_days_vending_earning_cents) ? (int) $item->thirty_days_vending_earning_cents : null,
+                'accumulate_vending_earning_cents' => isset($item->accumulate_vending_earning_cents) ? (int) $item->accumulate_vending_earning_cents : null,
+                'pwron_1d_count' => isset($pw[$pwronDate1d]) ? (int) $pw[$pwronDate1d] : ($vid !== null ? 0 : null),
+                'pwron_2d_count' => isset($pw[$pwronDate2d]) ? (int) $pw[$pwronDate2d] : ($vid !== null ? 0 : null),
+                'pwron_3d_count' => isset($pw[$pwronDate3d]) ? (int) $pw[$pwronDate3d] : ($vid !== null ? 0 : null),
+                'nofound_txn_1d_count' => isset($nf[$pwronDate1d]) ? (int) $nf[$pwronDate1d] : ($vid !== null ? 0 : null),
+                'nofound_txn_2d_count' => isset($nf[$pwronDate2d]) ? (int) $nf[$pwronDate2d] : ($vid !== null ? 0 : null),
+                'nofound_txn_3d_count' => isset($nf[$pwronDate3d]) ? (int) $nf[$pwronDate3d] : ($vid !== null ? 0 : null),
+            ];
+        }
+
+        // ── Card totals (mirrors indexCustomer $totals; page-scoped = these rows) ─
+        $totals = [
+            'thirtyDays' => $items->sum(fn ($v) => $v->vend_transaction_totals_json ? ($v->vend_transaction_totals_json['thirty_days_amount'] ?? 0) : 0) / 100,
+            'thirthyDaysAvg' => $items->sum(fn ($v) => $v->vend_transaction_totals_json ? ($v->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] ?? 0) : 0) / 100,
+            'thirthyDaysStockIn' => $items->sum(fn ($v) => $v->last_thirty_days_stock_in_amount ?? 0) / 100,
+            'thirtyDaysGrossEarning' => $items->sum(fn ($v) => $v->vend_transaction_totals_json ? ($v->vend_transaction_totals_json['thirty_days_gross_profit'] ?? 0) : 0) / 100,
+            'thirtyDaysVendingEarning' => $items->sum(fn ($v) => $v->thirty_days_vending_earning_cents ?? 0) / 100,
+            'thirtyDaysLocationFees' => $items->sum(fn ($v) => $v->location_fees_cents ?? 0) / 100,
+            'thirtyDaysJobsDone' => $items->sum(fn ($v) => (int) ($v->last_thirty_days_jobs_done_count ?? 0)),
+        ];
+
+        return response()->json(['rows' => $map, 'totals' => $totals]);
     }
 
     public function deleteLatestExportTransaction($id)
@@ -2879,8 +3210,13 @@ class VendController extends Controller
             PaymentMethod::orderBy('name')->get()
         )->resolve());
 
-        $tagOptions = Cache::remember('tag_options', $ttl, fn() => TagResource::collection(
-            Tag::orderBy('name')->get()
+        // "Campaign Label(s)" filter on the transaction page matches against
+        // vend_transactions.label_json, which holds Product-scoped campaign
+        // label IDs/names/slugs. Scope to App\Models\Product so Customer/Site
+        // tags don't leak into this dropdown. Cache key bumped (…_product) so
+        // any previously-cached all-tags payload is not reused.
+        $tagOptions = Cache::remember('tag_options_product', $ttl, fn() => TagResource::collection(
+            Tag::where('classname', \App\Models\Product::class)->orderBy('name')->get()
         )->resolve());
 
         $vendChannelErrors = Cache::remember('vend_channel_errors', $ttl, fn() => VendChannelErrorResource::collection(

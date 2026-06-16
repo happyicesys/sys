@@ -236,6 +236,40 @@
                   <span>Export Excel</span>
                 </div>
               </Button>
+              <!-- Unread Site-Note toggle: shows only sites whose Site Note
+                   changed (by someone else) since your last visit, newest
+                   first. Badge count comes from the server. -->
+              <Button
+                type="button"
+                :class="['inline-flex items-center gap-1.5 rounded-md px-8 py-3 md:px-5 text-sm font-medium leading-4 shadow-sm transition-colors',
+                  unreadMode ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50']"
+                @click.prevent="toggleUnread()"
+              >
+                <BellAlertIcon :class="['h-4 w-4', unreadMode ? 'text-white' : 'text-red-500']" aria-hidden="true" />
+                <span>{{ unreadMode ? 'Show All' : 'Unread' }}</span>
+                <span v-if="props.unreadCount > 0"
+                  :class="['inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
+                    unreadMode ? 'bg-white/25 text-white' : 'bg-red-500 text-white']">
+                  {{ props.unreadCount }}
+                </span>
+              </Button>
+              <!-- @Me Mentioned toggle: shows only sites whose Site Note
+                   @-mentions the current user, newest-updated first. Badge
+                   count comes from the server (mentionCount). -->
+              <Button
+                type="button"
+                :class="['inline-flex items-center gap-1.5 rounded-md px-8 py-3 md:px-5 text-sm font-medium leading-4 shadow-sm transition-colors',
+                  mentionMode ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50']"
+                @click.prevent="toggleMentioned()"
+              >
+                <AtSymbolIcon :class="['h-4 w-4', mentionMode ? 'text-white' : 'text-indigo-500']" aria-hidden="true" />
+                <span>{{ mentionMode ? 'Show All' : 'Me Mentioned' }}</span>
+                <span v-if="props.mentionCount > 0"
+                  :class="['inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
+                    mentionMode ? 'bg-white/25 text-white' : 'bg-red-500 text-white']">
+                  {{ props.mentionCount }}
+                </span>
+              </Button>
               <!--
                 Bulk API Invoice toggle — flips the Action column into
                 checkbox mode and reveals the "Create API Invoice(s)"
@@ -1156,15 +1190,16 @@
                         line below shows who last edited and when.
                       -->
                       <div class="mt-2 flex flex-col w-full">
-                        <textarea
-                          v-model="row.customer.notes"
+                        <MentionTextarea
+                          :model-value="row.customer.notes"
+                          @update:model-value="row.customer.notes = $event"
                           @change="onNotesChanged(row.customer)"
-                          @input="autoGrowTextarea($event.target)"
-                          :ref="(el) => autoGrowTextarea(el)"
-                          rows="4"
-                          class="text-[13px] text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none overflow-hidden"
+                          :users="mentionableUsers"
+                          :rows="4"
+                          :autogrow="true"
                           placeholder="Notes"
-                        ></textarea>
+                          textarea-class="text-[13px] text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none overflow-hidden"
+                        />
                         <span class="text-[10px] text-gray-500 mt-1" v-if="row.customer?.notes_updated_by_user">
                           {{ row.customer.notes_updated_by_user.name }} ({{ moment(row.customer.notes_updated_at).format('YYMMDD hh:mma') }})
                         </span>
@@ -1212,8 +1247,8 @@
                           recent Unpaid click stays visible).
                         -->
                         <div class="text-[10px] leading-tight text-center">
-                          <div class="text-amber-700">
-                            <span class="font-semibold">Locked</span> {{ formatYYMMDDHM(row.locked_at) }}
+                          <div class="text-amber-900 font-medium">
+                            <span class="font-bold">Locked</span> {{ formatYYMMDDHM(row.locked_at) }}
                             <span v-if="row.locked_by_user">by {{ row.locked_by_user.name }}</span>
                           </div>
                           <div v-if="row.is_paid" class="text-emerald-700">
@@ -1230,17 +1265,16 @@
                             <span v-if="row.last_unpaid_by_user">by {{ row.last_unpaid_by_user.name }}</span>
                           </div>
                         </div>
-                        <!-- Unlock — blocked while Paid; UI disables the
-                             button + tooltip explains why. Server re-checks. -->
+                        <!-- Unlock — hidden while Paid; user must Undo Verify
+                             Paid first, then Unlock appears. Server re-checks. -->
                         <Button
-                          v-if="canUnlock"
+                          v-if="canUnlock && !row.is_paid"
                           type="button"
-                          class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                          :disabled="lockingFor.has(row.id) || row.is_paid"
-                          v-tooltip="row.is_paid ? 'Mark Unpaid first before unlocking' : ''"
+                          class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-semibold leading-tight bg-slate-600 hover:bg-slate-700 text-white rounded-md shadow-sm border border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          :disabled="lockingFor.has(row.id)"
                           @click="onUnlockClicked(row)"
                         >
-                          <LockOpenIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                          <LockOpenIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
                           <span>Unlock</span>
                         </Button>
                         <!-- Paid — only visible on a locked+unpaid row, and
@@ -1249,24 +1283,26 @@
                         <Button
                           v-if="canPaid && !row.is_paid && isPaidEligiblePeriod(row)"
                           type="button"
-                          class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded"
+                          class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white rounded-md shadow-sm border border-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           :disabled="lockingFor.has(row.id)"
+                          v-tooltip="'Confirm the location fee for this period has been paid'"
                           @click="onPaidClicked(row)"
                         >
-                          <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
-                          <span>Paid</span>
+                          <CheckBadgeIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
+                          <span>Verify Paid</span>
                         </Button>
                         <!-- Unpaid — only visible on a locked+paid row.
                              Same access tier as Unlock (superadmin/admin). -->
                         <Button
                           v-if="canUnpaid && row.is_paid"
                           type="button"
-                          class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-red-100 hover:bg-red-200 text-red-800 rounded"
+                          class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight bg-red-100 hover:bg-red-200 text-red-800 rounded"
                           :disabled="lockingFor.has(row.id)"
+                          v-tooltip="'Reverse the paid status for this period'"
                           @click="onUnpaidClicked(row)"
                         >
-                          <XCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
-                          <span>Unpaid</span>
+                          <XCircleIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
+                          <span>Undo Verify Paid</span>
                         </Button>
                       </div>
                     </template>
@@ -1274,11 +1310,11 @@
                       <div class="flex flex-col items-center space-y-1">
                         <Button
                           type="button"
-                          class="inline-flex items-center justify-center space-x-1 px-2 py-1 text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-800 rounded"
+                          class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight bg-amber-100 hover:bg-amber-200 text-amber-800 rounded"
                           :disabled="lockingFor.has(row.id)"
                           @click="onLockClicked(row)"
                         >
-                          <LockOpenIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                          <LockOpenIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
                           <span>Lock</span>
                         </Button>
                         <!--
@@ -1602,16 +1638,30 @@
                 Not yet emailed for this period.
               </template>
             </div>
-            <Button
+            <div
               v-if="reportContentRow?.customer?.is_report_email_enabled && reportContentRow?.customer?.report_email"
-              type="button"
-              class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800"
-              :disabled="sendingReportFor.has(reportContentRow.customer.id)"
-              v-tooltip="'Open your mail client to send this report, and record the send'"
-              @click="onModalEmailClicked"
+              class="flex items-center gap-2"
             >
-              <span>Email</span>
-            </Button>
+              <Button
+                type="button"
+                class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800"
+                :disabled="sendingReportFor.has(reportContentRow.customer.id)"
+                v-tooltip="'Open your mail client to send this report, and record the send'"
+                @click="onModalEmailClicked"
+              >
+                <EnvelopeIcon class="w-4 h-4" />
+                <span>Email</span>
+              </Button>
+              <Button
+                type="button"
+                class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800"
+                v-tooltip="'Copy the email address, subject and content so you can paste it into webmail (e.g. Gmail)'"
+                @click="onModalCopyEmailClicked"
+              >
+                <ClipboardDocumentIcon class="w-4 h-4" />
+                <span>Copy Email Content</span>
+              </Button>
+            </div>
             <span
               v-else
               class="text-[11px] text-gray-400 italic"
@@ -1794,9 +1844,10 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, DocumentTextIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, DocumentTextIcon, EnvelopeIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
+import MentionTextarea from '@/Components/MentionTextarea.vue';
 import { computed, ref, onMounted, nextTick, h } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useToast } from 'vue-toastification';
@@ -1810,6 +1861,14 @@ const props = defineProps({
   rangeStart: String,
   rangeEnd: String,
   cmsEndpoint: String,
+  // Count of sites whose Site Note changed (by someone else) since this user's
+  // previous visit — drives the "Unread" toggle button's badge.
+  unreadCount: { type: Number, default: 0 },
+  // Count of sites whose Site Note @-mentions this user — drives the
+  // "@Me Mentioned" toggle button's badge.
+  mentionCount: { type: Number, default: 0 },
+  // Same-operator users for the @-mention dropdown in the Site Note cell.
+  mentionableUsers: { type: Array, default: () => [] },
   locationTypeOptions: [Array, Object],
   mapApiKey: String,
   operatorOptions: Object,
@@ -2468,22 +2527,22 @@ function hasAnyLocationGrading(customer) {
  * that audit and updates optimistically here so the user sees feedback even
  * before Inertia re-fetches.
  */
-function onModalEmailClicked() {
+/**
+ * Compose the report email's recipient, subject and plain-text body from the
+ * currently-open Report Content modal. Shared by both the "Email" (mailto)
+ * and "Copy Email Content" (clipboard) actions so they never drift apart.
+ * Body mirrors what the modal shows — title banner → meta → customer-facing
+ * calculation lines (admin-only formula lines are skipped so we don't leak
+ * internal math) → total → footnote.
+ * Returns null when the modal isn't backing a valid (row, customer).
+ */
+function buildReportEmailParts() {
   const row = reportContentRow.value;
   const cust = row?.customer;
   const content = reportContent.value;
-  if (!row || !cust) return;
-  if (!cust.is_report_email_enabled || !cust.report_email) return;
-  if (!row.is_locked) return; // server re-checks; this is just defensive
+  if (!row || !cust) return null;
 
   const customerId = cust.id;
-  if (sendingReportFor.value.has(customerId)) return;
-
-  // Build the mailto. Subject mirrors the modal title + period label so the
-  // recipient can tell at a glance what's inside. Body is a plain-text
-  // rendering of the same content the modal shows — title banner → meta →
-  // calculation lines (only customer-facing ones; admin-only formula lines
-  // are skipped so we don't leak internal math) → total → footnote.
   const periodLabel = content?.period_label || (row.period_start + ' → ' + row.period_end);
   const subject = `Vending Machine Location Fees Report — ${cust.name || ('#' + customerId)} (${periodLabel})`;
 
@@ -2512,7 +2571,81 @@ function onModalEmailClicked() {
     lines.push('');
     lines.push(content.footnote);
   }
-  const body = lines.join('\r\n');
+
+  return { to: cust.report_email || '', subject, body: lines.join('\r\n') };
+}
+
+/**
+ * Copy the email recipient, subject and content to the clipboard so operators
+ * whose mail client isn't wired to `mailto:` (e.g. webmail like Gmail) can
+ * paste the report into a new message manually. This is purely a clipboard
+ * action — it does NOT stamp the "Last sent by …" audit, since nothing has
+ * actually been sent yet.
+ */
+async function onModalCopyEmailClicked() {
+  const parts = buildReportEmailParts();
+  if (!parts) return;
+
+  const clip = [
+    'Email Addresses:',
+    parts.to,
+    '',
+    'Subject:',
+    parts.subject,
+    '',
+    'Content:',
+    parts.body,
+  ].join('\r\n');
+
+  // Prefer the async Clipboard API; fall back to a hidden textarea + execCommand
+  // for non-secure contexts / older browsers where navigator.clipboard is absent.
+  let ok = false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(clip);
+      ok = true;
+    }
+  } catch (e) {
+    ok = false;
+  }
+  if (!ok) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = clip;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch (e) {
+      ok = false;
+    }
+  }
+
+  if (ok) {
+    toast.success('Email address, subject and content copied to clipboard.', { timeout: 3500 });
+  } else {
+    toast.error('Could not copy to clipboard. Please copy manually.', { timeout: 4500 });
+  }
+}
+
+function onModalEmailClicked() {
+  const row = reportContentRow.value;
+  const cust = row?.customer;
+  if (!row || !cust) return;
+  if (!cust.is_report_email_enabled || !cust.report_email) return;
+  if (!row.is_locked) return; // server re-checks; this is just defensive
+
+  const customerId = cust.id;
+  if (sendingReportFor.value.has(customerId)) return;
+
+  // Build the mailto from the shared composer. Subject mirrors the modal title
+  // + period label; body is the plain-text rendering of the modal content.
+  const parts = buildReportEmailParts();
+  if (!parts) return;
+  const { subject, body } = parts;
 
   const mailto = `mailto:${encodeURIComponent(cust.report_email)}`
     + `?subject=${encodeURIComponent(subject)}`
@@ -2574,6 +2707,26 @@ function onModalEmailClicked() {
   window.location.href = mailto;
 }
 
+// When on, the listing is restricted to unread-Site-Note sites (newest first).
+const unreadMode = ref(false);
+// When on, the listing is restricted to sites that @-mention this user.
+const mentionMode = ref(false);
+
+// Toggle the unread-Site-Note view on/off, then re-run the search. Unread and
+// Mentioned are mutually exclusive — turning one on clears the other.
+function toggleUnread() {
+  unreadMode.value = !unreadMode.value;
+  if (unreadMode.value) mentionMode.value = false;
+  onSearchFilterUpdated();
+}
+
+// Toggle the "@Me Mentioned" view on/off, then re-run the search.
+function toggleMentioned() {
+  mentionMode.value = !mentionMode.value;
+  if (mentionMode.value) unreadMode.value = false;
+  onSearchFilterUpdated();
+}
+
 function onSearchFilterUpdated() {
   // New search → new row set; drop any batch selection so stale ids from
   // the previous result set can't linger.
@@ -2598,8 +2751,13 @@ function onSearchFilterUpdated() {
       paid_date_to: filters.value.paid_date_to,
       // Marks this as an explicit user search so the server does NOT re-apply
       // the initial-load operator default — lets "deselect all operators" mean
-      // "show all" instead of snapping back to the default set.
+      // "show all" instead of snapping back to the default set. It also keeps
+      // the server from sliding the unread window on an in-page action.
       searched: 1,
+      // Restrict results to sites with an unread Site Note when the toggle is on.
+      unread: unreadMode.value ? 1 : 0,
+      // Restrict results to sites that @-mention the user when the toggle is on.
+      mentioned: mentionMode.value ? 1 : 0,
       // MultiSelect in tags-mode emits an array of selected ids — pass through
       // as-is. Empty array = no filter (treated as "all" by the controller).
       contract_commission_types: (filters.value.contract_commission_types ?? [])
@@ -2614,6 +2772,8 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
+  unreadMode.value = false;
+  mentionMode.value = false;
   router.get('/customers/summary');
 }
 

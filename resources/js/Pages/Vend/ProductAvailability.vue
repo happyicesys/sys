@@ -79,6 +79,37 @@
                         <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true"/>
                         <span>Export Excel</span>
                       </Button>
+                      <!-- Unread Remarks toggle: shows only products whose
+                           Remarks changed (by someone else) since your last
+                           visit, newest first. -->
+                      <Button
+                        :class="['inline-flex items-center gap-1.5 rounded-md px-8 py-3 md:px-5 text-sm font-medium leading-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2',
+                          unreadMode ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50']"
+                        @click.prevent="toggleUnread()"
+                      >
+                        <BellAlertIcon :class="['h-4 w-4', unreadMode ? 'text-white' : 'text-red-500']" aria-hidden="true"/>
+                        <span>{{ unreadMode ? 'Show All' : 'Unread' }}</span>
+                        <span v-if="props.unreadCount > 0"
+                          :class="['inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
+                            unreadMode ? 'bg-white/25 text-white' : 'bg-red-500 text-white']">
+                          {{ props.unreadCount }}
+                        </span>
+                      </Button>
+                      <!-- @Me Mentioned toggle: shows only products whose
+                           Remarks @-mention the current user, newest first. -->
+                      <Button
+                        :class="['inline-flex items-center gap-1.5 rounded-md px-8 py-3 md:px-5 text-sm font-medium leading-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2',
+                          mentionMode ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50']"
+                        @click.prevent="toggleMentioned()"
+                      >
+                        <AtSymbolIcon :class="['h-4 w-4', mentionMode ? 'text-white' : 'text-indigo-500']" aria-hidden="true"/>
+                        <span>{{ mentionMode ? 'Show All' : 'Me Mentioned' }}</span>
+                        <span v-if="props.mentionCount > 0"
+                          :class="['inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
+                            mentionMode ? 'bg-white/25 text-white' : 'bg-red-500 text-white']">
+                          {{ props.mentionCount }}
+                        </span>
+                      </Button>
                   </div>
                   <div class="flex flex-col gap-2 items-end">
                       <span class="text-xs text-gray-500 self-center">
@@ -195,13 +226,16 @@
                           {{ product.isAvailableUpdatedBy.name }} ({{ product.is_available_updated_at }})
                         </span>
                         <div class="mt-2 flex flex-col w-full">
-                            <textarea
-                                v-model="product.remarks"
+                            <MentionTextarea
+                                :model-value="product.remarks"
+                                @update:model-value="product.remarks = $event"
                                 @change="onRemarksChanged(product)"
-                                rows="1"
-                                class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 p-1 mt-1 block w-full"
+                                :users="mentionableUsers"
+                                :rows="1"
+                                :autogrow="true"
                                 placeholder="Remarks"
-                            ></textarea>
+                                textarea-class="text-xs text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 p-1 mt-1 block w-full resize-none overflow-hidden"
+                            />
                             <span class="text-[10px] text-gray-500 mt-1" v-if="product.remarksUpdatedBy">
                               {{ product.remarksUpdatedBy.name }} ({{ moment(product.remarks_updated_at).format('YYMMDD hh:mma') }})
                             </span>
@@ -322,9 +356,10 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon, CalendarIcon, ExclamationCircleIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon, CalendarIcon, ExclamationCircleIcon, ArrowDownTrayIcon, BellAlertIcon, AtSymbolIcon } from '@heroicons/vue/20/solid';
 import DatePicker from '@/Components/DatePicker.vue';
 import SearchInput from '@/Components/SearchInput.vue';
+import MentionTextarea from '@/Components/MentionTextarea.vue';
 import { onBeforeMount, onMounted, ref, watch, computed } from 'vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
 import moment from 'moment';
@@ -333,10 +368,22 @@ import BlindFlavourChips from '@/Components/BlindFlavourChips.vue';
 const props = defineProps({
   operatorOptions: Object,
   products: Object,
+  // Count of products whose Remarks changed (by someone else) since this
+  // user's previous visit — drives the "Unread" toggle button's badge.
+  unreadCount: { type: Number, default: 0 },
+  // Count of products whose Remarks @-mention this user — drives the
+  // "@Me Mentioned" toggle button's badge.
+  mentionCount: { type: Number, default: 0 },
+  // Same-operator users for the @-mention dropdown in the Remarks cell.
+  mentionableUsers: { type: Array, default: () => [] },
 })
 
 const authOperator = usePage().props.auth.operator
 const baseUrl = ref('/products/availability')
+// When on, the listing is restricted to unread-Remark products (newest first).
+const unreadMode = ref(false)
+// When on, the listing is restricted to products that @-mention this user.
+const mentionMode = ref(false)
 const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
@@ -533,6 +580,12 @@ function onSearchFilterUpdated() {
     ...filters.value,
     operators: filters.value.operators.filter(operator => operator).map(operator => operator.id),
     is_available: filters.value.is_available ? filters.value.is_available.id : 'all',
+    // searched=1 marks this as an in-page action so the server does NOT slide
+    // the unread window; unread=1 restricts results to unread Remarks.
+    searched: 1,
+    unread: unreadMode.value ? 1 : 0,
+    // mentioned=1 restricts results to Remarks that @-mention the user.
+    mentioned: mentionMode.value ? 1 : 0,
   }, {
     replace: true,
     preserveState: true,
@@ -547,7 +600,24 @@ function sortTable(key) {
 }
 
 function resetFilters() {
+  unreadMode.value = false
+  mentionMode.value = false
   router.get(baseUrl.value)
+}
+
+// Toggle the unread-Remarks view on/off, then re-run the search. Unread and
+// Mentioned are mutually exclusive — turning one on clears the other.
+function toggleUnread() {
+  unreadMode.value = !unreadMode.value
+  if (unreadMode.value) mentionMode.value = false
+  onSearchFilterUpdated()
+}
+
+// Toggle the "@Me Mentioned" view on/off, then re-run the search.
+function toggleMentioned() {
+  mentionMode.value = !mentionMode.value
+  if (mentionMode.value) unreadMode.value = false
+  onSearchFilterUpdated()
 }
 
 function onExcelExportClicked() {

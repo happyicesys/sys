@@ -17,9 +17,14 @@
       <template #default>
         <form @submit.prevent="submit" id="submit">
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
-            <div class="col-span-12 sm:col-span-6">
+            <div class="col-span-12 sm:col-span-4">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
                 Name
+              </FormInput>
+            </div>
+            <div class="col-span-12 sm:col-span-2">
+              <FormInput v-model="form.alias" :error="form.errors.alias">
+                Alias
               </FormInput>
             </div>
             <div class="col-span-12 sm:col-span-6">
@@ -295,6 +300,7 @@ function unbindOperatorVend(vend) {
 function getDefaultForm() {
   return {
     name: '',
+    alias: '',
     email: '',
     username: '',
     password: '',
