@@ -28,6 +28,24 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <MultiSelect
+              v-model="filters.status"
+              :options="statusOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              :canClear="false"
+              @selected="onSearchFilterUpdated()"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -40,14 +58,6 @@
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                 <span>
                   Search
-                </span>
-              </Button>
-              <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              @click="resetFilters()"
-              >
-                <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
-                <span>
-                  Reset
                 </span>
               </Button>
             </div>
@@ -100,6 +110,9 @@
                       Timezone
                     </TableHead>
                     <TableHead>
+                      Status
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -119,6 +132,14 @@
                       </TableData>
                       <TableData :currentIndex="operatorIndex" :totalLength="operators.length" inputClass="text-center">
                         {{ operator.timezone.name }}
+                      </TableData>
+                      <TableData :currentIndex="operatorIndex" :totalLength="operators.length" inputClass="text-center">
+                        <span
+                          class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                          :class="operator.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                        >
+                          {{ operator.is_active ? 'Active' : 'Inactive' }}
+                        </span>
                       </TableData>
                       <TableData :currentIndex="operatorIndex" :totalLength="operators.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -210,13 +231,21 @@ const props = defineProps({
   deliveryPlatformOperatorTypes: [Array, Object],
   operatorPaymentGatewayTypes: [Array, Object],
   unbindedVends: Object,
+  status: String,
 })
+
+const statusOptions = ref([
+  { id: 'active', value: 'Active' },
+  { id: 'inactive', value: 'Inactive' },
+  { id: 'all', value: 'All' },
+])
 
 const filters = ref({
   name: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
+  status: { id: 'active', value: 'Active' },
 })
 const showModal = ref(false)
 const operator = ref()
@@ -235,6 +264,10 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+
+  // Reflect the status the backend actually applied (default 'active').
+  const activeStatus = props.status || 'active'
+  filters.value.status = statusOptions.value.find(o => o.id === activeStatus) || statusOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -277,6 +310,7 @@ function onSearchFilterUpdated() {
   router.get('/operators', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
+      status: filters.value.status?.id ?? filters.value.status,
   }, {
       preserveState: true,
       replace: true,

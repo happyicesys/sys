@@ -493,14 +493,6 @@
 									All Filters
 							</span>
 						</Button>
-						<Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-						@click="resetFilters()"
-						>
-							<BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
-							<span>
-									Reset
-							</span>
-						</Button>
 						<Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
 						@click="onIsShowOperationDivButtonClicked()"
 						v-if="permissions.includes('export vend-customers') && permissions.includes('admin-access vend-customers')">
@@ -1086,7 +1078,7 @@
 								rendered on the customers index, where the value is
 								computed; the matching <hr>/value sits at the bottom of
 								this column's TableData. -->
-							<div v-if="indexType === 'customers'" class="border-t border-gray-300 my-1 pt-1 flex flex-col space-y-1">
+							<div v-if="indexType === 'customers'" class="border-t border-gray-300 !mt-5 pt-5 mb-1 flex flex-col space-y-1">
 								<SingleSortItem modelName="last_thirty_days_jobs_done_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_thirty_days_jobs_done_count', true)">
 									# of Job Done L30d
 								</SingleSortItem>
@@ -2175,7 +2167,7 @@
 								Counts completed ops_job_items for this customer in the
 								trailing 30 days. Locale-formatted (no decimals) to follow
 								the rest of the index's number formatting. -->
-							<hr class="border-t border-gray-300 my-2" />
+							<hr class="border-t border-gray-300 !mt-5 mb-4" />
 							<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
 								{{ (vend.last_thirty_days_jobs_done_count || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
 							</span>
@@ -2583,6 +2575,31 @@
 											<span>
 													{{vend.acbVmcPaJson['QRCode'] == 1 ? 'Enabled' : 'Disabled'}}
 											</span>
+									</div>
+							</div>
+							<!--
+								Modem — short alias of the directly-bound modem
+								type ("Modem Model" field), sourced from
+								modem_types.alias (exposed through VendResource as
+								modemType.alias). Always rendered so the Payment
+								Device column lines up across rows. Green when an
+								alias is present; gray "N/A" when none is found.
+							-->
+							<div
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+									:class="[
+										(vend.vend && vend.vend.modemType && vend.vend.modemType.alias)
+											? ((vend.is_active || vend.is_testing) ? 'bg-green-200' : 'bg-gray-200 text-gray-400')
+											: ((vend.is_active || vend.is_testing) ? 'bg-gray-200' : 'bg-gray-200 text-gray-400')
+									]"
+							>
+									<div class="flex flex-col">
+										<span class="font-bold">
+											Modem
+										</span>
+										<span>
+											{{ vend.vend && vend.vend.modemType && vend.vend.modemType.alias ? vend.vend.modemType.alias : 'N/A' }}
+										</span>
 									</div>
 							</div>
 							<!--

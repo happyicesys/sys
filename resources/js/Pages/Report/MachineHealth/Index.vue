@@ -872,13 +872,6 @@ const loadMoreHistory = () => {
                 <Button class="bg-indigo-600 text-white hover:bg-indigo-700">
                   Apply
                 </Button>
-                <Button
-                  class="bg-white text-gray-700 hover:bg-gray-50 border border-gray-300"
-                  type="button"
-                  @click="resetFilters"
-                >
-                  Reset
-                </Button>
               </div>
             </form>
           </div>

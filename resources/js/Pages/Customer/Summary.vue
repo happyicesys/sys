@@ -5,7 +5,7 @@
     <template #header>
       <div class="flex flex-col">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          Site Summary
+          Site Summary (&amp; Communication on Cust Note)
         </h2>
         <p class="text-sm text-black leading-tight mt-1">
           (Data fr 230101).<br />
@@ -18,11 +18,11 @@
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <!-- Filters -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
+          <SearchInput v-if="showAllFilters" placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
           <SearchInput placeholderStr="ID" v-model="filters.vend_code">Machine ID</SearchInput>
           <SearchInput placeholderStr="Site" v-model="filters.customer">Site</SearchInput>
 
-          <div>
+          <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">Site Status</label>
             <MultiSelect
               v-model="filters.status"
@@ -42,7 +42,7 @@
             />
           </div>
 
-          <div v-if="permissions.includes('admin-access customers') && cmsEndpoint">
+          <div v-if="showAllFilters && permissions.includes('admin-access customers') && cmsEndpoint">
             <label class="block text-sm font-medium text-gray-700">Is From CMS</label>
             <MultiSelect
               v-model="filters.is_cms"
@@ -52,7 +52,7 @@
             />
           </div>
 
-          <div v-if="permissions.includes('admin-access customers')">
+          <div v-if="showAllFilters && permissions.includes('admin-access customers')">
             <label class="block text-sm font-medium text-gray-700">Operator</label>
             <MultiSelect
               v-model="filters.operators"
@@ -62,7 +62,7 @@
             />
           </div>
 
-          <div>
+          <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">Machine Prefix</label>
             <MultiSelect
               v-model="filters.vendPrefixes"
@@ -72,7 +72,7 @@
             />
           </div>
 
-          <div v-if="permissions.includes('admin-access customers')">
+          <div v-if="showAllFilters && permissions.includes('admin-access customers')">
             <label class="block text-sm font-medium text-gray-700">Location Type</label>
             <MultiSelect
               v-model="filters.location_types"
@@ -100,7 +100,7 @@
           </div>
 
           <!-- Placement Contract Type filter (multi-select tags) -->
-          <div>
+          <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
               Placement Contract Type
             </label>
@@ -118,7 +118,7 @@
             attachment uploaded within the selected Period Report window or
             later (created_at >= period start). "All" = no filter.
           -->
-          <div>
+          <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
               Contract Attachment?
             </label>
@@ -135,7 +135,7 @@
             year_month) because the contract changed mid-month. Quick way to
             spot mid-month contract changes.
           -->
-          <div>
+          <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
               Contract changes (same month)?
             </label>
@@ -147,7 +147,7 @@
             />
           </div>
           <!-- Period Locked? — All / Yes (locked) / No (unlocked). -->
-          <div>
+          <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
               Period Locked?
             </label>
@@ -159,7 +159,7 @@
             />
           </div>
           <!-- Location Fee Paid? — All / Yes (paid) / No (unpaid). -->
-          <div>
+          <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
               Location Fee Paid?
             </label>
@@ -176,7 +176,7 @@
             left empty for an open-ended range. Rows without a payment
             date are excluded whenever a bound is set.
           -->
-          <div>
+          <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
               Payment Date (From)
             </label>
@@ -186,7 +186,7 @@
               class="mt-1 w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500"
             />
           </div>
-          <div>
+          <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
               Payment Date (To)
             </label>
@@ -208,6 +208,23 @@
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
                 <span>Search</span>
               </Button>
+              <!-- Show / Hide All Filters — by default only Machine ID, Site,
+                   Tags and Period Report show; this toggle reveals the rest.
+                   Mirrors CustomerIndex.vue's showAllFilters button. -->
+              <Button
+                class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400"
+                @click.prevent="onShowAllFiltersClicked()"
+              >
+                <span v-if="!showAllFilters" class="flex">
+                  <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true" />
+                  Show
+                </span>
+                <span v-if="showAllFilters" class="flex">
+                  <ChevronDoubleUpIcon class="h-4 w-4" aria-hidden="true" />
+                  Hide
+                </span>
+                <span>All Filters</span>
+              </Button>
               <Button
                 class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-sky-400"
                 @click.prevent="onMapAllMarkerClicked"
@@ -215,13 +232,6 @@
               >
                 <MapPinIcon class="h-4 w-4" aria-hidden="true" />
                 <span>Show Map Markers</span>
-              </Button>
-              <Button
-                class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400"
-                @click="resetFilters"
-              >
-                <BackspaceIcon class="h-4 w-4" aria-hidden="true" />
-                <span>Reset</span>
               </Button>
               <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
                 @click.prevent="onExportExcelClicked()">
@@ -246,7 +256,7 @@
                 @click.prevent="toggleUnread()"
               >
                 <BellAlertIcon :class="['h-4 w-4', unreadMode ? 'text-white' : 'text-red-500']" aria-hidden="true" />
-                <span>{{ unreadMode ? 'Show All' : 'Unread' }}</span>
+                <span>{{ unreadMode ? 'Show All' : 'Unread Cust Note' }}</span>
                 <span v-if="props.unreadCount > 0"
                   :class="['inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
                     unreadMode ? 'bg-white/25 text-white' : 'bg-red-500 text-white']">
@@ -263,7 +273,7 @@
                 @click.prevent="toggleMentioned()"
               >
                 <AtSymbolIcon :class="['h-4 w-4', mentionMode ? 'text-white' : 'text-indigo-500']" aria-hidden="true" />
-                <span>{{ mentionMode ? 'Show All' : 'Me Mentioned' }}</span>
+                <span>{{ mentionMode ? 'Show All' : 'me only' }}</span>
                 <span v-if="props.mentionCount > 0"
                   :class="['inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none',
                     mentionMode ? 'bg-white/25 text-white' : 'bg-red-500 text-white']">
@@ -1844,7 +1854,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, DocumentTextIcon, EnvelopeIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, DocumentTextIcon, EnvelopeIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import MentionTextarea from '@/Components/MentionTextarea.vue';
@@ -1864,6 +1874,9 @@ const props = defineProps({
   // Count of sites whose Site Note changed (by someone else) since this user's
   // previous visit — drives the "Unread" toggle button's badge.
   unreadCount: { type: Number, default: 0 },
+  // Server-resolved Unread view state (true when this load is filtered to
+  // unread notes, e.g. the fresh-load default) — seeds the toggle's state.
+  unreadView: { type: Boolean, default: false },
   // Count of sites whose Site Note @-mentions this user — drives the
   // "@Me Mentioned" toggle button's badge.
   mentionCount: { type: Number, default: 0 },
@@ -2070,6 +2083,13 @@ const creatingInvoiceFor = ref(new Set());
 const bulkMode = ref(false);
 const selectedRowKeys = ref([]);
 const bulkSubmitting = ref(false);
+
+// Filters are collapsed by default — only Machine ID, Site, Tags and Period
+// Report show on init; this toggle reveals the rest (mirrors CustomerIndex.vue).
+const showAllFilters = ref(false);
+function onShowAllFiltersClicked() {
+  showAllFilters.value = !showAllFilters.value;
+}
 
 // Show the "Show Map Markers" button only when at least one row's customer
 // has a delivery_address with both latitude and longitude.
@@ -2708,7 +2728,9 @@ function onModalEmailClicked() {
 }
 
 // When on, the listing is restricted to unread-Site-Note sites (newest first).
-const unreadMode = ref(false);
+// Seeded from the server-resolved view so the fresh-load Unread default (when
+// there are unread notes) shows the button already in its "Show All" state.
+const unreadMode = ref(props.unreadView);
 // When on, the listing is restricted to sites that @-mention this user.
 const mentionMode = ref(false);
 

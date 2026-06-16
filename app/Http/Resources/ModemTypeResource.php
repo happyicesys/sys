@@ -17,6 +17,7 @@ class ModemTypeResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'alias' => $this->alias,
             'desc' => $this->desc,
             'is_modem_unit_required' => $this->is_modem_unit_required ? true : false,
             'is_resetable' => $this->is_resetable ? true : false,

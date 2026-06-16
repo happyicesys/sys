@@ -14,7 +14,7 @@
         <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <SearchInput placeholderStr="Order ID" v-model="filters.order_id" @keyup.enter="onSearchFilterUpdated()">
                     Order ID
                 </SearchInput>
@@ -50,7 +50,7 @@
                     To
                 </DatePicker>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Channel Errors
                 </label>
@@ -66,7 +66,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                    Payment Method
                 </label>
@@ -161,7 +161,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Site Binded?
                 </label>
@@ -177,7 +177,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Payment Received
                 </label>
@@ -193,7 +193,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Location Type
                 </label>
@@ -209,7 +209,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Machine Prefix
                 </label>
@@ -226,7 +226,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Is Refunded?
                 </label>
@@ -242,7 +242,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     TXN_SRC
                 </label>
@@ -258,7 +258,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Is Multiple?
                 </label>
@@ -274,12 +274,12 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <SearchInput placeholderStr="APK Ver" v-model="filters.apk_ver" @keyup.enter="onSearchFilterUpdated()">
                     APK Ver
                 </SearchInput>
             </div>
-            <div>
+            <div v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Machine Contract
                 </label>
@@ -296,7 +296,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Is Member?
                 </label>
@@ -312,17 +312,17 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <SearchInput placeholderStr="Member ID" v-model="filters.member_code" @keyup.enter="onSearchFilterUpdated()">
                     Member ID
                 </SearchInput>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <SearchInput placeholderStr="HID Card ID" v-model="filters.hid_card_id" @keyup.enter="onSearchFilterUpdated()">
                     HID Card ID
                 </SearchInput>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Is Voucher?
                 </label>
@@ -338,7 +338,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div>
+            <div v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Machine Model
                 </label>
@@ -355,7 +355,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div>
+            <div v-if="showAllFilters">
                 <label class="block text-sm font-medium text-gray-700">
                     Campaign Label(s)
                 </label>
@@ -380,6 +380,21 @@
                             <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
                                 Search
+                            </span>
+                        </Button>
+                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click.prevent="onShowAllFiltersClicked()"
+                        >
+                            <span v-if="!showAllFilters" class="flex">
+                                <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true"/>
+                                Show
+                            </span>
+                            <span v-if="showAllFilters" class="flex">
+                                <ChevronDoubleUpIcon class="h-4 w-4" aria-hidden="true"/>
+                                Hide
+                            </span>
+                            <span>
+                                All Filters
                             </span>
                         </Button>
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -933,7 +948,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
-import { MagnifyingGlassIcon, BackspaceIcon, CheckCircleIcon, ArrowDownTrayIcon, XMarkIcon } from '@heroicons/vue/20/solid';
+import { MagnifyingGlassIcon, BackspaceIcon, CheckCircleIcon, ArrowDownTrayIcon, XMarkIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon } from '@heroicons/vue/20/solid';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import moment from 'moment';
 import SearchInput from '@/Components/SearchInput.vue';
@@ -979,6 +994,7 @@ const toast = useToast()
 const vendContractOptions = ref([])
 const vendPrefixOptions = ref([])
 const vmcByteOptions = ref([])
+const showAllFilters = ref(false)
 
 let intervalId = null;
 
@@ -1423,6 +1439,10 @@ function onTagsChanged(val) {
 
 function resetFilters() {
     router.get('/vends/transactions')
+}
+
+function onShowAllFiltersClicked() {
+    showAllFilters.value = !showAllFilters.value
 }
 
 function sortTable(sortKey, inverse = false) {

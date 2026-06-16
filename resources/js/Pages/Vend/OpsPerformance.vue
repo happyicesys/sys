@@ -67,10 +67,6 @@
             class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">
             Apply
           </button>
-          <button type="button" @click="resetFilters()"
-            class="inline-flex items-center rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
-            Reset
-          </button>
           <button type="button" @click="exportExcel()"
             class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
             Export to Excel

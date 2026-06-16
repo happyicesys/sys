@@ -127,6 +127,37 @@
                   </span>
                 </FormInput>
               </div>
+              <div class="sm:col-span-2">
+                <label class="flex justify-start text-sm font-medium text-gray-700">
+                  Status
+                </label>
+                <div class="mt-2 flex items-center space-x-3">
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="form.is_active"
+                    @click="form.is_active = !form.is_active"
+                    :disabled="!permissions.includes('update operators')"
+                    :class="[
+                      form.is_active ? 'bg-green-500' : 'bg-gray-300',
+                      'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
+                    ]"
+                  >
+                    <span
+                      :class="[
+                        form.is_active ? 'translate-x-5' : 'translate-x-0',
+                        'pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition'
+                      ]"
+                    ></span>
+                  </button>
+                  <span class="text-sm font-medium" :class="form.is_active ? 'text-green-700' : 'text-red-700'">
+                    {{ form.is_active ? 'Active' : 'Inactive' }}
+                  </span>
+                </div>
+                <p class="mt-1 text-xs text-gray-500">
+                  Inactive operators are hidden across the app instead of being deleted.
+                </p>
+              </div>
               <div class="sm:col-span-6">
                 <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
                     Remarks
@@ -862,6 +893,7 @@ function getDefaultForm() {
     code: '',
     name: '',
     gst_vat_rate: '',
+    is_active: true,
     country_id: '',
     delivery_platform_id: '',
     delivery_platform_type: '',

@@ -650,6 +650,10 @@ class VendController extends Controller
                     // Modem type — needed for the rich "Modem" block in the
                     // Machine Status column (type name + Reset button gate).
                     'vend.modemUnit.modemType:id,name,is_resetable',
+                    // Directly-bound modem type ("Modem Model" field). Drives
+                    // the "Modem" alias badge in the Payment Device column on
+                    // Vend/CustomerIndex.
+                    'vend.modemType:id,name,alias',
                     'vend.productMapping:id,upcoming_product_mapping_id,name',
                     // Upcoming new mapping for the machine — drives the "New"
                     // badge next to the product mapping name in the machine

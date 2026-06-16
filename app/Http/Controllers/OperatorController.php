@@ -17,6 +17,7 @@ use App\Models\Operator;
 use App\Models\OperatorPaymentGateway;
 use App\Models\OperatorVend;
 use App\Models\PaymentGateway;
+use App\Models\Scopes\OperatorActiveScope;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vend;
@@ -54,6 +55,9 @@ class OperatorController extends Controller
         $authOperatorId = $authUser->operator_id;
         $isOperatorRestricted = $authOperatorId && $authOperatorId != 1;
 
+        // Status filter: 'active' (default) | 'inactive' | 'all'
+        $status = $request->status ?: 'active';
+
         return Inertia::render('Operator/Index', [
             // 'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
             // 'deliveryPlatformOperatorTypes' => [
@@ -61,13 +65,22 @@ class OperatorController extends Controller
             //     DeliveryPlatformOperator::TYPE_PRODUCTION
             // ],
             'operators' => OperatorResource::collection(
-                Operator::with([
-                    'address:id,postcode',
-                    // 'deliveryPlatformOperators.deliveryPlatform',
-                    'country:id,name,code,currency_name,currency_symbol',
-                    'vends:id,code,customer_id,is_active',
-                    'vends.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
-                ])
+                // Bypass only the active scope so we can surface inactive/all rows
+                // when requested; keep OperatorFilterScope (per-operator restriction).
+                Operator::withoutGlobalScope(OperatorActiveScope::class)
+                    ->with([
+                        'address:id,postcode',
+                        // 'deliveryPlatformOperators.deliveryPlatform',
+                        'country:id,name,code,currency_name,currency_symbol',
+                        'vends:id,code,customer_id,is_active',
+                        'vends.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
+                    ])
+                    ->when($status === 'active', function ($query) {
+                        $query->where('is_active', true);
+                    })
+                    ->when($status === 'inactive', function ($query) {
+                        $query->where('is_active', false);
+                    })
                     ->when($request->name, function ($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
@@ -80,6 +93,7 @@ class OperatorController extends Controller
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
+            'status' => $status,
             // 'operatorPaymentGatewayTypes' => [
             //     OperatorPaymentGateway::TYPE_SANDBOX,
             //     OperatorPaymentGateway::TYPE_PRODUCTION
@@ -163,7 +177,7 @@ class OperatorController extends Controller
 
         $request->merge(['is_active_vend' => isset($request->is_active_vend) ? $request->is_active_vend : 'true']);
 
-        $operator = Operator::query()
+        $operator = Operator::withoutGlobalScope(OperatorActiveScope::class)
             ->with([
                 'address',
                 'address.country',
@@ -389,7 +403,8 @@ class OperatorController extends Controller
             ]);
         }
 
-        $operator = Operator::findOrFail($operatorId);
+        // Bypass active scope so an already-deactivated operator can be re-activated.
+        $operator = Operator::withoutGlobalScope(OperatorActiveScope::class)->findOrFail($operatorId);
         $operator->load('logo');
 
         if ($request->boolean('logo_remove')) {
@@ -428,9 +443,18 @@ class OperatorController extends Controller
 
         // Update the rest of the fields
         $payload = collect($request->all())
-            ->except(['email_user_ids', 'email_customs', 'logo', 'logo_remove', 'transaction_callback_url', 'alert_callback_url'])
+            ->except(['email_user_ids', 'email_customs', 'logo', 'logo_remove', 'transaction_callback_url', 'alert_callback_url', 'is_active', 'deactivated_at'])
             ->toArray();
         $operator->update($payload);
+
+        // Active/inactive status (deactivate instead of delete).
+        // Only touch it when the form actually sends the field.
+        if ($request->has('is_active')) {
+            $isActive = $request->boolean('is_active');
+            $operator->is_active = $isActive;
+            $operator->deactivated_at = $isActive ? null : ($operator->deactivated_at ?? now());
+            $operator->save();
+        }
 
         // Normalize the JSON we keep for the UI
         $userIds = collect($request->input('email_user_ids', []))

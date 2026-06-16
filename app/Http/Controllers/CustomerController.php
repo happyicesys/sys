@@ -248,6 +248,18 @@ class CustomerController extends Controller
         $summaryMentionCount = $authUser
             ? $noteService->customerMentionedCount($authUser)
             : 0;
+        // Default the FIRST page load to the Unread view when the user has
+        // unread Site Notes, so they land on what changed since their last
+        // visit. Only on a genuine fresh load: an explicit search (searched=1),
+        // an explicit unread toggle (unread present in the request, incl.
+        // unread=0 "Show All"), or the mention view all opt out. Sorting stays
+        // Note Last Updated desc via the override below.
+        if (!$request->has('unread')
+            && !$request->boolean('searched')
+            && !$isMentionView
+            && $summaryUnreadCount > 0) {
+            $isUnreadView = true;
+        }
         // Unread / mention views always list newest-changed notes first,
         // regardless of the column the user had previously sorted by.
         if ($isUnreadView || $isMentionView) {
@@ -625,6 +637,9 @@ class CustomerController extends Controller
             'totals' => $totals,
             // Unread Site-Note count for the on-page "Unread" toggle button.
             'unreadCount' => $summaryUnreadCount,
+            // Whether the server resolved this load into the Unread view (drives
+            // the button's initial "Show All" state — e.g. the fresh-load default).
+            'unreadView' => $isUnreadView,
             // Count of sites that @-mention the user, for the "@Me Mentioned" button.
             'mentionCount' => $summaryMentionCount,
             // Same-operator users for the @-mention dropdown in the note cell.

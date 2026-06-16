@@ -12,6 +12,7 @@ class ModemType extends Model
     protected $fillable = [
         'id',
         'name',
+        'alias',
         'desc',
         'is_modem_unit_required',
         'is_resetable',

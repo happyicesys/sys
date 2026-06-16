@@ -47,7 +47,11 @@ class ApkSettingController extends Controller
 
         $apkSettings = ApkSetting::query()
             ->with([
-                'vends.customer'
+                'vends.customer',
+                // Lightweight load for the "Campaign Name" column on the list.
+                // Only id/name/is_active are needed; full campaign data is
+                // loaded separately on the edit page.
+                'campaigns:id,name,is_active',
             ])
             ->filterIndex($request)
             ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)

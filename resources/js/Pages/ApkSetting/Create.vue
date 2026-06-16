@@ -1,9 +1,9 @@
 <template>
-  <Head title="Create APK Settings" />
+  <Head title="Create UI Setting" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Create APK Settings
+        Create UI Setting
       </h2>
     </template>
 
@@ -33,7 +33,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Create APK Settings
+                    Create UI Setting
                   </span>
                 </Button>
               </span>

@@ -23,6 +23,11 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
+              <FormInput v-model="form.alias" :error="form.errors.alias">
+                Alias (short name)
+              </FormInput>
+            </div>
+            <div class="sm:col-span-6">
               <FormTextArea v-model="form.desc" :error="form.errors.desc">
                 Desc
               </FormTextArea>
@@ -84,6 +89,7 @@ onMounted(() => {
 function getDefaultForm() {
   return {
     name: '',
+    alias: '',
     desc: '',
   }
 }

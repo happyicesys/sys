@@ -18,7 +18,22 @@ class ApkSettingResource extends JsonResource
             'id' => $this->id,
             'campaignImages' => AttachmentResource::collection($this->whenLoaded('campaignImages')),
             'campaignItems' => CampaignItemResource::collection($this->whenLoaded('campaignItems')),
-            'campaigns' => CampaignResource::collection($this->whenLoaded('campaigns')),
+            'campaigns' => $this->when($this->relationLoaded('campaigns'), function () {
+                // The edit page eager-loads campaigns.operator (and labels) and
+                // needs the full CampaignResource. The index loads campaigns
+                // lightly, so return a lean payload there to avoid
+                // CampaignResource's per-row is_in_use exists() query (N+1).
+                $needsFull = $this->campaigns->isNotEmpty()
+                    && $this->campaigns->first()->relationLoaded('operator');
+
+                return $needsFull
+                    ? CampaignResource::collection($this->campaigns)
+                    : $this->campaigns->map(fn ($campaign) => [
+                        'id' => $campaign->id,
+                        'name' => $campaign->name,
+                        'is_active' => (bool) $campaign->is_active,
+                    ])->values();
+            }),
             'campaignVideos' => AttachmentResource::collection($this->whenLoaded('campaignVideos')),
             'name' => $this->name,
             'images' => AttachmentResource::collection($this->whenLoaded('images')),

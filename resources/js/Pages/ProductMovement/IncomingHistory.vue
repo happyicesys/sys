@@ -24,10 +24,6 @@
                             <DatePicker v-model="filters.date" :enableTimePicker="false" auto-apply placeholder="Filter by Date" :format="'yyyy-MM-dd'" clearable />
                         </div>
                         <div class="flex space-x-2">
-                            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" @click="resetFilter">
-                                <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
-                                <span>Reset</span>
-                            </Button>
                             <a :href="exportUrl" target="_blank" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150">
                                 <ArrowDownTrayIcon class="w-4 h-4 mr-2" />
                                 Export Excel

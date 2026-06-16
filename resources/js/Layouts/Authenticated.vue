@@ -112,7 +112,7 @@ const navigation = computed(() => [
             {name: 'Machines View', href: '/vends', permission: 'read machine-view'},
             {name: 'Machines Settings', href: '/settings', permission: 'read machine-settings'},
             {name: 'Machine Alert Parameters', href: '/machine-alert-parameters', permission: 'read machine-alert-parameters'},
-            {name: 'APK Settings', href: '/apk-settings', permission: 'read apk-settings'},
+            {name: 'UI Setting (Marketing & Campaign Remote Setting)', href: '/apk-settings', permission: 'read apk-settings'},
             {name: 'Setting Charts', href: '/vend-configs', permission: 'read vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes', permission: 'read vend-prefixes'},
             {name: 'Modem IMEI', href: '/modem-units', permission: 'read modem-imei'},
@@ -128,7 +128,7 @@ const navigation = computed(() => [
         tagline: null,
         children: [
             {name: 'Sites', href: '/customers', permission: 'read customers'},
-            {name: 'Summary', href: '/customers/summary', permission: 'read customers'},
+            {name: 'Summary & Comm', href: '/customers/summary', permission: 'read customers'},
             {name: 'Tags', href: '/tags?classname=App\\Models\\Customer', permission: 'read customers'},
         ]
     },
