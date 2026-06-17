@@ -504,6 +504,15 @@
                       <SingleSortItem modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date')">
                         Begin Date
                       </SingleSortItem>
+                      <!--
+                        Avg Mthly Sales — cumulative running average of monthly
+                        sales up to & including the row's period. Sortable via a
+                        correlated subquery server-side (avg_monthly_sales). Live
+                        for the current month, frozen once a month completes.
+                      -->
+                      <SingleSortItem modelName="avg_monthly_sales" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('avg_monthly_sales')">
+                        Avg Mthly Sales
+                      </SingleSortItem>
                       <SingleSortItem modelName="contract_attachment" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('contract_attachment')">
                         Contract Attachment
                       </SingleSortItem>
@@ -779,6 +788,19 @@
                         class="text-xs text-gray-900 mt-1"
                       >
                         {{ formatYYMMDD(row.customer.begin_date) }}
+                      </span>
+                      <!--
+                        Avg Mthly Sales — running average of monthly sales up to
+                        and including this row's period. Header label lives in
+                        the column header; the cell renders just the figure.
+                        Hidden when not computed (null).
+                      -->
+                      <span
+                        v-if="row.avg_monthly_sales_cents != null"
+                        class="text-xs text-gray-700 mt-1"
+                        v-tooltip="'Average monthly sales to date (frozen once the month completes)'"
+                      >
+                        {{ formatMoney(row.avg_monthly_sales_cents) }}
                       </span>
                       <!--
                         Contract Attachment — hyperlinks to the latest

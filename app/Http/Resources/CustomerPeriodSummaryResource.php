@@ -157,6 +157,13 @@ class CustomerPeriodSummaryResource extends JsonResource
             'accumulate_vending_earning_cents' => isset($this->accumulate_vending_earning_cents)
                 ? (int) $this->accumulate_vending_earning_cents
                 : null,
+            // "Avg Mthly Sales" — cumulative running average of monthly sales
+            // (sales_cents) for this customer up to and including this row's
+            // month. Live for the current month, frozen once a month completes.
+            // Attached by CustomerController::attachAccumulatedVendingEarning().
+            'avg_monthly_sales_cents' => isset($this->avg_monthly_sales_cents)
+                ? (int) $this->avg_monthly_sales_cents
+                : null,
             // Latest API Invoice (if any) for this row's (customer, period)
             // — populated by CustomerController::attachExistingInvoice().
             // Null when no successful CMS transaction exists yet. The Vue

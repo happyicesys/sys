@@ -1298,6 +1298,16 @@ class CustomerController extends Controller
         // per-row Vend Earning shown (which the resource derives the same way).
         $running = [];
         $perCustomerSum = [];
+        // "Avg Mthly Sales" — cumulative running average of monthly sales_cents
+        // per customer, keyed by period_start so each row shows the average
+        // up to AND INCLUDING that month. Sales is contract-independent, so we
+        // use the stored sales_cents directly (no live re-derivation needed).
+        // Past months' sales_cents are frozen, the current (in-progress) month
+        // re-aggregates nightly — so each completed month's average naturally
+        // stays put, letting the user see month-over-month improvement.
+        $avgRunning = [];      // [cid][period_start_key] => avg cents (int)
+        $perCustomerSalesSum = [];   // [cid] => cumulative sales_cents
+        $perCustomerMonths = [];     // [cid] => [year_month => true] (distinct month count)
         foreach ($monthlyRows as $r) {
             $cid = $r->customer_id;
             // year_month is a DATE column; raw DB::table returns it as a
@@ -1334,11 +1344,25 @@ class CustomerController extends Controller
 
             $perCustomerSum[$cid] = ($perCustomerSum[$cid] ?? 0) + $effectiveEarning;
             $running[$cid][$key] = $perCustomerSum[$cid];
+
+            // Running average of monthly sales. Count DISTINCT months (year_month)
+            // as the denominator so a month split into contract segments still
+            // counts as a single month and doesn't deflate the average.
+            $ym = \Carbon\Carbon::parse($r->year_month)->toDateString();
+            $perCustomerSalesSum[$cid] = ($perCustomerSalesSum[$cid] ?? 0) + (int) $r->sales_cents;
+            $perCustomerMonths[$cid][$ym] = true;
+            $monthCount = count($perCustomerMonths[$cid]);
+            $avgRunning[$cid][$key] = $monthCount > 0
+                ? intdiv($perCustomerSalesSum[$cid], $monthCount)
+                : 0;
         }
 
         foreach ($collection as $row) {
             $rowKey = optional($row->period_start)->toDateString();
             $row->accumulate_vending_earning_cents = (int) ($running[$row->customer_id][$rowKey] ?? 0);
+            $row->avg_monthly_sales_cents = isset($avgRunning[$row->customer_id][$rowKey])
+                ? (int) $avgRunning[$row->customer_id][$rowKey]
+                : null;
         }
     }
 
@@ -1789,7 +1813,7 @@ class CustomerController extends Controller
             'machine_id', 'machine_prefix',
             'contract_commission_type', 'contract_commission_value',
             'external_subsidize', 'net_loc_fee',
-            'accumulate_vending_earning',
+            'accumulate_vending_earning', 'avg_monthly_sales',
             'period_start', 'period_end',
             'customer_name', 'selling_price_type', 'begin_date', 'site_status',
             'contract_attachment', 'location_type', 'contract_until',
@@ -1847,6 +1871,22 @@ class CustomerController extends Controller
                 'SELECT COALESCE(SUM(s2.location_earning_cents), 0)
                   FROM customer_period_summaries s2
                   WHERE s2.customer_id = customer_period_summaries.customer_id
+                    AND s2.`year_month` <= customer_period_summaries.`year_month`',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'avg_monthly_sales') {
+            // Avg Mthly Sales — running average of sales_cents per customer up
+            // to & including each row's year_month. Denominator counts DISTINCT
+            // months so segment-split months still count as one (matches the
+            // PHP computation in attachAccumulatedVendingEarning). Floored at
+            // SUMMARY_FLOOR_DATE so it sorts on the same window that's displayed;
+            // NULLIF yields NULL for customers with no months → sorts last.
+            $nullsLastRaw(
+                'SELECT COALESCE(SUM(s2.sales_cents), 0)
+                          / NULLIF(COUNT(DISTINCT s2.`year_month`), 0)
+                  FROM customer_period_summaries s2
+                  WHERE s2.customer_id = customer_period_summaries.customer_id
+                    AND s2.`year_month` >= \'2023-01-01\'
                     AND s2.`year_month` <= customer_period_summaries.`year_month`',
                 $sortDirection
             );
