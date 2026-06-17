@@ -15,6 +15,7 @@
         :minDate="minDate"
         :maxDate="maxDate"
         :enableTimePicker="enableTimePicker"
+        :disabled="disabled"
         class="flex-grow"
         style="min-width: 150px; width: auto;"
       />

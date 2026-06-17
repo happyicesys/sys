@@ -680,6 +680,683 @@ class CustomerController extends Controller
     }
 
     /**
+     * Site Performance — aggregate matrix report (Site Management ▸ Performance).
+     *
+     * One set of figures across the FILTERED set of sites, laid out as a matrix:
+     *   columns = "Avg L30d" (rolling last 30 days) + the last 8 completed months
+     *   rows    = headline totals, Admin & Finance (profile status / month-end
+     *             lock / location-fee payment), Placement Contract Type, and the
+     *             per-machine distribution bands for Net Location Fees, Vend
+     *             Earning and Accumulated Vend Earning.
+     *
+     * Mirrors the Sites / Summary & Comm filters (Site ID, Machine ID, Site,
+     * Status, Tags, Is From CMS, Operator, Machine Prefix, Location Type,
+     * Placement Contract Type). Read-only.
+     */
+    public function performance(Request $request)
+    {
+        $customerIds = $this->resolvePerformanceCustomerIds($request);
+        $matrix = $this->buildPerformanceMatrix($customerIds);
+
+        $className = get_class(new Customer());
+        $optionsService = app(\App\Services\OptionsService::class);
+
+        return Inertia::render('Customer/Performance', [
+            'columns' => $matrix['columns'],
+            'metrics' => $matrix['metrics'],
+            // Filter dropdown sources — same shapes as summary()/index() so the
+            // three Site Management pages stay in sync.
+            'statuses' => [
+                ['id' => 'all', 'name' => 'All'],
+                ...collect(Customer::STATUSES_MAPPING)->map(fn ($status, $index) => [
+                    'id' => $index,
+                    'name' => $status,
+                ]),
+            ],
+            'cmsEndpoint' => env('CMS_URL'),
+            'locationTypeOptions' => $optionsService->locationTypes(),
+            'operatorOptions' => $optionsService->operators(),
+            'tags' => $optionsService->tags($className),
+            'vendPrefixOptions' => $optionsService->vendPrefixes(),
+            'contractCommissionTypeOptions' => [
+                ['id' => 'F',     'value' => 'Free Placement'],
+                ['id' => 'S',     'value' => 'Subsidized Plan'],
+                ['id' => 'R',     'value' => 'Fix Rental'],
+                ['id' => 'U',     'value' => 'Utility only'],
+                ['id' => 'R+U',   'value' => 'R + U'],
+                ['id' => 'PS',    'value' => 'PS'],
+                ['id' => 'PS+U',  'value' => 'PS + U'],
+                ['id' => 'PSORU', 'value' => 'PS OR U'],
+            ],
+        ]);
+    }
+
+    /**
+     * Excel export of the Site Performance matrix. Same filter resolution +
+     * aggregation as performance(); flattened to one row per metric with a
+     * column per period so the download mirrors the on-screen table and the
+     * uploaded "Customer Performance" template.
+     */
+    public function performanceExportExcel(Request $request)
+    {
+        $customerIds = $this->resolvePerformanceCustomerIds($request);
+        $matrix = $this->buildPerformanceMatrix($customerIds);
+
+        $columns = $matrix['columns'];
+        $metrics = $matrix['metrics'];
+
+        // Row layout for the export: [section, label, metricKey, format].
+        // format: 'int' | 'money' | 'money_pct' (of sales) | 'pct_total' (blank
+        // for non-numeric section headers, which carry metricKey = null).
+        $layout = $this->performanceRowLayout();
+
+        $rows = collect($layout)->map(function ($r) use ($columns, $metrics) {
+            $out = ['Section' => $r['section'], 'Metric' => $r['label']];
+            foreach ($columns as $col) {
+                $out[$col['label']] = $r['key'] === null
+                    ? ''
+                    : $this->formatPerformanceCell($metrics, $r['key'], $col['key'], $r['format']);
+            }
+            return $out;
+        });
+
+        return (new FastExcel($rows))->download(
+            'SitePerformance' . now()->format('YmdHis') . '.xlsx'
+        );
+    }
+
+    /**
+     * Resolve the filtered Site (Customer) id set for the Performance page.
+     * Reuses the Customer Index filter scope + operator scoping + the
+     * Placement Contract Type filter, exactly like summary() so all three
+     * Site Management pages agree on "which sites".
+     */
+    protected function resolvePerformanceCustomerIds(Request $request)
+    {
+        $request->merge([
+            'is_binded_vend' => $request->is_binded_vend ?: 'all',
+            'is_cms' => $request->is_cms ?: 'all',
+            'status' => $request->status ?: Customer::STATUS_ACTIVE,
+            // Performance never orders the customers table — strip any sort keys
+            // so filterIndex() can't try to ORDER BY summary columns here.
+            'sortKey' => null,
+            'sortBy' => null,
+        ]);
+
+        // Mirror summary()/CustomerIndex default operator set on a fresh load
+        // (the user's own operator, plus HIMD/LEA/HIESG/UL-ST for HIPL admins).
+        if (!$request->boolean('searched') && empty($request->operators)) {
+            $user = auth()->user();
+            if ($user && $user->operator_id) {
+                $defaultOperatorIds = [(int) $user->operator_id];
+                $userOperator = \App\Models\Operator::find($user->operator_id);
+                if ($userOperator && $userOperator->code === 'HIPL') {
+                    $defaultOperatorIds = array_merge(
+                        $defaultOperatorIds,
+                        \App\Models\Operator::whereIn('code', ['HIMD', 'LEA', 'HIESG', 'UL-ST'])
+                            ->pluck('id')->map(fn ($v) => (int) $v)->all()
+                    );
+                }
+                $request->merge(['operators' => array_values(array_unique($defaultOperatorIds))]);
+            }
+        }
+
+        // Same base query as summary() so the two pages resolve an identical
+        // site set (leftJoins kept defensively in case filterIndex references
+        // the joined tables; duplicates are collapsed by unique() below).
+        $query = Customer::query()
+            ->select('customers.id')
+            ->leftJoin('addresses', function ($q) {
+                $q->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\\Models\\Customer')
+                    ->where('addresses.type', '=', 2)
+                    ->limit(1);
+            })
+            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->filterIndex($request);
+        $query = $this->filterOperator($query);
+        $this->applyContractCommissionTypeFilter($query, $request);
+
+        return $query->pluck('customers.id')->unique()->values();
+    }
+
+    /**
+     * Static row layout for the Site Performance matrix — single source of truth
+     * for both the Excel export here and (via the same key names) the Vue page.
+     * Section header rows carry key = null.
+     *
+     * @return array<int,array{section:string,label:string,key:?string,format:string}>
+     */
+    protected function performanceRowLayout(): array
+    {
+        $b = ['neg' => 'Negative', 'b0_50' => '$0 to $50', 'b51_100' => '$51 to $100',
+            'b101_150' => '$101 to $150', 'b151_200' => '$151 to $200',
+            'b201_300' => '$201 to $300', 'b301_500' => '$301 to $500', 'b500p' => 'Above $500'];
+        $a = ['neg' => 'Negative', 'a0_500' => '$0 to $500', 'a500_1000' => '$500 to $1000',
+            'a1000_5000' => '$1000 to $5000', 'a5000_10000' => '$5000 to $10000',
+            'a10k_20k' => '$10k to $20k', 'a20k_30k' => '$20k to $30k', 'a30kp' => '$30k above'];
+
+        $rows = [
+            ['Headline', 'Total Customer (Active Status)', 'total_customers', 'int'],
+            ['Headline', 'Total Sales (Inc GST), $', 'sales_cents', 'money'],
+            ['Headline', 'Total Sales (excl GST), $', 'sales_excl_cents', 'money'],
+            ['Headline', 'Total Gross Earning, $', 'gross_cents', 'money_pct'],
+            ['Headline', 'Total Location Fees, $', 'location_fees_cents', 'money_pct'],
+            ['Headline', 'Total VendEarning, $', 'vend_earning_cents', 'money_pct'],
+
+            ['Admin and Finance', 'Customer Profile Status — Total', 'profile_total', 'int'],
+            ['Admin and Finance', 'Potential', 'profile_potential', 'int'],
+            ['Admin and Finance', 'New', 'profile_new', 'int'],
+            ['Admin and Finance', 'Active', 'profile_active', 'int'],
+            ['Admin and Finance', 'Pending', 'profile_pending', 'int'],
+            ['Admin and Finance', 'Inactive', 'profile_inactive', 'int'],
+            ['Admin and Finance', 'Month-End Lock — Done', 'lock_done', 'int'],
+            ['Admin and Finance', 'Month-End Lock — Still open', 'lock_open', 'int'],
+            ['Admin and Finance', 'Location Fees payment — Paid, qty', 'paid_qty', 'int'],
+            ['Admin and Finance', 'Location Fees payment — Paid, $', 'paid_amt_cents', 'money'],
+            ['Admin and Finance', 'Location Fees payment — Unpaid, qty', 'unpaid_qty', 'int'],
+            ['Admin and Finance', 'Location Fees payment — Unpaid, $', 'unpaid_amt_cents', 'money'],
+
+            ['Placement Contract Type', 'F: Free Placement', 'ct_F', 'int'],
+            ['Placement Contract Type', 'S: Subsidized Plan', 'ct_S', 'int'],
+            ['Placement Contract Type', 'R: Fix Rental', 'ct_R', 'int'],
+            ['Placement Contract Type', 'U: Utility only', 'ct_U', 'int'],
+            ['Placement Contract Type', 'R + U', 'ct_RU', 'int'],
+            ['Placement Contract Type', 'PS: Profit Sharing', 'ct_PS', 'int'],
+            ['Placement Contract Type', 'PS + U', 'ct_PSU', 'int'],
+            ['Placement Contract Type', 'PS or U', 'ct_PSORU', 'int'],
+            ['Placement Contract Type', 'External Subsidize?', 'ct_ext_sub', 'int'],
+            ['Placement Contract Type', 'Contract available? — Yes', 'contract_avail_yes', 'int'],
+            ['Placement Contract Type', 'Contract available? — No', 'contract_avail_no', 'int'],
+            ['Placement Contract Type', 'Contract End (no Auto Renewal) — Next 15d', 'contract_end_15', 'int'],
+            ['Placement Contract Type', 'Contract End (no Auto Renewal) — Next 30d', 'contract_end_30', 'int'],
+            ['Placement Contract Type', 'Contract End (no Auto Renewal) — Next 60d', 'contract_end_60', 'int'],
+
+            ['Net Location Fees', 'Avg per machine', 'nlf_avg_per_machine_cents', 'money'],
+        ];
+        foreach ($b as $k => $label) {
+            $rows[] = ['Net Location Fees', $label, 'nlf_' . $k, 'int'];
+        }
+        $rows[] = ['Vend Earning', 'Avg per machine', 've_avg_per_machine_cents', 'money'];
+        foreach ($b as $k => $label) {
+            $rows[] = ['Vend Earning', $label, 've_' . $k, 'int'];
+        }
+        $rows[] = ['Accumulated Vend Earning', 'Avg per machine', 'ave_avg_per_machine_cents', 'money'];
+        foreach ($a as $k => $label) {
+            $rows[] = ['Accumulated Vend Earning', $label, 'ave_' . $k, 'int'];
+        }
+
+        return array_map(fn ($r) => [
+            'section' => $r[0], 'label' => $r[1], 'key' => $r[2], 'format' => $r[3],
+        ], $rows);
+    }
+
+    /**
+     * Format a single matrix cell for the Excel export (plain strings).
+     */
+    protected function formatPerformanceCell(array $metrics, string $key, string $colKey, string $format): string
+    {
+        $val = $metrics[$key][$colKey] ?? null;
+        if ($val === null) {
+            return '';
+        }
+        $money = fn ($cents) => number_format(((float) $cents) / 100, 2);
+
+        switch ($format) {
+            case 'money':
+                return $money($val);
+            case 'money_pct':
+                $sales = $metrics['sales_cents'][$colKey] ?? 0;
+                $pct = $sales != 0 ? round(($val / $sales) * 100, 1) : null;
+                return $money($val) . ($pct !== null ? ' (' . $pct . '%)' : '');
+            case 'int':
+            default:
+                return (string) (int) $val;
+        }
+    }
+
+    /**
+     * Build the Site Performance matrix (columns + metrics) for a set of Site
+     * (Customer) ids. Pure read aggregation — touches no shared writer paths.
+     *
+     * Columns: "Avg L30d" (live rolling 30-day window) + the last 8 completed
+     * calendar months (newest first).
+     *
+     * Per-month money / lock / paid / contract-type figures are reconstructed
+     * from the stored customer_period_summaries snapshots (which already hold a
+     * per-period contract snapshot). Profile status and contract end-date are
+     * not historized, so those reconstruct against the site's CURRENT status /
+     * contract_until relative to each month — see inline notes.
+     *
+     * @return array{columns:array,metrics:array}
+     */
+    protected function buildPerformanceMatrix($customerIds): array
+    {
+        $today = Carbon::today();
+        $currentMonthStart = $today->copy()->startOfMonth();
+        $floor = Carbon::parse(self::SUMMARY_FLOOR_DATE)->startOfMonth();
+
+        // --- Columns: Avg L30d + last 8 completed months (newest first) -------
+        $months = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $months[] = $currentMonthStart->copy()->subMonthsNoOverflow($i);
+        }
+        $columns = [['key' => 'l30d', 'label' => 'Avg L30d', 'sub' => 'Last 30 days']];
+        foreach ($months as $m) {
+            $columns[] = [
+                'key' => $m->format('ym'),       // e.g. "2605"
+                'label' => $m->format('ym'),
+                'sub' => $m->format('Y-m'),
+                'period_start' => $m->toDateString(),
+            ];
+        }
+        $colKeys = array_map(fn ($c) => $c['key'], $columns);
+
+        // Metric scaffold — every leaf is colKey => number (0 default).
+        $metricKeys = $this->performanceMetricKeys();
+        $M = [];
+        foreach ($metricKeys as $k) {
+            $M[$k] = array_fill_keys($colKeys, 0);
+        }
+
+        if ($customerIds->isEmpty()) {
+            return ['columns' => $columns, 'metrics' => $M];
+        }
+
+        $operatorGst = DB::table('operators')->pluck('gst_vat_rate', 'id')
+            ->map(fn ($v) => (float) $v)->all();
+
+        // Current site state (status / contract / subsidy) keyed by id.
+        $customers = Customer::query()
+            ->whereIn('id', $customerIds)
+            ->get([
+                'id', 'operator_id', 'status_id',
+                'contract_commission_type', 'contract_commission_value',
+                'contract_commission_value2', 'contract_ps_term',
+                'is_external_subsidize', 'external_subsidize_amount',
+                'contract_until', 'contract_auto_renewal',
+            ])
+            ->keyBy('id');
+
+        // First contract-attachment upload date per site (for "Contract available?").
+        $contractFirstUpload = DB::table('attachments')
+            ->where('modelable_type', 'App\\Models\\Customer')
+            ->where('type', Customer::FILE_TYPE_CONTRACT)
+            ->whereIn('modelable_id', $customerIds)
+            ->groupBy('modelable_id')
+            ->selectRaw('modelable_id, MIN(created_at) AS first_at')
+            ->pluck('first_at', 'modelable_id');
+
+        // All summary rows from the floor → current month (full history needed
+        // for the Accumulated Vend Earning column). Scoped to the filtered set.
+        $rows = \App\Models\CustomerPeriodSummary::query()
+            ->whereIn('customer_id', $customerIds)
+            ->where('year_month', '>=', $floor->toDateString())
+            ->where('year_month', '<=', $currentMonthStart->toDateString())
+            ->get([
+                'customer_id', 'operator_id', 'year_month',
+                'sales_cents', 'gross_earning_cents', 'location_fees_cents',
+                'location_earning_cents', 'external_subsidize_cents', 'vend_count',
+                'contract_commission_type', 'locked_at', 'paid_at',
+            ]);
+        $rowsByMonth = $rows->groupBy(fn ($r) => Carbon::parse($r->year_month)->toDateString());
+        $rowsByCust = $rows->groupBy('customer_id');
+
+        // Contract type code → metric-key suffix.
+        $ctKey = [
+            'F' => 'ct_F', 'S' => 'ct_S', 'R' => 'ct_R', 'U' => 'ct_U',
+            'R+U' => 'ct_RU', 'PS' => 'ct_PS', 'PS+U' => 'ct_PSU', 'PSORU' => 'ct_PSORU',
+        ];
+
+        // ── Per-month columns ────────────────────────────────────────────────
+        foreach ($months as $m) {
+            $col = $m->format('ym');
+            $mr = $rowsByMonth->get($m->toDateString()) ?? collect();
+            $monthEnd = $m->copy()->endOfMonth();
+            $custIdsThisMonth = $mr->pluck('customer_id')->unique();
+
+            $M['total_customers'][$col] = $custIdsThisMonth->count();
+            $M['sales_cents'][$col] = (int) $mr->sum('sales_cents');
+            $M['gross_cents'][$col] = (int) $mr->sum('gross_earning_cents');
+            $M['location_fees_cents'][$col] = (int) $mr->sum('location_fees_cents');
+            $M['vend_earning_cents'][$col] = (int) $mr->sum('location_earning_cents');
+            $M['sales_excl_cents'][$col] = (int) $mr->reduce(function ($carry, $r) use ($operatorGst) {
+                $gst = $operatorGst[$r->operator_id] ?? 0;
+                return $carry + ((int) $r->sales_cents) / (1 + $gst / 100);
+            }, 0);
+
+            // Profile status — current status of the sites active that month.
+            foreach ($custIdsThisMonth as $cid) {
+                $st = optional($customers->get($cid))->status_id;
+                $bucket = $this->profileStatusKey($st);
+                if ($bucket) {
+                    $M[$bucket][$col]++;
+                    $M['profile_total'][$col]++;
+                }
+            }
+
+            // Month-End Lock / Location-Fee payment — per summary row.
+            $M['lock_done'][$col] = $mr->filter(fn ($r) => $r->locked_at !== null)->count();
+            $M['lock_open'][$col] = $mr->count() - $M['lock_done'][$col];
+            $paidRows = $mr->filter(fn ($r) => $r->paid_at !== null);
+            $M['paid_qty'][$col] = $paidRows->count();
+            $M['paid_amt_cents'][$col] = (int) $paidRows->sum('location_fees_cents');
+            $M['unpaid_qty'][$col] = $mr->count() - $paidRows->count();
+            $M['unpaid_amt_cents'][$col] = (int) $mr->sum('location_fees_cents') - $M['paid_amt_cents'][$col];
+
+            // Placement Contract Type — distinct sites per type, from the stored
+            // per-period contract snapshot (historized on the summary row).
+            foreach ($ctKey as $code => $key) {
+                $M[$key][$col] = $mr->filter(fn ($r) => $r->contract_commission_type === $code)
+                    ->pluck('customer_id')->unique()->count();
+            }
+            $M['ct_ext_sub'][$col] = $mr->filter(fn ($r) => (int) $r->external_subsidize_cents !== 0)
+                ->pluck('customer_id')->unique()->count();
+
+            // Contract available? / Contract End date — evaluated as of month end.
+            $this->fillContractSnapshotColumn(
+                $M, $col, $custIdsThisMonth, $customers, $contractFirstUpload, $monthEnd
+            );
+
+            // Per-machine distributions — aggregate per site for the month first.
+            $perCust = [];
+            foreach ($mr->groupBy('customer_id') as $cid => $crows) {
+                $perCust[$cid] = [
+                    'nlf' => (int) $crows->sum(fn ($r) => (int) $r->location_fees_cents - (int) $r->external_subsidize_cents),
+                    've' => (int) $crows->sum('location_earning_cents'),
+                    'vc' => (int) $crows->max('vend_count'),
+                ];
+            }
+            $this->fillDistribution($M, $col, 'nlf', $perCust, 'nlf', false);
+            $this->fillDistribution($M, $col, 've', $perCust, 've', false);
+
+            // Accumulated Vend Earning — lifetime location_earning through this
+            // month / current machine count.
+            $perCustAcc = [];
+            foreach ($rowsByCust as $cid => $crows) {
+                $cum = (int) $crows->filter(fn ($r) => Carbon::parse($r->year_month)->lte($m))
+                    ->sum('location_earning_cents');
+                $vc = (int) $crows->max('vend_count');
+                if ($cum === 0 && $vc === 0) {
+                    continue;
+                }
+                $perCustAcc[$cid] = ['acc' => $cum, 'vc' => $vc];
+            }
+            $this->fillDistribution($M, $col, 'ave', $perCustAcc, 'acc', true);
+        }
+
+        // ── Avg L30d column (live rolling 30 days) ────────────────────────────
+        $this->fillL30dColumn(
+            $M, 'l30d', $customerIds, $customers, $operatorGst,
+            $contractFirstUpload, $rowsByCust, $today, $ctKey
+        );
+
+        return ['columns' => $columns, 'metrics' => $M];
+    }
+
+    /**
+     * Every metric leaf key the matrix produces (used to scaffold zero-filled
+     * rows so the Vue page can read any cell without undefined checks).
+     */
+    protected function performanceMetricKeys(): array
+    {
+        $base = [
+            'total_customers', 'sales_cents', 'sales_excl_cents', 'gross_cents',
+            'location_fees_cents', 'vend_earning_cents',
+            'profile_total', 'profile_potential', 'profile_new', 'profile_active',
+            'profile_pending', 'profile_inactive',
+            'lock_done', 'lock_open',
+            'paid_qty', 'paid_amt_cents', 'unpaid_qty', 'unpaid_amt_cents',
+            'ct_F', 'ct_S', 'ct_R', 'ct_U', 'ct_RU', 'ct_PS', 'ct_PSU', 'ct_PSORU', 'ct_ext_sub',
+            'contract_avail_yes', 'contract_avail_no',
+            'contract_end_15', 'contract_end_30', 'contract_end_60',
+        ];
+        $bands = ['neg', 'b0_50', 'b51_100', 'b101_150', 'b151_200', 'b201_300', 'b301_500', 'b500p'];
+        $accBands = ['neg', 'a0_500', 'a500_1000', 'a1000_5000', 'a5000_10000', 'a10k_20k', 'a20k_30k', 'a30kp'];
+        $base[] = 'nlf_avg_per_machine_cents';
+        $base[] = 've_avg_per_machine_cents';
+        $base[] = 'ave_avg_per_machine_cents';
+        foreach ($bands as $b) {
+            $base[] = 'nlf_' . $b;
+            $base[] = 've_' . $b;
+        }
+        foreach ($accBands as $b) {
+            $base[] = 'ave_' . $b;
+        }
+        return $base;
+    }
+
+    /** Map a status_id to its profile metric key (null if unknown). */
+    protected function profileStatusKey($statusId): ?string
+    {
+        switch ((int) $statusId) {
+            case Customer::STATUS_POTENTIAL: return 'profile_potential';
+            case Customer::STATUS_NEW:       return 'profile_new';
+            case Customer::STATUS_ACTIVE:    return 'profile_active';
+            case Customer::STATUS_PENDING:   return 'profile_pending';
+            case Customer::STATUS_INACTIVE:  return 'profile_inactive';
+            default: return null;
+        }
+    }
+
+    /**
+     * Fill "Contract available?" + "Contract End (no Auto Renewal)" counts for a
+     * column, evaluated as of $ref for the given site id set. Uses the site's
+     * CURRENT contract_until (not historized) — see method note in
+     * buildPerformanceMatrix.
+     */
+    protected function fillContractSnapshotColumn(&$M, $col, $custIds, $customers, $contractFirstUpload, Carbon $ref): void
+    {
+        $r15 = $ref->copy()->addDays(15);
+        $r30 = $ref->copy()->addDays(30);
+        $r60 = $ref->copy()->addDays(60);
+
+        foreach ($custIds as $cid) {
+            $c = $customers->get($cid);
+            if (!$c) {
+                continue;
+            }
+            $first = $contractFirstUpload[$cid] ?? null;
+            if ($first && Carbon::parse($first)->lte($ref->copy()->endOfDay())) {
+                $M['contract_avail_yes'][$col]++;
+            } else {
+                $M['contract_avail_no'][$col]++;
+            }
+
+            if ($c->contract_until && !$c->contract_auto_renewal) {
+                $until = Carbon::parse($c->contract_until);
+                if ($until->gte($ref) && $until->lte($r60)) {
+                    $M['contract_end_60'][$col]++;
+                    if ($until->lte($r30)) {
+                        $M['contract_end_30'][$col]++;
+                    }
+                    if ($until->lte($r15)) {
+                        $M['contract_end_15'][$col]++;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Bucket a per-site per-machine $ figure into the distribution bands for a
+     * column. $perCust is [cid => [...,'vc'=>machines]] and $valKey selects the
+     * cent value; $acc switches to the accumulated band thresholds. Also fills
+     * the "Avg per machine" row (total value / total machines).
+     */
+    protected function fillDistribution(&$M, $col, $prefix, array $perCust, string $valKey, bool $acc): void
+    {
+        $sumVal = 0;
+        $sumMachines = 0;
+        foreach ($perCust as $row) {
+            $vc = (int) ($row['vc'] ?? 0);
+            $val = (int) ($row[$valKey] ?? 0);
+            $sumVal += $val;
+            $sumMachines += $vc;
+            if ($vc <= 0) {
+                continue;
+            }
+            $perMachine = $val / $vc;
+            $band = $acc ? $this->accBand($perMachine) : $this->feeBand($perMachine);
+            $M[$prefix . '_' . $band][$col]++;
+        }
+        $M[$prefix . '_avg_per_machine_cents'][$col] = $sumMachines > 0
+            ? (int) round($sumVal / $sumMachines)
+            : 0;
+    }
+
+    /** Net-fee / vend-earning per-machine band (cents in → band key). */
+    protected function feeBand(float $cents): string
+    {
+        if ($cents < 0) return 'neg';
+        $d = $cents / 100;
+        if ($d <= 50) return 'b0_50';
+        if ($d <= 100) return 'b51_100';
+        if ($d <= 150) return 'b101_150';
+        if ($d <= 200) return 'b151_200';
+        if ($d <= 300) return 'b201_300';
+        if ($d <= 500) return 'b301_500';
+        return 'b500p';
+    }
+
+    /** Accumulated vend-earning per-machine band (cents in → band key). */
+    protected function accBand(float $cents): string
+    {
+        if ($cents < 0) return 'neg';
+        $d = $cents / 100;
+        if ($d <= 500) return 'a0_500';
+        if ($d <= 1000) return 'a500_1000';
+        if ($d <= 5000) return 'a1000_5000';
+        if ($d <= 10000) return 'a5000_10000';
+        if ($d <= 20000) return 'a10k_20k';
+        if ($d <= 30000) return 'a20k_30k';
+        return 'a30kp';
+    }
+
+    /**
+     * Fill the "Avg L30d" column from a live rolling 30-day window. Money rows
+     * aggregate vend_transactions / gp_metrics over [today-29, today] and derive
+     * Location Fees / Vend Earning from each site's CURRENT contract. Count /
+     * contract rows use the current snapshot over the active-in-window sites;
+     * Accumulated Vend Earning is lifetime-to-date. Lock / Paid are not
+     * meaningful for an in-progress window and stay 0.
+     */
+    protected function fillL30dColumn(&$M, $col, $customerIds, $customers, array $operatorGst, $contractFirstUpload, $rowsByCust, Carbon $today, array $ctKey): void
+    {
+        $windowStart = $today->copy()->subDays(29)->startOfDay();
+        $windowEnd = $today->copy()->endOfDay();
+
+        $testingVendIds = \Illuminate\Support\Facades\Cache::remember('testing_vend_ids', 3600, fn () =>
+            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
+        );
+
+        // Sales per site over the window — mirrors CustomerSummaryAggregator's
+        // success_amount filter exactly.
+        $salesByCust = DB::table('vend_transactions')
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->whereIn('vend_transactions.customer_id', $customerIds)
+            ->where(function ($q) use ($windowStart, $windowEnd) {
+                $q->whereBetween('vend_transactions.transaction_datetime', [$windowStart, $windowEnd])
+                  ->orWhere(function ($or) use ($windowStart, $windowEnd) {
+                      $or->whereNull('vend_transactions.transaction_datetime')
+                         ->whereBetween('vend_transactions.created_at', [$windowStart, $windowEnd]);
+                  });
+            })
+            ->where(function ($q) {
+                $q->whereIn('vend_channel_errors.code', [0, 6])
+                  ->orWhereNull('vend_channel_errors.code')
+                  ->orWhere('vend_transactions.is_multiple', true);
+            })
+            ->when(!empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->where('vend_transactions.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
+            ->groupBy('vend_transactions.customer_id')
+            ->selectRaw('vend_transactions.customer_id AS customer_id, SUM(vend_transactions.amount) AS sales_cents')
+            ->pluck('sales_cents', 'customer_id');
+
+        // Gross + machine count per site over the window.
+        $gpByCust = DB::table('gp_metrics')
+            ->whereIn('customer_id', $customerIds)
+            ->whereBetween('txn_date', [$windowStart->toDateString(), $windowEnd->toDateString()])
+            ->groupBy('customer_id')
+            ->selectRaw('customer_id, COALESCE(SUM(gross_profit_cents),0) AS gross_cents, COUNT(DISTINCT vend_id) AS vc')
+            ->get()->keyBy('customer_id');
+
+        // Active-in-window site set = union of sales + gp keys.
+        $activeIds = collect($salesByCust->keys())
+            ->merge($gpByCust->keys())
+            ->unique();
+
+        $r15 = $today->copy()->addDays(15);
+        $perCustNlf = [];
+        $perCustVe = [];
+        foreach ($activeIds as $cid) {
+            $c = $customers->get($cid);
+            if (!$c) {
+                continue;
+            }
+            $sales = (int) round((float) ($salesByCust[$cid] ?? 0));
+            $gross = (int) (optional($gpByCust->get($cid))->gross_cents ?? 0);
+            $vc = (int) (optional($gpByCust->get($cid))->vc ?? 0);
+            $gst = (float) ($operatorGst[$c->operator_id] ?? 0);
+
+            $locFee = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                $c->contract_commission_type,
+                $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                $sales, $gross, $gst
+            );
+            $ext = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                ? (int) round(((float) $c->external_subsidize_amount) * 100) : 0;
+            $netLoc = $locFee - $ext;
+            $vendEarn = $gross - $netLoc;
+
+            $M['sales_cents'][$col] += $sales;
+            $M['sales_excl_cents'][$col] += (int) round($gst > 0 ? $sales / (1 + $gst / 100) : $sales);
+            $M['gross_cents'][$col] += $gross;
+            $M['location_fees_cents'][$col] += $locFee;
+            $M['vend_earning_cents'][$col] += $vendEarn;
+
+            $perCustNlf[$cid] = ['nlf' => $netLoc, 'vc' => $vc];
+            $perCustVe[$cid] = ['ve' => $vendEarn, 'vc' => $vc];
+
+            // Profile + contract-type snapshot (current).
+            $bucket = $this->profileStatusKey($c->status_id);
+            if ($bucket) {
+                $M[$bucket][$col]++;
+                $M['profile_total'][$col]++;
+            }
+            $code = $c->contract_commission_type;
+            if (isset($ctKey[$code])) {
+                $M[$ctKey[$code]][$col]++;
+            }
+            if ($ext !== 0) {
+                $M['ct_ext_sub'][$col]++;
+            }
+        }
+        $M['total_customers'][$col] = $activeIds->count();
+
+        // Contract available? / Contract End — as of today over the active set.
+        $this->fillContractSnapshotColumn($M, $col, $activeIds, $customers, $contractFirstUpload, $today);
+
+        // Distributions over the window.
+        $this->fillDistribution($M, $col, 'nlf', $perCustNlf, 'nlf', false);
+        $this->fillDistribution($M, $col, 've', $perCustVe, 've', false);
+
+        // Accumulated Vend Earning — lifetime to date / current machine count.
+        $perCustAcc = [];
+        foreach ($rowsByCust as $cid => $crows) {
+            $cum = (int) $crows->sum('location_earning_cents');
+            $vc = (int) $crows->max('vend_count');
+            if ($cum === 0 && $vc === 0) {
+                continue;
+            }
+            $perCustAcc[$cid] = ['acc' => $cum, 'vc' => $vc];
+        }
+        $this->fillDistribution($M, $col, 'ave', $perCustAcc, 'acc', true);
+    }
+
+    /**
      * For aggregated Summary rows ("Last 12 months" / "All"), replace the
      * stored MIN(period_start) / MAX(period_end) with the actual reporting
      * window. Clamp by the customer's begin_date / termination_date so:
@@ -1418,6 +2095,20 @@ class CustomerController extends Controller
                 'location_fees_cents', 'external_subsidize_cents',
                 'location_earning_cents', 'transaction_count', 'locked_at'
             )
+            // Previous month's running Avg Mthly Sales — same formula used for
+            // the visible rows (SUM sales / DISTINCT months, floored at
+            // SUMMARY_FLOOR_DATE). Lets the single-month "Current" view draw the
+            // green/red trend arrow on the Avg cell by diffing this month's
+            // running average against last month's.
+            ->selectRaw(
+                '(SELECT COALESCE(SUM(s3.sales_cents), 0)
+                            / NULLIF(COUNT(DISTINCT s3.`year_month`), 0)
+                    FROM customer_period_summaries s3
+                    WHERE s3.customer_id = customer_period_summaries.customer_id
+                      AND s3.`year_month` >= \'2023-01-01\'
+                      AND s3.`year_month` <= customer_period_summaries.`year_month`
+                  ) AS avg_monthly_sales_cents'
+            )
             ->whereIn('customer_id', $customerIds)
             ->whereIn('year_month', $prevDates)
             ->get()
@@ -1487,6 +2178,11 @@ class CustomerController extends Controller
                 'external_subsidize_cents' => $externalSubsidizeCents,
                 'location_earning_cents' => $locationEarningCents,
                 'transaction_count' => (int) $p->transaction_count,
+                // Running Avg Mthly Sales through the previous month — drives
+                // the trend arrow on the current month's Avg cell.
+                'avg_monthly_sales_cents' => $p->avg_monthly_sales_cents !== null
+                    ? (int) round($p->avg_monthly_sales_cents)
+                    : null,
             ];
         }
     }

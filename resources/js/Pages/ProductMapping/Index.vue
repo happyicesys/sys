@@ -159,6 +159,19 @@
                       <div class="flex flex-col space-y-1">
                         <span>Upcoming Product Mapping</span>
                         <span class="text-black font-normal text-xs">Remarks</span>
+                        <a
+                          href="#"
+                          class="inline-flex items-center justify-center gap-0.5 font-normal text-xs text-blue-600 hover:text-blue-800"
+                          @click.prevent="sortTable('upcoming_product_mapping_start_date', false)"
+                        >
+                          Start At
+                          <svg v-if="filters.sortKey === 'upcoming_product_mapping_start_date' && filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                          </svg>
+                          <svg v-if="filters.sortKey === 'upcoming_product_mapping_start_date' && !filters.sortBy" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </a>
                       </div>
                     </TableHead>
                     <TableHead>
@@ -230,6 +243,9 @@
                           </span>
                           <span class="text-gray-500 text-xs whitespace-pre-wrap" v-if="productMapping.upcomingProductMapping.remarks">
                             {{ productMapping.upcomingProductMapping.remarks }}
+                          </span>
+                          <span class="text-indigo-600 text-xs" v-if="productMapping.upcoming_product_mapping_start_date">
+                            {{ productMapping.upcoming_product_mapping_start_date }}
                           </span>
                         </div>
                       </TableData>

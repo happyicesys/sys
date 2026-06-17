@@ -401,6 +401,7 @@ class ProductMappingController extends Controller
                 'nullable',
                 'not_in:' . $productMappingId,
             ],
+            'upcoming_product_mapping_start_date' => ['nullable', 'date'],
             // Smart-freezer planogram fields. is_smart can be toggled on Edit
             // (cheap migration of mapping type); basket_layout_json is the
             // per-basket division shape sent by the SmartFreezerLayout grid.
@@ -421,6 +422,11 @@ class ProductMappingController extends Controller
         // (the frontend sends '' when the user picks "--- Clear ---")
         if (empty($request->upcoming_product_mapping_id)) {
             $productMapping->upcoming_product_mapping_id = null;
+            // No upcoming mapping => start date is meaningless; clear it too.
+            $productMapping->upcoming_product_mapping_start_date = null;
+        } elseif (empty($request->upcoming_product_mapping_start_date)) {
+            // Cleared / never set: store null rather than an empty string.
+            $productMapping->upcoming_product_mapping_start_date = null;
         }
 
         if ($request->productMappingItems) {

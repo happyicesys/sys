@@ -305,8 +305,14 @@ class OpsJobItem extends Model
             ];
         }
 
-        $viaCurrentUpcoming = $vend->productMapping?->upcomingProductMapping; // productMapping.upcomingProductMapping
-        $directUpcoming = $vend->upcomingProductMapping;                       // vend.upcomingProductMapping
+        // Gate by the declared start date: before it, the upcoming mapping has
+        // not taken effect, so we freeze it as absent (no name / no remarks).
+        // When no start date is declared the helper returns true (rule ignored).
+        $currentMapping = $vend->productMapping;
+        $upcomingEffective = !$currentMapping || $currentMapping->isUpcomingMappingEffective();
+
+        $viaCurrentUpcoming = $upcomingEffective ? $currentMapping?->upcomingProductMapping : null; // productMapping.upcomingProductMapping
+        $directUpcoming = $upcomingEffective ? $vend->upcomingProductMapping : null;                 // vend.upcomingProductMapping
 
         // Store both upcoming-name sources raw so each view can apply its own
         // resolution order: the Edit tab prefers vend.upcomingProductMapping;
@@ -338,7 +344,7 @@ class OpsJobItem extends Model
         if (!$this->relationLoaded('vend')) {
             $this->load([
                 'vend:id,parameter_json,vend_channel_error_logs_json,product_mapping_id,upcoming_product_mapping_id',
-                'vend.productMapping:id,name,upcoming_product_mapping_id',
+                'vend.productMapping:id,name,upcoming_product_mapping_id,upcoming_product_mapping_start_date',
                 'vend.productMapping.upcomingProductMapping:id,name,remarks',
                 'vend.upcomingProductMapping:id,name,remarks',
             ]);

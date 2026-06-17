@@ -412,6 +412,10 @@ class CustomerSummaryAggregator
         $payloads = [];
         $customerQuery->select([
             'id',
+            // status_id drives the "keep active sites visible in the current
+            // month even before they've traded/been serviced" exception in the
+            // skip-empty-row guard below (is_active is its mirror).
+            'status_id',
             'operator_id',
             'contract_commission_type',
             'contract_commission_value',
@@ -474,7 +478,22 @@ class CustomerSummaryAggregator
                 // to surface.) job_count is included so a customer that only
                 // had a service visit (no sales yet) still surfaces with its
                 // "# of Job" count.
-                if ($salesCents === 0 && $locationFeeCents === 0 && $transactionCount === 0 && $jobCount === 0) {
+                //
+                // EXCEPTION — current in-progress month + ACTIVE site: always
+                // emit the row even when all four metrics are still zero, so a
+                // live site never vanishes from the "Current" view in the gap
+                // between its last sale/job and its next one (e.g. a machine
+                // serviced early-April with its next job not due until later
+                // this month, and a PS contract whose fee is 0 until it trades).
+                // Scoped to is_current_month so SETTLED historical months stay
+                // compact (only months with real activity are stored), and to
+                // status_id = Active so New/Pending/Potential/Inactive sites are
+                // not surfaced as empty noise. This only ADDS current-month rows
+                // — it never removes any row that was being emitted before.
+                $isEmptyRow = $salesCents === 0 && $locationFeeCents === 0 && $transactionCount === 0 && $jobCount === 0;
+                $keepActiveCurrentMonth = $isCurrentMonth
+                    && (int) $customer->status_id === \App\Models\Customer::STATUS_ACTIVE;
+                if ($isEmptyRow && !$keepActiveCurrentMonth) {
                     continue;
                 }
 

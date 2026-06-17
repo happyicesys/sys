@@ -1384,6 +1384,10 @@ class OpsJobController extends Controller
             );
         });
 
+        // Hide the upcoming product mapping (live name/remarks + the
+        // "implement new mapping" preview) until its declared start date.
+        $opsJob->opsJobItems->each(fn ($item) => $this->gateUpcomingMappingByStartDate($item));
+
         // Two-step approach instead of a correlated NOT EXISTS subquery.
         //
         // Old approach: NOT EXISTS (SELECT * FROM ops_job_items WHERE vend_id = vends.id AND ops_job_id = ?)
@@ -1552,6 +1556,9 @@ class OpsJobController extends Controller
             ->findOrFail($id);
 
         $this->attachBlindChildren($opsJobItem);
+
+        // Hide the upcoming product mapping until its declared start date.
+        $this->gateUpcomingMappingByStartDate($opsJobItem);
 
         return Inertia::render('OpsJob/EditItem', [
             'opsJobItem' => OpsJobItemResource::make($opsJobItem),
@@ -2295,6 +2302,30 @@ class OpsJobController extends Controller
         return redirect()->back()->with('success', 'Job Stock Action updated successfully.');
     }
 
+    /**
+     * Hide a not-yet-effective upcoming product mapping from the ops-job UI.
+     *
+     * The upcoming mapping (and the "implement new mapping" preview that reads
+     * vend.upcomingProductMapping / vend.productMapping.upcomingProductMapping
+     * on the frontend) must only surface on/after the start date declared on
+     * the current mapping. When the start date is in the future we null those
+     * loaded relations so the serializer emits nothing — matching the gating
+     * applied to the frozen snapshot and the stock action itself. No start
+     * date declared => effective, so this is a no-op (rule ignored).
+     */
+    private function gateUpcomingMappingByStartDate($opsJobItem)
+    {
+        $vend = $opsJobItem->vend;
+        if (!$vend) return;
+
+        $currentMapping = $vend->productMapping;
+        if ($currentMapping && $currentMapping->isUpcomingMappingEffective()) return;
+        if (!$currentMapping) return; // no current mapping => no declared start date
+
+        $vend->setRelation('upcomingProductMapping', null);
+        $currentMapping->setRelation('upcomingProductMapping', null);
+    }
+
     private function applyNewMappingToItem($opsJobItem)
     {
         $vend = $opsJobItem->vend;
@@ -2304,6 +2335,16 @@ class OpsJobController extends Controller
         $upcomingMapping = $currentMapping?->upcomingProductMapping ?: $vend->upcomingProductMapping;
 
         if (!$upcomingMapping) return;
+
+        // Respect the declared start date: the upcoming mapping only takes
+        // effect on/after it. Before then, the "new mapping" must not appear —
+        // clear any previously-applied upcoming channels and skip. When no
+        // start date is declared, isUpcomingMappingEffective() returns true so
+        // behaviour is unchanged.
+        if ($currentMapping && !$currentMapping->isUpcomingMappingEffective()) {
+            $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
+            return;
+        }
 
         $currentItems = $currentMapping ? $currentMapping->productMappingItems : collect();
         $upcomingItems = $upcomingMapping->productMappingItems;

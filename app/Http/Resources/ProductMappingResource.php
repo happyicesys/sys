@@ -21,6 +21,11 @@ class ProductMappingResource extends JsonResource
             'upcomingProductMappings' => ProductMappingResource::collection($this->whenLoaded('upcomingProductMappings')),
             'upcomingProductMapping' => ProductMappingResource::make($this->whenLoaded('upcomingProductMapping')),
             'upcoming_product_mapping_id' => $this->upcoming_product_mapping_id,
+            // Formatted for the DatePicker on Edit.vue (expects 'Y-m-d');
+            // null when no start date is set.
+            'upcoming_product_mapping_start_date' => $this->upcoming_product_mapping_start_date
+                ? $this->upcoming_product_mapping_start_date->format('Y-m-d')
+                : null,
             'upcoming_product_mapping_name' => $this->relationLoaded('upcomingProductMapping') ? ($this->upcomingProductMapping ? $this->upcomingProductMapping->name : null) : null,
             'is_active' => $this->is_active ? true : false,
             'remarks' => $this->remarks,

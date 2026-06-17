@@ -177,6 +177,12 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/', [CustomerController::class, 'index'])->name('customers');
         Route::get('/summary', [CustomerController::class, 'summary'])->name('customers.summary');
         Route::get('/summary/excel', [CustomerController::class, 'summaryExportExcel'])->name('customers.summary.excel');
+        // Site Performance — aggregate matrix report (metrics × period columns).
+        // Placed before the {id} routes below so the literal "performance"
+        // segment is never swallowed by a wildcard. Read-only; mirrors the
+        // Sites / Summary & Comm filters.
+        Route::get('/performance', [CustomerController::class, 'performance'])->name('customers.performance');
+        Route::get('/performance/excel', [CustomerController::class, 'performanceExportExcel'])->name('customers.performance.excel');
         // Action-triggered lock / unlock for a single Customer Summary row
         // (by customer_period_summaries.id). Lock = admin-access customers;
         // unlock is gated to superadmin/admin/supervisor in the controller.

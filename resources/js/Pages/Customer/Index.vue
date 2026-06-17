@@ -61,6 +61,21 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
+              Contract Attachment?
+            </label>
+            <MultiSelect
+              v-model="filters.contract_attachment"
+              :options="contractAttachmentOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            ></MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
               Site Status
             </label>
             <MultiSelect
@@ -844,6 +859,7 @@ const props = defineProps({
 
 const filters = ref({
   customer: '',
+  contract_attachment: '',
   frequency_per_week_status: '',
   is_binded_vend: '',
   location_types: [],
@@ -871,6 +887,9 @@ const loading = ref(false);
 const dayOptions = ref([]);
 const showModal = ref(false);
 const booleanOptions = ref([]);
+// Dedicated options for the "Contract Attachment?" filter so its Yes/No labels
+// stay independent of the shared booleanOptions set.
+const contractAttachmentOptions = ref([]);
 const customer = ref();
 const customerModel = ref([]);
 const categoryOptions = ref([]);
@@ -900,6 +919,11 @@ onMounted(() => {
     { id: 'false', value: 'Not Active' },
   ];
   booleanOptions.value = [
+    { id: 'all', value: 'All' },
+    { id: 'true', value: 'Yes' },
+    { id: 'false', value: 'No' },
+  ];
+  contractAttachmentOptions.value = [
     { id: 'all', value: 'All' },
     { id: 'true', value: 'Yes' },
     { id: 'false', value: 'No' },
@@ -982,6 +1006,7 @@ onMounted(() => {
   filters.value.status = statusOptions.value.find((s) => s.id === 2) ?? statusOptions.value[0];
   filters.value.is_binded_vend = booleanOptions.value[0];
   filters.value.is_cms = booleanOptions.value[0];
+  filters.value.contract_attachment = contractAttachmentOptions.value[0];
   filters.value.location_types = [locationTypeOptions.value.find((locationType) => locationType.id == 'all')].filter(Boolean);
   filters.value.operators = [operatorOptions.value.find((operator) => operator.id == 'all')].filter(Boolean);
   filters.value.vend_model_id = vendModelOptions.value[0];
@@ -1050,6 +1075,7 @@ function onSearchFilterUpdated() {
     '/customers',
     {
       ...filters.value,
+      contract_attachment: filters.value.contract_attachment?.id,
       frequency_per_week_status: filters.value.frequency_per_week_status.id,
       is_binded_vend: filters.value.is_binded_vend.id,
       is_cms: filters.value.is_cms.id,
@@ -1095,6 +1121,7 @@ function onExportExcelClicked() {
     url: '/customers/excel',
     params: {
       ...filters.value,
+      contract_attachment: filters.value.contract_attachment?.id,
       frequency_per_week_status: filters.value.frequency_per_week_status?.id,
       is_binded_vend: filters.value.is_binded_vend?.id,
       is_cms: filters.value.is_cms?.id,

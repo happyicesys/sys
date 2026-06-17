@@ -526,6 +526,12 @@ class ProductMovementController extends Controller
                 'blindChildren:id,parent_product_id,child_product_id,weight_pct,sort',
                 'blindChildren.childProduct:id,code,name',
                 'blindChildren.childProduct.thumbnail',
+                // Only surface a "child of X" link when the housing is still a live
+                // parent: link row active AND parent product active. Deactivating a
+                // parent SKU drops the badge/aggregation without destroying rows.
+                'blindParentLinks' => fn ($q) => $q
+                    ->where('is_active', true)
+                    ->whereHas('parentProduct', fn ($pq) => $pq->where('is_active', true)),
                 'blindParentLinks.parentProduct:id,code',
             ])
             ->when($request->operators, function ($query, $search) {

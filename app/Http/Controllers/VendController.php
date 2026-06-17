@@ -1723,6 +1723,11 @@ class VendController extends Controller
             // Search/autoload has populated the table).
             'initialStats' => $initialStats,
             'locationTypeOptions' => ['data' => $locationTypeOptions],
+            // Same-operator users for the @-mention dropdown in the Site Note
+            // cell. Mirrors CustomerController::summary so the Customer Index
+            // Site Note gets the identical @-autocomplete as Site Summary.
+            'mentionableUsers' => app(\App\Services\NoteNotificationService::class)
+                ->mentionableUsers(auth()->user()),
             'mapApiKey' => $mapApiKey,
             'nextDeliveryDriverOptions' => ['data' => $driverOptions],
             'operatorOptions' => ['data' => $operatorOptions],

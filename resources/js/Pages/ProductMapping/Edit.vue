@@ -72,7 +72,7 @@
                   >
                   </MultiSelect>
                 </div>
-                <div class="sm:col-span-6">
+                <div class="sm:col-span-3">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                     Upcoming Product Mapping
                   </label>
@@ -87,6 +87,23 @@
                     class="mt-1"
                   >
                   </MultiSelect>
+                </div>
+                <div class="sm:col-span-3">
+                  <DatePicker
+                    v-model="form.upcoming_product_mapping_start_date"
+                    :isPreviousNextButton="false"
+                    :disabled="!form.upcoming_product_mapping_id"
+                  >
+                    Upcoming Product Mapping Start Date
+                  </DatePicker>
+                  <p class="mt-1 text-xs text-gray-500">
+                    {{ form.upcoming_product_mapping_id
+                      ? 'When the upcoming product mapping is scheduled to start.'
+                      : 'Select an upcoming product mapping first.' }}
+                  </p>
+                  <div class="text-sm text-red-600" v-if="form.errors.upcoming_product_mapping_start_date">
+                    {{ form.errors.upcoming_product_mapping_start_date }}
+                  </div>
                 </div>
 
                 <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
@@ -438,6 +455,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import AttachmentListProductMapping from '@/Components/AttachmentListProductMapping.vue';
 import Button from '@/Components/Button.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
@@ -447,7 +465,7 @@ import SmartFreezerLayout from '@/Pages/ProductMapping/SmartFreezerLayout.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
@@ -506,6 +524,15 @@ onMounted(() => {
 })
 
 
+// Start date only applies once an upcoming product mapping is chosen. If the
+// user clears the upcoming mapping, drop any start date so we don't persist an
+// orphaned value (the backend clears it too, but this keeps the UI honest).
+watch(() => form.value.upcoming_product_mapping_id, (val) => {
+  if (!val) {
+    form.value.upcoming_product_mapping_start_date = ''
+  }
+})
+
 function getDefaultForm() {
   return {
     id: '',
@@ -518,6 +545,7 @@ function getDefaultForm() {
     sequence: '',
     operator_id: props.operatorOptions?.data?.find(op => op.id === 1),
     upcoming_product_mapping_id: '',
+    upcoming_product_mapping_start_date: '',
     // Smart-freezer planogram. is_smart is read-only on Edit (set at creation
     // time); basket_layout_json carries the per-basket division shape and is
     // mutated locally by SmartFreezerLayout, persisted on Save via the

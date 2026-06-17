@@ -513,6 +513,19 @@ class Customer extends Model
                         ->orWhere('customers.name', 'LIKE', "%{$search}%");
                 });
             })
+            ->when($request->billing_company, function ($query, $search) {
+                // Billing Company filter — mirrors the Summary page's displayed
+                // value: contact.company (the Edit form's "Bill From" field) with
+                // a fallback to the legacy CMS-mirrored company_remark for sites
+                // never edited in mark1. Match a site if EITHER source contains
+                // the search term, so results line up with what the column shows.
+                $query->where(function ($query) use ($search) {
+                    $query->whereHas('contact', function ($q) use ($search) {
+                        $q->where('company', 'LIKE', "%{$search}%");
+                    })
+                        ->orWhere('customers.company_remark', 'LIKE', "%{$search}%");
+                });
+            })
             ->when($request->frequency_per_week_status, function ($query, $search) {
                 if ($search != 'all') {
                     $query->whereIn('frequency_per_week_status', $search);
@@ -540,6 +553,19 @@ class Customer extends Model
                         $query->whereNotNull('person_id');
                     else {
                         $query->whereNull('person_id');
+                    }
+                }
+            })
+            // Contract Attachment? filter — Yes/No on whether the site has ever
+            // had any contract attachment uploaded (contracts() = Attachment
+            // type=3). "all"/empty = no filter. Listing page has no period
+            // concept, so this is a plain has/has-not-any check.
+            ->when($request->contract_attachment, function ($query, $search) {
+                if ($search != 'all') {
+                    if (filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
+                        $query->whereHas('contracts');
+                    } else {
+                        $query->whereDoesntHave('contracts');
                     }
                 }
             })

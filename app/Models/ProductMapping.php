@@ -30,6 +30,8 @@ class ProductMapping extends Model
         // ProductMapping/Edit UI branches on (basket grid vs channel-row table).
         'is_smart' => 'boolean',
         'basket_layout_json' => 'array',
+        // Date the bound upcoming product mapping is scheduled to take over.
+        'upcoming_product_mapping_start_date' => 'date',
     ];
 
     protected $fillable = [
@@ -40,10 +42,35 @@ class ProductMapping extends Model
         // 'product_mapping_items_json',
         'selling_price_type',
         'upcoming_product_mapping_id',
+        'upcoming_product_mapping_start_date',
         'is_smart',
         'basket_layout_json',
     ];
 
+
+    /**
+     * Whether this mapping's bound upcoming product mapping has taken effect.
+     *
+     * The "start date" is declared on the current mapping (this row) and gates
+     * when the upcoming mapping becomes active in ops jobs (display + the
+     * "implement new mapping" stock action). Rule:
+     *   - no start date declared  => always effective (rule ignored)
+     *   - start date declared      => effective on/after that calendar date
+     *
+     * Compared at day granularity in the app timezone (one instance per
+     * country, so app TZ == operator TZ).
+     */
+    public function isUpcomingMappingEffective($asOf = null): bool
+    {
+        if (!$this->upcoming_product_mapping_start_date) {
+            return true;
+        }
+
+        $asOf = $asOf ? \Illuminate\Support\Carbon::parse($asOf) : now();
+
+        return $asOf->copy()->startOfDay()
+            ->gte($this->upcoming_product_mapping_start_date->copy()->startOfDay());
+    }
 
     // relationships
     public function attachments()

@@ -21,6 +21,7 @@
           <SearchInput v-if="showAllFilters" placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
           <SearchInput placeholderStr="ID" v-model="filters.vend_code">Machine ID</SearchInput>
           <SearchInput placeholderStr="Site" v-model="filters.customer">Site</SearchInput>
+          <SearchInput placeholderStr="Company" v-model="filters.billing_company">Billing Company</SearchInput>
 
           <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">Site Status</label>
@@ -568,7 +569,13 @@
                                        primary line in each row (the
                                        de-grossed figure used by PS math)
                       -->
-                      <span class="text-[11px] text-gray-500">(w/ GST)</span>
+                      <span class="text-[11px] text-gray-500 inline-flex items-center justify-center gap-0.5">
+                        (w/ GST)
+                        <ExclamationCircleIcon
+                          class="min-w-4 w-4 h-4 text-sky-500 cursor-help"
+                          v-tooltip="{ content: 'The w/GST figure is highlighted by its full-month run-rate vs Avg Mthly Sales.<br>Current month: sales &divide; days elapsed &times; days in the month (projected to a full month).<br>Past months: actual sales used as-is.<br><span style=&quot;color:#16a34a&quot;>Green</span> = above average &nbsp; <span style=&quot;color:#dc2626&quot;>Red</span> = below average', html: true }"
+                        />
+                      </span>
                       <span>(excl GST)</span>
                     </div>
                   </TableHead>
@@ -797,10 +804,11 @@
                       -->
                       <span
                         v-if="row.avg_monthly_sales_cents != null"
-                        class="text-xs text-gray-700 mt-1"
-                        v-tooltip="'Average monthly sales to date (frozen once the month completes)'"
+                        class="text-xs text-gray-700 mt-1 inline-flex items-center"
+                        v-tooltip="'Average monthly sales to date (frozen once the month completes). Arrow compares vs the previous month average.'"
                       >
                         {{ formatMoney(row.avg_monthly_sales_cents) }}
+                        <TrendIcon :dir="trendAvgSales(row)" />
                       </span>
                       <!--
                         Contract Attachment — hyperlinks to the latest
@@ -967,17 +975,20 @@
                     <div class="flex flex-col items-end space-y-0.5">
                       <template v-if="row.customer && row.customer.operator && Number(row.customer.operator.gst_vat_rate) > 0">
                         <span class="text-[11px] text-gray-600 inline-flex items-center">
-                          {{ formatMoney(row.sales_cents) }}
-                          <TrendIcon :dir="null" />
+                          <span
+                            :class="salesBadgeClass(row)"
+                            v-tooltip="salesTooltip(row)"
+                          >{{ formatMoney(row.sales_cents) }}</span>
                         </span>
                         <span class="inline-flex items-center">
-                          {{ formatMoney(row.sales_cents / (1 + Number(row.customer.operator.gst_vat_rate) / 100)) }}
-                          <TrendIcon :dir="trendSales(row)" />
+                          <span :class="SALES_LINE_CLASS">{{ formatMoney(row.sales_cents / (1 + Number(row.customer.operator.gst_vat_rate) / 100)) }}</span>
                         </span>
                       </template>
                       <span v-else class="inline-flex items-center">
-                        {{ formatMoney(row.sales_cents) }}
-                        <TrendIcon :dir="trendSales(row)" />
+                        <span
+                          :class="salesBadgeClass(row)"
+                          v-tooltip="salesTooltip(row)"
+                        >{{ formatMoney(row.sales_cents) }}</span>
                       </span>
                     </div>
                   </TableData>
@@ -1876,7 +1887,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, DocumentTextIcon, EnvelopeIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import MentionTextarea from '@/Components/MentionTextarea.vue';
@@ -2132,6 +2143,9 @@ const filters = ref({
   is_cms: '',
   ref_id: '',
   vend_code: '',
+  // Billing Company text search — matches contact.company (Edit form's
+  // "Bill From") or the legacy company_remark fallback (see scopeFilterIndex).
+  billing_company: '',
   location_types: [],
   operators: [],
   vendPrefixes: [],
@@ -2490,6 +2504,87 @@ function trendDir(row, getter) {
 
 // Per-metric convenience wrappers (used directly in the template).
 function trendSales(row)      { return trendDir(row, (r) => Number(r.sales_cents)); }
+// Avg Mthly Sales trend — up (green) when this month's running average is
+// higher than last month's, down (red) when lower. prev row carries
+// avg_monthly_sales_cents both for visible multi-month rows and via the
+// server-attached prev_month snapshot in the single-month "Current" view.
+function trendAvgSales(row)   { return trendDir(row, (r) => r.avg_monthly_sales_cents != null ? Number(r.avg_monthly_sales_cents) : null); }
+
+/**
+ * Projected full-month sales (w/GST cents) used for the Avg Mthly comparison.
+ * For the CURRENT, still-running month the stored sales_cents only covers the
+ * days elapsed so far, which would always look short of the monthly average
+ * early in the month. We scale it to a full-month run-rate:
+ *     sales_cents / days-covered * days-in-month
+ * where days-covered is the period_start→period_end span (the days the figure
+ * actually accrued over). Any fully-elapsed month — including past mid-month
+ * contract segments — returns its actual sales_cents unchanged, since
+ * projecting a completed partial range would wrongly inflate it.
+ */
+function projectedSalesCents(row) {
+  if (!row || row.sales_cents == null) return null;
+  const sales = Number(row.sales_cents);
+  if (!Number.isFinite(sales)) return null;
+  if (!row.period_start || !row.period_end) return sales;
+  const start = moment(row.period_start);
+  const end = moment(row.period_end);
+  if (!start.isValid() || !end.isValid()) return sales;
+  // Only the current calendar month gets projected.
+  const now = moment();
+  if (!(now.isSame(start, 'year') && now.isSame(start, 'month'))) return sales;
+  const daysCovered = end.diff(start, 'days') + 1; // inclusive span
+  const daysInMonth = start.daysInMonth();
+  if (daysCovered <= 0 || daysCovered >= daysInMonth) return sales;
+  return Math.round(sales / daysCovered * daysInMonth);
+}
+
+/**
+ * Projected sales vs running Avg Mthly Sales — drives the green/red box on the
+ * Sales cell. Both projected sales and avg_monthly_sales_cents are w/GST cents
+ * so they compare like-for-like. The box is rendered on the w/GST figure to
+ * match this basis. Returns 'above' / 'below', or null when the average isn't
+ * computed yet (first/only month), sales is missing, or the two are equal.
+ */
+function salesVsAvg(row) {
+  if (!row || row.avg_monthly_sales_cents == null) return null;
+  const projected = projectedSalesCents(row);
+  const avg = Number(row.avg_monthly_sales_cents);
+  if (projected == null || !Number.isFinite(avg) || projected === avg) return null;
+  return projected > avg ? 'above' : 'below';
+}
+
+/**
+ * Tooltip text for the Sales box — spells out the projected run-rate and the
+ * average it's being compared against so the colour isn't a mystery.
+ */
+function salesTooltip(row) {
+  const dir = salesVsAvg(row);
+  if (!dir) return '';
+  const proj = projectedSalesCents(row);
+  const avg = Number(row.avg_monthly_sales_cents);
+  const word = dir === 'above' ? 'Above' : 'Below';
+  const projLabel = proj !== Number(row.sales_cents)
+    ? `projected full-month ${formatMoney(proj)}`
+    : formatMoney(proj);
+  return `${word} Avg Mthly Sales (${projLabel} vs avg ${formatMoney(avg)})`;
+}
+
+/**
+ * Tailwind classes for the Sales (w/GST) box. A uniform-width, right-aligned
+ * base is ALWAYS applied (incl. a transparent border) so every w/GST figure
+ * occupies the same footprint and lines up vertically — colour is layered on
+ * only when there's an above/below result. The matching excl-GST line below
+ * uses SALES_LINE_CLASS so its right edge aligns under the box.
+ */
+const SALES_BOX_BASE = 'inline-block w-24 text-right tabular-nums rounded border border-transparent px-1.5 py-0.5';
+const SALES_LINE_CLASS = 'inline-block w-24 text-right tabular-nums px-1.5';
+function salesBadgeClass(row) {
+  const dir = salesVsAvg(row);
+  if (!dir) return SALES_BOX_BASE;
+  return dir === 'above'
+    ? SALES_BOX_BASE + ' bg-green-100 text-green-800 border-green-300'
+    : SALES_BOX_BASE + ' bg-red-100 text-red-800 border-red-300';
+}
 function trendGross(row)      { return trendDir(row, (r) => Number(r.gross_earning_cents)); }
 function trendGrossRate(row)  { return trendDir(row, (r) => grossEarningRate(r)); }
 // Location Fees / Net Loc Fee intentionally show no trend arrow (per request).
@@ -2781,6 +2876,7 @@ function onSearchFilterUpdated() {
       ref_id: filters.value.ref_id,
       vend_code: filters.value.vend_code,
       customer: filters.value.customer,
+      billing_company: filters.value.billing_company,
       tags: (filters.value.tags ?? []).map ? filters.value.tags.map(t => t.id ?? t) : filters.value.tags,
       is_cms: filters.value.is_cms?.id,
       status: filters.value.status?.id,
@@ -3043,6 +3139,7 @@ function buildBackendParams() {
     ref_id: filters.value.ref_id,
     vend_code: filters.value.vend_code,
     customer: filters.value.customer,
+    billing_company: filters.value.billing_company,
     tags: (filters.value.tags ?? []).map ? filters.value.tags.map(t => t.id ?? t) : filters.value.tags,
     is_cms: filters.value.is_cms?.id,
     status: filters.value.status?.id,

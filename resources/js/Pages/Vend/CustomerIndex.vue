@@ -2425,15 +2425,16 @@
 								preserved so the box still expands with content.
 							-->
 							<div v-if="indexType === 'customers'" class="mt-2 flex flex-col w-[82px]">
-								<textarea
-									v-model="vend.notes"
+								<MentionTextarea
+									:model-value="vend.notes"
+									@update:model-value="vend.notes = $event"
 									@change="onNotesChanged(vend)"
-									@input="autoGrowTextarea($event.target)"
-									:ref="(el) => autoGrowTextarea(el)"
-									rows="4"
-									class="text-xs text-gray-700 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full text-left resize-none overflow-hidden"
+									:users="mentionableUsers"
+									:rows="4"
+									:autogrow="true"
 									placeholder="Cust Notes"
-								></textarea>
+									textarea-class="text-xs text-gray-700 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full text-left resize-none overflow-hidden"
+								/>
 								<span class="text-[10px] text-gray-500 mt-1" v-if="vend.notes_updated_by_user">
 									{{ vend.notes_updated_by_user.name }} ({{ moment(vend.notes_updated_at).format('YYMMDD hh:mma') }})
 								</span>
@@ -2938,6 +2939,7 @@ font-size:13px;
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
+	import MentionTextarea from '@/Components/MentionTextarea.vue';
 	import { ArrowDownTrayIcon, ArrowUpIcon, ArrowDownIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, TableCellsIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
@@ -2979,6 +2981,9 @@ font-size:13px;
 			// Shape: { vmCount, totals: {...}, current: {...} }.
 			initialStats: Object,
 			locationTypeOptions: Object,
+			// Same-operator users for the Site Note @-mention dropdown — same
+			// prop and shape as Customer/Summary.vue.
+			mentionableUsers: { type: Array, default: () => [] },
 			mapApiKey: String,
 			nextDeliveryDriverOptions: [Array, Object],
 			operatorOptions: Object,
