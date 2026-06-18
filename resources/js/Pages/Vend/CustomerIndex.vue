@@ -1290,17 +1290,17 @@
 								{{ vend.vend_prefix_name }}
 							</div>
 							<span class="flex flex-col space-y-0.5" v-if="vend.vend">
-								<span class="flex items-center space-x-1">
-									<a v-if="vend.vend.productMapping" :href="'/product-mappings/' + vend.vend.productMapping.id + '/edit'" target="_blank" class="text-gray-800 text-xs font-medium underline decoration-gray-400 underline-offset-2">
+								<span class="flex items-start space-x-1">
+									<a v-if="vend.vend.productMapping" :href="'/product-mappings/' + vend.vend.productMapping.id + '/edit'" target="_blank" :title="vend.vend.productMapping.name" class="text-gray-800 text-xs font-medium underline decoration-gray-400 underline-offset-2 min-w-0 break-all">
 										{{ vend.vend.productMapping.name }}
 									</a>
-									<span v-else-if="vend.product_mapping_name" class="text-xs text-gray-800">
+									<span v-else-if="vend.product_mapping_name" :title="vend.product_mapping_name" class="text-xs text-gray-800 min-w-0 break-all">
 										{{ vend.product_mapping_name }}
 									</span>
 									<!-- "New" badge: machine has an upcoming new mapping. Tooltip shows what it's changing to. -->
 									<span
 										v-if="getUpcomingMappingName(vend.vend)"
-										class="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-400 leading-none"
+										class="inline-flex shrink-0 items-center rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-400 leading-none"
 										:title="'Upcoming new mapping: ' + getUpcomingMappingName(vend.vend)"
 									>
 										New

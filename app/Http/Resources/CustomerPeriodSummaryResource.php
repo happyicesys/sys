@@ -26,6 +26,27 @@ class CustomerPeriodSummaryResource extends JsonResource
         $isCurrentMonth = (bool) $this->is_current_month;
         $isLocked = $this->locked_at !== null;
 
+        // Termination-aware lock exception. A site with a hard termination date
+        // (Customer/Edit.vue) that has fully ELAPSED can be locked even in the
+        // current in-progress month — its books are final, no more sales will
+        // post after termination. "Elapsed" = the whole termination day is in
+        // the past (strictly before today; app TZ is operator-authoritative per
+        // deployment). The aggregator only emits a current-month row for a
+        // customer whose termination_date >= month start, so an elapsed
+        // termination on a current-month row necessarily falls inside this
+        // month — no extra same-month check needed. Drives the Lock-button
+        // exception on Summary.vue and the backend guard in CustomerController.
+        $terminationDate = ($this->relationLoaded('customer') && $this->customer)
+            ? $this->customer->termination_date
+            : null;
+        $isTerminatedElapsed = false;
+        if ($terminationDate) {
+            $td = $terminationDate instanceof \Carbon\Carbon
+                ? $terminationDate->copy()
+                : \Carbon\Carbon::parse($terminationDate);
+            $isTerminatedElapsed = $td->startOfDay()->lt(\Carbon\Carbon::today());
+        }
+
         // Defaults = the frozen per-period snapshot (used as-is for completed
         // months, and as the fallback when the customer relation isn't loaded).
         $contractType = $this->contract_commission_type;
@@ -93,6 +114,12 @@ class CustomerPeriodSummaryResource extends JsonResource
             'period_start' => optional($this->period_start)->toDateString(),
             'period_end' => optional($this->period_end)->toDateString(),
             'is_current_month' => (bool) $this->is_current_month,
+            // Hard site-termination date + whether it has fully elapsed. The
+            // latter lets the Summary page surface a Lock button on a
+            // current-month row once the site has terminated (see the comment
+            // at the top of this method).
+            'termination_date' => optional($terminationDate)->toDateString(),
+            'is_terminated_elapsed' => $isTerminatedElapsed,
             'as_of_date' => optional($this->as_of_date)->toDateString(),
             // Action-triggered lock state. is_locked drives the Lock column on
             // Customer/Summary.vue; locked_by_user powers the "Locked by X" tip.

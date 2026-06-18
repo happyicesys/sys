@@ -1266,7 +1266,7 @@
                     recent reversal even after the row re-cycles.
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    <template v-if="row.is_current_month">
+                    <template v-if="row.is_current_month && !row.is_locked && !row.is_terminated_elapsed">
                       <span class="text-gray-300" v-tooltip="'Current month — lock once the month is complete'">—</span>
                     </template>
                     <template v-else-if="row.is_locked">
@@ -1355,6 +1355,7 @@
                           type="button"
                           class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight bg-amber-100 hover:bg-amber-200 text-amber-800 rounded"
                           :disabled="lockingFor.has(row.id)"
+                          v-tooltip="row.is_current_month ? 'Site terminated ' + (row.termination_date || '') + ' — lock this final (current-month) period early' : null"
                           @click="onLockClicked(row)"
                         >
                           <LockOpenIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -1986,7 +1987,10 @@ const showBatchLockModal = ref(false);
 const showBatchPaidModal = ref(false);
 const batchPaidDate = ref('');
 
-const isLockEligibleRow = (row) => !row.is_current_month && !row.is_locked;
+// A row is lockable when it's not already locked AND either it's a completed
+// past month OR it's the current month for a site that has terminated (date
+// elapsed) — the latter mirrors the backend exception in CustomerController.
+const isLockEligibleRow = (row) => !row.is_locked && (!row.is_current_month || row.is_terminated_elapsed);
 const isPaidEligibleRow = (row) =>
   !row.is_current_month && row.is_locked && !row.is_paid && isPaidEligiblePeriod(row);
 const isBatchSelectable = (row) => isLockEligibleRow(row) || isPaidEligibleRow(row);

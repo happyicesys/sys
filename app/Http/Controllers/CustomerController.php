@@ -1594,7 +1594,11 @@ class CustomerController extends Controller
 
         $summary = \App\Models\CustomerPeriodSummary::with(['customer.operator'])->findOrFail($id);
 
-        if ($summary->is_current_month) {
+        // The current in-progress month is normally not lockable — EXCEPT when
+        // the site has a hard termination date that has already elapsed. Such a
+        // site's books are final (no more sales post after termination), so the
+        // row can be settled early. See summaryTerminationElapsed().
+        if ($summary->is_current_month && !$this->summaryTerminationElapsed($summary)) {
             return back()->withErrors(['lock' => 'The current month cannot be locked until it is complete.']);
         }
         if ($summary->locked_at !== null) {
@@ -1604,6 +1608,27 @@ class CustomerController extends Controller
         $this->applyLockToSummary($summary, $user->id);
 
         return back()->with('success', 'Period locked.');
+    }
+
+    /**
+     * Whether the summary row's site has a hard termination date that has
+     * fully elapsed (the whole termination day is strictly before today, app
+     * TZ). Used to allow locking a current-month row early once the site has
+     * terminated. Mirrors the same rule in CustomerPeriodSummaryResource.
+     * Expects the customer relation to be loaded; returns false otherwise.
+     */
+    protected function summaryTerminationElapsed(\App\Models\CustomerPeriodSummary $summary): bool
+    {
+        $c = $summary->customer; // eager-loaded by both lock endpoints
+        $termination = $c ? $c->termination_date : null;
+        if (!$termination) {
+            return false;
+        }
+        $td = $termination instanceof \Carbon\Carbon
+            ? $termination->copy()
+            : \Carbon\Carbon::parse($termination);
+
+        return $td->startOfDay()->lt(\Carbon\Carbon::today());
     }
 
     /**
@@ -1803,7 +1828,13 @@ class CustomerController extends Controller
         $locked = 0;
         \Illuminate\Support\Facades\DB::transaction(function () use ($summaries, $user, &$locked) {
             foreach ($summaries as $summary) {
-                if ($summary->is_current_month || $summary->locked_at !== null) {
+                // Skip already-locked rows, and current-month rows UNLESS the
+                // site has terminated (date elapsed) — same exception as the
+                // single-row lock endpoint.
+                if ($summary->locked_at !== null) {
+                    continue;
+                }
+                if ($summary->is_current_month && !$this->summaryTerminationElapsed($summary)) {
                     continue;
                 }
                 $this->applyLockToSummary($summary, $user->id);
@@ -4093,6 +4124,10 @@ class CustomerController extends Controller
                 'customer.external_subsidize_amount'       => 'nullable|numeric|min:0',
                 'customer.contract_from'                   => 'nullable|date',
                 'customer.contract_until'                  => 'nullable|date',
+                // Termination Date — hard end for the site (ignores notice
+                // period). Drives prorated profit-sharing cutoff in the Summary
+                // aggregator; nullable so un-terminated sites are unaffected.
+                'customer.termination_date'                => 'nullable|date',
                 'customer.contract_auto_renewal'           => 'nullable|boolean',
                 'customer.contract_notice_period'          => 'nullable|string|in:' . implode(',', Customer::NOTICE_PERIOD_OPTIONS),
                 'customer.contract_remarks'                => 'nullable|string|max:5000',

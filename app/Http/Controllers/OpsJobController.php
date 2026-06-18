@@ -671,7 +671,16 @@ class OpsJobController extends Controller
                     'undo_completed_by' => null,
                 ]);
 
-                $hasMappingChange = $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->exists();
+                // A mapping swap is due whenever this item is an "implement new
+                // mapping" stock action, OR (legacy) it has upcoming-product
+                // channels staged. Relying ONLY on staged upcoming channels
+                // missed the cases where the new mapping merely removes or adds
+                // channels (no in-place product swap) — applyNewMappingToItem()
+                // only stages is_upcoming_product rows for slots whose product
+                // changes, so a remove-only/add-only mapping staged nothing and
+                // the swap silently never happened on delivery.
+                $hasMappingChange = $opsJobItem->stock_action_type === 'implement_new_mapping'
+                    || $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->exists();
 
                 if ($request->channels) {
                     foreach ($request->channels as $channel) {
@@ -688,8 +697,15 @@ class OpsJobController extends Controller
                 if ($hasMappingChange) {
                     $vend = $opsJobItem->vend;
                     if ($vend) {
-                        $targetMappingId = $vend->upcoming_product_mapping_id ?: ($vend->productMapping ? $vend->productMapping->upcoming_product_mapping_id : null);
-                        if ($targetMappingId) {
+                        $currentMapping = $vend->productMapping;
+                        // Only advance once the upcoming mapping's declared start
+                        // date is effective (no start date => always effective).
+                        // Mirrors the gating in applyNewMappingToItem(), so we
+                        // never swap ahead of a future-dated mapping change.
+                        $isEffective = !$currentMapping || $currentMapping->isUpcomingMappingEffective();
+                        $targetMappingId = $vend->upcoming_product_mapping_id
+                            ?: ($currentMapping ? $currentMapping->upcoming_product_mapping_id : null);
+                        if ($isEffective && $targetMappingId) {
                             $vend->update([
                                 'product_mapping_id' => $targetMappingId,
                                 'upcoming_product_mapping_id' => null,

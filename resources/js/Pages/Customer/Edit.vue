@@ -140,6 +140,18 @@
                       Begin Date
                     </DatePicker>
                   </div>
+                  <!-- Termination Date — hard end for the site that does NOT follow
+                       the contract notice period. When set, Site Summary profit
+                       sharing accrues only up to this date (prorated for the final
+                       month). Edit-only: we don't capture it on Create. -->
+                  <div class="sm:col-span-3" v-if="permissions.includes('update customers')">
+                    <DatePicker v-model="form.termination_date" :error="form.errors['customer.termination_date']">
+                      Termination Date
+                    </DatePicker>
+                    <p class="mt-1 text-xs text-gray-400">
+                      Forces the site to end on this date (ignores notice period). Profit sharing is prorated up to here.
+                    </p>
+                  </div>
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                       Reference Price Type
