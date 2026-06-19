@@ -225,7 +225,8 @@ function applyFilters() {
     vend_model_ids: ids(f.vend_model_ids),
     category_ids: ids(f.category_ids),
     statuses: ids(f.statuses),
-    site_statuses: ids(f.site_statuses),
+    // Empty Site Status selection means "all sites" (no status constraint).
+    site_statuses: (f.site_statuses.length ? ids(f.site_statuses) : ['all']),
   }, { preserveState: true, preserveScroll: true });
 }
 
@@ -246,7 +247,7 @@ function exportExcel() {
   ids(f.vend_model_ids).forEach((v) => p.append('vend_model_ids[]', v));
   ids(f.category_ids).forEach((v) => p.append('category_ids[]', v));
   ids(f.statuses).forEach((v) => p.append('statuses[]', v));
-  ids(f.site_statuses).forEach((v) => p.append('site_statuses[]', v));
+  (f.site_statuses.length ? ids(f.site_statuses) : ['all']).forEach((v) => p.append('site_statuses[]', v));
   window.location.href = '/vends/ops-performance/excel?' + p.toString();
 }
 

@@ -141,6 +141,48 @@
                 </div>
               </div>
 
+              <!-- Status (Site) + lifecycle dates — mirrors Customer/Edit.vue.
+                   Picking Active or Removed opens a date prompt (Active Date /
+                   Removed Date); Inactive auto-stamps its date server-side. -->
+              <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
+                <div class="sm:col-span-3">
+                  <label for="text" class="flex justify-start items-center text-sm font-medium text-gray-700">
+                    Status (Site)
+                  </label>
+                  <MultiSelect
+                    v-model="form.status_id"
+                    :options="statusOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                  ></MultiSelect>
+                  <div class="text-sm text-red-600" v-if="form.errors.status_id">
+                    {{ form.errors.status_id }}
+                  </div>
+                  <!-- Active / Removed dates captured via the status prompt. -->
+                  <p class="mt-1 text-xs text-gray-500" v-if="form.active_date">
+                    Active Date: {{ fmtDate(form.active_date) }}
+                  </p>
+                  <p class="mt-1 text-xs text-gray-500" v-if="form.removed_date">
+                    Removed Date: {{ fmtDate(form.removed_date) }}
+                  </p>
+                </div>
+                <!-- Inactive Date — auto-captured server-side when the status is
+                     set to "Inactive". Read-only (not user-settable). -->
+                <div class="sm:col-span-3" v-if="form.termination_date">
+                  <label class="flex justify-start text-sm font-medium text-gray-700">Inactive Date</label>
+                  <div class="mt-1 text-sm text-gray-700">
+                    {{ fmtDate(form.termination_date) }}
+                  </div>
+                  <p class="mt-1 text-xs text-gray-400">
+                    Auto-set when the site status is changed to Inactive.
+                  </p>
+                </div>
+              </div>
+
               <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
                 <div class="sm:col-span-3">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -440,6 +482,55 @@
                   </span>
                 </span>
               </div>
+
+              <!-- ── Status effective-date prompt (modal) ─────────────────
+                   Opens when the user selects Active or Removed. Captures the
+                   Active Date / Removed Date the save persists. Cancel reverts
+                   the status selection. Mirrors Customer/Edit.vue. -->
+              <Teleport to="body">
+                <Modal :open="statusDateModal.open" @modalClose="cancelStatusDate">
+                  <template #header>
+                    <span>{{ statusDateModal.status === STATUS_REMOVED ? 'Removed Date' : 'Active Date' }}</span>
+                  </template>
+                  <div class="text-left">
+                    <p class="text-xs text-gray-500 mb-3">
+                      <template v-if="statusDateModal.status === STATUS_REMOVED">
+                        Enter the date this site is removed. Commission stops after this date (the removal month is prorated).
+                      </template>
+                      <template v-else>
+                        Enter the date this site becomes active. Commission is calculated from this date.
+                      </template>
+                    </p>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
+                      <div class="sm:col-span-6">
+                        <DatePicker
+                          v-model="statusDateModal.date"
+                          :isPreviousNextButton="false"
+                        >
+                          {{ statusDateModal.status === STATUS_REMOVED ? 'Removed Date' : 'Active Date' }} <span class="text-red-500">*</span>
+                        </DatePicker>
+                        <p class="text-xs text-red-600 mt-1" v-if="statusDateModal.error">{{ statusDateModal.error }}</p>
+                      </div>
+                    </div>
+                    <div class="mt-4 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                        @click="cancelStatusDate"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        class="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                        @click="confirmStatusDate"
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                  </div>
+                </Modal>
+              </Teleport>
           </div>
           </form>
         </div>
@@ -455,10 +546,11 @@ import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import Modal from '@/Components/Modal.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import { ArrowPathIcon, ArrowTopRightOnSquareIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon, ExclamationCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
 import { vTooltip } from 'floating-vue';
@@ -478,6 +570,73 @@ const props = defineProps({
 const form = ref(
   useForm(getDefaultForm())
 )
+
+// Site Status options (mirrors Customer/Edit.vue + Customer::STATUSES_MAPPING).
+// id 3 is the relabelled "Removed" (formerly "Pending").
+const statusOptions = ref([
+  { id: 5, value: 'Potential' },
+  { id: 4, value: 'New' },
+  { id: 2, value: 'Active' },
+  { id: 3, value: 'Removed' },
+  { id: 1, value: 'Inactive' },
+]);
+
+// Status ids that prompt for an effective date when chosen (mirrors
+// Customer::STATUS_DATE_FIELDS). 2 = Active → active_date, 3 = Removed →
+// removed_date.
+const STATUS_ACTIVE = 2;
+const STATUS_REMOVED = 3;
+
+// Date formatters used by the template (moment is global via bootstrap.js).
+const fmtDate = (d) => (d ? moment(d).format('YYYY-MM-DD') : '');
+
+// ── Status effective-date prompt ──────────────────────────────────────────
+const statusDateModal = ref({ open: false, status: null, prevStatus: null, date: '', error: '' });
+// Guards so the watcher ignores (a) the initial form hydration and (b) our own
+// programmatic revert when the user cancels the date prompt.
+const statusWatchReady = ref(false);
+const suppressStatusWatch = ref(false);
+
+// When the user picks Active or Removed, prompt for the effective date. Other
+// statuses save straight away (Inactive auto-stamps its date server-side).
+watch(() => form.value.status_id, (newVal, oldVal) => {
+  if (!statusWatchReady.value || suppressStatusWatch.value) return;
+  const v = typeof newVal === 'object' && newVal !== null ? newVal.id : newVal;
+  const prevId = typeof oldVal === 'object' && oldVal !== null ? oldVal.id : oldVal;
+  if (v === prevId) return;
+  if (v === STATUS_ACTIVE || v === STATUS_REMOVED) {
+    const preset = v === STATUS_REMOVED
+      ? (form.value.removed_date || moment().format('YYYY-MM-DD'))
+      : (form.value.active_date || moment().format('YYYY-MM-DD'));
+    statusDateModal.value = { open: true, status: v, prevStatus: oldVal, date: preset, error: '' };
+  }
+});
+
+function confirmStatusDate() {
+  const d = statusDateModal.value.date;
+  if (!d || d === 'Invalid date') {
+    statusDateModal.value.error = 'Please choose a date.';
+    return;
+  }
+  const formatted = moment(d).format('YYYY-MM-DD');
+  if (statusDateModal.value.status === STATUS_REMOVED) {
+    form.value.removed_date = formatted;
+  } else if (statusDateModal.value.status === STATUS_ACTIVE) {
+    form.value.active_date = formatted;
+    // Re-activating opens a fresh interval — clear any prior removed date.
+    form.value.removed_date = null;
+  }
+  statusDateModal.value.open = false;
+}
+
+function cancelStatusDate() {
+  // Revert the status selection without re-triggering the watcher.
+  const prev = statusDateModal.value.prevStatus;
+  suppressStatusWatch.value = true;
+  form.value.status_id = prev;
+  statusDateModal.value.open = false;
+  nextTick(() => { suppressStatusWatch.value = false; });
+}
 
 const adminCustomerOptions = ref([])
 
@@ -521,6 +680,9 @@ function getDefaultForm() {
     operator_id: '',
     begin_date: '',
     termination_date: '',
+    // Site lifecycle dates (set via the status-change prompt) — mirror Edit.vue.
+    active_date: null,
+    removed_date: null,
     id: '',
     code: '',
     name: '',
@@ -617,6 +779,10 @@ onMounted(() => {
     full_name: vend.code,
   }))
 
+  // Arm the status-change watcher only AFTER hydration has flushed, so the
+  // initial status assignment doesn't pop the date prompt.
+  nextTick(() => { statusWatchReady.value = true; });
+
   // adminCustomerOptions.value = props.adminCustomerOptions.data.map(customer => ({
   //   id: customer.id,
   //   full_name: customer.person_id ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name  : customer.code + ' - ' + customer.name,
@@ -659,6 +825,11 @@ function saveCustomer() {
       cms_customer_id: data.cms_customer_id ? data.cms_customer_id.id : null,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
+      // Site lifecycle dates (set via the status-change prompt).
+      active_date: data.active_date && data.active_date != 'Invalid date' ? moment(data.active_date).format('YYYY-MM-DD') : null,
+      removed_date: data.removed_date && data.removed_date != 'Invalid date' ? moment(data.removed_date).format('YYYY-MM-DD') : null,
+      // status_id may be an object ({id,value}) from MultiSelect — send the id.
+      status_id: data.status_id && typeof data.status_id === 'object' ? data.status_id.id : data.status_id,
       operator_id: data.operator_id ? data.operator_id.id : null,
       contact: {
         ...data.contact,

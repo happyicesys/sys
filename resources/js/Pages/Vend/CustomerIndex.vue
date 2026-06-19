@@ -101,6 +101,7 @@
 							trackBy="id"
 							valueProp="id"
 							label="value"
+							mode="tags"
 							placeholder="Select"
 							open-direction="bottom"
 							class="mt-1"
@@ -3186,8 +3187,9 @@ font-size:13px;
 			locationType: '',
 			is_active: true,
 			// Site Status (5-value) — only used on the customers view.
-			// Stores the selected {id, value}; .id is forwarded as `customer_status`.
-			customer_status: '',
+			// Multi-select: stores an array of {id, value}; ids are forwarded as
+			// `customer_status` (empty selection sent as ['all'] = every status).
+			customer_status: [],
 			is_binded_customer: '',
 			tempHigherThan: '',
 			t2HigherThan: '',
@@ -3416,10 +3418,9 @@ productMappingOptions.value = [
 filters.value.cashless_mfg = cardTerminalOptions.value[0]
 filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
 filters.value.is_active = booleanOptions.value[1]
-// Site Status — defaults to "Active" (id=2), matching Customer/Index.vue
-// and the prior is_active=true default. Falls back to the first option ("All")
-// if STATUSES_MAPPING doesn't surface an Active entry for some reason.
-filters.value.customer_status = customerStatusOptions.value.find((s) => s.id === 2) ?? customerStatusOptions.value[0]
+// Site Status — multi-select default = Active (id=2) + Removed (id=3), matching
+// Customer/Index.vue. Clearing the selection sends ['all'] (every status).
+filters.value.customer_status = customerStatusOptions.value.filter((s) => s.id === 2 || s.id === 3)
 filters.value.deviceType = deviceTypeOptions.value[0]
 // filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0]
 filters.value.is_door_open = doorOptions.value[0]
@@ -3484,7 +3485,6 @@ if(urlParams.has('channel_codes')) {
 		if(cleanKey === 'location_type_id') filters.value.locationType = locationTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.locationType;
 		if(cleanKey === 'next_planned_driver') filters.value.next_planned_driver = nextDeliveryDriverOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.next_planned_driver;
 		if(cleanKey === 'is_active') filters.value.is_active = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_active;
-		if(cleanKey === 'customer_status') filters.value.customer_status = customerStatusOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.customer_status;
 		if(cleanKey === 'is_binded_customer') filters.value.is_binded_customer = booleanOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_binded_customer;
 		if(cleanKey === 'is_door_open') filters.value.is_door_open = doorOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.is_door_open;
 		if(cleanKey === 'fan_rpm') filters.value.fan_rpm = fanRpmOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.fan_rpm;
@@ -3511,6 +3511,7 @@ if(urlParams.has('channel_codes')) {
 
 	hydrateMulti('errors', vendChannelErrorsOptions.value, 'errors');
 	hydrateMulti('frequency_per_week_status', frequencyPerWeekOptions.value, 'frequency_per_week_status');
+	hydrateMulti('customer_status', customerStatusOptions.value, 'customer_status');
 	hydrateMulti('operators', operatorOptions.value, 'operators');
 	hydrateMulti('preferredDays', dayOptions.value, 'preferredDays');
 	hydrateMulti('productMappings', productMappingOptions.value, 'productMappings');
@@ -3907,7 +3908,10 @@ function avgMthlySales(vend) {
 		const exponent = operatorCountry.currency_exponent ?? 2
 		const lifetime = (totals['vend_records_amount_latest'] || 0) / Math.pow(10, exponent)
 
-		const FLOOR = new Date('2023-01-01T00:00:00')
+		// Single source of truth — shared from config/reporting.php so each
+		// per-country deployment's floor matches the backend lifetime numerator.
+		const floorStr = (usePage().props.reportingFloorDate || '2023-01-01')
+		const FLOOR = new Date(floorStr + 'T00:00:00')
 		let begin = vend.begin_date ? new Date(vend.begin_date + 'T00:00:00') : null
 		if (!begin || isNaN(begin.getTime()) || begin < FLOOR) {
 				begin = FLOOR
@@ -4035,7 +4039,7 @@ function onSearchFilterUpdated() {
 			next_planned_driver: filters.value.next_planned_driver.id,
 			operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
 			is_active: filters.value.is_active.id,
-			customer_status: filters.value.customer_status?.id,
+			customer_status: (filters.value.customer_status?.length ? filters.value.customer_status.map((s) => s.id) : ['all']),
 			is_binded_customer: filters.value.is_binded_customer.id,
 			is_door_open: filters.value.is_door_open.id,
 			is_mqtt: filters.value.is_mqtt.id,
@@ -4247,7 +4251,7 @@ axios({
 				operators: filters.value.operators.map((operator) => { return operator.id }),
 				preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
 				is_active: filters.value.is_active.id,
-				customer_status: filters.value.customer_status?.id,
+				customer_status: (filters.value.customer_status?.length ? filters.value.customer_status.map((s) => s.id) : ['all']),
 				is_binded_customer: filters.value.is_binded_customer.id,
 				is_door_open: filters.value.is_door_open.id,
 				is_mqtt: filters.value.is_mqtt.id,

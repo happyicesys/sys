@@ -87,7 +87,15 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
             $records29 = $vend->daysVendRecords(29, 0)->get();
             $lifetime = $vend->lifetimeVendRecords;
 
-            $daysSinceStart = max((int) Carbon::parse($vend->begin_date ?: now())->diffInDays(Carbon::parse($vend->termination_date ?: now())), 1);
+            // Floor the start at the reporting floor so the per-day average
+            // denominator matches the floored lifetime numerator (lifetimeVendRecords
+            // is floored too). See CustomerController::summaryFloorDate().
+            $avgFloor = Carbon::parse(\App\Http\Controllers\CustomerController::summaryFloorDate())->startOfDay();
+            $avgStart = Carbon::parse($vend->begin_date ?: now())->startOfDay();
+            if ($avgStart->lt($avgFloor)) {
+                $avgStart = $avgFloor->copy();
+            }
+            $daysSinceStart = max((int) $avgStart->diffInDays(Carbon::parse($vend->termination_date ?: now())), 1);
             $daysFor30 = $vend->begin_date && Carbon::parse($vend->begin_date)->diffInDays(now()) < 30
                 ? max(Carbon::parse($vend->begin_date)->diffInDays(now()), 1)
                 : 30;
@@ -195,7 +203,15 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
             $records29 = $customer->daysVendRecords(29, 0)->get();
             $lifetime = $customer->lifetimeVendRecords;
 
-            $daysSinceStart = max((int) Carbon::parse($customer->begin_date ?: now())->diffInDays(Carbon::parse($customer->termination_date ?: now())), 1);
+            // Floor the start at the reporting floor so the per-day average
+            // denominator matches the floored lifetime numerator (lifetimeVendRecords
+            // is floored too). See CustomerController::summaryFloorDate().
+            $avgFloor = Carbon::parse(\App\Http\Controllers\CustomerController::summaryFloorDate())->startOfDay();
+            $avgStart = Carbon::parse($customer->begin_date ?: now())->startOfDay();
+            if ($avgStart->lt($avgFloor)) {
+                $avgStart = $avgFloor->copy();
+            }
+            $daysSinceStart = max((int) $avgStart->diffInDays(Carbon::parse($customer->termination_date ?: now())), 1);
             $daysFor30 = $customer->begin_date && Carbon::parse($customer->begin_date)->diffInDays(now()) < 30
                 ? max(Carbon::parse($customer->begin_date)->diffInDays(now()), 1)
                 : 30;

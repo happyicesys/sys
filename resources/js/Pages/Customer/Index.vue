@@ -84,6 +84,7 @@
               trackBy="id"
               valueProp="id"
               label="value"
+              mode="tags"
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
@@ -867,7 +868,7 @@ const filters = ref({
   operators: [],
   preferredDays: [],
   ref_id: '',
-  status: '',
+  status: [],
   vend_code: '',
   vend_model_id: '',
   vendConfigs: [],
@@ -999,11 +1000,11 @@ onMounted(() => {
     }),
   ];
   // Site Status options come from the controller (Customer::STATUSES_MAPPING
-  // with an 'all' entry prepended). Default the filter to Active so the list
-  // opens on active customers, matching the old is_active=true default.
+  // with an 'all' entry prepended). Multi-select default = Active (2) + Removed
+  // (3) so the list opens on active + removed sites; clearing sends ['all'].
   statusOptions.value = (props.statuses ?? []).map((s) => ({ id: s.id, value: s.name }));
   filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0];
-  filters.value.status = statusOptions.value.find((s) => s.id === 2) ?? statusOptions.value[0];
+  filters.value.status = statusOptions.value.filter((s) => s.id === 2 || s.id === 3);
   filters.value.is_binded_vend = booleanOptions.value[0];
   filters.value.is_cms = booleanOptions.value[0];
   filters.value.contract_attachment = contractAttachmentOptions.value[0];
@@ -1079,7 +1080,7 @@ function onSearchFilterUpdated() {
       frequency_per_week_status: filters.value.frequency_per_week_status.id,
       is_binded_vend: filters.value.is_binded_vend.id,
       is_cms: filters.value.is_cms.id,
-      status: filters.value.status?.id,
+      status: (filters.value.status?.length ? filters.value.status.map((s) => s.id) : ['all']),
       location_types: filters.value.location_types.map((locationType) => locationType.id),
       operators: filters.value.operators.filter(operator => operator).map((operator) => operator.id),
       preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
@@ -1125,7 +1126,7 @@ function onExportExcelClicked() {
       frequency_per_week_status: filters.value.frequency_per_week_status?.id,
       is_binded_vend: filters.value.is_binded_vend?.id,
       is_cms: filters.value.is_cms?.id,
-      status: filters.value.status?.id,
+      status: (filters.value.status?.length ? filters.value.status.map((s) => s.id) : ['all']),
       location_types: filters.value.location_types.map((locationType) => locationType.id),
       operators: filters.value.operators.filter(o => o).map((o) => o.id),
       preferredDays: filters.value.preferredDays.map((d) => d.id),

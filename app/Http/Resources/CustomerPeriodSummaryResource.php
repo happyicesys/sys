@@ -26,25 +26,41 @@ class CustomerPeriodSummaryResource extends JsonResource
         $isCurrentMonth = (bool) $this->is_current_month;
         $isLocked = $this->locked_at !== null;
 
-        // Termination-aware lock exception. A site with a hard termination date
-        // (Customer/Edit.vue) that has fully ELAPSED can be locked even in the
-        // current in-progress month — its books are final, no more sales will
-        // post after termination. "Elapsed" = the whole termination day is in
-        // the past (strictly before today; app TZ is operator-authoritative per
-        // deployment). The aggregator only emits a current-month row for a
-        // customer whose termination_date >= month start, so an elapsed
-        // termination on a current-month row necessarily falls inside this
-        // month — no extra same-month check needed. Drives the Lock-button
-        // exception on Summary.vue and the backend guard in CustomerController.
-        $terminationDate = ($this->relationLoaded('customer') && $this->customer)
-            ? $this->customer->termination_date
+        // This row's calendar month — used for the removed-date lock exception
+        // and the flat-fee proration ratio below.
+        $monthStart = $this->year_month
+            ? \Carbon\Carbon::parse($this->year_month)->startOfMonth()
             : null;
-        $isTerminatedElapsed = false;
-        if ($terminationDate) {
-            $td = $terminationDate instanceof \Carbon\Carbon
-                ? $terminationDate->copy()
-                : \Carbon\Carbon::parse($terminationDate);
-            $isTerminatedElapsed = $td->startOfDay()->lt(\Carbon\Carbon::today());
+
+        // Removed-aware lock exception. When a site is Removed (status), its
+        // Removed Date is captured on the customer. If that date falls within
+        // THIS row's month, the current in-progress month can be locked early —
+        // even if the Removed Date is a few days in the FUTURE — because
+        // management has decided the removal and the prorated payment may need
+        // to clear in advance. Drives the Lock-button exception on Summary.vue
+        // and the backend guard in CustomerController.
+        $removedDate = ($this->relationLoaded('customer') && $this->customer)
+            ? $this->customer->removed_date
+            : null;
+        $isRemovedInPeriod = false;
+        if ($removedDate && $monthStart) {
+            $rd = $removedDate instanceof \Carbon\Carbon
+                ? $removedDate->copy()
+                : \Carbon\Carbon::parse($removedDate);
+            $monthEnd = $monthStart->copy()->endOfMonth();
+            $isRemovedInPeriod = $rd->between($monthStart, $monthEnd, true);
+        }
+
+        // Flat-fee proration ratio for this row's month, from the live active
+        // window — mirrors the aggregator so an unlocked row shows the same
+        // prorated fee the nightly run would store.
+        $flatDayRatio = 1.0;
+        if ($monthStart && $this->relationLoaded('customer') && $this->customer) {
+            $flatDayRatio = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                $this->customer->active_date ?? $this->customer->begin_date,
+                $this->customer->removed_date,
+                $monthStart
+            );
         }
 
         // Defaults = the frozen per-period snapshot (used as-is for completed
@@ -53,6 +69,12 @@ class CustomerPeriodSummaryResource extends JsonResource
         $contractValue = $this->contract_commission_value !== null ? (float) $this->contract_commission_value : null;
         $contractValue2 = $this->contract_commission_value2 !== null ? (float) $this->contract_commission_value2 : null;
         $contractPsTerm = $this->contract_ps_term !== null ? (float) $this->contract_ps_term : null;
+        // Ref Price tier (RP) — frozen at lock time, same rule as the contract
+        // terms. Default to the snapshot; whole-month UNLOCKED rows override it
+        // live below so a customer RP edit reflects immediately while the row is
+        // still open. Resolved value is surfaced as customer.selling_price_type
+        // so the badge on Summary.vue freezes once the row is locked.
+        $sellingPriceType = $this->contract_selling_price_type;
         $locationFeesCents = (int) $this->location_fees_cents;
         $externalSubsidizeCents = (int) $this->external_subsidize_cents;
         $locationEarningCents = (int) $this->location_earning_cents;
@@ -75,6 +97,7 @@ class CustomerPeriodSummaryResource extends JsonResource
             $contractValue = $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null;
             $contractValue2 = $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null;
             $contractPsTerm = $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null;
+            $sellingPriceType = $c->selling_price_type;
 
             $grossCents = (int) $this->gross_earning_cents;
             $salesCents = (int) $this->sales_cents;
@@ -92,7 +115,8 @@ class CustomerPeriodSummaryResource extends JsonResource
                 $contractPsTerm,
                 $salesCents,
                 $grossCents,
-                $gstRatePct
+                $gstRatePct,
+                $flatDayRatio
             );
 
             $externalSubsidizeCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
@@ -114,12 +138,12 @@ class CustomerPeriodSummaryResource extends JsonResource
             'period_start' => optional($this->period_start)->toDateString(),
             'period_end' => optional($this->period_end)->toDateString(),
             'is_current_month' => (bool) $this->is_current_month,
-            // Hard site-termination date + whether it has fully elapsed. The
-            // latter lets the Summary page surface a Lock button on a
-            // current-month row once the site has terminated (see the comment
+            // Removed Date + whether it falls in this row's month. The latter
+            // lets the Summary page surface a Lock button on the current
+            // in-progress month once the site is being Removed (see the comment
             // at the top of this method).
-            'termination_date' => optional($terminationDate)->toDateString(),
-            'is_terminated_elapsed' => $isTerminatedElapsed,
+            'removed_date' => optional($removedDate)->toDateString(),
+            'is_removed_in_period' => $isRemovedInPeriod,
             'as_of_date' => optional($this->as_of_date)->toDateString(),
             // Action-triggered lock state. is_locked drives the Lock column on
             // Customer/Summary.vue; locked_by_user powers the "Locked by X" tip.
@@ -146,6 +170,12 @@ class CustomerPeriodSummaryResource extends JsonResource
             'paid_by_user' => $this->relationLoaded('paidBy') && $this->paidBy
                 ? ['id' => $this->paidBy->id, 'name' => $this->paidBy->name]
                 : null,
+            // "Waived" state — drives the Waived badge on Customer/Summary.vue.
+            // A waived row is still recorded through the Paid flow (is_paid stays
+            // true); is_waived only distinguishes waived vs actually paid. Money
+            // figures are unaffected.
+            'is_waived' => (bool) $this->is_waived,
+            'waived_remarks' => $this->waived_remarks,
             // Reverse-action audit — surfaces "last unpaid by X at Y" and
             // "last unlocked by X at Y" in tooltips, so the user can see the
             // most recent reversal even after the row goes back into a
@@ -253,7 +283,11 @@ class CustomerPeriodSummaryResource extends JsonResource
                     // doesn't need its own id→label copy.
                     'status_id' => $c->status_id,
                     'status_name' => \App\Models\Customer::STATUSES_MAPPING[$c->status_id] ?? null,
-                    'selling_price_type' => $c->selling_price_type,
+                    // Lock-aware RP: frozen snapshot for locked rows, live for
+                    // unlocked. Falls back to the live customer value for rows
+                    // locked before contract_selling_price_type existed, so the
+                    // "RPx" badge never blanks on legacy locked months.
+                    'selling_price_type' => $sellingPriceType ?? $c->selling_price_type,
                     'contract_commission_type' => $c->contract_commission_type,
                     // Begin Date — rendered in the Customer column on the
                     // Summary page (right under the Ref Price chip).

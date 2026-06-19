@@ -286,7 +286,7 @@ class OpsPerformanceController extends Controller
      * Resolve the Site (customer) status filter.
      *
      * @return array{0: int[], 1: (int|string)[]}  [statusIds applied, selection echoed to UI]
-     *   - Missing/empty selection  -> default to Active.
+     *   - Missing/empty selection  -> default to Active + Removed.
      *   - Explicit 'all'           -> no constraint (every site).
      *   - Specific status ids      -> those statuses.
      */
@@ -295,7 +295,7 @@ class OpsPerformanceController extends Controller
         $raw = array_values(array_filter((array) $raw, fn ($v) => $v !== null && $v !== ''));
 
         if (empty($raw)) {
-            return [[Customer::STATUS_ACTIVE], [Customer::STATUS_ACTIVE]];
+            return [[Customer::STATUS_ACTIVE, Customer::STATUS_REMOVED], [Customer::STATUS_ACTIVE, Customer::STATUS_REMOVED]];
         }
 
         if (in_array('all', $raw, true)) {
@@ -305,7 +305,7 @@ class OpsPerformanceController extends Controller
         $ids = array_values(array_filter(array_map('intval', $raw), fn ($v) => $v > 0));
 
         if (empty($ids)) {
-            return [[Customer::STATUS_ACTIVE], [Customer::STATUS_ACTIVE]];
+            return [[Customer::STATUS_ACTIVE, Customer::STATUS_REMOVED], [Customer::STATUS_ACTIVE, Customer::STATUS_REMOVED]];
         }
 
         return [$ids, $ids];

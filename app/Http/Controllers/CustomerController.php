@@ -64,10 +64,18 @@ class CustomerController extends Controller
      * window ("All" Period Report) and the lifetime running sum to this date.
      *
      * Pre-floor rows are intentionally left in `customer_period_summaries`
-     * (no reseed needed) — we just don't display or sum them. If the floor
-     * ever needs to change, update this constant only.
+     * (no reseed needed) — we just don't display or sum them.
+     *
+     * The value is the single, app-wide reporting floor used by EVERY average
+     * and accumulated figure (not just Customer Summary). It is sourced from
+     * config('reporting.floor_date') so each per-country deployment can set its
+     * own genesis date via the REPORTING_FLOOR_DATE env var. Read it through
+     * self::summaryFloorDate() — never re-hardcode the date.
      */
-    const SUMMARY_FLOOR_DATE = '2023-01-01';
+    public static function summaryFloorDate(): string
+    {
+        return config('reporting.floor_date', '2023-01-01');
+    }
 
     protected $historyService;
     protected $mapService;
@@ -85,7 +93,7 @@ class CustomerController extends Controller
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
             // Customer Status filter (replaces is_active). Default to Active so
             // the list opens on active customers, matching prior behaviour.
-            'status' => $request->status ? $request->status : Customer::STATUS_ACTIVE,
+            'status' => $request->status ?: [Customer::STATUS_ACTIVE, Customer::STATUS_REMOVED],
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'customers.id',
             'sortBy' => $request->sortBy ? $request->sortBy : 'false',
@@ -275,7 +283,7 @@ class CustomerController extends Controller
             // active book, matching the prior binary is_active=true default.
             // Customer::filterIndex resolves `status` via the status_id column
             // (and still honours legacy `is_active` URLs for backward compat).
-            'status' => $request->status ?: Customer::STATUS_ACTIVE,
+            'status' => $request->status ?: [Customer::STATUS_ACTIVE, Customer::STATUS_REMOVED],
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'period_report' => $request->period_report ?: 'current',
             // Strip sortKey/sortBy so filterIndex doesn't apply them to the
@@ -776,7 +784,7 @@ class CustomerController extends Controller
         $request->merge([
             'is_binded_vend' => $request->is_binded_vend ?: 'all',
             'is_cms' => $request->is_cms ?: 'all',
-            'status' => $request->status ?: Customer::STATUS_ACTIVE,
+            'status' => $request->status ?: [Customer::STATUS_ACTIVE, Customer::STATUS_REMOVED],
             // Performance never orders the customers table — strip any sort keys
             // so filterIndex() can't try to ORDER BY summary columns here.
             'sortKey' => null,
@@ -934,7 +942,7 @@ class CustomerController extends Controller
     {
         $today = Carbon::today();
         $currentMonthStart = $today->copy()->startOfMonth();
-        $floor = Carbon::parse(self::SUMMARY_FLOOR_DATE)->startOfMonth();
+        $floor = Carbon::parse(self::summaryFloorDate())->startOfMonth();
 
         // --- Columns: Avg L30d + last 8 completed months (newest first) -------
         $months = [];
@@ -1450,7 +1458,7 @@ class CustomerController extends Controller
      *                     incomplete) month appears at the top of each
      *                     customer's group.
      *   all             → rangeStart = earliest known year_month (clamped to
-     *                     self::SUMMARY_FLOOR_DATE — pre-floor rows in the
+     *                     self::summaryFloorDate() — pre-floor rows in the
      *                     table came from the Excel backfill and are
      *                     incomplete); rangeEnd = current month
      *   anything else   → falls back to "current"
@@ -1480,11 +1488,11 @@ class CustomerController extends Controller
             $rangeStart = $earliest
                 ? \Carbon\Carbon::parse($earliest)->startOfMonth()
                 : $currentMonthStart->copy();
-            // Hard floor — see self::SUMMARY_FLOOR_DATE. Pre-floor rows exist in
+            // Hard floor — see self::summaryFloorDate(). Pre-floor rows exist in
             // the table from the Excel backfill but are incomplete, so we
             // refuse to show or sum them. max() picks the later of the two,
             // i.e. clamps the start forward to the floor when needed.
-            $floor = \Carbon\Carbon::parse(self::SUMMARY_FLOOR_DATE)->startOfMonth();
+            $floor = \Carbon\Carbon::parse(self::summaryFloorDate())->startOfMonth();
             if ($rangeStart->lt($floor)) {
                 $rangeStart = $floor;
             }
@@ -1595,10 +1603,11 @@ class CustomerController extends Controller
         $summary = \App\Models\CustomerPeriodSummary::with(['customer.operator'])->findOrFail($id);
 
         // The current in-progress month is normally not lockable — EXCEPT when
-        // the site has a hard termination date that has already elapsed. Such a
-        // site's books are final (no more sales post after termination), so the
-        // row can be settled early. See summaryTerminationElapsed().
-        if ($summary->is_current_month && !$this->summaryTerminationElapsed($summary)) {
+        // the site is being Removed within this month. Management has decided
+        // the removal and the prorated payment may need to clear in advance, so
+        // the row can be settled early even if the Removed Date is a few days
+        // out. See summaryRemovedInPeriod().
+        if ($summary->is_current_month && !$this->summaryRemovedInPeriod($summary)) {
             return back()->withErrors(['lock' => 'The current month cannot be locked until it is complete.']);
         }
         if ($summary->locked_at !== null) {
@@ -1617,18 +1626,22 @@ class CustomerController extends Controller
      * terminated. Mirrors the same rule in CustomerPeriodSummaryResource.
      * Expects the customer relation to be loaded; returns false otherwise.
      */
-    protected function summaryTerminationElapsed(\App\Models\CustomerPeriodSummary $summary): bool
+    protected function summaryRemovedInPeriod(\App\Models\CustomerPeriodSummary $summary): bool
     {
         $c = $summary->customer; // eager-loaded by both lock endpoints
-        $termination = $c ? $c->termination_date : null;
-        if (!$termination) {
+        $removed = $c ? $c->removed_date : null;
+        if (!$removed || !$summary->year_month) {
             return false;
         }
-        $td = $termination instanceof \Carbon\Carbon
-            ? $termination->copy()
-            : \Carbon\Carbon::parse($termination);
+        $rd = $removed instanceof \Carbon\Carbon
+            ? $removed->copy()
+            : \Carbon\Carbon::parse($removed);
+        $monthStart = \Carbon\Carbon::parse($summary->year_month)->startOfMonth();
+        $monthEnd = $monthStart->copy()->endOfMonth();
 
-        return $td->startOfDay()->lt(\Carbon\Carbon::today());
+        // Removed Date lands inside this row's month → the row may be locked
+        // early (even if the date is a few days in the future).
+        return $rd->between($monthStart, $monthEnd, true);
     }
 
     /**
@@ -1650,6 +1663,17 @@ class CustomerController extends Controller
                 ? (float) $c->operator->gst_vat_rate
                 : 0.0;
 
+            // Prorate flat fees by the active window for this row's month, so
+            // locking a removal (or activation) month freezes the SAME prorated
+            // figure shown live on screen.
+            $flatDayRatio = $summary->year_month
+                ? \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                    $c->active_date ?? $c->begin_date,
+                    $c->removed_date,
+                    \Carbon\Carbon::parse($summary->year_month)->startOfMonth()
+                )
+                : 1.0;
+
             $locFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
                 $c->contract_commission_type,
                 $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
@@ -1657,7 +1681,8 @@ class CustomerController extends Controller
                 $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
                 (int) $summary->sales_cents,
                 (int) $summary->gross_earning_cents,
-                $gstRatePct
+                $gstRatePct,
+                $flatDayRatio
             );
             $extCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
                 ? (int) round(((float) $c->external_subsidize_amount) * 100)
@@ -1671,6 +1696,11 @@ class CustomerController extends Controller
             $summary->contract_commission_value = $c->contract_commission_value;
             $summary->contract_commission_value2 = $c->contract_commission_value2;
             $summary->contract_ps_term = $c->contract_ps_term;
+            // Freeze the Ref Price tier (RP) alongside the contract terms so a
+            // later customers.selling_price_type change can't rewrite the badge
+            // on this settled month. Resource/export fall back to live for rows
+            // locked before this column existed.
+            $summary->contract_selling_price_type = $c->selling_price_type;
             $summary->location_fees_cents = $locFeeCents;
             $summary->external_subsidize_cents = $extCents;
             $summary->location_earning_cents = $earningCents;
@@ -1751,11 +1781,18 @@ class CustomerController extends Controller
 
         // Actual payment date from the Paid popup — optional; empty defaults
         // to today. paid_at stays the audit timestamp of the click itself.
+        // is_waived flags the fee as waived rather than paid; when waived the
+        // remarks field is mandatory (the reason for the waiver).
         $validated = $request->validate([
             'paid_date' => ['nullable', 'date'],
+            'is_waived' => ['nullable', 'boolean'],
+            'waived_remarks' => ['nullable', 'string', 'max:1000', 'required_if:is_waived,true,1'],
         ], [
             'paid_date.date' => 'Payment date must be a valid date.',
+            'waived_remarks.required_if' => 'Please enter a remark explaining why this period is waived.',
         ]);
+
+        $isWaived = !empty($validated['is_waived']);
 
         $summary->paid_at = now();
         $summary->paid_date = !empty($validated['paid_date'])
@@ -1763,9 +1800,11 @@ class CustomerController extends Controller
             : now()->toDateString();
         $summary->paid_by = $user->id;
         $summary->is_paid = true;
+        $summary->is_waived = $isWaived;
+        $summary->waived_remarks = $isWaived ? trim($validated['waived_remarks']) : null;
         $summary->save();
 
-        return back()->with('success', 'Period marked Paid.');
+        return back()->with('success', $isWaived ? 'Period marked Waived.' : 'Period marked Paid.');
     }
 
     /**
@@ -1793,6 +1832,9 @@ class CustomerController extends Controller
         $summary->paid_date = null;
         $summary->paid_by = null;
         $summary->is_paid = false;
+        // Waiving is part of the Paid state — clear it on Unpaid too.
+        $summary->is_waived = false;
+        $summary->waived_remarks = null;
         $summary->last_unpaid_at = now();
         $summary->last_unpaid_by = $user->id;
         $summary->save();
@@ -1829,12 +1871,12 @@ class CustomerController extends Controller
         \Illuminate\Support\Facades\DB::transaction(function () use ($summaries, $user, &$locked) {
             foreach ($summaries as $summary) {
                 // Skip already-locked rows, and current-month rows UNLESS the
-                // site has terminated (date elapsed) — same exception as the
-                // single-row lock endpoint.
+                // site is being Removed within this month — same exception as
+                // the single-row lock endpoint.
                 if ($summary->locked_at !== null) {
                     continue;
                 }
-                if ($summary->is_current_month && !$this->summaryTerminationElapsed($summary)) {
+                if ($summary->is_current_month && !$this->summaryRemovedInPeriod($summary)) {
                     continue;
                 }
                 $this->applyLockToSummary($summary, $user->id);
@@ -1958,13 +2000,13 @@ class CustomerController extends Controller
         // latest visible month, ordered ascending so a single linear pass
         // builds the prefix sum keyed by (customer_id, year_month).
         //
-        // We also clamp at self::SUMMARY_FLOOR_DATE so the running sum starts
+        // We also clamp at self::summaryFloorDate() so the running sum starts
         // at the floor date — pre-floor rows (reconstructed from
         // Excel) are incomplete and would inflate / distort the lifetime
         // accumulated earning. This must stay in lockstep with the floor
         // applied in resolvePeriodReportRange() so the on-screen rows and
         // their running totals describe the same window.
-        $floor = self::SUMMARY_FLOOR_DATE;
+        $floor = self::summaryFloorDate();
         // Ordered by period_start (NOT year_month) and keyed by period_start so
         // a month split into segments accumulates CONTINUOUSLY: segment 1 (e.g.
         // 1st–19th) shows the running total through the 19th, segment 2 (20th–
@@ -2127,8 +2169,8 @@ class CustomerController extends Controller
                 'location_earning_cents', 'transaction_count', 'locked_at'
             )
             // Previous month's running Avg Mthly Sales — same formula used for
-            // the visible rows (SUM sales / DISTINCT months, floored at
-            // SUMMARY_FLOOR_DATE). Lets the single-month "Current" view draw the
+            // the visible rows (SUM sales / DISTINCT months, floored at the
+            // reporting floor). Lets the single-month "Current" view draw the
             // green/red trend arrow on the Avg cell by diffing this month's
             // running average against last month's.
             ->selectRaw(
@@ -2136,9 +2178,10 @@ class CustomerController extends Controller
                             / NULLIF(COUNT(DISTINCT s3.`year_month`), 0)
                     FROM customer_period_summaries s3
                     WHERE s3.customer_id = customer_period_summaries.customer_id
-                      AND s3.`year_month` >= \'2023-01-01\'
+                      AND s3.`year_month` >= ?
                       AND s3.`year_month` <= customer_period_summaries.`year_month`
-                  ) AS avg_monthly_sales_cents'
+                  ) AS avg_monthly_sales_cents',
+                [self::summaryFloorDate()]
             )
             ->whereIn('customer_id', $customerIds)
             ->whereIn('year_month', $prevDates)
@@ -2606,14 +2649,14 @@ class CustomerController extends Controller
             // to & including each row's year_month. Denominator counts DISTINCT
             // months so segment-split months still count as one (matches the
             // PHP computation in attachAccumulatedVendingEarning). Floored at
-            // SUMMARY_FLOOR_DATE so it sorts on the same window that's displayed;
-            // NULLIF yields NULL for customers with no months → sorts last.
+            // the reporting floor so it sorts on the same window that's
+            // displayed; NULLIF yields NULL for customers with no months → last.
             $nullsLastRaw(
                 'SELECT COALESCE(SUM(s2.sales_cents), 0)
                           / NULLIF(COUNT(DISTINCT s2.`year_month`), 0)
                   FROM customer_period_summaries s2
                   WHERE s2.customer_id = customer_period_summaries.customer_id
-                    AND s2.`year_month` >= \'2023-01-01\'
+                    AND s2.`year_month` >= \'' . self::summaryFloorDate() . '\'
                     AND s2.`year_month` <= customer_period_summaries.`year_month`',
                 $sortDirection
             );
@@ -2720,7 +2763,7 @@ class CustomerController extends Controller
             // default is intentionally gone; with the new `status` filter,
             // forcing is_active=true would conflict (e.g. status=Inactive AND
             // is_active=true => 0 rows; status=All => only active exported).
-            'status' => $request->status ?: Customer::STATUS_ACTIVE,
+            'status' => $request->status ?: [Customer::STATUS_ACTIVE, Customer::STATUS_REMOVED],
             'period_report' => $request->period_report ?: 'current',
             // sortKey/sortBy don't apply to the Customer filter scope here.
             'sortKey' => null,
@@ -2881,7 +2924,7 @@ class CustomerController extends Controller
         $accumRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
             ->select('customer_id', 'year_month', 'period_start', 'contract_log_id', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
             ->whereIn('customer_id', $customerIds)
-            ->where('year_month', '>=', self::SUMMARY_FLOOR_DATE)
+            ->where('year_month', '>=', self::summaryFloorDate())
             ->where('year_month', '<=', $accumThrough)
             ->orderBy('customer_id')
             ->orderBy('period_start')
@@ -3022,6 +3065,9 @@ class CustomerController extends Controller
                     $row->contract_commission_value = $customer->contract_commission_value;
                     $row->contract_commission_value2 = $customer->contract_commission_value2;
                     $row->contract_ps_term = $customer->contract_ps_term;
+                    // RP follows the same lock rule — unlocked rows reflect the
+                    // live customer tier; locked rows keep the frozen snapshot.
+                    $row->contract_selling_price_type = $customer->selling_price_type;
                     $liveFee = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
                         $customer->contract_commission_type,
                         $customer->contract_commission_value !== null ? (float) $customer->contract_commission_value : null,
@@ -3095,7 +3141,11 @@ class CustomerController extends Controller
                     'Contact Person' => optional($customer?->contact)->name,
                     'Contact Phone' => optional($customer?->contact)->phone_num,
                     'Contact Alt Phone' => optional($customer?->contact)->alt_phone_num,
-                    'Ref Price' => $customer?->selling_price_type ? ('RP' . $customer->selling_price_type) : null,
+                    // Lock-aware RP: frozen snapshot for locked rows (set above
+                    // for unlocked rows), falling back to the live customer tier
+                    // for rows locked before the snapshot column existed.
+                    'Ref Price' => ($rpTier = ($row->contract_selling_price_type ?? $customer?->selling_price_type))
+                        ? ('RP' . $rpTier) : null,
                     // New: Begin Date + Contract Attachment — the on-screen
                     // Customer cell stacks these below the name.
                     'Begin Date' => $customer?->begin_date ? \Carbon\Carbon::parse($customer->begin_date)->format('ymd') : null,
@@ -3167,6 +3217,10 @@ class CustomerController extends Controller
                     // to the click date when left empty). Date-only column.
                     'Payment Date' => $row->paid_date ? \Carbon\Carbon::parse($row->paid_date)->format('ymd') : null,
                     'Paid By' => optional($row->paidBy)->name,
+                    // Waived state — flags a waived (vs actually paid) location
+                    // fee plus the mandatory reason. Money columns unaffected.
+                    'Waived?' => $row->is_waived ? 'Yes' : 'No',
+                    'Waived Remarks' => $row->waived_remarks,
                     'Last Unpaid At' => $fmtAuditDate($row->last_unpaid_at),
                     'Last Unpaid By' => optional($row->lastUnpaidBy)->name,
                     // New: Email Performance Report audit (modal action; only
@@ -3700,6 +3754,20 @@ class CustomerController extends Controller
         // Use OptionsService for dropdown options
         $optionsService = app(\App\Services\OptionsService::class);
 
+        // Site status change history (newest first) for the Status History popup.
+        $statusHistory = \App\Models\CustomerStatusLog::with('changedBy:id,name')
+            ->where('customer_id', $id)
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn ($log) => [
+                'id' => $log->id,
+                'status_id' => $log->status_id,
+                'status_name' => $log->status_name,
+                'status_date' => optional($log->status_date)->toDateString(),
+                'changed_by' => $log->changedBy ? $log->changedBy->name : null,
+                'created_at' => optional($log->created_at)->toDateTimeString(),
+            ]);
+
         return Inertia::render('Customer/Edit', [
             'cmsEndpoint' => env('CMS_URL'),
             'countries' => $optionsService->countries(),
@@ -3722,6 +3790,7 @@ class CustomerController extends Controller
                 ->orderBy('code')
                 ->get(),
             'customer' => $customer,
+            'statusHistory' => $statusHistory,
             'type' => 'update',
             'zoneOptions' => $optionsService->zones(),
         ]);
@@ -3994,7 +4063,45 @@ class CustomerController extends Controller
             $createData['status_id'] = $statusId;
             $createData['is_active'] = ($statusId === Customer::STATUS_ACTIVE);
 
+            // Begin Date is optional on the form — when left blank, default it to
+            // today so every new site has an explicit start date (the active_date
+            // seeding below and downstream Summary windows then derive from it).
+            if (empty($createData['begin_date'])) {
+                $createData['begin_date'] = \Carbon\Carbon::today()->toDateString();
+            }
+
+            // New active site: seed active_date so the Summary commission window
+            // starts at creation (begin_date if entered, else today). The
+            // aggregator also falls back to begin_date, but seeding it keeps the
+            // customer record explicit.
+            if ($statusId === Customer::STATUS_ACTIVE && empty($createData['active_date'])) {
+                $createData['active_date'] = !empty($createData['begin_date'])
+                    ? \Carbon\Carbon::parse($createData['begin_date'])->toDateString()
+                    : \Carbon\Carbon::today()->toDateString();
+            }
+
+            // New site created directly as "Removed": seed removed_date (from the
+            // status prompt, else today) so the Summary commission cutoff is set.
+            if ($statusId === Customer::STATUS_REMOVED) {
+                $createData['removed_date'] = !empty($createData['removed_date'])
+                    ? \Carbon\Carbon::parse($createData['removed_date'])->toDateString()
+                    : \Carbon\Carbon::today()->toDateString();
+            }
+
             $customer = Customer::create($createData);
+
+            // Seed the Status History with the initial status + its effective
+            // date (Active → active_date, Removed → removed_date; none otherwise).
+            $initialStatusDate = $statusId === Customer::STATUS_ACTIVE
+                ? ($createData['active_date'] ?? null)
+                : ($statusId === Customer::STATUS_REMOVED ? ($createData['removed_date'] ?? null) : null);
+            \App\Models\CustomerStatusLog::create([
+                'customer_id' => $customer->id,
+                'status_id' => $statusId,
+                'status_date' => $initialStatusDate,
+                'changed_by' => auth()->id(),
+                'source' => 'user',
+            ]);
 
             if ($request->contact and isset($request->contact['name']) and $request->contact['name']) {
                 $customer->contact()->updateOrCreate($request->contact);
@@ -4057,6 +4164,57 @@ class CustomerController extends Controller
         $requestCustomerArr['status_id'] = $statusId;
         // Keep the legacy boolean in sync: only "Active" maps to is_active=true.
         $requestCustomerArr['is_active'] = ($statusId === Customer::STATUS_ACTIVE);
+
+        // ── Site lifecycle status-change handling ──────────────────────────
+        // When the status actually changes, capture the effective date for the
+        // new status and remember it so a customer_status_logs row is appended
+        // after the save:
+        //   Active   → Active Date (from the prompt; defaults today). Opens a
+        //              new active interval, so removed_date is cleared.
+        //   Removed  → Removed Date (from the prompt; defaults today). Commission
+        //              stops after this date (removal month prorated).
+        //   Inactive → auto-stamps termination_date (record-only Inactive Date;
+        //              not user-settable, does NOT gate the calc).
+        //   Potential/New → no date.
+        $statusActuallyChanged = $customer && (int) $customer->status_id !== $statusId;
+        // Also treat a changed Active/Removed effective date (even when the
+        // status label stays the same — e.g. correcting a Removed Date on a
+        // site that is already Removed) as a loggable event.
+        $dateOnlyChanged = false;
+        if ($customer && !$statusActuallyChanged) {
+            $toDate = fn ($v) => !empty($v) ? \Carbon\Carbon::parse($v)->toDateString() : null;
+            if ($statusId === Customer::STATUS_ACTIVE) {
+                $dateOnlyChanged = $toDate($requestCustomerArr['active_date'] ?? null) !== $toDate($customer->active_date);
+            } elseif ($statusId === Customer::STATUS_REMOVED) {
+                $dateOnlyChanged = $toDate($requestCustomerArr['removed_date'] ?? null) !== $toDate($customer->removed_date);
+            }
+        }
+        $statusChanged = $statusActuallyChanged || $dateOnlyChanged;
+        $statusLogDate = null;
+        if ($statusChanged) {
+            if ($statusId === Customer::STATUS_ACTIVE) {
+                $activeDate = !empty($requestCustomerArr['active_date'])
+                    ? \Carbon\Carbon::parse($requestCustomerArr['active_date'])->toDateString()
+                    : \Carbon\Carbon::today()->toDateString();
+                $requestCustomerArr['active_date'] = $activeDate;
+                // Only reopen the interval (clear removed_date) on a real
+                // transition INTO Active — not when merely correcting the date.
+                if ($statusActuallyChanged) {
+                    $requestCustomerArr['removed_date'] = null;
+                }
+                $statusLogDate = $activeDate;
+            } elseif ($statusId === Customer::STATUS_REMOVED) {
+                $removedDate = !empty($requestCustomerArr['removed_date'])
+                    ? \Carbon\Carbon::parse($requestCustomerArr['removed_date'])->toDateString()
+                    : \Carbon\Carbon::today()->toDateString();
+                $requestCustomerArr['removed_date'] = $removedDate;
+                $statusLogDate = $removedDate;
+            } elseif ($statusId === Customer::STATUS_INACTIVE) {
+                $requestCustomerArr['termination_date'] = now()->toDateTimeString();
+                $statusLogDate = \Carbon\Carbon::today()->toDateString();
+            }
+            $request->merge(['customer' => $requestCustomerArr]);
+        }
 
         if (isset($requestCustomerArr['is_restricted_access']) and $requestCustomerArr['is_restricted_access'] === 'true') {
             $requestCustomerArr['is_restricted_access'] = true;
@@ -4124,6 +4282,9 @@ class CustomerController extends Controller
                 'customer.external_subsidize_amount'       => 'nullable|numeric|min:0',
                 'customer.contract_from'                   => 'nullable|date',
                 'customer.contract_until'                  => 'nullable|date',
+                // Site lifecycle dates entered via the status-change prompt.
+                'customer.active_date'                     => 'nullable|date',
+                'customer.removed_date'                    => 'nullable|date',
                 // Termination Date — hard end for the site (ignores notice
                 // period). Drives prorated profit-sharing cutoff in the Summary
                 // aggregator; nullable so un-terminated sites are unaffected.
@@ -4275,6 +4436,18 @@ class CustomerController extends Controller
             }
 
             $customer->update($request->customer);
+
+            // Append a Status History row whenever the site status changed (date
+            // captured above). Append-only audit; powers the Status History popup.
+            if ($statusChanged) {
+                \App\Models\CustomerStatusLog::create([
+                    'customer_id' => $customer->id,
+                    'status_id' => $statusId,
+                    'status_date' => $statusLogDate,
+                    'changed_by' => auth()->id(),
+                    'source' => 'user',
+                ]);
+            }
 
             // Append a row to customer_contract_logs whenever any contract field
             // changes, so the Summary page (and future segmented reporting) can
@@ -4449,7 +4622,7 @@ class CustomerController extends Controller
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
             // Mirror index()'s Customer Status filter so the export honours the
             // same status selection sent from the Customer Index page.
-            'status' => $request->status ? $request->status : Customer::STATUS_ACTIVE,
+            'status' => $request->status ?: [Customer::STATUS_ACTIVE, Customer::STATUS_REMOVED],
             'sortKey' => $request->sortKey ? $request->sortKey : 'customers.id',
             'sortBy' => $request->sortBy ? $request->sortBy : 'false',
         ]);

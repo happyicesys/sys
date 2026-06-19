@@ -168,10 +168,36 @@ class PerformanceReportContentService
         // 32 for May). startOfDay() pins the diff to a whole-day integer.
         $start = Carbon::parse($periodStart)->startOfDay();
         $end   = Carbon::parse($periodEnd)->startOfDay();
+
+        // month_days = the calendar-month span the requested period sits in
+        // (the proration DENOMINATOR), computed from the ORIGINAL period before
+        // any clamping below.
         $monthSpanStart = $start->copy()->startOfMonth();
         $monthSpanEnd   = $end->copy()->endOfMonth()->startOfDay();
-        $base['active_days'] = (int) round($start->diffInDays($end)) + 1;
-        $base['month_days']  = (int) round($monthSpanStart->diffInDays($monthSpanEnd)) + 1;
+        $base['month_days'] = (int) round($monthSpanStart->diffInDays($monthSpanEnd)) + 1;
+
+        // Clamp the ACTIVE span to the site's lifecycle window so the report /
+        // email prorate flat fees identically to the Summary row (which uses
+        // CustomerSummaryAggregator::computeActiveDayRatio over the same
+        // active_date / removed_date). For a normal active site (no removed_date,
+        // active_date in the past) this is a no-op → unchanged numbers. PS
+        // (sales-based) lines need no clamp — summary.sales_cents is already
+        // bounded to the days the machine traded.
+        if ($customer->active_date) {
+            $activeStart = Carbon::parse($customer->active_date)->startOfDay();
+            if ($activeStart->gt($start)) {
+                $start = $activeStart;
+            }
+        }
+        if ($customer->removed_date) {
+            $removedEnd = Carbon::parse($customer->removed_date)->startOfDay();
+            if ($removedEnd->lt($end)) {
+                $end = $removedEnd;
+            }
+        }
+        $base['active_days'] = $end->gte($start)
+            ? ((int) round($start->diffInDays($end)) + 1)
+            : 0;
 
         $value  = (float) ($customer->contract_commission_value ?? 0);
         $value2 = (float) ($customer->contract_commission_value2 ?? 0);

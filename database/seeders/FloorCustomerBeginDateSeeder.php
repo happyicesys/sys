@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\DB;
  * Floor every customer's begin_date forward to 2023-01-01.
  *
  * The Customer Summary now clamps both the displayed period window and the
- * lifetime "Accumulate Vending Earning" running sum at 2023-01-01 — see
- * App\Http\Controllers\CustomerController::SUMMARY_FLOOR_DATE. The reason
+ * lifetime "Accumulate Vending Earning" running sum at the reporting floor —
+ * see App\Http\Controllers\CustomerController::summaryFloorDate(). The reason
  * is that pre-floor monthly rows in customer_period_summaries were
  * reconstructed from imported Excel and are incomplete (the system only
  * captures reliable live monthly aggregates from the floor date onwards).
@@ -46,16 +46,11 @@ use Illuminate\Support\Facades\DB;
  */
 class FloorCustomerBeginDateSeeder extends Seeder
 {
-    /**
-     * Keep this in lockstep with CustomerController::SUMMARY_FLOOR_DATE.
-     * If that constant ever moves, update this one too (and run the
-     * seeder again — it's idempotent).
-     */
-    private const FLOOR_DATE = '2023-01-01';
-
     public function run(): void
     {
-        $floor = Carbon::parse(self::FLOOR_DATE)->startOfDay();
+        // Single app-wide reporting floor — see CustomerController::summaryFloorDate()
+        // (config('reporting.floor_date')). Idempotent; re-run if the floor moves.
+        $floor = Carbon::parse(\App\Http\Controllers\CustomerController::summaryFloorDate())->startOfDay();
         $floorString = $floor->toDateTimeString(); // '2023-01-01 00:00:00'
 
         $candidateQuery = DB::table('customers')

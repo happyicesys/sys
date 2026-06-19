@@ -497,7 +497,7 @@ class VendController extends Controller
             // legacy boolean filter doesn't conflict (`is_active=true` AND
             // `status=1` would yield zero rows).
             if ($request->customer_status === null || $request->customer_status === '') {
-                $request->merge(['customer_status' => $isAdminish ? Customer::STATUS_ACTIVE : 'all']);
+                $request->merge(['customer_status' => $isAdminish ? [Customer::STATUS_ACTIVE, Customer::STATUS_REMOVED] : 'all']);
             }
             $request->merge([
                 'status' => $request->customer_status,
@@ -907,11 +907,10 @@ class VendController extends Controller
                     // Hits the (customer_id, year_month) unique index on
                     // customer_period_summaries — cheap even at site scale.
                     $through = \Carbon\Carbon::now()->startOfMonth()->toDateString();
-                    // Floor — keep in lockstep with
-                    // CustomerController::SUMMARY_FLOOR_DATE so this matches the
-                    // Customer Summary page. Pre-floor rows are incomplete Excel
-                    // backfill and excluded from the lifetime sum.
-                    $floor = \App\Http\Controllers\CustomerController::SUMMARY_FLOOR_DATE;
+                    // Floor — sourced from CustomerController::summaryFloorDate()
+                    // so this matches the Customer Summary page. Pre-floor rows
+                    // are incomplete Excel backfill and excluded from the sum.
+                    $floor = \App\Http\Controllers\CustomerController::summaryFloorDate();
                     $query->leftJoin(DB::raw("(
                 SELECT customer_id, SUM(location_earning_cents) AS accumulate_vending_earning_cents
                 FROM customer_period_summaries
@@ -1389,10 +1388,10 @@ class VendController extends Controller
                 ->all();
             if (!empty($customerIds)) {
                 $through = Carbon::now()->startOfMonth()->toDateString();
-                // Floor — keep in lockstep with CustomerController::SUMMARY_FLOOR_DATE
+                // Floor — sourced from CustomerController::summaryFloorDate()
                 // so the displayed Accumulated VendEarning matches the Customer
                 // Summary page (and the sort subquery above).
-                $floor = \App\Http\Controllers\CustomerController::SUMMARY_FLOOR_DATE;
+                $floor = \App\Http\Controllers\CustomerController::summaryFloorDate();
 
                 // Every monthly row for these customers up to the current month.
                 $monthlyRows = DB::table('customer_period_summaries')
@@ -1883,7 +1882,7 @@ class VendController extends Controller
         $accumSums = [];
         if (!empty($accCustomerIds)) {
             $through = Carbon::now()->startOfMonth()->toDateString();
-            $floor = \App\Http\Controllers\CustomerController::SUMMARY_FLOOR_DATE;
+            $floor = \App\Http\Controllers\CustomerController::summaryFloorDate();
 
             $monthlyRows = DB::table('customer_period_summaries')
                 ->select('customer_id', 'contract_log_id', 'locked_at', 'location_earning_cents', 'sales_cents', 'gross_earning_cents')

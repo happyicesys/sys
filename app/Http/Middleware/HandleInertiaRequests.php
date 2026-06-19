@@ -98,6 +98,10 @@ class HandleInertiaRequests extends Middleware
             // Building/Street fields fall back to manual entry. Only 'onemap'
             // is wired into the frontend SearchAddressInput today.
             'mapProvider' => env('MAP_PROVIDER'),
+            // App-wide reporting floor (data genesis). Frontend derived figures
+            // — e.g. CustomerIndex "Avg Mthly Sales $" month count — must use
+            // the same floor as the backend. See config/reporting.php.
+            'reportingFloorDate' => config('reporting.floor_date', '2023-01-01'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),

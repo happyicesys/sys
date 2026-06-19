@@ -41,6 +41,11 @@ class CustomerPeriodSummary extends Model
         'contract_commission_value',
         'contract_commission_value2',
         'contract_ps_term',
+        // Ref Price tier (RP) snapshot — frozen at lock time alongside the
+        // contract terms so a later customers.selling_price_type change does
+        // NOT rewrite the badge on an already-locked month. See migration
+        // add_contract_selling_price_type_to_customer_period_summaries.
+        'contract_selling_price_type',
         // Action-triggered lock (see migration add_lock_to_customer_period_summaries).
         'locked_at',
         'locked_by',
@@ -49,6 +54,12 @@ class CustomerPeriodSummary extends Model
         // paid/unpaid writer; backfilled by BackfillSummaryLockedPaidFlagsSeeder.
         'is_locked',
         'is_paid',
+        // "Waived" state — set via the Mark as Paid / Waived popup. is_waived
+        // flags the location fee as waived (rather than actually paid);
+        // waived_remarks is the mandatory reason. Both ride alongside the
+        // paid_* columns and are cleared on Unpaid. Money figures unaffected.
+        'is_waived',
+        'waived_remarks',
         // Paid + audit timestamps (see migration add_paid_and_audit_to_customer_period_summaries).
         'paid_at',
         'paid_date',
@@ -80,6 +91,7 @@ class CustomerPeriodSummary extends Model
         'locked_at' => 'datetime',
         'is_locked' => 'boolean',
         'is_paid' => 'boolean',
+        'is_waived' => 'boolean',
         'paid_at' => 'datetime',
         'paid_date' => 'date',
         'last_unpaid_at' => 'datetime',

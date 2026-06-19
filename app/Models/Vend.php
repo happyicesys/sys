@@ -718,8 +718,17 @@ class Vend extends Model
 
     public function lifetimeVendRecords()
     {
+        // Floor the lower bound at the app-wide reporting floor so lifetime
+        // sums/averages never include pre-genesis data, even if begin_date is
+        // older. See CustomerController::summaryFloorDate().
+        $floor = Carbon::parse(\App\Http\Controllers\CustomerController::summaryFloorDate())->startOfDay();
+        $start = Carbon::parse($this->begin_date)->startOfDay();
+        if ($start->lt($floor)) {
+            $start = $floor;
+        }
+
         return $this->vendRecords()
-            ->where('date', '>=', Carbon::parse($this->begin_date)->startOfDay())
+            ->where('date', '>=', $start)
             ->where('date', '<=', ($this->termination_date ? Carbon::parse($this->termination_date)->endOfDay() : Carbon::today()->endOfDay()));
     }
 

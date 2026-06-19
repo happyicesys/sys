@@ -413,8 +413,17 @@ class ComputeCustomerSummary extends Command
             if (!$earliest) {
                 return [null, null, true];
             }
+            // Clamp the genesis backfill forward to the app-wide reporting floor
+            // so we never generate (incomplete) pre-genesis summary rows. The
+            // Summary display already hides anything before the floor — see
+            // CustomerController::summaryFloorDate().
+            $start = Carbon::parse($earliest)->startOfMonth();
+            $floor = Carbon::parse(\App\Http\Controllers\CustomerController::summaryFloorDate())->startOfMonth();
+            if ($start->lt($floor)) {
+                $start = $floor;
+            }
             return [
-                Carbon::parse($earliest)->startOfMonth(),
+                $start,
                 Carbon::today()->startOfMonth(),
                 true,
             ];

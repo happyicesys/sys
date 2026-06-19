@@ -89,7 +89,8 @@ class CustomerSummaryAggregator
         ?float $psTerm,
         int $salesCents,
         int $grossEarningCents,
-        float $gstRatePct = 0.0
+        float $gstRatePct = 0.0,
+        float $flatDayRatio = 1.0
     ): int {
         if ($contractType === null) {
             return 0;
@@ -99,6 +100,19 @@ class CustomerSummaryAggregator
         $value2 = $value2 !== null ? (float) $value2 : 0.0;
         $psTerm = $psTerm !== null ? (float) $psTerm : 0.0;
 
+        // $flatDayRatio prorates the TIME-BASED (flat $/period) fee components
+        // when a site is active only part of the month — i.e. the month it
+        // becomes Active or is Removed. 1.0 (default) = full month, so every
+        // existing caller is unchanged. The PS (sales-based) portion is NOT
+        // prorated: a removed/not-yet-active site has no transactions outside
+        // its active window, so the sales basis is already naturally bounded.
+        $r = $flatDayRatio;
+        if ($r < 0.0) {
+            $r = 0.0;
+        } elseif ($r > 1.0) {
+            $r = 1.0;
+        }
+
         switch ($contractType) {
             case self::CONTRACT_TYPE_FREE:
                 return 0;
@@ -106,32 +120,80 @@ class CustomerSummaryAggregator
             case self::CONTRACT_TYPE_SUBSIDIZED:
                 // Subsidy is INCOME from the location (negative location fee).
                 // value is in dollars → convert to cents.
-                return -1 * (int) round($value * 100);
+                return -1 * (int) round($value * 100 * $r);
 
             case self::CONTRACT_TYPE_RENTAL:
             case self::CONTRACT_TYPE_UTILITY:
                 // Flat amount in dollars per period
-                return (int) round($value * 100);
+                return (int) round($value * 100 * $r);
 
             case self::CONTRACT_TYPE_RENTAL_UTILITY:
                 // Fix Rental ($value) + Utility ($value2), both flat $/period.
-                return (int) round($value * 100) + (int) round($value2 * 100);
+                return (int) round($value * 100 * $r) + (int) round($value2 * 100 * $r);
 
             case self::CONTRACT_TYPE_PS:
                 return self::psAmountCents($salesCents, $psTerm, $value, $gstRatePct);
 
             case self::CONTRACT_TYPE_PS_U:
                 return self::psAmountCents($salesCents, $psTerm, $value, $gstRatePct)
-                    + (int) round($value2 * 100);
+                    + (int) round($value2 * 100 * $r);
 
             case self::CONTRACT_TYPE_PS_OR_U:
                 return max(
                     self::psAmountCents($salesCents, $psTerm, $value, $gstRatePct),
-                    (int) round($value2 * 100)
+                    (int) round($value2 * 100 * $r)
                 );
         }
 
         return 0;
+    }
+
+    /**
+     * Fraction (0.0–1.0) of the calendar month that a site was ACTIVE, given
+     * its active_date (start of the current active interval; callers pass
+     * active_date ?? begin_date) and removed_date (end of the interval, NULL
+     * while active). Used to prorate flat fees for the activation / removal
+     * month. A month fully inside the active window returns 1.0.
+     *
+     * The denominator is the full calendar-month day count (not the as-of
+     * window) because flat fees are billed per calendar month — so a site
+     * removed on the 15th of a 30-day month pays half, regardless of how far
+     * the nightly run has progressed.
+     */
+    public static function computeActiveDayRatio(
+        $activeDate,
+        $removedDate,
+        CarbonInterface $monthStart
+    ): float {
+        $mStart = Carbon::parse($monthStart)->startOfMonth();
+        $mEnd = $mStart->copy()->endOfMonth()->startOfDay();
+        $monthDays = (int) $mStart->daysInMonth;
+
+        $winStart = $mStart->copy();
+        if ($activeDate) {
+            $a = Carbon::parse($activeDate)->startOfDay();
+            if ($a->gt($winStart)) {
+                $winStart = $a;
+            }
+        }
+        $winEnd = $mEnd->copy();
+        if ($removedDate) {
+            $rd = Carbon::parse($removedDate)->startOfDay();
+            if ($rd->lt($winEnd)) {
+                $winEnd = $rd;
+            }
+        }
+
+        if ($winEnd->lt($winStart) || $monthDays <= 0) {
+            return 0.0;
+        }
+
+        $activeDays = $winStart->diffInDays($winEnd) + 1; // inclusive
+        if ($activeDays >= $monthDays) {
+            return 1.0;
+        }
+
+        return $activeDays / $monthDays;
     }
 
     private static function psAmountCents(
@@ -297,16 +359,35 @@ class CustomerSummaryAggregator
         // We also need to emit "zero" rows for active customers that had no
         // transactions in the window — otherwise they'd disappear from the
         // Summary page even though their contract fees still apply (e.g. fix
-        // rental we still pay). Keep this scoped to customers whose begin_date
-        // is on/before the period_end and (if terminated) termination_date is
-        // on/after period_start.
+        // rental we still pay).
+        //
+        // Inclusion is gated by the site's ACTIVE WINDOW (current-window only,
+        // per the agreed design):
+        //   - active start: active_date if set, else begin_date (legacy rows
+        //     not yet seeded). The site must have started being active on/before
+        //     period_end to qualify for this month.
+        //   - removed end: removed_date. The site must NOT have been removed
+        //     before this month started. NULL removed_date = still active.
+        // (termination_date / Inactive is record-only and does NOT gate the
+        // calc — Removed Date is the commission cutoff.)
+        $endOfPeriod = $periodEnd->copy()->endOfDay();
         $customerQuery = Customer::query()
             ->withoutGlobalScopes() // aggregator runs system-wide
-            ->where(function ($q) use ($periodEnd) {
-                $q->whereNull('begin_date')->orWhere('begin_date', '<=', $periodEnd->copy()->endOfDay());
+            ->where(function ($q) use ($endOfPeriod) {
+                // active_date <= period_end, OR (no active_date AND begin_date
+                // null/<= period_end) so legacy un-seeded rows still appear.
+                $q->where(function ($q2) use ($endOfPeriod) {
+                    $q2->whereNotNull('active_date')
+                       ->where('active_date', '<=', $endOfPeriod);
+                })->orWhere(function ($q2) use ($endOfPeriod) {
+                    $q2->whereNull('active_date')
+                       ->where(function ($q3) use ($endOfPeriod) {
+                           $q3->whereNull('begin_date')->orWhere('begin_date', '<=', $endOfPeriod);
+                       });
+                });
             })
             ->where(function ($q) use ($monthStart) {
-                $q->whereNull('termination_date')->orWhere('termination_date', '>=', $monthStart);
+                $q->whereNull('removed_date')->orWhere('removed_date', '>=', $monthStart);
             });
 
         // Locked rows are user-frozen snapshots — the aggregator must NOT
@@ -417,6 +498,11 @@ class CustomerSummaryAggregator
             // skip-empty-row guard below (is_active is its mirror).
             'status_id',
             'operator_id',
+            // Active window — drives flat-fee proration for the activation /
+            // removal month (active_date falls back to begin_date).
+            'begin_date',
+            'active_date',
+            'removed_date',
             'contract_commission_type',
             'contract_commission_value',
             'contract_commission_value2',
@@ -446,6 +532,17 @@ class CustomerSummaryAggregator
                 // applying PS Term — matches the popup's math.
                 $gstRatePct = (float) ($operatorGstRates[$customer->operator_id] ?? 0);
 
+                // Flat-fee proration for the activation / removal month. 1.0 for
+                // a month the site was active throughout (the common case → no
+                // change). < 1.0 only when active_date starts after the 1st or
+                // removed_date lands before month end. PS (sales-based) fees are
+                // unaffected — sales are naturally bounded to the active days.
+                $flatDayRatio = self::computeActiveDayRatio(
+                    $customer->active_date ?? $customer->begin_date,
+                    $customer->removed_date,
+                    $monthStart
+                );
+
                 $locationFeeCents = self::computeLocationFeeCents(
                     $customer->contract_commission_type,
                     $customer->contract_commission_value !== null ? (float) $customer->contract_commission_value : null,
@@ -453,7 +550,8 @@ class CustomerSummaryAggregator
                     $customer->contract_ps_term !== null ? (float) $customer->contract_ps_term : null,
                     $salesCents,
                     $grossEarningCents,
-                    $gstRatePct
+                    $gstRatePct,
+                    $flatDayRatio
                 );
 
                 // External Subsidize (cents) — a third party (e.g. a brand)

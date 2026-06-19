@@ -28,7 +28,7 @@
             <MultiSelect
               v-model="filters.status"
               :options="statusOptions"
-              trackBy="id" valueProp="id" label="value"
+              trackBy="id" valueProp="id" label="value" mode="tags"
               placeholder="Select" open-direction="bottom" class="mt-1"
             />
           </div>
@@ -1043,7 +1043,7 @@
                           > + ${{ Number(row.contract_commission_value2).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}</span>
                         </span>
                       </span>
-                      <span v-if="row.contract_ps_term != null" class="text-gray-400">
+                      <span v-if="row.contract_ps_term != null && ['PS','PS+U','PSORU'].includes(row.contract_commission_type)" class="text-gray-400">
                         PS Term: {{ Number(row.contract_ps_term) }}%
                       </span>
                     </div>
@@ -1266,7 +1266,7 @@
                     recent reversal even after the row re-cycles.
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    <template v-if="row.is_current_month && !row.is_locked && !row.is_terminated_elapsed">
+                    <template v-if="row.is_current_month && !row.is_locked && !row.is_removed_in_period">
                       <span class="text-gray-300" v-tooltip="'Current month — lock once the month is complete'">—</span>
                     </template>
                     <template v-else-if="row.is_locked">
@@ -1303,6 +1303,17 @@
                           <div v-if="row.is_paid && row.paid_date" class="text-emerald-700">
                             <span class="font-semibold">Pymt</span> {{ moment(row.paid_date).format('YYMMDD') }}
                           </div>
+                          <!-- Waived badge — set when the row was marked via the
+                               Mark as Paid / Waived popup with Waived ticked.
+                               Reason surfaces on hover. -->
+                          <div v-if="row.is_waived" class="mt-0.5">
+                            <span
+                              class="inline-block px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-semibold border border-purple-300"
+                              v-tooltip="row.waived_remarks || 'Waived'"
+                            >
+                              Waived
+                            </span>
+                          </div>
                           <div v-if="!row.is_paid && row.last_unpaid_at" class="text-red-700">
                             <span class="font-semibold">Unpaid</span> {{ formatYYMMDDHM(row.last_unpaid_at) }}
                             <span v-if="row.last_unpaid_by_user">by {{ row.last_unpaid_by_user.name }}</span>
@@ -1332,7 +1343,7 @@
                           @click="onPaidClicked(row)"
                         >
                           <CheckBadgeIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
-                          <span>Verify Paid</span>
+                          <span>Verify Paid/ Waived</span>
                         </Button>
                         <!-- Unpaid — only visible on a locked+paid row.
                              Same access tier as Unlock (superadmin/admin). -->
@@ -1355,7 +1366,7 @@
                           type="button"
                           class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight bg-amber-100 hover:bg-amber-200 text-amber-800 rounded"
                           :disabled="lockingFor.has(row.id)"
-                          v-tooltip="row.is_current_month ? 'Site terminated ' + (row.termination_date || '') + ' — lock this final (current-month) period early' : null"
+                          v-tooltip="row.is_current_month ? 'Site removed ' + (row.removed_date || '') + ' — lock this prorated (current-month) period early' : null"
                           @click="onLockClicked(row)"
                         >
                           <LockOpenIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -1733,26 +1744,51 @@
       <template #header>
         <div class="flex items-center space-x-2">
           <CheckCircleIcon class="w-5 h-5 text-emerald-600" />
-          <span>Mark as Paid</span>
+          <span>Mark as Paid/ Waived</span>
         </div>
       </template>
       <template #default>
         <div class="text-sm text-left">
           <p class="mb-4 text-gray-700">
-            Mark <span class="font-semibold">{{ paidModalLabel }}</span> as Paid?
+            Mark <span class="font-semibold">{{ paidModalLabel }}</span> as
+            {{ paidModalWaived ? 'Waived' : 'Paid' }}?
           </p>
-          <label class="block text-xs font-medium text-gray-600 mb-1" for="paid-date-input">
-            Payment date
-          </label>
-          <input
-            id="paid-date-input"
-            v-model="paidModalDate"
-            type="date"
-            class="w-48 rounded border-gray-300 text-sm focus:border-emerald-500 focus:ring-emerald-500"
-          />
-          <p class="text-[11px] text-gray-500 mt-1">
-            Leave empty to use today's date.
-          </p>
+          <div class="flex items-start gap-6">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1" for="paid-date-input">
+                Payment date
+              </label>
+              <input
+                id="paid-date-input"
+                v-model="paidModalDate"
+                type="date"
+                class="w-48 rounded border-gray-300 text-sm focus:border-emerald-500 focus:ring-emerald-500"
+              />
+              <p class="text-[11px] text-gray-500 mt-1">
+                Leave empty to use today's date.
+              </p>
+            </div>
+            <div class="flex-1">
+              <label class="inline-flex items-center gap-2 text-xs font-medium text-gray-600 mb-1">
+                <input
+                  type="checkbox"
+                  v-model="paidModalWaived"
+                  class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                Waived?
+              </label>
+              <textarea
+                v-model="paidModalRemarks"
+                rows="3"
+                :disabled="!paidModalWaived"
+                :placeholder="paidModalWaived ? 'Reason for waiving (required)' : 'Tick Waived to add a reason'"
+                class="block w-full rounded border-gray-300 text-sm focus:border-purple-500 focus:ring-purple-500 disabled:bg-gray-100 disabled:text-gray-400"
+              ></textarea>
+              <p v-if="paidModalWaived" class="text-[11px] text-purple-600 mt-1">
+                Remark is required when waiving.
+              </p>
+            </div>
+          </div>
           <p class="text-[11px] text-gray-500 mt-3">
             This records the payment date + actor against the locked snapshot.
             The Unlock button will be blocked until the row is Unpaid again.
@@ -1772,7 +1808,7 @@
               @click="onPaidModalConfirm"
             >
               <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Confirm Paid</span>
+              <span>{{ paidModalWaived ? 'Confirm Waived' : 'Confirm Paid' }}</span>
             </Button>
           </div>
         </div>
@@ -1990,7 +2026,7 @@ const batchPaidDate = ref('');
 // A row is lockable when it's not already locked AND either it's a completed
 // past month OR it's the current month for a site that has terminated (date
 // elapsed) — the latter mirrors the backend exception in CustomerController.
-const isLockEligibleRow = (row) => !row.is_locked && (!row.is_current_month || row.is_terminated_elapsed);
+const isLockEligibleRow = (row) => !row.is_locked && (!row.is_current_month || row.is_removed_in_period);
 const isPaidEligibleRow = (row) =>
   !row.is_current_month && row.is_locked && !row.is_paid && isPaidEligiblePeriod(row);
 const isBatchSelectable = (row) => isLockEligibleRow(row) || isPaidEligibleRow(row);
@@ -2141,9 +2177,10 @@ const hasAnyAddressWithCoords = computed(() => {
 
 const filters = ref({
   customer: '',
-  // Site Status — 5-value (matches Customer::STATUSES_MAPPING). Stores the
-  // selected option object {id, value}; .id is sent to the server.
-  status: '',
+  // Site Status — 5-value (matches Customer::STATUSES_MAPPING). Multi-select:
+  // stores an array of option objects [{id, value}, ...]; their ids are sent to
+  // the server. Empty selection is sent as ['all'] (no status constraint).
+  status: [],
   is_cms: '',
   ref_id: '',
   vend_code: '',
@@ -2261,9 +2298,10 @@ onMounted(() => {
     value: opt.value,
   }));
 
-  // Defaults — Site Status opens on "Active" (id=2) to match the prior
-  // is_active=true default; mirrors Customer/Index.vue's behaviour.
-  filters.value.status = statusOptions.value.find((s) => s.id === 2) ?? statusOptions.value[0];
+  // Defaults — Site Status opens on BOTH "Active" (id=2) and "Removed" (id=3)
+  // so Admin/Ops see active + removed sites by default. Clearing the selection
+  // sends ['all'] (every status). Mirrors Customer/Index.vue's behaviour.
+  filters.value.status = statusOptions.value.filter((s) => s.id === 2 || s.id === 3);
   filters.value.is_cms = booleanOptions.value[0];
   // Contract Attachment? defaults to "All" (no filter).
   filters.value.contract_attachment = contractAttachmentOptions.value[0];
@@ -2883,7 +2921,7 @@ function onSearchFilterUpdated() {
       billing_company: filters.value.billing_company,
       tags: (filters.value.tags ?? []).map ? filters.value.tags.map(t => t.id ?? t) : filters.value.tags,
       is_cms: filters.value.is_cms?.id,
-      status: filters.value.status?.id,
+      status: (filters.value.status?.length ? filters.value.status.map((s) => s.id) : ['all']),
       location_types: (filters.value.location_types ?? []).map((lt) => lt.id),
       operators: (filters.value.operators ?? []).filter(Boolean).map((o) => o.id),
       vendPrefixes: (filters.value.vendPrefixes ?? []).map((vp) => vp.id),
@@ -3057,6 +3095,9 @@ function onUnlockClicked(row) {
 const showPaidModal = ref(false);
 const paidModalRow = ref(null);
 const paidModalDate = ref('');
+// Waived state for the popup — when ticked, waived_remarks becomes mandatory.
+const paidModalWaived = ref(false);
+const paidModalRemarks = ref('');
 
 const paidModalLabel = computed(() => {
   const row = paidModalRow.value;
@@ -3072,12 +3113,16 @@ function onPaidClicked(row) {
   if (lockingFor.value.has(row.id)) return;
   paidModalRow.value = row;
   paidModalDate.value = moment().format('YYYY-MM-DD'); // pre-fill today
+  paidModalWaived.value = false;
+  paidModalRemarks.value = '';
   showPaidModal.value = true;
 }
 
 function onPaidModalClose() {
   showPaidModal.value = false;
   paidModalRow.value = null;
+  paidModalWaived.value = false;
+  paidModalRemarks.value = '';
 }
 
 // STEP 2: confirm from the popup. Same permission as Lock; server re-checks.
@@ -3087,23 +3132,37 @@ function onPaidModalConfirm() {
   if (!row?.id || !row.is_locked || row.is_paid) return;
   if (lockingFor.value.has(row.id)) return;
 
+  // Waived requires a remark — block here (server re-validates too).
+  const isWaived = paidModalWaived.value;
+  const remarks = (paidModalRemarks.value || '').trim();
+  if (isWaived && !remarks) {
+    toast.error('Please enter a remark explaining why this period is waived.', { timeout: 4000 });
+    return;
+  }
+
   // Empty/cleared field → today (server defaults too — belt and braces).
   const paidDate = paidModalDate.value || moment().format('YYYY-MM-DD');
 
   showPaidModal.value = false;
   paidModalRow.value = null;
+  paidModalWaived.value = false;
+  paidModalRemarks.value = '';
 
   lockingFor.value.add(row.id);
-  // Partial reload — Paid only flips paid_at / paid_date; row money figures
-  // + totals are unaffected. Refreshing summaries is enough to bring back
-  // the new paid_at / paid_date / paid_by_user so the green-check icon +
-  // "Paid by X (Y)" tooltip render immediately on success.
-  router.post('/customers/summary/' + row.id + '/paid', { paid_date: paidDate }, {
+  // Partial reload — Paid only flips paid_at / paid_date / is_waived; row money
+  // figures + totals are unaffected. Refreshing summaries is enough to bring
+  // back the new paid_at / paid_date / paid_by_user / is_waived so the
+  // green-check icon + Waived badge + tooltip render immediately on success.
+  router.post('/customers/summary/' + row.id + '/paid', {
+    paid_date: paidDate,
+    is_waived: isWaived,
+    waived_remarks: isWaived ? remarks : null,
+  }, {
     only: ['summaries'],
     preserveScroll: true,
     preserveState: true,
-    onSuccess: () => toast.success('Period marked Paid.', { timeout: 3000 }),
-    onError: (errors) => toast.error(errors?.paid || errors?.paid_date || 'Failed to mark Paid.', { timeout: 4000 }),
+    onSuccess: () => toast.success(isWaived ? 'Period marked Waived.' : 'Period marked Paid.', { timeout: 3000 }),
+    onError: (errors) => toast.error(errors?.paid || errors?.paid_date || errors?.waived_remarks || 'Failed to mark Paid.', { timeout: 4000 }),
     onFinish: () => lockingFor.value.delete(row.id),
   });
 }
@@ -3146,7 +3205,7 @@ function buildBackendParams() {
     billing_company: filters.value.billing_company,
     tags: (filters.value.tags ?? []).map ? filters.value.tags.map(t => t.id ?? t) : filters.value.tags,
     is_cms: filters.value.is_cms?.id,
-    status: filters.value.status?.id,
+    status: (filters.value.status?.length ? filters.value.status.map((s) => s.id) : ['all']),
     location_types: (filters.value.location_types ?? []).map((lt) => lt.id),
     operators: (filters.value.operators ?? []).filter(Boolean).map((o) => o.id),
     vendPrefixes: (filters.value.vendPrefixes ?? []).map((vp) => vp.id),

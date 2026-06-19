@@ -27,7 +27,7 @@
             <MultiSelect
               v-model="filters.status"
               :options="statusOptions"
-              trackBy="id" valueProp="id" label="value"
+              trackBy="id" valueProp="id" label="value" mode="tags"
               placeholder="Select" open-direction="bottom" class="mt-1"
             />
           </div>
@@ -118,18 +118,18 @@
       </div>
 
       <!-- Matrix -->
-      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border border-gray-300 my-3 overflow-x-auto">
-        <table class="min-w-full border-collapse text-sm [&_th]:border-gray-300 [&_td]:border-gray-300">
+      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border border-gray-300 my-3 overflow-auto max-h-[80vh]">
+        <table class="min-w-full border-separate text-sm [&_th]:border-gray-300 [&_td]:border-gray-300" style="border-spacing: 0">
           <thead>
             <tr class="bg-gray-50">
-              <th class="sticky left-0 z-10 bg-gray-50 border-b border-r px-3 py-2 text-left font-semibold text-gray-700 min-w-[18rem]">
+              <th class="sticky left-0 top-0 z-30 bg-gray-50 border-b border-r px-3 py-2 text-left font-semibold text-gray-700 min-w-[18rem]">
                 Metric
               </th>
               <th
                 v-for="col in columns"
                 :key="col.key"
-                class="border-b border-l px-3 py-2 text-right font-semibold text-gray-700 whitespace-nowrap"
-                :class="col.key === 'l30d' ? 'bg-sky-50' : ''"
+                class="sticky top-0 z-20 border-b border-l px-3 py-2 text-right font-semibold text-gray-700 whitespace-nowrap"
+                :class="col.key === 'l30d' ? 'bg-sky-50' : 'bg-gray-50'"
               >
                 <div>{{ col.label }}</div>
                 <div class="text-[10px] font-normal text-gray-400">{{ col.sub }}</div>
@@ -329,12 +329,12 @@ function denomVal(denomKey, colKey) {
 function formatMoney(cents) {
   if (cents == null) return '';
   const exp = operatorCountry?.currency_exponent ?? 2;
-  const showExp = !operatorCountry?.is_currency_exponent_hidden;
   const value = Number(cents) / Math.pow(10, exp);
   const sign = value < 0 ? '-' : '';
+  // Table shows whole numbers only — no decimals.
   return sign + Math.abs(value).toLocaleString(undefined, {
-    minimumFractionDigits: showExp ? exp : 0,
-    maximumFractionDigits: showExp ? exp : 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
 }
 
@@ -377,7 +377,7 @@ const filters = ref({
   ref_id: '',
   vend_code: '',
   customer: '',
-  status: '',
+  status: [],
   tags: [],
   operators: [],
   vendPrefixes: [],
@@ -411,8 +411,9 @@ onMounted(() => {
     id: o.id, value: o.value,
   }));
 
-  // Defaults — mirror Summary & Comm / Sites.
-  filters.value.status = statusOptions.value.find((s) => s.id === 2) ?? statusOptions.value[0];
+  // Defaults — mirror Summary & Comm / Sites: multi-select Site Status opens on
+  // Active (2) + Removed (3); clearing the selection sends ['all'].
+  filters.value.status = statusOptions.value.filter((s) => s.id === 2 || s.id === 3);
   filters.value.location_types = [locationTypeOptions.value.find((o) => o.id === 'all')].filter(Boolean);
   filters.value.operators = authOperator ? [
     operatorOptions.value.find((o) => o.id === authOperator.id),
@@ -430,7 +431,7 @@ function buildBackendParams() {
     ref_id: filters.value.ref_id,
     vend_code: filters.value.vend_code,
     customer: filters.value.customer,
-    status: filters.value.status?.id,
+    status: (filters.value.status?.length ? filters.value.status.map((s) => s.id) : ['all']),
     tags: (filters.value.tags ?? []).map((t) => (t && t.id !== undefined ? t.id : t)),
     operators: (filters.value.operators ?? []).filter(Boolean).map((o) => o.id),
     vendPrefixes: (filters.value.vendPrefixes ?? []).map((vp) => vp.id),

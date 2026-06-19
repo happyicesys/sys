@@ -42,6 +42,12 @@ class Customer extends Model
     const STATUS_ACTIVE = 2;
     const STATUS_INACTIVE = 1;
 
+    // "Pending" was relabelled to "Removed" (the status now means the site has
+    // been removed and commission stops after its Removed Date). The integer
+    // value (3) is UNCHANGED so no data migration is needed; this alias just
+    // lets new code read STATUS_REMOVED instead of the legacy STATUS_PENDING.
+    const STATUS_REMOVED = self::STATUS_PENDING;
+
     const ADDRESS_TYPE_BILLING = 1;
     const ADDRESS_TYPE_DELIVERY = 2;
 
@@ -55,8 +61,17 @@ class Customer extends Model
         self::STATUS_POTENTIAL => 'Potential',
         self::STATUS_NEW => 'New',
         self::STATUS_ACTIVE => 'Active',
-        self::STATUS_PENDING => 'Pending',
+        self::STATUS_PENDING => 'Removed',
         self::STATUS_INACTIVE => 'Inactive',
+    ];
+
+    // Statuses that carry a user-entered effective date captured via the
+    // Edit page's status-change prompt: Active → active_date, Removed →
+    // removed_date. (Inactive auto-stamps termination_date; the rest carry no
+    // date.) Drives the Status History log + the date-prompt modal.
+    const STATUS_DATE_FIELDS = [
+        self::STATUS_ACTIVE => 'active_date',
+        self::STATUS_REMOVED => 'removed_date',
     ];
 
     // Notice Period dropdown options for the Placement Contract Detail
@@ -116,6 +131,9 @@ class Customer extends Model
     protected $casts = [
         'account_manager_json' => 'json',
         'begin_date' => 'datetime',
+        // Site lifecycle dates (drive the Summary commission window).
+        'active_date' => 'date',
+        'removed_date' => 'date',
         'contract_auto_renewal' => 'boolean',
         'is_external_subsidize' => 'boolean',
         'is_gst_registered' => 'boolean',
@@ -222,6 +240,10 @@ class Customer extends Model
         'snap_vend_status_json',
         'status_id',
         'termination_date',
+        // Site lifecycle dates — active_date / removed_date drive the Summary
+        // commission window; termination_date above is the auto Inactive Date.
+        'active_date',
+        'removed_date',
         'totals_json',
         'virtual_customer_code',
         'virtual_customer_prefix',
@@ -447,6 +469,15 @@ class Customer extends Model
         return $this->belongsTo(User::class, 'notes_updated_by');
     }
 
+    /**
+     * Append-only Site status change history (newest first). Powers the
+     * "Status History" popup on the Edit page.
+     */
+    public function statusLogs()
+    {
+        return $this->hasMany(CustomerStatusLog::class)->latest('id');
+    }
+
     public function opsNoteUpdatedBy()
     {
         return $this->belongsTo(User::class, 'ops_note_updated_by');
@@ -477,12 +508,27 @@ class Customer extends Model
             ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 
-    // vend_records with customer begin date and termination date
+    // vend_records with customer begin date and operational end date. The end
+    // is the Removed Date (when the site stopped operating) if set, else the
+    // auto Inactive Date (termination_date), else today.
     public function lifetimeVendRecords()
     {
+        $end = $this->removed_date
+            ?? $this->termination_date
+            ?? Carbon::today();
+
+        // Floor the lower bound at the app-wide reporting floor so lifetime
+        // sums/averages never include pre-genesis data, even if begin_date is
+        // older. See CustomerController::summaryFloorDate().
+        $floor = Carbon::parse(\App\Http\Controllers\CustomerController::summaryFloorDate())->startOfDay();
+        $start = Carbon::parse($this->begin_date)->startOfDay();
+        if ($start->lt($floor)) {
+            $start = $floor;
+        }
+
         return $this->vendRecords()
-            ->where('date', '>=', Carbon::parse($this->begin_date)->startOfDay())
-            ->where('date', '<=', ($this->termination_date ? Carbon::parse($this->termination_date)->endOfDay() : Carbon::today()->endOfDay()));
+            ->where('date', '>=', $start)
+            ->where('date', '<=', Carbon::parse($end)->endOfDay());
     }
 
     // vend_records with date range
@@ -599,8 +645,16 @@ class Customer extends Model
             })
             ->when($request->selling_price_type, fn($query, $input) => $query->where('selling_price_type', $input))
             ->when($request->status, function ($query, $input) {
-                if ($input != 'all') {
-                    $query->where('status_id', $input);
+                // Site Status filter — now multi-select. Accepts an array of
+                // status_ids OR a single scalar (backwards compatible). 'all'
+                // (or an empty selection) means no constraint. Selecting one or
+                // more concrete ids narrows to those via whereIn.
+                $vals = array_values(array_filter(
+                    is_array($input) ? $input : [$input],
+                    fn ($v) => $v !== null && $v !== '' && (string) $v !== 'all'
+                ));
+                if (!empty($vals)) {
+                    $query->whereIn('status_id', $vals);
                 }
             })
             ->when($request->tags, function ($query, $search) {

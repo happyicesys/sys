@@ -118,8 +118,19 @@
                     </div>
                   </div>
                   <div class="sm:col-span-3">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                    <label for="text" class="flex justify-start items-center text-sm font-medium text-gray-700">
                       Status (Site)
+                      <!-- Status History — opens a popup listing every status
+                           change with its date, who set it, and when. -->
+                      <button
+                        type="button"
+                        class="ml-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800"
+                        v-tooltip="'View status change history'"
+                        @click="openStatusHistory"
+                      >
+                        <ClockIcon class="h-4 w-4" aria-hidden="true" />
+                        <span>Status History</span>
+                      </button>
                     </label>
                     <MultiSelect
                       v-model="form.status_id"
@@ -134,22 +145,31 @@
                     <div class="text-sm text-red-600" v-if="form.errors['customer.status_id']">
                       {{ form.errors['customer.status_id'] }}
                     </div>
+                    <!-- Active / Removed dates captured via the status prompt;
+                         shown here for reference. -->
+                    <p class="mt-1 text-xs text-gray-500" v-if="form.active_date">
+                      Active Date: {{ fmtDate(form.active_date) }}
+                      <button type="button" class="ml-1 text-indigo-600 hover:text-indigo-800 underline" @click="editStatusDate(STATUS_ACTIVE)">edit</button>
+                    </p>
+                    <p class="mt-1 text-xs text-gray-500" v-if="form.removed_date">
+                      Removed Date: {{ fmtDate(form.removed_date) }}
+                      <button type="button" class="ml-1 text-indigo-600 hover:text-indigo-800 underline" @click="editStatusDate(STATUS_REMOVED)">edit</button>
+                    </p>
                   </div>
                   <div class="sm:col-span-3">
                     <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()" v-if="permissions.includes('update customers')">
                       Begin Date
                     </DatePicker>
                   </div>
-                  <!-- Termination Date — hard end for the site that does NOT follow
-                       the contract notice period. When set, Site Summary profit
-                       sharing accrues only up to this date (prorated for the final
-                       month). Edit-only: we don't capture it on Create. -->
-                  <div class="sm:col-span-3" v-if="permissions.includes('update customers')">
-                    <DatePicker v-model="form.termination_date" :error="form.errors['customer.termination_date']">
-                      Termination Date
-                    </DatePicker>
+                  <!-- Inactive Date — auto-captured when the status is set to
+                       "Inactive". Read-only (not user-settable). -->
+                  <div class="sm:col-span-3" v-if="form.termination_date">
+                    <label class="flex justify-start text-sm font-medium text-gray-700">Inactive Date</label>
+                    <div class="mt-1 text-sm text-gray-700">
+                      {{ fmtDate(form.termination_date) }}
+                    </div>
                     <p class="mt-1 text-xs text-gray-400">
-                      Forces the site to end on this date (ignores notice period). Profit sharing is prorated up to here.
+                      Auto-set when the site status is changed to Inactive.
                     </p>
                   </div>
                   <div class="sm:col-span-3">
@@ -994,6 +1014,88 @@
                   </Teleport>
                   <!-- end Set Future Contract (modal) -->
 
+                  <!-- ── Status effective-date prompt (modal) ─────────────────
+                       Opens when the user selects Active or Removed. Captures
+                       the Active Date / Removed Date that the save persists +
+                       logs. Cancel reverts the status selection. -->
+                  <Teleport to="body">
+                    <Modal :open="statusDateModal.open" @modalClose="cancelStatusDate">
+                      <template #header>
+                        <span>{{ statusDateModal.status === STATUS_REMOVED ? 'Removed Date' : 'Active Date' }}</span>
+                      </template>
+                      <div class="text-left">
+                        <p class="text-xs text-gray-500 mb-3">
+                          <template v-if="statusDateModal.status === STATUS_REMOVED">
+                            Enter the date this site is removed. Commission stops after this date (the removal month is prorated).
+                          </template>
+                          <template v-else>
+                            Enter the date this site becomes active. Commission is calculated from this date.
+                          </template>
+                        </p>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
+                          <div class="sm:col-span-6">
+                            <DatePicker
+                              v-model="statusDateModal.date"
+                              :isPreviousNextButton="false"
+                            >
+                              {{ statusDateModal.status === STATUS_REMOVED ? 'Removed Date' : 'Active Date' }} <span class="text-red-500">*</span>
+                            </DatePicker>
+                            <p class="text-xs text-red-600 mt-1" v-if="statusDateModal.error">{{ statusDateModal.error }}</p>
+                          </div>
+                        </div>
+                        <div class="mt-4 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                            @click="cancelStatusDate"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            class="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                            @click="confirmStatusDate"
+                          >
+                            Confirm
+                          </button>
+                        </div>
+                      </div>
+                    </Modal>
+                  </Teleport>
+
+                  <!-- ── Status History (modal) ───────────────────────────────
+                       Read-only table of every status change for this site. -->
+                  <Teleport to="body">
+                    <Modal :open="showStatusHistory" @modalClose="closeStatusHistory">
+                      <template #header>
+                        <span>Status History</span>
+                      </template>
+                      <div class="text-left">
+                        <div v-if="!props.statusHistory || props.statusHistory.length === 0" class="text-sm text-gray-500 py-4 text-center">
+                          No status changes recorded yet.
+                        </div>
+                        <table v-else class="min-w-full text-sm">
+                          <thead>
+                            <tr class="text-left text-xs font-medium text-gray-500 border-b">
+                              <th class="py-2 pr-4">Status</th>
+                              <th class="py-2 pr-4">Date</th>
+                              <th class="py-2 pr-4">Changed By</th>
+                              <th class="py-2">When</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="log in props.statusHistory" :key="log.id" class="border-b last:border-0">
+                              <td class="py-2 pr-4 text-gray-800">{{ log.status_name || log.status_id }}</td>
+                              <td class="py-2 pr-4 text-gray-700">{{ log.status_date || '—' }}</td>
+                              <td class="py-2 pr-4 text-gray-700">{{ log.changed_by || '—' }}</td>
+                              <td class="py-2 text-gray-500">{{ log.created_at ? fmtDateTime(log.created_at) : '—' }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </Modal>
+                  </Teleport>
+
                   <!--
                     Performance Report Email opt-in.
                     The toggle is force-disabled (and force-false) when no
@@ -1562,9 +1664,9 @@ import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, MinusCircleIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, ClockIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, MinusCircleIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
@@ -1585,6 +1687,8 @@ const props = defineProps({
   operatorOptions: Object,
   bankOptions: [Array, Object],
   customer: Object,
+  // Site status change history (newest first) for the Status History popup.
+  statusHistory: { type: Array, default: () => [] },
   sellingPriceTypeOptions: [Array, Object],
   type: String,
   zoneOptions: Object,
@@ -1605,9 +1709,15 @@ const statusOptions = ref([
   { id: 5, value: 'Potential' },
   { id: 4, value: 'New' },
   { id: 2, value: 'Active' },
-  { id: 3, value: 'Pending' },
+  { id: 3, value: 'Removed' },
   { id: 1, value: 'Inactive' },
 ]);
+
+// Status ids that prompt for an effective date when chosen (mirrors
+// Customer::STATUS_DATE_FIELDS). 2 = Active → active_date, 3 = Removed →
+// removed_date.
+const STATUS_ACTIVE = 2;
+const STATUS_REMOVED = 3;
 
 // Resolve the status id from the live form selection, falling back to the
 // saved customer value (used by the header badge below).
@@ -1622,9 +1732,85 @@ const statusBadgeClass = computed(() => {
   switch (currentStatusId.value) {
     case 2:  return 'bg-green-300'; // Active
     case 1:  return 'bg-red-300';   // Inactive
-    default: return 'bg-amber-300'; // Potential / New / Pending
+    default: return 'bg-amber-300'; // Potential / New / Removed
   }
 });
+
+// Date formatters used by the template (moment is used in the script, so these
+// stay script-scoped helpers rather than calling moment() directly in markup).
+const fmtDate = (d) => (d ? moment(d).format('YYYY-MM-DD') : '');
+const fmtDateTime = (d) => (d ? moment(d).format('YYYY-MM-DD HH:mm') : '');
+
+// ── Status effective-date prompt + history popup ──────────────────────────
+const statusDateModal = ref({ open: false, status: null, prevStatus: null, date: '', error: '' });
+const showStatusHistory = ref(false);
+// Guards so the status watcher ignores (a) the initial hydration and (b) our
+// own programmatic revert when the user cancels the date prompt.
+const statusWatchReady = ref(false);
+const suppressStatusWatch = ref(false);
+
+function openStatusHistory() { showStatusHistory.value = true; }
+function closeStatusHistory() { showStatusHistory.value = false; }
+
+// Open the date prompt to correct the Active/Removed date WITHOUT changing the
+// status (the backend logs a date-only change too). prevStatus = current status
+// so Cancel is a no-op on the selection.
+function editStatusDate(statusId) {
+  const current = form.value.status_id;
+  const preset = statusId === STATUS_REMOVED
+    ? (form.value.removed_date ? moment(form.value.removed_date).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'))
+    : (form.value.active_date ? moment(form.value.active_date).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'));
+  statusDateModal.value = { open: true, status: statusId, prevStatus: current, date: preset, error: '' };
+}
+
+// When the user picks Active or Removed, prompt for the effective date. Other
+// statuses save straight away (Inactive auto-stamps its date server-side).
+watch(() => form.value.status_id, (newVal, oldVal) => {
+  if (!statusWatchReady.value || suppressStatusWatch.value) return;
+  const v = typeof newVal === 'object' && newVal !== null ? newVal.id : newVal;
+  const prevId = typeof oldVal === 'object' && oldVal !== null ? oldVal.id : oldVal;
+  // Ignore re-selecting the same status (object identity changes even when the
+  // id doesn't).
+  if (v === prevId) return;
+  if (v === STATUS_ACTIVE || v === STATUS_REMOVED) {
+    const preset = v === STATUS_REMOVED
+      ? (form.value.removed_date || moment().format('YYYY-MM-DD'))
+      : (form.value.active_date || moment().format('YYYY-MM-DD'));
+    statusDateModal.value = { open: true, status: v, prevStatus: oldVal, date: preset, error: '' };
+  }
+});
+
+function confirmStatusDate() {
+  const d = statusDateModal.value.date;
+  if (!d || d === 'Invalid date') {
+    statusDateModal.value.error = 'Please choose a date.';
+    return;
+  }
+  const formatted = moment(d).format('YYYY-MM-DD');
+  const prev = statusDateModal.value.prevStatus;
+  const prevId = typeof prev === 'object' && prev !== null ? prev.id : prev;
+  if (statusDateModal.value.status === STATUS_REMOVED) {
+    form.value.removed_date = formatted;
+  } else if (statusDateModal.value.status === STATUS_ACTIVE) {
+    form.value.active_date = formatted;
+    // Re-activating opens a fresh interval — clear any prior removed date, but
+    // ONLY on a genuine transition INTO Active (not when merely editing the
+    // Active Date of a site that is already Active/Removed).
+    if (prevId !== STATUS_ACTIVE) {
+      form.value.removed_date = null;
+    }
+  }
+  statusDateModal.value.open = false;
+}
+
+function cancelStatusDate() {
+  // Revert the status selection without re-triggering the watcher.
+  const prev = statusDateModal.value.prevStatus;
+  suppressStatusWatch.value = true;
+  form.value.status_id = prev;
+  statusDateModal.value.open = false;
+  nextTick(() => { suppressStatusWatch.value = false; });
+}
 
 const countryOptions = ref([]);
 const customer = ref([]);
@@ -2010,6 +2196,8 @@ function getDefaultForm() {
     },
     selling_price_type: '',
     termination_date: '',
+    active_date: null,
+    removed_date: null,
     code: '',
     name: '',
     // Site-level contact (separate from the billing contact relation).
@@ -2250,6 +2438,10 @@ onMounted(() => {
   customerVendBindings.value = props.customer ? props.customer.customer_vend_bindings : [];
 
   contracts.value = props.customer && props.customer.contracts ? props.customer.contracts : [];
+
+  // Arm the status-change watcher only AFTER hydration has flushed, so the
+  // initial status assignment from props doesn't pop the date prompt.
+  nextTick(() => { statusWatchReady.value = true; });
 });
 
 function compareSellingPrice(channel) {
@@ -2325,6 +2517,9 @@ function saveCustomer(customerID) {
       ...data,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
+      // Site lifecycle dates (set via the status-change prompt).
+      active_date: data.active_date && data.active_date != 'Invalid date' ? moment(data.active_date).format('YYYY-MM-DD') : null,
+      removed_date: data.removed_date && data.removed_date != 'Invalid date' ? moment(data.removed_date).format('YYYY-MM-DD') : null,
       frequency_per_week_status: data.frequency_per_week_status ? data.frequency_per_week_status.id : null,
       location_type_id: data.location_type_id ? data.location_type_id.id : null,
       operator_id: data.operator_id ? data.operator_id.id : null,
@@ -2425,6 +2620,8 @@ function saveVend(vendID) {
     ...data,
     begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
     termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
+    active_date: data.active_date && data.active_date != 'Invalid date' ? moment(data.active_date).format('YYYY-MM-DD') : null,
+    removed_date: data.removed_date && data.removed_date != 'Invalid date' ? moment(data.removed_date).format('YYYY-MM-DD') : null,
     is_testing: data.is_testing.id,
   })).post('/customers/' + vendID + '/update', {
     onSuccess: () => { },

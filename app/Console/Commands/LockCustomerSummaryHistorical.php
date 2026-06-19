@@ -101,6 +101,15 @@ class LockCustomerSummaryHistorical extends Command
                 'locked_at' => $now,
                 'locked_by' => $lockedBy,
                 'is_locked' => true,
+                // Freeze the Ref Price tier (RP) the same way the UI Lock does
+                // (CustomerController::applyLockToSummary). COALESCE keeps any
+                // already-frozen RP intact and only fills rows that never had
+                // one captured — safe in both normal and --relock modes.
+                'contract_selling_price_type' => DB::raw(
+                    'COALESCE(contract_selling_price_type, '
+                    . '(SELECT c.selling_price_type FROM customers c '
+                    . 'WHERE c.id = customer_period_summaries.customer_id))'
+                ),
                 'updated_at' => $now,
             ]);
         });
