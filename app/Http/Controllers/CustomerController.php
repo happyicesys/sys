@@ -612,16 +612,12 @@ class CustomerController extends Controller
             ->pluck('customer_id');
 
         // 1) No-contract-attachment count — mirrors applyContractAttachmentFilter:
-        //    a customer counts as "no attachment" when they have no contract
-        //    attachment uploaded on/after the first day of the filtered
-        //    period's starting month (so older legacy attachments don't
-        //    inflate the count for the current reporting window).
-        $attachmentThreshold = $rangeStart->copy()->startOfMonth()->toDateString();
+        //    a customer counts as "no attachment" when they have NO contract
+        //    attachment at all (period-agnostic), matching the red "No Contract"
+        //    badge. Any contract file ever uploaded → not counted here.
         $noContractAttachmentCount = Customer::query()
             ->whereIn('id', $displayedCustomerIds)
-            ->whereDoesntHave('contracts', function ($q) use ($attachmentThreshold) {
-                $q->where('attachments.created_at', '>=', $attachmentThreshold);
-            })
+            ->whereDoesntHave('contracts')
             ->count();
 
         // 2) "To Be Expired in 30ds" — customers whose contract_until is
@@ -1580,20 +1576,19 @@ class CustomerController extends Controller
             return;
         }
 
-        // Threshold = first day of the period's starting month. Attachments
-        // uploaded on/after this count as "that period or onwards".
-        $threshold = $rangeStart->copy()->startOfMonth()->toDateString();
-
+        // Period-AGNOSTIC by design: the green "Contract" badge shows whenever
+        // the site has ANY contract attachment ever uploaded (latest_contract),
+        // regardless of when. The filter must mirror that exactly so Yes/No line
+        // up with the badge — a site with an older contract file must NOT leak
+        // into the "No" results. So we ignore $rangeStart here and match purely
+        // on whether any contract attachment exists, identical to the Customer
+        // Index scopeFilterIndex handler.
         $wantsContract = filter_var($raw, FILTER_VALIDATE_BOOLEAN);
 
-        $scopeUploadedSince = function ($q) use ($threshold) {
-            $q->where('attachments.created_at', '>=', $threshold);
-        };
-
         if ($wantsContract) {
-            $query->whereHas('contracts', $scopeUploadedSince);
+            $query->whereHas('contracts');
         } else {
-            $query->whereDoesntHave('contracts', $scopeUploadedSince);
+            $query->whereDoesntHave('contracts');
         }
     }
 
