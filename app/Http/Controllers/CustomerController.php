@@ -335,6 +335,18 @@ class CustomerController extends Controller
 
         // Reuse the Customer Index filter scope to determine which customers
         // qualify, then join the pre-aggregated summary rows for the period.
+        //
+        // NOTE: scopeFilterIndex ALSO has a Contract Attachment? handler, but
+        // it's the period-AGNOSTIC "has/has-not ANY contract ever" check meant
+        // for the Customer Index. The Summary page instead uses the period-AWARE
+        // applyContractAttachmentFilter() below. If both ran, the "No" branch
+        // would AND down to "never had ANY contract", silently dropping sites
+        // whose only contract predates the period — those then match neither
+        // Yes nor No and the counts stop reconciling (Yes + No < All). So we
+        // neutralise filterIndex's copy here and let only the period-aware
+        // filter apply. (Restored immediately after for applyContractAttachmentFilter.)
+        $contractAttachmentInput = $request->input('contract_attachment');
+        $request->merge(['contract_attachment' => 'all']);
         $customerIdsQuery = Customer::query()
             ->select('customers.id')
             ->leftJoin('addresses', function ($q) {
@@ -345,6 +357,7 @@ class CustomerController extends Controller
             })
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->filterIndex($request);
+        $request->merge(['contract_attachment' => $contractAttachmentInput]);
 
         $customerIdsQuery = $this->filterOperator($customerIdsQuery);
         // Summary-only filter: Placement Contract Type. Accepts an array of
@@ -2780,6 +2793,12 @@ class CustomerController extends Controller
         );
 
         // Resolve qualifying customer IDs through the Customer Index filters.
+        // Neutralise scopeFilterIndex's period-agnostic Contract Attachment?
+        // handler so ONLY the period-aware applyContractAttachmentFilter() below
+        // applies — mirrors summary(); see the note there for why double-applying
+        // the "No" branch under-counts.
+        $contractAttachmentInput = $request->input('contract_attachment');
+        $request->merge(['contract_attachment' => 'all']);
         $customerIdsQuery = Customer::query()
             ->select('customers.id')
             ->leftJoin('addresses', function ($q) {
@@ -2790,6 +2809,7 @@ class CustomerController extends Controller
             })
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->filterIndex($request);
+        $request->merge(['contract_attachment' => $contractAttachmentInput]);
         $customerIdsQuery = $this->filterOperator($customerIdsQuery);
         // Mirror summary()'s Placement Contract Type filter so the export
         // honours the same dropdown selection.

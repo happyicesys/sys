@@ -577,21 +577,34 @@ class CustomerSummaryAggregator
                 // had a service visit (no sales yet) still surfaces with its
                 // "# of Job" count.
                 //
-                // EXCEPTION — current in-progress month + ACTIVE site: always
-                // emit the row even when all four metrics are still zero, so a
-                // live site never vanishes from the "Current" view in the gap
-                // between its last sale/job and its next one (e.g. a machine
-                // serviced early-April with its next job not due until later
-                // this month, and a PS contract whose fee is 0 until it trades).
+                // EXCEPTION — current in-progress month + ACTIVE or REMOVED site:
+                // always emit the row even when all four metrics are still zero,
+                // so a site that is in its commission window THIS month never
+                // vanishes from the "Current" view in the gap between its last
+                // sale/job and its next one (e.g. a machine serviced early-month
+                // with its next job not due until later, a PS contract whose fee
+                // is 0 until it trades, or a site being REMOVED this month whose
+                // prorated fee/sales happen to net to 0).
+                //
+                // Removed is included because the eligibility query above already
+                // restricts to removed_date >= monthStart — i.e. the site was
+                // still live for part of THIS month (removed-this-month). A site
+                // removed in an EARLIER month is excluded upstream, so its last
+                // row correctly stays in its removal month and the current month
+                // shows nothing for it.
+                //
                 // Scoped to is_current_month so SETTLED historical months stay
-                // compact (only months with real activity are stored), and to
-                // status_id = Active so New/Pending/Potential/Inactive sites are
-                // not surfaced as empty noise. This only ADDS current-month rows
-                // — it never removes any row that was being emitted before.
+                // compact (only months with real activity are stored). New /
+                // Potential / Inactive sites are still NOT surfaced as empty
+                // noise. This only ADDS current-month rows — it never removes any
+                // row that was being emitted before.
                 $isEmptyRow = $salesCents === 0 && $locationFeeCents === 0 && $transactionCount === 0 && $jobCount === 0;
-                $keepActiveCurrentMonth = $isCurrentMonth
-                    && (int) $customer->status_id === \App\Models\Customer::STATUS_ACTIVE;
-                if ($isEmptyRow && !$keepActiveCurrentMonth) {
+                $keepInWindowCurrentMonth = $isCurrentMonth
+                    && in_array((int) $customer->status_id, [
+                        \App\Models\Customer::STATUS_ACTIVE,
+                        \App\Models\Customer::STATUS_REMOVED,
+                    ], true);
+                if ($isEmptyRow && !$keepInWindowCurrentMonth) {
                     continue;
                 }
 

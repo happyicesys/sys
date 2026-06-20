@@ -1897,7 +1897,7 @@ const commissionValueLabel = computed(() => {
     case 'U':     return 'Utility Amount';
     case 'PS':
     case 'PS+U':
-    case 'PSORU': return 'Commission';
+    case 'PSORU': return 'Profit Sharing';
     default:      return 'Value';
   }
 });
@@ -1983,7 +1983,7 @@ const sfCommissionValueLabel = computed(() => {
     case 'U':     return 'Utility Amount';
     case 'PS':
     case 'PS+U':
-    case 'PSORU': return 'Commission';
+    case 'PSORU': return 'Profit Sharing';
     default:      return 'Value';
   }
 });

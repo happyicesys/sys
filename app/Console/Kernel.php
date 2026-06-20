@@ -56,6 +56,19 @@ class Kernel extends ConsoleKernel
         // realtime work.
         $schedule->command('reconcile:sales-rollups --days=14')->dailyAt('02:15')->withoutOverlapping();
         $schedule->command('reconcile:sales-rollups --days=45')->weeklyOn(0, '02:45')->withoutOverlapping();
+        // Monthly deep backstop — a long window catches transactions that
+        // settle / refund / get reassigned MORE than 45 days after their sale
+        // date, which the nightly (14d) and weekly (45d) sweeps never revisit.
+        // One grouped scan per table keeps even this wide window cheap. Off-peak
+        // on the 1st, after the 03:00 ops snapshot; heals go to the low queue.
+        $schedule->command('reconcile:sales-rollups --days=400')->monthlyOn(1, '04:30')->withoutOverlapping();
+        // Locked Site Summaries are deliberately NOT re-healed by reconcile, so a
+        // late settlement on an already-locked month would silently stay stale.
+        // Audit last completed month's locked rows against live vend_transactions
+        // and log any drift for manual review. Read-only — never writes.
+        $schedule->command('customer-summary:validate-sales --all --locked-only')
+            ->monthlyOn(1, '05:00')
+            ->appendOutputTo(storage_path('logs/locked-summary-audit.log'));
         // Runs in the quiet window after the 02:00 cleanup, once yesterday's
         // gp_metrics have fully settled, so it competes with no heavy job.
         $schedule->command('ops:snapshot-daily')->dailyAt('03:00')->withoutOverlapping();

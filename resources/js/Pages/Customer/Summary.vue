@@ -2243,7 +2243,14 @@ onMounted(() => {
   // 5-value Site Status — comes from the controller (Customer::STATUSES_MAPPING
   // with an "All" sentinel prepended), labelled `name` server-side and remapped
   // to `value` here for the MultiSelect `label` prop.
-  statusOptions.value = (props.statuses ?? []).map((s) => ({ id: s.id, value: s.name }));
+  // Summary is scoped to sites in their commission window: only Active (id=2)
+  // and Removed (id=3) are meaningful here. New / Potential / Inactive sites
+  // aren't surfaced (the aggregator doesn't even emit empty rows for them), so
+  // the Site Status filter offers just these two options (both selected by
+  // default below). Drops the "all" sentinel + the other three statuses.
+  statusOptions.value = (props.statuses ?? [])
+    .filter((s) => s.id === 2 || s.id === 3)
+    .map((s) => ({ id: s.id, value: s.name }));
   booleanOptions.value = [
     { id: 'all', value: 'All' },
     { id: 'true', value: 'Yes' },

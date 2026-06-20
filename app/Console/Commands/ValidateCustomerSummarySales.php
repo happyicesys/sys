@@ -44,6 +44,7 @@ class ValidateCustomerSummarySales extends Command
         {--limit=50 : Max customers to validate (default 50).}
         {--tolerance=100 : Acceptable cents diff per row (default 100 = $1, covers rounding noise).}
         {--all : Validate every customer with a summary row in the month, ignoring --limit.}
+        {--locked-only : Only validate LOCKED summary rows — these are NOT auto-healed by reconcile:sales-rollups, so drift here needs manual unlock + recompute.}
         {--show-matches : Print matched rows too (default: mismatches only).}';
 
     protected $description = 'Compare customer_period_summaries.sales_cents against the live Transactions-page total for each customer';
@@ -83,13 +84,20 @@ class ValidateCustomerSummarySales extends Command
             $summariesQuery->whereIn('customer_id', $vendCustomerIds);
         }
 
+        // Locked-only audit: drifted LOCKED rows are the dangerous case because
+        // reconcile:sales-rollups deliberately preserves locked summaries, so a
+        // late settlement on a locked month silently stays stale.
+        if ($this->option('locked-only')) {
+            $summariesQuery->whereNotNull('locked_at');
+        }
+
         if (!$this->option('all')) {
             $summariesQuery->limit((int) $this->option('limit'));
         }
 
         $summaries = $summariesQuery
             ->orderBy('customer_id')
-            ->get(['id', 'customer_id', 'year_month', 'period_start', 'period_end', 'sales_cents', 'as_of_date'])
+            ->get(['id', 'customer_id', 'year_month', 'period_start', 'period_end', 'sales_cents', 'as_of_date', 'locked_at'])
             ->keyBy('customer_id');
 
         if ($summaries->isEmpty()) {
@@ -159,6 +167,7 @@ class ValidateCustomerSummarySales extends Command
                     'summary_$' => number_format($summaryCents / 100, 2),
                     'live_$' => number_format($liveAmountCents / 100, 2),
                     'diff_$' => number_format($diff / 100, 2),
+                    'locked' => $summary->locked_at ? 'LOCKED' : '-',
                     'status' => $isMatch ? 'OK' : 'MISMATCH',
                 ];
             }
@@ -167,7 +176,7 @@ class ValidateCustomerSummarySales extends Command
         // ── Output ───────────────────────────────────────────────────────
         if (!empty($rows)) {
             $this->table(
-                ['Customer ID', 'Name', 'Summary $', 'Live $', 'Diff (S - L) $', 'Status'],
+                ['Customer ID', 'Name', 'Summary $', 'Live $', 'Diff (S - L) $', 'Locked', 'Status'],
                 $rows
             );
         } else {
@@ -191,6 +200,11 @@ class ValidateCustomerSummarySales extends Command
             $this->line('  - Live transactions cover a different date range (check period_end / as_of_date).');
             $this->line('  - New vend_transactions rows arrived AFTER the nightly aggregator ran — wait for the next');
             $this->line('    nightly recompute or re-run the command above for the affected month.');
+            if (collect($rows)->contains(fn ($r) => ($r['locked'] ?? '-') === 'LOCKED' && $r['status'] === 'MISMATCH')) {
+                $this->newLine();
+                $this->warn('LOCKED rows drifted: reconcile:sales-rollups will NOT touch these. To fix, unlock the');
+                $this->line('  month, re-run customer-summary:compute --month=' . $monthStart->format('Y-m') . ', then re-lock.');
+            }
             return self::FAILURE;
         }
 
