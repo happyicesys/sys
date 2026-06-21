@@ -1119,7 +1119,7 @@
                     month's row stays "up to date" because its underlying
                     monthly summary is refreshed to as_of_date.
                   -->
-                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right min-w-[90px] max-w-[90px]">
                     <span
                       v-if="row.accumulate_vending_earning_cents != null"
                       :class="row.accumulate_vending_earning_cents >= 0 ? 'text-emerald-700 font-medium' : 'text-red-700 font-medium'"
@@ -1401,7 +1401,7 @@
                   </TableData>
 
                   <!-- Action — now the LAST column (was 2 positions earlier). -->
-                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center min-w-[150px] max-w-[150px]">
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center min-w-[120px] max-w-[120px]">
                     <!--
                       Bulk mode: replace the action buttons with a single
                       checkbox so the user can multi-select rows for the
