@@ -106,7 +106,10 @@
                     </div>
                   </div>
 
-                  <div class="sm:col-span-2" v-if="customer.id">
+                  <!-- Created At and Begin Date share a row. Begin Date is now
+                       read-only (display only) — status changes manage the date,
+                       so it must not be hand-edited here. -->
+                  <div class="sm:col-span-3" v-if="customer.id">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Created At </label>
                     <div class="mt-1">
                       <input
@@ -117,6 +120,23 @@
                       />
                     </div>
                   </div>
+                  <div class="sm:col-span-3">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Begin Date </label>
+                    <div class="mt-1">
+                      <input
+                        type="text"
+                        class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
+                        :value="form.begin_date ? fmtDate(form.begin_date) : ''"
+                        disabled
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Divider before the Status field -->
+                  <div class="sm:col-span-6">
+                    <hr class="border-t border-gray-300" />
+                  </div>
+
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start items-center text-sm font-medium text-gray-700">
                       Status (Site)
@@ -155,11 +175,6 @@
                       Removed Date: {{ fmtDate(form.removed_date) }}
                       <button type="button" class="ml-1 text-indigo-600 hover:text-indigo-800 underline" @click="editStatusDate(STATUS_REMOVED)">edit</button>
                     </p>
-                  </div>
-                  <div class="sm:col-span-3">
-                    <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()" v-if="permissions.includes('update customers')">
-                      Begin Date
-                    </DatePicker>
                   </div>
                   <!-- Inactive Date — auto-captured when the status is set to
                        "Inactive". Read-only (not user-settable). -->
