@@ -684,7 +684,18 @@
                         <span>Select</span>
                       </label>
                     </template>
-                    <template v-else>Action</template>
+                    <template v-else>
+                      <div class="flex flex-col space-y-1">
+                        <span>Action</span>
+                        <!-- Remarks for Loc Fees lives in this column (bottom
+                             of the cell). One box per Site; sortable by the
+                             last-updated timestamp. -->
+                        <span>Remarks for Loc Fees</span>
+                        <SingleSortItem modelName="loc_fee_remarks_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('loc_fee_remarks_updated_at')">
+                          Remarks Last Updated
+                        </SingleSortItem>
+                      </div>
+                    </template>
                   </TableHead>
                 </tr>
               </thead>
@@ -1488,6 +1499,28 @@
                         <ReceiptPercentIcon class="w-4 h-4"></ReceiptPercentIcon>
                         <span>{{ existingInvoice(row) ? 'Re-create Invoice' : 'Create API Invoice' }}</span>
                       </Button> -->
+
+                      <!--
+                        Remarks for Loc Fees — one free-text box per Site,
+                        parked on the customer record (like the Site Note) so
+                        it persists across whatever period / filter is applied.
+                        Sits at the bottom of the Action cell. Audit line below
+                        shows who last edited and when. Saved on blur via
+                        onLocFeeRemarksChanged. No unread tracking.
+                      -->
+                      <div class="flex flex-col w-full mt-1 text-left">
+                        <textarea
+                          :value="row.customer.loc_fee_remarks"
+                          @input="row.customer.loc_fee_remarks = $event.target.value"
+                          @change="onLocFeeRemarksChanged(row.customer)"
+                          :rows="3"
+                          placeholder="Remarks for Loc Fees"
+                          class="text-[13px] text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none"
+                        ></textarea>
+                        <span class="text-[10px] text-gray-500 mt-1" v-if="row.customer?.loc_fee_remarks_updated_by_user">
+                          {{ row.customer.loc_fee_remarks_updated_by_user.name }} ({{ moment(row.customer.loc_fee_remarks_updated_at).format('YYMMDD hh:mma') }})
+                        </span>
+                      </div>
                     </div>
                   </TableData>
                 </tr>
@@ -2981,6 +3014,23 @@ function onNotesChanged(customer) {
     })
     .catch((error) => {
       console.error('Error updating customer notes:', error);
+    });
+}
+
+// Persist the inline-edited "Remarks for Loc Fees". Same shape as
+// onNotesChanged — POST to a dedicated endpoint, then reload only the
+// `summaries` prop so the audit line (last updated by / at) refreshes
+// without resetting filters/scroll. Standalone field; no unread tracking.
+function onLocFeeRemarksChanged(customer) {
+  if (!customer?.id) return;
+  axios.post('/customers/' + customer.id + '/update-loc-fee-remarks', {
+    loc_fee_remarks: customer.loc_fee_remarks,
+  })
+    .then(() => {
+      router.reload({ only: ['summaries'], preserveScroll: true });
+    })
+    .catch((error) => {
+      console.error('Error updating loc fee remarks:', error);
     });
 }
 

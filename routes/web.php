@@ -245,6 +245,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Customer-level notes — edited inline on the Customer Summary page
         // (Customer Tag column). Mirrors products-availability.update-remarks.
         Route::post('/{id}/update-notes', [CustomerController::class, 'updateNotes'])->name('customers.update-notes');
+        // Customer-level "Remarks for Loc Fees" — edited inline on the
+        // Customer Summary page (rightmost column). Same shape as
+        // update-notes; standalone field, no unread tracking.
+        Route::post('/{id}/update-loc-fee-remarks', [CustomerController::class, 'updateLocFeeRemarks'])->name('customers.update-loc-fee-remarks');
         // Ops-side free-text note (refilling/operations) — edited inline on
         // Vend/CustomerIndex "Refilling Routes" column. Same shape as
         // update-notes; lives under the same /customers prefix because it

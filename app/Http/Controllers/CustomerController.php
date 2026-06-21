@@ -404,7 +404,7 @@ class CustomerController extends Controller
         $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
-            'customer:id,name,code,company_remark,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,status_id,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by',
+            'customer:id,name,code,company_remark,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,status_id,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by,loc_fee_remarks,loc_fee_remarks_updated_at,loc_fee_remarks_updated_by',
             // Customer's primary contact (morphOne) — used to render the
             // Billing Company (`company`, the Edit form's "Bill From" field)
             // and Billing Contact Person (`name`) lines stacked under Address
@@ -413,6 +413,9 @@ class CustomerController extends Controller
             // Customer-level note "last edited by" user — drives the
             // tiny audit line under the textarea on Customer Summary.
             'customer.notesUpdatedBy:id,name',
+            // "Remarks for Loc Fees" last-edited-by user — drives the audit
+            // line under the textarea in the rightmost Summary column.
+            'customer.locFeeRemarksUpdatedBy:id,name',
             // User who locked the row (if any) — "Locked by X" tooltip.
             'lockedBy:id,name',
             // "Email Performance Report" audit — drives the "Last sent by X
@@ -2595,7 +2598,7 @@ class CustomerController extends Controller
             'period_start', 'period_end',
             'customer_name', 'selling_price_type', 'begin_date', 'site_status',
             'contract_attachment', 'location_type', 'contract_until',
-            'notes_updated_at',
+            'notes_updated_at', 'loc_fee_remarks_updated_at',
             'gross_earning_rate',
         ], true) ? $summarySortKey : 'year_month';
         $sortDirection = filter_var($summarySortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
@@ -2606,7 +2609,9 @@ class CustomerController extends Controller
         // tie-breaker (applied at the end). For every OTHER sort key in a
         // multi-month view the legacy behaviour stands: cluster by customer_id
         // first so the per-customer grouping stays unambiguous.
-        $clusterByCustomerFirst = $isAggregated && $sortKey !== 'notes_updated_at';
+        $clusterByCustomerFirst = $isAggregated
+            && $sortKey !== 'notes_updated_at'
+            && $sortKey !== 'loc_fee_remarks_updated_at';
         if ($clusterByCustomerFirst) {
             $query->orderBy('customer_id', 'asc');
         }
@@ -2708,6 +2713,16 @@ class CustomerController extends Controller
             // end (via nullsLastRaw), so recently-noted sites cluster at top.
             $nullsLastRaw(
                 'SELECT c.notes_updated_at FROM customers c
+                  WHERE c.id = customer_period_summaries.customer_id',
+                $sortDirection
+            );
+        } elseif ($sortKey === 'loc_fee_remarks_updated_at') {
+            // Remarks for Loc Fees — customers.loc_fee_remarks_updated_at.
+            // Customer-level (identical across a site's monthly rows), so it
+            // sorts page-wide; sites with no remark resolve to NULL and sort
+            // to the end via nullsLastRaw.
+            $nullsLastRaw(
+                'SELECT c.loc_fee_remarks_updated_at FROM customers c
                   WHERE c.id = customer_period_summaries.customer_id',
                 $sortDirection
             );
@@ -3692,6 +3707,25 @@ class CustomerController extends Controller
         $customer->notes = $request->notes;
         $customer->notes_updated_by = auth()->user()->id;
         $customer->notes_updated_at = Carbon::now();
+        $customer->save();
+
+        return redirect()->back();
+    }
+
+    /**
+     * Persist the customer-level "Remarks for Loc Fees" from the Customer
+     * Summary page (rightmost column). Same shape as updateNotes() — the
+     * remark + audit stamp live directly on the customer record so the value
+     * survives any period/filter combination on the Summary page. This is a
+     * standalone field, separate from the general Site Note; no unread or
+     * mention tracking is attached.
+     */
+    public function updateLocFeeRemarks(Request $request, $customerId)
+    {
+        $customer = Customer::findOrFail($customerId);
+        $customer->loc_fee_remarks = $request->loc_fee_remarks;
+        $customer->loc_fee_remarks_updated_by = auth()->user()->id;
+        $customer->loc_fee_remarks_updated_at = Carbon::now();
         $customer->save();
 
         return redirect()->back();

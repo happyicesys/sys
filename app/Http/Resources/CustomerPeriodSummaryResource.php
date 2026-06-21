@@ -425,6 +425,17 @@ class CustomerPeriodSummaryResource extends JsonResource
                         'id' => $c->notesUpdatedBy->id,
                         'name' => $c->notesUpdatedBy->name,
                     ] : null,
+                    // Dedicated "Remarks for Loc Fees" — one per Site, parked on
+                    // the customer record (same as notes). Rendered in the
+                    // rightmost column on the Summary page; sortable by the
+                    // updated_at timestamp. No unread tracking. See migration
+                    // 2026_06_20_000000_add_loc_fee_remarks_to_customers.
+                    'loc_fee_remarks' => $c->loc_fee_remarks,
+                    'loc_fee_remarks_updated_at' => optional($c->loc_fee_remarks_updated_at)->toDateTimeString(),
+                    'loc_fee_remarks_updated_by_user' => $c->relationLoaded('locFeeRemarksUpdatedBy') && $c->locFeeRemarksUpdatedBy ? [
+                        'id' => $c->locFeeRemarksUpdatedBy->id,
+                        'name' => $c->locFeeRemarksUpdatedBy->name,
+                    ] : null,
                     'tag_bindings' => $c->relationLoaded('tagBindings')
                         ? $c->tagBindings->map(function ($tb) {
                             return [

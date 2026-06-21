@@ -146,6 +146,9 @@ class Customer extends Model
         // (otherwise `optional()` silently swallows the call on a raw
         // DB string and the audit line renders "Invalid date").
         'notes_updated_at' => 'datetime',
+        // Same reasoning as notes_updated_at — cast so the Resource can call
+        // ->toDateTimeString() and the Vue side gets a parseable string.
+        'loc_fee_remarks_updated_at' => 'datetime',
         'cms_invoice_history' => 'json',
         'person_json' => 'json',
         'last_invoice_date' => 'datetime',
@@ -271,6 +274,14 @@ class Customer extends Model
         'notes',
         'notes_updated_at',
         'notes_updated_by',
+        // Dedicated free-text "Remarks for Loc Fees" — one per Site, parked
+        // on the customer record (like notes) so it carries across any period
+        // filter on the Summary page. Standalone from the general Site Note;
+        // no unread/mention tracking. See migration
+        // 2026_06_20_000000_add_loc_fee_remarks_to_customers.
+        'loc_fee_remarks',
+        'loc_fee_remarks_updated_at',
+        'loc_fee_remarks_updated_by',
         // Performance Report email opt-in (see migration
         // 2026_05_09_000000_add_report_email_to_customers).
         'report_email',
@@ -467,6 +478,11 @@ class Customer extends Model
     public function notesUpdatedBy()
     {
         return $this->belongsTo(User::class, 'notes_updated_by');
+    }
+
+    public function locFeeRemarksUpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'loc_fee_remarks_updated_by');
     }
 
     /**
