@@ -2842,8 +2842,11 @@ class CustomerController extends Controller
             // and `notes` were added so the export now carries the stacked
             // "Contract End Date / Auto Renewal / Notice Period" + Customer
             // Note columns the on-screen page shows.
-            'customer:id,name,company_remark,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,termination_date,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,contract_until,contract_auto_renewal,contract_notice_period,notes',
+            'customer:id,name,company_remark,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,termination_date,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,contract_until,contract_auto_renewal,contract_notice_period,notes,loc_fee_remarks,loc_fee_remarks_updated_at,loc_fee_remarks_updated_by',
             'customer.operator:id,code,name,gst_vat_rate',
+            // Drives the "Remarks Updated By" column for the Site Summary
+            // "Remarks for Loc Fees" field (mirrors the on-screen audit line).
+            'customer.locFeeRemarksUpdatedBy:id,name',
             'customer.tagBindings.tag:id,name',
             'customer.deliveryAddress',
             'customer.locationType:id,name',
@@ -3257,6 +3260,15 @@ class CustomerController extends Controller
                     // populated on locked rows that were emailed).
                     'Report Emailed At' => $fmtAuditDate($row->report_emailed_at),
                     'Report Emailed By' => optional($row->reportEmailedBy)->name,
+                    // Remarks for Loc Fees — the on-screen Action column's
+                    // free-text box (one per Site, parked on the customer
+                    // record). Split value + audit (At / By) to match this
+                    // export's existing audit-column style. relationLoaded()
+                    // is unreliable in cursor() context, so read through
+                    // optional() — locFeeRemarksUpdatedBy IS eager-loaded.
+                    'Remarks for Loc Fees' => $customer?->loc_fee_remarks,
+                    'Remarks Updated At' => $fmtAuditDate($customer?->loc_fee_remarks_updated_at),
+                    'Remarks Updated By' => optional($customer?->locFeeRemarksUpdatedBy)->name,
                 ];
             }
         );

@@ -1401,7 +1401,7 @@
                   </TableData>
 
                   <!-- Action — now the LAST column (was 2 positions earlier). -->
-                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
+                  <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center min-w-[150px] max-w-[150px]">
                     <!--
                       Bulk mode: replace the action buttons with a single
                       checkbox so the user can multi-select rows for the
@@ -1508,15 +1508,16 @@
                         shows who last edited and when. Saved on blur via
                         onLocFeeRemarksChanged. No unread tracking.
                       -->
-                      <div class="flex flex-col w-full mt-1 text-left">
-                        <textarea
-                          :value="row.customer.loc_fee_remarks"
-                          @input="row.customer.loc_fee_remarks = $event.target.value"
+                      <div class="mt-1 flex flex-col w-full text-left">
+                        <MentionTextarea
+                          :model-value="row.customer.loc_fee_remarks"
+                          @update:model-value="row.customer.loc_fee_remarks = $event"
                           @change="onLocFeeRemarksChanged(row.customer)"
                           :rows="3"
+                          :autogrow="true"
                           placeholder="Remarks for Loc Fees"
-                          class="text-[13px] text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none"
-                        ></textarea>
+                          textarea-class="text-[13px] text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none overflow-hidden"
+                        />
                         <span class="text-[10px] text-gray-500 mt-1" v-if="row.customer?.loc_fee_remarks_updated_by_user">
                           {{ row.customer.loc_fee_remarks_updated_by_user.name }} ({{ moment(row.customer.loc_fee_remarks_updated_at).format('YYMMDD hh:mma') }})
                         </span>
