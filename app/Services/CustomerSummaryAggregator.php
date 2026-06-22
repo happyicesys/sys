@@ -533,7 +533,7 @@ class CustomerSummaryAggregator
             // location_earning_cents below.
             'is_external_subsidize',
             'external_subsidize_amount',
-        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $jobCountByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, $lockedCustomerIdSet, $overriddenSet, $forceSingleRow, &$payloads) {
+        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $jobCountByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, $lockedCustomerIdSet, $overriddenSet, $forceSingleRow, $respectLocked, &$payloads) {
             foreach ($customers as $customer) {
                 // Never regenerate a locked row — it stays as the user froze it.
                 if (isset($lockedCustomerIdSet[$customer->id])) {
