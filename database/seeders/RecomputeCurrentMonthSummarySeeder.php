@@ -17,21 +17,20 @@ use Illuminate\Support\Facades\DB;
  * default exactly: the month containing today, capped at yesterday (as-of),
  * which is the last fully-settled day.
  *
- * Behaviour notes (handled inside persistMonth):
+ * Behaviour notes (force-single + respect-locked — see the persistMonth call):
  *   - Locked rows are NOT regenerated — frozen snapshots stay as the user set
  *     (so locked previous months are never touched; this only refreshes the
  *     current in-progress month's UNLOCKED rows).
- *   - The month is delete-and-reinserted for unlocked rows and rebuilt from the
- *     customer's LATEST contract. A month now splits ONLY when a SCHEDULED
- *     change ("set future contract", source = 'system') takes effect mid-month;
- *     plain Edit-page corrections (source = 'user') no longer split. So this
- *     collapses the accidental ad-hoc splits back into a single whole-month row.
+ *   - Every UNLOCKED site collapses to a SINGLE whole-month row computed from
+ *     its LATEST contract. NO mid-month splits are produced here, regardless of
+ *     contract history — the current month is consolidated to one row per site.
+ *   - Splits only ever appear later, when a "Set Upcoming Term" change is
+ *     applied by the cron on its effective date. The month is left NOT
+ *     overridden, so such a future scheduled change can still split it.
  *
  * After recompute it scans the month for replicated rows (same customer +
- * year_month) and prints them, flagging each as:
- *   - "fees differ"  → a legitimate scheduled (future-contract) split, OR
- *   - "IDENTICAL fees → review" → a split whose segments carry the same fees
- *     (should not normally happen post-fix; surfaces anything unexpected).
+ * year_month) and prints them. Post force-single there should be NONE; any that
+ * appear are a stale/locked edge worth a look.
  *
  * Run with:
  *   php artisan db:seed --class=RecomputeCurrentMonthSummarySeeder
@@ -52,7 +51,14 @@ class RecomputeCurrentMonthSummarySeeder extends Seeder
             $asOf->toDateString()
         ));
 
-        $rows = CustomerSummaryAggregator::persistMonth($reference, $asOf);
+        // Force-single + respect-locked: collapse EVERY unlocked site in the
+        // current month to a single whole-month row computed from its LATEST
+        // contract. No mid-month splits are produced here regardless of contract
+        // history — splits only ever appear later when a "Set Upcoming Term"
+        // change is applied by the cron on its effective date. Locked rows stay
+        // frozen, and the month is NOT marked overridden, so such a future
+        // scheduled change can still split it.
+        $rows = CustomerSummaryAggregator::persistMonth($reference, $asOf, true, true);
 
         $this->command?->info(sprintf(
             'Done — %d summary row(s) written for %s.',

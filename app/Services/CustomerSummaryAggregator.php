@@ -248,7 +248,7 @@ class CustomerSummaryAggregator
      *     nightly aggregator will NOT re-split those months later.
      *   Default false → preserves existing behaviour for nightly + ad-hoc runs.
      */
-    public static function persistMonth(CarbonInterface $reference, ?CarbonInterface $asOf = null, bool $forceSingleRow = false): int
+    public static function persistMonth(CarbonInterface $reference, ?CarbonInterface $asOf = null, bool $forceSingleRow = false, bool $respectLocked = false): int
     {
         $monthStart = Carbon::parse($reference)->startOfMonth();
         $monthEndCalendar = Carbon::parse($reference)->endOfMonth()->startOfDay();
@@ -409,10 +409,13 @@ class CustomerSummaryAggregator
         // $forceSingleRow short-circuits this: a one-off backfill that wants
         // today's setup applied to every row treats no row as locked and
         // overwrites them all.
-        if ($forceSingleRow) {
+        if ($forceSingleRow && !$respectLocked) {
             $lockedCustomerIds = [];
             $lockedCustomerIdSet = [];
         } else {
+            // $respectLocked keeps locked rows frozen even in force-single mode
+            // (the "consolidate current month" seeder), so a Paid/Locked row is
+            // never overwritten while every unlocked row collapses to one.
             $lockedCustomerIds = CustomerPeriodSummary::query()
                 ->where('year_month', $monthStart->toDateString())
                 ->whereNotNull('locked_at')
@@ -640,7 +643,14 @@ class CustomerSummaryAggregator
                     'segment_index' => 0,
                     // force-single-row mode marks every row as overridden so the
                     // nightly aggregator won't try to re-split them later.
-                    'segmentation_overridden' => $forceSingleRow ? true : isset($overriddenSet[$customer->id]),
+                    // Force-single backfills stamp overridden=true so nightly
+                    // won't re-split. But the "consolidate current month" seeder
+                    // ($respectLocked) must NOT lock the month down — a later
+                    // "Set Upcoming Term" applied mid-month still needs to split
+                    // it — so it leaves overridden as the existing value.
+                    'segmentation_overridden' => ($forceSingleRow && !$respectLocked)
+                        ? true
+                        : isset($overriddenSet[$customer->id]),
                     'as_of_date' => ($isCurrentMonth ? $asOf : $monthEndCalendar)->toDateString(),
                     'sales_cents' => $salesCents,
                     'gross_earning_cents' => $grossEarningCents,
