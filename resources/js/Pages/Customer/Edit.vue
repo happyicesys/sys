@@ -7,7 +7,7 @@
       </h2>
     </template>
 
-    <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
+    <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3 pb-20">
       <div class="mt-6 flex flex-col">
         <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5 mb-3">
@@ -418,7 +418,7 @@
                         :class="['text-xs px-3 py-1.5 rounded-md text-white hover:opacity-90 flex items-center gap-1 whitespace-nowrap', scheduledRow ? 'bg-amber-500' : 'bg-indigo-600']"
                       >
                         <CheckCircleIcon class="w-4 h-4" />
-                        {{ scheduledRow ? 'View Future Contract' : 'Set Future Contract' }}
+                        {{ scheduledRow ? 'View Upcoming Term' : 'Set Upcoming Term' }}
                       </button>
                     </div>
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
@@ -798,7 +798,7 @@
                   <Teleport to="body">
                     <Modal :open="sf.open" @modalClose="closeScheduleForm">
                       <template #header>
-                        <span>{{ scheduledRow ? 'Edit Future Contract' : 'Set Future Contract' }}</span>
+                        <span>{{ scheduledRow ? 'Edit Upcoming Term' : 'Set Upcoming Term' }}</span>
                       </template>
                       <div class="text-left">
                         <p class="text-xs text-gray-500 mb-3">
@@ -1520,27 +1520,19 @@
 
                 </div>
 
-                  <!-- Save and Delete Buttons -->
-                  <div class="sm:col-span-6 mt-3 pt-2">
-                    <span class="flex flex-col space-y-1 md:flex-row justify-between">
-                      <span class="flex flex-col space-y-1 md:flex-row md:space-x-1">
-                        <Button
-                          type="button"
-                          class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 w-full"
-                          v-if="permissions.includes('update customers')"
-                          @click.prevent="saveCustomer(form.id)"
-                        >
-                          <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                          <span> Save Site </span>
-                        </Button>
-                        <Link :href="'/customers'">
-                          <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 w-full">
-                            <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                            <span> Back </span>
-                          </Button>
-                        </Link>
-                      </span>
-                      <span class="flex flex-col md:flex-row space-x-1">
+                  <!-- Save and Delete Buttons — floating footer so they stay
+                       reachable without scrolling to the bottom of the long
+                       Edit form. Fixed to the viewport bottom; the form wrapper
+                       carries extra bottom padding so nothing hides behind it.
+                       (Create.vue keeps the inline bar — short form, no need.) -->
+                  <!-- left offset matches the sidebar width (Authenticated.vue:
+                       md:w-1/6, xl:w-2/12, 2xl:w-1/12 min-w-48) so the floating
+                       footer aligns with the content column and never sits under
+                       the side nav. Full-width below md, where the nav is hidden. -->
+                  <div class="fixed bottom-0 right-0 left-0 md:left-[16.6667%] 2xl:left-[max(8.3333%,12rem)] z-40 border-t border-gray-200 bg-white/95 backdrop-blur shadow-[0_-2px_8px_rgba(0,0,0,0.08)] px-3 py-2 sm:px-6">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <!-- Left: CMS / destructive actions -->
+                      <span class="flex flex-row gap-2">
                         <Button
                           type="button"
                           class="bg-yellow-500 hover:bg-yellow-600 text-gray-800 flex space-x-1"
@@ -1560,7 +1552,25 @@
                           <span> Delete Site </span>
                         </Button>
                       </span>
-                    </span>
+                      <!-- Right: primary actions (Back, then Save Site) -->
+                      <span class="flex flex-row gap-2">
+                        <Link :href="'/customers'">
+                          <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
+                            <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                            <span> Back </span>
+                          </Button>
+                        </Link>
+                        <Button
+                          type="button"
+                          class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                          v-if="permissions.includes('update customers')"
+                          @click.prevent="saveCustomer(form.id)"
+                        >
+                          <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                          <span> Save Site </span>
+                        </Button>
+                      </span>
+                    </div>
                   </div>
 
                   <div class="relative pt-2 m-5">
@@ -2063,7 +2073,11 @@ function openScheduleForm(fromExisting) {
       contract_until: form.value.contract_until ? moment(form.value.contract_until).format('YYYY-MM-DD') : null,
       contract_auto_renewal: form.value.contract_auto_renewal ?? false,
       contract_notice_period: form.value.contract_notice_period ?? null,
-      contract_remarks: form.value.contract_remarks ?? null,
+      // Remarks are specific to THIS upcoming term, not carried over from the
+      // current live contract — start blank so a new schedule (incl. the one
+      // opened after a cancel) never shows stale remarks. The "edit existing"
+      // branch above still loads the pending schedule's own remarks.
+      contract_remarks: null,
     };
   }
 }
@@ -2149,7 +2163,7 @@ function submitScheduledContract(customerID) {
         onSuccess: () => {
           customer.value = props.customer;
           closeScheduleForm();
-          toast.success('Future contract change scheduled', { timeout: 3000 });
+          toast.success('Upcoming term scheduled', { timeout: 3000 });
         },
       });
     },

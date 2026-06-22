@@ -18,15 +18,18 @@ use Illuminate\Support\Facades\DB;
  * which is the last fully-settled day.
  *
  * Behaviour notes (handled inside persistMonth):
- *   - Locked rows are NOT regenerated — frozen snapshots stay as the user set.
- *   - The month is delete-and-reinserted for unlocked rows, so any stale
- *     segment rows are rebuilt under the current segmentation rules (a month
- *     splits ONLY when commission/fees genuinely differ), collapsing splits
- *     that are no longer warranted.
+ *   - Locked rows are NOT regenerated — frozen snapshots stay as the user set
+ *     (so locked previous months are never touched; this only refreshes the
+ *     current in-progress month's UNLOCKED rows).
+ *   - The month is delete-and-reinserted for unlocked rows and rebuilt from the
+ *     customer's LATEST contract. A month now splits ONLY when a SCHEDULED
+ *     change ("set future contract", source = 'system') takes effect mid-month;
+ *     plain Edit-page corrections (source = 'user') no longer split. So this
+ *     collapses the accidental ad-hoc splits back into a single whole-month row.
  *
  * After recompute it scans the month for replicated rows (same customer +
  * year_month) and prints them, flagging each as:
- *   - "fees differ"  → a legitimate mid-month commission/fee change, OR
+ *   - "fees differ"  → a legitimate scheduled (future-contract) split, OR
  *   - "IDENTICAL fees → review" → a split whose segments carry the same fees
  *     (should not normally happen post-fix; surfaces anything unexpected).
  *
@@ -155,7 +158,8 @@ class RecomputeCurrentMonthSummarySeeder extends Seeder
         if ($identical > 0) {
             $this->command?->warn(
                 'Identical-fee splits should not occur post-fix. If any appear, check '
-                . 'customer_contract_logs for that customer — a duplicate/zero-diff log row may remain.'
+                . 'customer_contract_logs for that customer — a scheduled (source=system) '
+                . 'log with the same fees, or a stale segment row, may remain.'
             );
         }
     }

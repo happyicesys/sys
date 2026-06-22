@@ -21,9 +21,12 @@
           <SearchInput v-if="showAllFilters" placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
           <SearchInput placeholderStr="ID" v-model="filters.vend_code">Machine ID</SearchInput>
           <SearchInput placeholderStr="Site" v-model="filters.customer">Site</SearchInput>
-          <SearchInput placeholderStr="Company" v-model="filters.billing_company">Billing Company</SearchInput>
+          <!-- Billing Company — moved behind "Show All Filters" (no longer a
+               default filter); Site Status takes its place in the default row. -->
+          <SearchInput v-if="showAllFilters" placeholderStr="Company" v-model="filters.billing_company">Billing Company</SearchInput>
 
-          <div v-if="showAllFilters">
+          <!-- Site Status — now a DEFAULT filter (always visible). -->
+          <div>
             <label class="block text-sm font-medium text-gray-700">Site Status</label>
             <MultiSelect
               v-model="filters.status"
@@ -210,7 +213,8 @@
                 <span>Search</span>
               </Button>
               <!-- Show / Hide All Filters — by default only Machine ID, Site,
-                   Tags and Period Report show; this toggle reveals the rest.
+                   Site Status, Tags and Period Report show; this toggle reveals
+                   the rest (incl. Billing Company).
                    Mirrors CustomerIndex.vue's showAllFilters button. -->
               <Button
                 class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400"
@@ -794,6 +798,34 @@
                         >
                           {{ platformName }}
                         </span>
+                        <!--
+                          Upcoming Term badge — shown once per site (first row of
+                          the cluster) when the site has a pending future contract
+                          set via "Set Upcoming Term" on the Edit page. Tooltip
+                          shows the effective date. Driven by row.upcoming_term
+                          (CustomerController::attachUpcomingTermFlag).
+                        -->
+                        <span
+                          v-if="isFirstRowForCustomer(rowIndex) && row.upcoming_term"
+                          class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit h-fit bg-amber-100 text-amber-800 border-amber-300"
+                          v-tooltip="'Upcoming term effective ' + formatYYMMDD(row.upcoming_term.effective_date)"
+                        >
+                          Upcoming Term
+                        </span>
+                        <!--
+                          Activation badge — site went active mid-month this
+                          period (is_activated_in_period), so rental/utility are
+                          prorated from the active date. Shown here in the Site
+                          column so users see why a partial month reads less than
+                          the full monthly rate (not a bug).
+                        -->
+                        <span
+                          v-if="row.is_activated_in_period && row.active_date"
+                          class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit h-fit bg-orange-100 text-orange-800 border-orange-300"
+                          v-tooltip="'Active from ' + formatYYMMDD(row.active_date) + ' — rental/utility prorated for the partial month.'"
+                        >
+                          Active {{ formatYYMMDD(row.active_date) }}
+                        </span>
                       </div>
                       <!--
                         Begin Date — sourced from the customer record (same
@@ -888,8 +920,9 @@
                           v-for="v in row.customer.vends"
                           :key="v.id"
                           target="_blank"
-                          :href="'/settings/vend/' + v.id + '/update'"
+                          :href="'/vends/customers?codes=' + encodeURIComponent(v.code)"
                           class="text-blue-700 hover:underline"
+                          v-tooltip="'Open this machine in the Ops Dashboard'"
                         >
                           {{ v.code }}
                         </a>
@@ -899,8 +932,9 @@
                       <a
                         v-if="row.customer?.vend?.id"
                         target="_blank"
-                        :href="'/settings/vend/' + row.customer.vend.id + '/update'"
+                        :href="'/vends/customers?codes=' + encodeURIComponent(row.customer.vend.code)"
                         class="text-blue-700 hover:underline"
+                        v-tooltip="'Open this machine in the Ops Dashboard'"
                       >
                         {{ row.customer.vend.code }}
                       </a>
@@ -959,9 +993,25 @@
                     maps directly onto two YYMMDD values per row.
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
-                    <div class="flex flex-col space-y-1">
+                    <div class="flex flex-col items-center space-y-1">
                       <span>{{ formatYYMMDD(row.period_start) }}</span>
-                      <span>{{ formatYYMMDD(row.period_end) }}</span>
+                      <!--
+                        Period End Date — red border in the site's REMOVAL month
+                        (is_removed_in_period): the row is the site's final billable
+                        period and its rental/utility are prorated to the last active
+                        day (removal day exclusive). No further rows are produced
+                        after the removal month.
+                      -->
+                      <span
+                        :class="row.is_removed_in_period
+                          ? 'inline-block border-2 border-red-500 rounded px-1 text-red-700 font-semibold'
+                          : ''"
+                        v-tooltip="row.is_removed_in_period
+                          ? ('Site removed' + (row.removed_date ? ' on ' + formatYYMMDD(row.removed_date) : '') + ' — final billable period; rental/utility prorated to the last active day.')
+                          : null"
+                      >
+                        {{ formatYYMMDD(row.period_end) }}
+                      </span>
                     </div>
                   </TableData>
 
@@ -2274,16 +2324,19 @@ const periodReportLocalOptions = ref([]);
 const contractCommissionTypeLocalOptions = ref([]);
 
 onMounted(() => {
-  // 5-value Site Status — comes from the controller (Customer::STATUSES_MAPPING
-  // with an "All" sentinel prepended), labelled `name` server-side and remapped
-  // to `value` here for the MultiSelect `label` prop.
-  // Summary is scoped to sites in their commission window: only Active (id=2)
-  // and Removed (id=3) are meaningful here. New / Potential / Inactive sites
-  // aren't surfaced (the aggregator doesn't even emit empty rows for them), so
-  // the Site Status filter offers just these two options (both selected by
-  // default below). Drops the "all" sentinel + the other three statuses.
+  // Site Status — comes from the controller (Customer::STATUSES_MAPPING with an
+  // "All" sentinel prepended), labelled `name` server-side and remapped to
+  // `value` here for the MultiSelect `label` prop.
+  // We offer ALL real statuses (drop only the "all" sentinel). The default
+  // selection is still Active + Removed (set below) — the common view — but the
+  // other statuses must remain selectable: a site that is NOW Inactive (or
+  // Pending / New / Potential) can still own period-summary rows from EARLIER
+  // months when it was active, and over a multi-month period range a user needs
+  // to filter by its current status to find those historical rows. The status
+  // filter matches the customer's CURRENT status_id, so without these options
+  // those historical rows are unreachable.
   statusOptions.value = (props.statuses ?? [])
-    .filter((s) => s.id === 2 || s.id === 3)
+    .filter((s) => s.id !== 'all')
     .map((s) => ({ id: s.id, value: s.name }));
   booleanOptions.value = [
     { id: 'all', value: 'All' },

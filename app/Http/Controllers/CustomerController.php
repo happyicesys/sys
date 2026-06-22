@@ -404,7 +404,7 @@ class CustomerController extends Controller
         $isAggregated = $this->isAggregatedPeriodReport($request->period_report);
 
         $eagerLoads = [
-            'customer:id,name,code,company_remark,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,status_id,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,begin_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by,loc_fee_remarks,loc_fee_remarks_updated_at,loc_fee_remarks_updated_by',
+            'customer:id,name,code,company_remark,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,status_id,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,begin_date,active_date,removed_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by,loc_fee_remarks,loc_fee_remarks_updated_at,loc_fee_remarks_updated_by',
             // Customer's primary contact (morphOne) — used to render the
             // Billing Company (`company`, the Edit form's "Bill From" field)
             // and Billing Contact Person (`name`) lines stacked under Address
@@ -558,6 +558,12 @@ class CustomerController extends Controller
         // Placement Contract Type / Contract End Date / Auto Renewal / Notice
         // Period on the Summary page.
         $this->attachContractChangeFlags($summaries->getCollection());
+
+        // Flag, per row, whether the SITE has a pending "upcoming term" (a
+        // future contract set via "Set Upcoming Term" on the Edit page, still
+        // awaiting its effective date) — drives the amber "Upcoming Term" badge
+        // in the Site column on the Summary page.
+        $this->attachUpcomingTermFlag($summaries->getCollection());
 
         // Aggregate totals — summed across the FULL filtered set (not just
         // the paginated rows visible on this page) so the 4 boxes above the
@@ -1994,6 +2000,84 @@ class CustomerController extends Controller
      * shouldn't pull months that haven't been aggregated yet). For per-row
      * lookup we still key by the row's own year_month.
      */
+    /**
+     * Queue a Summary recompute for every month affected by a change to a
+     * site's activation / removal date, so the STORED figures (and the headline
+     * totals that SUM them) pick up the new flat-fee proration on the same save
+     * rather than waiting for the nightly run.
+     *
+     * Affected span = earliest changed lifecycle month → current month
+     * (inclusive). Recomputing the whole span — not just the new date's month —
+     * is what makes a date MOVE correct in both directions: pulling a removal
+     * date earlier must clear the now-orphaned later months, and pushing it
+     * later must (re)create the months that now qualify. A future-dated change
+     * only touches the current month (its proration is still a full month until
+     * that month arrives, which the nightly run will then handle).
+     *
+     * No-op when neither date changed. Bounded to 60 months back so a wildly
+     * back-dated value can't enqueue an unbounded backfill; anything older is
+     * left to an explicit `customer-summary:compute` backfill.
+     */
+    protected function dispatchSummaryRecomputeForLifecycleChange(
+        $oldActiveDate,
+        $newActiveDate,
+        $oldRemovedDate,
+        $newRemovedDate
+    ): void {
+        $toDate = function ($v) {
+            if (empty($v)) {
+                return null;
+            }
+            try {
+                return \Carbon\Carbon::parse($v)->startOfDay();
+            } catch (\Throwable $e) {
+                return null;
+            }
+        };
+
+        $oldA = $toDate($oldActiveDate);
+        $newA = $toDate($newActiveDate);
+        $oldR = $toDate($oldRemovedDate);
+        $newR = $toDate($newRemovedDate);
+
+        $activeChanged = optional($oldA)->toDateString() !== optional($newA)->toDateString();
+        $removedChanged = optional($oldR)->toDateString() !== optional($newR)->toDateString();
+        if (!$activeChanged && !$removedChanged) {
+            return;
+        }
+
+        // Earliest month touched by whichever date(s) changed.
+        $candidates = [];
+        if ($activeChanged) {
+            $candidates[] = $oldA;
+            $candidates[] = $newA;
+        }
+        if ($removedChanged) {
+            $candidates[] = $oldR;
+            $candidates[] = $newR;
+        }
+        $candidates = array_filter($candidates);
+
+        $currentMonth = \Carbon\Carbon::today()->startOfMonth();
+        $lower = $currentMonth->copy();
+        foreach ($candidates as $d) {
+            $m = $d->copy()->startOfMonth();
+            if ($m->lt($lower)) {
+                $lower = $m;
+            }
+        }
+
+        // Bound the backfill so a far back-dated value can't flood the queue.
+        $floor = $currentMonth->copy()->subMonths(60);
+        if ($lower->lt($floor)) {
+            $lower = $floor;
+        }
+
+        for ($m = $lower->copy(); $m->lte($currentMonth); $m->addMonth()) {
+            \App\Jobs\ProcessCustomerSummaryMonth::dispatch($m->toDateString());
+        }
+    }
+
     protected function attachAccumulatedVendingEarning($collection, \Carbon\Carbon $accumulateThrough): void
     {
         if ($collection->isEmpty()) {
@@ -2047,6 +2131,13 @@ class CustomerController extends Controller
                 'customers.contract_ps_term',
                 'customers.is_external_subsidize',
                 'customers.external_subsidize_amount',
+                // Active window — drives the same flat-fee proration the row
+                // resource applies, so the Accumulate column reconciles to the
+                // sum of the per-row Vend Earnings (incl. a prorated removal
+                // month).
+                'customers.begin_date',
+                'customers.active_date',
+                'customers.removed_date',
                 'operators.gst_vat_rate'
             )
             ->get()
@@ -2087,6 +2178,13 @@ class CustomerController extends Controller
                 $c = $contractMap->get($cid);
                 if ($c) {
                     $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                    // Prorate flat fees for this row's month (e.g. a removal
+                    // month) the same way the row resource does.
+                    $flatDayRatio = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                        $c->active_date ?? $c->begin_date,
+                        $c->removed_date,
+                        \Carbon\Carbon::parse($r->year_month)->startOfMonth()
+                    );
                     $liveLocFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
                         $c->contract_commission_type,
                         $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
@@ -2094,7 +2192,8 @@ class CustomerController extends Controller
                         $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
                         (int) $r->sales_cents,
                         (int) $r->gross_earning_cents,
-                        $gstRatePct
+                        $gstRatePct,
+                        $flatDayRatio
                     );
                     $liveExtCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
                         ? (int) round(((float) $c->external_subsidize_amount) * 100)
@@ -2213,6 +2312,12 @@ class CustomerController extends Controller
                 'customers.contract_ps_term',
                 'customers.is_external_subsidize',
                 'customers.external_subsidize_amount',
+                // Active window — prorates the previous month's flat fee (e.g.
+                // when the prior month was the removal month) so the trend
+                // arrow compares against the same prorated figure shown there.
+                'customers.begin_date',
+                'customers.active_date',
+                'customers.removed_date',
                 'operators.gst_vat_rate'
             )
             ->get()
@@ -2239,6 +2344,12 @@ class CustomerController extends Controller
                 $c = $contractMap->get($row->customer_id);
                 if ($c) {
                     $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                    // Prorate the previous month's flat fee for its own month.
+                    $flatDayRatio = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                        $c->active_date ?? $c->begin_date,
+                        $c->removed_date,
+                        \Carbon\Carbon::parse($prevKey)->startOfMonth()
+                    );
                     $locationFeesCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
                         $c->contract_commission_type,
                         $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
@@ -2246,7 +2357,8 @@ class CustomerController extends Controller
                         $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
                         (int) $p->sales_cents,
                         (int) $p->gross_earning_cents,
-                        $gstRatePct
+                        $gstRatePct,
+                        $flatDayRatio
                     );
                     $externalSubsidizeCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
                         ? (int) round(((float) $c->external_subsidize_amount) * 100)
@@ -2440,6 +2552,42 @@ class CustomerController extends Controller
     }
 
     /**
+     * Flag, per visible row, whether the SITE has a pending "upcoming term" —
+     * a future placement contract queued via "Set Upcoming Term" on the Edit
+     * page (customer_scheduled_contracts.status = pending) that hasn't reached
+     * its effective date yet. Drives the amber "Upcoming Term" badge in the
+     * Site column on the Summary page so users can see, at a glance, which
+     * sites have a contract change coming.
+     *
+     * Site-level, so every row of a customer carries the same flag; the Vue
+     * side only renders the badge once per site cluster. One batched query.
+     */
+    protected function attachUpcomingTermFlag($collection): void
+    {
+        if ($collection->isEmpty()) {
+            return;
+        }
+
+        $customerIds = $collection->pluck('customer_id')->filter()->unique()->values()->all();
+
+        $pendingByCustomer = empty($customerIds)
+            ? []
+            : \App\Models\CustomerScheduledContract::query()
+                ->whereIn('customer_id', $customerIds)
+                ->where('status', \App\Models\CustomerScheduledContract::STATUS_PENDING)
+                ->pluck('effective_date', 'customer_id')
+                ->all();
+
+        foreach ($collection as $row) {
+            $cid = $row->customer_id;
+            $eff = ($cid !== null && isset($pendingByCustomer[$cid])) ? $pendingByCustomer[$cid] : null;
+            $row->upcoming_term = $eff
+                ? ['effective_date' => \Carbon\Carbon::parse($eff)->toDateString()]
+                : null;
+        }
+    }
+
+    /**
      * Look up the latest customer_period_summary_invoices row for each
      * (customer, period_start, period_end) triple visible on the page,
      * and attach a compact summary onto the row so the Vue page can:
@@ -2627,11 +2775,14 @@ class CustomerController extends Controller
         };
 
         if ($sortKey === 'machine_id') {
-            $nullsLastRaw(
-                'SELECT v.code FROM vends v
-                  WHERE v.customer_id = customer_period_summaries.customer_id
-                  ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1',
-                $sortDirection
+            // Normal sort (NOT nulls-last): a site with no machine bound resolves
+            // to NULL, which MySQL orders FIRST on ascending and last on
+            // descending. So "sort by smallest" surfaces empty-machine-id sites
+            // at the top instead of dumping them behind everything.
+            $query->orderByRaw(
+                '(SELECT v.code FROM vends v
+                   WHERE v.customer_id = customer_period_summaries.customer_id
+                   ORDER BY v.begin_date DESC, v.created_at DESC LIMIT 1) ' . $sortDirection
             );
         } elseif ($sortKey === 'machine_prefix') {
             $nullsLastRaw(
@@ -2842,7 +2993,7 @@ class CustomerController extends Controller
             // and `notes` were added so the export now carries the stacked
             // "Contract End Date / Auto Renewal / Notice Period" + Customer
             // Note columns the on-screen page shows.
-            'customer:id,name,company_remark,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,termination_date,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,contract_until,contract_auto_renewal,contract_notice_period,notes,loc_fee_remarks,loc_fee_remarks_updated_at,loc_fee_remarks_updated_by',
+            'customer:id,name,company_remark,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,active_date,removed_date,termination_date,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,contract_until,contract_auto_renewal,contract_notice_period,notes,loc_fee_remarks,loc_fee_remarks_updated_at,loc_fee_remarks_updated_by',
             'customer.operator:id,code,name,gst_vat_rate',
             // Drives the "Remarks Updated By" column for the Site Summary
             // "Remarks for Loc Fees" field (mirrors the on-screen audit line).
@@ -2973,6 +3124,11 @@ class CustomerController extends Controller
                 'customers.contract_ps_term',
                 'customers.is_external_subsidize',
                 'customers.external_subsidize_amount',
+                // Active window — prorates flat fees per month (incl. removal
+                // month) so the exported Accumulate column matches the screen.
+                'customers.begin_date',
+                'customers.active_date',
+                'customers.removed_date',
                 'operators.gst_vat_rate'
             )
             ->get()
@@ -2993,6 +3149,11 @@ class CustomerController extends Controller
                 $c = $accumContractMap->get($r->customer_id);
                 if ($c) {
                     $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                    $flatDayRatio = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                        $c->active_date ?? $c->begin_date,
+                        $c->removed_date,
+                        \Carbon\Carbon::parse($r->year_month)->startOfMonth()
+                    );
                     $fee = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
                         $c->contract_commission_type,
                         $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
@@ -3000,7 +3161,8 @@ class CustomerController extends Controller
                         $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
                         (int) $r->sales_cents,
                         (int) $r->gross_earning_cents,
-                        $gstRatePct
+                        $gstRatePct,
+                        $flatDayRatio
                     );
                     $ext = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
                         ? (int) round(((float) $c->external_subsidize_amount) * 100)
@@ -3101,6 +3263,15 @@ class CustomerController extends Controller
                     // RP follows the same lock rule — unlocked rows reflect the
                     // live customer tier; locked rows keep the frozen snapshot.
                     $row->contract_selling_price_type = $customer->selling_price_type;
+                    // Prorate flat fees for this row's month (removal / activation
+                    // month) — mirrors CustomerPeriodSummaryResource.
+                    $flatDayRatio = $row->year_month
+                        ? \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                            $customer->active_date ?? $customer->begin_date,
+                            $customer->removed_date,
+                            \Carbon\Carbon::parse($row->year_month)->startOfMonth()
+                        )
+                        : 1.0;
                     $liveFee = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
                         $customer->contract_commission_type,
                         $customer->contract_commission_value !== null ? (float) $customer->contract_commission_value : null,
@@ -3108,7 +3279,8 @@ class CustomerController extends Controller
                         $customer->contract_ps_term !== null ? (float) $customer->contract_ps_term : null,
                         (int) $row->sales_cents,
                         (int) $row->gross_earning_cents,
-                        $gstRatePct
+                        $gstRatePct,
+                        $flatDayRatio
                     );
                     $liveExt = ($customer->is_external_subsidize && $customer->external_subsidize_amount !== null)
                         ? (int) round(((float) $customer->external_subsidize_amount) * 100)
@@ -3403,18 +3575,30 @@ class CustomerController extends Controller
         $periodStart = \Carbon\Carbon::parse($request->period_start);
         $periodEnd   = \Carbon\Carbon::parse($request->period_end);
 
-        // Find the summary row whose period overlaps the requested window.
-        // For a single-month period this is exact; for aggregated periods
-        // we sum sales across the matching months so PS math is correct.
-        $summaryRow = \App\Models\CustomerPeriodSummary::query()
+        // Find the summary row(s) whose period overlaps the requested window.
+        // We fetch the FULL rows (not a SUM-only projection) because the
+        // report service is lock-aware: a locked / segment row must report the
+        // per-period contract SNAPSHOT frozen at lock time (commission type /
+        // value(s) / PS Term), not the customer's current live contract — so a
+        // PS Term later tuned 70%→50% can't rewrite an already-locked month.
+        //
+        // The representative row (latest month, last segment) carries the
+        // snapshot + lock state; its sales_cents is overwritten with the SUM
+        // across all matched months so PS math still covers the full window.
+        $summaryRows = \App\Models\CustomerPeriodSummary::query()
             ->where('customer_id', $customer->id)
             ->whereBetween('year_month', [
                 $periodStart->copy()->startOfMonth()->toDateString(),
                 $periodEnd->copy()->startOfMonth()->toDateString(),
             ])
-            ->selectRaw('MIN(id) AS id, customer_id, SUM(sales_cents) AS sales_cents')
-            ->groupBy('customer_id')
-            ->first();
+            ->orderBy('year_month')
+            ->orderBy('segment_index')
+            ->get();
+
+        $summaryRow = $summaryRows->last();
+        if ($summaryRow) {
+            $summaryRow->sales_cents = (int) $summaryRows->sum('sales_cents');
+        }
 
         $service = new PerformanceReportContentService();
         $content = $service->generate($customer, $periodStart, $periodEnd, $summaryRow);
@@ -4496,6 +4680,11 @@ class CustomerController extends Controller
                 $request->merge(['customer' => $requestCustomerArr]);
             }
 
+            // Capture the pre-update lifecycle dates so we can recompute the
+            // affected month span below if they change (flat-fee proration).
+            $oldActiveDate = $customer->active_date;
+            $oldRemovedDate = $customer->removed_date;
+
             $customer->update($request->customer);
 
             // Append a Status History row whenever the site status changed (date
@@ -4509,6 +4698,19 @@ class CustomerController extends Controller
                     'source' => 'user',
                 ]);
             }
+
+            // Activation / removal date drives flat-fee proration in the Summary
+            // aggregator. When either changed, recompute the affected month span
+            // NOW (queued) so the stored figures — and the headline totals that
+            // SUM them — reflect the new proration immediately, instead of
+            // waiting for the nightly run. The per-row display already re-derives
+            // live; this keeps the totals boxes in lockstep on the same save.
+            $this->dispatchSummaryRecomputeForLifecycleChange(
+                $oldActiveDate,
+                $customer->active_date,
+                $oldRemovedDate,
+                $customer->removed_date
+            );
 
             // Append a row to customer_contract_logs whenever any contract field
             // changes, so the Summary page (and future segmented reporting) can

@@ -569,10 +569,41 @@ class Customer extends Model
             ->when($request->code, fn($query, $input) => $query->where('code', 'LIKE', '%' . $input . '%'))
             ->when($request->created_in, fn($query, $input) => $query->whereDate('created_at', '>=', Carbon::createFromFormat('m-Y', $input)->startOfMonth())->whereDate('created_at', '<=', Carbon::createFromFormat('m-Y', $input)->endOfMonth()))
             ->when($request->customer, function ($query, $search) {
-                $query->where(function ($query) use ($search) {
+                $search = trim((string) $search);
+
+                // The "Site" box matches the Site Name, the virtual code/prefix,
+                // AND the displayed Site ID (ref_id = customers.id +
+                // RUNNING_NUMBER_INIT). Parse a leading numeric token as the Site
+                // ID and treat the rest as a name fragment, so all of these work:
+                //   "24310"        → the site with ref_id 24310
+                //   "24310 Waterc" → ref_id 24310 AND name contains "Waterc"
+                //   "Waterc"       → name contains "Waterc" (unchanged)
+                $idPart = null;
+                $namePart = $search;
+                if (preg_match('/^(\d+)\s*(.*)$/', $search, $m)) {
+                    $idPart = (int) $m[1];
+                    $namePart = trim($m[2]);
+                }
+
+                $query->where(function ($query) use ($search, $idPart, $namePart) {
                     $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
                         ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
                         ->orWhere('customers.name', 'LIKE', "%{$search}%");
+
+                    // Only treat the number as a Site ID when it's in the ref_id
+                    // range (>= RUNNING_NUMBER_INIT); a small number like "35" is
+                    // left to the name match above (e.g. "Blk 35").
+                    if ($idPart !== null && $idPart >= self::RUNNING_NUMBER_INIT) {
+                        $realId = $idPart - self::RUNNING_NUMBER_INIT;
+                        if ($namePart !== '') {
+                            $query->orWhere(function ($q) use ($realId, $namePart) {
+                                $q->where('customers.id', $realId)
+                                    ->where('customers.name', 'LIKE', "%{$namePart}%");
+                            });
+                        } else {
+                            $query->orWhere('customers.id', $realId);
+                        }
+                    }
                 });
             })
             ->when($request->billing_company, function ($query, $search) {

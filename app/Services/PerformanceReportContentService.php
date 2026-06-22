@@ -70,14 +70,24 @@ class PerformanceReportContentService
      */
     public function isAvailable(Customer $customer): bool
     {
-        $type = $customer->contract_commission_type;
+        return $this->termsAvailable(
+            $customer->contract_commission_type,
+            $customer->contract_commission_value,
+            $customer->contract_commission_value2,
+            $customer->contract_ps_term
+        );
+    }
+
+    /**
+     * Lower-level availability check on the raw contract terms, so both the
+     * live-customer path (isAvailable) and the lock-aware snapshot path inside
+     * generate() share one rule. F and S deliberately return false.
+     */
+    protected function termsAvailable(?string $type, $value, $value2, $psTerm): bool
+    {
         if (!$type || in_array($type, ['F', 'S'], true)) {
             return false;
         }
-
-        $value  = $customer->contract_commission_value;
-        $value2 = $customer->contract_commission_value2;
-        $psTerm = $customer->contract_ps_term;
 
         switch ($type) {
             case 'R':
@@ -131,9 +141,29 @@ class PerformanceReportContentService
         CarbonInterface $periodEnd,
         ?CustomerPeriodSummary $summary = null
     ): array {
-        $type = $customer->contract_commission_type;
+        // Lock-aware contract terms — mirror CustomerPeriodSummaryResource: a
+        // LOCKED row (or a historical SEGMENT row, contract_log_id set) reports
+        // the per-period SNAPSHOT frozen at lock time; an unlocked whole-month
+        // row reports the customer's LIVE contract. This keeps an already-sent
+        // (locked) report faithful to the deal that was in effect for the
+        // period — e.g. a PS Term later tuned 70%→50% must NOT rewrite a
+        // locked month's report content. Legacy locked rows that predate the
+        // snapshot columns (null contract_commission_type) fall back to live.
+        $useSnapshot = $summary
+            && ($summary->locked_at !== null || $summary->contract_log_id !== null)
+            && $summary->contract_commission_type !== null;
+
+        $type = $useSnapshot
+            ? $summary->contract_commission_type
+            : $customer->contract_commission_type;
+
         $base = [
-            'is_available'        => $this->isAvailable($customer),
+            'is_available'        => $this->termsAvailable(
+                $type,
+                $useSnapshot ? $summary->contract_commission_value : $customer->contract_commission_value,
+                $useSnapshot ? $summary->contract_commission_value2 : $customer->contract_commission_value2,
+                $useSnapshot ? $summary->contract_ps_term : $customer->contract_ps_term
+            ),
             'contract_type'       => $type,
             'contract_type_label' => self::CONTRACT_LABELS[$type] ?? $type,
             'period_label'        => $this->periodLabel($periodStart, $periodEnd),
@@ -190,7 +220,12 @@ class PerformanceReportContentService
             }
         }
         if ($customer->removed_date) {
-            $removedEnd = Carbon::parse($customer->removed_date)->startOfDay();
+            // Exclusive removal: the site stops operating ON the removal date,
+            // so the last ACTIVE (billable) day is the day before it. Mirrors
+            // CustomerSummaryAggregator::computeActiveDayRatio so the report /
+            // invoice prorate identically to the Summary row (e.g. removed on
+            // the 16th of a 30-day month → active 1st–15th → 15/30).
+            $removedEnd = Carbon::parse($customer->removed_date)->startOfDay()->subDay();
             if ($removedEnd->lt($end)) {
                 $end = $removedEnd;
             }
@@ -199,9 +234,11 @@ class PerformanceReportContentService
             ? ((int) round($start->diffInDays($end)) + 1)
             : 0;
 
-        $value  = (float) ($customer->contract_commission_value ?? 0);
-        $value2 = (float) ($customer->contract_commission_value2 ?? 0);
-        $psTerm = (float) ($customer->contract_ps_term ?? 0);
+        // Commission value(s) + PS Term — frozen snapshot for locked/segment
+        // rows, live for unlocked (see $useSnapshot above).
+        $value  = (float) (($useSnapshot ? $summary->contract_commission_value : $customer->contract_commission_value) ?? 0);
+        $value2 = (float) (($useSnapshot ? $summary->contract_commission_value2 : $customer->contract_commission_value2) ?? 0);
+        $psTerm = (float) (($useSnapshot ? $summary->contract_ps_term : $customer->contract_ps_term) ?? 0);
 
         // Sales as stored on customer_period_summaries.sales_cents — sourced
         // from vend_transactions.amount which is INCL-GST (matches the

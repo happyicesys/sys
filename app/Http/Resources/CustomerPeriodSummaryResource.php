@@ -51,6 +51,26 @@ class CustomerPeriodSummaryResource extends JsonResource
             $isRemovedInPeriod = $rd->between($monthStart, $monthEnd, true);
         }
 
+        // ACTIVATION month flag. The effective active date is active_date (the
+        // start of the current active interval) falling back to begin_date. When
+        // it lands AFTER the 1st of THIS row's month, the site was live for only
+        // part of the month, so its flat fees (rental / utility) are prorated —
+        // drives the "Active <date>" badge on the Period Start cell so users see
+        // why a partial month reads less than the full monthly rate (not a bug).
+        $effectiveActiveDate = ($this->relationLoaded('customer') && $this->customer)
+            ? ($this->customer->active_date ?? $this->customer->begin_date)
+            : null;
+        $isActivatedInPeriod = false;
+        if ($effectiveActiveDate && $monthStart) {
+            $ad = $effectiveActiveDate instanceof \Carbon\Carbon
+                ? $effectiveActiveDate->copy()->startOfDay()
+                : \Carbon\Carbon::parse($effectiveActiveDate)->startOfDay();
+            $monthEndForActive = $monthStart->copy()->endOfMonth();
+            // gt(monthStart) → after the 1st (a 1st-of-month start = full month,
+            // no proration → no badge). lte(monthEnd) → within this row's month.
+            $isActivatedInPeriod = $ad->gt($monthStart) && $ad->lte($monthEndForActive);
+        }
+
         // Flat-fee proration ratio for this row's month, from the live active
         // window — mirrors the aggregator so an unlocked row shows the same
         // prorated fee the nightly run would store.
@@ -144,6 +164,11 @@ class CustomerPeriodSummaryResource extends JsonResource
             // at the top of this method).
             'removed_date' => optional($removedDate)->toDateString(),
             'is_removed_in_period' => $isRemovedInPeriod,
+            // Effective active date + whether it's a mid-month activation for
+            // THIS row's month (flat fees prorated). Drives the "Active <date>"
+            // badge on the Period Start cell. See is_activated_in_period above.
+            'active_date' => optional($effectiveActiveDate)->toDateString(),
+            'is_activated_in_period' => $isActivatedInPeriod,
             'as_of_date' => optional($this->as_of_date)->toDateString(),
             // Action-triggered lock state. is_locked drives the Lock column on
             // Customer/Summary.vue; locked_by_user powers the "Locked by X" tip.
@@ -246,6 +271,11 @@ class CustomerPeriodSummaryResource extends JsonResource
             'contract_diff' => isset($this->contract_diff)
                 ? $this->contract_diff
                 : null,
+            // Pending "upcoming term" (a future contract queued via "Set
+            // Upcoming Term", awaiting its effective date) — drives the amber
+            // "Upcoming Term" badge in the Site column. Null when none pending.
+            // Attached by CustomerController::attachUpcomingTermFlag().
+            'upcoming_term' => $this->upcoming_term ?? null,
             // Placement Contract Detail — completed months show the frozen
             // snapshot; the current month shows live contract terms.
             'contract_commission_type' => $contractType,

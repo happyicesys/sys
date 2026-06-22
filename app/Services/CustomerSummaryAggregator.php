@@ -155,10 +155,16 @@ class CustomerSummaryAggregator
      * while active). Used to prorate flat fees for the activation / removal
      * month. A month fully inside the active window returns 1.0.
      *
+     * The active window is HALF-OPEN: [active_date, removed_date). The
+     * activation day is billable (the site goes live that day), but the
+     * REMOVAL day is the first NON-active day — the site stops operating on
+     * it, so it is NOT charged. A site removed on the 16th of a 30-day month
+     * is active the 1st–15th → 15/30. (A removal on the 1st = 0 active days
+     * that month.)
+     *
      * The denominator is the full calendar-month day count (not the as-of
-     * window) because flat fees are billed per calendar month — so a site
-     * removed on the 15th of a 30-day month pays half, regardless of how far
-     * the nightly run has progressed.
+     * window) because flat fees are billed per calendar month, regardless of
+     * how far the nightly run has progressed.
      */
     public static function computeActiveDayRatio(
         $activeDate,
@@ -178,9 +184,11 @@ class CustomerSummaryAggregator
         }
         $winEnd = $mEnd->copy();
         if ($removedDate) {
-            $rd = Carbon::parse($removedDate)->startOfDay();
-            if ($rd->lt($winEnd)) {
-                $winEnd = $rd;
+            // Exclusive removal: the site stops operating ON the removal date,
+            // so the last ACTIVE (billable) day is the day before it.
+            $lastActive = Carbon::parse($removedDate)->startOfDay()->subDay();
+            if ($lastActive->lt($winEnd)) {
+                $winEnd = $lastActive;
             }
         }
 
@@ -443,10 +451,21 @@ class CustomerSummaryAggregator
             // (a change effective on/before monthStart applies to the whole month →
             // no split). Only these can ever produce more than one segment, so the
             // common case stays exactly as before (one batched pass, single row).
+            //
+            // SPLIT ONLY ON SCHEDULED ("set future contract") CHANGES.
+            // source = 'system' is stamped exclusively by ApplyScheduledContracts
+            // when a future-dated contract reaches its effective date. Ad-hoc edits
+            // on the Customer Edit page stamp source = 'user' (a correction to the
+            // CURRENT term, not a mid-month change) and seeders stamp 'seeder';
+            // neither should carve the month into segments. So a plain edit now
+            // updates the whole-month row in place, while a future contract still
+            // splits the month on its effective date (boundary filter mirrors this
+            // in buildMonthSegments).
             $monthStartDay = $monthStart->copy()->startOfDay();
             $windowEndForChanges = $periodEnd->copy()->endOfDay();
             $inMonthChangeCustomerIds = DB::table('customer_contract_logs')
                 ->whereNotNull('customer_id')
+                ->where('source', 'system')
                 ->where('effective_from', '>', $monthStartDay)
                 ->where('effective_from', '<=', $windowEndForChanges)
                 ->distinct()
@@ -713,8 +732,18 @@ class CustomerSummaryAggregator
         $monthStartStr = $monthStart->toDateString();
         $periodEndStr = $periodEnd->toDateString();
 
+        // A new segment boundary is created ONLY by a scheduled ("set future
+        // contract") change — source = 'system'. Ad-hoc edits (source = 'user')
+        // and seeders (source = 'seeder') write log rows too, but they are
+        // corrections to the current term, not mid-month changes, so they must
+        // NOT cut the month (mirrors the candidacy filter in persistMonth). All
+        // versions are still used below for VALUE resolution; only the boundary
+        // set is restricted here.
         $starts = [$monthStartStr => true];
         foreach ($versions as $v) {
+            if (($v->source ?? null) !== 'system') {
+                continue;
+            }
             $effDate = Carbon::parse($v->effective_from)->toDateString();
             if ($effDate > $monthStartStr && $effDate <= $periodEndStr) {
                 $starts[$effDate] = true;
@@ -722,6 +751,27 @@ class CustomerSummaryAggregator
         }
         $startList = array_keys($starts);
         sort($startList);
+
+        // Earliest known version for this customer (the candidate set is small).
+        // Used to BACKFILL the leading part of the month when the contract-log
+        // history starts mid-month. The customer's CONTRACT is the system of
+        // record for the fee — the audit log merely captures it from whenever it
+        // was first saved in mark1 — so a month whose first log lands mid-month
+        // must NOT be read as "no contract before that date". We assume the
+        // earliest logged version applied from the start (its proration is still
+        // bounded to the site's active_date downstream). Without this, a
+        // first-ever save or a re-save dated mid-month manufactures a phantom
+        // "no-contract → contract" split (e.g. site 16866: two identical R$60
+        // re-saves on 06-16 were splitting June into a bogus 1st–15th row). A
+        // GENUINE mid-month change still splits, because the later version's
+        // money signature differs (contractVersionsEquivalent).
+        $earliest = null;
+        foreach ($versions as $v) {
+            if ($earliest === null
+                || Carbon::parse($v->effective_from)->lt(Carbon::parse($earliest->effective_from))) {
+                $earliest = $v;
+            }
+        }
 
         $segments = [];
         $n = count($startList);
@@ -733,10 +783,14 @@ class CustomerSummaryAggregator
             if ($segEnd->lt($segStart)) {
                 continue;
             }
+            // versionActiveAt returns null only for the leading gap before the
+            // earliest log; backfill it with the earliest version (see above).
+            $ver = self::versionActiveAt($versions, $segStart->copy()->endOfDay())
+                ?? $earliest;
             $segments[] = [
                 'start' => $segStart,
                 'end' => $segEnd,
-                'version' => self::versionActiveAt($versions, $segStart->copy()->endOfDay()),
+                'version' => $ver,
             ];
         }
 
