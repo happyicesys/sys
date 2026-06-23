@@ -141,7 +141,13 @@ class ApplyScheduledContracts extends Command
                     'contract_notice_period'     => $customer->contract_notice_period,
                     'contract_remarks'           => $customer->contract_remarks,
                     'changed_by'                 => $sched->created_by,
-                    'source'                     => 'system',
+                    // 'scheduled' is the UNAMBIGUOUS marker for a "Set Upcoming
+                    // Term" application — it's the ONLY thing the summary
+                    // aggregator splits a month on. Do NOT use 'system' here:
+                    // that value is also written by bulk admin seeders (e.g.
+                    // SetPsTermRatesSeeder), which must NOT cause mid-month
+                    // splits.
+                    'source'                     => 'scheduled',
                 ]);
 
                 // 3) Mark the schedule applied.

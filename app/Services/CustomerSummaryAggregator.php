@@ -455,20 +455,24 @@ class CustomerSummaryAggregator
             // no split). Only these can ever produce more than one segment, so the
             // common case stays exactly as before (one batched pass, single row).
             //
-            // SPLIT ONLY ON SCHEDULED ("set future contract") CHANGES.
-            // source = 'system' is stamped exclusively by ApplyScheduledContracts
-            // when a future-dated contract reaches its effective date. Ad-hoc edits
-            // on the Customer Edit page stamp source = 'user' (a correction to the
-            // CURRENT term, not a mid-month change) and seeders stamp 'seeder';
-            // neither should carve the month into segments. So a plain edit now
-            // updates the whole-month row in place, while a future contract still
-            // splits the month on its effective date (boundary filter mirrors this
-            // in buildMonthSegments).
+            // SPLIT ONLY ON SCHEDULED ("Set Upcoming Term") CHANGES.
+            // source = 'scheduled' is stamped EXCLUSIVELY by ApplyScheduledContracts
+            // when a future-dated contract reaches its effective date — the only
+            // thing that should carve a month into segments. Everything else is
+            // deliberately ignored:
+            //   - 'user'   → ad-hoc Edit-page corrections to the CURRENT term;
+            //   - 'system' → bulk admin seeders (e.g. SetPsTermRatesSeeder), whose
+            //                "amend in place" branch can even re-stamp a mid-month
+            //                'user' log as 'system' — these must NOT split;
+            //   - 'seeder' → historical backfill.
+            // So a plain edit / bulk update updates the whole-month row in place,
+            // while a real Set Upcoming Term still splits on its effective date
+            // (boundary filter mirrors this in buildMonthSegments).
             $monthStartDay = $monthStart->copy()->startOfDay();
             $windowEndForChanges = $periodEnd->copy()->endOfDay();
             $inMonthChangeCustomerIds = DB::table('customer_contract_logs')
                 ->whereNotNull('customer_id')
-                ->where('source', 'system')
+                ->where('source', 'scheduled')
                 ->where('effective_from', '>', $monthStartDay)
                 ->where('effective_from', '<=', $windowEndForChanges)
                 ->distinct()
@@ -742,16 +746,17 @@ class CustomerSummaryAggregator
         $monthStartStr = $monthStart->toDateString();
         $periodEndStr = $periodEnd->toDateString();
 
-        // A new segment boundary is created ONLY by a scheduled ("set future
-        // contract") change — source = 'system'. Ad-hoc edits (source = 'user')
-        // and seeders (source = 'seeder') write log rows too, but they are
-        // corrections to the current term, not mid-month changes, so they must
-        // NOT cut the month (mirrors the candidacy filter in persistMonth). All
-        // versions are still used below for VALUE resolution; only the boundary
-        // set is restricted here.
+        // A new segment boundary is created ONLY by a scheduled ("Set Upcoming
+        // Term") change — source = 'scheduled' (stamped only by
+        // ApplyScheduledContracts). Ad-hoc edits ('user'), bulk admin seeders
+        // ('system', e.g. SetPsTermRatesSeeder) and backfills ('seeder') write
+        // log rows too, but they are corrections to the current term, not
+        // mid-month changes, so they must NOT cut the month (mirrors the
+        // candidacy filter in persistMonth). All versions are still used below
+        // for VALUE resolution; only the boundary set is restricted here.
         $starts = [$monthStartStr => true];
         foreach ($versions as $v) {
-            if (($v->source ?? null) !== 'system') {
+            if (($v->source ?? null) !== 'scheduled') {
                 continue;
             }
             $effDate = Carbon::parse($v->effective_from)->toDateString();

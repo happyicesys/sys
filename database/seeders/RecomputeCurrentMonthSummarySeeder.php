@@ -164,7 +164,7 @@ class RecomputeCurrentMonthSummarySeeder extends Seeder
         if ($identical > 0) {
             $this->command?->warn(
                 'Identical-fee splits should not occur post-fix. If any appear, check '
-                . 'customer_contract_logs for that customer — a scheduled (source=system) '
+                . 'customer_contract_logs for that customer — a scheduled (source=scheduled) '
                 . 'log with the same fees, or a stale segment row, may remain.'
             );
         }
