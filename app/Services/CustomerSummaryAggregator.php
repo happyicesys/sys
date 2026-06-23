@@ -204,6 +204,102 @@ class CustomerSummaryAggregator
         return $activeDays / $monthDays;
     }
 
+    /**
+     * Number of days in $monthStart's calendar month that the site was ACTIVE,
+     * derived from its FULL status-change history (customer_status_logs) so that
+     * MULTIPLE active intervals in a month are summed correctly — e.g. a site
+     * removed then re-activated. This is the multi-interval generalisation of
+     * computeActiveDayRatio() and is used ONLY for sites that have actually been
+     * re-activated (Active after Removed); every other site keeps the single
+     * active_date/removed_date pair path unchanged.
+     *
+     * $events: array of ['date' => 'Y-m-d', 'is_active' => bool], where is_active
+     * marks an ACTIVE (open) event and !is_active a REMOVED (close) event — the
+     * caller pre-filters to those two statuses (Inactive/New/Potential are not
+     * billing cut-offs and are excluded). Conventions match
+     * computeActiveDayRatio: active day inclusive, removal day EXCLUSIVE (last
+     * billable day = removed_date − 1), denominator = full calendar month.
+     *
+     * If the earliest event isn't an open, an Active is anchored at $beginDate
+     * (else month start) so a leading "Removed" still closes a real interval —
+     * mirroring the active_date ?? begin_date fallback elsewhere.
+     */
+    public static function activeDaysFromLog(array $events, $beginDate, CarbonInterface $monthStart): int
+    {
+        $mStart = Carbon::parse($monthStart)->startOfMonth();
+        $mEnd = $mStart->copy()->endOfMonth()->startOfDay();
+
+        $norm = [];
+        foreach ($events as $e) {
+            if (empty($e['date'])) {
+                continue;
+            }
+            $norm[] = ['date' => Carbon::parse($e['date'])->startOfDay(), 'open' => (bool) $e['is_active']];
+        }
+        // Sort by date asc; on the same day an open sorts before a close.
+        usort($norm, function ($a, $b) {
+            if ($a['date']->eq($b['date'])) {
+                return ($a['open'] ? 0 : 1) <=> ($b['open'] ? 0 : 1);
+            }
+            return $a['date']->lt($b['date']) ? -1 : 1;
+        });
+        // Anchor a leading Active at begin_date so a leading Removed has an
+        // interval to close.
+        if (empty($norm) || !$norm[0]['open']) {
+            $anchor = $beginDate ? Carbon::parse($beginDate)->startOfDay() : $mStart->copy();
+            array_unshift($norm, ['date' => $anchor, 'open' => true]);
+        }
+
+        $intervals = [];
+        $openStart = null;
+        foreach ($norm as $e) {
+            if ($e['open']) {
+                if ($openStart === null) {
+                    $openStart = $e['date'];
+                }
+            } else {
+                if ($openStart !== null) {
+                    $intervals[] = [$openStart, $e['date']]; // [start, removed) exclusive
+                    $openStart = null;
+                }
+            }
+        }
+        if ($openStart !== null) {
+            $intervals[] = [$openStart, null]; // ongoing
+        }
+
+        $total = 0;
+        foreach ($intervals as [$s, $e]) {
+            $effStart = $s->gt($mStart) ? $s : $mStart->copy();
+            $lastActive = $e ? $e->copy()->subDay() : $mEnd->copy(); // removal exclusive
+            $effEnd = $lastActive->lt($mEnd) ? $lastActive : $mEnd->copy();
+            if ($effEnd->gte($effStart)) {
+                $total += $effStart->diffInDays($effEnd) + 1;
+            }
+        }
+        return $total;
+    }
+
+    /**
+     * Customer IDs that have been RE-ACTIVATED — i.e. their status history holds
+     * an ACTIVE event dated strictly after a REMOVED event. These are the only
+     * sites whose single active_date/removed_date pair is insufficient (the pair
+     * only remembers the latest interval), so they use activeDaysFromLog()
+     * instead. Everything else is untouched.
+     */
+    public static function reactivatedCustomerIds(): array
+    {
+        return DB::table('customer_status_logs as a')
+            ->join('customer_status_logs as r', 'r.customer_id', '=', 'a.customer_id')
+            ->where('a.status_id', \App\Models\Customer::STATUS_ACTIVE)
+            ->where('r.status_id', \App\Models\Customer::STATUS_REMOVED)
+            ->whereColumn('a.status_date', '>', 'r.status_date')
+            ->distinct()
+            ->pluck('a.customer_id')
+            ->map(fn ($v) => (int) $v)
+            ->all();
+    }
+
     private static function psAmountCents(
         int $salesCents,
         float $psTerm,
@@ -378,24 +474,68 @@ class CustomerSummaryAggregator
         //     before this month started. NULL removed_date = still active.
         // (termination_date / Inactive is record-only and does NOT gate the
         // calc — Removed Date is the commission cutoff.)
+        // ── Re-activation handling (RARE edge) ─────────────────────────────
+        // A site removed then set Active again can't be billed from the single
+        // active_date/removed_date pair (it only remembers the LATEST interval).
+        // For just those sites, derive this month's active days from the full
+        // status history so every interval is counted AND prior months stay
+        // eligible. Every other site is untouched (pair path below).
+        $reactivatedDays = [];       // customer_id => active days this month (log)
+        $reactivatedIdSet = [];      // customer_id => true (ever re-activated)
+        $reactivatedActiveSet = [];  // customer_id => true (>0 active days this month)
+        $reIds = self::reactivatedCustomerIds();
+        if (!empty($reIds)) {
+            $reactivatedIdSet = array_flip($reIds);
+            $begins = DB::table('customers')->whereIn('id', $reIds)->pluck('begin_date', 'id')->all();
+            $logsByCustomer = [];
+            DB::table('customer_status_logs')
+                ->whereIn('customer_id', $reIds)
+                ->whereIn('status_id', [\App\Models\Customer::STATUS_ACTIVE, \App\Models\Customer::STATUS_REMOVED])
+                ->orderBy('customer_id')->orderBy('status_date')
+                ->get(['customer_id', 'status_id', 'status_date'])
+                ->each(function ($r) use (&$logsByCustomer) {
+                    $logsByCustomer[(int) $r->customer_id][] = [
+                        'date' => $r->status_date,
+                        'is_active' => ((int) $r->status_id === \App\Models\Customer::STATUS_ACTIVE),
+                    ];
+                });
+            foreach ($reIds as $cid) {
+                $days = self::activeDaysFromLog($logsByCustomer[$cid] ?? [], $begins[$cid] ?? null, $monthStart);
+                $reactivatedDays[$cid] = $days;
+                if ($days > 0) {
+                    $reactivatedActiveSet[$cid] = true;
+                }
+            }
+        }
+        $reactivatedActiveIds = array_keys($reactivatedActiveSet);
+
         $endOfPeriod = $periodEnd->copy()->endOfDay();
         $customerQuery = Customer::query()
             ->withoutGlobalScopes() // aggregator runs system-wide
-            ->where(function ($q) use ($endOfPeriod) {
-                // active_date <= period_end, OR (no active_date AND begin_date
-                // null/<= period_end) so legacy un-seeded rows still appear.
-                $q->where(function ($q2) use ($endOfPeriod) {
-                    $q2->whereNotNull('active_date')
-                       ->where('active_date', '<=', $endOfPeriod);
-                })->orWhere(function ($q2) use ($endOfPeriod) {
-                    $q2->whereNull('active_date')
-                       ->where(function ($q3) use ($endOfPeriod) {
-                           $q3->whereNull('begin_date')->orWhere('begin_date', '<=', $endOfPeriod);
-                       });
+            ->where(function ($outer) use ($endOfPeriod, $monthStart, $reactivatedActiveIds) {
+                // (a) the normal active_date/removed_date pair eligibility …
+                $outer->where(function ($pair) use ($endOfPeriod, $monthStart) {
+                    $pair->where(function ($q) use ($endOfPeriod) {
+                        // active_date <= period_end, OR (no active_date AND begin_date
+                        // null/<= period_end) so legacy un-seeded rows still appear.
+                        $q->where(function ($q2) use ($endOfPeriod) {
+                            $q2->whereNotNull('active_date')
+                               ->where('active_date', '<=', $endOfPeriod);
+                        })->orWhere(function ($q2) use ($endOfPeriod) {
+                            $q2->whereNull('active_date')
+                               ->where(function ($q3) use ($endOfPeriod) {
+                                   $q3->whereNull('begin_date')->orWhere('begin_date', '<=', $endOfPeriod);
+                               });
+                        });
+                    })->where(function ($q) use ($monthStart) {
+                        $q->whereNull('removed_date')->orWhere('removed_date', '>=', $monthStart);
+                    });
                 });
-            })
-            ->where(function ($q) use ($monthStart) {
-                $q->whereNull('removed_date')->orWhere('removed_date', '>=', $monthStart);
+                // (b) … OR a re-activated site that was active this month per its
+                // status log (the pair may wrongly exclude it for prior months).
+                if (!empty($reactivatedActiveIds)) {
+                    $outer->orWhereIn('customers.id', $reactivatedActiveIds);
+                }
             });
 
         // Locked rows are user-frozen snapshots — the aggregator must NOT
@@ -537,7 +677,7 @@ class CustomerSummaryAggregator
             // location_earning_cents below.
             'is_external_subsidize',
             'external_subsidize_amount',
-        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $jobCountByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, $lockedCustomerIdSet, $overriddenSet, $forceSingleRow, $respectLocked, &$payloads) {
+        ])->chunk(500, function ($customers) use ($rows, $salesByCustomer, $jobCountByCustomer, $monthStart, $periodEnd, $isCurrentMonth, $asOf, $monthEndCalendar, $now, $operatorGstRates, $lockedCustomerIdSet, $overriddenSet, $forceSingleRow, $respectLocked, $reactivatedIdSet, $reactivatedActiveSet, $reactivatedDays, &$payloads) {
             foreach ($customers as $customer) {
                 // Never regenerate a locked row — it stays as the user froze it.
                 if (isset($lockedCustomerIdSet[$customer->id])) {
@@ -563,11 +703,27 @@ class CustomerSummaryAggregator
                 // change). < 1.0 only when active_date starts after the 1st or
                 // removed_date lands before month end. PS (sales-based) fees are
                 // unaffected — sales are naturally bounded to the active days.
-                $flatDayRatio = self::computeActiveDayRatio(
-                    $customer->active_date ?? $customer->begin_date,
-                    $customer->removed_date,
-                    $monthStart
-                );
+                //
+                // RE-ACTIVATED sites (rare) use the multi-interval log-derived
+                // day count so removed-then-active (same or across months) bills
+                // every active stretch; all other sites keep the pair path.
+                if (isset($reactivatedIdSet[$customer->id])) {
+                    // Defensive: a re-activated site with zero active days this
+                    // month isn't billable here — skip (it shouldn't be in the set).
+                    if (!isset($reactivatedActiveSet[$customer->id])) {
+                        continue;
+                    }
+                    $monthDaysForRatio = (int) $monthStart->daysInMonth;
+                    $flatDayRatio = $monthDaysForRatio > 0
+                        ? min(($reactivatedDays[$customer->id] ?? 0) / $monthDaysForRatio, 1.0)
+                        : 0.0;
+                } else {
+                    $flatDayRatio = self::computeActiveDayRatio(
+                        $customer->active_date ?? $customer->begin_date,
+                        $customer->removed_date,
+                        $monthStart
+                    );
+                }
 
                 $locationFeeCents = self::computeLocationFeeCents(
                     $customer->contract_commission_type,

@@ -109,7 +109,15 @@ class CustomerPeriodSummaryResource extends JsonResource
         // live so a contract edit still reflects immediately for them.
         $isSegment = $this->contract_log_id !== null;
 
-        if (!$isLocked && !$isSegment && $this->relationLoaded('customer') && $this->customer) {
+        // A RE-ACTIVATED site (removed → active again) has multi-interval
+        // log-derived figures stored by the aggregator. Live re-derivation here
+        // uses only the customer's single active_date/removed_date pair (latest
+        // interval), which would mis-prorate it — so treat it like a frozen row
+        // and keep the stored value. Flagged by
+        // CustomerController::attachReactivationFlag().
+        $isReactivated = (bool) ($this->use_stored_proration ?? false);
+
+        if (!$isLocked && !$isSegment && !$isReactivated && $this->relationLoaded('customer') && $this->customer) {
             $c = $this->customer;
 
             // Live contract terms straight off the customer record.

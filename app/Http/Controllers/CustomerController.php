@@ -565,6 +565,12 @@ class CustomerController extends Controller
         // in the Site column on the Summary page.
         $this->attachUpcomingTermFlag($summaries->getCollection());
 
+        // Flag rows whose SITE has been re-activated (removed → active again).
+        // Their stored figures are multi-interval log-derived; the resource must
+        // NOT live-re-derive them with the single active_date/removed_date pair
+        // (which only knows the latest interval), so show the stored value.
+        $this->attachReactivationFlag($summaries->getCollection());
+
         // Aggregate totals — summed across the FULL filtered set (not just
         // the paginated rows visible on this page) so the 4 boxes above the
         // table (Total Sales / Gross Earning / Location Fees / Vend Earnings)
@@ -2584,6 +2590,26 @@ class CustomerController extends Controller
             $row->upcoming_term = $eff
                 ? ['effective_date' => \Carbon\Carbon::parse($eff)->toDateString()]
                 : null;
+        }
+    }
+
+    /**
+     * Flag rows whose SITE has been re-activated (an Active status event after a
+     * Removed one). For those the stored summary figures are multi-interval
+     * log-derived (CustomerSummaryAggregator), so the Resource must show the
+     * STORED value rather than live-re-deriving from the single
+     * active_date/removed_date pair (which only remembers the latest interval).
+     * One batched query; sets $row->use_stored_proration. Re-activation is rare,
+     * so this is cheap and a no-op for virtually every page.
+     */
+    protected function attachReactivationFlag($collection): void
+    {
+        if ($collection->isEmpty()) {
+            return;
+        }
+        $reIds = array_flip(\App\Services\CustomerSummaryAggregator::reactivatedCustomerIds());
+        foreach ($collection as $row) {
+            $row->use_stored_proration = isset($reIds[(int) $row->customer_id]);
         }
     }
 

@@ -774,8 +774,9 @@
                           v-if="row.customer.status_name"
                           class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit h-fit"
                           :class="siteStatusBadgeClass(row.customer.status_id)"
+                          v-tooltip="row.customer.status_name === 'Removed' && row.removed_date ? ('Removed on ' + formatYYMMDD(row.removed_date)) : null"
                         >
-                          {{ row.customer.status_name }}
+                          {{ row.customer.status_name }}<template v-if="row.customer.status_name === 'Removed' && row.removed_date">&nbsp;{{ formatYYMMDD(row.removed_date) }}</template>
                         </span>
                         <span
                           v-if="row.customer.selling_price_type"
@@ -994,23 +995,38 @@
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
                     <div class="flex flex-col items-center space-y-1">
-                      <span>{{ formatYYMMDD(row.period_start) }}</span>
                       <!--
-                        Period End Date — red border in the site's REMOVAL month
-                        (is_removed_in_period): the row is the site's final billable
-                        period and its rental/utility are prorated to the last active
-                        day (removal day exclusive). No further rows are produced
-                        after the removal month.
+                        Period START — smart: in the site's ACTIVATION month
+                        (is_activated_in_period) show the ACTIVE date with a GREEN
+                        border instead of the 1st, since billing starts then.
+                        Otherwise the normal period start (month start).
                       -->
                       <span
-                        :class="row.is_removed_in_period
-                          ? 'inline-block border-2 border-red-500 rounded px-1 text-red-700 font-semibold'
+                        :class="row.is_activated_in_period && row.active_date
+                          ? 'inline-block border-2 border-green-500 rounded px-1 text-green-700 font-semibold'
                           : ''"
-                        v-tooltip="row.is_removed_in_period
-                          ? ('Site removed' + (row.removed_date ? ' on ' + formatYYMMDD(row.removed_date) : '') + ' — final billable period; rental/utility prorated to the last active day.')
+                        v-tooltip="row.is_activated_in_period && row.active_date
+                          ? ('Active from ' + formatYYMMDD(row.active_date) + ' — billed from the active date, not the 1st.')
                           : null"
                       >
-                        {{ formatYYMMDD(row.period_end) }}
+                        {{ formatYYMMDD(row.is_activated_in_period && row.active_date ? row.active_date : row.period_start) }}
+                      </span>
+                      <!--
+                        Period END — smart: in the site's REMOVAL month
+                        (is_removed_in_period) show the REMOVED date with a RED
+                        border instead of month-end, since billing stops then
+                        (removal day exclusive; no rows after this month).
+                        Otherwise the normal period end.
+                      -->
+                      <span
+                        :class="row.is_removed_in_period && row.removed_date
+                          ? 'inline-block border-2 border-red-500 rounded px-1 text-red-700 font-semibold'
+                          : ''"
+                        v-tooltip="row.is_removed_in_period && row.removed_date
+                          ? ('Removed on ' + formatYYMMDD(row.removed_date) + ' — final billable period; rental/utility prorated to the last active day. No rows after this month.')
+                          : null"
+                      >
+                        {{ formatYYMMDD(row.is_removed_in_period && row.removed_date ? row.removed_date : row.period_end) }}
                       </span>
                     </div>
                   </TableData>

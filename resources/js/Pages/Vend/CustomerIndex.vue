@@ -2370,7 +2370,10 @@
 									> + {{ operatorCountry.currency_symbol }}{{ Number(vend.contract_commission_value2).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) }}</span>
 									</span>
 								</span>
-								<span v-if="vend.contract_ps_term != null" class="block text-[11px] font-normal text-gray-600">
+								<!-- PS Term only applies to placement-family contracts
+									(PS / PS+U / PSORU). Hide it for R, R+U, etc. even if a
+									stale ps_term value lingers on the contract. -->
+								<span v-if="vend.contract_ps_term != null && ['PS','PS+U','PSORU'].includes(vend.contract_commission_type)" class="block text-[11px] font-normal text-gray-600">
 									PS Term: {{ Number(vend.contract_ps_term) }}%
 								</span>
 							</span>
