@@ -284,6 +284,14 @@ class CustomerPeriodSummaryResource extends JsonResource
             // "Upcoming Term" badge in the Site column. Null when none pending.
             // Attached by CustomerController::attachUpcomingTermFlag().
             'upcoming_term' => $this->upcoming_term ?? null,
+            // Machine-split info (mid-month vend swap). machine_vend is this
+            // row's machine ([id, code]) on a split row, null on whole-month
+            // rows (Vue falls back to the site's current vend). is_new_machine
+            // marks the swapped-in row for the "New" badge. Attached by
+            // CustomerController::attachMachineSplitInfo().
+            'vend_id' => $this->vend_id,
+            'machine_vend' => $this->machine_vend ?? null,
+            'is_new_machine' => (bool) ($this->is_new_machine ?? false),
             // Placement Contract Detail — completed months show the frozen
             // snapshot; the current month shows live contract terms.
             'contract_commission_type' => $contractType,

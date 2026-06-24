@@ -915,7 +915,28 @@
                       user can see every machine bound to this customer
                       instead of a "+N more" hint.
                     -->
-                    <template v-if="row.customer?.vends && row.customer.vends.length > 1">
+                    <!--
+                      MACHINE-SPLIT row: this segment's own machine (from the
+                      mid-month vend swap) + a "New" badge on the swapped-in row.
+                    -->
+                    <template v-if="row.machine_vend">
+                      <span class="inline-flex items-center gap-1">
+                        <a
+                          target="_blank"
+                          :href="'/vends/customers?codes=' + encodeURIComponent(row.machine_vend.code)"
+                          class="text-blue-700 hover:underline"
+                          v-tooltip="'Open this machine in the Ops Dashboard'"
+                        >
+                          {{ row.machine_vend.code }}
+                        </a>
+                        <span
+                          v-if="row.is_new_machine"
+                          class="inline-flex items-center rounded px-1 py-0 text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300"
+                          v-tooltip="'Machine changed mid-month'"
+                        >New</span>
+                      </span>
+                    </template>
+                    <template v-else-if="row.customer?.vends && row.customer.vends.length > 1">
                       <div class="flex flex-col items-center space-y-0.5">
                         <a
                           v-for="v in row.customer.vends"
@@ -941,6 +962,18 @@
                       </a>
                       <span v-else-if="row.customer?.vend">{{ row.customer.vend.code }}</span>
                     </template>
+                    <!--
+                      Binding history — small link (once per site) to the machine
+                      binding history on the Edit page (lists every machine ever
+                      bound, incl. unbound ones with dates).
+                    -->
+                    <a
+                      v-if="isFirstRowForCustomer(rowIndex) && row.customer?.id"
+                      target="_blank"
+                      :href="'/customers/' + row.customer.id + '/edit'"
+                      class="block text-[9px] text-gray-400 hover:text-gray-600 hover:underline mt-0.5"
+                      v-tooltip="'View this site\'s machine binding history'"
+                    >history</a>
                   </TableData>
 
                   <!-- Prefix -->

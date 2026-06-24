@@ -24,6 +24,10 @@ class CustomerPeriodSummary extends Model
         'segment_index',
         'segmentation_overridden',
         'contract_log_id',
+        // Per-row machine. Set only on machine-split rows (a mid-month vend
+        // swap); null on whole-month rows (display falls back to the site's
+        // current vend). See migration 2026_06_24_000000.
+        'vend_id',
         'as_of_date',
         'sales_cents',
         'gross_earning_cents',

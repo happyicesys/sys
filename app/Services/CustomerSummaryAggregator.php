@@ -300,6 +300,91 @@ class CustomerSummaryAggregator
             ->all();
     }
 
+    /**
+     * Machine segments for a month, derived from a site's vend-binding history.
+     * A site is bound to ONE machine at a time; when the bound machine CHANGES
+     * to a DIFFERENT vend mid-month the month is split into one segment per
+     * machine. A same-machine unbind→rebind (gap) is NOT a change — it carries
+     * forward — and a single-machine month (incl. first-ever bind mid-month, an
+     * activation) returns [] = no machine split.
+     *
+     * $binds: array of ['date' => datetime, 'vend_id' => int] for is_binding=TRUE
+     * events (any order). Returns [] when there is no real swap (< 2 distinct
+     * machines in effect this month), else an ordered list of
+     * ['start' => Carbon, 'end' => Carbon, 'vend_id' => int]. Boundary = a bind's
+     * date; the previous machine covers up to the day before the next binds (so
+     * an in-between gap never produces an empty "no-machine" row). Figures are
+     * still aggregated by customer_id over each segment's date range downstream
+     * — vend_id is descriptive only.
+     */
+    public static function machineSegmentsForMonth(array $binds, CarbonInterface $monthStart, CarbonInterface $periodEnd): array
+    {
+        $mStart = Carbon::parse($monthStart)->startOfDay();
+        $pEnd = Carbon::parse($periodEnd)->startOfDay();
+
+        $rows = [];
+        foreach ($binds as $b) {
+            if (empty($b['date']) || empty($b['vend_id'])) {
+                continue;
+            }
+            $rows[] = ['date' => Carbon::parse($b['date'])->startOfDay(), 'vend' => (int) $b['vend_id']];
+        }
+        usort($rows, fn ($a, $b) => $a['date']->lt($b['date']) ? -1 : ($a['date']->gt($b['date']) ? 1 : 0));
+
+        // Collapse consecutive same-vend binds (A,A → A) so a same-machine
+        // rebind doesn't create a boundary.
+        $seq = [];
+        foreach ($rows as $r) {
+            if (empty($seq) || end($seq)['vend'] !== $r['vend']) {
+                $seq[] = $r;
+            }
+        }
+        if (empty($seq)) {
+            return [];
+        }
+
+        // Machine in effect at month start = last bind on/before month start.
+        $cur = null;
+        foreach ($seq as $r) {
+            if ($r['date']->lte($mStart)) {
+                $cur = $r['vend'];
+            }
+        }
+
+        // Change points within the month (where the in-effect vend differs).
+        $points = [['date' => $mStart->copy(), 'vend' => $cur]];
+        foreach ($seq as $r) {
+            if ($r['date']->gt($mStart) && $r['date']->lte($pEnd) && $r['vend'] !== end($points)['vend']) {
+                $points[] = ['date' => $r['date']->copy(), 'vend' => $r['vend']];
+            }
+        }
+
+        // Only a REAL swap (>= 2 distinct machines this month) splits; a single
+        // machine (or first-ever activation bind) is left to the whole-month row.
+        $distinct = [];
+        foreach ($points as $p) {
+            if ($p['vend'] !== null) {
+                $distinct[$p['vend']] = true;
+            }
+        }
+        if (count($distinct) < 2) {
+            return [];
+        }
+
+        $segs = [];
+        $n = count($points);
+        for ($i = 0; $i < $n; $i++) {
+            $s = $points[$i]['date']->gt($mStart) ? $points[$i]['date']->copy() : $mStart->copy();
+            $e = ($i + 1 < $n) ? $points[$i + 1]['date']->copy()->subDay() : $pEnd->copy();
+            // Skip a leading "no machine yet" stretch (vend null) — that's an
+            // activation handled by the whole-month proration, not a machine row.
+            if ($points[$i]['vend'] !== null && $e->gte($s)) {
+                $segs[] = ['start' => $s, 'end' => $e, 'vend_id' => $points[$i]['vend']];
+            }
+        }
+        return $segs;
+    }
+
     private static function psAmountCents(
         int $salesCents,
         float $psTerm,
@@ -575,6 +660,7 @@ class CustomerSummaryAggregator
         // customer gets a single whole-month row regardless of mid-month
         // contract changes, and every inserted row is stamped overridden=true
         // so future nightly runs leave them merged.
+        $machineSegmentsByCustomer = []; // customer_id => [ ['start','end','vend_id'], ... ] on a real mid-month machine swap
         if ($forceSingleRow) {
             $overriddenCustomerIds = [];
             $overriddenSet = [];
@@ -643,6 +729,44 @@ class CustomerSummaryAggregator
                     ->get();
                 foreach ($versionRows as $vrow) {
                     $candidateVersions[(int) $vrow->customer_id][] = $vrow;
+                }
+            }
+
+            // ── Machine-swap segmentation ──────────────────────────────────
+            // A site bound to a DIFFERENT machine (vend) mid-month splits into
+            // one row per machine. Candidates = sites with a bind event this
+            // month; confirmed only when ≥2 distinct machines were in effect
+            // (machineSegmentsForMonth returns the segments). Figures still
+            // aggregate by customer_id over each segment's date range, so a
+            // reused vend across customers is never mixed up.
+            $machineBindCustomerIds = DB::table('customer_vend_bindings')
+                ->where('is_binding', true)
+                ->where('created_at', '>', $monthStartDay)
+                ->where('created_at', '<=', $windowEndForChanges)
+                ->distinct()
+                ->pluck('customer_id')
+                ->map(fn ($v) => (int) $v)
+                ->all();
+            if (!empty($machineBindCustomerIds)) {
+                $bindsByCustomer = [];
+                DB::table('customer_vend_bindings')
+                    ->whereIn('customer_id', $machineBindCustomerIds)
+                    ->where('is_binding', true)
+                    ->orderBy('customer_id')->orderBy('created_at')
+                    ->get(['customer_id', 'vend_id', 'created_at'])
+                    ->each(function ($r) use (&$bindsByCustomer) {
+                        $bindsByCustomer[(int) $r->customer_id][] = ['date' => $r->created_at, 'vend_id' => (int) $r->vend_id];
+                    });
+                foreach ($machineBindCustomerIds as $cid) {
+                    // Locked / overridden months are frozen — never re-split.
+                    if (isset($lockedCustomerIdSet[$cid]) || isset($overriddenSet[$cid])) {
+                        continue;
+                    }
+                    $segs = self::machineSegmentsForMonth($bindsByCustomer[$cid] ?? [], $monthStart, $periodEnd);
+                    if (count($segs) >= 2) {
+                        $machineSegmentsByCustomer[$cid] = $segs;
+                        $segmentCandidateSet[$cid] = true;
+                    }
                 }
             }
         }
@@ -826,6 +950,11 @@ class CustomerSummaryAggregator
                     'contract_commission_value2' => $customer->contract_commission_value2,
                     'contract_ps_term' => $customer->contract_ps_term,
                     'contract_log_id' => null,
+                    // Whole-month row: no specific machine stored (display falls
+                    // back to the site's current vend). Only machine-split rows
+                    // carry a vend_id. Kept here so every inserted payload shares
+                    // the same column set.
+                    'vend_id' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
@@ -837,8 +966,15 @@ class CustomerSummaryAggregator
         // single whole-month row. Keyed → flat list for the insert below.
         $finalPayloads = [];
         foreach ($payloads as $cid => $payload) {
-            if (isset($segmentCandidateSet[$cid]) && !empty($candidateVersions[$cid])) {
-                $segments = self::buildMonthSegments($candidateVersions[$cid], $monthStart, $periodEnd);
+            $hasContract = isset($segmentCandidateSet[$cid]) && !empty($candidateVersions[$cid]);
+            $hasMachine = !empty($machineSegmentsByCustomer[$cid]);
+            if ($hasContract || $hasMachine) {
+                $segments = self::buildMonthSegments(
+                    $candidateVersions[$cid] ?? [],
+                    $machineSegmentsByCustomer[$cid] ?? [],
+                    $monthStart,
+                    $periodEnd
+                );
                 if (count($segments) > 1) {
                     foreach (self::buildSegmentPayloads(
                         $payload, $segments, $monthStart, $isCurrentMonth, $asOf, $now, $operatorGstRates, $testingVendIds
@@ -897,19 +1033,20 @@ class CustomerSummaryAggregator
      * last segment). The day a new contract version becomes effective belongs
      * to that new version (standard effective-dating).
      */
-    protected static function buildMonthSegments($versions, CarbonInterface $monthStart, CarbonInterface $periodEnd): array
+    protected static function buildMonthSegments($versions, array $machineSegs, CarbonInterface $monthStart, CarbonInterface $periodEnd): array
     {
         $monthStartStr = $monthStart->toDateString();
         $periodEndStr = $periodEnd->toDateString();
 
-        // A new segment boundary is created ONLY by a scheduled ("Set Upcoming
-        // Term") change — source = 'scheduled' (stamped only by
-        // ApplyScheduledContracts). Ad-hoc edits ('user'), bulk admin seeders
-        // ('system', e.g. SetPsTermRatesSeeder) and backfills ('seeder') write
-        // log rows too, but they are corrections to the current term, not
-        // mid-month changes, so they must NOT cut the month (mirrors the
-        // candidacy filter in persistMonth). All versions are still used below
-        // for VALUE resolution; only the boundary set is restricted here.
+        // Boundaries come from TWO sources:
+        //   (a) a scheduled ("Set Upcoming Term") contract change — source =
+        //       'scheduled' (only ApplyScheduledContracts writes it). Ad-hoc
+        //       edits ('user'), bulk seeders ('system') and backfills ('seeder')
+        //       are corrections to the current term and must NOT cut the month.
+        //   (b) a machine swap — the start of each machine segment (the bound
+        //       vend changing to a DIFFERENT vend; see machineSegmentsForMonth).
+        // All contract versions are still used below for VALUE resolution; only
+        // the boundary set is restricted here.
         $starts = [$monthStartStr => true];
         foreach ($versions as $v) {
             if (($v->source ?? null) !== 'scheduled') {
@@ -920,8 +1057,27 @@ class CustomerSummaryAggregator
                 $starts[$effDate] = true;
             }
         }
+        foreach ($machineSegs as $ms) {
+            $msStart = Carbon::parse($ms['start'])->toDateString();
+            if ($msStart > $monthStartStr && $msStart <= $periodEndStr) {
+                $starts[$msStart] = true;
+            }
+        }
         $startList = array_keys($starts);
         sort($startList);
+
+        // Resolve the machine (vend_id) in effect on a date from machineSegs;
+        // null when there's no machine split (contract-only or whole-month).
+        $vendAt = function (CarbonInterface $date) use ($machineSegs) {
+            foreach ($machineSegs as $ms) {
+                $s = Carbon::parse($ms['start'])->startOfDay();
+                $e = Carbon::parse($ms['end'])->startOfDay();
+                if ($date->gte($s) && $date->lte($e)) {
+                    return $ms['vend_id'];
+                }
+            }
+            return null;
+        };
 
         // Earliest known version for this customer (the candidate set is small).
         // Used to BACKFILL the leading part of the month when the contract-log
@@ -962,24 +1118,23 @@ class CustomerSummaryAggregator
                 'start' => $segStart,
                 'end' => $segEnd,
                 'version' => $ver,
+                'vend_id' => $vendAt($segStart),
             ];
         }
 
-        // Collapse adjacent segments whose contract values are IDENTICAL. A
-        // customer_contract_logs row only marks a real split when the contract
-        // it points to actually differs from the one before it — a re-save, a
-        // seeded duplicate, or a metadata-only edit (remarks / auto-renewal /
-        // notice period) must NOT carve the month into two financially
-        // identical rows. By merging here, splitting depends on a genuine
-        // change in plan / fees / contract dates, regardless of how the log
-        // rows were written. If everything collapses to one segment the caller
-        // keeps the single whole-month row.
+        // Collapse adjacent segments only when BOTH the contract is equivalent
+        // AND the machine is the same. A same-contract re-save must NOT split
+        // (handled by contractVersionsEquivalent), but a machine swap (different
+        // vend_id) keeps the split even on an identical contract — and a real
+        // contract change keeps it even on the same machine. If everything
+        // collapses to one segment the caller keeps the single whole-month row.
         $merged = [];
         foreach ($segments as $seg) {
             if (!empty($merged)) {
                 $lastIdx = count($merged) - 1;
-                if (self::contractVersionsEquivalent($merged[$lastIdx]['version'], $seg['version'])) {
-                    // Extend the previous segment over this one (same contract).
+                if (self::contractVersionsEquivalent($merged[$lastIdx]['version'], $seg['version'])
+                    && ($merged[$lastIdx]['vend_id'] === $seg['vend_id'])) {
+                    // Extend the previous segment over this one (same deal + machine).
                     $merged[$lastIdx]['end'] = $seg['end'];
                     continue;
                 }
@@ -1077,6 +1232,8 @@ class CustomerSummaryAggregator
         $customerId = $base['customer_id'];
         $operatorId = $base['operator_id'];
         $gstRatePct = (float) ($operatorGstRates[$operatorId] ?? 0);
+        $monthDays = (int) Carbon::parse($monthStart)->daysInMonth;
+        $monthEnd = Carbon::parse($monthStart)->endOfMonth()->startOfDay();
 
         $out = [];
         $lastIndex = count($segments) - 1;
@@ -1087,6 +1244,7 @@ class CustomerSummaryAggregator
             /** @var \Carbon\Carbon $segEnd */
             $segEnd = $seg['end'];
             $v = $seg['version'];
+            $segVendId = $seg['vend_id'] ?? null; // machine for this segment (null = whole-site / no swap)
 
             $wStart = $segStart->copy()->startOfDay();
             $wEnd = $segEnd->copy()->endOfDay();
@@ -1132,16 +1290,43 @@ class CustomerSummaryAggregator
                 ->whereBetween('ops_jobs.date', [$wStart, $wEnd])
                 ->count();
 
-            // Contract terms from this segment's version (null = no contract).
-            $cType = $v ? $v->contract_commission_type : null;
-            $cVal = ($v && $v->contract_commission_value !== null) ? (float) $v->contract_commission_value : null;
-            $cVal2 = ($v && $v->contract_commission_value2 !== null) ? (float) $v->contract_commission_value2 : null;
-            $cPs = ($v && $v->contract_ps_term !== null) ? (float) $v->contract_ps_term : null;
+            // Contract terms for this segment. A contract-change segment carries
+            // its own version ($v); a MACHINE-only segment has no version, so it
+            // falls back to the site's CURRENT contract (carried on $base) — a
+            // machine swap doesn't change the deal, so the fee must still apply.
+            if ($v) {
+                $cType = $v->contract_commission_type;
+                $cVal = $v->contract_commission_value !== null ? (float) $v->contract_commission_value : null;
+                $cVal2 = $v->contract_commission_value2 !== null ? (float) $v->contract_commission_value2 : null;
+                $cPs = $v->contract_ps_term !== null ? (float) $v->contract_ps_term : null;
+                $extSubDollars = ($v->is_external_subsidize && $v->external_subsidize_amount !== null)
+                    ? (float) $v->external_subsidize_amount : null;
+            } else {
+                $cType = $base['contract_commission_type'] ?? null;
+                $cVal = ($base['contract_commission_value'] ?? null) !== null ? (float) $base['contract_commission_value'] : null;
+                $cVal2 = ($base['contract_commission_value2'] ?? null) !== null ? (float) $base['contract_commission_value2'] : null;
+                $cPs = ($base['contract_ps_term'] ?? null) !== null ? (float) $base['contract_ps_term'] : null;
+                $extSubDollars = null; // external subsidy folded in via base cents below
+            }
 
-            $locationFeeCents = self::computeLocationFeeCents($cType, $cVal, $cVal2, $cPs, $salesCents, $grossEarningCents, $gstRatePct);
-            $externalSubsidizeCents = ($v && $v->is_external_subsidize && $v->external_subsidize_amount !== null)
-                ? (int) round(((float) $v->external_subsidize_amount) * 100)
-                : 0;
+            // Per-segment flat-fee proration so a split month never double-bills
+            // the rental/utility: each segment's flat fee = rate × (its days ÷
+            // month days). PS (sales-based) is NOT prorated — sales are already
+            // bounded to the segment's date range. The LAST segment of the
+            // current in-progress month extends to month-end for the FEE only
+            // (the flat charge is per calendar month, like the whole-month row),
+            // while its sales/gross stay bounded to the as-of window above.
+            $feeEnd = ($isCurrentMonth && $idx === $lastIndex) ? $monthEnd->copy() : $segEnd->copy();
+            $segFlatDays = $feeEnd->gte($segStart) ? ($segStart->diffInDays($feeEnd) + 1) : 0;
+            $segFlatRatio = $monthDays > 0 ? min($segFlatDays / $monthDays, 1.0) : 0.0;
+
+            $locationFeeCents = self::computeLocationFeeCents($cType, $cVal, $cVal2, $cPs, $salesCents, $grossEarningCents, $gstRatePct, $segFlatRatio);
+            // External subsidize is a flat $/month too → prorate per segment so a
+            // split month's subsidy sums to the full amount (no N× double-count).
+            $rawExtSubCents = $v
+                ? ($extSubDollars !== null ? (int) round($extSubDollars * 100) : 0)
+                : (int) ($base['external_subsidize_cents'] ?? 0);
+            $externalSubsidizeCents = (int) round($rawExtSubCents * $segFlatRatio);
             $netLocationFeeCents = $locationFeeCents - $externalSubsidizeCents;
             $locationEarningCents = $grossEarningCents - $netLocationFeeCents;
             $locationEarningRate = $salesCents > 0 ? round($locationEarningCents / $salesCents, 4) : 0;
@@ -1177,6 +1362,7 @@ class CustomerSummaryAggregator
                 'contract_commission_value2' => $cVal2,
                 'contract_ps_term' => $cPs,
                 'contract_log_id' => $v ? $v->id : null,
+                'vend_id' => $segVendId,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

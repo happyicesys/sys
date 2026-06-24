@@ -571,6 +571,11 @@ class CustomerController extends Controller
         // (which only knows the latest interval), so show the stored value.
         $this->attachReactivationFlag($summaries->getCollection());
 
+        // Resolve each row's machine: machine-split rows carry their own vend_id
+        // (show that machine + a "New" badge on the swapped-in row); whole-month
+        // rows fall back to the site's current vend in the Vue layer.
+        $this->attachMachineSplitInfo($summaries->getCollection());
+
         // Aggregate totals — summed across the FULL filtered set (not just
         // the paginated rows visible on this page) so the 4 boxes above the
         // table (Total Sales / Gross Earning / Location Fees / Vend Earnings)
@@ -2610,6 +2615,54 @@ class CustomerController extends Controller
         $reIds = array_flip(\App\Services\CustomerSummaryAggregator::reactivatedCustomerIds());
         foreach ($collection as $row) {
             $row->use_stored_proration = isset($reIds[(int) $row->customer_id]);
+        }
+    }
+
+    /**
+     * For machine-split rows (rows carrying their own vend_id from a mid-month
+     * machine swap), resolve the machine's code and flag the swapped-in row(s).
+     *   - machine_vend: ['id','code'] for the row's machine, or null on
+     *     whole-month rows (Vue then falls back to the site's current vend).
+     *   - is_new_machine: true on a machine-split row whose machine differs from
+     *     the immediately-preceding row of the SAME (customer, year_month) — i.e.
+     *     the "New" label goes on the after-change row, never the first machine.
+     * One batched vend lookup; a no-op on pages without any machine split.
+     */
+    protected function attachMachineSplitInfo($collection): void
+    {
+        if ($collection->isEmpty()) {
+            return;
+        }
+
+        $vendIds = $collection->pluck('vend_id')->filter()->unique()->values()->all();
+        $vendsById = empty($vendIds)
+            ? []
+            : \App\Models\Vend::query()->whereIn('id', $vendIds)->pluck('code', 'id')->all();
+
+        // Previous machine per (customer_id, year_month), walking rows in
+        // period order so the FIRST machine of a month is never flagged "New".
+        $prevVendByGroup = [];
+        // Make sure we evaluate in period order regardless of pagination order.
+        $ordered = $collection->sortBy([
+            ['customer_id', 'asc'],
+            ['year_month', 'asc'],
+            ['period_start', 'asc'],
+        ]);
+
+        foreach ($ordered as $row) {
+            $vid = $row->vend_id !== null ? (int) $row->vend_id : null;
+            $row->machine_vend = ($vid !== null && isset($vendsById[$vid]))
+                ? ['id' => $vid, 'code' => $vendsById[$vid]]
+                : null;
+
+            $groupKey = $row->customer_id . '|' . (optional($row->year_month)->toDateString() ?? (string) $row->year_month);
+            $prev = $prevVendByGroup[$groupKey] ?? null;
+            $row->is_new_machine = ($vid !== null && $prev !== null && $prev !== $vid);
+            // Track the latest machine seen for this group (only machine-split
+            // rows carry a vend_id; whole-month rows leave the group untouched).
+            if ($vid !== null) {
+                $prevVendByGroup[$groupKey] = $vid;
+            }
         }
     }
 
