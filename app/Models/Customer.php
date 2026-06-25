@@ -486,6 +486,16 @@ class Customer extends Model
     }
 
     /**
+     * Settlement ledger ("Payment History") for this site — what we owe the
+     * site owner and the payments/waivers made against it. Chronological.
+     * See App\Models\CustomerSettlement.
+     */
+    public function settlements()
+    {
+        return $this->hasMany(CustomerSettlement::class);
+    }
+
+    /**
      * Append-only Site status change history (newest first). Powers the
      * "Status History" popup on the Edit page.
      */
@@ -604,6 +614,19 @@ class Customer extends Model
                             $query->orWhere('customers.id', $realId);
                         }
                     }
+                });
+            })
+            ->when($request->settlement_ref, function ($query, $search) {
+                // Hidden Summary filter: match a site by a settlement ledger
+                // reference (e.g. LF-000351 / OB-000095 / PMT-000564),
+                // regardless of entry type. Exact, case-insensitive match on
+                // the full reference so it pinpoints the one owning site.
+                $ref = strtoupper(trim((string) $search));
+                $query->whereExists(function ($q) use ($ref) {
+                    $q->selectRaw('1')
+                        ->from('customer_settlements')
+                        ->whereColumn('customer_settlements.customer_id', 'customers.id')
+                        ->whereRaw('UPPER(customer_settlements.reference_no) = ?', [$ref]);
                 });
             })
             ->when($request->billing_company, function ($query, $search) {

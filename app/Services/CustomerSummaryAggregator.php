@@ -165,11 +165,22 @@ class CustomerSummaryAggregator
      * The denominator is the full calendar-month day count (not the as-of
      * window) because flat fees are billed per calendar month, regardless of
      * how far the nightly run has progressed.
+     *
+     * $asOf (optional) caps the active window at a "data cutoff" date so a flat
+     * fee accrues DAY-BY-DAY for the in-progress month instead of billing the
+     * whole month before it has elapsed. When supplied, the last counted day is
+     * min(removal-1, asOf), so e.g. a fully-active site on the 24th of a 30-day
+     * month earns 24/30 of its flat fee "to date". The denominator stays the
+     * full calendar month, so the figure self-completes to the full fee once
+     * asOf reaches month end (and CLOSED months — which never pass an asOf, or
+     * pass one at/after month end — are unaffected). DEFAULT null = no cap, so
+     * every existing caller (nightly persist, lock snapshot) is unchanged.
      */
     public static function computeActiveDayRatio(
         $activeDate,
         $removedDate,
-        CarbonInterface $monthStart
+        CarbonInterface $monthStart,
+        $asOf = null
     ): float {
         $mStart = Carbon::parse($monthStart)->startOfMonth();
         $mEnd = $mStart->copy()->endOfMonth()->startOfDay();
@@ -189,6 +200,16 @@ class CustomerSummaryAggregator
             $lastActive = Carbon::parse($removedDate)->startOfDay()->subDay();
             if ($lastActive->lt($winEnd)) {
                 $winEnd = $lastActive;
+            }
+        }
+        if ($asOf) {
+            // To-date cap: only days up to AND INCLUDING the data cutoff have
+            // been "earned" yet, so an in-progress month accrues its flat fee
+            // gradually. Inclusive (cutoff day counts), matching the active-day
+            // convention. A cutoff at/after month end leaves $winEnd untouched.
+            $cap = Carbon::parse($asOf)->startOfDay();
+            if ($cap->lt($winEnd)) {
+                $winEnd = $cap;
             }
         }
 

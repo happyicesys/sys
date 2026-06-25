@@ -252,6 +252,17 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Customer Summary page (rightmost column). Same shape as
         // update-notes; standalone field, no unread tracking.
         Route::post('/{id}/update-loc-fee-remarks', [CustomerController::class, 'updateLocFeeRemarks'])->name('customers.update-loc-fee-remarks');
+        // Settlement ledger ("Payment History") for a SITE — drives the
+        // Payment-History popup on the Site Summary. Read-only JSON: the full
+        // chronological ledger + derived running balance + outstanding total.
+        Route::get('/{id}/settlements', [CustomerController::class, 'getSettlements'])->name('customers.settlements');
+        // Settlement ledger exports — Excel (.xlsx) + printable Statement of
+        // Account (HTML → browser Save-as-PDF). Both reuse buildSettlementLedger.
+        Route::get('/{id}/settlements/excel', [CustomerController::class, 'settlementsExportExcel'])->name('customers.settlements.excel');
+        Route::get('/{id}/settlements/pdf', [CustomerController::class, 'settlementsPrintView'])->name('customers.settlements.pdf');
+        // Edit a settlement ledger entry's amount/remarks (admin-only; only
+        // manually-owned entry types: opening_balance + adjustment).
+        Route::post('/settlements/{id}/update', [CustomerController::class, 'updateSettlement'])->name('customers.settlements.update');
         // Ops-side free-text note (refilling/operations) — edited inline on
         // Vend/CustomerIndex "Refilling Routes" column. Same shape as
         // update-notes; lives under the same /customers prefix because it

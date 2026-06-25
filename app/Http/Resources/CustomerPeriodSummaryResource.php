@@ -71,16 +71,45 @@ class CustomerPeriodSummaryResource extends JsonResource
             $isActivatedInPeriod = $ad->gt($monthStart) && $ad->lte($monthEndForActive);
         }
 
+        // To-date cap for the CURRENT in-progress month. A flat fee should
+        // accrue only for the days that have actually elapsed (through this
+        // row's period_end = the nightly data cutoff), not bill the whole month
+        // up front. Capturing it here lets the flat fee + Vend Earning reflect
+        // the month "so far", so aggregated totals stay precise mid-month and
+        // Vend Earning (Gross − Net Loc Fee) compares like-for-like against the
+        // to-date Gross. Closed months pass NO cap (full month). The cutoff is
+        // period_end (not today) so the fee window matches the sales window and
+        // self-completes to the full fee at month end.
+        $toDateAsOf = null;
+        if ($isCurrentMonth && $this->period_end) {
+            $toDateAsOf = $this->period_end instanceof \Carbon\Carbon
+                ? $this->period_end->copy()
+                : \Carbon\Carbon::parse($this->period_end);
+        }
+
         // Flat-fee proration ratio for this row's month, from the live active
         // window — mirrors the aggregator so an unlocked row shows the same
-        // prorated fee the nightly run would store.
+        // prorated fee the nightly run would store. $flatDayRatio is the
+        // to-date figure (capped at period_end for the current month); the
+        // uncapped full-month ratio is kept only to detect whether the to-date
+        // cap actually reduced the fee (drives the "to date" badge).
         $flatDayRatio = 1.0;
+        $flatDayRatioFull = 1.0;
         if ($monthStart && $this->relationLoaded('customer') && $this->customer) {
-            $flatDayRatio = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
-                $this->customer->active_date ?? $this->customer->begin_date,
+            $activeDate = $this->customer->active_date ?? $this->customer->begin_date;
+            $flatDayRatioFull = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                $activeDate,
                 $this->customer->removed_date,
                 $monthStart
             );
+            $flatDayRatio = $toDateAsOf
+                ? \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                    $activeDate,
+                    $this->customer->removed_date,
+                    $monthStart,
+                    $toDateAsOf
+                )
+                : $flatDayRatioFull;
         }
 
         // Defaults = the frozen per-period snapshot (used as-is for completed
@@ -117,6 +146,10 @@ class CustomerPeriodSummaryResource extends JsonResource
         // CustomerController::attachReactivationFlag().
         $isReactivated = (bool) ($this->use_stored_proration ?? false);
 
+        // Set true below when the current-month to-date cap reduced this row's
+        // flat fee — surfaced as loc_fee_prorated_to_date for the Summary badge.
+        $locFeeProratedToDate = false;
+
         if (!$isLocked && !$isSegment && !$isReactivated && $this->relationLoaded('customer') && $this->customer) {
             $c = $this->customer;
 
@@ -136,6 +169,8 @@ class CustomerPeriodSummaryResource extends JsonResource
             // Recompute Location Fees with the SAME formula the aggregator uses,
             // but against the live contract terms. sales/gross stay the
             // aggregated (daily) figures — only the contract inputs are live.
+            // $flatDayRatio already carries the to-date cap for the current
+            // month, so this fee is the amount earned through period_end.
             $locationFeesCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
                 $contractType,
                 $contractValue,
@@ -146,6 +181,25 @@ class CustomerPeriodSummaryResource extends JsonResource
                 $gstRatePct,
                 $flatDayRatio
             );
+
+            // Whether the to-date cap actually shaved the flat fee for this row
+            // (only true mid-current-month AND when the contract has a flat
+            // component — a pure PS deal has no flat fee to prorate). Compares
+            // the to-date fee against the full-month fee; drives the "to date"
+            // badge so the reduced figure doesn't read as a bug.
+            if ($toDateAsOf && $flatDayRatio < $flatDayRatioFull) {
+                $fullMonthFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                    $contractType,
+                    $contractValue,
+                    $contractValue2,
+                    $contractPsTerm,
+                    $salesCents,
+                    $grossCents,
+                    $gstRatePct,
+                    $flatDayRatioFull
+                );
+                $locFeeProratedToDate = $fullMonthFeeCents !== $locationFeesCents;
+            }
 
             $externalSubsidizeCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
                 ? (int) round(((float) $c->external_subsidize_amount) * 100)
@@ -226,6 +280,23 @@ class CustomerPeriodSummaryResource extends JsonResource
             // Completed months: frozen snapshot. Current month: re-derived live
             // from the customer's contract (see the lock rule above).
             'location_fees_cents' => $locationFeesCents,
+            // True only for the CURRENT in-progress month when the to-date cap
+            // shaved a flat fee — the Location Fees / Net Loc Fee figures are
+            // accrued through period_end, not the full month. Drives the small
+            // "to date" badge on Summary.vue (with the day fraction below) so
+            // the reduced amount is clearly intentional. Self-clears to false
+            // at month end (full fee) and for pure-PS / closed / locked rows.
+            'loc_fee_prorated_to_date' => $locFeeProratedToDate,
+            // Billable days so far = the actual to-date ratio × month length, so
+            // the badge matches the fee even when the site also activated /was
+            // removed mid-month (those days are excluded by the same ratio),
+            // rather than naively showing elapsed calendar days.
+            'to_date_days' => $locFeeProratedToDate && $monthStart
+                ? (int) round($flatDayRatio * $monthStart->daysInMonth)
+                : null,
+            'month_total_days' => $locFeeProratedToDate && $monthStart
+                ? (int) $monthStart->daysInMonth
+                : null,
             // NET of External Subsidize. For completed months this is the
             // frozen stored value; for the current month it's re-derived live
             // (see the lock rule at the top of this method).

@@ -24,6 +24,9 @@
           <!-- Billing Company — moved behind "Show All Filters" (no longer a
                default filter); Site Status takes its place in the default row. -->
           <SearchInput v-if="showAllFilters" placeholderStr="Company" v-model="filters.billing_company">Billing Company</SearchInput>
+          <!-- Hidden filter: locate the site owning a settlement ledger
+               reference (e.g. LF-000351). Enter the FULL reference. -->
+          <SearchInput v-if="showAllFilters" placeholderStr="e.g. LF-000351" v-model="filters.settlement_ref">Payment Ref</SearchInput>
 
           <!-- Site Status — now a DEFAULT filter (always visible). -->
           <div>
@@ -352,7 +355,7 @@
           income (negative cents) is visually distinct from expense. Vend
           Earnings flips red when the result is net-negative.
         -->
-        <dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
             <dt class="truncate text-sm font-medium text-gray-500">Total Sales</dt>
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
@@ -373,6 +376,9 @@
             >
               {{ formatMoneySigned(totals.location_fees_cents) }}
             </dd>
+            <p v-if="totals.has_to_date_proration" class="mt-0.5 text-[10px] text-sky-700">
+              Current month accrued to date
+            </p>
           </div>
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
             <dt class="truncate text-sm font-medium text-gray-500">Total Vend Earnings</dt>
@@ -382,6 +388,24 @@
             >
               {{ formatMoney(totals.location_earning_cents) }}
             </dd>
+            <p v-if="totals.has_to_date_proration" class="mt-0.5 text-[10px] text-sky-700">
+              Current month accrued to date
+            </p>
+          </div>
+          <!--
+            Total Outstanding — what we owe site owners across the same
+            filtered set (sum of the per-site settlement balances). Rose when
+            we owe, neutral when fully settled. Starts the second card row.
+          -->
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Outstanding</dt>
+            <dd
+              class="mt-1 text-2xl font-semibold tracking-normal"
+              :class="(totals.outstanding_cents || 0) > 0 ? 'text-rose-700' : 'text-gray-900'"
+            >
+              {{ formatMoney(totals.outstanding_cents) }}
+            </dd>
+            <dd class="mt-0.5 text-xs italic text-gray-400">owed to site owners</dd>
           </div>
           <!--
             Distinct-customer counts scoped to the same filtered customer
@@ -691,6 +715,12 @@
                     <template v-else>
                       <div class="flex flex-col space-y-1">
                         <span>Action</span>
+                        <!-- Outstanding ($) — sorts by the per-site settlement
+                             balance (the Payment-History pill amount). Sits
+                             between Action and the Loc Fee remarks. -->
+                        <SingleSortItem modelName="outstanding" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('outstanding')">
+                          Outstanding($)
+                        </SingleSortItem>
                         <!-- Remarks for Loc Fees lives in this column (bottom
                              of the cell). One box per Site; sortable by the
                              last-updated timestamp. -->
@@ -779,8 +809,10 @@
                         -->
                         <span
                           v-if="row.customer.status_name"
-                          class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit h-fit"
-                          :class="siteStatusBadgeClass(row.customer.status_id)"
+                          class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] w-fit h-fit"
+                          :class="row.customer.status_name === 'Removed'
+                            ? 'bg-red-50 text-red-700 border-2 border-red-500 font-semibold'
+                            : 'font-medium border ' + siteStatusBadgeClass(row.customer.status_id)"
                           v-tooltip="row.customer.status_name === 'Removed' && row.removed_date ? ('Removed on ' + formatYYMMDD(row.removed_date)) : null"
                         >
                           {{ row.customer.status_name }}<template v-if="row.customer.status_name === 'Removed' && row.removed_date">&nbsp;{{ formatYYMMDD(row.removed_date) }}</template>
@@ -874,37 +906,39 @@
                             uploaded contract in a new tab.
                           - no contract → red "No Contract" badge (static).
                       -->
-                      <a
-                        v-if="row.customer.latest_contract && row.customer.latest_contract.full_url"
-                        :href="row.customer.latest_contract.full_url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center rounded px-1.5 py-0.5 mt-1 text-[10px] font-medium border w-fit bg-green-100 text-green-800 border-green-300 hover:bg-green-200"
-                        :title="row.customer.latest_contract.name || 'Contract Attachment'"
-                      >
-                        Contract
-                      </a>
-                      <span
-                        v-else
-                        class="inline-flex items-center rounded px-1.5 py-0.5 mt-1 text-[10px] font-medium border w-fit bg-red-100 text-red-800 border-red-300"
-                      >
-                        No Contract
-                      </span>
                       <!--
-                        Machine binding-history button (once per site, at the
-                        bottom of the Site column) — yellow clock icon, opens a
-                        popup of every machine bound to THIS site with timestamps.
-                        Site-scoped, not machine-scoped.
+                        Contract Attachment badge + binding-history clock icon
+                        share one line so the clock doesn't consume an extra row
+                        in the Site column. Clock (once per site) opens a popup of
+                        every machine bound to THIS site with timestamps.
                       -->
-                      <button
-                        v-if="isFirstRowForCustomer(rowIndex) && row.customer?.id"
-                        type="button"
-                        @click.prevent="openBindingHistory(row.customer)"
-                        class="inline-flex items-center justify-center rounded bg-yellow-400 hover:bg-yellow-500 text-gray-800 p-0.5 mt-1 w-fit h-fit border border-yellow-500"
-                        v-tooltip="'Machine binding history'"
-                      >
-                        <ClockIcon class="h-4 w-4" aria-hidden="true" />
-                      </button>
+                      <div class="flex items-center gap-1 mt-1">
+                        <a
+                          v-if="row.customer.latest_contract && row.customer.latest_contract.full_url"
+                          :href="row.customer.latest_contract.full_url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit bg-green-100 text-green-800 border-green-300 hover:bg-green-200"
+                          :title="row.customer.latest_contract.name || 'Contract Attachment'"
+                        >
+                          Contract
+                        </a>
+                        <span
+                          v-else
+                          class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border w-fit bg-red-100 text-red-800 border-red-300"
+                        >
+                          No Contract
+                        </span>
+                        <button
+                          v-if="isFirstRowForCustomer(rowIndex) && row.customer?.id"
+                          type="button"
+                          @click.prevent="openBindingHistory(row.customer)"
+                          class="inline-flex items-center justify-center rounded bg-yellow-400 hover:bg-yellow-500 text-gray-800 p-0.5 w-fit h-fit border border-yellow-500"
+                          v-tooltip="'Machine binding history'"
+                        >
+                          <ClockIcon class="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </div>
                     </div>
                   </TableData>
 
@@ -943,10 +977,12 @@
                     -->
                     <template v-if="row.machine_vend">
                       <span class="inline-flex items-center gap-1">
-                        <!-- Hyperlink only on the Current (latest) row; older
-                             rows show the machine FROZEN as plain text. -->
+                        <!-- Hyperlink only on the Current (latest) row of a NON-
+                             removed site; older rows are frozen, and a Removed
+                             site drops the link entirely (the code may now belong
+                             to another site). -->
                         <a
-                          v-if="row.is_latest_row"
+                          v-if="row.is_latest_row && !isRemovedSite(row)"
                           target="_blank"
                           :href="'/vends/customers?codes=' + encodeURIComponent(row.machine_vend.code)"
                           class="text-blue-700 hover:underline"
@@ -964,21 +1000,23 @@
                     </template>
                     <template v-else-if="row.customer?.vends && row.customer.vends.length > 1">
                       <div class="flex flex-col items-center space-y-0.5">
-                        <a
-                          v-for="v in row.customer.vends"
-                          :key="v.id"
-                          target="_blank"
-                          :href="'/vends/customers?codes=' + encodeURIComponent(v.code)"
-                          class="text-blue-700 hover:underline"
-                          v-tooltip="'Open this machine in the Ops Dashboard'"
-                        >
-                          {{ v.code }}
-                        </a>
+                        <template v-for="v in row.customer.vends" :key="v.id">
+                          <a
+                            v-if="!isRemovedSite(row)"
+                            target="_blank"
+                            :href="'/vends/customers?codes=' + encodeURIComponent(v.code)"
+                            class="text-blue-700 hover:underline"
+                            v-tooltip="'Open this machine in the Ops Dashboard'"
+                          >
+                            {{ v.code }}
+                          </a>
+                          <span v-else class="text-gray-900">{{ v.code }}</span>
+                        </template>
                       </div>
                     </template>
                     <template v-else>
                       <a
-                        v-if="row.customer?.vend?.id"
+                        v-if="row.customer?.vend?.id && !isRemovedSite(row)"
                         target="_blank"
                         :href="'/vends/customers?codes=' + encodeURIComponent(row.customer.vend.code)"
                         class="text-blue-700 hover:underline"
@@ -990,14 +1028,21 @@
                     </template>
                   </TableData>
 
-                  <!-- Prefix -->
+                  <!-- Prefix + Machine Model -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
                     <!--
-                      Mirror the Vend ID column: when multiple vends are listed
-                      (ascending by code), show each vend's prefix on its own
-                      line so rows stay visually aligned.
+                      Show the prefix AND machine model of the machine attached
+                      during THIS row's period (machine_vend, resolved per row in
+                      attachMachineSplitInfo). Falls back to the multi-vend list
+                      / single current vend when no per-row machine is resolved.
                     -->
-                    <template v-if="row.customer?.vends && row.customer.vends.length > 1">
+                    <template v-if="row.machine_vend">
+                      <div class="flex flex-col items-center leading-tight">
+                        <span v-if="row.machine_vend.prefix">{{ row.machine_vend.prefix }}</span>
+                        <span v-if="row.machine_vend.model" class="text-[10px] text-gray-500">{{ row.machine_vend.model }}</span>
+                      </div>
+                    </template>
+                    <template v-else-if="row.customer?.vends && row.customer.vends.length > 1">
                       <div class="flex flex-col items-center space-y-0.5">
                         <span v-for="v in row.customer.vends" :key="v.id">
                           {{ v.prefix || '—' }}
@@ -1182,6 +1227,19 @@
                       <div>
                         <span class="inline-flex items-center" :class="locationFeesColorClass(row.location_fees_cents, row.contract_commission_type)">
                           {{ formatMoneySigned(row.location_fees_cents) }}
+                          <!-- "to date" badge: the current in-progress month's
+                               flat fee is accrued through period_end (X/Y days
+                               elapsed), not billed for the whole month, so the
+                               figure looks smaller on purpose. Clears at month
+                               end (full fee) and never shows on closed/locked
+                               or pure-PS rows. -->
+                          <span
+                            v-if="row.loc_fee_prorated_to_date"
+                            class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-sky-100 text-sky-800 border border-sky-300 align-middle"
+                            v-tooltip="`Prorated to date — ${row.to_date_days}/${row.month_total_days} days of this month elapsed. The flat fee accrues daily and shows the full month once the month closes.`"
+                          >
+                            {{ row.to_date_days }}/{{ row.month_total_days }} d
+                          </span>
                         </span>
                         <div
                           v-if="row.contract_commission_type === 'S'"
@@ -1618,6 +1676,32 @@
                       </Button> -->
 
                       <!--
+                        Payment History — opens the per-site settlement ledger
+                        (what we owe the site owner + payments made). Shown ONCE
+                        per Site on the latest row, like the remarks below. The
+                        pill shows the live outstanding balance at-a-glance.
+                      -->
+                      <div v-if="row.is_latest_row" class="mt-1">
+                        <Button
+                          type="button"
+                          class="w-full inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-800"
+                          v-tooltip="'View this site\'s settlement / payment history'"
+                          @click="openPaymentHistory(row.customer)"
+                        >
+                          <BanknotesIcon class="w-4 h-4 shrink-0" aria-hidden="true" />
+                          <span>Payment History</span>
+                        </Button>
+                        <div class="mt-1 text-center">
+                          <span
+                            class="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border"
+                            :class="balancePillClass(outstandingFor(row.customer))"
+                          >
+                            {{ balancePillLabel(outstandingFor(row.customer)) }}{{ formatMoney(Math.abs(outstandingFor(row.customer))) }}
+                          </span>
+                        </div>
+                      </div>
+
+                      <!--
                         Remarks for Loc Fees — one free-text box per Site,
                         parked on the customer record (like the Site Note) so
                         it persists across whatever period / filter is applied.
@@ -1698,13 +1782,24 @@
             <span class="font-medium">{{ reportContentCustomerLabel }}</span>
           </div>
 
+          <!--
+            Greeting + intro — mirrors the emailed body (buildReportEmailParts)
+            so this preview matches exactly what the customer receives. Billing
+            Company is the Edit form's "Bill From" field, falling back to the
+            company remark / site name when unset.
+          -->
+          <div class="text-gray-800 text-sm leading-relaxed mb-4">
+            <p>Dear Valued Partner: "<span class="font-semibold">{{ reportContentBillingCompany }}</span>"</p>
+            <p class="mt-2">This is an automatic email. Below is the Vending Machine Location Fees Report</p>
+          </div>
+
           <!-- Title banner -->
           <div class="rounded-md bg-blue-50 border border-blue-200 px-4 py-3 mb-4">
             <div class="text-blue-900 font-semibold text-base leading-tight">
               Vending Machine Location Fees Report
             </div>
             <div class="mt-1 text-blue-700 font-bold uppercase tracking-wide text-sm">
-              {{ reportContent.contract_type_label }}
+              Term: {{ reportContent.contract_type_label }}
             </div>
           </div>
 
@@ -1817,6 +1912,11 @@
             {{ reportContent.footnote }}
           </div>
 
+          <!-- Closing thank-you — mirrors the emailed body. -->
+          <div class="text-gray-800 text-sm leading-relaxed mt-4">
+            Thank you for your continued support and partnership with HappyIce, and bringing quality ice cream and frozen treats to your visitors, tenants, residents, and staff.
+          </div>
+
           <!--
             ─────────────────────────────────────────────────────────────────
             Email Performance Report — modal-only action.
@@ -1921,6 +2021,31 @@
               <p class="text-[11px] text-gray-500 mt-1">
                 Leave empty to use today's date.
               </p>
+
+              <!--
+                Amount — the actual sum paid (or waived) to the site owner.
+                Posts to the site's settlement ledger (Payment History) as a
+                CREDIT against what we owe. Pre-filled with this period's Net
+                Loc Fee; the admin can override with the real figure.
+              -->
+              <label class="block text-xs font-medium text-gray-600 mb-1 mt-3" for="paid-amount-input">
+                {{ paidModalWaived ? 'Amount waived' : 'Amount paid' }}
+              </label>
+              <div class="relative w-48">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-gray-400 text-sm">$</span>
+                <input
+                  id="paid-amount-input"
+                  v-model="paidModalAmount"
+                  type="number"
+                  min="0"
+                  :step="currencyExp > 0 ? (1 / minorPerUnit) : 1"
+                  inputmode="decimal"
+                  class="w-48 pl-5 rounded border-gray-300 text-sm focus:border-emerald-500 focus:ring-emerald-500"
+                />
+              </div>
+              <p class="text-[11px] text-gray-500 mt-1">
+                Recorded in Payment History. Leave 0 to skip a ledger entry.
+              </p>
             </div>
             <div class="flex-1">
               <label class="inline-flex items-center gap-2 text-xs font-medium text-gray-600 mb-1">
@@ -1943,6 +2068,60 @@
               </p>
             </div>
           </div>
+
+          <!--
+            Outstanding context — the pay action happens on a past period row,
+            so surface the SITE's current outstanding right here (it otherwise
+            only lives on the latest row's pill). Shows the running balance and
+            what remains after the amount being entered, plus a link into the
+            full ledger without losing this in-progress entry.
+          -->
+          <div
+            class="mt-4 rounded-lg border px-4 py-3"
+            :class="{
+              'border-rose-100 bg-rose-50/60': balanceState(paidModalOutstanding) === 'owing',
+              'border-emerald-100 bg-emerald-50/60': balanceState(paidModalOutstanding) === 'settled',
+              'border-sky-100 bg-sky-50/60': balanceState(paidModalOutstanding) === 'credit',
+            }"
+          >
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                  {{ balanceState(paidModalOutstanding) === 'credit' ? 'Credit balance with this site' : 'Outstanding owed to this site' }}
+                </div>
+                <div
+                  class="text-xl font-bold"
+                  :class="{ 'text-rose-600': balanceState(paidModalOutstanding) === 'owing', 'text-emerald-600': balanceState(paidModalOutstanding) === 'settled', 'text-sky-600': balanceState(paidModalOutstanding) === 'credit' }"
+                >
+                  {{ formatMoney(Math.abs(paidModalOutstanding)) }}<span v-if="balanceState(paidModalOutstanding) === 'credit'" class="ml-1 text-sm font-semibold">CR</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                @click="openPaymentHistoryFromPaid"
+              >
+                <BanknotesIcon class="h-4 w-4" />
+                View Payment History
+              </button>
+            </div>
+            <div v-if="paidModalAmountCents > 0" class="mt-2 border-t border-dashed border-gray-200 pt-2 text-[11px] text-gray-600">
+              After this {{ paidModalWaived ? 'waiver' : 'payment' }} of
+              <span class="font-semibold text-gray-800">{{ formatMoney(paidModalAmountCents) }}</span>,
+              <template v-if="(paidModalOutstanding - paidModalAmountCents) < 0">
+                this site goes into credit by
+                <span class="font-semibold text-sky-600">{{ formatMoney(Math.abs(paidModalOutstanding - paidModalAmountCents)) }}</span>
+                (offsets upcoming fees)
+              </template>
+              <template v-else>
+                remaining ≈
+                <span class="font-semibold" :class="(paidModalOutstanding - paidModalAmountCents) > 0 ? 'text-rose-600' : 'text-emerald-600'">
+                  {{ formatMoney(paidModalOutstanding - paidModalAmountCents) }}
+                </span>
+              </template>
+            </div>
+          </div>
+
           <p class="text-[11px] text-gray-500 mt-3">
             This records the payment date + actor against the locked snapshot.
             The Unlock button will be blocked until the row is Unpaid again.
@@ -2041,6 +2220,16 @@
           <p class="text-[11px] text-gray-500 mt-1">
             Leave empty to use today's date.
           </p>
+          <div class="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600">Payment recorded per period</span>
+              <span class="font-semibold text-emerald-700">{{ formatMoney(selectedPaidNetTotal) }} total</span>
+            </div>
+            <p class="mt-1 text-[11px] text-gray-500">
+              Each period's payment is recorded in Payment History as its
+              <span class="font-medium">Net Location Fee</span>. Periods with no fee are skipped.
+            </p>
+          </div>
           <p class="text-[11px] text-gray-500 mt-3">
             This records the payment date + actor against each locked
             snapshot. Unlock will be blocked on these rows until Unpaid.
@@ -2104,6 +2293,280 @@
         </table>
       </div>
     </Modal>
+
+    <!--
+      Payment History popup (per site) — the settlement ledger. SOA-style:
+      DR = a charge we owe the site owner (opening balance, monthly loc fee),
+      CR = a payment / waiver against it, BALANCE = running outstanding.
+      Read-only; fetched lazily by clicking the Payment History button.
+    -->
+    <Modal :open="settlementOpen" @modalClose="settlementOpen = false">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+            <BanknotesIcon class="h-5 w-5" />
+          </span>
+          <div class="leading-tight">
+            <div class="text-base font-semibold text-gray-900">Payment History</div>
+            <div class="text-xs font-normal text-gray-500">{{ settlementSite }}</div>
+          </div>
+        </div>
+      </template>
+
+      <div class="text-left text-sm">
+        <!-- Export toolbar — PDF (printable Statement of Account) + Excel.
+             Neutral styling: exports are secondary actions, so they stay grey
+             (red/green read as delete/save). Icons carry the only colour hint. -->
+        <div v-if="!settlementLoading && settlementRows.length" class="mb-3 flex items-center justify-end gap-2">
+          <span class="mr-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">Export</span>
+          <Button
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-gray-50 hover:bg-white text-gray-700 hover:text-indigo-700 border border-gray-300 hover:border-indigo-400 shadow-sm transition-colors"
+            v-tooltip="'Open a printable Statement of Account (Save as PDF)'"
+            @click="exportSettlementsPdf"
+          >
+            <DocumentTextIcon class="h-4 w-4 text-indigo-500" />
+            <span>PDF</span>
+          </Button>
+          <Button
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-gray-50 hover:bg-white text-gray-700 hover:text-indigo-700 border border-gray-300 hover:border-indigo-400 shadow-sm transition-colors"
+            v-tooltip="'Download this ledger as an Excel file'"
+            @click="exportSettlementsExcel"
+          >
+            <ArrowDownTrayIcon class="h-4 w-4 text-indigo-500" />
+            <span>Excel</span>
+          </Button>
+        </div>
+
+        <!--
+          Balance summary card — THREE states:
+            owing   (balance > 0) → rose,  "Current Outstanding", we owe them
+            settled (balance = 0) → green, "Current Outstanding" S$0.00
+            credit  (balance < 0) → sky,   "Credit Balance" (we overpaid; the
+                                            surplus offsets upcoming fees)
+        -->
+        <div
+          v-if="!settlementLoading"
+          class="mb-5 flex items-center justify-between rounded-xl border px-5 py-4"
+          :class="{
+            'border-rose-100 bg-rose-50/70': settlementState === 'owing',
+            'border-emerald-100 bg-emerald-50/70': settlementState === 'settled',
+            'border-sky-100 bg-sky-50/70': settlementState === 'credit',
+          }"
+        >
+          <div class="flex items-center gap-4">
+            <span
+              class="h-11 w-1.5 rounded-full"
+              :class="{ 'bg-rose-400': settlementState === 'owing', 'bg-emerald-400': settlementState === 'settled', 'bg-sky-400': settlementState === 'credit' }"
+            ></span>
+            <div>
+              <div class="text-[11px] font-medium uppercase tracking-wider text-gray-500">
+                {{ settlementState === 'credit' ? 'Credit Balance' : 'Current Outstanding' }}
+              </div>
+              <div
+                class="mt-0.5 text-3xl font-bold tracking-tight"
+                :class="{ 'text-rose-600': settlementState === 'owing', 'text-emerald-600': settlementState === 'settled', 'text-sky-600': settlementState === 'credit' }"
+              >
+                {{ formatMoney(Math.abs(settlementOutstanding)) }}<span v-if="settlementState === 'credit'" class="ml-1 text-base font-semibold">CR</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+              :class="{ 'bg-rose-100 text-rose-700': settlementState === 'owing', 'bg-emerald-100 text-emerald-700': settlementState === 'settled', 'bg-sky-100 text-sky-700': settlementState === 'credit' }"
+            >
+              <span class="h-1.5 w-1.5 rounded-full" :class="{ 'bg-rose-500': settlementState === 'owing', 'bg-emerald-500': settlementState === 'settled', 'bg-sky-500': settlementState === 'credit' }"></span>
+              {{ settlementStatusLabel }}
+            </span>
+            <div v-if="settlementSince" class="mt-1.5 text-[11px] text-gray-400">
+              Tracked since {{ moment(settlementSince).format('DD MMM YYYY') }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Credit explainer — only when overpaid. -->
+        <div v-if="!settlementLoading && settlementState === 'credit'" class="-mt-3 mb-5 flex items-start gap-2 px-1 text-[11px] text-sky-700">
+          <CheckCircleIcon class="mt-px h-3.5 w-3.5 shrink-0" />
+          <span>Overpaid by {{ formatMoney(Math.abs(settlementOutstanding)) }} — this credit carries forward and offsets upcoming location fees.</span>
+        </div>
+
+        <!-- Loading skeleton -->
+        <div v-if="settlementLoading" class="space-y-2.5 py-8">
+          <div class="h-12 animate-pulse rounded-lg bg-gray-100"></div>
+          <div class="h-9 animate-pulse rounded bg-gray-100"></div>
+          <div class="h-9 animate-pulse rounded bg-gray-100/70"></div>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="!settlementRows.length" class="py-12 text-center">
+          <BanknotesIcon class="mx-auto h-9 w-9 text-gray-300" />
+          <p class="mt-2 text-sm text-gray-500">No settlement records yet for this site.</p>
+          <p class="mt-1 text-xs text-gray-400">Monthly location fees will appear here once accrued.</p>
+        </div>
+
+        <!-- Ledger -->
+        <div v-else class="overflow-hidden rounded-xl border border-gray-200">
+          <div class="max-h-[52vh] overflow-y-auto">
+            <table class="w-full border-collapse">
+              <thead class="sticky top-0 z-10 bg-gray-50/95 backdrop-blur">
+                <tr class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  <th class="px-4 py-2.5 text-left">Ref</th>
+                  <th class="px-3 py-2.5 text-left">Date</th>
+                  <th class="px-3 py-2.5 text-left">Description</th>
+                  <th class="whitespace-nowrap px-3 py-2.5 text-right">Debit</th>
+                  <th class="whitespace-nowrap px-3 py-2.5 text-right">Credit</th>
+                  <th class="whitespace-nowrap px-4 py-2.5 text-right">Balance</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <template v-for="(s, i) in settlementRows" :key="s.id ?? i">
+                  <tr class="group transition-colors hover:bg-indigo-50/30">
+                    <td class="whitespace-nowrap px-4 py-3 align-top font-mono text-[11px] text-gray-400">{{ s.reference_no || '—' }}</td>
+                    <td class="whitespace-nowrap px-3 py-3 align-top text-gray-600">{{ s.entry_date ? moment(s.entry_date).format('DD MMM YYYY') : '—' }}</td>
+                    <td class="px-3 py-3 align-top">
+                      <div class="flex items-center gap-2">
+                        <span
+                          class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          :class="settlementTypeBadgeClass(s.entry_type)"
+                        >{{ settlementTypeLabel(s.entry_type) }}</span>
+                        <span class="font-medium text-gray-800">{{ s.item || settlementTypeLabel(s.entry_type) }}</span>
+                        <button
+                          v-if="isSettlementEditable(s) && editingSettlementId !== s.id"
+                          type="button"
+                          class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-indigo-600"
+                          v-tooltip="'Edit this entry'"
+                          @click="startEditSettlement(s)"
+                        >
+                          <PencilSquareIcon class="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div v-if="s.remarks" class="mt-0.5 line-clamp-1 text-[11px] text-gray-400" v-tooltip="s.remarks">{{ s.remarks }}</div>
+                      <div v-if="s.edited_by" class="mt-0.5 text-[10px] text-amber-600">
+                        Edited by {{ s.edited_by }}<span v-if="s.edited_at"> · {{ moment(s.edited_at).format('DD MMM YY, h:mma') }}</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-3 text-right align-top tabular-nums" :class="s.debit_cents ? 'font-medium text-gray-800' : 'text-gray-300'">
+                      {{ s.debit_cents ? formatMoney(s.debit_cents) : '—' }}
+                    </td>
+                    <td class="px-3 py-3 text-right align-top tabular-nums" :class="s.credit_cents ? 'font-medium text-emerald-600' : 'text-gray-300'">
+                      {{ s.credit_cents ? '−' + formatMoney(s.credit_cents) : '—' }}
+                    </td>
+                    <td class="px-4 py-3 text-right align-top font-semibold tabular-nums text-gray-900">
+                      {{ formatMoney(Math.abs(s.balance_cents)) }}<span v-if="s.balance_cents < 0" class="ml-0.5 align-top text-[10px] font-medium text-sky-600">CR</span>
+                    </td>
+                  </tr>
+                  <!-- Inline editor (opening balance / adjustment) -->
+                  <tr v-if="editingSettlementId === s.id" class="bg-indigo-50/40">
+                    <td colspan="6" class="px-4 py-3">
+                      <div class="flex flex-wrap items-end gap-3">
+                        <div>
+                          <label class="block text-[11px] font-medium text-gray-500 mb-1">Amount</label>
+                          <div class="relative w-40">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-gray-400 text-sm">$</span>
+                            <input
+                              v-model="editSettlementAmount"
+                              type="number" min="0" :step="currencyExp > 0 ? (1 / minorPerUnit) : 1" inputmode="decimal"
+                              class="w-40 pl-5 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            />
+                          </div>
+                        </div>
+                        <div class="flex-1 min-w-[180px]">
+                          <label class="block text-[11px] font-medium text-gray-500 mb-1">Remarks</label>
+                          <input
+                            v-model="editSettlementRemarks"
+                            type="text" placeholder="Optional note"
+                            class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <Button type="button" class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700" @click="cancelEditSettlement">Cancel</Button>
+                          <Button
+                            type="button"
+                            class="inline-flex items-center gap-1 px-3 py-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                            :disabled="editSettlementSaving"
+                            @click="saveEditSettlement(s)"
+                          >Save</Button>
+                        </div>
+                      </div>
+                      <p class="mt-1.5 text-[11px] text-gray-400">Editing the amount re-derives every balance below it.</p>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+              <tfoot class="sticky bottom-0">
+                <tr class="border-t-2 border-gray-200 bg-gray-50">
+                  <td class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500" colspan="5">
+                    {{ settlementState === 'credit' ? 'Credit Balance' : 'Outstanding Balance' }}
+                  </td>
+                  <td
+                    class="px-4 py-3 text-right text-base font-bold tabular-nums"
+                    :class="{ 'text-rose-600': settlementState === 'owing', 'text-emerald-600': settlementState === 'settled', 'text-sky-600': settlementState === 'credit' }"
+                  >
+                    {{ formatMoney(Math.abs(settlementOutstanding)) }}<span v-if="settlementState === 'credit'" class="ml-0.5 text-[11px] font-semibold">CR</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div v-if="!settlementLoading && settlementRows.length" class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400">
+          <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-gray-300"></span>Debit — increases what we owe</span>
+          <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>Credit — a verified payment or waiver</span>
+          <span class="ml-auto">Location fees post on the 1st of each month.</span>
+        </div>
+
+        <!-- Change history — audit trail of payments, waivers, reversals, edits. -->
+        <div v-if="!settlementLoading && settlementLogs.length" class="mt-4 border-t border-gray-100 pt-3">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-indigo-700"
+            @click="showSettlementLogs = !showSettlementLogs"
+          >
+            <ClockIcon class="h-4 w-4 text-gray-400" />
+            Change history ({{ settlementLogs.length }})
+            <ChevronDoubleDownIcon v-if="!showSettlementLogs" class="h-3.5 w-3.5" />
+            <ChevronDoubleUpIcon v-else class="h-3.5 w-3.5" />
+          </button>
+          <ul v-if="showSettlementLogs" class="mt-2 space-y-1.5">
+            <li
+              v-for="(lg, li) in settlementLogs"
+              :key="li"
+              class="flex items-start gap-2 rounded-md bg-gray-50 px-3 py-2 text-[11px] text-gray-600"
+            >
+              <span class="mt-0.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                :class="{
+                  'bg-emerald-500': lg.action === 'payment',
+                  'bg-purple-500': lg.action === 'waiver',
+                  'bg-rose-500': lg.action === 'payment_reversed',
+                  'bg-amber-500': lg.action === 'edited',
+                  'bg-gray-400': !['payment','waiver','payment_reversed','edited'].includes(lg.action),
+                }"></span>
+              <div class="flex-1">
+                <span class="font-semibold text-gray-800">{{ settlementLogLabel(lg.action) }}</span>
+                <span v-if="lg.reference_no" class="ml-1 font-mono text-[10px] text-gray-400">{{ lg.reference_no }}</span>
+                <template v-if="lg.action === 'edited' && lg.old_amount_cents != null">
+                  — {{ formatMoney(Math.abs(lg.old_amount_cents)) }} → <span class="font-medium text-gray-800">{{ formatMoney(Math.abs(lg.new_amount_cents)) }}</span>
+                </template>
+                <template v-else-if="lg.new_amount_cents != null">
+                  — {{ formatMoney(Math.abs(lg.new_amount_cents)) }}
+                </template>
+                <template v-else-if="lg.old_amount_cents != null">
+                  — {{ formatMoney(Math.abs(lg.old_amount_cents)) }}
+                </template>
+                <span v-if="lg.note" class="text-gray-400"> · {{ lg.note }}</span>
+                <div class="text-[10px] text-gray-400">
+                  by {{ lg.by || (lg.source === 'cron' ? 'system' : (lg.source === 'seed' ? 'seed' : 'someone')) }}<span v-if="lg.at"> · {{ moment(lg.at).format('DD MMM YY, h:mma') }}</span>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </Modal>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -2116,7 +2579,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, ClockIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BanknotesIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, ClockIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import MentionTextarea from '@/Components/MentionTextarea.vue';
@@ -2128,6 +2591,10 @@ import moment from 'moment';
 
 const props = defineProps({
   summaries: Object,
+  // customer_id => outstanding cents (signed; +ve = we owe the site owner).
+  // Drives the live balance pill on the Payment-History button. Sites with no
+  // ledger rows are absent → outstandingFor() defaults them to 0.
+  settlementBalances: { type: Object, default: () => ({}) },
   periodReport: String,
   periodReportOptions: Array,
   rangeStart: String,
@@ -2164,6 +2631,10 @@ const props = defineProps({
       gross_earning_cents: 0,
       location_fees_cents: 0,
       location_earning_cents: 0,
+      // Total outstanding we owe site owners across the filtered set.
+      outstanding_cents: 0,
+      // True when current-month flat fees in the totals are accrued to-date.
+      has_to_date_proration: false,
       // Distinct-customer aggregate counts (filtered set).
       no_contract_attachment_count: 0,
       expiring_in_30d_count: 0,
@@ -2173,6 +2644,11 @@ const props = defineProps({
 
 const authOperator = usePage().props.auth.operator;
 const operatorCountry = usePage().props.auth.operatorCountry;
+// Minor-units per currency unit (e.g. 100 for 2-dp currencies, 1 for 0-dp like
+// IDR). Mirrors formatMoney()'s exponent so the Paid-amount field round-trips
+// correctly on every per-country deployment.
+const currencyExp = operatorCountry?.currency_exponent ?? 2;
+const minorPerUnit = Math.pow(10, currencyExp);
 const permissions = usePage().props.auth.permissions;
 const roles = usePage().props.auth.roles ?? [];
 
@@ -2230,6 +2706,12 @@ const selectableRows = computed(() => (props.summaries?.data ?? []).filter(isBat
 const selectedRows = computed(() => selectableRows.value.filter((r) => batchSelected.value.has(r.id)));
 const selectedLockRows = computed(() => selectedRows.value.filter(isLockEligibleRow));
 const selectedPaidRows = computed(() => selectedRows.value.filter(isPaidEligibleRow));
+// Total Net Loc Fee that batch-paid will record across the selected rows
+// (location_fees − external_subsidize, floored at 0 per row).
+const selectedPaidNetTotal = computed(() => selectedPaidRows.value.reduce((sum, r) => {
+  const net = Number(r.location_fees_cents || 0) - Number(r.external_subsidize_cents || 0);
+  return sum + Math.max(0, net);
+}, 0));
 const allPageSelected = computed(
   () => selectableRows.value.length > 0 && selectableRows.value.every((r) => batchSelected.value.has(r.id))
 );
@@ -2302,7 +2784,7 @@ function onBatchPaidConfirm() {
   batchSubmitting.value = true;
   showBatchPaidModal.value = false;
   router.post('/customers/summary/batch-paid', { ids, paid_date: paidDate }, {
-    only: ['summaries'],
+    only: ['summaries', 'settlementBalances'],
     preserveScroll: true,
     preserveState: true,
     onSuccess: () => {
@@ -2334,6 +2816,14 @@ const reportContentMachinePrefix = ref('');
 // The full summary row backing the open modal — drives the locked-only Email
 // button and the "Last sent by X at Y" audit line at the bottom of the modal.
 const reportContentRow = ref(null);
+// Billing Company shown in the modal greeting — mirrors buildReportEmailParts()
+// so the on-screen preview matches the emailed body. "Bill From" (primary
+// contact's company) first, then company remark, then site/customer name.
+const reportContentBillingCompany = computed(() => {
+  const cust = reportContentRow.value?.customer;
+  if (!cust) return '';
+  return cust.contact?.company || cust.company_remark || cust.name || '';
+});
 const showMapMarkerModal = ref(false);
 const mapCustomers = ref([]);
 
@@ -2379,6 +2869,9 @@ const filters = ref({
   // Billing Company text search — matches contact.company (Edit form's
   // "Bill From") or the legacy company_remark fallback (see scopeFilterIndex).
   billing_company: '',
+  // Hidden filter: full settlement ledger reference (e.g. LF-000351) → finds
+  // the one site owning that entry. See scopeFilterIndex settlement_ref clause.
+  settlement_ref: '',
   location_types: [],
   operators: [],
   vendPrefixes: [],
@@ -2536,6 +3029,12 @@ onMounted(() => {
 // Mirrors Customer/Index.vue's convention (Active=green, Inactive=red,
 // everything else amber) but in the bordered badge style used by the
 // Contract / No Contract badges in the same cell.
+// A Removed site drops its Machine ID hyperlink — the vend code may have since
+// been re-bound to a different site, so the Ops Dashboard link could mislead.
+function isRemovedSite(row) {
+  return row?.customer?.status_name === 'Removed';
+}
+
 function siteStatusBadgeClass(statusId) {
   switch (statusId) {
     case 2:  return 'bg-green-100 text-green-800 border-green-300';   // Active
@@ -2927,9 +3426,18 @@ function buildReportEmailParts() {
   const periodLabel = content?.period_label || (row.period_start + ' → ' + row.period_end);
   const subject = `Vending Machine Location Fees Report — ${cust.name || ('#' + customerId)} (${periodLabel})`;
 
+  // Billing Company = the Edit form's "Bill From" field (primary contact's
+  // company). Falls back to the company remark, then the site/customer name,
+  // so the greeting is never blank when "Bill From" hasn't been filled in.
+  const billingCompany = cust.contact?.company || cust.company_remark || cust.name || '';
+
   const lines = [];
-  lines.push('Vending Machine Location Fees Report');
-  if (content?.contract_type_label) lines.push(content.contract_type_label);
+  // Greeting + intro (static boilerplate; only the billing company is dynamic).
+  lines.push(`Dear Valued Partner: "${billingCompany}"`);
+  lines.push('');
+  lines.push('This is an automatic email. Below is the Vending Machine Location Fees Report');
+  lines.push('');
+  if (content?.contract_type_label) lines.push(`Term: ${content.contract_type_label}`);
   lines.push('');
   lines.push(`Period (YYMM): ${periodLabel}`);
   if (content?.active_days != null && content?.month_days != null) {
@@ -2952,6 +3460,10 @@ function buildReportEmailParts() {
     lines.push('');
     lines.push(content.footnote);
   }
+  // Closing thank-you (static boilerplate).
+  lines.push('');
+  lines.push('');
+  lines.push('Thank you for your continued support and partnership with HappyIce, and bringing quality ice cream and frozen treats to your visitors, tenants, residents, and staff.');
 
   return { to: cust.report_email || '', subject, body: lines.join('\r\n') };
 }
@@ -3121,6 +3633,7 @@ function onSearchFilterUpdated() {
       vend_code: filters.value.vend_code,
       customer: filters.value.customer,
       billing_company: filters.value.billing_company,
+      settlement_ref: filters.value.settlement_ref,
       tags: (filters.value.tags ?? []).map ? filters.value.tags.map(t => t.id ?? t) : filters.value.tags,
       is_cms: filters.value.is_cms?.id,
       status: (filters.value.status?.length ? filters.value.status.map((s) => s.id) : ['all']),
@@ -3188,6 +3701,186 @@ function openBindingHistory(customer) {
     })
     .finally(() => {
       bindingHistoryLoading.value = false;
+    });
+}
+
+// ── Payment History popup (per site settlement ledger) ────────────────────
+const settlementOpen = ref(false);
+const settlementLoading = ref(false);
+const settlementRows = ref([]);
+const settlementSite = ref('');
+const settlementOutstanding = ref(0);
+const settlementSince = ref(null);
+const settlementCustomerId = ref(null);
+const settlementLogs = ref([]);          // change-history audit trail (newest first)
+const showSettlementLogs = ref(false);   // collapsible toggle
+
+const SETTLEMENT_LOG_LABELS = {
+  payment: 'Payment recorded',
+  waiver: 'Waived',
+  payment_reversed: 'Payment reversed',
+  edited: 'Entry edited',
+  created: 'Entry created',
+  deleted: 'Entry deleted',
+};
+function settlementLogLabel(action) {
+  return SETTLEMENT_LOG_LABELS[action] || action || '—';
+}
+
+// ── Inline edit of a settlement entry (opening balance / adjustment only) ──
+const canEditSettlement = computed(() => canLock.value); // admin-access customers
+const SETTLEMENT_EDITABLE_TYPES = ['opening_balance', 'adjustment'];
+const editingSettlementId = ref(null);
+const editSettlementAmount = ref('');
+const editSettlementRemarks = ref('');
+const editSettlementSaving = ref(false);
+
+function isSettlementEditable(s) {
+  return canEditSettlement.value && SETTLEMENT_EDITABLE_TYPES.includes(s.entry_type);
+}
+function startEditSettlement(s) {
+  editingSettlementId.value = s.id;
+  editSettlementAmount.value = (Math.abs(Number(s.amount_cents) || 0) / minorPerUnit).toFixed(currencyExp);
+  editSettlementRemarks.value = s.remarks || '';
+}
+function cancelEditSettlement() {
+  editingSettlementId.value = null;
+  editSettlementAmount.value = '';
+  editSettlementRemarks.value = '';
+}
+function saveEditSettlement(s) {
+  if (editSettlementSaving.value) return;
+  const cents = Math.max(0, Math.round((Number(editSettlementAmount.value) || 0) * minorPerUnit));
+  // Preserve the original sign (opening balance is +debit; an adjustment may be
+  // a -credit). We only let the magnitude be edited here.
+  const signed = Number(s.amount_cents) < 0 ? -cents : cents;
+  editSettlementSaving.value = true;
+  axios.post('/customers/settlements/' + s.id + '/update', {
+    amount_cents: signed,
+    remarks: editSettlementRemarks.value || null,
+  })
+    .then(() => {
+      cancelEditSettlement();
+      reloadOpenSettlements(); // re-derive balances in the modal
+      router.reload({ only: ['summaries', 'settlementBalances'], preserveScroll: true, preserveState: true });
+      toast.success('Settlement updated.', { timeout: 2500 });
+    })
+    .catch((error) => {
+      toast.error(error?.response?.data?.message || 'Failed to update settlement.', { timeout: 4500 });
+    })
+    .finally(() => { editSettlementSaving.value = false; });
+}
+// Re-fetch the currently-open ledger so the running balances + outstanding
+// reflect an edit without closing the modal.
+function reloadOpenSettlements() {
+  if (!settlementCustomerId.value) return;
+  axios.get('/customers/' + settlementCustomerId.value + '/settlements')
+    .then((res) => {
+      settlementRows.value = res.data?.data ?? [];
+      settlementOutstanding.value = Number(res.data?.outstanding_cents ?? 0);
+      settlementSince.value = res.data?.since_date ?? null;
+      settlementLogs.value = res.data?.logs ?? [];
+    })
+    .catch(() => {});
+}
+
+// Export the open ledger: Excel downloads (.xlsx); PDF opens a printable
+// Statement-of-Account in a new tab (browser Save-as-PDF).
+function exportSettlementsExcel() {
+  if (!settlementCustomerId.value) return;
+  window.location.href = '/customers/' + settlementCustomerId.value + '/settlements/excel';
+}
+function exportSettlementsPdf() {
+  if (!settlementCustomerId.value) return;
+  window.open('/customers/' + settlementCustomerId.value + '/settlements/pdf', '_blank');
+}
+
+// Three-state balance: we owe (>0), settled (0), or in credit / overpaid (<0).
+const settlementState = computed(() => {
+  const v = settlementOutstanding.value;
+  if (v > 0) return 'owing';
+  if (v < 0) return 'credit';
+  return 'settled';
+});
+const settlementStatusLabel = computed(() => ({
+  owing: 'We owe the site owner',
+  settled: 'Fully settled',
+  credit: 'In credit · overpaid',
+}[settlementState.value]));
+
+// Shared three-state helper for any signed balance (cents): owe / settled /
+// credit (overpaid). Used by the action-cell pill and the Paid modal.
+function balanceState(cents) {
+  const v = Number(cents) || 0;
+  if (v > 0) return 'owing';
+  if (v < 0) return 'credit';
+  return 'settled';
+}
+function balancePillClass(cents) {
+  return {
+    owing: 'bg-rose-50 text-rose-700 border-rose-200',
+    settled: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    credit: 'bg-sky-50 text-sky-700 border-sky-200',
+  }[balanceState(cents)];
+}
+function balancePillLabel(cents) {
+  return { owing: 'Owe ', settled: 'Settled ', credit: 'Credit ' }[balanceState(cents)];
+}
+
+// Live outstanding for the button pill — read from the server-provided map
+// (keyed by customer id). Absent sites (no ledger) default to 0.
+function outstandingFor(customer) {
+  if (!customer?.id) return 0;
+  const v = props.settlementBalances?.[customer.id];
+  return v == null ? 0 : Number(v);
+}
+
+const SETTLEMENT_TYPE_LABELS = {
+  opening_balance: 'Opening',
+  location_fee: 'Loc Fee',
+  payment: 'Payment',
+  waiver: 'Waived',
+  adjustment: 'Adjust',
+};
+function settlementTypeLabel(type) {
+  return SETTLEMENT_TYPE_LABELS[type] || type || '—';
+}
+function settlementTypeBadgeClass(type) {
+  switch (type) {
+    case 'payment': return 'bg-emerald-100 text-emerald-700';
+    case 'waiver': return 'bg-purple-100 text-purple-700';
+    case 'opening_balance': return 'bg-amber-100 text-amber-700';
+    case 'adjustment': return 'bg-slate-100 text-slate-600';
+    default: return 'bg-sky-100 text-sky-700'; // location_fee
+  }
+}
+
+function openPaymentHistory(customer) {
+  if (!customer?.id) return;
+  cancelEditSettlement();
+  settlementCustomerId.value = customer.id;
+  settlementSite.value = (refIdFor(customer) || '') + (customer.name ? ' · ' + customer.name : '');
+  settlementRows.value = [];
+  settlementLogs.value = [];
+  showSettlementLogs.value = false;
+  settlementOutstanding.value = outstandingFor(customer); // seed from pill while loading
+  settlementSince.value = null;
+  settlementLoading.value = true;
+  settlementOpen.value = true;
+  axios.get('/customers/' + customer.id + '/settlements')
+    .then((res) => {
+      settlementRows.value = res.data?.data ?? [];
+      settlementOutstanding.value = Number(res.data?.outstanding_cents ?? 0);
+      settlementSince.value = res.data?.since_date ?? null;
+      settlementLogs.value = res.data?.logs ?? [];
+    })
+    .catch((error) => {
+      console.error('Error loading payment history:', error);
+      settlementRows.value = [];
+      settlementLogs.value = [];
+    })
+    .finally(() => {
+      settlementLoading.value = false;
     });
 }
 
@@ -3342,6 +4035,9 @@ const paidModalDate = ref('');
 // Waived state for the popup — when ticked, waived_remarks becomes mandatory.
 const paidModalWaived = ref(false);
 const paidModalRemarks = ref('');
+// Amount paid / waived (in dollars, as typed). Pre-filled with the period's
+// Net Loc Fee; posted to the settlement ledger as a credit on confirm.
+const paidModalAmount = ref('');
 
 const paidModalLabel = computed(() => {
   const row = paidModalRow.value;
@@ -3349,6 +4045,23 @@ const paidModalLabel = computed(() => {
   const label = row.customer?.name || ('#' + row.customer?.id);
   return `${label} — ${periodReportLabel(row)}`;
 });
+
+// Site-level outstanding for the row being paid (the pay action lives on a past
+// period row, so we surface the per-site balance here for context).
+const paidModalOutstanding = computed(() => outstandingFor(paidModalRow.value?.customer));
+
+// Live cents of the amount currently typed — drives the "remaining after" line.
+const paidModalAmountCents = computed(() =>
+  Math.max(0, Math.round((Number(paidModalAmount.value) || 0) * minorPerUnit))
+);
+
+// Open the full Payment History ledger from inside the Paid modal. Stacks on
+// top (the Paid modal stays open underneath) so the in-progress entry is kept.
+function openPaymentHistoryFromPaid() {
+  if (paidModalRow.value?.customer) {
+    openPaymentHistory(paidModalRow.value.customer);
+  }
+}
 
 // Mark a locked row as Paid — STEP 1: open the payment-date popup. Requires
 // the row to be Locked + not already Paid (UI hides the button otherwise).
@@ -3359,6 +4072,12 @@ function onPaidClicked(row) {
   paidModalDate.value = moment().format('YYYY-MM-DD'); // pre-fill today
   paidModalWaived.value = false;
   paidModalRemarks.value = '';
+  // Pre-fill the amount with this period's Net Loc Fee (gross − subsidize),
+  // floored at 0 — the typical case is "paid exactly what we owe".
+  {
+    const net = Number(row.location_fees_cents || 0) - Number(row.external_subsidize_cents || 0);
+    paidModalAmount.value = net > 0 ? (net / minorPerUnit).toFixed(currencyExp) : '0';
+  }
   showPaidModal.value = true;
 }
 
@@ -3367,6 +4086,7 @@ function onPaidModalClose() {
   paidModalRow.value = null;
   paidModalWaived.value = false;
   paidModalRemarks.value = '';
+  paidModalAmount.value = '';
 }
 
 // STEP 2: confirm from the popup. Same permission as Lock; server re-checks.
@@ -3387,26 +4107,31 @@ function onPaidModalConfirm() {
   // Empty/cleared field → today (server defaults too — belt and braces).
   const paidDate = paidModalDate.value || moment().format('YYYY-MM-DD');
 
+  // Amount paid/waived → settlement ledger credit, sent as integer minor units
+  // (cents) so the server stores it verbatim. 0 / blank → no ledger entry.
+  const paidAmountCents = Math.max(0, Math.round((Number(paidModalAmount.value) || 0) * minorPerUnit));
+
   showPaidModal.value = false;
   paidModalRow.value = null;
   paidModalWaived.value = false;
   paidModalRemarks.value = '';
+  paidModalAmount.value = '';
 
   lockingFor.value.add(row.id);
-  // Partial reload — Paid only flips paid_at / paid_date / is_waived; row money
-  // figures + totals are unaffected. Refreshing summaries is enough to bring
-  // back the new paid_at / paid_date / paid_by_user / is_waived so the
-  // green-check icon + Waived badge + tooltip render immediately on success.
+  // Partial reload — Paid flips paid_at / paid_date / is_waived AND posts a
+  // settlement credit, so refresh both `summaries` (green-check / Waived badge)
+  // and `settlementBalances` (the Payment-History pill) on success.
   router.post('/customers/summary/' + row.id + '/paid', {
     paid_date: paidDate,
     is_waived: isWaived,
     waived_remarks: isWaived ? remarks : null,
+    paid_amount_cents: paidAmountCents,
   }, {
-    only: ['summaries'],
+    only: ['summaries', 'settlementBalances'],
     preserveScroll: true,
     preserveState: true,
     onSuccess: () => toast.success(isWaived ? 'Period marked Waived.' : 'Period marked Paid.', { timeout: 3000 }),
-    onError: (errors) => toast.error(errors?.paid || errors?.paid_date || errors?.waived_remarks || 'Failed to mark Paid.', { timeout: 4000 }),
+    onError: (errors) => toast.error(errors?.paid || errors?.paid_date || errors?.waived_remarks || errors?.paid_amount_cents || 'Failed to mark Paid.', { timeout: 4000 }),
     onFinish: () => lockingFor.value.delete(row.id),
   });
 }
@@ -3430,7 +4155,7 @@ function onUnpaidClicked(row) {
   // re-enables and the tooltip on the next Paid cycle will surface the
   // most recent Unpaid event.
   router.post('/customers/summary/' + row.id + '/unpaid', {}, {
-    only: ['summaries'],
+    only: ['summaries', 'settlementBalances'],
     preserveScroll: true,
     preserveState: true,
     onSuccess: () => toast.success('Period marked Unpaid.', { timeout: 3000 }),
@@ -3447,6 +4172,7 @@ function buildBackendParams() {
     vend_code: filters.value.vend_code,
     customer: filters.value.customer,
     billing_company: filters.value.billing_company,
+    settlement_ref: filters.value.settlement_ref,
     tags: (filters.value.tags ?? []).map ? filters.value.tags.map(t => t.id ?? t) : filters.value.tags,
     is_cms: filters.value.is_cms?.id,
     status: (filters.value.status?.length ? filters.value.status.map((s) => s.id) : ['all']),

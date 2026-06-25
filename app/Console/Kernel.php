@@ -73,6 +73,13 @@ class Kernel extends ConsoleKernel
         // gp_metrics have fully settled, so it competes with no heavy job.
         $schedule->command('ops:snapshot-daily')->dailyAt('03:00')->withoutOverlapping();
 
+        // Accrue the previous month's Net Loc Fee into each owing site's
+        // settlement ledger (Site Summary ▸ Payment History) as a charge.
+        // On the 1st, AFTER the 01:00 customer-summary:compute has finalised
+        // last month's figures. Idempotent — safe to re-run. Replaces the old
+        // CMS-pulled "owe" remark as the source of truth for outstanding.
+        $schedule->command('settlement:generate-monthly')->monthlyOn(1, '02:30')->withoutOverlapping();
+
         // ── ONE-OFF historical backfill — fires once at 04:00 on 2026-06-06, then
         // never again (safe to delete this block after it has run). Rebuilds
         // gp_metrics back to 2024-12-03 so every trailing-30 window has data, then

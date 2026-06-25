@@ -595,11 +595,141 @@ class CustomerController extends Controller
                 MIN(period_start) AS earliest_period_start
             ')
             ->first();
+        // Location Fees / Vend Earnings totals must reflect the SAME to-date
+        // proration the current-month rows now show, otherwise the boxes would
+        // read higher than the sum of the visible current-month rows until
+        // month end. Past/closed months keep their stored values (summed in
+        // SQL); the current in-progress month is re-derived live with the
+        // to-date cap, mirroring CustomerPeriodSummaryResource's gating exactly
+        // (locked / segment / re-activated current-month rows keep their stored
+        // value just as the resource does). Sales / Gross are proration-
+        // independent, so they keep the plain full SUM from $totalsRow above.
+        $nonCurrentQuery = \App\Models\CustomerPeriodSummary::query()
+            ->whereIn('customer_id', $customerIds)
+            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->where('is_current_month', false);
+        $applyRowFilters($nonCurrentQuery);
+        $nonCurrentRow = $nonCurrentQuery
+            ->selectRaw('
+                COALESCE(SUM(location_fees_cents), 0) AS location_fees_cents,
+                COALESCE(SUM(location_earning_cents), 0) AS location_earning_cents
+            ')
+            ->first();
+        $locationFeesTotal = (int) ($nonCurrentRow->location_fees_cents ?? 0);
+        $locationEarningTotal = (int) ($nonCurrentRow->location_earning_cents ?? 0);
+
+        $currentMonthQuery = \App\Models\CustomerPeriodSummary::query()
+            ->whereIn('customer_id', $customerIds)
+            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->where('is_current_month', true);
+        $applyRowFilters($currentMonthQuery);
+        $currentMonthRows = $currentMonthQuery->get([
+            'customer_id', 'year_month', 'period_end', 'locked_at', 'contract_log_id',
+            'sales_cents', 'gross_earning_cents', 'location_fees_cents', 'location_earning_cents',
+        ]);
+
+        // True if any current-month flat fee was actually shaved by the to-date
+        // cap — drives the "to date" caption on the totals cards so it only
+        // appears when the current month is in view AND has a flat fee accruing
+        // (never on a pure-PS-only or past-months-only view).
+        $totalsHasToDateProration = false;
+
+        if ($currentMonthRows->isNotEmpty()) {
+            $currentCustomerIds = $currentMonthRows->pluck('customer_id')->filter()->unique()->values()->all();
+            // Current contract + operator GST + active window per site — same
+            // batched lookup attachAccumulatedVendingEarning uses.
+            $currentContractMap = \Illuminate\Support\Facades\DB::table('customers')
+                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+                ->whereIn('customers.id', $currentCustomerIds)
+                ->select(
+                    'customers.id',
+                    'customers.contract_commission_type',
+                    'customers.contract_commission_value',
+                    'customers.contract_commission_value2',
+                    'customers.contract_ps_term',
+                    'customers.is_external_subsidize',
+                    'customers.external_subsidize_amount',
+                    'customers.begin_date',
+                    'customers.active_date',
+                    'customers.removed_date',
+                    'operators.gst_vat_rate'
+                )
+                ->get()
+                ->keyBy('id');
+            $reactivatedIds = array_flip(\App\Services\CustomerSummaryAggregator::reactivatedCustomerIds());
+
+            foreach ($currentMonthRows as $cr) {
+                $c = $currentContractMap->get($cr->customer_id);
+                // Frozen path — locked / segment / re-activated rows show their
+                // stored value on screen, so the total uses it too.
+                $useStored = $cr->locked_at !== null
+                    || $cr->contract_log_id !== null
+                    || isset($reactivatedIds[(int) $cr->customer_id])
+                    || !$c;
+                if ($useStored) {
+                    $locationFeesTotal += (int) $cr->location_fees_cents;
+                    $locationEarningTotal += (int) $cr->location_earning_cents;
+                    continue;
+                }
+
+                $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                $toDateAsOf = $cr->period_end ? \Carbon\Carbon::parse($cr->period_end) : null;
+                $flatDayRatio = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                    $c->active_date ?? $c->begin_date,
+                    $c->removed_date,
+                    \Carbon\Carbon::parse($cr->year_month)->startOfMonth(),
+                    $toDateAsOf
+                );
+                $liveFee = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                    $c->contract_commission_type,
+                    $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                    $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                    $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                    (int) $cr->sales_cents,
+                    (int) $cr->gross_earning_cents,
+                    $gstRatePct,
+                    $flatDayRatio
+                );
+                $liveExt = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                    ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                    : 0;
+                $locationFeesTotal += $liveFee;
+                $locationEarningTotal += (int) $cr->gross_earning_cents - ($liveFee - $liveExt);
+
+                // Did the to-date cap actually reduce this row's flat fee?
+                if (!$totalsHasToDateProration) {
+                    $fullRatio = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                        $c->active_date ?? $c->begin_date,
+                        $c->removed_date,
+                        \Carbon\Carbon::parse($cr->year_month)->startOfMonth()
+                    );
+                    if ($fullRatio > $flatDayRatio) {
+                        $fullFee = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                            $c->contract_commission_type,
+                            $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                            $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                            $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                            (int) $cr->sales_cents,
+                            (int) $cr->gross_earning_cents,
+                            $gstRatePct,
+                            $fullRatio
+                        );
+                        if ($fullFee !== $liveFee) {
+                            $totalsHasToDateProration = true;
+                        }
+                    }
+                }
+            }
+        }
+
         $totals = [
             'sales_cents' => (int) ($totalsRow->sales_cents ?? 0),
             'gross_earning_cents' => (int) ($totalsRow->gross_earning_cents ?? 0),
-            'location_fees_cents' => (int) ($totalsRow->location_fees_cents ?? 0),
-            'location_earning_cents' => (int) ($totalsRow->location_earning_cents ?? 0),
+            'location_fees_cents' => $locationFeesTotal,
+            'location_earning_cents' => $locationEarningTotal,
+            // Current-month flat fees in these totals are accrued to-date (not
+            // billed for the full month). Lets Summary.vue caption the cards.
+            'has_to_date_proration' => $totalsHasToDateProration,
         ];
 
         // Displayed "Period range" — collapse to where the FILTERED data
@@ -666,12 +796,30 @@ class CustomerController extends Controller
         $totals['no_contract_attachment_count'] = (int) $noContractAttachmentCount;
         $totals['expiring_in_30d_count'] = (int) $expiringIn30dCount;
 
+        // Outstanding-owed map for the Payment-History button badge: one grouped
+        // SUM over the settlement ledger for the displayed sites. Derived (never
+        // stored) so it can't drift. customer_id => signed cents (+ve = we owe).
+        // Only sites with ledger rows appear; the Vue defaults the rest to 0.
+        $settlementBalances = \App\Models\CustomerSettlement::query()
+            ->whereIn('customer_id', $displayedCustomerIds)
+            ->selectRaw('customer_id, SUM(amount_cents) AS bal')
+            ->groupBy('customer_id')
+            ->pluck('bal', 'customer_id');
+
+        // Total outstanding we owe across the displayed sites — sum of the
+        // per-site balances above (same filtered scope as the count cards).
+        // Drives the new "Total Outstanding" totals card.
+        $totals['outstanding_cents'] = (int) $settlementBalances->sum();
+
         $className = get_class(new Customer());
         $optionsService = app(\App\Services\OptionsService::class);
 
         return Inertia::render('Customer/Summary', [
             'summaries' => CustomerPeriodSummaryResource::collection($summaries),
             'totals' => $totals,
+            // customer_id => outstanding cents (signed; +ve = we owe the site).
+            // Powers the live balance badge on the Payment-History button.
+            'settlementBalances' => $settlementBalances,
             // Unread Site-Note count for the on-page "Unread" toggle button.
             'unreadCount' => $summaryUnreadCount,
             // Whether the server resolved this load into the Unread view (drives
@@ -1815,22 +1963,74 @@ class CustomerController extends Controller
             'paid_date' => ['nullable', 'date'],
             'is_waived' => ['nullable', 'boolean'],
             'waived_remarks' => ['nullable', 'string', 'max:1000', 'required_if:is_waived,true,1'],
+            // Actual amount paid / waived, in minor units (cents). Posts to the
+            // settlement ledger (Payment History) as a credit. 0 / null → no
+            // ledger entry (e.g. marking Paid without recording a figure yet).
+            'paid_amount_cents' => ['nullable', 'integer', 'min:0'],
         ], [
             'paid_date.date' => 'Payment date must be a valid date.',
             'waived_remarks.required_if' => 'Please enter a remark explaining why this period is waived.',
         ]);
 
         $isWaived = !empty($validated['is_waived']);
-
-        $summary->paid_at = now();
-        $summary->paid_date = !empty($validated['paid_date'])
+        $paidDate = !empty($validated['paid_date'])
             ? \Carbon\Carbon::parse($validated['paid_date'])->toDateString()
             : now()->toDateString();
-        $summary->paid_by = $user->id;
-        $summary->is_paid = true;
-        $summary->is_waived = $isWaived;
-        $summary->waived_remarks = $isWaived ? trim($validated['waived_remarks']) : null;
-        $summary->save();
+
+        $amountCents = (int) ($validated['paid_amount_cents'] ?? 0);
+
+        // Atomic: the paid-state flip AND the ledger credit must commit together
+        // (or not at all) so the summary's Paid state and the ledger can never
+        // desync. A site can be Unpaid → re-Paid, so clear any prior paid-action
+        // credit for THIS period first, then post the fresh one — never
+        // double-credits. amount stored NEGATIVE (reduces what we owe).
+        \Illuminate\Support\Facades\DB::transaction(function () use ($summary, $user, $isWaived, $paidDate, $amountCents, $validated) {
+            $summary->paid_at = now();
+            $summary->paid_date = $paidDate;
+            $summary->paid_by = $user->id;
+            $summary->is_paid = true;
+            $summary->is_waived = $isWaived;
+            $summary->waived_remarks = $isWaived ? trim($validated['waived_remarks']) : null;
+            $summary->save();
+
+            \App\Models\CustomerSettlement::query()
+                ->where('customer_period_summary_id', $summary->id)
+                ->where('source', \App\Models\CustomerSettlement::SOURCE_PAID_ACTION)
+                ->delete();
+
+            if ($amountCents > 0) {
+                $monthLabel = $summary->year_month
+                    ? \Carbon\Carbon::parse($summary->year_month)->format('M Y')
+                    : '';
+                $entry = \App\Models\CustomerSettlement::create([
+                    'customer_id'  => $summary->customer_id,
+                    'operator_id'  => $summary->operator_id,
+                    'entry_date'   => $paidDate,
+                    'year_month'   => $summary->year_month,
+                    'entry_type'   => $isWaived
+                        ? \App\Models\CustomerSettlement::TYPE_WAIVER
+                        : \App\Models\CustomerSettlement::TYPE_PAYMENT,
+                    'amount_cents' => -$amountCents,   // credit — reduces what we owe.
+                    'item'         => ($isWaived ? 'Waived' : 'Payment') . ($monthLabel ? ' — ' . $monthLabel : ''),
+                    'remarks'      => $isWaived ? trim($validated['waived_remarks']) : null,
+                    'customer_period_summary_id' => $summary->id,
+                    'source'       => \App\Models\CustomerSettlement::SOURCE_PAID_ACTION,
+                    'created_by'   => $user->id,
+                ]);
+
+                // Audit the money action (who recorded the payment / waiver, when).
+                $this->logSettlement(
+                    $entry,
+                    $isWaived
+                        ? \App\Models\CustomerSettlementLog::ACTION_WAIVER
+                        : \App\Models\CustomerSettlementLog::ACTION_PAYMENT,
+                    ($isWaived ? 'Waived' : 'Payment recorded') . ($monthLabel ? ' for ' . $monthLabel : ''),
+                    null,
+                    $amountCents,
+                    \App\Models\CustomerSettlement::SOURCE_PAID_ACTION
+                );
+            }
+        });
 
         return back()->with('success', $isWaived ? 'Period marked Waived.' : 'Period marked Paid.');
     }
@@ -1856,16 +2056,40 @@ class CustomerController extends Controller
             return back()->with('success', 'This period is already Unpaid.');
         }
 
-        $summary->paid_at = null;
-        $summary->paid_date = null;
-        $summary->paid_by = null;
-        $summary->is_paid = false;
-        // Waiving is part of the Paid state — clear it on Unpaid too.
-        $summary->is_waived = false;
-        $summary->waived_remarks = null;
-        $summary->last_unpaid_at = now();
-        $summary->last_unpaid_by = $user->id;
-        $summary->save();
+        // Atomic: clear the paid-state AND reverse the ledger credit together so
+        // they can't desync. Audit each reversal BEFORE deleting (keeps actor +
+        // amount in history); the FK is nullOnDelete so the log survives.
+        \Illuminate\Support\Facades\DB::transaction(function () use ($summary, $user) {
+            $summary->paid_at = null;
+            $summary->paid_date = null;
+            $summary->paid_by = null;
+            $summary->is_paid = false;
+            // Waiving is part of the Paid state — clear it on Unpaid too.
+            $summary->is_waived = false;
+            $summary->waived_remarks = null;
+            $summary->last_unpaid_at = now();
+            $summary->last_unpaid_by = $user->id;
+            $summary->save();
+
+            $paidEntries = \App\Models\CustomerSettlement::query()
+                ->where('customer_period_summary_id', $summary->id)
+                ->where('source', \App\Models\CustomerSettlement::SOURCE_PAID_ACTION)
+                ->get();
+            foreach ($paidEntries as $entry) {
+                $this->logSettlement(
+                    $entry,
+                    \App\Models\CustomerSettlementLog::ACTION_PAYMENT_REVERSED,
+                    'Payment reversed (period marked Unpaid)',
+                    (int) $entry->amount_cents,
+                    null,
+                    \App\Models\CustomerSettlement::SOURCE_PAID_ACTION
+                );
+            }
+            \App\Models\CustomerSettlement::query()
+                ->where('customer_period_summary_id', $summary->id)
+                ->where('source', \App\Models\CustomerSettlement::SOURCE_PAID_ACTION)
+                ->delete();
+        });
 
         return back()->with('success', 'Period marked Unpaid.');
     }
@@ -1970,6 +2194,43 @@ class CustomerController extends Controller
                 $summary->paid_by = $user->id;
                 $summary->is_paid = true;
                 $summary->save();
+
+                // Record each period's payment in the settlement ledger using
+                // its Net Loc Fee (location_fees − external_subsidize) as the
+                // amount — same figure the single Paid modal pre-fills. Clear
+                // any prior paid-action credit first (re-pay safety), then post.
+                \App\Models\CustomerSettlement::query()
+                    ->where('customer_period_summary_id', $summary->id)
+                    ->where('source', \App\Models\CustomerSettlement::SOURCE_PAID_ACTION)
+                    ->delete();
+
+                $netLocFee = (int) $summary->location_fees_cents - (int) $summary->external_subsidize_cents;
+                if ($netLocFee > 0) {
+                    $monthLabel = $summary->year_month
+                        ? \Carbon\Carbon::parse($summary->year_month)->format('M Y')
+                        : '';
+                    $entry = \App\Models\CustomerSettlement::create([
+                        'customer_id'  => $summary->customer_id,
+                        'operator_id'  => $summary->operator_id,
+                        'entry_date'   => $paidDate,
+                        'year_month'   => $summary->year_month,
+                        'entry_type'   => \App\Models\CustomerSettlement::TYPE_PAYMENT,
+                        'amount_cents' => -$netLocFee,   // credit — reduces what we owe.
+                        'item'         => 'Payment' . ($monthLabel ? ' — ' . $monthLabel : ''),
+                        'remarks'      => null,
+                        'customer_period_summary_id' => $summary->id,
+                        'source'       => \App\Models\CustomerSettlement::SOURCE_PAID_ACTION,
+                        'created_by'   => $user->id,
+                    ]);
+                    $this->logSettlement(
+                        $entry,
+                        \App\Models\CustomerSettlementLog::ACTION_PAYMENT,
+                        'Payment recorded' . ($monthLabel ? ' for ' . $monthLabel : '') . ' (batch)',
+                        null,
+                        $netLocFee,
+                        \App\Models\CustomerSettlement::SOURCE_PAID_ACTION
+                    );
+                }
                 $paid++;
             }
         });
@@ -2120,7 +2381,7 @@ class CustomerController extends Controller
         // sharing the whole-month total. period_start is unique per row
         // (customer_id, period_start), so it sequences segments correctly.
         $monthlyRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
-            ->select('customer_id', 'year_month', 'period_start', 'contract_log_id', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
+            ->select('customer_id', 'year_month', 'period_start', 'period_end', 'is_current_month', 'contract_log_id', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
             ->whereIn('customer_id', $customerIds)
             ->where('year_month', '>=', $floor)
             ->where('year_month', '<=', $through)
@@ -2190,11 +2451,18 @@ class CustomerController extends Controller
                 if ($c) {
                     $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
                     // Prorate flat fees for this row's month (e.g. a removal
-                    // month) the same way the row resource does.
+                    // month) the same way the row resource does. For the CURRENT
+                    // in-progress month also cap at period_end (the data cutoff)
+                    // so the flat fee accrues to-date — keeping the Accumulate
+                    // column in lockstep with the to-date per-row Vend Earning.
+                    $toDateAsOf = ($r->is_current_month && $r->period_end)
+                        ? \Carbon\Carbon::parse($r->period_end)
+                        : null;
                     $flatDayRatio = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
                         $c->active_date ?? $c->begin_date,
                         $c->removed_date,
-                        \Carbon\Carbon::parse($r->year_month)->startOfMonth()
+                        \Carbon\Carbon::parse($r->year_month)->startOfMonth(),
+                        $toDateAsOf
                     );
                     $liveLocFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
                         $c->contract_commission_type,
@@ -2733,9 +3001,15 @@ class CustomerController extends Controller
         }
 
         $allVids = collect($resolved)->filter()->unique()->values()->all();
+        // Load code + prefix + model for each resolved machine so the Summary can
+        // show the row's historical machine prefix AND model (not just the code).
         $vendsById = empty($allVids)
-            ? []
-            : \App\Models\Vend::query()->whereIn('id', $allVids)->pluck('code', 'id')->all();
+            ? collect()
+            : \App\Models\Vend::query()
+                ->with(['vendPrefix:id,name', 'vendModel:id,name'])
+                ->whereIn('id', $allVids)
+                ->get(['id', 'code', 'vend_prefix_id', 'vend_model_id'])
+                ->keyBy('id');
 
         // Walk in period order so the FIRST machine of a month isn't "New".
         $prevVendByGroup = [];
@@ -2747,8 +3021,14 @@ class CustomerController extends Controller
         foreach ($ordered as $row) {
             $cid = (int) $row->customer_id;
             $vid = $resolved[(int) $row->id] ?? null;
-            $row->machine_vend = ($vid !== null && isset($vendsById[$vid]))
-                ? ['id' => $vid, 'code' => $vendsById[$vid]]
+            $mv = ($vid !== null && isset($vendsById[$vid])) ? $vendsById[$vid] : null;
+            $row->machine_vend = $mv
+                ? [
+                    'id' => $vid,
+                    'code' => $mv->code,
+                    'prefix' => optional($mv->vendPrefix)->name,
+                    'model' => optional($mv->vendModel)->name,
+                ]
                 : null;
 
             $groupKey = $cid . '|' . (optional($row->year_month)->toDateString() ?? (string) $row->year_month);
@@ -2923,7 +3203,7 @@ class CustomerController extends Controller
             'customer_name', 'selling_price_type', 'begin_date', 'site_status',
             'contract_attachment', 'location_type', 'contract_until',
             'notes_updated_at', 'loc_fee_remarks_updated_at',
-            'gross_earning_rate',
+            'gross_earning_rate', 'outstanding',
         ], true) ? $summarySortKey : 'year_month';
         $sortDirection = filter_var($summarySortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
@@ -2935,7 +3215,8 @@ class CustomerController extends Controller
         // first so the per-customer grouping stays unambiguous.
         $clusterByCustomerFirst = $isAggregated
             && $sortKey !== 'notes_updated_at'
-            && $sortKey !== 'loc_fee_remarks_updated_at';
+            && $sortKey !== 'loc_fee_remarks_updated_at'
+            && $sortKey !== 'outstanding';
         if ($clusterByCustomerFirst) {
             $query->orderBy('customer_id', 'asc');
         }
@@ -3068,6 +3349,18 @@ class CustomerController extends Controller
                     AND a.type = ?',
                 $sortDirection,
                 ['App\\Models\\Customer', Customer::FILE_TYPE_CONTRACT]
+            );
+        } elseif ($sortKey === 'outstanding') {
+            // Outstanding ($) — per-site settlement balance: SUM of signed
+            // amount_cents across the ledger (+ve = we owe, -ve = credit). A
+            // customer-level value (identical across the site's monthly rows),
+            // so it sorts page-wide like the other customer-level keys. Sites
+            // with no ledger resolve to 0 via COALESCE.
+            $nullsLastRaw(
+                'SELECT COALESCE(SUM(cs.amount_cents), 0)
+                  FROM customer_settlements cs
+                  WHERE cs.customer_id = customer_period_summaries.customer_id',
+                $sortDirection
             );
         } elseif ($sortKey === 'gross_earning_rate') {
             $nullsLastRaw(
@@ -3282,7 +3575,7 @@ class CustomerController extends Controller
         // unlocked months. Mirrors attachAccumulatedVendingEarning() so the
         // export's Accumulate column matches the on-screen figure.
         $accumRows = \Illuminate\Support\Facades\DB::table('customer_period_summaries')
-            ->select('customer_id', 'year_month', 'period_start', 'contract_log_id', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
+            ->select('customer_id', 'year_month', 'period_start', 'period_end', 'is_current_month', 'contract_log_id', 'location_earning_cents', 'sales_cents', 'gross_earning_cents', 'locked_at')
             ->whereIn('customer_id', $customerIds)
             ->where('year_month', '>=', self::summaryFloorDate())
             ->where('year_month', '<=', $accumThrough)
@@ -3325,10 +3618,17 @@ class CustomerController extends Controller
                 $c = $accumContractMap->get($r->customer_id);
                 if ($c) {
                     $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                    // Current in-progress month accrues its flat fee to-date
+                    // (cap at period_end) so the exported Accumulate column
+                    // matches the on-screen one (attachAccumulatedVendingEarning).
+                    $toDateAsOf = ($r->is_current_month && $r->period_end)
+                        ? \Carbon\Carbon::parse($r->period_end)
+                        : null;
                     $flatDayRatio = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
                         $c->active_date ?? $c->begin_date,
                         $c->removed_date,
-                        \Carbon\Carbon::parse($r->year_month)->startOfMonth()
+                        \Carbon\Carbon::parse($r->year_month)->startOfMonth(),
+                        $toDateAsOf
                     );
                     $fee = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
                         $c->contract_commission_type,
@@ -3440,12 +3740,19 @@ class CustomerController extends Controller
                     // live customer tier; locked rows keep the frozen snapshot.
                     $row->contract_selling_price_type = $customer->selling_price_type;
                     // Prorate flat fees for this row's month (removal / activation
-                    // month) — mirrors CustomerPeriodSummaryResource.
+                    // month) — mirrors CustomerPeriodSummaryResource. For the
+                    // CURRENT in-progress month also cap at period_end so the
+                    // exported flat fee / Vend Earning match the to-date figures
+                    // shown on screen.
+                    $exportToDateAsOf = ($row->is_current_month && $row->period_end)
+                        ? \Carbon\Carbon::parse($row->period_end)
+                        : null;
                     $flatDayRatio = $row->year_month
                         ? \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
                             $customer->active_date ?? $customer->begin_date,
                             $customer->removed_date,
-                            \Carbon\Carbon::parse($row->year_month)->startOfMonth()
+                            \Carbon\Carbon::parse($row->year_month)->startOfMonth(),
+                            $exportToDateAsOf
                         )
                         : 1.0;
                     $liveFee = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
@@ -4118,6 +4425,271 @@ class CustomerController extends Controller
         $customer->save();
 
         return redirect()->back();
+    }
+
+    /**
+     * Settlement ledger ("Payment History") for one site — drives the
+     * Payment-History popup on the Site Summary. Returns the full chronological
+     * ledger with a DERIVED running balance (cumulative SUM of signed
+     * amount_cents), plus the current outstanding total. Read-only.
+     *
+     * Shape mirrors vendBindings(): the Vue caller reads res.data.data.
+     */
+    public function getSettlements($id)
+    {
+        $ledger = $this->buildSettlementLedger($id);
+
+        return response()->json([
+            'data'              => $ledger['rows'],
+            'outstanding_cents' => $ledger['outstanding_cents'],
+            'since_date'        => $ledger['since_date'],
+            'site_label'        => $ledger['site_label'],
+            'logs'              => $ledger['logs'],
+        ]);
+    }
+
+    /**
+     * Build the settlement ledger for one site: chronological rows with a
+     * DERIVED running balance (cumulative SUM of signed amount_cents), plus
+     * meta (site label, outstanding, since-date). Shared by the JSON popup
+     * endpoint and the PDF / Excel exports so all three stay identical.
+     */
+    private function buildSettlementLedger($id): array
+    {
+        $customer = Customer::query()
+            ->select(['id', 'name', 'company_remark'])
+            ->findOrFail($id);
+
+        // Site ID shown across the Summary page is id + 20000 (see refIdFor()).
+        $refId = $customer->id + 20000;
+
+        $rows = \App\Models\CustomerSettlement::query()
+            ->where('customer_id', $customer->id)
+            ->with(['createdBy:id,name', 'updatedBy:id,name'])
+            ->chronological()
+            ->get();
+
+        $balance = 0;
+        $data = $rows->map(function ($r) use (&$balance) {
+            $amount = (int) $r->amount_cents;
+            $balance += $amount;
+
+            // Treat as "edited" only when updated_by is set AND the update is
+            // distinct from creation (auto reference_no backfill touches updated_at).
+            $wasEdited = $r->updated_by !== null;
+
+            return [
+                'id'           => $r->id,
+                'reference_no' => $r->reference_no,
+                'entry_date'   => optional($r->entry_date)->toDateString(),
+                'year_month'   => optional($r->year_month)->toDateString(),
+                'entry_type'   => $r->entry_type,
+                'item'         => $r->item,
+                'remarks'      => $r->remarks,
+                'amount_cents' => $amount,
+                // SOA-style split: DR = charge we owe, CR = payment we make.
+                'debit_cents'  => $amount > 0 ? $amount : 0,
+                'credit_cents' => $amount < 0 ? -$amount : 0,
+                'balance_cents' => $balance,
+                'source'       => $r->source,
+                'created_by'   => $r->createdBy?->name,
+                'created_at'   => optional($r->created_at)->toIso8601String(),
+                'edited_by'    => $wasEdited ? $r->updatedBy?->name : null,
+                'edited_at'    => $wasEdited ? optional($r->updated_at)->toIso8601String() : null,
+            ];
+        })->values();
+
+        // Change-history audit trail (newest first) for the "Change history"
+        // panel. The audit log is a SECONDARY feature — guard it so a missing
+        // table (migration not yet run) or any log-query issue can never blank
+        // out the core ledger. Falls back to an empty history.
+        $logs = collect();
+        if (\Illuminate\Support\Facades\Schema::hasTable('customer_settlement_logs')) {
+            $logs = \App\Models\CustomerSettlementLog::query()
+                ->where('customer_id', $customer->id)
+                ->with('changedBy:id,name')
+                ->orderByDesc('id')
+                ->limit(100)
+                ->get()
+                ->map(fn ($l) => [
+                    'action'           => $l->action,
+                    'reference_no'     => $l->reference_no,
+                    'entry_type'       => $l->entry_type,
+                    'note'             => $l->note,
+                    'old_amount_cents' => $l->old_amount_cents,
+                    'new_amount_cents' => $l->new_amount_cents,
+                    'by'               => $l->changedBy?->name,
+                    'source'           => $l->source,
+                    'at'               => optional($l->created_at)->toIso8601String(),
+                ])
+                ->values();
+        }
+
+        $sinceRow = $rows->first();
+
+        return [
+            'customer'          => $customer,
+            'ref_id'            => $refId,
+            'site_label'        => $refId . ' · ' . ($customer->name ?: $customer->company_remark ?: ('#' . $customer->id)),
+            'rows'              => $data,
+            'outstanding_cents' => $balance,
+            'since_date'        => $sinceRow ? optional($sinceRow->entry_date)->toDateString() : null,
+            'logs'              => $logs,
+        ];
+    }
+
+    /**
+     * Edit a settlement ledger entry. Restricted to admins and to entry types
+     * that are MANUALLY owned — opening_balance (a seeded migration figure) and
+     * adjustment. Auto-posted rows (location_fee from the monthly cron,
+     * payment/waiver from the Paid action) are NOT editable here so the ledger
+     * stays reconciled with its source of truth; correct those upstream or via
+     * an adjustment entry instead. Balances re-derive automatically.
+     */
+    public function updateSettlement(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->can('admin-access customers')) {
+            abort(403, 'You do not have permission to edit settlement entries.');
+        }
+
+        $settlement = \App\Models\CustomerSettlement::findOrFail($id);
+
+        $editable = [
+            \App\Models\CustomerSettlement::TYPE_OPENING_BALANCE,
+            \App\Models\CustomerSettlement::TYPE_ADJUSTMENT,
+        ];
+        if (!in_array($settlement->entry_type, $editable, true)) {
+            return response()->json([
+                'message' => 'Only opening balance and adjustment entries can be edited. For an auto-posted location fee or payment, add an adjustment instead.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'amount_cents' => ['required', 'integer'],
+            'remarks'      => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $oldAmount = (int) $settlement->amount_cents;
+        $newAmount = (int) $validated['amount_cents'];
+
+        $settlement->amount_cents = $newAmount;
+        $settlement->remarks = $validated['remarks'] ?? null;
+        $settlement->updated_by = $user->id;
+        $settlement->save();
+
+        // Audit: record the edit (who, when, before → after).
+        $this->logSettlement(
+            $settlement,
+            \App\Models\CustomerSettlementLog::ACTION_EDITED,
+            $this->settlementTypeLabel($settlement->entry_type) . ' edited',
+            $oldAmount,
+            $newAmount,
+            'user'
+        );
+
+        return response()->json(['message' => 'Settlement updated.']);
+    }
+
+    /**
+     * Append one row to the settlement audit trail (customer_settlement_logs).
+     * Called for every money action — payment, waiver, reversal, edit — so the
+     * Payment-History "Change history" panel always shows who did what, when.
+     */
+    private function logSettlement(
+        \App\Models\CustomerSettlement $settlement,
+        string $action,
+        ?string $note = null,
+        ?int $oldAmount = null,
+        ?int $newAmount = null,
+        string $source = 'user'
+    ): void {
+        \App\Models\CustomerSettlementLog::create([
+            'customer_id'            => $settlement->customer_id,
+            'customer_settlement_id' => $settlement->id,
+            'reference_no'           => $settlement->reference_no,
+            'action'                 => $action,
+            'entry_type'             => $settlement->entry_type,
+            'old_amount_cents'       => $oldAmount,
+            'new_amount_cents'       => $newAmount,
+            'note'                   => $note,
+            'changed_by'             => auth()->id(),
+            'source'                 => $source,
+        ]);
+    }
+
+    /** Human label for a settlement entry type, used in exports. */
+    private function settlementTypeLabel(?string $type): string
+    {
+        return [
+            \App\Models\CustomerSettlement::TYPE_OPENING_BALANCE => 'Opening Balance',
+            \App\Models\CustomerSettlement::TYPE_LOCATION_FEE    => 'Location Fee',
+            \App\Models\CustomerSettlement::TYPE_PAYMENT         => 'Payment',
+            \App\Models\CustomerSettlement::TYPE_WAIVER          => 'Waiver',
+            \App\Models\CustomerSettlement::TYPE_ADJUSTMENT      => 'Adjustment',
+        ][$type] ?? ($type ?: '—');
+    }
+
+    /**
+     * Export one site's settlement ledger (Payment History) to .xlsx.
+     * Money columns are numeric major-currency units so Excel can sum/sort.
+     */
+    public function settlementsExportExcel($id)
+    {
+        $ledger = $this->buildSettlementLedger($id);
+
+        $operatorCountry = auth()->user()->operator?->country;
+        $divisor = pow(10, $operatorCountry?->currency_exponent ?? 2);
+
+        $rows = collect($ledger['rows'])->map(function ($r) use ($divisor) {
+            return [
+                'Ref'         => $r['reference_no'],
+                'Date'        => $r['entry_date'],
+                'Type'        => $this->settlementTypeLabel($r['entry_type']),
+                'Description' => $r['item'],
+                'Debit'       => $r['debit_cents'] ? round($r['debit_cents'] / $divisor, 2) : null,
+                'Credit'      => $r['credit_cents'] ? round($r['credit_cents'] / $divisor, 2) : null,
+                'Balance'     => round($r['balance_cents'] / $divisor, 2),
+                'Remarks'     => $r['remarks'],
+                'Recorded By' => $r['created_by'],
+            ];
+        });
+
+        // Closing balance row (blank money cells except Balance).
+        $rows->push([
+            'Ref' => '', 'Date' => '', 'Type' => '',
+            'Description' => $ledger['outstanding_cents'] < 0 ? 'CREDIT BALANCE' : 'OUTSTANDING BALANCE',
+            'Debit' => null, 'Credit' => null,
+            'Balance' => round($ledger['outstanding_cents'] / $divisor, 2),
+            'Remarks' => '', 'Recorded By' => '',
+        ]);
+
+        $fileName = 'PaymentHistory_' . $ledger['ref_id'] . '_' . now()->format('YmdHis') . '.xlsx';
+
+        return (new FastExcel($rows))->download($fileName);
+    }
+
+    /**
+     * Printable Statement-of-Account view of one site's settlement ledger.
+     * Returns a self-contained HTML page that auto-opens the browser print
+     * dialog (Save as PDF) — no server-side PDF dependency required.
+     */
+    public function settlementsPrintView($id)
+    {
+        $ledger = $this->buildSettlementLedger($id);
+
+        $operatorCountry = auth()->user()->operator?->country;
+        $divisor = pow(10, $operatorCountry?->currency_exponent ?? 2);
+        $symbol = $operatorCountry?->currency_symbol ?? '$';
+
+        return response()->view('exports.settlement-statement', [
+            'ledger'   => $ledger,
+            'divisor'  => $divisor,
+            'symbol'   => $symbol,
+            'company'  => auth()->user()->operator?->name ?? config('app.name', 'Happy Ice'),
+            'typeLabel' => fn ($t) => $this->settlementTypeLabel($t),
+            'generatedAt' => now(),
+        ]);
     }
 
     public function edit(Request $request, $id)
