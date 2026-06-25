@@ -2619,14 +2619,53 @@ class CustomerController extends Controller
     }
 
     /**
-     * For machine-split rows (rows carrying their own vend_id from a mid-month
-     * machine swap), resolve the machine's code and flag the swapped-in row(s).
-     *   - machine_vend: ['id','code'] for the row's machine, or null on
-     *     whole-month rows (Vue then falls back to the site's current vend).
+     * Machine binding history for a SITE (customer) — drives the clock-icon
+     * popup on the Site Summary. Lists every machine ever bound/unbound to the
+     * site, newest first, with the vend_code, prefix, action and timestamp.
+     * Keyed on the customer (site), so a vend reused across sites only shows its
+     * stints at THIS site.
+     */
+    public function vendBindings($id)
+    {
+        $rows = \Illuminate\Support\Facades\DB::table('customer_vend_bindings as b')
+            ->leftJoin('vends as v', 'v.id', '=', 'b.vend_id')
+            ->leftJoin('vend_prefixes as vp', 'vp.id', '=', 'b.vend_prefix_id')
+            ->leftJoin('users as u', 'u.id', '=', 'b.user_id')
+            ->where('b.customer_id', $id)
+            ->orderByDesc('b.created_at')
+            ->get([
+                'v.code as vend_code',
+                'vp.name as vend_prefix',
+                'b.is_binding',
+                'b.created_at',
+                'u.name as user_name',
+            ]);
+
+        return response()->json([
+            'data' => $rows->map(fn ($b) => [
+                'vend_code' => $b->vend_code,
+                'vend_prefix' => $b->vend_prefix,
+                'is_binding' => (bool) $b->is_binding,
+                'created_at' => $b->created_at ? \Carbon\Carbon::parse($b->created_at)->format('Y-m-d H:i') : null,
+                'user' => $b->user_name,
+            ])->all(),
+        ]);
+    }
+
+    /**
+     * Per-row machine + freeze flags for the Site Summary.
+     *   - machine_vend: ['id','code'] of the machine attached DURING this row's
+     *     period — a split row uses its stored vend_id, every other row resolves
+     *     it from the append-only binding history at the row's period_end (so a
+     *     past row shows its historical machine, frozen). Null only if the site
+     *     never had a bound machine.
      *   - is_new_machine: true on a machine-split row whose machine differs from
-     *     the immediately-preceding row of the SAME (customer, year_month) — i.e.
-     *     the "New" label goes on the after-change row, never the first machine.
-     * One batched vend lookup; a no-op on pages without any machine split.
+     *     the previous row of the SAME (customer, year_month) — the "New" badge
+     *     goes on the after-change row, never the first machine.
+     *   - is_latest_row: the site's MOST-RECENT row (max period_start) = the
+     *     "Current" live row. Only this row stays hyperlinked + editable; older
+     *     rows are read-only/frozen.
+     * Two batched lookups (bindings + max-period); cheap, runs once per page.
      */
     protected function attachMachineSplitInfo($collection): void
     {
@@ -2634,35 +2673,93 @@ class CustomerController extends Controller
             return;
         }
 
-        $vendIds = $collection->pluck('vend_id')->filter()->unique()->values()->all();
-        $vendsById = empty($vendIds)
-            ? []
-            : \App\Models\Vend::query()->whereIn('id', $vendIds)->pluck('code', 'id')->all();
+        $customerIds = $collection->pluck('customer_id')->filter()->unique()->values()->all();
+        if (empty($customerIds)) {
+            foreach ($collection as $row) {
+                $row->machine_vend = null;
+                $row->is_new_machine = false;
+                $row->is_latest_row = false;
+            }
+            return;
+        }
 
-        // Previous machine per (customer_id, year_month), walking rows in
-        // period order so the FIRST machine of a month is never flagged "New".
+        // Absolute latest period per site → the live "Current" row.
+        $maxPeriodByCustomer = \App\Models\CustomerPeriodSummary::query()
+            ->whereIn('customer_id', $customerIds)
+            ->groupBy('customer_id')
+            ->selectRaw('customer_id, MAX(period_start) AS mx')
+            ->pluck('mx', 'customer_id')
+            ->map(fn ($v) => \Carbon\Carbon::parse($v)->toDateString())
+            ->all();
+
+        // Append-only bind history (is_binding=true) → the machine in effect on
+        // any date (carry-forward of the last bind on/before that date).
+        $bindsByCustomer = [];
+        \Illuminate\Support\Facades\DB::table('customer_vend_bindings')
+            ->whereIn('customer_id', $customerIds)
+            ->where('is_binding', true)
+            ->orderBy('customer_id')->orderBy('created_at')
+            ->get(['customer_id', 'vend_id', 'created_at'])
+            ->each(function ($r) use (&$bindsByCustomer) {
+                $bindsByCustomer[(int) $r->customer_id][] = [
+                    'date' => \Carbon\Carbon::parse($r->created_at)->startOfDay(),
+                    'vend' => (int) $r->vend_id,
+                ];
+            });
+        $vendAt = function (int $cid, $date) use ($bindsByCustomer) {
+            $found = null;
+            foreach ($bindsByCustomer[$cid] ?? [] as $b) {
+                if ($b['date']->lte($date)) {
+                    $found = $b['vend'];
+                } else {
+                    break; // ordered asc → no later bind applies
+                }
+            }
+            return $found;
+        };
+
+        // Resolve each row's machine id (stored vend_id, else by period_end).
+        $resolved = [];
+        foreach ($collection as $row) {
+            $cid = (int) $row->customer_id;
+            $vid = $row->vend_id !== null ? (int) $row->vend_id : null;
+            if ($vid === null && $row->period_end) {
+                $pe = $row->period_end instanceof \Carbon\Carbon
+                    ? $row->period_end->copy()->startOfDay()
+                    : \Carbon\Carbon::parse($row->period_end)->startOfDay();
+                $vid = $vendAt($cid, $pe);
+            }
+            $resolved[(int) $row->id] = $vid;
+        }
+
+        $allVids = collect($resolved)->filter()->unique()->values()->all();
+        $vendsById = empty($allVids)
+            ? []
+            : \App\Models\Vend::query()->whereIn('id', $allVids)->pluck('code', 'id')->all();
+
+        // Walk in period order so the FIRST machine of a month isn't "New".
         $prevVendByGroup = [];
-        // Make sure we evaluate in period order regardless of pagination order.
         $ordered = $collection->sortBy([
             ['customer_id', 'asc'],
             ['year_month', 'asc'],
             ['period_start', 'asc'],
         ]);
-
         foreach ($ordered as $row) {
-            $vid = $row->vend_id !== null ? (int) $row->vend_id : null;
+            $cid = (int) $row->customer_id;
+            $vid = $resolved[(int) $row->id] ?? null;
             $row->machine_vend = ($vid !== null && isset($vendsById[$vid]))
                 ? ['id' => $vid, 'code' => $vendsById[$vid]]
                 : null;
 
-            $groupKey = $row->customer_id . '|' . (optional($row->year_month)->toDateString() ?? (string) $row->year_month);
+            $groupKey = $cid . '|' . (optional($row->year_month)->toDateString() ?? (string) $row->year_month);
             $prev = $prevVendByGroup[$groupKey] ?? null;
             $row->is_new_machine = ($vid !== null && $prev !== null && $prev !== $vid);
-            // Track the latest machine seen for this group (only machine-split
-            // rows carry a vend_id; whole-month rows leave the group untouched).
             if ($vid !== null) {
                 $prevVendByGroup[$groupKey] = $vid;
             }
+
+            $ps = optional($row->period_start)->toDateString() ?? (string) $row->period_start;
+            $row->is_latest_row = isset($maxPeriodByCustomer[$cid]) && $ps === $maxPeriodByCustomer[$cid];
         }
     }
 

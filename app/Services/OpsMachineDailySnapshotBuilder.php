@@ -69,12 +69,15 @@ class OpsMachineDailySnapshotBuilder
         // Real per-machine L30d net VendEarning for this date, from gp_metrics.
         $earningByVend = self::l30dVendEarningByVend($day);
 
-        DB::transaction(function () use ($date, $now, $earningByVend, &$inserted) {
+        // Real per-machine stock-in value for completed jobs dated this day.
+        $stockByVend = self::stockInByVend($day);
+
+        DB::transaction(function () use ($date, $now, $earningByVend, $stockByVend, &$inserted) {
             DB::table(self::TABLE)->where('snapshot_date', $date)->delete();
 
             self::currentMachineQuery()
                 ->orderBy('vends.id')
-                ->chunk(1000, function ($rows) use ($date, $now, $earningByVend, &$inserted) {
+                ->chunk(1000, function ($rows) use ($date, $now, $earningByVend, $stockByVend, &$inserted) {
                     $payload = [];
                     foreach ($rows as $r) {
                         $payload[] = [
@@ -99,6 +102,7 @@ class OpsMachineDailySnapshotBuilder
                             'apk_ver' => $r->apk_ver,
                             'acb_rev' => $r->acb_rev,
                             'l30d_vend_earning_cents' => $earningByVend[$r->vend_id] ?? null,
+                            'stock_in_cents' => $stockByVend[$r->vend_id] ?? null,
                             'created_at' => $now,
                             'updated_at' => $now,
                         ];
@@ -188,5 +192,39 @@ class OpsMachineDailySnapshotBuilder
         }
 
         return $map;
+    }
+
+    /**
+     * Per-machine stock-in value (cents) for COMPLETED jobs dated $day —
+     * SUM(actual_qty * vend_channel.amount), the same definition the
+     * CustomerIndex / Site Summary "stock-in" figures use (vend_channels.amount
+     * is stored in cents). status >= 3 && <> 99 = a done, non-voided job.
+     *
+     * Keyed by the job item's vend_id so it can be stamped onto the matching
+     * snapshot row. ops_jobs keeps a real date, so this is accurate for past days
+     * too — which is what makes back-seeding genuine. DB::table bypasses the Vend
+     * scope (instance-wide by construction).
+     *
+     * @return array<int,int>  vend_id => stock-in cents
+     */
+    public static function stockInByVend(Carbon $day): array
+    {
+        $date = $day->toDateString();
+
+        return DB::table('ops_jobs as oj')
+            ->join('ops_job_items as oji', function ($j) {
+                $j->on('oji.ops_job_id', '=', 'oj.id')
+                    ->where('oji.status', '>=', 3)
+                    ->where('oji.status', '<>', 99);
+            })
+            ->join('ops_job_item_channels as ojic', 'ojic.ops_job_item_id', '=', 'oji.id')
+            ->join('vend_channels as vc', 'vc.id', '=', 'ojic.vend_channel_id')
+            ->where('oj.date', $date)
+            ->whereNotNull('oji.vend_id')
+            ->groupBy('oji.vend_id')
+            ->selectRaw('oji.vend_id AS vend_id, SUM(ojic.actual_qty * vc.amount) AS cents')
+            ->get()
+            ->mapWithKeys(fn ($r) => [(int) $r->vend_id => (int) $r->cents])
+            ->all();
     }
 }

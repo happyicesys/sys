@@ -245,6 +245,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Customer-level notes — edited inline on the Customer Summary page
         // (Customer Tag column). Mirrors products-availability.update-remarks.
         Route::post('/{id}/update-notes', [CustomerController::class, 'updateNotes'])->name('customers.update-notes');
+        // Machine binding history for a SITE — drives the clock-icon popup on the
+        // Site Summary (which machines were bound to this site, with timestamps).
+        Route::get('/{id}/vend-bindings', [CustomerController::class, 'vendBindings'])->name('customers.vend-bindings');
         // Customer-level "Remarks for Loc Fees" — edited inline on the
         // Customer Summary page (rightmost column). Same shape as
         // update-notes; standalone field, no unread tracking.

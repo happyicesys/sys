@@ -292,6 +292,10 @@ class CustomerPeriodSummaryResource extends JsonResource
             'vend_id' => $this->vend_id,
             'machine_vend' => $this->machine_vend ?? null,
             'is_new_machine' => (bool) ($this->is_new_machine ?? false),
+            // The site's most-recent ("Current") row. Only this row stays
+            // hyperlinked + editable (Site Name, Machine ID, Cust Note, Remarks);
+            // older rows render frozen/read-only. Set by attachMachineSplitInfo.
+            'is_latest_row' => (bool) ($this->is_latest_row ?? false),
             // Placement Contract Detail — completed months show the frozen
             // snapshot; the current month shows live contract terms.
             'contract_commission_type' => $contractType,

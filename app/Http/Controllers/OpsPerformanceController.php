@@ -61,6 +61,12 @@ class OpsPerformanceController extends Controller
     /** @var array<string,int> snapshot_date => frozen L30d net VendEarning cents */
     private array $vendEarnByDate = [];
 
+    /** @var array<string,int> snapshot_date => frozen daily stock-in cents (filtered sum) */
+    private array $stockInByDate = [];
+
+    /** Live stock-in cents for the anchor day (fallback before the 03:00 freeze). */
+    private ?int $anchorStockInCents = null;
+
     private int $kpiActiveTotal = 0;
 
     public function index(Request $request)
@@ -156,6 +162,12 @@ class OpsPerformanceController extends Controller
         $this->vendEarnByDate = $this->snapshotVendEarningByDate($f, $dayColumns);
         $this->monthlyVendEarnMap = $this->monthlyVendEarningMap($f, $monthColumns);
         $this->kpiActiveTotal = $activeTotal;
+
+        // Stock-in: frozen per-day value from the snapshot over the whole range
+        // (drives daily + monthly), plus a live figure for the anchor day which
+        // the 03:00 job hasn't frozen yet (mirrors the VendEarning fallback).
+        $this->stockInByDate = $this->snapshotStockInByDate($f, $rangeStart, $anchor);
+        $this->anchorStockInCents = $this->liveStockInForDate($f, $anchorKey);
 
         $kpis = $this->buildKpis($finByDate, $activeByDate, $dayColumns, $monthColumns, $anchorKey, $perMachine);
 
@@ -845,6 +857,60 @@ class OpsPerformanceController extends Controller
         }
         unset($row);
 
+        // Stock-in Value, $ — a per-day money row sitting directly under "Total
+        // Active Machines". Sourced from the frozen daily snapshot (stock_in_cents),
+        // with a live fallback for the not-yet-frozen anchor day. Averages divide by
+        // the full window (no-job days count as 0); a window with no frozen data at
+        // all stays null ("–") until the snapshot/seeder fills it.
+        $stockFor = function (string $date) use ($anchorKey) {
+            if (array_key_exists($date, $this->stockInByDate)) {
+                return $this->stockInByDate[$date];
+            }
+            return $date === $anchorKey ? $this->anchorStockInCents : null;
+        };
+        $windowAvg = function (array $dates) use ($stockFor): ?int {
+            $sum = 0;
+            $hasAny = false;
+            foreach ($dates as $d) {
+                $v = $stockFor($d);
+                if ($v !== null) {
+                    $hasAny = true;
+                    $sum += $v;
+                }
+            }
+            return $hasAny ? (int) round($sum / count($dates)) : null;
+        };
+
+        $stockDaily = [
+            'avg_l7d' => $windowAvg($this->lastNDates($dayColumns, 7)),
+            'avg_l30d' => $windowAvg($this->trailingDates($dayColumns[0]['date'], 30)),
+        ];
+        foreach ($dayColumns as $col) {
+            $stockDaily[$col['key']] = $stockFor($col['key']);
+        }
+
+        $stockMonthly = [];
+        foreach ($monthColumns as $col) {
+            $sum = 0;
+            $hasAny = false;
+            foreach ($this->datesBetween($col['start'], $col['end']) as $d) {
+                $v = $stockFor($d);
+                if ($v !== null) {
+                    $hasAny = true;
+                    $sum += $v;
+                }
+            }
+            $stockMonthly[$col['key']] = $hasAny ? $sum : null;
+        }
+
+        array_splice($rows, 1, 0, [[
+            'id' => 'stock_in',
+            'label' => 'Stock-in Value, $',
+            'format' => 'money',
+            'daily' => $stockDaily,
+            'monthly' => $stockMonthly,
+        ]]);
+
         return $rows;
     }
 
@@ -948,6 +1014,70 @@ class OpsPerformanceController extends Controller
         }
 
         return $out;
+    }
+
+    /**
+     * Frozen per-day stock-in value (cents) from the machine snapshot, summed over
+     * the machines in scope for each day in [$rangeStart, $anchor]. Only days a
+     * machine has a non-null stock_in_cents appear (the nightly job / seeder fill
+     * it); other days are absent and render as "–". Machine-status is intentionally
+     * NOT applied here (this is a financial figure, not a component count).
+     *
+     * @return array<string,int>  snapshot_date => stock-in cents
+     */
+    private function snapshotStockInByDate(array $f, Carbon $rangeStart, Carbon $anchor): array
+    {
+        $q = OpsMachineDailySnapshot::query()
+            ->whereBetween('snapshot_date', [$rangeStart->toDateString(), $anchor->toDateString()])
+            ->whereNotNull('stock_in_cents');
+        $this->applySnapshotFilters($q, $f);
+
+        $rows = $q->groupBy('snapshot_date')
+            ->selectRaw('snapshot_date, SUM(stock_in_cents) AS s')
+            ->get();
+
+        $out = [];
+        foreach ($rows as $r) {
+            $out[Carbon::parse($r->snapshot_date)->toDateString()] = (int) $r->s;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Live stock-in value (cents) for a single day, computed straight from the ops
+     * jobs the same way the snapshot freezes it (SUM(actual_qty * vc.amount) over
+     * COMPLETED jobs dated $date). Used as the anchor-day fallback before the 03:00
+     * job freezes it. Honours the same dimension filters; one day only, so cheap.
+     * Returns null when there are no completed jobs that day.
+     */
+    private function liveStockInForDate(array $f, string $date): ?int
+    {
+        $q = DB::table('ops_jobs as oj')
+            ->join('ops_job_items as oji', function ($j) {
+                $j->on('oji.ops_job_id', '=', 'oj.id')
+                    ->where('oji.status', '>=', 3)
+                    ->where('oji.status', '<>', 99);
+            })
+            ->join('ops_job_item_channels as ojic', 'ojic.ops_job_item_id', '=', 'oji.id')
+            ->join('vend_channels as vc', 'vc.id', '=', 'ojic.vend_channel_id')
+            ->leftJoin('vends as v', 'v.id', '=', 'oji.vend_id')
+            ->leftJoin('customers as c', 'c.id', '=', 'oji.customer_id')
+            ->where('oj.date', $date)
+            ->whereNotNull('oji.vend_id')
+            ->when($f['operatorIds'], fn ($x) => $x->whereIn('v.operator_id', $f['operatorIds']))
+            ->when($f['locationTypeIds'], fn ($x) => $x->whereIn('c.location_type_id', $f['locationTypeIds']))
+            ->when($f['vendPrefixIds'], fn ($x) => $x->whereIn('v.vend_prefix_id', $f['vendPrefixIds']))
+            ->when($f['vendModelIds'], fn ($x) => $x->whereIn('v.vend_model_id', $f['vendModelIds']))
+            ->when($f['categoryIds'], fn ($x) => $x->whereIn('c.category_id', $f['categoryIds']))
+            ->when($f['vendIds'], fn ($x) => $x->whereIn('oji.vend_id', $f['vendIds']))
+            ->when($f['customerIds'], fn ($x) => $x->whereIn('oji.customer_id', $f['customerIds']))
+            ->when($f['siteStatusIds'] ?? [], fn ($x) => $x->whereIn('c.status_id', $f['siteStatusIds']))
+            ->when(! empty($f['testingVendIds']), fn ($x) => $x->whereNotIn('oji.vend_id', $f['testingVendIds']));
+
+        $cents = $q->selectRaw('SUM(ojic.actual_qty * vc.amount) AS cents')->value('cents');
+
+        return $cents === null ? null : (int) $cents;
     }
 
     /**

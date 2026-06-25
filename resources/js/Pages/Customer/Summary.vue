@@ -756,13 +756,20 @@
                     :frozen="true" :frozenLeft="canLock ? '90px' : '50px'"
                     :inputClass="`text-left w-[170px] min-w-[170px] border-r-2 border-gray-500 ${customerGroupIndex(rowIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`">
                     <div class="flex flex-col space-y-0.5" v-if="row.customer">
-                      <a target="_blank" :href="'/customers/' + row.customer.id + '/edit'"
+                      <!-- Site Name links to Edit only on the Current (latest)
+                           row; older rows are frozen plain text. -->
+                      <a v-if="row.is_latest_row" target="_blank" :href="'/customers/' + row.customer.id + '/edit'"
                         :class="[row.customer.person_id ? 'text-blue-700' : 'text-purple-700']"
                       >
                         <span class="font-medium">{{ refIdFor(row.customer) }}</span>
                         <br />
                         {{ row.customer.name }}
                       </a>
+                      <span v-else :class="[row.customer.person_id ? 'text-blue-900' : 'text-purple-900']">
+                        <span class="font-medium">{{ refIdFor(row.customer) }}</span>
+                        <br />
+                        {{ row.customer.name }}
+                      </span>
                       <div class="flex flex-wrap items-center gap-1 mt-0.5">
                         <!--
                           Site Status badge — customers.status_id resolved to
@@ -883,6 +890,21 @@
                       >
                         No Contract
                       </span>
+                      <!--
+                        Machine binding-history button (once per site, at the
+                        bottom of the Site column) — yellow clock icon, opens a
+                        popup of every machine bound to THIS site with timestamps.
+                        Site-scoped, not machine-scoped.
+                      -->
+                      <button
+                        v-if="isFirstRowForCustomer(rowIndex) && row.customer?.id"
+                        type="button"
+                        @click.prevent="openBindingHistory(row.customer)"
+                        class="inline-flex items-center justify-center rounded bg-yellow-400 hover:bg-yellow-500 text-gray-800 p-0.5 mt-1 w-fit h-fit border border-yellow-500"
+                        v-tooltip="'Machine binding history'"
+                      >
+                        <ClockIcon class="h-4 w-4" aria-hidden="true" />
+                      </button>
                     </div>
                   </TableData>
 
@@ -921,7 +943,10 @@
                     -->
                     <template v-if="row.machine_vend">
                       <span class="inline-flex items-center gap-1">
+                        <!-- Hyperlink only on the Current (latest) row; older
+                             rows show the machine FROZEN as plain text. -->
                         <a
+                          v-if="row.is_latest_row"
                           target="_blank"
                           :href="'/vends/customers?codes=' + encodeURIComponent(row.machine_vend.code)"
                           class="text-blue-700 hover:underline"
@@ -929,6 +954,7 @@
                         >
                           {{ row.machine_vend.code }}
                         </a>
+                        <span v-else class="text-gray-900" v-tooltip="'Machine attached during this period (frozen)'">{{ row.machine_vend.code }}</span>
                         <span
                           v-if="row.is_new_machine"
                           class="inline-flex items-center rounded px-1 py-0 text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300"
@@ -962,18 +988,6 @@
                       </a>
                       <span v-else-if="row.customer?.vend">{{ row.customer.vend.code }}</span>
                     </template>
-                    <!--
-                      Binding history — small link (once per site) to the machine
-                      binding history on the Edit page (lists every machine ever
-                      bound, incl. unbound ones with dates).
-                    -->
-                    <a
-                      v-if="isFirstRowForCustomer(rowIndex) && row.customer?.id"
-                      target="_blank"
-                      :href="'/customers/' + row.customer.id + '/edit'"
-                      class="block text-[9px] text-gray-400 hover:text-gray-600 hover:underline mt-0.5"
-                      v-tooltip="'View this site\'s machine binding history'"
-                    >history</a>
                   </TableData>
 
                   <!-- Prefix -->
@@ -1343,7 +1357,10 @@
                         line below shows who last edited and when.
                       -->
                       <div class="mt-2 flex flex-col w-full">
+                        <!-- Editable only on the Current (latest) row; older
+                             rows show the note read-only/frozen. -->
                         <MentionTextarea
+                          v-if="row.is_latest_row"
                           :model-value="row.customer.notes"
                           @update:model-value="row.customer.notes = $event"
                           @change="onNotesChanged(row.customer)"
@@ -1353,6 +1370,7 @@
                           placeholder="Notes"
                           textarea-class="text-[13px] text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none overflow-hidden"
                         />
+                        <div v-else class="text-[13px] text-gray-600 whitespace-pre-wrap" v-tooltip="'Read-only — edit on the Current row'">{{ row.customer.notes || '—' }}</div>
                         <span class="text-[10px] text-gray-500 mt-1" v-if="row.customer?.notes_updated_by_user">
                           {{ row.customer.notes_updated_by_user.name }} ({{ moment(row.customer.notes_updated_at).format('YYMMDD hh:mma') }})
                         </span>
@@ -1607,7 +1625,10 @@
                         shows who last edited and when. Saved on blur via
                         onLocFeeRemarksChanged. No unread tracking.
                       -->
-                      <div class="mt-1 flex flex-col w-full text-left">
+                      <!-- Shown only ONCE per Site, on the Current (latest)
+                           row — like the Site Note. Older / historical period
+                           rows do not repeat the remarks. -->
+                      <div v-if="row.is_latest_row" class="mt-1 flex flex-col w-full text-left">
                         <MentionTextarea
                           :model-value="row.customer.loc_fee_remarks"
                           @update:model-value="row.customer.loc_fee_remarks = $event"
@@ -2045,6 +2066,44 @@
         </div>
       </template>
     </Modal>
+
+    <!-- Machine binding history popup (per site) -->
+    <Modal :open="bindingHistoryOpen" @modalClose="bindingHistoryOpen = false">
+      <template #header>
+        <span>Machine Binding History — {{ bindingHistorySite }}</span>
+      </template>
+      <div class="text-left">
+        <div v-if="bindingHistoryLoading" class="text-sm text-gray-500 py-4 text-center">Loading…</div>
+        <div v-else-if="!bindingHistory.length" class="text-sm text-gray-500 py-4 text-center">
+          No machine binding history for this site.
+        </div>
+        <table v-else class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-gray-500 border-b">
+              <th class="py-1 pr-3">Date / Time</th>
+              <th class="py-1 pr-3">Action</th>
+              <th class="py-1 pr-3">Machine ID</th>
+              <th class="py-1 pr-3">Prefix</th>
+              <th class="py-1">By</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(b, i) in bindingHistory" :key="i" class="border-b last:border-0">
+              <td class="py-1 pr-3 whitespace-nowrap">{{ b.created_at || '—' }}</td>
+              <td class="py-1 pr-3">
+                <span
+                  class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border"
+                  :class="b.is_binding ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-700 border-red-300'"
+                >{{ b.is_binding ? 'Bound' : 'Unbound' }}</span>
+              </td>
+              <td class="py-1 pr-3 font-medium">{{ b.vend_code || '—' }}</td>
+              <td class="py-1 pr-3">{{ b.vend_prefix || '—' }}</td>
+              <td class="py-1 text-gray-600">{{ b.user || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Modal>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -2057,7 +2116,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, ClockIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import MentionTextarea from '@/Components/MentionTextarea.vue';
@@ -3107,6 +3166,31 @@ function resetFilters() {
 // dedicated endpoint, then router.reload only the `summaries` prop so
 // the audit line (last updated by / at) refreshes without resetting the
 // rest of the page state (filters, scroll, etc.).
+// ── Machine binding history popup (per site) ──────────────────────────────
+const bindingHistoryOpen = ref(false);
+const bindingHistoryLoading = ref(false);
+const bindingHistory = ref([]);
+const bindingHistorySite = ref('');
+
+function openBindingHistory(customer) {
+  if (!customer?.id) return;
+  bindingHistorySite.value = (refIdFor(customer) || '') + (customer.name ? ' · ' + customer.name : '');
+  bindingHistory.value = [];
+  bindingHistoryLoading.value = true;
+  bindingHistoryOpen.value = true;
+  axios.get('/customers/' + customer.id + '/vend-bindings')
+    .then((res) => {
+      bindingHistory.value = res.data?.data ?? [];
+    })
+    .catch((error) => {
+      console.error('Error loading binding history:', error);
+      bindingHistory.value = [];
+    })
+    .finally(() => {
+      bindingHistoryLoading.value = false;
+    });
+}
+
 function onNotesChanged(customer) {
   if (!customer?.id) return;
   axios.post('/customers/' + customer.id + '/update-notes', {
