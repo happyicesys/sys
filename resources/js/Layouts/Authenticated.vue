@@ -504,7 +504,14 @@ function isSubItemActive(item, subItem) {
             </div>
 
             <!-- <div class="flex-auto mx-auto"> -->
-            <div class="md:w-5/6 xl:w-10/12 2xl:w-11/12">
+            <!-- flex-1 + min-w-0 so the content column fills the space LEFT by the
+                 sidebar instead of claiming a fixed fraction of the FULL width.
+                 The old fractional widths overflowed at 2xl (1536–2304px): the
+                 sidebar's min-w-48 (192px) exceeds its w-1/12 basis, yet the
+                 content kept w-11/12 of the full width, so the two summed past
+                 100% and pushed a body-level horizontal scrollbar. min-w-0 also
+                 lets wide tables scroll inside their own container. -->
+            <div class="md:flex-1 min-w-0">
                 <!-- Page Heading -->
                 <header class="bg-white shadow flex justify-between" v-if="$slots.header">
                     <span class="md:hidden">

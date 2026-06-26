@@ -37,16 +37,18 @@ use Illuminate\Support\Facades\DB;
  *     becomes its FIRST ledger entry (everything before May was paid/recorded
  *     in CMS).
  *
- *  3) BACKFILL PRE-FEATURE PAYMENTS — the "record amount → post a ledger credit"
- *     logic only shipped 2026-06-25 (commit f075b9a). Periods marked Paid BEFORE
- *     that date flipped is_paid = true but never wrote a settlement credit, so
- *     their Payment History shows the location-fee DEBIT with no offsetting
- *     payment (still "outstanding"). This phase posts the missing credit for each
+ *  3) RECONCILE PAID PERIODS WITHOUT A CREDIT — any period marked Paid that
+ *     carries no offsetting settlement credit shows the location-fee DEBIT with
+ *     no payment, so Payment History still reads "outstanding". This happens for
+ *     periods paid before the credit-posting logic shipped (2026-06-25, commit
+ *     f075b9a) AND for periods paid after it whose credit was never written
+ *     anyway — e.g. Paid clicked on deploy day before the build went live, or
+ *     Paid recorded with a 0 amount. This phase posts the missing credit for each
  *     such period, sized to its matching location_fee DEBIT so the period nets to
  *     zero (the "paid in full" intent). Periods with no matching debit (fee was
  *     folded into the opening balance, or not yet accrued) are skipped — never a
- *     phantom credit. Periods paid on/after 2026-06-25 already wrote their own
- *     credit and are not touched.
+ *     phantom credit. Periods that ALREADY carry a paid-action credit are skipped
+ *     (idempotent — the precise guard, not a date cutoff).
  *
  * Idempotency: phase 1 UPSERTS the opening_balance row (one per site, updated
  * in place on re-run — never duplicated); phase 2's command skips sites that
@@ -70,9 +72,11 @@ class SeedInitialSettlementsSeeder extends Seeder
      *  from here on; anything earlier was settled inside the opening balance. */
     private const FIRST_ACCRUAL_MONTH_DATE = '2026-05-01';
 
-    /** Date the Paid-action credit logic shipped (commit f075b9a). Periods marked
-     *  Paid BEFORE this never got a ledger credit and are what phase 3 backfills;
-     *  periods paid on/after already wrote their own credit. */
+    /** Date the Paid-action credit logic shipped (commit f075b9a). Kept for
+     *  reference only — phase 3 no longer gates on it (it reconciles ANY paid
+     *  period missing a credit, using the precise alreadyCredited guard instead),
+     *  because paids around the deploy boundary or recorded with a 0 amount also
+     *  ended up without a credit. */
     private const PAID_CREDIT_FEATURE_DATE = '2026-06-25';
 
     // "since 240531, owe $1,247.63" — case-insensitive, tolerant of spacing,
@@ -227,8 +231,8 @@ class SeedInitialSettlementsSeeder extends Seeder
     }
 
     /**
-     * Phase 3 — backfill payment/waiver credits for periods marked Paid BEFORE
-     * the credit-posting feature shipped (PAID_CREDIT_FEATURE_DATE).
+     * Phase 3 — reconcile payment/waiver credits for ANY period marked Paid that
+     * is missing its offsetting ledger credit (regardless of when it was paid).
      *
      * Runs AFTER phase 2 so the location_fee debits it matches against already
      * exist. Credits are posted per customer/month (machine-split segments share
@@ -239,17 +243,22 @@ class SeedInitialSettlementsSeeder extends Seeder
     private function backfillPreFeaturePayments(bool $dryRun): void
     {
         $this->command?->info(
-            'Phase 3 — backfilling pre-' . self::PAID_CREDIT_FEATURE_DATE
-            . ' Paid periods that never got a ledger credit …'
+            'Phase 3 — reconciling Paid periods that never got a ledger credit …'
         );
 
-        // Candidate periods: actually Paid, in the ledger window (May onward),
-        // and flipped Paid before the credit feature existed.
+        // Candidate periods: every period actually marked Paid in the ledger
+        // window (May onward). We deliberately do NOT gate on paid_at date — a
+        // period can be missing its credit whether it was paid before the
+        // credit feature shipped OR after (e.g. Paid clicked on the deploy day
+        // before the build went live, or Paid recorded with a 0 amount). The
+        // precise "did this period already get a credit?" check below
+        // (alreadyCredited) is what keeps re-runs from double-crediting, so a
+        // datetime cutoff here would only ever miss legitimately-uncredited
+        // paids — exactly the bug this reconciler exists to heal.
         $periods = CustomerPeriodSummary::query()
             ->whereNotNull('paid_at')
             ->where('is_paid', true)
             ->where('year_month', '>=', self::FIRST_ACCRUAL_MONTH_DATE)
-            ->where('paid_at', '<', self::PAID_CREDIT_FEATURE_DATE . ' 00:00:00')
             ->get([
                 'id', 'customer_id', 'operator_id', 'year_month',
                 'paid_at', 'paid_date', 'paid_by', 'is_waived', 'waived_remarks',
@@ -367,7 +376,7 @@ class SeedInitialSettlementsSeeder extends Seeder
                     'new_amount_cents'       => $debitCents,
                     'note'                   => ($isWaived ? 'Waiver' : 'Payment')
                         . ' backfilled for ' . ($monthLabel ?: 'period')
-                        . ' (pre-' . self::PAID_CREDIT_FEATURE_DATE . ' Paid action, no credit recorded at the time)',
+                        . ' (period was marked Paid but no ledger credit was recorded at the time)',
                     'changed_by'             => $g['paid_by'],
                     'source'                 => CustomerSettlement::SOURCE_PAID_ACTION,
                 ]);
