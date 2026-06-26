@@ -87,6 +87,14 @@ class CustomerPeriodSummaryResource extends JsonResource
                 : \Carbon\Carbon::parse($this->period_end);
         }
 
+        // A MACHINE-SPLIT row (mid-month vend swap) carries a vend_id and covers
+        // only part of the month (period_start..period_end). Its flat fee must
+        // prorate over the SEGMENT's days, not the whole calendar month — see
+        // rowFlatDayRatio. Whole-month rows store vend_id = null. (Contract-change
+        // segments carry contract_log_id and keep their stored value below, so
+        // they never reach the live re-derivation that uses this ratio.)
+        $isMachineSplit = $this->vend_id !== null;
+
         // Flat-fee proration ratio for this row's month, from the live active
         // window — mirrors the aggregator so an unlocked row shows the same
         // prorated fee the nightly run would store. $flatDayRatio is the
@@ -97,17 +105,26 @@ class CustomerPeriodSummaryResource extends JsonResource
         $flatDayRatioFull = 1.0;
         if ($monthStart && $this->relationLoaded('customer') && $this->customer) {
             $activeDate = $this->customer->active_date ?? $this->customer->begin_date;
-            $flatDayRatioFull = \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+            $flatDayRatioFull = \App\Services\CustomerSummaryAggregator::rowFlatDayRatio(
                 $activeDate,
                 $this->customer->removed_date,
-                $monthStart
+                $monthStart,
+                null,
+                $isMachineSplit,
+                $isCurrentMonth,
+                $this->period_start,
+                $this->period_end
             );
             $flatDayRatio = $toDateAsOf
-                ? \App\Services\CustomerSummaryAggregator::computeActiveDayRatio(
+                ? \App\Services\CustomerSummaryAggregator::rowFlatDayRatio(
                     $activeDate,
                     $this->customer->removed_date,
                     $monthStart,
-                    $toDateAsOf
+                    $toDateAsOf,
+                    $isMachineSplit,
+                    $isCurrentMonth,
+                    $this->period_start,
+                    $this->period_end
                 )
                 : $flatDayRatioFull;
         }
@@ -363,6 +380,12 @@ class CustomerPeriodSummaryResource extends JsonResource
             'vend_id' => $this->vend_id,
             'machine_vend' => $this->machine_vend ?? null,
             'is_new_machine' => (bool) ($this->is_new_machine ?? false),
+            // True on the PREVIOUS (swapped-out) segment of a mid-month machine
+            // replacement — its period_end is the swap boundary (last billable
+            // day on that machine). Drives the red period-end highlight on the
+            // Summary page, mirroring the removal-date styling. Set by
+            // CustomerController::attachMachineSplitInfo().
+            'is_replaced_machine' => (bool) ($this->is_replaced_machine ?? false),
             // The site's most-recent ("Current") row. Only this row stays
             // hyperlinked + editable (Site Name, Machine ID, Cust Note, Remarks);
             // older rows render frozen/read-only. Set by attachMachineSplitInfo.

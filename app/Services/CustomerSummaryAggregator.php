@@ -226,6 +226,56 @@ class CustomerSummaryAggregator
     }
 
     /**
+     * Flat-fee proration ratio for a stored summary ROW, segment-aware.
+     *
+     * A whole-month row prorates the flat fee over the site's full active
+     * window (computeActiveDayRatio). A MACHINE-SPLIT row (mid-month vend swap —
+     * vend_id set, contract_log_id null) covers only PART of the month
+     * (period_start..period_end), so re-deriving it live with the whole-month
+     * window would bill EACH segment a full month's flat fee. This clamps the
+     * active window to the segment's own days before delegating:
+     *
+     *   - activeDate is pushed forward to the segment's period_start, so the
+     *     leading segment of a swap doesn't reach back to the 1st.
+     *   - a NON-current (completed) segment bills only through its own
+     *     period_end — the next machine owns the following days — so the
+     *     removal (EXCLUSIVE) is capped at period_end + 1.
+     *   - the CURRENT (last) segment keeps the site's real removed date so its
+     *     flat charge runs to month-end, then $asOf trims it to-date exactly
+     *     like a whole-month current row.
+     *
+     * The segment bounds are INTERSECTED with the site's real active/removed
+     * dates, so an activation- or removal-month split still prorates correctly.
+     * Contract-change segments (contract_log_id set) keep their stored value and
+     * never call this. $isMachineSplit false → identical to computeActiveDayRatio.
+     */
+    public static function rowFlatDayRatio(
+        $activeDate,
+        $removedDate,
+        CarbonInterface $monthStart,
+        $asOf,
+        bool $isMachineSplit,
+        bool $isCurrentMonth,
+        $periodStart,
+        $periodEnd
+    ): float {
+        if ($isMachineSplit && $periodStart) {
+            $segStart = Carbon::parse($periodStart)->startOfDay();
+            if (!$activeDate || Carbon::parse($activeDate)->startOfDay()->lt($segStart)) {
+                $activeDate = $segStart;
+            }
+            if (!$isCurrentMonth && $periodEnd) {
+                $segRemovedExcl = Carbon::parse($periodEnd)->startOfDay()->addDay();
+                if (!$removedDate || Carbon::parse($removedDate)->startOfDay()->gt($segRemovedExcl)) {
+                    $removedDate = $segRemovedExcl;
+                }
+            }
+        }
+
+        return self::computeActiveDayRatio($activeDate, $removedDate, $monthStart, $asOf);
+    }
+
+    /**
      * Number of days in $monthStart's calendar month that the site was ACTIVE,
      * derived from its FULL status-change history (customer_status_logs) so that
      * MULTIPLE active intervals in a month are summed correctly — e.g. a site

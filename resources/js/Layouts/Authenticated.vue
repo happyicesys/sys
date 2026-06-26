@@ -66,6 +66,17 @@ const navigation = computed(() => [
         ]
     },
     {
+        name: 'Refunds',
+        icon: TicketIcon,
+        current: false,
+        href: 'refunds.index',
+        permission: 'read refunds',
+        tagline: null,
+        children: [
+            {name: 'Refund Requests', href: '/refunds', permission: 'read refunds'},
+        ]
+    },
+    {
         name: 'Daily Jobs',
         icon: ArrowsPointingInIcon,
         current: false,

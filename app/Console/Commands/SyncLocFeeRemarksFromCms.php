@@ -34,6 +34,7 @@ class SyncLocFeeRemarksFromCms extends Command
         {--apply : Persist changes. Without this flag the command only previews.}
         {--customer= : Limit to a single customer id (for testing).}
         {--limit= : Process at most N customers.}
+        {--gst-divisor=1.09 : Divide the CMS owe by this to strip GST (CMS figures are GST-inclusive). Set to 1 to keep gross.}
         {--clear-when-no-owe : Blank out loc_fee_remarks for sites with zero owe (default: leave untouched).}';
 
     protected $description = 'Fill Site Summary "Remarks for Loc Fees" from CMS outstanding-invoice (Owe) data for Active, CMS-linked sites.';
@@ -42,6 +43,14 @@ class SyncLocFeeRemarksFromCms extends Command
     {
         $apply = (bool) $this->option('apply');
         $clearWhenNoOwe = (bool) $this->option('clear-when-no-owe');
+
+        // CMS "Total Owe" is GST-inclusive; we store the GST-EXCLUDED figure in
+        // the note (and therefore in the settlement opening balance). Default
+        // divisor 1.09 = 9% GST. Guard against a 0/blank that would divide-by-zero.
+        $gstDivisor = (float) $this->option('gst-divisor');
+        if ($gstDivisor <= 0) {
+            $gstDivisor = 1.0;
+        }
 
         if (!config('app.cms_url')) {
             $this->error('CMS_URL is not configured; nothing to do.');
@@ -67,7 +76,7 @@ class SyncLocFeeRemarksFromCms extends Command
             return self::SUCCESS;
         }
 
-        $this->info(($apply ? 'APPLY' : 'DRY-RUN') . ' — ' . $customers->count() . ' Active CMS-linked site(s).');
+        $this->info(($apply ? 'APPLY' : 'DRY-RUN') . ' — ' . $customers->count() . ' Active CMS-linked site(s). GST divisor: ' . rtrim(rtrim(number_format($gstDivisor, 2), '0'), '.') . ' (note amount is GST-excluded).');
         if (!$apply) {
             $this->comment('No changes will be written. Re-run with --apply to persist.');
         }
@@ -116,7 +125,9 @@ class SyncLocFeeRemarksFromCms extends Command
                 continue;
             }
 
-            $remark = 'since ' . Carbon::parse($oldest)->format('ymd') . ', owe $' . $this->money($totalOwe);
+            // Strip GST from the CMS (gross) figure before writing the note.
+            $netOwe = round($totalOwe / $gstDivisor, 2);
+            $remark = 'since ' . Carbon::parse($oldest)->format('ymd') . ', owe $' . number_format($netOwe, 2);
 
             $action = ($c->loc_fee_remarks === $remark) ? 'unchanged' : 'WRITE';
             if ($apply && $action === 'WRITE') {
@@ -124,14 +135,16 @@ class SyncLocFeeRemarksFromCms extends Command
                 $written++;
             }
 
-            $rows[] = [$c->id, $label, $c->person_id, Carbon::parse($oldest)->format('ymd'), $this->money($totalOwe), $action . ' → "' . $remark . '"'];
+            // Preview shows gross (matches the CMS page) → net (what we store).
+            $oweCell = $this->money($totalOwe) . ' → ' . number_format($netOwe, 2);
+            $rows[] = [$c->id, $label, $c->person_id, Carbon::parse($oldest)->format('ymd'), $oweCell, $action . ' → "' . $remark . '"'];
         }
 
         $bar->finish();
         $this->newLine(2);
 
         $this->table(
-            ['Cust ID', 'Site', 'person_id', 'Oldest (ymd)', 'Total Owe', 'Action / Remark'],
+            ['Cust ID', 'Site', 'person_id', 'Oldest (ymd)', 'Owe gross→net', 'Action / Remark'],
             $rows
         );
 

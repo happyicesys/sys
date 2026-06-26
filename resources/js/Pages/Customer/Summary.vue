@@ -207,7 +207,7 @@
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
           <div class="mt-3">
-            <div class="flex space-x-1">
+            <div class="flex flex-col space-y-1 md:flex-row md:space-y-0 md:space-x-1">
               <Button
                 class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600"
                 @click="onSearchFilterUpdated"
@@ -355,76 +355,115 @@
           income (negative cents) is visually distinct from expense. Vend
           Earnings flips red when the result is net-negative.
         -->
-        <dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Sales</dt>
-            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-              {{ formatMoney(totals.sales_cents) }}
-            </dd>
-          </div>
-          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Gross Earning</dt>
-            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-              {{ formatMoney(totals.gross_earning_cents) }}
-            </dd>
-          </div>
-          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Location Fees</dt>
-            <dd
-              class="mt-1 text-2xl font-semibold tracking-normal"
-              :class="(totals.location_fees_cents || 0) < 0 ? 'text-emerald-700' : 'text-gray-900'"
-            >
-              {{ formatMoneySigned(totals.location_fees_cents) }}
-            </dd>
-            <p v-if="totals.has_to_date_proration" class="mt-0.5 text-[10px] text-sky-700">
-              Current month accrued to date
-            </p>
-          </div>
-          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Vend Earnings</dt>
-            <dd
-              class="mt-1 text-2xl font-semibold tracking-normal"
-              :class="(totals.location_earning_cents || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
-            >
-              {{ formatMoney(totals.location_earning_cents) }}
-            </dd>
-            <p v-if="totals.has_to_date_proration" class="mt-0.5 text-[10px] text-sky-700">
-              Current month accrued to date
-            </p>
-          </div>
+        <!--
+          Two-section totals row. LEFT holds the live aggregate cards (Sales /
+          Gross / Location Fees / Vend Earnings + the two count cards),
+          EXCLUDING Total Outstanding. RIGHT groups the settlement-side figures
+          under a "Payment to Loc Fees" panel styled like the Ops dashboard
+          KPI blocks: bordered card, header bar, stacked line items.
+        -->
+        <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <!--
-            Total Outstanding — what we owe site owners across the same
-            filtered set (sum of the per-site settlement balances). Rose when
-            we owe, neutral when fully settled. Starts the second card row.
+            LEFT: current aggregate totals (excl Total Outstanding) grouped into
+            a SINGLE panel (mirrors the right "Payment to Loc Fees" card). The
+            six metrics sit in an internal grid divided by light separators.
           -->
-          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Outstanding</dt>
-            <dd
-              class="mt-1 text-2xl font-semibold tracking-normal"
-              :class="(totals.outstanding_cents || 0) > 0 ? 'text-rose-700' : 'text-gray-900'"
-            >
-              {{ formatMoney(totals.outstanding_cents) }}
-            </dd>
-            <dd class="mt-0.5 text-xs italic text-gray-400">owed to site owners</dd>
+          <div class="lg:col-span-2 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-200 bg-gray-700 px-4 py-1.5">
+              <h3 class="text-sm font-semibold text-white">Aggregate Totals</h3>
+            </div>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y divide-gray-100 sm:divide-y-0">
+              <div class="px-4 py-2 sm:border-b sm:border-gray-100 sm:border-r">
+                <dt class="truncate text-xs font-medium text-gray-500">Total Sales</dt>
+                <dd class="mt-0.5 text-lg font-semibold tracking-normal text-gray-900">
+                  {{ formatMoney(totals.sales_cents) }}
+                </dd>
+              </div>
+              <div class="px-4 py-2 sm:border-b sm:border-gray-100 lg:border-r">
+                <dt class="truncate text-xs font-medium text-gray-500">Total Gross Earning</dt>
+                <dd class="mt-0.5 text-lg font-semibold tracking-normal text-gray-900">
+                  {{ formatMoney(totals.gross_earning_cents) }}
+                </dd>
+              </div>
+              <div class="px-4 py-2 sm:border-b sm:border-gray-100 sm:border-r lg:border-r-0">
+                <dt class="truncate text-xs font-medium text-gray-500">Total Location Fees</dt>
+                <dd
+                  class="mt-0.5 text-lg font-semibold tracking-normal"
+                  :class="(totals.location_fees_cents || 0) < 0 ? 'text-emerald-700' : 'text-gray-900'"
+                >
+                  {{ formatMoneySigned(totals.location_fees_cents) }}
+                </dd>
+                <p v-if="totals.has_to_date_proration" class="text-[10px] text-sky-700">
+                  Current month accrued to date
+                </p>
+              </div>
+              <div class="px-4 py-2 sm:border-r">
+                <dt class="truncate text-xs font-medium text-gray-500">Total Vend Earnings</dt>
+                <dd
+                  class="mt-0.5 text-lg font-semibold tracking-normal"
+                  :class="(totals.location_earning_cents || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
+                >
+                  {{ formatMoney(totals.location_earning_cents) }}
+                </dd>
+                <p v-if="totals.has_to_date_proration" class="text-[10px] text-sky-700">
+                  Current month accrued to date
+                </p>
+              </div>
+              <!--
+                Distinct-customer counts scoped to the same filtered customer
+                set as the money totals above.
+              -->
+              <div class="px-4 py-2 lg:border-r">
+                <dt class="truncate text-xs font-medium text-gray-500"># without Contract Attachment</dt>
+                <dd class="mt-0.5 text-lg font-semibold tracking-normal text-gray-900">
+                  {{ totals.no_contract_attachment_count || 0 }}
+                </dd>
+              </div>
+              <div class="px-4 py-2">
+                <dt class="truncate text-xs font-medium text-gray-500"># To Be Expired in 30ds</dt>
+                <dd class="mt-0.5 text-lg font-semibold tracking-normal text-gray-900">
+                  {{ totals.expiring_in_30d_count || 0 }}
+                </dd>
+                <dd class="text-[10px] italic text-gray-400">excludes auto-renewal contracts</dd>
+              </div>
+            </dl>
           </div>
+
           <!--
-            Distinct-customer counts scoped to the same filtered customer
-            set as the money totals above.
+            RIGHT: Payment to Loc Fees panel — settlement-side figures grouped
+            together. Total Outstanding (what we still owe, excl current period),
+            plus the Paid and Waived credit totals across the same filtered set.
           -->
-          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-            <dt class="truncate text-sm font-medium text-gray-500"># without Contract Attachment</dt>
-            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-              {{ totals.no_contract_attachment_count || 0 }}
-            </dd>
+          <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-200 bg-gray-700 px-4 py-1.5">
+              <h3 class="text-sm font-semibold text-white">Payment to Loc Fees</h3>
+            </div>
+            <dl class="divide-y divide-gray-100">
+              <div class="px-4 py-2">
+                <dt class="text-xs font-medium text-gray-500">Total Outstanding (excl current period)</dt>
+                <dd
+                  class="mt-0.5 text-lg font-semibold tracking-normal"
+                  :class="(totals.outstanding_cents || 0) > 0 ? 'text-rose-700' : 'text-gray-900'"
+                >
+                  {{ formatMoney(totals.outstanding_cents) }}
+                  <span class="text-[10px] font-normal italic text-gray-400">owed to site owners</span>
+                </dd>
+              </div>
+              <div class="px-4 py-2">
+                <dt class="text-xs font-medium text-gray-500">Paid amount</dt>
+                <dd class="mt-0.5 text-lg font-semibold tracking-normal text-emerald-700">
+                  {{ formatMoney(totals.paid_cents) }}
+                </dd>
+              </div>
+              <div class="px-4 py-2">
+                <dt class="text-xs font-medium text-gray-500">Waived amount</dt>
+                <dd class="mt-0.5 text-lg font-semibold tracking-normal text-amber-600">
+                  {{ formatMoney(totals.waived_cents) }}
+                </dd>
+              </div>
+            </dl>
           </div>
-          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block">
-            <dt class="truncate text-sm font-medium text-gray-500"># To Be Expired in 30ds</dt>
-            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-              {{ totals.expiring_in_30d_count || 0 }}
-            </dd>
-            <dd class="mt-0.5 text-xs italic text-gray-400">excludes auto-renewal contracts</dd>
-          </div>
-        </dl>
+        </div>
       </div>
 
       <!--
@@ -1104,19 +1143,26 @@
                         {{ formatYYMMDD(row.is_activated_in_period && row.active_date ? row.active_date : row.period_start) }}
                       </span>
                       <!--
-                        Period END — smart: in the site's REMOVAL month
-                        (is_removed_in_period) show the REMOVED date with a RED
-                        border instead of month-end, since billing stops then
-                        (removal day exclusive; no rows after this month).
-                        Otherwise the normal period end.
+                        Period END — smart, two RED-border cases:
+                          (a) REMOVAL month (is_removed_in_period): show the
+                              REMOVED date instead of month-end, since billing
+                              stops then (removal day exclusive; no rows after).
+                          (b) MACHINE REPLACEMENT (is_replaced_machine): this is
+                              the previous (swapped-out) segment, so its
+                              period_end is the swap boundary — its last billable
+                              day on that machine. The replacement continues on
+                              the next row.
+                        Otherwise the normal period end (no highlight).
                       -->
                       <span
-                        :class="row.is_removed_in_period && row.removed_date
+                        :class="(row.is_removed_in_period && row.removed_date) || row.is_replaced_machine
                           ? 'inline-block border-2 border-red-500 rounded px-1 text-red-700 font-semibold'
                           : ''"
                         v-tooltip="row.is_removed_in_period && row.removed_date
                           ? ('Removed on ' + formatYYMMDD(row.removed_date) + ' — final billable period; rental/utility prorated to the last active day. No rows after this month.')
-                          : null"
+                          : (row.is_replaced_machine
+                            ? ('Machine replaced — last billable day on this machine before the swap; rental/utility prorated to here. The replacement machine continues on the next row.')
+                            : null)"
                       >
                         {{ formatYYMMDD(row.is_removed_in_period && row.removed_date ? row.removed_date : row.period_end) }}
                       </span>
@@ -1523,13 +1569,13 @@
                         <Button
                           v-if="canPaid && !row.is_paid && isPaidEligiblePeriod(row)"
                           type="button"
-                          class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white rounded-md shadow-sm border border-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white rounded-md shadow-sm border border-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           :disabled="lockingFor.has(row.id)"
                           v-tooltip="'Confirm the location fee for this period has been paid'"
                           @click="onPaidClicked(row)"
                         >
                           <CheckBadgeIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
-                          <span>Verify Paid/ Waived</span>
+                          <span>Loc Fees paid?</span>
                         </Button>
                         <!-- Unpaid — only visible on a locked+paid row.
                              Same access tier as Unlock (superadmin/admin). -->
@@ -2314,29 +2360,135 @@
       </template>
 
       <div class="text-left text-sm">
-        <!-- Export toolbar — PDF (printable Statement of Account) + Excel.
-             Neutral styling: exports are secondary actions, so they stay grey
-             (red/green read as delete/save). Icons carry the only colour hint. -->
-        <div v-if="!settlementLoading && settlementRows.length" class="mb-3 flex items-center justify-end gap-2">
-          <span class="mr-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">Export</span>
-          <Button
-            type="button"
-            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-gray-50 hover:bg-white text-gray-700 hover:text-indigo-700 border border-gray-300 hover:border-indigo-400 shadow-sm transition-colors"
-            v-tooltip="'Open a printable Statement of Account (Save as PDF)'"
-            @click="exportSettlementsPdf"
-          >
-            <DocumentTextIcon class="h-4 w-4 text-indigo-500" />
-            <span>PDF</span>
-          </Button>
-          <Button
-            type="button"
-            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-gray-50 hover:bg-white text-gray-700 hover:text-indigo-700 border border-gray-300 hover:border-indigo-400 shadow-sm transition-colors"
-            v-tooltip="'Download this ledger as an Excel file'"
-            @click="exportSettlementsExcel"
-          >
-            <ArrowDownTrayIcon class="h-4 w-4 text-indigo-500" />
-            <span>Excel</span>
-          </Button>
+        <!-- Toolbar — Add entry (Paid / Waived) on the left, exports on the right.
+             Add buttons are admin-only and post a STANDALONE credit to this
+             site's ledger (they do NOT mark any period Paid). Export buttons stay
+             neutral grey (secondary). -->
+        <div v-if="!settlementLoading" class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <!-- Add Paid / Waived credit -->
+          <div v-if="canAddSettlement" class="flex items-center gap-2">
+            <Button
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
+              v-tooltip="'Add a Paid credit to this site\'s ledger'"
+              @click="startAddSettlement('payment')"
+            >
+              <PlusIcon class="h-4 w-4" />
+              <span>Record Paid</span>
+            </Button>
+            <Button
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-sky-600 hover:bg-sky-700 text-white shadow-sm transition-colors"
+              v-tooltip="'Add a Waived credit to this site\'s ledger'"
+              @click="startAddSettlement('waiver')"
+            >
+              <PlusIcon class="h-4 w-4" />
+              <span>Record Waived</span>
+            </Button>
+            <Button
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-slate-600 hover:bg-slate-700 text-white shadow-sm transition-colors"
+              v-tooltip="'Add a free-form adjustment (charge or credit) to this site\'s ledger'"
+              @click="startAddSettlement('adjustment')"
+            >
+              <PlusIcon class="h-4 w-4" />
+              <span>Record Adjustment</span>
+            </Button>
+          </div>
+          <div v-else></div>
+
+          <!-- Export (only meaningful once there are rows) -->
+          <div v-if="settlementRows.length" class="flex items-center gap-2">
+            <span class="mr-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">Export</span>
+            <Button
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-gray-50 hover:bg-white text-gray-700 hover:text-indigo-700 border border-gray-300 hover:border-indigo-400 shadow-sm transition-colors"
+              v-tooltip="'Open a printable Statement of Account (Save as PDF)'"
+              @click="exportSettlementsPdf"
+            >
+              <DocumentTextIcon class="h-4 w-4 text-indigo-500" />
+              <span>PDF</span>
+            </Button>
+            <Button
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-gray-50 hover:bg-white text-gray-700 hover:text-indigo-700 border border-gray-300 hover:border-indigo-400 shadow-sm transition-colors"
+              v-tooltip="'Download this ledger as an Excel file'"
+              @click="exportSettlementsExcel"
+            >
+              <ArrowDownTrayIcon class="h-4 w-4 text-indigo-500" />
+              <span>Excel</span>
+            </Button>
+          </div>
+        </div>
+
+        <!-- Inline add-entry form — appears when Record Paid / Waived / Adjustment
+             is clicked. Fields: date, description, amount (+ direction for an
+             adjustment). Paid/Waived post a credit; an adjustment can be a
+             charge or a credit. Type is preset by which button opened the form. -->
+        <div
+          v-if="!settlementLoading && addingSettlement"
+          class="mb-4 rounded-xl border px-4 py-4"
+          :class="addFormPanelClass"
+        >
+          <div class="mb-3 flex items-center gap-2">
+            <span
+              class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+              :class="settlementTypeBadgeClass(addingSettlement)"
+            >{{ settlementTypeLabel(addingSettlement) }}</span>
+            <span class="text-xs font-medium text-gray-600">{{ addFormHint }}</span>
+          </div>
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="block text-[11px] font-medium text-gray-500 mb-1">Date</label>
+              <input
+                v-model="addSettlementDate"
+                type="date"
+                class="w-44 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+            <!-- Direction — adjustment only (charge vs credit). -->
+            <div v-if="addingSettlement === 'adjustment'">
+              <label class="block text-[11px] font-medium text-gray-500 mb-1">Type</label>
+              <select
+                v-model="addSettlementDirection"
+                class="w-44 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+              >
+                <option value="credit">Credit — reduce what we owe</option>
+                <option value="debit">Charge — increase what we owe</option>
+              </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+              <label class="block text-[11px] font-medium text-gray-500 mb-1">Description</label>
+              <input
+                v-model="addSettlementDescription"
+                type="text"
+                :placeholder="addFormPlaceholder"
+                class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] font-medium text-gray-500 mb-1">Amount</label>
+              <div class="relative w-40">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-gray-400 text-sm">$</span>
+                <input
+                  v-model="addSettlementAmount"
+                  type="number" min="0" :step="currencyExp > 0 ? (1 / minorPerUnit) : 1" inputmode="decimal"
+                  class="w-40 pl-5 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button type="button" class="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700" @click="cancelAddSettlement">Cancel</Button>
+              <Button
+                type="button"
+                class="inline-flex items-center gap-1 px-3 py-2 text-xs text-white"
+                :class="addFormSubmitClass"
+                :disabled="addSettlementSaving"
+                @click="submitAddSettlement"
+              >{{ addSettlementSaving ? 'Adding…' : 'Add entry' }}</Button>
+            </div>
+          </div>
+          <p class="mt-2 text-[11px] text-gray-400">Posts to this ledger only — it does not change any period's Paid status.</p>
         </div>
 
         <!--
@@ -2440,6 +2592,16 @@
                           @click="startEditSettlement(s)"
                         >
                           <PencilSquareIcon class="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          v-if="isSettlementDeletable(s) && editingSettlementId !== s.id"
+                          type="button"
+                          class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-rose-600"
+                          :disabled="deletingSettlementId === s.id"
+                          v-tooltip="'Delete this entry'"
+                          @click="deleteSettlementRow(s)"
+                        >
+                          <TrashIcon class="h-3.5 w-3.5" />
                         </button>
                       </div>
                       <div v-if="s.remarks" class="mt-0.5 line-clamp-1 text-[11px] text-gray-400" v-tooltip="s.remarks">{{ s.remarks }}</div>
@@ -2579,7 +2741,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BanknotesIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, ClockIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BanknotesIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, ClockIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon, ReceiptPercentIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import MentionTextarea from '@/Components/MentionTextarea.vue';
@@ -3727,16 +3889,133 @@ function settlementLogLabel(action) {
   return SETTLEMENT_LOG_LABELS[action] || action || '—';
 }
 
-// ── Inline edit of a settlement entry (opening balance / adjustment only) ──
+// ── Add / edit / delete a settlement entry ──
+// Edit + delete apply to manually-owned rows: opening_balance, adjustment, and
+// payment/waiver that were hand-entered from this popup (source === 'manual').
+// Auto-posted rows (monthly loc fee, per-row Paid credit) stay locked.
 const canEditSettlement = computed(() => canLock.value); // admin-access customers
+const canAddSettlement = computed(() => canLock.value);  // same gate as Paid/Lock
 const SETTLEMENT_EDITABLE_TYPES = ['opening_balance', 'adjustment'];
+const SETTLEMENT_MANUAL_CREDIT_TYPES = ['payment', 'waiver'];
 const editingSettlementId = ref(null);
 const editSettlementAmount = ref('');
 const editSettlementRemarks = ref('');
 const editSettlementSaving = ref(false);
 
+// ── Add-entry form state (Record Paid / Record Waived / Record Adjustment) ──
+const addingSettlement = ref(null);        // 'payment' | 'waiver' | 'adjustment' | null
+const addSettlementDate = ref('');
+const addSettlementDescription = ref('');
+const addSettlementAmount = ref('');
+const addSettlementDirection = ref('credit'); // adjustment only: 'credit' | 'debit'
+const addSettlementSaving = ref(false);
+const deletingSettlementId = ref(null);
+
+// Form theming + copy by the type being added. Paid/Waived are always credits;
+// an adjustment can be a charge or a credit (direction-driven).
+const addFormPanelClass = computed(() => ({
+  payment: 'border-emerald-200 bg-emerald-50/50',
+  waiver: 'border-sky-200 bg-sky-50/50',
+  adjustment: 'border-slate-200 bg-slate-50/60',
+}[addingSettlement.value] || 'border-gray-200'));
+const addFormSubmitClass = computed(() => ({
+  payment: 'bg-emerald-600 hover:bg-emerald-700',
+  waiver: 'bg-sky-600 hover:bg-sky-700',
+  adjustment: 'bg-slate-600 hover:bg-slate-700',
+}[addingSettlement.value] || 'bg-indigo-600 hover:bg-indigo-700'));
+const addFormHint = computed(() => {
+  if (addingSettlement.value === 'adjustment') {
+    return addSettlementDirection.value === 'debit'
+      ? 'New charge — increases what we owe this site.'
+      : 'New credit — reduces what we owe this site.';
+  }
+  return 'New credit entry — reduces what we owe this site.';
+});
+const addFormPlaceholder = computed(() => ({
+  payment: 'e.g. Payment — bank transfer',
+  waiver: 'e.g. Waived — goodwill May 2026',
+  adjustment: 'e.g. Adjustment — correction for Apr 2026',
+}[addingSettlement.value] || 'Description'));
+
 function isSettlementEditable(s) {
-  return canEditSettlement.value && SETTLEMENT_EDITABLE_TYPES.includes(s.entry_type);
+  if (!canEditSettlement.value) return false;
+  if (SETTLEMENT_EDITABLE_TYPES.includes(s.entry_type)) return true;
+  // Hand-entered paid/waived credits are editable; auto-posted ones are not.
+  return SETTLEMENT_MANUAL_CREDIT_TYPES.includes(s.entry_type) && s.source === 'manual';
+}
+function isSettlementDeletable(s) {
+  // Same set as editable — only manually-owned rows can be removed here.
+  return isSettlementEditable(s);
+}
+
+function startAddSettlement(type) {
+  cancelEditSettlement();           // never have both inline forms open at once
+  addingSettlement.value = type;    // 'payment' | 'waiver' | 'adjustment'
+  addSettlementDate.value = moment().format('YYYY-MM-DD');
+  addSettlementDescription.value = '';
+  addSettlementAmount.value = '';
+  addSettlementDirection.value = 'credit';
+}
+function cancelAddSettlement() {
+  addingSettlement.value = null;
+  addSettlementDate.value = '';
+  addSettlementDescription.value = '';
+  addSettlementAmount.value = '';
+  addSettlementDirection.value = 'credit';
+}
+function submitAddSettlement() {
+  if (addSettlementSaving.value || !settlementCustomerId.value) return;
+  const type = addingSettlement.value;
+  if (!type) return;
+  if (!addSettlementDate.value) {
+    toast.error('Please choose a date.', { timeout: 3500 });
+    return;
+  }
+  const desc = (addSettlementDescription.value || '').trim();
+  if (!desc) {
+    toast.error('Please enter a description.', { timeout: 3500 });
+    return;
+  }
+  const cents = Math.round((Number(addSettlementAmount.value) || 0) * minorPerUnit);
+  if (!(cents > 0)) {
+    toast.error('Amount must be greater than zero.', { timeout: 3500 });
+    return;
+  }
+  addSettlementSaving.value = true;
+  axios.post('/customers/' + settlementCustomerId.value + '/settlements', {
+    entry_type: type,
+    entry_date: addSettlementDate.value,
+    item: desc,
+    amount_cents: cents,
+    // Direction only matters for an adjustment (charge vs credit).
+    direction: type === 'adjustment' ? addSettlementDirection.value : undefined,
+  })
+    .then((res) => {
+      cancelAddSettlement();
+      reloadOpenSettlements();
+      router.reload({ only: ['summaries', 'settlementBalances'], preserveScroll: true, preserveState: true });
+      toast.success(res?.data?.message || 'Entry added.', { timeout: 2500 });
+    })
+    .catch((error) => {
+      toast.error(error?.response?.data?.message || 'Failed to add entry.', { timeout: 4500 });
+    })
+    .finally(() => { addSettlementSaving.value = false; });
+}
+
+function deleteSettlementRow(s) {
+  if (deletingSettlementId.value) return;
+  if (!window.confirm('Delete this ' + settlementTypeLabel(s.entry_type).toLowerCase() + ' entry? This cannot be undone.')) return;
+  deletingSettlementId.value = s.id;
+  axios.post('/customers/settlements/' + s.id + '/delete')
+    .then((res) => {
+      reloadOpenSettlements();
+      router.reload({ only: ['summaries', 'settlementBalances'], preserveScroll: true, preserveState: true });
+      toast.success(res?.data?.message || 'Entry deleted.', { timeout: 2500 });
+    })
+    .catch((error) => {
+      toast.error(error?.response?.data?.message || 'Failed to delete entry.', { timeout: 4500 });
+    })
+    .finally(() => { deletingSettlementId.value = null; });
 }
 function startEditSettlement(s) {
   editingSettlementId.value = s.id;
@@ -3858,6 +4137,7 @@ function settlementTypeBadgeClass(type) {
 function openPaymentHistory(customer) {
   if (!customer?.id) return;
   cancelEditSettlement();
+  cancelAddSettlement();
   settlementCustomerId.value = customer.id;
   settlementSite.value = (refIdFor(customer) || '') + (customer.name ? ' · ' + customer.name : '');
   settlementRows.value = [];

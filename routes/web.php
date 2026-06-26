@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\V1\VendDataController;
 use App\Http\Controllers\ApkSettingController;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\RefundController;
+use App\Http\Controllers\RefundFormController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CardTerminalController;
 use App\Http\Controllers\CashlessTerminalController;
@@ -260,9 +262,16 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Account (HTML → browser Save-as-PDF). Both reuse buildSettlementLedger.
         Route::get('/{id}/settlements/excel', [CustomerController::class, 'settlementsExportExcel'])->name('customers.settlements.excel');
         Route::get('/{id}/settlements/pdf', [CustomerController::class, 'settlementsPrintView'])->name('customers.settlements.pdf');
+        // Add a manual Paid/Waived credit entry straight from the Payment-History
+        // popup (admin-only). Standalone ledger credit — does NOT touch any
+        // period's Paid/Waived flags.
+        Route::post('/{id}/settlements', [CustomerController::class, 'storeSettlement'])->name('customers.settlements.store');
         // Edit a settlement ledger entry's amount/remarks (admin-only; only
-        // manually-owned entry types: opening_balance + adjustment).
+        // manually-owned entry types: opening_balance + adjustment + manual
+        // payment/waiver added from the popup).
         Route::post('/settlements/{id}/update', [CustomerController::class, 'updateSettlement'])->name('customers.settlements.update');
+        // Delete a manually-added settlement entry (admin-only; source=manual).
+        Route::post('/settlements/{id}/delete', [CustomerController::class, 'deleteSettlement'])->name('customers.settlements.delete');
         // Ops-side free-text note (refilling/operations) — edited inline on
         // Vend/CustomerIndex "Refilling Routes" column. Same shape as
         // update-notes; lives under the same /customers prefix because it
@@ -806,6 +815,34 @@ Route::middleware(['auth', 'cors'])->group(function () {
     });
 
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions');
+});
+
+/*
+| Public customer refund form (no auth). Reached from the machine QR:
+| /refund?machineID=<vend_code>. JSON endpoints are rate-limited.
+*/
+Route::get('/refund', [RefundFormController::class, 'show'])->name('refund.form');
+Route::post('/refund/resolve', [RefundFormController::class, 'resolve'])->middleware('throttle:60,1')->name('refund.resolve');
+Route::post('/refund/candidates', [RefundFormController::class, 'candidates'])->middleware('throttle:60,1')->name('refund.candidates');
+Route::post('/refund', [RefundFormController::class, 'store'])->middleware('throttle:20,1')->name('refund.store');
+
+/*
+| Admin refund management (auth + Spatie permissions).
+*/
+Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
+    Route::get('/', [RefundController::class, 'index'])->name('refunds.index')->middleware('can:read refunds');
+    Route::get('/{ticket}', [RefundController::class, 'show'])->name('refunds.show')->middleware('can:read refunds');
+    Route::post('/{ticket}/verify', [RefundController::class, 'verify'])->middleware('can:verify refunds');
+    Route::post('/{ticket}/reject', [RefundController::class, 'reject'])->middleware('can:verify refunds');
+    Route::post('/{ticket}/request-info', [RefundController::class, 'requestInfo'])->middleware('can:update refunds');
+    Route::post('/{ticket}/submit-approval', [RefundController::class, 'submitForApproval'])->middleware('can:update refunds');
+    Route::post('/{ticket}/approve', [RefundController::class, 'approve'])->middleware('can:approve refunds');
+    Route::post('/{ticket}/complete', [RefundController::class, 'complete'])->middleware('can:update refunds');
+    Route::post('/{ticket}/email', [RefundController::class, 'sendEmail'])->middleware('can:update refunds');
+    Route::post('/{ticket}/items/{item}', [RefundController::class, 'updateItem'])->middleware('can:update refunds');
+    Route::post('/batch/generate', [RefundController::class, 'generateBatch'])->name('refunds.batch.generate')->middleware('can:payout refunds');
+    Route::get('/batch/{batch}/download', [RefundController::class, 'downloadBatch'])->name('refunds.batch.download')->middleware('can:payout refunds');
+    Route::post('/batch/{batch}/uploaded', [RefundController::class, 'markBatchUploaded'])->middleware('can:payout refunds');
 });
 
 require __DIR__ . '/auth.php';
