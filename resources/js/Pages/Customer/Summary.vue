@@ -1507,7 +1507,7 @@
                         :href="allPeriodsUrl(row)"
                         target="_blank"
                         rel="noopener"
-                        class="inline-flex items-center justify-center px-2 py-1 !text-[10px] font-semibold leading-tight bg-yellow-300 hover:bg-yellow-400 text-yellow-900 rounded shadow-sm border border-yellow-500 whitespace-nowrap"
+                        class="inline-flex items-center justify-center text-center px-2 py-1 !text-[10px] font-semibold leading-tight bg-yellow-300 hover:bg-yellow-400 text-yellow-900 rounded shadow-sm border border-yellow-500 max-w-[64px] whitespace-normal break-words"
                         v-tooltip="'Open Site Summary for this site only, showing all periods (new tab)'"
                       >
                         Show all Periods

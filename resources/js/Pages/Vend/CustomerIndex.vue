@@ -658,7 +658,7 @@
 						</div>
 						<!-- 4. LocEarning $ = Location Fees (mirrors Site Summary "Total Location Fees"). Emerald when negative = subsidy. -->
 						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500">LocEarning $</dt>
+							<dt class="truncate text-xs font-medium text-gray-500">Loc Fees</dt>
 							<dd
 								class="mt-1 text-[1.375rem] leading-7 font-semibold tracking-tight tabular-nums"
 								:class="(cardTotals['thirtyDaysLocationFees'] || 0) < 0 ? 'text-emerald-700' : 'text-gray-900'"
@@ -1179,7 +1179,7 @@
 								Ext Subsidize
 							</SingleSortItem>
 							<SingleSortItem modelName="net_loc_fee" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('net_loc_fee', true)">
-								Net Loc Fee
+								Loc Fees
 							</SingleSortItem>
 							<!-- Section divider — splits the contract terms
 								(Contract Type / Net Loc Fee) from the L30d
