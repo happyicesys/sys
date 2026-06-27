@@ -1270,22 +1270,23 @@
                        as the header so each value lines up with its label. -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-right">
                     <div class="flex flex-col items-end space-y-4">
-                      <div>
+                      <div class="flex flex-col items-end">
                         <span class="inline-flex items-center" :class="locationFeesColorClass(row.location_fees_cents, row.contract_commission_type)">
                           {{ formatMoneySigned(row.location_fees_cents) }}
-                          <!-- "to date" badge: the current in-progress month's
-                               flat fee is accrued through period_end (X/Y days
-                               elapsed), not billed for the whole month, so the
-                               figure looks smaller on purpose. Clears at month
-                               end (full fee) and never shows on closed/locked
-                               or pure-PS rows. -->
-                          <span
-                            v-if="row.loc_fee_prorated_to_date"
-                            class="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-sky-100 text-sky-800 border border-sky-300 align-middle"
-                            v-tooltip="`Prorated to date — ${row.to_date_days}/${row.month_total_days} days of this month elapsed. The flat fee accrues daily and shows the full month once the month closes.`"
-                          >
-                            {{ row.to_date_days }}/{{ row.month_total_days }} d
-                          </span>
+                        </span>
+                        <!-- "to date" badge: the current in-progress month's
+                             flat fee is accrued through period_end (X/Y days
+                             elapsed), not billed for the whole month, so the
+                             figure looks smaller on purpose. Clears at month
+                             end (full fee) and never shows on closed/locked
+                             or pure-PS rows. Sits on its own line below the
+                             value so it never squeezes the figure. -->
+                        <span
+                          v-if="row.loc_fee_prorated_to_date"
+                          class="mt-0.5 inline-flex items-center whitespace-nowrap px-1 py-0 rounded text-[9px] font-semibold bg-sky-100 text-sky-800 border border-sky-300"
+                          v-tooltip="`Prorated to date — ${row.to_date_days}/${row.month_total_days} days of this month elapsed. The flat fee accrues daily and shows the full month once the month closes.`"
+                        >
+                          {{ row.to_date_days }}/{{ row.month_total_days }} d
                         </span>
                         <div
                           v-if="row.contract_commission_type === 'S'"
@@ -1499,7 +1500,18 @@
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
                     <template v-if="row.is_current_month && !row.is_locked && !row.is_removed_in_period">
-                      <span class="text-gray-300" v-tooltip="'Current month — lock once the month is complete'">—</span>
+                      <!-- Current period (top row) can't be locked yet; instead
+                           expose a "Show all Periods" link that opens this
+                           site's full period history in a new tab. -->
+                      <a
+                        :href="allPeriodsUrl(row)"
+                        target="_blank"
+                        rel="noopener"
+                        class="inline-flex items-center justify-center px-2 py-1 !text-[10px] font-semibold leading-tight bg-yellow-300 hover:bg-yellow-400 text-yellow-900 rounded shadow-sm border border-yellow-500 whitespace-nowrap"
+                        v-tooltip="'Open Site Summary for this site only, showing all periods (new tab)'"
+                      >
+                        Show all Periods
+                      </a>
                     </template>
                     <template v-else-if="row.is_locked">
                       <div class="flex flex-col items-center space-y-1">
@@ -2116,6 +2128,25 @@
           </div>
 
           <!--
+            Free-text comment — optional, always available for both Paid and
+            Waived. Saved onto the Payment History ledger row (settlement
+            remarks) so it shows under the entry. For a waiver it sits
+            alongside the mandatory reason above.
+          -->
+          <div class="mt-4">
+            <label class="block text-xs font-medium text-gray-600 mb-1" for="paid-comment-input">
+              Comment <span class="font-normal text-gray-400">(optional)</span>
+            </label>
+            <textarea
+              id="paid-comment-input"
+              v-model="paidModalComment"
+              rows="2"
+              placeholder="Add a note for this entry — shows in Payment History"
+              class="block w-full rounded border-gray-300 text-sm focus:border-emerald-500 focus:ring-emerald-500"
+            ></textarea>
+          </div>
+
+          <!--
             Outstanding context — the pay action happens on a past period row,
             so surface the SITE's current outstanding right here (it otherwise
             only lives on the latest row's pill). Shows the running balance and
@@ -2565,7 +2596,20 @@
               <thead class="sticky top-0 z-10 bg-gray-50/95 backdrop-blur">
                 <tr class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                   <th class="px-4 py-2.5 text-left">Ref</th>
-                  <th class="px-3 py-2.5 text-left">Date</th>
+                  <th class="px-3 py-2.5 text-left">
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1 font-semibold uppercase tracking-wider text-gray-500 hover:text-indigo-600"
+                      v-tooltip="'Sort by date'"
+                      @click="toggleSettlementSort"
+                    >
+                      Date
+                      <ChevronDownIcon
+                        class="h-3 w-3 transition-transform"
+                        :class="{ 'rotate-180': settlementSortDir === 'asc' }"
+                      />
+                    </button>
+                  </th>
                   <th class="px-3 py-2.5 text-left">Description</th>
                   <th class="whitespace-nowrap px-3 py-2.5 text-right">Debit</th>
                   <th class="whitespace-nowrap px-3 py-2.5 text-right">Credit</th>
@@ -2573,7 +2617,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
-                <template v-for="(s, i) in settlementRows" :key="s.id ?? i">
+                <template v-for="(s, i) in sortedSettlementRows" :key="s.id ?? i">
                   <tr class="group transition-colors hover:bg-indigo-50/30">
                     <td class="whitespace-nowrap px-4 py-3 align-top font-mono text-[11px] text-gray-400">{{ s.reference_no || '—' }}</td>
                     <td class="whitespace-nowrap px-3 py-3 align-top text-gray-600">{{ s.entry_date ? moment(s.entry_date).format('DD MMM YYYY') : '—' }}</td>
@@ -2605,6 +2649,10 @@
                         </button>
                       </div>
                       <div v-if="s.remarks" class="mt-0.5 line-clamp-1 text-[11px] text-gray-400" v-tooltip="s.remarks">{{ s.remarks }}</div>
+                      <!-- Who triggered this entry + when (creation audit). -->
+                      <div v-if="s.created_by || s.created_at" class="mt-0.5 text-[10px] text-gray-400">
+                        By {{ s.created_by || 'system' }}<span v-if="s.created_at"> · {{ moment(s.created_at).format('DD MMM YY, h:mma') }}</span>
+                      </div>
                       <div v-if="s.edited_by" class="mt-0.5 text-[10px] text-amber-600">
                         Edited by {{ s.edited_by }}<span v-if="s.edited_at"> · {{ moment(s.edited_at).format('DD MMM YY, h:mma') }}</span>
                       </div>
@@ -2657,19 +2705,6 @@
                   </tr>
                 </template>
               </tbody>
-              <tfoot class="sticky bottom-0">
-                <tr class="border-t-2 border-gray-200 bg-gray-50">
-                  <td class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500" colspan="5">
-                    {{ settlementState === 'credit' ? 'Credit Balance' : 'Outstanding Balance' }}
-                  </td>
-                  <td
-                    class="px-4 py-3 text-right text-base font-bold tabular-nums"
-                    :class="{ 'text-rose-600': settlementState === 'owing', 'text-emerald-600': settlementState === 'settled', 'text-sky-600': settlementState === 'credit' }"
-                  >
-                    {{ formatMoney(Math.abs(settlementOutstanding)) }}<span v-if="settlementState === 'credit'" class="ml-0.5 text-[11px] font-semibold">CR</span>
-                  </td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </div>
@@ -2741,7 +2776,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BanknotesIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, ClockIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon, ReceiptPercentIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, AtSymbolIcon, BackspaceIcon, BanknotesIcon, BellAlertIcon, CheckBadgeIcon, CheckCircleIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ChevronDownIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, ClockIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon, ReceiptPercentIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import MentionTextarea from '@/Components/MentionTextarea.vue';
@@ -3208,6 +3243,22 @@ function siteStatusBadgeClass(statusId) {
 function refIdFor(customer) {
   // Site model adds ref_id mutator (id + 20000) but pivots may not include it.
   return customer.ref_id ?? (customer.id ? customer.id + 20000 : '');
+}
+
+// "Show all Periods" link target — opens the Site Summary in a new tab,
+// filtered to THIS site only (ref_id) with period_report=all so every stored
+// month shows as its own row. status=all keeps the site visible regardless of
+// its current Site Status; searched=1 stops the server re-applying the
+// initial-load operator default.
+function allPeriodsUrl(row) {
+  const refId = refIdFor(row.customer ?? {});
+  const params = new URLSearchParams({
+    ref_id: refId,
+    period_report: 'all',
+    status: 'all',
+    searched: '1',
+  });
+  return '/customers/summary?' + params.toString();
 }
 
 function formatYearMonth(d) {
@@ -3876,6 +3927,26 @@ const settlementSince = ref(null);
 const settlementCustomerId = ref(null);
 const settlementLogs = ref([]);          // change-history audit trail (newest first)
 const showSettlementLogs = ref(false);   // collapsible toggle
+const settlementSortDir = ref('desc');   // ledger date sort: 'desc' = latest on top (default)
+
+// Ledger rows in display order. Backend returns chronological (asc) with a
+// running balance per row; we only reorder for display, the per-row balance
+// already reflects the balance as of that entry (like a bank statement).
+const sortedSettlementRows = computed(() => {
+  const rows = settlementRows.value.map((s, i) => ({ s, i }));
+  rows.sort((a, b) => {
+    const da = a.s.entry_date ? new Date(a.s.entry_date).getTime() : 0;
+    const db = b.s.entry_date ? new Date(b.s.entry_date).getTime() : 0;
+    if (da !== db) return settlementSortDir.value === 'desc' ? db - da : da - db;
+    // tiebreak on original (chronological) index to stay stable
+    return settlementSortDir.value === 'desc' ? b.i - a.i : a.i - b.i;
+  });
+  return rows.map((r) => r.s);
+});
+
+function toggleSettlementSort() {
+  settlementSortDir.value = settlementSortDir.value === 'desc' ? 'asc' : 'desc';
+}
 
 const SETTLEMENT_LOG_LABELS = {
   payment: 'Payment recorded',
@@ -4315,6 +4386,9 @@ const paidModalDate = ref('');
 // Waived state for the popup — when ticked, waived_remarks becomes mandatory.
 const paidModalWaived = ref(false);
 const paidModalRemarks = ref('');
+// Optional free-text comment — applies to both Paid and Waived; saved onto
+// the settlement ledger row so it shows in Payment History.
+const paidModalComment = ref('');
 // Amount paid / waived (in dollars, as typed). Pre-filled with the period's
 // Net Loc Fee; posted to the settlement ledger as a credit on confirm.
 const paidModalAmount = ref('');
@@ -4352,6 +4426,7 @@ function onPaidClicked(row) {
   paidModalDate.value = moment().format('YYYY-MM-DD'); // pre-fill today
   paidModalWaived.value = false;
   paidModalRemarks.value = '';
+  paidModalComment.value = '';
   // Pre-fill the amount with this period's Net Loc Fee (gross − subsidize),
   // floored at 0 — the typical case is "paid exactly what we owe".
   {
@@ -4366,6 +4441,7 @@ function onPaidModalClose() {
   paidModalRow.value = null;
   paidModalWaived.value = false;
   paidModalRemarks.value = '';
+  paidModalComment.value = '';
   paidModalAmount.value = '';
 }
 
@@ -4384,6 +4460,9 @@ function onPaidModalConfirm() {
     return;
   }
 
+  // Optional free-text comment — applies to Paid and Waived alike.
+  const comment = (paidModalComment.value || '').trim();
+
   // Empty/cleared field → today (server defaults too — belt and braces).
   const paidDate = paidModalDate.value || moment().format('YYYY-MM-DD');
 
@@ -4395,6 +4474,7 @@ function onPaidModalConfirm() {
   paidModalRow.value = null;
   paidModalWaived.value = false;
   paidModalRemarks.value = '';
+  paidModalComment.value = '';
   paidModalAmount.value = '';
 
   lockingFor.value.add(row.id);
@@ -4405,6 +4485,7 @@ function onPaidModalConfirm() {
     paid_date: paidDate,
     is_waived: isWaived,
     waived_remarks: isWaived ? remarks : null,
+    comment: comment || null,
     paid_amount_cents: paidAmountCents,
   }, {
     only: ['summaries', 'settlementBalances'],

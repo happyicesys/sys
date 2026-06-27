@@ -2019,6 +2019,10 @@ class CustomerController extends Controller
             'paid_date' => ['nullable', 'date'],
             'is_waived' => ['nullable', 'boolean'],
             'waived_remarks' => ['nullable', 'string', 'max:1000', 'required_if:is_waived,true,1'],
+            // Optional free-text comment — applies to both Paid and Waived.
+            // Saved onto the settlement ledger row (remarks) so it shows in
+            // Payment History under the entry.
+            'comment' => ['nullable', 'string', 'max:1000'],
             // Actual amount paid / waived, in minor units (cents). Posts to the
             // settlement ledger (Payment History) as a credit. 0 / null → no
             // ledger entry (e.g. marking Paid without recording a figure yet).
@@ -2034,13 +2038,22 @@ class CustomerController extends Controller
             : now()->toDateString();
 
         $amountCents = (int) ($validated['paid_amount_cents'] ?? 0);
+        $comment = trim((string) ($validated['comment'] ?? ''));
+
+        // Ledger description shown in Payment History. A waiver keeps its
+        // mandatory reason; any free-text comment is appended (for a plain
+        // payment the comment is the whole remark). Both can be empty → null.
+        $ledgerRemarks = trim(implode("\n", array_filter([
+            $isWaived ? trim($validated['waived_remarks']) : null,
+            $comment !== '' ? $comment : null,
+        ]))) ?: null;
 
         // Atomic: the paid-state flip AND the ledger credit must commit together
         // (or not at all) so the summary's Paid state and the ledger can never
         // desync. A site can be Unpaid → re-Paid, so clear any prior paid-action
         // credit for THIS period first, then post the fresh one — never
         // double-credits. amount stored NEGATIVE (reduces what we owe).
-        \Illuminate\Support\Facades\DB::transaction(function () use ($summary, $user, $isWaived, $paidDate, $amountCents, $validated) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($summary, $user, $isWaived, $paidDate, $amountCents, $validated, $ledgerRemarks) {
             $summary->paid_at = now();
             $summary->paid_date = $paidDate;
             $summary->paid_by = $user->id;
@@ -2068,7 +2081,7 @@ class CustomerController extends Controller
                         : \App\Models\CustomerSettlement::TYPE_PAYMENT,
                     'amount_cents' => -$amountCents,   // credit — reduces what we owe.
                     'item'         => ($isWaived ? 'Waived' : 'Payment') . ($monthLabel ? ' — ' . $monthLabel : ''),
-                    'remarks'      => $isWaived ? trim($validated['waived_remarks']) : null,
+                    'remarks'      => $ledgerRemarks,
                     'customer_period_summary_id' => $summary->id,
                     'source'       => \App\Models\CustomerSettlement::SOURCE_PAID_ACTION,
                     'created_by'   => $user->id,
