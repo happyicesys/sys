@@ -8,8 +8,10 @@ return new class extends Migration
 {
     /**
      * Idempotent: adds refund permissions and assigns them to existing roles.
-     * superadmin is intentionally skipped — AuthServiceProvider's Gate::before
-     * grants superadmin every ability already.
+     * superadmin is granted them explicitly too — although AuthServiceProvider's
+     * Gate::before authorises superadmin for every ability, the sidebar nav checks
+     * permissions literally (permissions.includes(...)), so without the explicit
+     * grant the Refund Requests link stays hidden for superadmin users.
      */
     public function up(): void
     {
@@ -29,6 +31,7 @@ return new class extends Migration
         }
 
         $map = [
+            'superadmin' => ['read refunds', 'create refunds', 'update refunds', 'verify refunds', 'approve refunds', 'payout refunds'],
             'operator'   => ['read refunds', 'verify refunds'],
             'admin'      => ['read refunds', 'create refunds', 'update refunds', 'verify refunds', 'payout refunds'],
             'supervisor' => ['read refunds', 'approve refunds'],

@@ -29,16 +29,37 @@ class RefundMatchingService
      */
     public function dayRange(string $day): ?array
     {
-        $allowed = config('refund.match.days', ['today', 'yesterday']);
-        if (!in_array($day, $allowed, true)) {
-            return null;
+        if ($day === 'today') {
+            return ['from' => Carbon::today()->startOfDay(), 'to' => Carbon::now()];
         }
 
         if ($day === 'yesterday') {
             return ['from' => Carbon::yesterday()->startOfDay(), 'to' => Carbon::yesterday()->endOfDay()];
         }
 
-        return ['from' => Carbon::today()->startOfDay(), 'to' => Carbon::now()];
+        // Custom date (YYYY-MM-DD), bounded by the refund eligibility window.
+        // Anything outside the window returns null so the form falls through to
+        // manual review instead of silently matching old transactions.
+        $maxLookback = (int) config('refund.match.max_lookback_days', 14);
+        if ($maxLookback > 0 && preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+            try {
+                $date = Carbon::createFromFormat('Y-m-d', $day)->startOfDay();
+            } catch (\Throwable $e) {
+                return null;
+            }
+
+            $earliest = Carbon::today()->subDays($maxLookback)->startOfDay();
+            if ($date->lt($earliest) || $date->gt(Carbon::today())) {
+                return null;
+            }
+
+            // Cap "to" at now for today; full day otherwise.
+            $to = $date->isSameDay(Carbon::today()) ? Carbon::now() : $date->copy()->endOfDay();
+
+            return ['from' => $date, 'to' => $to];
+        }
+
+        return null;
     }
 
     /**
@@ -74,7 +95,15 @@ class RefundMatchingService
             ->where(function ($q) {
                 $q->whereNull('is_refunded')->orWhere('is_refunded', false);
             })
-            ->with(['vendTransactionItems.product', 'vendTransactionItems.vendChannelError', 'paymentMethod'])
+            ->with([
+                'vendTransactionItems.product',
+                'vendTransactionItems.vendChannel.product',
+                'vendTransactionItems.vendChannelError',
+                'product',
+                'vendChannel.product',
+                'vendChannelError',
+                'paymentMethod',
+            ])
             ->orderByDesc('transaction_datetime')
             ->limit($limit)
             ->get();
@@ -144,25 +173,49 @@ class RefundMatchingService
     {
         $items = $txn->vendTransactionItems->map(function ($item) use ($ticketedItemIds) {
             $error = $item->vendChannelError;
+            $product = $item->product ?? $item->vendChannel?->product;
             $refunded = (bool) $item->is_refunded || in_array((int) $item->id, $ticketedItemIds, true);
             return [
                 'vend_transaction_item_id' => $item->id,
                 'product_id' => $item->product_id,
-                'product_name' => $item->product?->name ?? ($item->product_name ?? 'Item'),
+                'product_name' => $product?->name ?? ($item->product_name ?? ($item->vend_channel_code ? 'Channel ' . $item->vend_channel_code : 'Item')),
+                'product_sku' => $product?->code ?? $item->vendChannel?->sku_code ?? $item->vend_channel_code,
                 'vend_channel_code' => $item->vend_channel_code,
-                'unit_price_cents' => (int) ($item->unit_price_amount ?? 0),
-                'had_channel_error' => (bool) $item->vend_channel_error_id,
+                // unit_price_amount can be 0/unset; fall back to the channel's price
+                'unit_price_cents' => (int) ($item->unit_price_amount ?: ($item->vendChannel?->amount ?? 0)),
+                'had_channel_error' => (bool) $item->vend_channel_error_id && $this->isRealChannelError($item->vend_channel_error_code),
                 'vend_channel_error_code' => $item->vend_channel_error_code,
+                'channel_error_desc' => $error?->desc,
                 'channel_error_weightage' => $error?->weightage,
                 'is_refunded' => $refunded,
             ];
         })->values()->all();
+
+        // No line-item rows (common for card-terminal sales) — synthesize one from the
+        // transaction's own product / channel so the customer still sees what they bought.
+        if (empty($items)) {
+            $product = $txn->product ?? $txn->vendChannel?->product;
+            $items = [[
+                'vend_transaction_item_id' => null,
+                'product_id' => $txn->product_id,
+                'product_name' => $product?->name ?? ($txn->vend_channel_code ? 'Channel ' . $txn->vend_channel_code : 'Purchase'),
+                'product_sku' => $product?->code ?? $txn->vendChannel?->sku_code ?? $txn->vend_channel_code,
+                'vend_channel_code' => $txn->vend_channel_code,
+                'unit_price_cents' => (int) $txn->amount,
+                'had_channel_error' => (bool) $txn->vend_channel_error_id && $this->isRealChannelError($txn->vendChannelError?->code),
+                'vend_channel_error_code' => $txn->vendChannelError?->code,
+                'channel_error_desc' => $txn->vendChannelError?->desc,
+                'channel_error_weightage' => $txn->vendChannelError?->weightage,
+                'is_refunded' => (bool) $txn->is_refunded,
+            ]];
+        }
 
         return [
             'source' => 'transaction',
             'vend_transaction_id' => $txn->id,
             'payment_gateway_log_id' => $txn->payment_gateway_log_id,
             'datetime' => optional($txn->transaction_datetime)->toDateTimeString(),
+            'datetime_label' => optional($txn->transaction_datetime)->format('d M, g:i A'),
             'amount' => round($txn->amount / 100, 2),
             'amount_cents' => (int) $txn->amount,
             'payment_method' => $txn->paymentMethod?->name,
@@ -183,6 +236,7 @@ class RefundMatchingService
             'vend_transaction_id' => null,
             'payment_gateway_log_id' => $log->id,
             'datetime' => optional($log->approved_at)->toDateTimeString(),
+            'datetime_label' => optional($log->approved_at)->format('d M, g:i A'),
             'amount' => round($log->amount / 100, 2),
             'amount_cents' => (int) $log->amount,
             'payment_method' => $log->method ?: 'QR / PayNow',
@@ -194,10 +248,12 @@ class RefundMatchingService
                 'vend_transaction_item_id' => null,
                 'product_id' => null,
                 'product_name' => 'Purchase',
+                'product_sku' => null,
                 'vend_channel_code' => null,
                 'unit_price_cents' => (int) $log->amount,
                 'had_channel_error' => isset($log->is_dispensed) ? ($log->is_dispensed === false) : false,
                 'vend_channel_error_code' => null,
+                'channel_error_desc' => null,
                 'channel_error_weightage' => null,
                 'is_refunded' => $alreadyRefunded,
             ]],
@@ -215,6 +271,16 @@ class RefundMatchingService
             return RefundTicket::CHANNEL_QR;
         }
         return RefundTicket::CHANNEL_UNKNOWN;
+    }
+
+    /**
+     * Whether a channel-error code represents a GENUINE malfunction. Code 0 / "00" is
+     * "No Malfunction" (dispensed fine) and must NOT count as evidence of failure.
+     */
+    public function isRealChannelError(?string $code): bool
+    {
+        $c = trim((string) $code);
+        return $c !== '' && ltrim($c, '0') !== '';
     }
 
     public function isAutoRefundTerminal(?string $cashlessMfg): bool

@@ -51,6 +51,8 @@ class RefundValidationService
         $evidence = [
             'item_count' => count($validated),
             'verdicts' => array_count_values($verdicts),
+            // frozen snapshot of the signals shown as badges — never recomputed later
+            'had_channel_error' => count(array_filter($validated, fn ($i) => !empty($i['had_channel_error']))) > 0,
             'is_auto_refund_channel' => $isAutoChannel,
             'txn_already_refunded' => $txnRefunded,
             'is_manual' => $isManual,

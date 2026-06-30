@@ -251,6 +251,10 @@ class Customer extends Model
         'virtual_customer_code',
         'virtual_customer_prefix',
         'zone_id',
+        // Site grouping — links co-located sites into one cluster so they can
+        // "travel together" on listing/report pages. See migration
+        // 2026_06_29_000000_create_customer_groups_table.
+        'customer_group_id',
         'contract_commission_type',
         'contract_commission_value',
         'contract_commission_value2',
@@ -344,6 +348,21 @@ class Customer extends Model
     public function customerVendBindings()
     {
         return $this->hasMany(CustomerVendBinding::class)->orderBy('created_at');
+    }
+
+    public function customerGroup()
+    {
+        return $this->belongsTo(CustomerGroup::class);
+    }
+
+    /**
+     * Other Sites in the same group (excludes self). Empty when ungrouped.
+     */
+    public function siblings()
+    {
+        return $this->hasMany(Customer::class, 'customer_group_id', 'customer_group_id')
+            ->whereNotNull('customer_group_id')
+            ->where('id', '<>', $this->id);
     }
 
     public function deliveryAddress()

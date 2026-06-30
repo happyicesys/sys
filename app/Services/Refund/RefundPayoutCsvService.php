@@ -4,6 +4,7 @@ namespace App\Services\Refund;
 
 use App\Models\RefundPayoutBatch;
 use App\Models\RefundTicket;
+use App\Services\Refund\BankTemplates\BankTemplateRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -74,6 +75,57 @@ class RefundPayoutCsvService
             ]);
 
             return $batch->fresh();
+        });
+    }
+
+    /**
+     * Generate a bank bulk-transfer file from selected approved PayNow tickets,
+     * link them into a batch, and return the file content for download.
+     *
+     * @return array{filename: string, content: string, batch: RefundPayoutBatch}
+     */
+    public function exportBank(array $ticketIds, string $bankKey, ?int $userId = null): array
+    {
+        $template = BankTemplateRegistry::make($bankKey);
+
+        return DB::transaction(function () use ($ticketIds, $bankKey, $userId, $template) {
+            // Approved PayNow tickets — exporting does NOT change status, so the admin
+            // can re-export the batch CSV any number of times.
+            $tickets = RefundTicket::whereIn('id', $ticketIds)
+                ->where('status', RefundTicket::STATUS_APPROVED)
+                ->where('refund_method', RefundTicket::METHOD_PAYNOW)
+                ->get();
+
+            if ($tickets->isEmpty()) {
+                throw new \RuntimeException('No eligible approved PayNow tickets selected.');
+            }
+
+            $batch = RefundPayoutBatch::create([
+                'reference' => 'PENDING',
+                'method' => RefundTicket::METHOD_PAYNOW,
+                'created_by' => $userId,
+                'count' => 0,
+                'total_cents' => 0,
+                'status' => RefundPayoutBatch::STATUS_GENERATED,
+            ]);
+            $batch->reference = config('refund.batch_reference_prefix', 'BATCH') . '-' . str_pad((string) $batch->id, 6, '0', STR_PAD_LEFT);
+
+            $content = $template->generate($tickets, ['batch' => $batch]);
+            $filename = $batch->reference . '-' . $bankKey . '.' . $template->fileExtension();
+            $path = 'refund-payouts/' . $filename;
+            Storage::disk('local')->put($path, $content);
+
+            $total = 0;
+            foreach ($tickets as $ticket) {
+                $total += (int) $ticket->claimed_amount_cents;
+                // record the latest export batch for reference; keep status = Approved
+                $ticket->update(['payout_batch_id' => $batch->id]);
+                $this->tickets->log($ticket, 'exported', null, null, 'Exported in ' . strtoupper($bankKey) . ' batch ' . $batch->reference, 'System', $userId);
+            }
+
+            $batch->update(['csv_path' => $path, 'count' => $tickets->count(), 'total_cents' => $total]);
+
+            return ['filename' => $filename, 'content' => $content, 'batch' => $batch->fresh()];
         });
     }
 

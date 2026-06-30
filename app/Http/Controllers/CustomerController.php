@@ -4988,6 +4988,8 @@ class CustomerController extends Controller
                 // Pending future contract change (one at a time) + who set it.
                 'scheduledContract.createdBy:id,name',
                 'zone',
+                // Site grouping — so Edit.vue can pre-fill the Group name field.
+                'customerGroup:id,name,operator_id',
             ])
             ->find($id);
 
@@ -5390,6 +5392,30 @@ class CustomerController extends Controller
             if (($requestCustomerArr['zone_id'] ?? null) === '') {
                 $requestCustomerArr['zone_id'] = null;
             }
+
+            // Site grouping — resolve the typed Group name into a
+            // customer_group_id, find-or-creating the group scoped to this
+            // site's (possibly just-changed) operator. A blank name unbinds the
+            // site (NULL). customer_group_name is a UI-only field, never a
+            // column, so it must not reach the mass-assign below. Only the Site
+            // edit form sends this key; other save paths (saveVend/submit) post
+            // a flat payload and never enter this branch, so grouping is left
+            // untouched there.
+            if (array_key_exists('customer_group_name', $requestCustomerArr)) {
+                $groupName = trim((string) $requestCustomerArr['customer_group_name']);
+                unset($requestCustomerArr['customer_group_name']);
+                if ($groupName === '') {
+                    $requestCustomerArr['customer_group_id'] = null;
+                } else {
+                    $groupOperatorId = $requestCustomerArr['operator_id'] ?? ($customer->operator_id ?? null);
+                    $group = \App\Models\CustomerGroup::firstOrCreate(
+                        ['operator_id' => $groupOperatorId, 'name' => $groupName],
+                        ['created_by' => auth()->id()]
+                    );
+                    $requestCustomerArr['customer_group_id'] = $group->id;
+                }
+            }
+
             $request->merge(['customer' => $requestCustomerArr]);
         }
         // Status drives the (now-derived) is_active mirror. The form sends an

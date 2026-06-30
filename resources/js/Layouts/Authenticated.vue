@@ -63,16 +63,6 @@ const navigation = computed(() => [
             {name: 'All Transactions', href: '/vends/transactions', permission: 'read transactions-sales'},
             {name: 'Daily Summary', href: '/vends/transactions-daily-summary', permission: 'read transactions-sales'},
             {name: 'Payment Gateway Txn', href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
-        ]
-    },
-    {
-        name: 'Refunds',
-        icon: TicketIcon,
-        current: false,
-        href: 'refunds.index',
-        permission: 'read refunds',
-        tagline: null,
-        children: [
             {name: 'Refund Requests', href: '/refunds', permission: 'read refunds'},
         ]
     },

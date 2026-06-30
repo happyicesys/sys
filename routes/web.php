@@ -840,7 +840,10 @@ Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     Route::post('/{ticket}/complete', [RefundController::class, 'complete'])->middleware('can:update refunds');
     Route::post('/{ticket}/email', [RefundController::class, 'sendEmail'])->middleware('can:update refunds');
     Route::post('/{ticket}/items/{item}', [RefundController::class, 'updateItem'])->middleware('can:update refunds');
+    Route::get('/{ticket}/attachments/{attachment}', [RefundController::class, 'viewAttachment'])->middleware('can:read refunds');
+    Route::delete('/{ticket}', [RefundController::class, 'destroy'])->middleware('can:update refunds');
     Route::post('/batch/generate', [RefundController::class, 'generateBatch'])->name('refunds.batch.generate')->middleware('can:payout refunds');
+    Route::post('/batch/export', [RefundController::class, 'exportBatch'])->name('refunds.batch.export')->middleware('can:payout refunds');
     Route::get('/batch/{batch}/download', [RefundController::class, 'downloadBatch'])->name('refunds.batch.download')->middleware('can:payout refunds');
     Route::post('/batch/{batch}/uploaded', [RefundController::class, 'markBatchUploaded'])->middleware('can:payout refunds');
 });

@@ -250,3 +250,25 @@ All reads against existing tables are read‑only. The only writes are to the **
 5. Customer emails stay OFF until you set `REFUND_EMAIL_ENABLED=true`.
 
 **Not wired (by design / out of scope):** real Nayax API (external), live email send (flag off), stamping source `is_refunded` on completion (avoided to protect sales reporting).
+
+### Addendum (2026-06-26b)
+
+- **Missing/invalid machineID fallback:** if the QR has no `machineID` (or a broken APK), the form opens on a "Which machine?" page asking the customer to type the Machine ID, validated via `POST /refund/resolve`. Normal QR path is unchanged.
+- **Photo attachments:** customers can add up to 3 images (camera or gallery on mobile) on a dedicated step before review (and on the manual-review page). New table `refund_ticket_attachments`; files stored **privately** on the `local` disk under `refund-attachments/{ticket_id}/`; admins view them via the gated route `GET /refunds/{ticket}/attachments/{attachment}` (rendered as thumbnails on the detail page). No `storage:link` needed (streamed through the controller). Validation: image only, ≤5 MB each, ≤3 files. New migration `2026_06_26_100005`.
+
+### Addendum (2026-06-26c) — video attachments
+
+- Attachments now accept **images or short videos**, up to 3 files, **max 30 MB each** (configurable: `config('refund.attachments.max_count'|'max_kb')` / `REFUND_ATTACHMENT_MAX_KB`). Backend rule: `mimetypes:image/*,video/*`. Customer form previews videos inline and enforces the size limit client-side; admin detail plays videos with `<video controls>` (images still shown as thumbnails), all via the same gated stream route.
+- **Server config required for 30 MB uploads:** ensure PHP `upload_max_filesize` and `post_max_size` (and nginx `client_max_body_size` if used) are ≥ ~32 MB, otherwise large videos fail with 413/validation error. This is the only server-side (non-code) change needed.
+
+### Addendum (2026-06-26d) — bank bulk export from /refunds
+
+- **Batch export lives on the queue page** (`/refunds`), not per-ticket. Each row has a checkbox (header check-all selects all *eligible* rows = Approved + PayNow, not already batched). A toolbar shows the selected count, a **bank dropdown**, and an **Export** button → downloads the bank file (axios blob) and marks those tickets `scheduled` under a new payout batch.
+- **Extensible bank-template layer** in `app/Services/Refund/BankTemplates/`: `BankBulkTemplate` (interface), `BankTemplateRegistry` (register new banks here), `CimbBizChannelTemplate` (first impl). Add a bank by writing a class + one registry line + a `config('refund.banks.<key>')` block.
+- **CIMB BizChannel format** (studied from the template): a `%`-delimited text file —
+  - Header: `serviceCode % accountNo % accountName % currency % total(#0.00) % count % settlementMode % postingIndicator % date(ddmmyyyy)`
+  - Detail ×N: `benefAccount % benefName % amount(0.00) % currency % BIC % purposeCode % description % % %`
+  - Originator/header fields come from `config('refund.banks.cimb')` (env-overridable): `REFUND_CIMB_ACCOUNT_NO`, `REFUND_CIMB_ACCOUNT_NAME`, `REFUND_CIMB_CURRENCY`(SGD), `REFUND_CIMB_SERVICE_CODE`(3), `REFUND_CIMB_SETTLEMENT_MODE`(R), `REFUND_CIMB_POSTING_INDICATOR`(C), `REFUND_CIMB_PURPOSE_CODE`(OTHR), `REFUND_CIMB_BENEFICIARY_BIC`.
+  - Per-ticket detail mapping: account = `payout_destination` (PayNow proxy), name = email local-part (we don't capture a payee name), amount = owed cents, description = ticket reference.
+
+**⚠ Confirm before production use:** (1) set the CIMB originator env values; (2) this template is account/BIC-based (salary style) — verify CIMB accepts the **PayNow proxy in the account field**, or supply a dedicated CIMB PayNow template (easy to add as another bank key); (3) decide the **beneficiary name** source (we don't collect the customer's name — currently uses the email local-part). The file is generated as `.txt` per CIMB's "copy column K into Notepad" instruction.

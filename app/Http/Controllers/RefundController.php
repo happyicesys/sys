@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\RefundPayoutBatch;
 use App\Models\RefundTicket;
+use App\Models\RefundTicketAttachment;
 use App\Models\RefundTicketItem;
 use App\Services\Refund\RefundEmailService;
 use App\Services\Refund\RefundPayoutCsvService;
@@ -30,12 +31,24 @@ class RefundController extends Controller
 
     public function index(Request $request)
     {
+        $allStatuses = array_keys($this->statusLabels());
+        // default view: everything except already-completed ("refunded") tickets
+        $defaultStatuses = array_values(array_diff($allStatuses, [RefundTicket::STATUS_COMPLETED]));
+
+        // default date window = last 4 weeks up to today (first load); user can override/clear
+        $dateFrom = $request->has('date_from') ? $request->input('date_from') : now()->subWeeks(4)->toDateString();
+        $dateTo = $request->has('date_to') ? $request->input('date_to') : now()->toDateString();
+
+        $statusSel = $request->has('status')
+            ? array_values(array_filter((array) $request->input('status')))
+            : $defaultStatuses;
+        $applyStatus = !empty($statusSel) && !in_array('all', $statusSel, true);
+
         $query = RefundTicket::query()
-            ->when($request->status, fn ($q, $s) => $q->where('status', $s))
+            ->when($applyStatus, fn ($q) => $q->whereIn('status', $statusSel))
             ->when($request->refund_method, fn ($q, $s) => $q->where('refund_method', $s))
-            ->when($request->payment_channel, fn ($q, $s) => $q->where('payment_channel', $s))
-            ->when($request->date_from, fn ($q, $s) => $q->whereDate('created_at', '>=', $s))
-            ->when($request->date_to, fn ($q, $s) => $q->whereDate('created_at', '<=', $s))
+            ->when($dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->whereDate('created_at', '<=', $dateTo))
             ->when($request->search, function ($q, $s) {
                 $q->where(function ($w) use ($s) {
                     $w->where('reference', 'like', "%{$s}%")
@@ -44,24 +57,54 @@ class RefundController extends Controller
                         ->orWhere('payout_destination', 'like', "%{$s}%");
                 });
             })
-            ->orderByDesc('created_at');
+            ->orderByDesc('created_at'); // latest on top
 
         $tickets = $query->paginate(25)->withQueryString()
             ->through(fn (RefundTicket $t) => $this->toRow($t));
 
+        // counts are over all tickets (unfiltered) so the chips always show true totals
         $counts = RefundTicket::selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status');
 
         return Inertia::render('Refund/Index', [
             'tickets' => $tickets,
             'counts' => $counts,
-            'filters' => $request->only(['status', 'refund_method', 'payment_channel', 'date_from', 'date_to', 'search']),
+            'filters' => [
+                'search' => $request->input('search', ''),
+                'refund_method' => $request->input('refund_method', ''),
+                // only reflect status in the UI when the user explicitly chose some;
+                // the default (all except completed) is applied silently and shows as "All statuses"
+                'status' => $request->has('status') ? $statusSel : [],
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+            ],
             'statuses' => $this->statusLabels(),
+            'banks' => \App\Services\Refund\BankTemplates\BankTemplateRegistry::all(),
+            'defaultBank' => config('refund.default_bank', 'cimb'),
+        ]);
+    }
+
+    public function exportBatch(Request $request)
+    {
+        $data = $request->validate([
+            'ticket_ids' => ['required', 'array', 'min:1'],
+            'ticket_ids.*' => ['integer'],
+            'bank' => ['required', 'string'],
+        ]);
+        abort_unless(\App\Services\Refund\BankTemplates\BankTemplateRegistry::has($data['bank']), 422, 'Unknown bank template.');
+
+        $res = $this->payout->exportBank($data['ticket_ids'], $data['bank'], auth()->id());
+
+        return response($res['content'], 200, [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $res['filename'] . '"',
+            'X-Filename' => $res['filename'],
+            'Access-Control-Expose-Headers' => 'Content-Disposition, X-Filename',
         ]);
     }
 
     public function show(RefundTicket $ticket)
     {
-        $ticket->load(['items', 'logs']);
+        $ticket->load(['items', 'logs', 'attachments']);
 
         return Inertia::render('Refund/Show', [
             'ticket' => $this->toDetail($ticket),
@@ -71,6 +114,7 @@ class RefundController extends Controller
                 RefundEmailService::T_INFO_REQUIRED => 'Additional info required (PayNow)',
                 RefundEmailService::T_COMPLETED => 'Refund completed',
             ],
+            'emailTemplateContents' => $this->email->templates(),
             'statuses' => $this->statusLabels(),
         ]);
     }
@@ -161,6 +205,14 @@ class RefundController extends Controller
         $this->guardTransition($ticket, [
             RefundTicket::STATUS_PENDING_APPROVAL,
         ], 'approve');
+
+        // Double-refund guard: block if another ticket is already refunding this transaction.
+        if ($conflict = $ticket->conflictingRefund()) {
+            return back()->withErrors([
+                'ticket' => "Cannot approve — this transaction is already being refunded under {$conflict->reference} (" . ($this->statusLabels()[$conflict->status] ?? $conflict->status) . ').',
+            ]);
+        }
+
         $from = $ticket->status;
         $ticket->update([
             'status' => RefundTicket::STATUS_APPROVED,
@@ -230,11 +282,33 @@ class RefundController extends Controller
         return back();
     }
 
+    public function destroy(RefundTicket $ticket)
+    {
+        // Permanent clean delete (testing): remove children, attachment files, then the ticket.
+        foreach ($ticket->attachments as $a) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($a->path);
+        }
+        $ticket->attachments()->delete();
+        $ticket->items()->delete();
+        $ticket->logs()->delete();
+        $ticket->forceDelete();
+
+        return redirect('/refunds')->with('success', 'Refund ticket deleted.');
+    }
+
     public function downloadBatch(RefundPayoutBatch $batch)
     {
         abort_unless($batch->csv_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($batch->csv_path), 404);
 
         return \Illuminate\Support\Facades\Storage::disk('local')->download($batch->csv_path, $batch->reference . '.csv');
+    }
+
+    public function viewAttachment(RefundTicket $ticket, RefundTicketAttachment $attachment)
+    {
+        abort_unless($attachment->refund_ticket_id === $ticket->id, 404);
+        abort_unless(\Illuminate\Support\Facades\Storage::disk('local')->exists($attachment->path), 404);
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($attachment->path);
     }
 
     // ---- mappers ----
@@ -278,13 +352,22 @@ class RefundController extends Controller
             'items' => $t->items->map(fn (RefundTicketItem $i) => [
                 'id' => $i->id,
                 'product_name' => $i->product_name,
+                'product_sku' => $i->product_sku,
                 'vend_channel_code' => $i->vend_channel_code,
                 'unit_price' => number_format($i->unit_price_cents / 100, 2),
                 'had_channel_error' => $i->had_channel_error,
                 'vend_channel_error_code' => $i->vend_channel_error_code,
+                'channel_error_desc' => $i->channel_error_desc,
                 'channel_error_weightage' => $i->channel_error_weightage,
                 'item_recommendation' => $i->item_recommendation,
                 'approved' => $i->approved,
+            ])->values(),
+            'related_transactions' => $this->relatedTransactions($t),
+            'attachments' => $t->attachments->map(fn (RefundTicketAttachment $a) => [
+                'id' => $a->id,
+                'original_name' => $a->original_name,
+                'mime' => $a->mime,
+                'url' => '/refunds/' . $t->id . '/attachments/' . $a->id,
             ])->values(),
             'logs' => $t->logs->map(fn ($l) => [
                 'actor_label' => $l->actor_label,
@@ -297,6 +380,51 @@ class RefundController extends Controller
         ]);
     }
 
+    /**
+     * The source transaction(s) behind a ticket, with a deep link into Sales
+     * Transactions filtered by order_id + that day.
+     */
+    protected function relatedTransactions(RefundTicket $ticket): array
+    {
+        $q = \App\Models\VendTransaction::withoutGlobalScopes()
+            ->with(['paymentMethod', 'vendTransactionItems.product', 'vendTransactionItems.vendChannel']);
+
+        if ($ticket->order_id) {
+            $q->where('order_id', $ticket->order_id);
+        } elseif ($ticket->vend_transaction_id) {
+            $q->where('id', $ticket->vend_transaction_id);
+        } else {
+            return [];
+        }
+
+        return $q->orderByDesc('transaction_datetime')->get()->map(function ($t) use ($ticket) {
+            $date = $t->transaction_datetime;
+            $link = '/vends/transactions?' . http_build_query(array_filter([
+                'order_id' => $t->order_id,
+                'date_from' => $date ? $date->copy()->startOfDay()->toDateTimeString() : null,
+                'date_to' => $date ? $date->copy()->endOfDay()->toDateTimeString() : null,
+            ]));
+
+            return [
+                'id' => $t->id,
+                'order_id' => $t->order_id,
+                'datetime' => optional($date)->format('d M Y, g:i A'),
+                'amount' => number_format($t->amount / 100, 2),
+                'machine' => $ticket->vend_code,
+                'payment_method' => $t->paymentMethod?->name,
+                'qty' => $t->qty,
+                'dispensed_qty' => $t->dispensed_qty,
+                'is_refunded' => (bool) $t->is_refunded,
+                'items' => $t->vendTransactionItems->map(fn ($i) => [
+                    'product' => $i->product?->name ?? ($i->vend_channel_code ? 'Channel ' . $i->vend_channel_code : 'Item'),
+                    'channel' => $i->vend_channel_code,
+                    'price' => number_format((($i->unit_price_amount ?: ($i->vendChannel?->amount ?? 0))) / 100, 2),
+                ])->values(),
+                'link' => $link,
+            ];
+        })->values()->all();
+    }
+
     protected function statusLabels(): array
     {
         return [
@@ -307,7 +435,6 @@ class RefundController extends Controller
             RefundTicket::STATUS_PENDING_APPROVAL => 'Pending approval',
             RefundTicket::STATUS_APPROVED => 'Approved',
             RefundTicket::STATUS_PENDING_TRANSFER_INFO => 'Pending info',
-            RefundTicket::STATUS_SCHEDULED => 'Scheduled',
             RefundTicket::STATUS_COMPLETED => 'Completed',
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Customer;
 use App\Services\Refund\RefundMatchingService;
 use App\Services\Refund\RefundTicketService;
 use Illuminate\Http\Request;
@@ -31,6 +32,39 @@ class RefundFormController extends Controller
         $this->tickets = $tickets;
     }
 
+    /**
+     * Validate a PayNow destination — we only refund to a personal mobile number,
+     * so it must be a valid phone number for the operator's country.
+     */
+    protected function isValidPaynowDestination(string $value, string $country): bool
+    {
+        $country = strtoupper($country ?: 'SG');
+
+        try {
+            $phone = new \Propaganistas\LaravelPhone\PhoneNumber($value, $country);
+            if (!$phone->isValid()) {
+                return false;
+            }
+            try {
+                return $phone->isOfType('mobile');
+            } catch (\Throwable $e) {
+                return true; // type lookup unavailable -> accept any valid number
+            }
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /** Site (customer) name for a machine — public context, so skip operator scopes. */
+    protected function siteName(?\App\Models\Vend $vend): ?string
+    {
+        if (!$vend || !$vend->customer_id) {
+            return null;
+        }
+
+        return optional(Customer::withoutGlobalScopes()->find($vend->customer_id))->name;
+    }
+
     public function show(Request $request)
     {
         $machineID = (string) $request->query('machineID', '');
@@ -40,9 +74,10 @@ class RefundFormController extends Controller
             'machineID' => $machineID,
             'machineFound' => (bool) $vend,
             'machineName' => $vend?->name,
-            'machineLocation' => $vend ? trim(($vend->name ?? '') . '') : null,
+            'siteName' => $this->siteName($vend),
             'reasonCodes' => collect(self::REASON_CODES)->map(fn ($label, $code) => ['code' => $code, 'label' => $label])->values(),
             'allowedDays' => config('refund.match.days', ['today', 'yesterday']),
+            'maxLookbackDays' => (int) config('refund.match.max_lookback_days', 14),
         ]);
     }
 
@@ -55,6 +90,7 @@ class RefundFormController extends Controller
             'found' => (bool) $vend,
             'machineID' => $data['machineID'],
             'machineName' => $vend?->name,
+            'siteName' => $this->siteName($vend),
         ]);
     }
 
@@ -62,7 +98,9 @@ class RefundFormController extends Controller
     {
         $data = $request->validate([
             'machineID' => ['required', 'string', 'max:191'],
-            'day' => ['required', 'string', 'in:' . implode(',', config('refund.match.days', ['today', 'yesterday']))],
+            // 'today' | 'yesterday' | a YYYY-MM-DD custom date. dayRange() enforces
+            // the eligibility window; out-of-range dates yield no candidates.
+            'day' => ['required', 'string', 'max:20'],
             'amount' => ['required', 'numeric', 'min:0', 'max:100000'],
         ]);
 
@@ -87,13 +125,33 @@ class RefundFormController extends Controller
             'reason_text' => ['nullable', 'string', 'max:2000'],
             'refund_method' => ['nullable', 'string', 'in:paynow,paypal'],
             'payout_destination' => ['nullable', 'string', 'max:191'],
-            'contact_email' => ['nullable', 'email', 'max:191'],
+            'contact_email' => ['required', 'email', 'max:191'], // email is compulsory
             'contact_phone' => ['nullable', 'string', 'max:60'],
             'is_manual' => ['nullable', 'boolean'],
             'entered_day' => ['nullable', 'string', 'max:30'],
             'entered_amount' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'approx_time' => ['nullable', 'string', 'max:191'],
+            'photos' => ['nullable', 'array', 'max:' . config('refund.attachments.max_count', 3)],
+            'photos.*' => ['file', 'mimetypes:image/*,video/*', 'max:' . config('refund.attachments.max_kb', 30720)],
         ]);
+
+        // PayNow is Singapore-only: validate the refund number as an SG mobile.
+        $vend = $this->matching->resolveMachine($data['machineID']);
+        $method = $data['refund_method'] ?? null;
+        $dest = trim((string) ($data['payout_destination'] ?? ''));
+
+        if ($method === 'paynow') {
+            if ($dest === '') {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'payout_destination' => 'Please enter your PayNow mobile number.',
+                ]);
+            }
+            if (!$this->isValidPaynowDestination($dest, config('refund.paynow_country', 'SG'))) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'payout_destination' => 'Please enter a valid Singapore mobile number registered for PayNow.',
+                ]);
+            }
+        }
 
         // require either a matched source or the manual path
         if (empty($data['is_manual']) && empty($data['vend_transaction_id']) && empty($data['payment_gateway_log_id'])) {
@@ -117,6 +175,20 @@ class RefundFormController extends Controller
             'approx_time' => $data['approx_time'] ?? null,
             'submit_ip' => $request->ip(),
         ]);
+
+        // attachments (max 3 images), stored privately on the local disk
+        if ($request->hasFile('photos')) {
+            foreach (array_slice($request->file('photos'), 0, (int) config('refund.attachments.max_count', 3)) as $photo) {
+                $path = $photo->store('refund-attachments/' . $ticket->id, 'local');
+                \App\Models\RefundTicketAttachment::create([
+                    'refund_ticket_id' => $ticket->id,
+                    'path' => $path,
+                    'original_name' => $photo->getClientOriginalName(),
+                    'mime' => $photo->getClientMimeType(),
+                    'size' => $photo->getSize(),
+                ]);
+            }
+        }
 
         return response()->json([
             'reference' => $ticket->reference,

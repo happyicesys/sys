@@ -45,6 +45,7 @@ class RefundTicket extends Model
         'operator_id',
         'vend_transaction_id',
         'payment_gateway_log_id',
+        'order_id',
         'reason_code',
         'reason_text',
         'refund_method',
@@ -101,6 +102,11 @@ class RefundTicket extends Model
         return $this->hasMany(RefundTicketItem::class);
     }
 
+    public function attachments()
+    {
+        return $this->hasMany(RefundTicketAttachment::class);
+    }
+
     public function logs()
     {
         return $this->hasMany(RefundTicketLog::class)->latest('created_at');
@@ -124,5 +130,44 @@ class RefundTicket extends Model
     public function amountDisplay(): string
     {
         return number_format($this->claimed_amount_cents / 100, 2);
+    }
+
+    /** Statuses where a refund is locked in / paying out (blocks a second refund of the same txn). */
+    const ACTIVE_REFUND_STATUSES = [
+        self::STATUS_APPROVED,
+        self::STATUS_SCHEDULED,
+        self::STATUS_COMPLETED,
+        self::STATUS_AUTO_RESOLVED,
+    ];
+
+    /**
+     * Another ticket already refunding the SAME transaction (by order_id /
+     * vend_transaction_id / payment_gateway_log_id), if any. Used to block
+     * double refunds. Returns null for manual tickets (no transaction identity).
+     */
+    public function conflictingRefund(): ?RefundTicket
+    {
+        $orderId = $this->order_id;
+        $vtId = $this->vend_transaction_id;
+        $logId = $this->payment_gateway_log_id;
+
+        if (!$orderId && !$vtId && !$logId) {
+            return null;
+        }
+
+        return static::where('id', '!=', $this->id)
+            ->whereIn('status', self::ACTIVE_REFUND_STATUSES)
+            ->where(function ($q) use ($orderId, $vtId, $logId) {
+                if ($orderId) {
+                    $q->orWhere('order_id', $orderId);
+                }
+                if ($vtId) {
+                    $q->orWhere('vend_transaction_id', $vtId);
+                }
+                if ($logId) {
+                    $q->orWhere('payment_gateway_log_id', $logId);
+                }
+            })
+            ->first();
     }
 }

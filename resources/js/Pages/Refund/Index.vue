@@ -1,28 +1,97 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
 
 const props = defineProps({
     tickets: { type: Object, required: true },
     counts: { type: Object, default: () => ({}) },
     filters: { type: Object, default: () => ({}) },
     statuses: { type: Object, default: () => ({}) },
+    banks: { type: Object, default: () => ({}) },
+    defaultBank: { type: String, default: 'cimb' },
 });
+
+// ---- batch selection / bank export ----
+const selected = ref([]);
+const bank = ref(props.defaultBank || Object.keys(props.banks)[0] || 'cimb');
+const exporting = ref(false);
+const exportMsg = ref('');
+
+const eligible = (t) => t.status === 'approved' && t.refund_method === 'paynow';
+const eligibleIds = () => props.tickets.data.filter(eligible).map((t) => t.id);
+const allSelected = computed(() => {
+    const ids = eligibleIds();
+    return ids.length > 0 && ids.every((id) => selected.value.includes(id));
+});
+function toggleAll(e) {
+    selected.value = e.target.checked ? eligibleIds() : [];
+}
+function toggleRow(id) {
+    const i = selected.value.indexOf(id);
+    if (i === -1) selected.value.push(id); else selected.value.splice(i, 1);
+}
+async function exportBatch() {
+    if (!selected.value.length) { exportMsg.value = 'Select at least one approved PayNow ticket.'; return; }
+    exporting.value = true; exportMsg.value = '';
+    try {
+        const res = await window.axios.post('/refunds/batch/export',
+            { ticket_ids: selected.value, bank: bank.value },
+            { responseType: 'blob' });
+        let fn = res.headers['x-filename'] || 'refund_batch.txt';
+        const url = URL.createObjectURL(new Blob([res.data]));
+        const a = document.createElement('a');
+        a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        selected.value = [];
+        router.reload({ only: ['tickets', 'counts'] });
+    } catch (e) {
+        exportMsg.value = (e.response && e.response.status === 422)
+            ? 'None of the selected tickets are eligible (must be Approved + PayNow, not already batched).'
+            : 'Export failed. Please try again.';
+    } finally {
+        exporting.value = false;
+    }
+}
+
+// status options as {id: key, value: label} for the tags MultiSelect
+const statusOptions = ref(Object.entries(props.statuses).map(([id, value]) => ({ id, value })));
 
 const filters = ref({
     search: props.filters.search || '',
-    status: props.filters.status || '',
+    status: statusOptions.value.filter((o) => (props.filters.status || []).includes(o.id)),
     refund_method: props.filters.refund_method || '',
     date_from: props.filters.date_from || '',
     date_to: props.filters.date_to || '',
 });
 
+function payload() {
+    const p = {
+        search: filters.value.search,
+        refund_method: filters.value.refund_method,
+        date_from: filters.value.date_from,
+        date_to: filters.value.date_to,
+    };
+    // omit status when empty -> server applies the default (all except completed), shown as "All statuses"
+    if (filters.value.status.length) p.status = filters.value.status.map((s) => s.id);
+    return p;
+}
 function applyFilters() {
-    router.get('/refunds', filters.value, { preserveState: true, replace: true });
+    router.get('/refunds', payload(), { preserveState: true, replace: true });
 }
 function clearFilters() {
-    filters.value = { search: '', status: '', refund_method: '', date_from: '', date_to: '' };
+    filters.value = { search: '', status: [], refund_method: '', date_from: '', date_to: '' };
+    applyFilters();
+}
+function pickStatus(key) {
+    // toggle: clicking the active chip clears back to "All"
+    if (filters.value.status.length === 1 && filters.value.status[0].id === key) {
+        filters.value.status = [];
+    } else {
+        const opt = statusOptions.value.find((o) => o.id === key);
+        filters.value.status = opt ? [opt] : [];
+    }
     applyFilters();
 }
 
@@ -51,19 +120,33 @@ const recClass = (r) => ({
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-        <!-- status chips -->
+        <!-- status chips (quick single-status filter) -->
         <div class="flex flex-wrap gap-2 mb-3">
             <span v-for="(label, key) in statuses" :key="key"
                 class="text-xs font-semibold px-3 py-1.5 rounded-full border bg-white cursor-pointer"
-                :class="filters.status === key ? 'border-teal-500 text-teal-700' : 'border-gray-200 text-gray-600'"
-                @click="filters.status = filters.status === key ? '' : key; applyFilters()">
+                :class="(filters.status.length === 1 && filters.status[0].id === key) ? 'border-teal-500 text-teal-700' : 'border-gray-200 text-gray-600'"
+                @click="pickStatus(key)">
                 {{ label }} <b class="text-gray-900">{{ counts[key] || 0 }}</b>
             </span>
         </div>
 
         <!-- filters -->
-        <div class="bg-white rounded-md border p-3 mb-3 grid grid-cols-1 md:grid-cols-6 gap-2">
+        <div class="bg-white rounded-md border p-3 mb-3 grid grid-cols-1 md:grid-cols-6 gap-2 items-start">
             <input v-model="filters.search" placeholder="Ref / machine / email" class="border rounded-md px-3 py-2 text-sm md:col-span-2" @keyup.enter="applyFilters" />
+            <div class="md:col-span-2">
+                <MultiSelect
+                    v-model="filters.status"
+                    :options="statusOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    mode="tags"
+                    placeholder="All statuses"
+                    open-direction="bottom"
+                />
+            </div>
+            <input type="date" v-model="filters.date_from" class="border rounded-md px-3 py-2 text-sm" />
+            <input type="date" v-model="filters.date_to" class="border rounded-md px-3 py-2 text-sm" />
             <select v-model="filters.refund_method" class="border rounded-md px-3 py-2 text-sm">
                 <option value="">All methods</option>
                 <option value="paynow">PayNow</option>
@@ -71,12 +154,25 @@ const recClass = (r) => ({
                 <option value="nayax_auto">Nayax (auto)</option>
                 <option value="none">None</option>
             </select>
-            <input type="date" v-model="filters.date_from" class="border rounded-md px-3 py-2 text-sm" />
-            <input type="date" v-model="filters.date_to" class="border rounded-md px-3 py-2 text-sm" />
             <div class="flex gap-2">
                 <button @click="applyFilters" class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-teal-700">Search</button>
                 <button @click="clearFilters" class="bg-gray-100 text-gray-700 rounded-md px-3 py-2 text-sm border">Clear</button>
             </div>
+        </div>
+
+        <!-- batch export toolbar -->
+        <div class="bg-teal-50 border border-teal-200 rounded-md px-4 py-3 mb-3 flex flex-wrap items-center gap-3">
+            <span class="text-sm font-semibold text-teal-800">{{ selected.length }} selected</span>
+            <span class="text-xs text-gray-500">Select Approved · PayNow tickets to export a bank bulk file.</span>
+            <div class="flex-1"></div>
+            <select v-model="bank" class="border rounded-md px-3 py-2 text-sm bg-white">
+                <option v-for="(label, key) in banks" :key="key" :value="key">{{ label }}</option>
+            </select>
+            <button @click="exportBatch" :disabled="exporting || !selected.length"
+                class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
+                {{ exporting ? 'Exporting…' : '⬇ Export ' + (banks[bank] || 'bank file') }}
+            </button>
+            <span v-if="exportMsg" class="w-full text-xs text-red-600">{{ exportMsg }}</span>
         </div>
 
         <!-- table -->
@@ -84,6 +180,7 @@ const recClass = (r) => ({
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
+                        <th class="px-3 py-3 w-8"><input type="checkbox" :checked="allSelected" @change="toggleAll" /></th>
                         <th class="text-left px-4 py-3">Ref</th>
                         <th class="text-left px-4 py-3">Machine</th>
                         <th class="text-left px-4 py-3">Amount</th>
@@ -96,6 +193,10 @@ const recClass = (r) => ({
                 </thead>
                 <tbody>
                     <tr v-for="t in tickets.data" :key="t.id" class="border-t hover:bg-gray-50 cursor-pointer" @click="router.get('/refunds/' + t.id)">
+                        <td class="px-3 py-3" @click.stop>
+                            <input type="checkbox" :disabled="!eligible(t)" :checked="selected.includes(t.id)" @change="toggleRow(t.id)"
+                                :title="!eligible(t) ? 'Only Approved PayNow tickets can be exported' : ''" />
+                        </td>
                         <td class="px-4 py-3 font-semibold text-teal-700">{{ t.reference }}</td>
                         <td class="px-4 py-3">{{ t.vend_code }}</td>
                         <td class="px-4 py-3">${{ t.amount }}</td>
@@ -105,7 +206,7 @@ const recClass = (r) => ({
                         <td class="px-4 py-3 text-gray-500">{{ t.created_ago }}</td>
                         <td class="px-4 py-3"><span class="text-xs font-bold px-2 py-1 rounded-full" :class="statusClass(t.status)">{{ statuses[t.status] || t.status }}</span></td>
                     </tr>
-                    <tr v-if="!tickets.data.length"><td colspan="8" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
+                    <tr v-if="!tickets.data.length"><td colspan="9" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
                 </tbody>
             </table>
         </div>

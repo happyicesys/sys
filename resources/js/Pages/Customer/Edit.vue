@@ -232,6 +232,27 @@
                     </div>
                   </div>
 
+                  <!-- Site Group — link co-located sites so they "travel
+                       together" on grouped views (e.g. Ops Dashboard). -->
+                  <div class="sm:col-span-3">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      Site Group
+                      <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Type the same group name on 2-3 co-located sites to link them. Leave blank to ungroup.'"></ExclamationCircleIcon>
+                    </label>
+                    <input
+                      type="text"
+                      v-model="form.customer_group_name"
+                      placeholder="e.g. Blk 123 cluster"
+                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                    <p class="mt-1 text-xs text-gray-400">
+                      Same name on co-located sites links them. Blank = ungroup.
+                    </p>
+                    <div class="text-sm text-red-600" v-if="form.errors['customer.customer_group_name']">
+                      {{ form.errors['customer.customer_group_name'] }}
+                    </div>
+                  </div>
+
                   <!-- Address Section -->
                   <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6 pb-6">
                     <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 md:pb-3">
@@ -2419,6 +2440,9 @@ onMounted(() => {
     preferred_visit_days_json: { ...initialPreferredVisitDays, ...props.customer.preferred_visit_days_json },
     selling_price_type: props.customer && props.customer.selling_price_type ? sellingPriceTypeOptions.value.find(option => option.id == props.customer.selling_price_type) : sellingPriceTypeOptions.value.find(option => option.value === 'RP2'),
     zone_id: props.customer && props.customer.zone_id ? zoneOptions.value.find(zone => zone.id === props.customer.zone_id) : null,
+    // Site grouping — free-text group name. Type the SAME name on co-located
+    // sites to link them (find-or-created server-side, scoped to operator).
+    customer_group_name: props.customer?.customer_group?.name ?? '',
     contract_commission_type: props.customer ? (props.customer.contract_commission_type ?? null) : null,
     contract_commission_value: props.customer ? (props.customer.contract_commission_value ?? null) : null,
     contract_commission_value2: props.customer ? (props.customer.contract_commission_value2 ?? null) : null,

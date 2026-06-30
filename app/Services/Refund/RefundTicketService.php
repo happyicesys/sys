@@ -37,7 +37,14 @@ class RefundTicketService
 
         if (!$isManual && !empty($input['vend_transaction_id'])) {
             $txn = VendTransaction::withoutGlobalScopes()
-                ->with(['vendTransactionItems.product', 'vendTransactionItems.vendChannelError'])
+                ->with([
+                    'vendTransactionItems.product',
+                    'vendTransactionItems.vendChannel.product',
+                    'vendTransactionItems.vendChannelError',
+                    'product',
+                    'vendChannel.product',
+                    'vendChannelError',
+                ])
                 ->find($input['vend_transaction_id']);
         }
 
@@ -132,6 +139,7 @@ class RefundTicketService
                 'operator_id' => $vend?->operator_id,
                 'vend_transaction_id' => $txn?->id,
                 'payment_gateway_log_id' => $txn?->payment_gateway_log_id ?? $log?->id,
+                'order_id' => $txn?->order_id ?? $log?->order_id,
                 'reason_code' => $input['reason_code'] ?? null,
                 'reason_text' => $input['reason_text'] ?? null,
                 'refund_method' => $method,
@@ -162,10 +170,12 @@ class RefundTicketService
                     'vend_transaction_item_id' => $i['vend_transaction_item_id'] ?? null,
                     'product_id' => $i['product_id'] ?? null,
                     'product_name' => $i['product_name'] ?? null,
+                    'product_sku' => $i['product_sku'] ?? null,
                     'vend_channel_code' => $i['vend_channel_code'] ?? null,
                     'unit_price_cents' => (int) ($i['unit_price_cents'] ?? 0),
                     'had_channel_error' => (bool) ($i['had_channel_error'] ?? false),
                     'vend_channel_error_code' => $i['vend_channel_error_code'] ?? null,
+                    'channel_error_desc' => $i['channel_error_desc'] ?? null,
                     'channel_error_weightage' => $i['channel_error_weightage'] ?? null,
                     'item_recommendation' => $i['item_recommendation'] ?? null,
                     'approved' => null,
@@ -188,15 +198,18 @@ class RefundTicketService
 
         // No line-item rows recorded — treat the whole transaction as one implicit item.
         if ($rows->isEmpty()) {
+            $product = $txn->product ?? $txn->vendChannel?->product;
             return [[
                 'vend_transaction_item_id' => null,
                 'product_id' => $txn->product_id,
-                'product_name' => $txn->product?->name ?? 'Purchase',
+                'product_name' => $product?->name ?? ($txn->vend_channel_code ? 'Channel ' . $txn->vend_channel_code : 'Purchase'),
+                'product_sku' => $product?->code ?? $txn->vendChannel?->sku_code ?? $txn->vend_channel_code,
                 'vend_channel_code' => $txn->vend_channel_code,
                 'unit_price_cents' => (int) $txn->amount,
-                'had_channel_error' => (bool) $txn->vend_channel_error_id,
-                'vend_channel_error_code' => $txn->vend_channel_error_id ? (string) $txn->vend_channel_error_id : null,
-                'channel_error_weightage' => null,
+                'had_channel_error' => (bool) $txn->vend_channel_error_id && $this->matching->isRealChannelError($txn->vendChannelError?->code),
+                'vend_channel_error_code' => $txn->vendChannelError?->code,
+                'channel_error_desc' => $txn->vendChannelError?->desc,
+                'channel_error_weightage' => $txn->vendChannelError?->weightage,
                 'is_refunded' => (bool) $txn->is_refunded,
             ]];
         }
@@ -214,14 +227,17 @@ class RefundTicketService
 
         return $selected->map(function ($item) {
             $error = $item->vendChannelError;
+            $product = $item->product ?? $item->vendChannel?->product;
             return [
                 'vend_transaction_item_id' => $item->id,
                 'product_id' => $item->product_id,
-                'product_name' => $item->product?->name ?? ($item->product_name ?? 'Item'),
+                'product_name' => $product?->name ?? ($item->product_name ?? ($item->vend_channel_code ? 'Channel ' . $item->vend_channel_code : 'Item')),
+                'product_sku' => $product?->code ?? $item->vendChannel?->sku_code ?? $item->vend_channel_code,
                 'vend_channel_code' => $item->vend_channel_code,
-                'unit_price_cents' => (int) ($item->unit_price_amount ?? 0),
-                'had_channel_error' => (bool) $item->vend_channel_error_id,
+                'unit_price_cents' => (int) ($item->unit_price_amount ?: ($item->vendChannel?->amount ?? 0)),
+                'had_channel_error' => (bool) $item->vend_channel_error_id && $this->matching->isRealChannelError($item->vend_channel_error_code),
                 'vend_channel_error_code' => $item->vend_channel_error_code,
+                'channel_error_desc' => $error?->desc,
                 'channel_error_weightage' => $error?->weightage,
                 'is_refunded' => (bool) $item->is_refunded,
             ];

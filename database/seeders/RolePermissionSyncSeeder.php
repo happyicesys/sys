@@ -489,6 +489,33 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read', 'export', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee']
             ],
+
+            // Refund Requests module. Mirrors the grants in migration
+            // 2026_06_26_100004_seed_refund_permissions.php (which is the source of
+            // truth on fresh installs). Listed here too because this seeder
+            // truncates ALL permissions and rebuilds only what it lists — without
+            // this block, re-running it would delete refund access. superadmin is
+            // granted explicitly so the sidebar (literal permission check) shows it.
+            [
+                'refunds',
+                ['read'],
+                ['superadmin', 'admin', 'supervisor', 'operator']
+            ],
+            [
+                'refunds',
+                ['create', 'update', 'payout'],
+                ['superadmin', 'admin']
+            ],
+            [
+                'refunds',
+                ['verify'],
+                ['superadmin', 'admin', 'operator']
+            ],
+            [
+                'refunds',
+                ['approve'],
+                ['superadmin', 'supervisor']
+            ],
         ];
 
         // Create permissions and assign to roles
