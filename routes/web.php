@@ -59,6 +59,7 @@ use App\Http\Controllers\VendCriteriaBindingController;
 use App\Http\Controllers\VendModelController;
 use App\Http\Controllers\VendPrefixController;
 use App\Http\Controllers\VendSerialNumberController;
+use App\Http\Controllers\UserLogController;
 use App\Http\Controllers\VendAlertParameterController;
 use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\ZoneController;
@@ -101,6 +102,9 @@ Route::get('/client/api-docs', function () {
 });
 
 Route::middleware(['auth', 'cors'])->group(function () {
+
+    // Generic user-action history feed for the reusable HistoryButton drawer.
+    Route::get('/user-logs', [UserLogController::class, 'index'])->name('user-logs.index');
 
     Route::prefix('apk-settings')->group(function () {
         Route::get('/', [ApkSettingController::class, 'index'])->name('apk-settings');
@@ -209,6 +213,12 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->name('customers.summary.batch-lock');
         Route::post('/summary/batch-paid', [CustomerController::class, 'batchMarkPaidCustomerPeriodSummaries'])
             ->name('customers.summary.batch-paid');
+        // Batch Report Content — ticked rows on the Summary page → structured
+        // Report Content per (customer, period) in one round trip, stitched
+        // client-side into a single email body ("Export Batch Report Content").
+        // Read-only (no writes); mirrors the single-row performance-report-content.
+        Route::post('/summary/batch-report-content', [CustomerController::class, 'batchPerformanceReportContent'])
+            ->name('customers.summary.batch-report-content');
         // Performance Report email send (button on Customer Summary > Action).
         // Currently a stub — the actual queued send is wired in a follow-up.
         Route::post('/{id}/send-performance-report', [CustomerController::class, 'sendPerformanceReport'])

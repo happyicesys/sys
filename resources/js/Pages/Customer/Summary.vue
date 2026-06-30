@@ -106,6 +106,34 @@
             </p>
           </div>
 
+          <!--
+            Custom Range month pickers — only shown when Period Report = "Custom
+            Range". Month granularity (matches the monthly year_month data).
+            Either bound may be left blank (the backend falls back to the
+            current month); the range is clamped to the reporting floor and the
+            current month server-side.
+          -->
+          <div v-if="filters.period_report?.id === 'custom'">
+            <label class="block text-sm font-medium text-gray-700">
+              Custom Range (From)
+            </label>
+            <input
+              type="month"
+              v-model="filters.period_from"
+              class="mt-1 w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500"
+            />
+          </div>
+          <div v-if="filters.period_report?.id === 'custom'">
+            <label class="block text-sm font-medium text-gray-700">
+              Custom Range (To)
+            </label>
+            <input
+              type="month"
+              v-model="filters.period_to"
+              class="mt-1 w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500"
+            />
+          </div>
+
           <!-- Placement Contract Type filter (multi-select tags) -->
           <div v-if="showAllFilters">
             <label class="block text-sm font-medium text-gray-700">
@@ -207,9 +235,9 @@
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
           <div class="mt-3">
-            <div class="flex flex-col space-y-1 md:flex-row md:space-y-0 md:space-x-1">
+            <div class="flex flex-wrap items-center gap-2">
               <Button
-                class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600"
+                class="inline-flex space-x-1 items-center whitespace-nowrap rounded-md border border-green bg-green-500 px-4 py-2.5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600"
                 @click="onSearchFilterUpdated"
               >
                 <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
@@ -220,7 +248,7 @@
                    the rest (incl. Billing Company).
                    Mirrors CustomerIndex.vue's showAllFilters button. -->
               <Button
-                class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400"
+                class="inline-flex space-x-1 items-center whitespace-nowrap rounded-md border border-green bg-gray-300 px-4 py-2.5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400"
                 @click.prevent="onShowAllFiltersClicked()"
               >
                 <span v-if="!showAllFilters" class="flex">
@@ -234,16 +262,16 @@
                 <span>All Filters</span>
               </Button>
               <Button
-                class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-sky-400"
+                class="inline-flex space-x-1 items-center whitespace-nowrap rounded-md border border-sky bg-sky-300 px-4 py-2.5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-sky-400"
                 @click.prevent="onMapAllMarkerClicked"
                 v-if="hasAnyAddressWithCoords"
               >
                 <MapPinIcon class="h-4 w-4" aria-hidden="true" />
                 <span>Show Map Markers</span>
               </Button>
-              <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
+              <Button type="button" class="inline-flex items-center whitespace-nowrap rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
                 @click.prevent="onExportExcelClicked()">
-                <div class="flex space-x-1">
+                <div class="flex items-center space-x-1">
                   <div>
                     <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
                     <svg v-if="loading" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-green-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -254,12 +282,37 @@
                   <span>Export Excel</span>
                 </div>
               </Button>
+              <!--
+                Export Batch Report Content — stitches the Report Content of
+                every ticked row into ONE client-facing email body (single
+                greeting + each machine's block + single thank-you), shown in a
+                modal with a Copy button. Disabled until at least one ticked row
+                carries report content. Only meaningful when the checkbox column
+                is present (canLock).
+              -->
+              <Button
+                v-if="canLock"
+                type="button"
+                class="inline-flex items-center whitespace-nowrap rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                :disabled="!selectedReportRows.length || batchReportLoading"
+                v-tooltip="selectedReportRows.length ? 'Build a combined report email for the ticked machines' : 'Tick one or more rows that have Report Content first'"
+                @click.prevent="onExportBatchReportClicked()"
+              >
+                <div class="flex items-center space-x-1">
+                  <DocumentTextIcon v-if="!batchReportLoading" class="h-4 w-4" aria-hidden="true" />
+                  <svg v-else aria-hidden="true" class="w-4 h-4 text-gray-200 animate-spin fill-green-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                    <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                  </svg>
+                  <span>Export Batch Report Content{{ selectedReportRows.length ? ` (${selectedReportRows.length})` : '' }}</span>
+                </div>
+              </Button>
               <!-- Unread Site-Note toggle: shows only sites whose Site Note
                    changed (by someone else) since your last visit, newest
                    first. Badge count comes from the server. -->
               <Button
                 type="button"
-                :class="['inline-flex items-center gap-1.5 rounded-md px-8 py-3 md:px-5 text-sm font-medium leading-4 shadow-sm transition-colors',
+                :class="['inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-4 py-2.5 text-sm font-medium leading-4 shadow-sm transition-colors',
                   unreadMode ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50']"
                 @click.prevent="toggleUnread()"
               >
@@ -276,7 +329,7 @@
                    count comes from the server (mentionCount). -->
               <Button
                 type="button"
-                :class="['inline-flex items-center gap-1.5 rounded-md px-8 py-3 md:px-5 text-sm font-medium leading-4 shadow-sm transition-colors',
+                :class="['inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-4 py-2.5 text-sm font-medium leading-4 shadow-sm transition-colors',
                   mentionMode ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50']"
                 @click.prevent="toggleMentioned()"
               >
@@ -383,6 +436,7 @@
                 <dt class="truncate text-xs font-medium text-gray-500">Total Gross Earning</dt>
                 <dd class="mt-0.5 text-lg font-semibold tracking-normal text-gray-900">
                   {{ formatMoney(totals.gross_earning_cents) }}
+                  <span v-if="pctOfSales(totals.gross_earning_cents)" class="text-xs font-normal text-indigo-600">( {{ pctOfSales(totals.gross_earning_cents) }} )</span>
                 </dd>
               </div>
               <div class="px-4 py-2 sm:border-b sm:border-gray-100 sm:border-r lg:border-r-0">
@@ -392,6 +446,7 @@
                   :class="(totals.location_fees_cents || 0) < 0 ? 'text-emerald-700' : 'text-gray-900'"
                 >
                   {{ formatMoneySigned(totals.location_fees_cents) }}
+                  <span v-if="pctOfSales(totals.location_fees_cents)" class="text-xs font-normal text-indigo-600">( {{ pctOfSales(totals.location_fees_cents) }} )</span>
                 </dd>
                 <p v-if="totals.has_to_date_proration" class="text-[10px] text-sky-700">
                   Current month accrued to date
@@ -404,6 +459,7 @@
                   :class="(totals.location_earning_cents || 0) >= 0 ? 'text-gray-900' : 'text-red-700'"
                 >
                   {{ formatMoney(totals.location_earning_cents) }}
+                  <span v-if="pctOfSales(totals.location_earning_cents)" class="text-xs font-normal text-indigo-600">( {{ pctOfSales(totals.location_earning_cents) }} )</span>
                 </dd>
                 <p v-if="totals.has_to_date_proration" class="text-[10px] text-sky-700">
                   Current month accrued to date
@@ -430,38 +486,56 @@
           </div>
 
           <!--
-            RIGHT: Payment to Loc Fees panel — settlement-side figures grouped
-            together. Total Outstanding (what we still owe, excl current period),
-            plus the Paid and Waived credit totals across the same filtered set.
+            RIGHT: Payment to Loc Fees panel — settlement-side figures, split into
+            two halves. LEFT half = All-time totals across the filtered sites
+            (cumulative ledger). RIGHT half = the SAME three figures but scoped to
+            the Shown Period (the Period Report window). The metric labels live in
+            a centre rail so both value columns stay row-aligned for easy compare.
           -->
           <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 bg-gray-700 px-4 py-1.5">
               <h3 class="text-sm font-semibold text-white">Payment to Loc Fees</h3>
             </div>
-            <dl class="divide-y divide-gray-100">
-              <div class="px-4 py-2">
-                <dt class="text-xs font-medium text-gray-500">Total Outstanding (excl current period)</dt>
-                <dd
-                  class="mt-0.5 text-lg font-semibold tracking-normal"
-                  :class="(totals.outstanding_cents || 0) > 0 ? 'text-rose-700' : 'text-gray-900'"
-                >
-                  {{ formatMoney(totals.outstanding_cents) }}
-                  <span class="text-[10px] font-normal italic text-gray-400">owed to site owners</span>
-                </dd>
-              </div>
-              <div class="px-4 py-2">
-                <dt class="text-xs font-medium text-gray-500">Paid amount</dt>
-                <dd class="mt-0.5 text-lg font-semibold tracking-normal text-emerald-700">
-                  {{ formatMoney(totals.paid_cents) }}
-                </dd>
-              </div>
-              <div class="px-4 py-2">
-                <dt class="text-xs font-medium text-gray-500">Waived amount</dt>
-                <dd class="mt-0.5 text-lg font-semibold tracking-normal text-amber-600">
-                  {{ formatMoney(totals.waived_cents) }}
-                </dd>
-              </div>
-            </dl>
+            <table class="w-full table-fixed">
+              <thead>
+                <tr class="border-b border-gray-200 bg-gray-50">
+                  <th class="w-2/5 px-3 py-1 text-left align-bottom">
+                    <span class="text-[10px] font-normal italic text-gray-500">owed to site owners</span>
+                  </th>
+                  <th class="w-[30%] px-3 py-1 text-center align-bottom">
+                    <span class="block text-[11px] font-semibold uppercase tracking-wide text-gray-700">All-time</span>
+                    <span class="block text-[10px] font-normal italic text-gray-500">excl current period</span>
+                  </th>
+                  <th class="w-[30%] border-l border-gray-200 px-3 py-1 text-center align-bottom">
+                    <span class="block text-[11px] font-semibold uppercase tracking-wide text-indigo-600">Shown Period</span>
+                    <span class="block text-[10px] font-normal italic text-gray-500">{{ ymd6(rangeStart) }} → {{ ymd6(rangeEnd) }}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr>
+                  <td class="px-3 py-1.5 text-xs font-medium text-gray-500">Total Outstanding</td>
+                  <td
+                    class="px-3 py-1.5 text-center text-base font-semibold tracking-normal"
+                    :class="(totals.outstanding_cents || 0) > 0 ? 'text-rose-700' : 'text-gray-900'"
+                  >{{ formatMoney(totals.outstanding_cents) }}</td>
+                  <td
+                    class="border-l border-gray-100 px-3 py-1.5 text-center text-base font-semibold tracking-normal"
+                    :class="(totals.outstanding_period_cents || 0) > 0 ? 'text-rose-700' : 'text-gray-900'"
+                  >{{ formatMoney(totals.outstanding_period_cents) }}</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5 text-xs font-medium text-gray-500">Paid amount</td>
+                  <td class="px-3 py-1.5 text-center text-base font-semibold tracking-normal text-emerald-700">{{ formatMoney(totals.paid_cents) }}</td>
+                  <td class="border-l border-gray-100 px-3 py-1.5 text-center text-base font-semibold tracking-normal text-emerald-700">{{ formatMoney(totals.paid_period_cents) }}</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5 text-xs font-medium text-gray-500">Waived amount</td>
+                  <td class="px-3 py-1.5 text-center text-base font-semibold tracking-normal text-amber-600">{{ formatMoney(totals.waived_cents) }}</td>
+                  <td class="border-l border-gray-100 px-3 py-1.5 text-center text-base font-semibold tracking-normal text-amber-600">{{ formatMoney(totals.waived_period_cents) }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -474,7 +548,7 @@
         and paid-eligible rows); 0-eligible buttons are disabled.
       -->
       <div
-        v-if="canLock && selectedRows.length > 0"
+        v-if="canLock && (selectedLockRows.length > 0 || selectedPaidRows.length > 0)"
         class="sticky top-0 z-40 mt-4 flex flex-wrap items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 shadow-md"
       >
         <span class="text-sm font-semibold text-emerald-900">
@@ -825,20 +899,17 @@
                     :frozen="true" :frozenLeft="canLock ? '90px' : '50px'"
                     :inputClass="`text-left w-[170px] min-w-[170px] border-r-2 border-gray-500 ${customerGroupIndex(rowIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`">
                     <div class="flex flex-col space-y-0.5" v-if="row.customer">
-                      <!-- Site Name links to Edit only on the Current (latest)
-                           row; older rows are frozen plain text. -->
-                      <a v-if="row.is_latest_row" target="_blank" :href="'/customers/' + row.customer.id + '/edit'"
+                      <!-- Site Name always links to Customer/Edit on every row
+                           (latest and older alike). Only the Site Name uses this
+                           always-on link; all other columns keep their prior
+                           lock-aware / latest-row logic untouched. -->
+                      <a target="_blank" :href="'/customers/' + row.customer.id + '/edit'"
                         :class="[row.customer.person_id ? 'text-blue-700' : 'text-purple-700']"
                       >
                         <span class="font-medium">{{ refIdFor(row.customer) }}</span>
                         <br />
                         {{ row.customer.name }}
                       </a>
-                      <span v-else :class="[row.customer.person_id ? 'text-blue-900' : 'text-purple-900']">
-                        <span class="font-medium">{{ refIdFor(row.customer) }}</span>
-                        <br />
-                        {{ row.customer.name }}
-                      </span>
                       <div class="flex flex-wrap items-center gap-1 mt-0.5">
                         <!--
                           Site Status badge — customers.status_id resolved to
@@ -1499,6 +1570,25 @@
                     recent reversal even after the row re-cycles.
                   -->
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
+                    <div class="flex flex-col items-center space-y-1">
+                    <!--
+                      Removal (final) period: a removed site's removal-month row
+                      is the LAST row for that site, so always expose the
+                      "Show all Periods" link here too — regardless of lock
+                      state. It sits above whatever lock control renders below.
+                      (The top non-removed current row gets the link via the
+                      first branch instead.)
+                    -->
+                    <a
+                      v-if="row.is_removed_in_period"
+                      :href="allPeriodsUrl(row)"
+                      target="_blank"
+                      rel="noopener"
+                      class="inline-flex items-center justify-center text-center px-2 py-1 !text-[10px] font-semibold leading-tight bg-yellow-300 hover:bg-yellow-400 text-yellow-900 rounded shadow-sm border border-yellow-500 max-w-[64px] whitespace-normal break-words"
+                      v-tooltip="'Open Site Summary for this site only, showing all periods (new tab)'"
+                    >
+                      Show all Periods
+                    </a>
                     <template v-if="row.is_current_month && !row.is_locked && !row.is_removed_in_period">
                       <!-- Current period (top row) can't be locked yet; instead
                            expose a "Show all Periods" link that opens this
@@ -1628,9 +1718,10 @@
                         </div>
                       </div>
                     </template>
-                    <template v-else>
+                    <template v-else-if="!row.is_removed_in_period">
                       <span class="text-gray-300">—</span>
                     </template>
+                    </div>
                   </TableData>
 
                   <!-- Action — now the LAST column (was 2 positions earlier). -->
@@ -1684,6 +1775,50 @@
                         @click="onReportContentClicked(row)"
                       >
                         <span>Report Content</span>
+                      </Button>
+                      <!--
+                        "Email" status badge — only on rows whose Site has a
+                        Performance Report Email filled AND the "Enable Send
+                        Performance to Email?" opt-in turned on (same pair the
+                        modal's Email button checks). Colour reflects whether
+                        the report has actually been emailed for THIS period:
+                          green  "Email (sent)"        → row.report_emailed_at set
+                          red    "Email (havent send)" → not yet emailed
+                        Lets the user see send status at-a-glance without
+                        opening the Report Content modal.
+                      -->
+                      <span
+                        v-if="row.customer?.is_report_email_enabled && row.customer?.report_email"
+                        class="inline-flex items-center justify-center gap-1 self-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                        :class="row.report_emailed_at
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'"
+                        v-tooltip="row.report_emailed_at
+                          ? `Report emailed for this period to ${row.customer.report_email}`
+                          : `Not yet emailed for this period — ${row.customer.report_email}`"
+                      >
+                        <EnvelopeIcon class="w-3 h-3" />
+                        <span>{{ row.report_emailed_at ? 'Email (sent)' : 'Email (not yet)' }}</span>
+                      </span>
+                      <!--
+                        Copy Content — for Sites with NO report-email opt-in
+                        (no Performance Report Email / "Enable Send..." = No).
+                        Those rows can't be emailed, so give the user a quick
+                        way to grab the report body for the clipboard and paste
+                        it wherever they like. Purely a clipboard action — no
+                        "sent" audit is recorded. Only meaningful when the row
+                        actually has renderable report content.
+                      -->
+                      <Button
+                        v-else-if="row.customer?.has_report_content"
+                        type="button"
+                        class="inline-flex items-center justify-center space-x-1 self-center mt-1 px-2 py-1 text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        :disabled="copyingContentFor.has(row.customer.id)"
+                        v-tooltip="'Copy this report content to the clipboard'"
+                        @click="onRowCopyContentClicked(row)"
+                      >
+                        <ClipboardDocumentIcon class="w-3 h-3" />
+                        <span>Copy Content</span>
                       </Button>
                       <!--
                         Last-email audit — surfaces the same "Last sent by X
@@ -2041,6 +2176,52 @@
 
         <div v-else class="text-center py-10 text-gray-500 text-sm">
           No content available for this customer.
+        </div>
+      </template>
+    </Modal>
+
+    <!--
+      Export Batch Report Content modal — built from every ticked row that has
+      Report Content. All machines are stitched into ONE client email body
+      (single greeting → each machine's block → single thank-you), exactly as
+      the per-row email composer formats a single machine. Copy button puts the
+      whole thing on the clipboard for pasting into the client's email.
+    -->
+    <Modal :open="showBatchReportModal" @modalClose="onBatchReportModalClose">
+      <template #header>
+        <div class="flex items-center space-x-2">
+          <DocumentTextIcon class="w-5 h-5 text-blue-600" />
+          <span>Batch Report Content<template v-if="batchReportMachineCount"> ({{ batchReportMachineCount }} machine{{ batchReportMachineCount === 1 ? '' : 's' }})</template></span>
+        </div>
+      </template>
+      <template #default>
+        <div v-if="batchReportLoading" class="text-center py-10 text-gray-500">
+          <div class="animate-pulse text-sm">Building batch report…</div>
+        </div>
+
+        <div v-else-if="batchReportText" class="text-sm">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <p class="text-xs text-gray-500">
+              Combined report for one client — review, then copy and paste into the email to the site owner.
+            </p>
+            <Button
+              type="button"
+              class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 shrink-0"
+              v-tooltip="'Copy the combined report content to the clipboard'"
+              @click="onCopyBatchReportClicked"
+            >
+              <ClipboardDocumentIcon class="w-4 h-4" />
+              <span>Copy Content</span>
+            </Button>
+          </div>
+          <pre class="whitespace-pre-wrap break-words rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-gray-800 text-[13px] leading-relaxed font-sans max-h-[60vh] overflow-auto">{{ batchReportText }}</pre>
+          <p v-if="batchReportSkipped" class="text-[11px] text-amber-600 italic mt-2">
+            {{ batchReportSkipped }}
+          </p>
+        </div>
+
+        <div v-else class="text-center py-10 text-gray-500 text-sm">
+          No report content could be built for the selected rows.
         </div>
       </template>
     </Modal>
@@ -2794,6 +2975,10 @@ const props = defineProps({
   settlementBalances: { type: Object, default: () => ({}) },
   periodReport: String,
   periodReportOptions: Array,
+  // Custom Range bounds echoed back by the server (YYYY-MM) so the month
+  // pickers repopulate on a hard reload / deep link.
+  periodFrom: String,
+  periodTo: String,
   rangeStart: String,
   rangeEnd: String,
   cmsEndpoint: String,
@@ -2894,7 +3079,14 @@ const batchPaidDate = ref('');
 const isLockEligibleRow = (row) => !row.is_locked && (!row.is_current_month || row.is_removed_in_period);
 const isPaidEligibleRow = (row) =>
   !row.is_current_month && row.is_locked && !row.is_paid && isPaidEligiblePeriod(row);
-const isBatchSelectable = (row) => isLockEligibleRow(row) || isPaidEligibleRow(row);
+// Report-eligible = the row has renderable Report Content (R/U/PS families;
+// F/S excluded — same server flag the per-row "Report Content" button uses).
+// Any such row can be ticked for the "Export Batch Report Content" button,
+// independent of lock/paid state, so current-month or already-paid rows can
+// still be batched into a client email.
+const isReportEligibleRow = (row) => !!row.customer?.has_report_content;
+const isBatchSelectable = (row) =>
+  isLockEligibleRow(row) || isPaidEligibleRow(row) || isReportEligibleRow(row);
 
 // Current-page derivations. selectedRows intersects the selection with the
 // page's rows, so ids left over from a previous page/filter can never leak
@@ -2903,6 +3095,10 @@ const selectableRows = computed(() => (props.summaries?.data ?? []).filter(isBat
 const selectedRows = computed(() => selectableRows.value.filter((r) => batchSelected.value.has(r.id)));
 const selectedLockRows = computed(() => selectedRows.value.filter(isLockEligibleRow));
 const selectedPaidRows = computed(() => selectedRows.value.filter(isPaidEligibleRow));
+// Ticked rows that carry Report Content — drives the "Export Batch Report
+// Content" button. Not page-scoped via selectedRows? It IS: selectedRows is
+// already the page ∩ selection, which keeps counts honest across pagination.
+const selectedReportRows = computed(() => selectedRows.value.filter(isReportEligibleRow));
 // Total Net Loc Fee that batch-paid will record across the selected rows
 // (location_fees − external_subsidize, floored at 0 per row).
 const selectedPaidNetTotal = computed(() => selectedPaidRows.value.reduce((sum, r) => {
@@ -2933,15 +3129,19 @@ function clearBatchSelection() {
   batchSelected.value.clear();
 }
 
-// Tooltip on each row checkbox — says what the row is selectable FOR, or
-// why it isn't selectable at all.
+// Tooltip on each row checkbox — lists every batch action the row qualifies
+// for (Lock / Mark Paid / Export Report Content can each apply, and a single
+// row can qualify for more than one), or explains why it isn't selectable.
 function batchCheckboxTooltip(row) {
+  const actions = [];
+  if (isLockEligibleRow(row)) actions.push('Lock');
+  if (isPaidEligibleRow(row)) actions.push('Mark Paid');
+  if (isReportEligibleRow(row)) actions.push('Export Report Content');
+  if (actions.length) return 'Select for batch: ' + actions.join(' / ');
   if (row.is_current_month) return 'Current month — cannot lock yet';
-  if (isLockEligibleRow(row)) return 'Select for batch Lock';
-  if (isPaidEligibleRow(row)) return 'Select for batch Mark Paid';
   if (row.is_locked && row.is_paid) return 'Already Paid';
   if (row.is_locked && !isPaidEligiblePeriod(row)) return 'Locked — period predates paid tracking (2605)';
-  return '';
+  return 'No report content (Free / Subsidized) and no pending Lock/Paid action';
 }
 
 function onBatchPaidClicked() {
@@ -2998,6 +3198,9 @@ const loading = ref(false);
 // Per-row in-flight guard so the Email button can't be clicked twice while
 // the request is open. Keyed by customer_id (one button per row anyway).
 const sendingReportFor = ref(new Set());
+// Per-row in-flight guard for the row-level "Copy Content" button (Sites with
+// no report-email opt-in). Keyed by customer_id. Clipboard-only, no audit.
+const copyingContentFor = ref(new Set());
 
 // Report Content preview modal state. Single instance — only one row's
 // content can be visible at a time, so a flat ref structure is enough.
@@ -3074,6 +3277,10 @@ const filters = ref({
   vendPrefixes: [],
   tags: [],
   period_report: '',
+  // Custom Range month bounds ('YYYY-MM' from the native month inputs; empty =
+  // open-ended on that side). Only sent/meaningful when period_report=custom.
+  period_from: '',
+  period_to: '',
   // Multi-select tags of contract type codes (F, S, R, U, PS, PS+U, PSORU).
   contract_commission_types: [],
   // Contract Attachment? boolean filter ('all' | 'true' | 'false').
@@ -3217,6 +3424,10 @@ onMounted(() => {
   filters.value.period_report =
     periodReportLocalOptions.value.find((o) => o.id === (props.periodReport || 'current'))
     ?? periodReportLocalOptions.value[0];
+  // Repopulate the Custom Range pickers from the server-echoed bounds so a hard
+  // reload / deep link keeps the chosen window.
+  filters.value.period_from = props.periodFrom || '';
+  filters.value.period_to = props.periodTo || '';
   // NOTE: no re-fetch on mount — the server already renders with the same
   // default operator set (see CustomerController::summary), so the first paint
   // matches these chips with no flash.
@@ -3328,6 +3539,13 @@ function formatMoney(cents) {
   });
 }
 
+// Compact yymmdd from a YYYY-MM-DD string (e.g. "2026-04-01" -> "260401").
+// Used in the tight "Payment to Loc Fees" period header to save horizontal space.
+function ymd6(dateStr) {
+  if (!dateStr) return '';
+  return String(dateStr).replace(/-/g, '').slice(2);
+}
+
 function formatMoneySigned(cents) {
   if (cents == null) return '';
   const sign = Number(cents) < 0 ? '-' : '';
@@ -3337,6 +3555,19 @@ function formatMoneySigned(cents) {
 function formatPercent(rate) {
   if (rate == null) return '';
   return (Number(rate) * 100).toFixed(1) + '%';
+}
+
+/**
+ * Share of Total Sales for an aggregate-totals figure (e.g. Gross Earning,
+ * Location Fees, Vend Earnings). Raw cents ratio against totals.sales_cents
+ * so the percentage reconciles directly with the dollar figures shown on the
+ * same cards. Returns null when sales is zero/missing so the span is hidden
+ * rather than rendering NaN%/Infinity%.
+ */
+function pctOfSales(cents) {
+  const sales = Number(props.totals?.sales_cents) || 0;
+  if (!sales || cents == null) return null;
+  return ((Number(cents) / sales) * 100).toFixed(2) + '%';
 }
 
 /**
@@ -3854,6 +4085,8 @@ function onSearchFilterUpdated() {
       operators: (filters.value.operators ?? []).filter(Boolean).map((o) => o.id),
       vendPrefixes: (filters.value.vendPrefixes ?? []).map((vp) => vp.id),
       period_report: filters.value.period_report?.id || 'current',
+      period_from: filters.value.period_from,
+      period_to: filters.value.period_to,
       replicated_only: filters.value.replicated_only?.id,
       period_locked: filters.value.period_locked?.id,
       location_fee_paid: filters.value.location_fee_paid?.id,
@@ -4541,6 +4774,8 @@ function buildBackendParams() {
     operators: (filters.value.operators ?? []).filter(Boolean).map((o) => o.id),
     vendPrefixes: (filters.value.vendPrefixes ?? []).map((vp) => vp.id),
     period_report: filters.value.period_report?.id || 'current',
+    period_from: filters.value.period_from,
+    period_to: filters.value.period_to,
     contract_commission_types: (filters.value.contract_commission_types ?? [])
       .map((t) => (t && t.id !== undefined ? t.id : t)),
     contract_attachment: filters.value.contract_attachment?.id,
@@ -4642,6 +4877,114 @@ function onReportContentModalClose() {
   reportContentMachinePrefix.value = '';
 }
 
+/**
+ * Format a single row's report content into the same plain-text body the
+ * email composer produces (greeting → meta → customer-facing lines → total →
+ * footnote → thank-you). Admin-only formula lines are skipped so internal
+ * PS-term math never leaks. Shared shape with buildReportEmailParts and the
+ * batch builder so all three read identically.
+ */
+function formatSingleReportBody(content, cust) {
+  const machine = machineInfoOf(cust);
+  const lines = [];
+  lines.push(`Dear Valued Partner: "${billingCompanyOf(cust)}"`);
+  lines.push('');
+  lines.push('This is an automatic email. Below is the Vending Machine Location Fees Report');
+  lines.push('');
+  if (content.contract_type_label) lines.push(`Term: ${content.contract_type_label}`);
+  lines.push('');
+  lines.push(`Period (YYMM): ${content.period_label}`);
+  if (content.active_days != null && content.month_days != null) {
+    lines.push(`Total number of days: ${content.active_days} / ${content.month_days}`);
+  }
+  if (machine.id) lines.push(`Machine ID: ${machine.id}`);
+  if (machine.prefix) lines.push(`Machine Prefix: ${machine.prefix}`);
+  lines.push('');
+  if (Array.isArray(content.lines)) {
+    for (const l of content.lines) {
+      if (l?.formula_internal) continue; // admin-only — never in the body
+      lines.push(`${l.label}: ${l.formula ? l.formula + ' = ' : ''}${l.value}`);
+    }
+  }
+  if (content.has_total) {
+    lines.push('');
+    lines.push(`Total: ${content.total_value}`);
+  }
+  if (content.footnote) {
+    lines.push('');
+    lines.push(content.footnote);
+  }
+  lines.push('');
+  lines.push('');
+  lines.push('Thank you for your continued support and partnership with HappyIce, and bringing quality ice cream and frozen treats to your visitors, tenants, residents, and staff.');
+  return lines.join('\r\n');
+}
+
+/**
+ * Row-level "Copy Content" — for Sites with no report-email opt-in. Fetches
+ * the same report payload the modal/email use, formats it, and drops it on
+ * the clipboard. Purely a clipboard action: no "sent" audit is recorded.
+ */
+async function onRowCopyContentClicked(row) {
+  const cust = row?.customer;
+  if (!cust?.has_report_content) return;
+  if (copyingContentFor.value.has(cust.id)) return;
+
+  copyingContentFor.value.add(cust.id);
+  copyingContentFor.value = new Set(copyingContentFor.value);
+
+  try {
+    const res = await window.axios.get('/customers/' + cust.id + '/performance-report-content', {
+      params: { period_start: row.period_start, period_end: row.period_end },
+    });
+    const content = res?.data ?? null;
+    if (!content || content.is_available === false) {
+      toast.error('No report content available to copy for this row.', { timeout: 4000 });
+      return;
+    }
+
+    const text = formatSingleReportBody(content, cust);
+
+    let ok = false;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch (e) {
+      ok = false;
+    }
+    if (!ok) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (e) {
+        ok = false;
+      }
+    }
+
+    if (ok) {
+      toast.success('Report content copied to clipboard.', { timeout: 3500 });
+    } else {
+      toast.error('Could not copy to clipboard. Please copy manually.', { timeout: 4500 });
+    }
+  } catch (err) {
+    const msg = err?.response?.data?.message
+      || 'Failed to load report content. Please try again.';
+    toast.error(msg, { timeout: 4000 });
+  } finally {
+    copyingContentFor.value.delete(cust.id);
+    copyingContentFor.value = new Set(copyingContentFor.value);
+  }
+}
+
 function onExportExcelClicked() {
   loading.value = true;
   axios({
@@ -4656,6 +4999,189 @@ function onExportExcelClicked() {
   }).finally(() => {
     loading.value = false;
   });
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Export Batch Report Content
+//
+// Stitches the Report Content of every ticked, report-eligible row into a
+// SINGLE client-facing email body (per brian: all selected machines are
+// treated as one client → one greeting, one closing thank-you, one block per
+// machine in between). The per-machine block mirrors buildReportEmailParts so
+// a batch body reads identically to a single-row email — admin-only formula
+// lines are skipped so internal PS-term math never leaks to the customer.
+// ───────────────────────────────────────────────────────────────────────
+const showBatchReportModal = ref(false);
+const batchReportLoading = ref(false);
+const batchReportText = ref('');
+const batchReportSkipped = ref('');
+const batchReportMachineCount = ref(0);
+
+// Billing Company resolution — identical fallback chain to buildReportEmailParts
+// ("Bill From" → company remark → site name) so the batch greeting matches the
+// single-row email greeting.
+function billingCompanyOf(cust) {
+  return cust?.contact?.company || cust?.company_remark || cust?.name || '';
+}
+
+// Machine ID / Prefix for a row — mirrors onReportContentClicked: join all
+// bound vends for multi-machine sites, else the single primary vend.
+function machineInfoOf(cust) {
+  if (Array.isArray(cust?.vends) && cust.vends.length > 1) {
+    return {
+      id: cust.vends.map(v => v.code).filter(Boolean).join(', '),
+      prefix: cust.vends.map(v => v.prefix).filter(Boolean).join(', '),
+    };
+  }
+  return { id: cust?.vend?.code || '', prefix: cust?.vend?.prefix || '' };
+}
+
+function onExportBatchReportClicked() {
+  const rows = selectedReportRows.value;
+  if (!rows.length || batchReportLoading.value) return;
+
+  batchReportLoading.value = true;
+  batchReportText.value = '';
+  batchReportSkipped.value = '';
+  batchReportMachineCount.value = 0;
+  showBatchReportModal.value = true;
+
+  const payloadRows = rows.map(r => ({
+    customer_id: r.customer_id ?? r.customer?.id,
+    period_start: r.period_start,
+    period_end: r.period_end,
+  }));
+
+  window.axios.post('/customers/summary/batch-report-content', { rows: payloadRows })
+    .then(res => {
+      const resultRows = res?.data?.rows ?? [];
+      // Index backend content by composite key so we can pair it with the
+      // frontend row (which carries machine + billing info) regardless of order.
+      const byKey = {};
+      for (const rr of resultRows) {
+        byKey[rowKey(rr)] = rr.content;
+      }
+
+      const greetingCompany = billingCompanyOf(rows[0]?.customer);
+      const lines = [];
+      lines.push(`Dear Valued Partner: "${greetingCompany}"`);
+      lines.push('');
+      lines.push('This is an automatic email. Below is the Vending Machine Location Fees Report');
+
+      let included = 0;
+      let skipped = 0;
+
+      rows.forEach((row) => {
+        const content = byKey[rowKey(row)];
+        // Defensive: skip rows the server couldn't render (e.g. F/S that slipped
+        // through, or a customer deleted mid-flight).
+        if (!content || !content.is_available) {
+          skipped += 1;
+          return;
+        }
+
+        const cust = row.customer;
+        const machine = machineInfoOf(cust);
+
+        lines.push('');
+        lines.push('────────────────────────────');
+        lines.push('');
+        if (content.contract_type_label) lines.push(`Term: ${content.contract_type_label}`);
+        lines.push('');
+        lines.push(`Period (YYMM): ${content.period_label}`);
+        if (content.active_days != null && content.month_days != null) {
+          lines.push(`Total number of days: ${content.active_days} / ${content.month_days}`);
+        }
+        if (machine.id) lines.push(`Machine ID: ${machine.id}`);
+        if (machine.prefix) lines.push(`Machine Prefix: ${machine.prefix}`);
+        lines.push('');
+        if (Array.isArray(content.lines)) {
+          for (const l of content.lines) {
+            if (l?.formula_internal) continue; // admin-only — never in the body
+            lines.push(`${l.label}: ${l.formula ? l.formula + ' = ' : ''}${l.value}`);
+          }
+        }
+        if (content.has_total) {
+          lines.push('');
+          lines.push(`Total: ${content.total_value}`);
+        }
+        if (content.footnote) {
+          lines.push('');
+          lines.push(content.footnote);
+        }
+        included += 1;
+      });
+
+      if (!included) {
+        batchReportText.value = '';
+        batchReportMachineCount.value = 0;
+        batchReportSkipped.value = '';
+        return;
+      }
+
+      lines.push('');
+      lines.push('────────────────────────────');
+      lines.push('');
+      lines.push('Thank you for your continued support and partnership with HappyIce, and bringing quality ice cream and frozen treats to your visitors, tenants, residents, and staff.');
+
+      batchReportText.value = lines.join('\r\n');
+      batchReportMachineCount.value = included;
+      batchReportSkipped.value = skipped
+        ? `${skipped} selected row(s) had no renderable report content and were skipped.`
+        : '';
+    })
+    .catch(err => {
+      const msg = err?.response?.data?.message
+        || 'Failed to build the batch report. Please try again.';
+      toast.error(msg, { timeout: 4000 });
+      showBatchReportModal.value = false;
+    })
+    .finally(() => {
+      batchReportLoading.value = false;
+    });
+}
+
+async function onCopyBatchReportClicked() {
+  const text = batchReportText.value;
+  if (!text) return;
+
+  let ok = false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }
+  } catch (e) {
+    ok = false;
+  }
+  if (!ok) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch (e) {
+      ok = false;
+    }
+  }
+
+  if (ok) {
+    toast.success('Batch report content copied to clipboard.', { timeout: 3500 });
+  } else {
+    toast.error('Could not copy to clipboard. Please copy manually.', { timeout: 4500 });
+  }
+}
+
+function onBatchReportModalClose() {
+  showBatchReportModal.value = false;
+  batchReportText.value = '';
+  batchReportSkipped.value = '';
+  batchReportMachineCount.value = 0;
 }
 
 // ───────────────────────────────────────────────────────────────────────

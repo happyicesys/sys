@@ -8,6 +8,7 @@ use App\Models\UnitCost;
 use App\Observers\OpsJobItemChannelObserver;
 use App\Observers\ProductChildObserver;
 use App\Observers\UnitCostObserver;
+use App\Services\UserLogger;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 
@@ -37,5 +38,8 @@ class AppServiceProvider extends ServiceProvider
         ProductChild::observe(ProductChildObserver::class);
         // Blind SKU: snapshot the flavour set onto each ops job channel at creation.
         OpsJobItemChannel::observe(OpsJobItemChannelObserver::class);
+
+        // App-wide user-action audit log (web CRUD only; cron/queue/machine excluded).
+        UserLogger::listen();
     }
 }

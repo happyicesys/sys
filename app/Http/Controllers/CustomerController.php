@@ -304,7 +304,9 @@ class CustomerController extends Controller
 
         [$rangeStart, $rangeEnd] = $this->resolvePeriodReportRange(
             $request->period_report,
-            $currentMonthStart
+            $currentMonthStart,
+            $request->period_from,
+            $request->period_to
         );
 
         // Initial-load default for the Operator filter — mirror Summary.vue's
@@ -860,6 +862,33 @@ class CustomerController extends Controller
         $totals['paid_cents'] = (int) ($settlementCreditTotals->paid_cents ?? 0);
         $totals['waived_cents'] = (int) ($settlementCreditTotals->waived_cents ?? 0);
 
+        // Period-scoped twins of the three settlement figures above — same
+        // displayed sites, but restricted to ledger entries whose year_month
+        // falls inside the SHOWN period window (the Period Report filter). Lets
+        // the "Payment to Loc Fees" panel show an all-time column beside a
+        // "shown period only" column. Payments/waivers are stamped with the
+        // year_month of the period they settle (see the Paid action), so this
+        // attributes them to the right period(s). amount_cents sign: +ve = a
+        // charge we owe, -ve = a payment/waiver credit — so the net SUM is the
+        // outstanding attributable to the shown period, while the credit legs
+        // are negated to surface positive paid/waived amounts.
+        $settlementPeriodTotals = \App\Models\CustomerSettlement::query()
+            ->whereIn('customer_id', $displayedCustomerIds)
+            ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->selectRaw(
+                'COALESCE(SUM(amount_cents), 0) AS outstanding_cents,
+                 COALESCE(SUM(CASE WHEN entry_type = ? THEN -amount_cents ELSE 0 END), 0) AS paid_cents,
+                 COALESCE(SUM(CASE WHEN entry_type = ? THEN -amount_cents ELSE 0 END), 0) AS waived_cents',
+                [
+                    \App\Models\CustomerSettlement::TYPE_PAYMENT,
+                    \App\Models\CustomerSettlement::TYPE_WAIVER,
+                ]
+            )
+            ->first();
+        $totals['outstanding_period_cents'] = (int) ($settlementPeriodTotals->outstanding_cents ?? 0);
+        $totals['paid_period_cents'] = (int) ($settlementPeriodTotals->paid_cents ?? 0);
+        $totals['waived_period_cents'] = (int) ($settlementPeriodTotals->waived_cents ?? 0);
+
         $className = get_class(new Customer());
         $optionsService = app(\App\Services\OptionsService::class);
 
@@ -880,6 +909,10 @@ class CustomerController extends Controller
             'mentionableUsers' => $authUser ? $noteService->mentionableUsers($authUser) : [],
             'periodReport' => $request->period_report,
             'periodReportOptions' => $this->periodReportOptions(),
+            // Echo the Custom Range bounds back so the month pickers survive a
+            // hard reload / deep link (YYYY-MM strings, or null when unused).
+            'periodFrom' => $request->period_from,
+            'periodTo' => $request->period_to,
             'rangeStart' => $displayRangeStart,
             'rangeEnd' => $displayRangeEnd,
             // 5-value Customer Status dropdown options — same shape as
@@ -1642,8 +1675,12 @@ class CustomerController extends Controller
             ['id' => 'current',         'value' => 'Current'],
             // "Last Month Only" → just the previous completed month (1 row per
             // customer). Distinct from "Last month" which shows current + the
-            // last finished month (2 rows).
-            ['id' => 'last_month_only', 'value' => 'Last Month Only'],
+            // last finished month (2 rows). The "Last N Mth Only" variants are
+            // the SAME single-month behaviour, just anchored N completed months
+            // back (2 = the month two months ago, 3 = three months ago).
+            ['id' => 'last_month_only',   'value' => 'Last Month Only'],
+            ['id' => 'last_2_month_only', 'value' => 'Last 2 Mth Only'],
+            ['id' => 'last_3_month_only', 'value' => 'Last 3 Mth Only'],
             ['id' => 'last_1_month',    'value' => 'Last month'],
             ['id' => 'last_2_months',   'value' => 'Last 2 months'],
             ['id' => 'last_3_months',   'value' => 'Last 3 months'],
@@ -1652,6 +1689,11 @@ class CustomerController extends Controller
             ['id' => 'last_24_months',  'value' => 'Last 24 months'],
             ['id' => 'last_36_months',  'value' => 'Last 36 months'],
             ['id' => 'all',             'value' => 'All'],
+            // "Custom Range" — user-picked month bounds (period_from / period_to,
+            // YYYY-MM). Behaves like a bounded "All": one row per stored month
+            // per Site within the window, clustered by Site. See
+            // resolvePeriodReportRange()'s 'custom' branch for the clamping rules.
+            ['id' => 'custom',          'value' => 'Custom Range'],
         ];
     }
 
@@ -1687,17 +1729,71 @@ class CustomerController extends Controller
      *                     self::summaryFloorDate() — pre-floor rows in the
      *                     table came from the Excel backfill and are
      *                     incomplete); rangeEnd = current month
+     *   custom          → user-supplied $from/$to month bounds (YYYY-MM),
+     *                     each snapped to first-of-month. Reversed bounds are
+     *                     swapped; the start is clamped forward to the
+     *                     reporting floor and the end is clamped back to the
+     *                     current month. A missing bound falls back to the
+     *                     current month so a half-filled range still resolves.
      *   anything else   → falls back to "current"
      *
      * @return array{0:\Carbon\Carbon,1:\Carbon\Carbon}
      */
-    protected function resolvePeriodReportRange(?string $id, \Carbon\Carbon $currentMonthStart): array
-    {
-        // "Last Month Only" — a single-month window for the previous completed
-        // month (excludes the in-progress current month).
-        if ($id === 'last_month_only') {
-            $lastMonth = $currentMonthStart->copy()->subMonthNoOverflow()->startOfMonth();
-            return [$lastMonth, $lastMonth->copy()];
+    protected function resolvePeriodReportRange(
+        ?string $id,
+        \Carbon\Carbon $currentMonthStart,
+        ?string $from = null,
+        ?string $to = null
+    ): array {
+        // "Custom Range" — bounded window from user-picked months. Tolerant of
+        // blank/reversed/out-of-range input so a stray value never errors; it
+        // just clamps back into the showable window.
+        if ($id === 'custom') {
+            $parse = function (?string $v) {
+                try {
+                    return $v ? \Carbon\Carbon::parse($v)->startOfMonth() : null;
+                } catch (\Throwable $e) {
+                    return null;
+                }
+            };
+            $start = $parse($from) ?: $currentMonthStart->copy();
+            $end   = $parse($to)   ?: $currentMonthStart->copy();
+
+            // Reversed range → swap so start <= end.
+            if ($start->gt($end)) {
+                [$start, $end] = [$end, $start];
+            }
+
+            // Clamp start forward to the reporting floor (pre-floor rows are
+            // incomplete Excel backfill) and end back to the current month
+            // (no future months exist yet). Mirrors the 'all' clamp.
+            $floor = \Carbon\Carbon::parse(self::summaryFloorDate())->startOfMonth();
+            if ($start->lt($floor)) {
+                $start = $floor->copy();
+            }
+            if ($end->gt($currentMonthStart)) {
+                $end = $currentMonthStart->copy();
+            }
+            // If clamping inverted the bounds (e.g. both before the floor),
+            // collapse to a single valid month.
+            if ($start->gt($end)) {
+                $start = $end->copy();
+            }
+            return [$start, $end];
+        }
+
+        // "Last N Mth Only" — a single-month window anchored N completed months
+        // back (excludes the in-progress current month). "Last Month Only" is
+        // N=1 (previous month); the 2/3 variants are exactly the same single
+        // month behaviour, just two or three months ago (month start to end).
+        $onlyMonthsBack = [
+            'last_month_only'   => 1,
+            'last_2_month_only' => 2,
+            'last_3_month_only' => 3,
+        ][$id] ?? null;
+        if ($onlyMonthsBack !== null) {
+            $anchor = $currentMonthStart->copy()->subMonthsNoOverflow($onlyMonthsBack)->startOfMonth();
+            return [$anchor, $anchor->copy()];
         }
 
         $monthsBack = $this->periodReportMonthsBack($id);
@@ -1733,13 +1829,19 @@ class CustomerController extends Controller
     /**
      * Whether the supplied period_report id should produce ONE aggregated row
      * per customer (true) instead of one row per stored month (false). The
-     * single-month windows ('current', 'last_month_only') are NOT aggregated
-     * so the user-picked sort column stays primary; every other option
-     * (multi-month / all) clusters by customer.
+     * single-month windows ('current', 'last_month_only', 'last_2_month_only',
+     * 'last_3_month_only') are NOT aggregated so the user-picked sort column
+     * stays primary; every other option (multi-month / all) clusters by
+     * customer.
      */
     protected function isAggregatedPeriodReport(?string $id): bool
     {
-        return $id !== null && !in_array($id, ['current', 'last_month_only'], true);
+        return $id !== null && !in_array($id, [
+            'current',
+            'last_month_only',
+            'last_2_month_only',
+            'last_3_month_only',
+        ], true);
     }
 
     /**
@@ -3505,7 +3607,9 @@ class CustomerController extends Controller
 
         [$rangeStart, $rangeEnd] = $this->resolvePeriodReportRange(
             $request->period_report,
-            $currentMonthStart
+            $currentMonthStart,
+            $request->period_from,
+            $request->period_to
         );
 
         // Resolve qualifying customer IDs through the Customer Index filters.
@@ -4177,6 +4281,84 @@ class CustomerController extends Controller
         $content = $service->generate($customer, $periodStart, $periodEnd, $summaryRow);
 
         return response()->json($content);
+    }
+
+    /**
+     * Batch sibling of getPerformanceReportContent().
+     *
+     * Backs the "Export Batch Report Content" button on Customer Summary: the
+     * user ticks several rows (machines, possibly across months) and we return
+     * the structured Report Content for EACH (customer, period) in one round
+     * trip so the frontend can stitch them into a single client-facing email
+     * body. Each entry is computed with the exact same lock-aware, GST-aware
+     * logic as the single-row endpoint above — we just loop, caching customers
+     * so a multi-machine client isn't reloaded per row.
+     *
+     * Request body:
+     *   rows: [{ customer_id, period_start, period_end }, ...]
+     *
+     * Response:
+     *   { rows: [{ customer_id, period_start, period_end, content }, ...] }
+     * (preserves request order; rows whose customer no longer exists are
+     * skipped rather than erroring the whole batch.)
+     */
+    public function batchPerformanceReportContent(Request $request)
+    {
+        $validated = $request->validate([
+            'rows'                => 'required|array|min:1|max:500',
+            'rows.*.customer_id'  => 'required|integer',
+            'rows.*.period_start' => 'required|date',
+            'rows.*.period_end'   => 'required|date',
+        ]);
+
+        $service = new PerformanceReportContentService();
+        $customerCache = [];
+        $out = [];
+
+        foreach ($validated['rows'] as $r) {
+            $customerId = (int) $r['customer_id'];
+
+            if (!array_key_exists($customerId, $customerCache)) {
+                $customerCache[$customerId] = Customer::with('operator:id,gst_vat_rate')->find($customerId);
+            }
+            $customer = $customerCache[$customerId];
+            if (!$customer) {
+                continue;
+            }
+
+            $periodStart = \Carbon\Carbon::parse($r['period_start']);
+            $periodEnd   = \Carbon\Carbon::parse($r['period_end']);
+            if ($periodEnd->lt($periodStart)) {
+                continue;
+            }
+
+            // Same overlap lookup + sales-sum collapse as the single-row path so
+            // PS-family math covers the full window and locked/segment rows keep
+            // their frozen snapshot terms.
+            $summaryRows = \App\Models\CustomerPeriodSummary::query()
+                ->where('customer_id', $customer->id)
+                ->whereBetween('year_month', [
+                    $periodStart->copy()->startOfMonth()->toDateString(),
+                    $periodEnd->copy()->startOfMonth()->toDateString(),
+                ])
+                ->orderBy('year_month')
+                ->orderBy('segment_index')
+                ->get();
+
+            $summaryRow = $summaryRows->last();
+            if ($summaryRow) {
+                $summaryRow->sales_cents = (int) $summaryRows->sum('sales_cents');
+            }
+
+            $out[] = [
+                'customer_id'  => $customer->id,
+                'period_start' => $periodStart->toDateString(),
+                'period_end'   => $periodEnd->toDateString(),
+                'content'      => $service->generate($customer, $periodStart, $periodEnd, $summaryRow),
+            ];
+        }
+
+        return response()->json(['rows' => $out]);
     }
 
     /**

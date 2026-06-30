@@ -4865,8 +4865,13 @@ class VendController extends Controller
         $errTotal = 0; $sumErr = 0.0;
         $greenTotal = 0; $greenCount = 0;
         $salesUpTotal = 0; $salesUpCount = 0;
-        $refill150 = 0; $refill200 = 0; $refill250 = 0; $refill350 = 0; $refill450 = 0;
+        $refill300 = 0; $refill350 = 0; $refill400 = 0; $refill450 = 0;
         $nextDayJobCount = 0;
+        // Next-day-scoped Refillable breakdown — same thresholds the new
+        // "Current" tile shows, but counted ONLY over machines whose next
+        // scheduled job lands tomorrow (the all-machines Refillable tile keeps
+        // its own $150..$450 counters above).
+        $nextRefill120 = 0; $nextRefill150 = 0; $nextRefill200 = 0; $nextRefill250 = 0;
 
         foreach ($rows as $row) {
             $json = $row->vend_transaction_totals_json;
@@ -4928,14 +4933,18 @@ class VendController extends Controller
             // Refillable Value thresholds — /100 to currency units, matching
             // VendResource's serialisation the frontend compares against.
             $refillVal = ((float) ($row->actual_stock_in_value ?? 0)) / 100;
-            if ($refillVal > 150) $refill150++;
-            if ($refillVal > 200) $refill200++;
-            if ($refillVal > 250) $refill250++;
+            if ($refillVal > 300) $refill300++;
             if ($refillVal > 350) $refill350++;
+            if ($refillVal > 400) $refill400++;
             if ($refillVal > 450) $refill450++;
 
             if (isset($nextDayCustomerIds[(int) $row->customer_id])) {
                 $nextDayJobCount++;
+                // Refillable thresholds restricted to this next-day machine.
+                if ($refillVal > 120) $nextRefill120++;
+                if ($refillVal > 150) $nextRefill150++;
+                if ($refillVal > 200) $nextRefill200++;
+                if ($refillVal > 250) $nextRefill250++;
             }
         }
 
@@ -4962,15 +4971,19 @@ class VendController extends Controller
                 'greenCount' => $greenCount,
                 'greenTotal' => $greenTotal,
                 'greenPct' => $greenTotal > 0 ? ($greenCount / $greenTotal) * 100 : 0,
-                'refillableOver150' => $refill150,
-                'refillableOver200' => $refill200,
-                'refillableOver250' => $refill250,
+                'refillableOver300' => $refill300,
                 'refillableOver350' => $refill350,
+                'refillableOver400' => $refill400,
                 'refillableOver450' => $refill450,
                 'salesUpCount' => $salesUpCount,
                 'salesUpTotal' => $salesUpTotal,
                 'salesUpPct' => $salesUpTotal > 0 ? ($salesUpCount / $salesUpTotal) * 100 : 0,
                 'nextDayJobCount' => $nextDayJobCount,
+                // Next-day Refillable breakdown for the new "Current" tile.
+                'nextDayRefillableOver120' => $nextRefill120,
+                'nextDayRefillableOver150' => $nextRefill150,
+                'nextDayRefillableOver200' => $nextRefill200,
+                'nextDayRefillableOver250' => $nextRefill250,
             ],
         ];
     }

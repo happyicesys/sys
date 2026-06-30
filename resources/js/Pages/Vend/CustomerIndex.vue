@@ -708,10 +708,16 @@
 							<dt class="truncate text-xs font-medium text-gray-500">Stock SKU Bal</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.stockSkuBal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</dd>
 						</div>
-						<!-- Today Error rate — avg one_day_error_rate (red ≥ 3) -->
-						<div class="px-4 py-3">
-							<dt class="truncate text-xs font-medium text-gray-500">Today Error rate</dt>
-							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums" :class="currentStats.todayError >= 3 ? 'text-red-700' : 'text-gray-800'">{{ currentStats.todayError.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</dd>
+						<!-- # of VM (# of Job Next Day), Refillable > $120/$150/$200/$250 —
+							scoped to machines whose next scheduled ops job lands TOMORROW
+							(unlike the all-machines Refillable tile below). First figure is
+							the next-day VM/job count; the four counts are those next-day
+							machines whose Refillable Value exceeds each threshold. -->
+						<div class="px-3 py-3">
+							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM (# of Job Next Day), Refillable &gt; $120, $150, $200, $250</dt>
+							<dd class="mt-1 text-lg leading-7 font-semibold tracking-tight tabular-nums text-gray-800">
+								{{ currentStats.nextDayRefillableOver120 }}, {{ currentStats.nextDayRefillableOver150 }}, {{ currentStats.nextDayRefillableOver200 }}, {{ currentStats.nextDayRefillableOver250 }}
+							</dd>
 						</div>
 						<!-- % of VM, Avg Daily Sales L30D >= Avg/Day — % of machines whose
 							L30D avg daily sales are at/above the fleet-wide overall avg/day
@@ -720,12 +726,12 @@
 							<dt class="text-xs font-medium leading-tight text-gray-500">% of VM, Avg Daily Sales L30D &gt;= Avg/Day</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-green-700">{{ currentStats.greenPct.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}% <span class="text-xs font-normal text-gray-400">({{ currentStats.greenCount }}/{{ currentStats.greenTotal }})</span></dd>
 						</div>
-						<!-- # of VM, Refillable > $150/$200/$250/$350/$450 — counts of machines
-							whose Refillable Value exceeds each fixed threshold. Smaller font
-							than sibling cards so all five counts fit on one line. -->
+						<!-- # of VM, Refillable > $300/$350/$400/$450 — counts of ALL filtered
+							machines whose Refillable Value exceeds each fixed threshold (not
+							next-day scoped). Smaller font so the counts fit on one line. -->
 						<div class="px-3 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM, Refillable &gt; $150, $200, $250, $350, $450</dt>
-							<dd class="mt-1 text-lg leading-7 font-semibold tracking-tight tabular-nums text-gray-800">{{ currentStats.refillableOver150 }}, {{ currentStats.refillableOver200 }}, {{ currentStats.refillableOver250 }}, {{ currentStats.refillableOver350 }}, {{ currentStats.refillableOver450 }}</dd>
+							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM, Refillable &gt; $300, $350, $400, $450</dt>
+							<dd class="mt-1 text-lg leading-7 font-semibold tracking-tight tabular-nums text-gray-800">{{ currentStats.refillableOver300 }}, {{ currentStats.refillableOver350 }}, {{ currentStats.refillableOver400 }}, {{ currentStats.refillableOver450 }}</dd>
 						</div>
 						<!-- # of Job, next day — machines with a scheduled ops job dated tomorrow -->
 						<div class="px-4 py-3">
@@ -1265,7 +1271,7 @@
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
 						<div class="flex flex-col space-y-2 items-center">
-							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
+							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" v-tooltip="'Open this machine\'s settings'">
 							{{ vend.code }}
 							</Link>
 							<div
@@ -1278,7 +1284,7 @@
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 						<div class="flex flex-col space-y-1 max-w-[150px]">
-							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-if="permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings')">
+							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left hover:underline" v-if="permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings')" v-tooltip="'Open this machine\'s settings'">
 								{{ vend.code }}
 							</Link>
 							<span v-if="!(permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings'))">
@@ -1320,7 +1326,7 @@
 							</span>
 							<span v-if="vend.person_id" class="flex flex-col">
 								<span v-if="permissions.includes('admin-access vend-customers')">
-									<a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" class="hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
+									<a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" class="hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
 											{{ vend.virtual_customer_code }}
 											<br>
 											{{ vend.customer_name }}
@@ -1330,7 +1336,7 @@
 									{{ vend.customer_name }}
 								</span>
 
-								<a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="" v-if="permissions.includes('admin-access vend-customers')">
+								<a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="'Open this customer in CMS'">
 									<div
 											class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
 									>
@@ -1348,12 +1354,12 @@
 							</span>
 							<span v-else-if="!vend.person_id">
 								<span v-if="permissions.includes('admin-access vend-customers')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
+									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
 											{{ vend.customer_name }}
 									</a>
 								</span>
 								<span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
+									<a class="text-blue-700 hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
 									{{ vend.customer_name }}
 									</a>
 								</span>
@@ -1400,13 +1406,14 @@
 									rel="noopener noreferrer"
 									type="button"
 									class="bg-green-300 hover:bg-green-400 px-3 py-2 text-xs flex space-x-1 w-fit rounded shadow font-bold"
+									v-tooltip="'Open this location in Google Maps'"
 								>
 									<span class="text-blue-800 underline">GPS</span>
 								</a>
 							</span>
 
 
-              <Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')">
+              <Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="'Open the full machine record'">
                 <Button
                 type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                 >
@@ -1420,7 +1427,7 @@
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
 						<div class="flex flex-col items-center space-y-1">
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 1 " target="_blank" class="w-full">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 1 " target="_blank" class="w-full" v-tooltip="'Open T1 temperature history'">
 									<button
 									type="button"
 									class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -1441,7 +1448,7 @@
 							>
 									{{ vend.is_temp_error ? 'Error' : vend.temp }}
 							</button> -->
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 2 " target="_blank" class="w-full">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 2 " target="_blank" class="w-full" v-tooltip="'Open T2 temperature history'">
 									<button
 											type="button"
 											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -1453,7 +1460,7 @@
 											</div>
 									</button>
 							</a>
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 3 " target="_blank" class="w-full">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 3 " target="_blank" class="w-full" v-tooltip="'Open T3 temperature history'">
 									<button
 											type="button"
 											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -1465,7 +1472,7 @@
 											</div>
 									</button>
 							</a>
-							<a :href="'/vends/' + vend.vend_id + '/temp/' + 4 " target="_blank" class="w-full">
+							<a :href="'/vends/' + vend.vend_id + '/temp/' + 4 " target="_blank" class="w-full" v-tooltip="'Open T4 temperature history'">
 									<button
 											type="button"
 											class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-full text-right justify-center"
@@ -1558,11 +1565,7 @@
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-						<div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="onChannelOverviewClicked(vend)">
-							<div class="flex items-center space-x-1 text-xs text-gray-500 mb-1">
-								<TableCellsIcon class="w-4 h-4 text-blue-500" />
-								<span class="font-semibold text-blue-600">View Channel Status</span>
-							</div>
+						<div class="flex flex-col space-y-2 hover:bg-gray-100 p-2 rounded cursor-pointer transition duration-150 ease-in-out border border-transparent hover:border-gray-200" @click="onChannelOverviewClicked(vend)" v-tooltip="'View Channel Status'">
 							<ul
 							class="sm:grid sm:grid-cols-[1fr_1fr]"
 							v-if="vend && vend.vendChannelsJson"
@@ -1959,7 +1962,7 @@
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1 max-w-28 mx-auto">
 							<div v-if="vend && vend.lastOpsJobItem" class="flex flex-col space-y-1">
-								<a :href="'/ops-jobs/items/' + vend.lastOpsJobItem.id + '/edit'">
+								<a :href="'/ops-jobs/items/' + vend.lastOpsJobItem.id + '/edit'" v-tooltip="'Open this ops job item'">
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 									>
@@ -2027,7 +2030,7 @@
 							<!-- Divider between Last Job and Last 2 Job -->
 							<div v-if="vend && vend.lastSecondOpsJobItem" class="border-t border-gray-300 my-2 pt-2"></div>
 							<div v-if="vend && vend.lastSecondOpsJobItem" class="flex flex-col space-y-1">
-								<a :href="'/ops-jobs/items/' + vend.lastSecondOpsJobItem.id + '/edit'">
+								<a :href="'/ops-jobs/items/' + vend.lastSecondOpsJobItem.id + '/edit'" v-tooltip="'Open this ops job item'">
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 									>
@@ -2100,7 +2103,7 @@
 								<span v-if="vend.nextOpsJobItem.sequence && vend.nextOpsJobItem.status < 3" class="font-semibold">
 									({{ vend.nextOpsJobItem.sequence }})
 								</span>
-								<a :href="'/ops-jobs/items/' + vend.nextOpsJobItem.id + '/edit'">
+								<a :href="'/ops-jobs/items/' + vend.nextOpsJobItem.id + '/edit'" v-tooltip="'Open this ops job item'">
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 									>
@@ -2944,7 +2947,7 @@ font-size:13px;
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
 	import MentionTextarea from '@/Components/MentionTextarea.vue';
-	import { ArrowDownTrayIcon, ArrowUpIcon, ArrowDownIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, TableCellsIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ArrowUpIcon, ArrowDownIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -3061,8 +3064,9 @@ font-size:13px;
 	//   - salesUpCount/salesUpPct: share of machines whose L30D sales
 	//     (thirty_days_amount) beat last calendar month (last_mth_amount).
 	//   - nextDayJobCount: machines whose next scheduled ops job is dated tomorrow.
-	//   - refillableOver150: count of machines whose Refillable Value
-	//     (actual_stock_in_value, already in currency units) exceeds a FIXED 150.
+	//   - refillableOver300/350/400/450: count of ALL machines whose Refillable
+	//     Value (actual_stock_in_value, currency units) exceeds each fixed threshold.
+	//   - nextDayRefillableOver120/150/200/250: same, but only over next-day-job machines.
 	const currentStats = computed(() => {
 		// Pre-Search: backend-computed over ALL filtered rows (same shape,
 		// same per-metric denominators — see VendController::computeCustomerIndexCardStats).
@@ -3071,7 +3075,7 @@ font-size:13px;
 		}
 		const rows = props.vends?.data ?? [];
 		const n = rows.length;
-		const empty = { total: 0, stockTotal: 0, errTotal: 0, stockQtyBal: 0, stockSkuBal: 0, todayError: 0, greenCount: 0, greenPct: 0, greenTotal: 0, refillableOver150: 0, refillableOver200: 0, refillableOver250: 0, refillableOver350: 0, refillableOver450: 0, salesUpCount: 0, salesUpTotal: 0, salesUpPct: 0, nextDayJobCount: 0 };
+		const empty = { total: 0, stockTotal: 0, errTotal: 0, stockQtyBal: 0, stockSkuBal: 0, todayError: 0, greenCount: 0, greenPct: 0, greenTotal: 0, refillableOver300: 0, refillableOver350: 0, refillableOver400: 0, refillableOver450: 0, salesUpCount: 0, salesUpTotal: 0, salesUpPct: 0, nextDayJobCount: 0, nextDayRefillableOver120: 0, nextDayRefillableOver150: 0, nextDayRefillableOver200: 0, nextDayRefillableOver250: 0 };
 		if (!n) return empty;
 
 		// "Overall Avg/day" baseline (fleet-wide): the mean of each VM's L30D
@@ -3107,9 +3111,11 @@ font-size:13px;
 		let stockTotal = 0, sumQtyBal = 0, sumSkuBal = 0;
 		let errTotal = 0, sumErr = 0;
 		let greenTotal = 0, greenCount = 0;
-		let refillCount = 0, refillCount200 = 0, refillCount250 = 0, refillCount350 = 0, refillCount450 = 0;
+		let refillCount300 = 0, refillCount350 = 0, refillCount400 = 0, refillCount450 = 0;
 		let salesUpTotal = 0, salesUpCount = 0;
 		let nextDayJobCount = 0;
+		// Refillable thresholds counted ONLY over next-day-job machines (new tile).
+		let nextRefill120 = 0, nextRefill150 = 0, nextRefill200 = 0, nextRefill250 = 0;
 		for (const v of rows) {
 			if (v.vendChannelTotalsJson) {
 				stockTotal++;
@@ -3136,13 +3142,19 @@ font-size:13px;
 				salesUpTotal++;
 				if (Number(json.thirty_days_amount ?? 0) > Number(json.last_mth_amount ?? 0)) salesUpCount++;
 			}
-			// # of Job, next day — VMs whose next scheduled ops job is dated tomorrow.
-			if (v.nextOpsJobItem?.opsJob?.date === tomorrow) nextDayJobCount++;
 			const refillVal = Number(v.actual_stock_in_value ?? 0);
-			if (refillVal > 150) refillCount++;
-			if (refillVal > 200) refillCount200++;
-			if (refillVal > 250) refillCount250++;
+			// # of Job, next day — VMs whose next scheduled ops job is dated tomorrow.
+			// New tile also breaks these down by Refillable Value threshold.
+			if (v.nextOpsJobItem?.opsJob?.date === tomorrow) {
+				nextDayJobCount++;
+				if (refillVal > 120) nextRefill120++;
+				if (refillVal > 150) nextRefill150++;
+				if (refillVal > 200) nextRefill200++;
+				if (refillVal > 250) nextRefill250++;
+			}
+			if (refillVal > 300) refillCount300++;
 			if (refillVal > 350) refillCount350++;
+			if (refillVal > 400) refillCount400++;
 			if (refillVal > 450) refillCount450++;
 		}
 		return {
@@ -3155,15 +3167,18 @@ font-size:13px;
 			greenCount,
 			greenTotal,
 			greenPct: greenTotal > 0 ? (greenCount / greenTotal) * 100 : 0,
-			refillableOver150: refillCount,
-			refillableOver200: refillCount200,
-			refillableOver250: refillCount250,
+			refillableOver300: refillCount300,
 			refillableOver350: refillCount350,
+			refillableOver400: refillCount400,
 			refillableOver450: refillCount450,
 			salesUpCount,
 			salesUpTotal,
 			salesUpPct: salesUpTotal > 0 ? (salesUpCount / salesUpTotal) * 100 : 0,
 			nextDayJobCount,
+			nextDayRefillableOver120: nextRefill120,
+			nextDayRefillableOver150: nextRefill150,
+			nextDayRefillableOver200: nextRefill200,
+			nextDayRefillableOver250: nextRefill250,
 		};
 	});
 
