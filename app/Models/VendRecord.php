@@ -105,10 +105,16 @@ class VendRecord extends Model
             })
             ->when($request->is_binded_customer, function ($query, $search) {
                 if ($search != 'all') {
+                    // Use the FROZEN binding captured on the vend_records row
+                    // (customer_id at the time the day was rolled up), NOT the
+                    // live vend->customer relationship. Otherwise a machine
+                    // rebound/unbound today would be filtered by its current
+                    // binding instead of the historical month's binding,
+                    // retroactively changing past figures.
                     if ($search == 'true') {
-                        $query->has('vend.customer');
+                        $query->whereNotNull('vend_records.customer_id');
                     } else {
-                        $query->doesntHave('vend.customer');
+                        $query->whereNull('vend_records.customer_id');
                     }
                 }
             })

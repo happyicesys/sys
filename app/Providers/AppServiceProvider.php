@@ -40,6 +40,9 @@ class AppServiceProvider extends ServiceProvider
         OpsJobItemChannel::observe(OpsJobItemChannelObserver::class);
 
         // App-wide user-action audit log (web CRUD only; cron/queue/machine excluded).
-        UserLogger::listen();
+        // TEMPORARILY DISABLED 2026-07-01 while investigating queue backlog — the
+        // wildcard listener fired on every Eloquent write inside machine/queue jobs.
+        // Re-enable after the gate is made queue-cheap (runningInConsole early-out).
+        // UserLogger::listen();
     }
 }

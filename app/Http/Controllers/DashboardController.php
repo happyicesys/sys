@@ -775,16 +775,15 @@ class DashboardController extends Controller
             }
         }
 
-        // Cache for 5 min. VendController::update() busts both keys on save.
-        $excludeVendIds = Cache::remember('exclude_vend_ids_for_active_machine', 300, function () {
-            return \DB::table('vends')
-                ->where(function ($q) {
-                    $q->where('is_testing', true)
-                        ->orWhereNull('customer_id');
-                })
-                ->pluck('id')
-                ->toArray();
-        });
+        // History must NOT be reshaped by a machine's CURRENT binding. Previously
+        // this excluded any vend whose live customer_id IS NULL, which dropped a
+        // machine that was bound+active in the past but is unbound today from
+        // EVERY historical month — making this count line inconsistent with the
+        // Sales-by-Month $ bars (which keep those rows). We now exclude only
+        // testing machines (same population the sales chart uses); whether a vend
+        // counts in a given month is decided purely by the frozen vend_records
+        // rows for that month.
+        $excludeVendIds = $testingVendIds;
 
         $cacheKey = $this->makeCacheKey('active_machine_graph', $request);
         $activeMachineGraph = Cache::remember($cacheKey, 300, function () use ($request, $excludeVendIds, $lastYear, $thisYear) {
@@ -821,14 +820,12 @@ class DashboardController extends Controller
                     });
                 }))
                 ->when($request->is_binded_customer && $request->is_binded_customer !== 'all', function ($q) use ($request) {
+                    // Frozen historical binding (vend_records.customer_id), not the
+                    // live vends.customer_id — see scopeFilterIndex for rationale.
                     if ($request->is_binded_customer === 'true') {
-                        $q->whereIn('vend_id', function ($subQ) {
-                            $subQ->select('id')->from('vends')->whereNotNull('customer_id');
-                        });
+                        $q->whereNotNull('vend_records.customer_id');
                     } else {
-                        $q->whereIn('vend_id', function ($subQ) {
-                            $subQ->select('id')->from('vends')->whereNull('customer_id');
-                        });
+                        $q->whereNull('vend_records.customer_id');
                     }
                 })
                 ->groupBy('year', 'month')
