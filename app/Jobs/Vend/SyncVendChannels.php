@@ -98,33 +98,40 @@ class SyncVendChannels implements ShouldQueue
                     ];
                 }
 
-                // Initial updateOrCreate
-                $vendChannel = VendChannel::updateOrCreate([
-                    'vend_id' => $vend->id,
-                    'code' => $channel['channel_code'],
-                ], $data);
-
-                // Combine remaining updates into one if possible
-                $updates = [];
-                if ($vendChannel->is_active) {
-                    $updates['error_rate_json'] = $this->calculateChannelErrorRateJson($vendChannel->id, $errorRates);
+                // Fold error-rate + availability duration into the single write
+                // below (was updateOrCreate followed by a second update()).
+                // For an existing channel the id is already known from the
+                // preloaded row; a brand-new channel has no history so its
+                // error-rate resolves to zeros regardless of id.
+                if ($data['is_active']) {
+                    $data['error_rate_json'] = $this->calculateChannelErrorRateJson($prevVendChannel->id ?? 0, $errorRates);
                 }
 
-                if ($vendChannel->qty_sold_at and $vendChannel->qty_restocked_at) {
-                    $updates['qty_not_available_duration'] = $vendChannel->qty_sold_at->diffForHumans($vendChannel->qty_restocked_at, true);
+                $soldAt = array_key_exists('qty_sold_at', $data) ? $data['qty_sold_at'] : ($prevVendChannel->qty_sold_at ?? null);
+                $restockedAt = array_key_exists('qty_restocked_at', $data) ? $data['qty_restocked_at'] : ($prevVendChannel->qty_restocked_at ?? null);
+                if ($soldAt && $restockedAt) {
+                    $data['qty_not_available_duration'] = Carbon::parse($soldAt)->diffForHumans(Carbon::parse($restockedAt), true);
                 } else {
-                    $updates['qty_not_available_duration'] = null;
+                    $data['qty_not_available_duration'] = null;
                 }
 
-                if (!empty($updates)) {
-                    $vendChannel->update($updates);
+                // Single write per channel; reuse the preloaded row instead of
+                // updateOrCreate's extra SELECT round-trip.
+                if ($prevVendChannel) {
+                    $prevVendChannel->update($data);
+                    $vendChannel = $prevVendChannel;
+                } else {
+                    $vendChannel = VendChannel::create(array_merge([
+                        'vend_id' => $vend->id,
+                        'code' => $channel['channel_code'],
+                    ], $data));
                 }
 
                 if ($stockEvent) {
                     $this->recordStockEvent($vendChannel, $stockEvent);
                 }
 
-                if ($vendChannel->is_active) {
+                if ($data['is_active']) {
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }
             }

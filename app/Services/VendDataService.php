@@ -311,12 +311,25 @@ class VendDataService
             UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
             // Daily PWRON counter per machine. Date is captured here (not in
             // the job) so a queue lag across midnight still buckets correctly.
-            IncrementVendDailyStat::dispatch(
-              $vend->id,
-              $vend->code,
-              'pwron',
-              Carbon::now()->toDateString()
-            )->onQueue('low');
+            // Run inline (dispatchSync): the job body is a single atomic
+            // INSERT ... ON DUPLICATE KEY UPDATE (~1ms). A full queue round-trip
+            // per PWRON was flooding the low queue with thousands of one-statement
+            // jobs. Same statement, same date, same output — just no queue hop.
+            // Guarded so a transient DB error on this non-critical counter can
+            // never break the ingest path (the queued version was fault-isolated).
+            try {
+              IncrementVendDailyStat::dispatchSync(
+                $vend->id,
+                $vend->code,
+                'pwron',
+                Carbon::now()->toDateString()
+              );
+            } catch (\Throwable $e) {
+              \Log::warning('IncrementVendDailyStat inline failed', [
+                'vend_id' => $vend->id,
+                'error' => $e->getMessage(),
+              ]);
+            }
             break;
           case 'REFILL':
             break;
@@ -378,11 +391,26 @@ class VendDataService
       }
 
       if ($connectionType == 'http') {
-        UpdateHttpLastUpdated::dispatch($vend->id)->onQueue('default');
+        // Debounce at DISPATCH time. The job already no-ops unless >=30s have
+        // passed since the last write (or the machine is offline), so enqueuing
+        // one per packet just floods the queue with near-certain no-ops. Gating
+        // here keeps the same ~30s write cadence. Recovery from offline still
+        // fires on the first packet after a quiet spell — by then the machine
+        // has been silent well past 30s, so this key has expired.
+        if (!Cache::has('http_last_updated_' . $vend->id)) {
+          UpdateHttpLastUpdated::dispatch($vend->id)->onQueue('default');
+          Cache::put('http_last_updated_' . $vend->id, true, now()->addSeconds(30));
+        }
       }
 
       if ($connectionType == 'mqtt') {
-        UpdateMqttLastUpdated::dispatch($vend->id)->onQueue('default');
+        // Same dispatch-time debounce as the http branch above (mirrors the
+        // job's own 30s guard on mqtt_last_updated_at). PublishMqtt below is
+        // intentionally NOT debounced — it must answer every packet.
+        if (!Cache::has('mqtt_last_updated_' . $vend->id)) {
+          UpdateMqttLastUpdated::dispatch($vend->id)->onQueue('default');
+          Cache::put('mqtt_last_updated_' . $vend->id, true, now()->addSeconds(30));
+        }
 
         // Fetch apk_ver_json fresh (not from the cached model) — it changes when
         // the machine sends PWRON and UpdateApkVersion updates the DB. Using a

@@ -75,17 +75,20 @@ class VendTempService
     $triggeredAlertName = null;
     $triggeredAlertDesc = null;
 
+    // Read the current alert state ONCE (was a full-row ->fresh() per alert).
+    $vend = $this->vend->fresh();
+    $alertState = $vend->vend_temp_alert_json ?? [];
+    $updatePayload = [];
+
     // Check existing variance alerts
     foreach (VendTemp::DEFAULT_ALERTS as $name => $valueArr) {
-      $vend = $this->vend->fresh();
-
       $dataArr = [
         'column_name' => 'vend_temp_alert_json->' . $name,
         'current_is_triggered' => false,
         'desc' => $valueArr['desc'],
         'is_alert_action' => false,
         'name' => $name,
-        'previous_is_triggered' => $vend->vend_temp_alert_json[$name]['is_triggered'] ?? false,
+        'previous_is_triggered' => $alertState[$name]['is_triggered'] ?? false,
         't1' => $t1 / self::TEMP_DIVISOR,
         't2' => $t2 / self::TEMP_DIVISOR,
         'value' => $valueArr['value'],
@@ -102,18 +105,16 @@ class VendTempService
         $dataArr['is_alert_action'] = false;
       }
 
+      // Accumulate every alert's JSON-path writes into ONE UPDATE
+      // (was a separate Vend UPDATE per alert iteration).
+      $updatePayload[$dataArr['column_name'] . '->is_triggered'] = $dataArr['current_is_triggered'];
+      $updatePayload[$dataArr['column_name'] . '->current_t1'] = $dataArr['t1'];
+      $updatePayload[$dataArr['column_name'] . '->current_t2'] = $dataArr['t2'];
+      $updatePayload[$dataArr['column_name'] . '->current_variance'] = $dataArr['variance'];
+    }
 
-      Vend::where('id', $this->vend->id)->update([
-        $dataArr['column_name'] . '->is_triggered' => $dataArr['current_is_triggered'],
-        $dataArr['column_name'] . '->current_t1' => $dataArr['t1'],
-        $dataArr['column_name'] . '->current_t2' => $dataArr['t2'],
-        $dataArr['column_name'] . '->current_variance' => $dataArr['variance'],
-      ]);
-
-      if ($dataArr['is_alert_action']) {
-        // SendVendTempAlert::dispatchSync($this->vend, $dataArr);
-        // SendVendTempAlert::dispatch($this->vend, $dataArr)->onQueue('default');
-      }
+    if (!empty($updatePayload)) {
+      Vend::where('id', $this->vend->id)->update($updatePayload);
     }
 
     // New Rules (Odd Filter)
