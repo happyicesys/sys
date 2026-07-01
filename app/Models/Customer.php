@@ -392,7 +392,7 @@ class Customer extends Model
         // the sort; the covering one also avoids heap reads for status/ops_job_id.
         // Table name is preserved so eager constraints + whereHas still resolve.
         return $this->hasOne(OpsJobItem::class)
-            ->from(\Illuminate\Support\Facades\DB::raw('`ops_job_items` FORCE INDEX (idx_oji_cust_created_status_covering, idx_oji_cust_created)'))
+            ->from(\App\Support\IndexHint::forceFrom('ops_job_items', ['idx_oji_cust_created_status_covering', 'idx_oji_cust_created']))
             ->whereHas('opsJob', function ($query) {
                 $query->where('date', '<=', Carbon::today()->endOfDay());
             })
@@ -412,7 +412,7 @@ class Customer extends Model
         // See lastOpsJobItem() — same windowed eager-load; pin the same
         // (customer_id, created_at)-leading index to avoid the per-customer filesort.
         return $this->hasOne(OpsJobItem::class)
-            ->from(\Illuminate\Support\Facades\DB::raw('`ops_job_items` FORCE INDEX (idx_oji_cust_created_status_covering, idx_oji_cust_created)'))
+            ->from(\App\Support\IndexHint::forceFrom('ops_job_items', ['idx_oji_cust_created_status_covering', 'idx_oji_cust_created']))
             ->whereHas('opsJob', function ($query) {
                 $query->where('date', '<=', Carbon::today()->endOfDay());
             })

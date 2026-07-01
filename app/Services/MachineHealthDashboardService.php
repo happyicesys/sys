@@ -883,7 +883,13 @@ class MachineHealthDashboardService
             // the vend_id-first plan regardless of how many vend_ids are passed.
             // Same table name, so the model's operator global scopes still apply.
             $l30dSales = VendTransaction::query()
-                ->from(DB::raw('`vend_transactions` FORCE INDEX (idx_vtrans_optimal_sales)'))
+                // idx_vtrans_optimal_sales (vend_id, transaction_datetime, amount) is
+                // the ideal covering index, but it isn't present on the live DBs;
+                // idx_vend_transaction_datetime (vend_id, transaction_datetime) IS,
+                // and it already forces the vend_id-first plan (the real win — avoids
+                // the whole-fleet 30-day scan). IndexHint uses whichever exists, or
+                // no hint at all if neither does. No new index on the hot table.
+                ->from(\App\Support\IndexHint::forceFrom('vend_transactions', ['idx_vtrans_optimal_sales', 'idx_vend_transaction_datetime']))
                 ->whereIn('vend_id', $allVendIds)
                 ->where('transaction_datetime', '>=', $l30dStart)
                 ->groupBy('vend_id')

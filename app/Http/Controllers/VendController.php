@@ -5257,6 +5257,9 @@ class VendController extends Controller
             // 50 known customer IDs (idx_oji_cust_created seeks to each customer_id, backward-scans
             // created_at to rank completed jobs). The outer filter rn <= 2 keeps at most 100 rows
             // total, making the subsequent channel joins trivial.
+            // Safe index hint: only applied if the index exists (empty string
+            // otherwise), so this never errors on a DB whose migrations are behind.
+            $forceIdx = \App\Support\IndexHint::clause('ops_job_items', ['idx_oji_cust_created_status_covering', 'idx_oji_cust_created']);
             $data = DB::select("
                 SELECT
                     base.customer_id,
@@ -5270,7 +5273,7 @@ class VendController extends Controller
                     SELECT oji.id, oji.customer_id, oji.cash_amount, oji.acc_total_amount,
                            oji.acc_total_count, oji.ops_job_id,
                            ROW_NUMBER() OVER (PARTITION BY oji.customer_id ORDER BY oji.created_at DESC) AS rn
-                    FROM ops_job_items oji FORCE INDEX (idx_oji_cust_created_status_covering, idx_oji_cust_created)
+                    FROM ops_job_items oji{$forceIdx}
                     WHERE oji.customer_id IN ($placeholders)
                     AND oji.status >= 3 AND oji.status <> 99
                 ) AS base

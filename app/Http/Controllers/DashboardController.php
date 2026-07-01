@@ -1022,7 +1022,7 @@ class DashboardController extends Controller
         $dailyActive = VendRecord::query()
             // Dedicated covering index for monthly-sales (see migration
             // 2026_07_01_020000). Other dashboard queries keep idx_operator_date_vend.
-            ->from(DB::raw('`vend_records` USE INDEX (idx_vr_monthly_sales_covering)'))
+            ->from(\App\Support\IndexHint::useFrom('vend_records', ['idx_vr_monthly_sales_covering', 'idx_operator_date_vend']))
             ->selectRaw('vend_records.location_type_id as location_type_id')
             ->selectRaw('vend_records.operator_id as operator_id')
             ->selectRaw('vend_records.date as date')
@@ -1045,7 +1045,7 @@ class DashboardController extends Controller
         $query = VendRecord::query()
             // Dedicated covering index for monthly-sales (see migration
             // 2026_07_01_020000). Other dashboard queries keep idx_operator_date_vend.
-            ->from(DB::raw('`vend_records` USE INDEX (idx_vr_monthly_sales_covering)'))
+            ->from(\App\Support\IndexHint::useFrom('vend_records', ['idx_vr_monthly_sales_covering', 'idx_operator_date_vend']))
             ->selectRaw('vend_records.month')
             ->selectRaw('SUM(vend_records.total_amount) as amount')
             ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as vend_count')
