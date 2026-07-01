@@ -44,17 +44,13 @@ class ProductMappingController extends Controller
             'sortKey' => $request->sortKey ? $request->sortKey : 'name'
         ]);
 
+        // NOTE: the "first vend_prefix per mapping" leftJoin (used only to select
+        // vend_prefixes.name for the LIST) is added on the list query below, NOT
+        // here. It yields <=1 row per mapping so it never affected the
+        // $totalBindedVends COUNT — but leaving it on this shared base query made
+        // that COUNT run the correlated MIN(id) subquery per mapping (~750ms). The
+        // filters below all use whereHas(), so they don't need the join either.
         $query = ProductMapping::query()
-            ->leftJoin('vend_prefixes', function ($join) {
-                $join->on('product_mappings.id', '=', 'vend_prefixes.product_mapping_id')
-                    ->whereIn('vend_prefixes.id', function ($query) {
-                        $query->select(DB::raw('MIN(id)'))
-                            ->from('vend_prefixes as vp')
-                            ->whereColumn('vp.product_mapping_id', 'product_mappings.id')
-                            ->orderBy('vp.name', 'asc')
-                            ->groupBy('vp.product_mapping_id');
-                    });
-            })
             ->when($request->name, function ($query, $search) {
                 $query->where('product_mappings.name', 'LIKE', "%{$search}%");
             })
@@ -141,7 +137,22 @@ class ProductMappingController extends Controller
             'cmsEndpoint' => env('CMS_URL'),
             'totalBindedVends' => $totalBindedVends,
             'productMappings' => ProductMappingResource::collection(
-                (clone $query)->with([
+                (clone $query)
+                    // "First vend_prefix per mapping" — only the list needs it
+                    // (selects vend_prefixes.name below). Kept off the base query so
+                    // the $totalBindedVends COUNT doesn't pay for this correlated
+                    // subquery. <=1 row per mapping, so it doesn't change any row count.
+                    ->leftJoin('vend_prefixes', function ($join) {
+                        $join->on('product_mappings.id', '=', 'vend_prefixes.product_mapping_id')
+                            ->whereIn('vend_prefixes.id', function ($query) {
+                                $query->select(DB::raw('MIN(id)'))
+                                    ->from('vend_prefixes as vp')
+                                    ->whereColumn('vp.product_mapping_id', 'product_mappings.id')
+                                    ->orderBy('vp.name', 'asc')
+                                    ->groupBy('vp.product_mapping_id');
+                            });
+                    })
+                    ->with([
                     'attachments',
                     'operator',
                     'productMappingItemsNormalSequence' => function ($q) {
@@ -210,9 +221,20 @@ class ProductMappingController extends Controller
             'unbindedVends' => fn() =>
                 VendResource::collection(
                     Vend::with([
-                        'customer'
+                        // This unbinded-vends dropdown only renders full_name (built
+                        // from customer code/name/person_id/virtual_customer_code) and
+                        // the nested customer.code / customer.name. Load just those
+                        // scalars instead of select * dragging customers' JSON columns
+                        // (totals_json, person_json, snap_*, cms_invoice_history) for
+                        // every customer — that was the ~800ms `select * from customers`.
+                        'customer:id,name,code,person_id,virtual_customer_code'
                     ])
-                        ->has('customer')
+                        // customer_id is a FK with referential integrity and Customer
+                        // is not soft-deleted, so a non-null customer_id guarantees the
+                        // customer exists — replace the per-vend EXISTS(customers)
+                        // semi-join (has('customer')) with a plain NOT NULL check.
+                        // Same optimisation already applied in OpsJobController.
+                        ->whereNotNull('customer_id')
                         ->whereNull('product_mapping_id')
                         ->select(
                             'id',

@@ -477,7 +477,13 @@ class Customer extends Model
 
     public function vend()
     {
-        return $this->hasOne(Vend::class)->latest('begin_date')->latest('created_at');
+        // take(1) makes the eager load use a per-customer ROW_NUMBER window (one
+        // row per customer) instead of fetching EVERY vend for all customers
+        // (ordered) and keeping the first per customer in PHP — which for
+        // customers with vend history was a select * over many wide JSON vend
+        // rows (~430ms on Customer/Index). Result is identical: the latest vend
+        // per customer by begin_date, then created_at.
+        return $this->hasOne(Vend::class)->latest('begin_date')->latest('created_at')->take(1);
     }
 
     public function vends()

@@ -66,6 +66,22 @@ class Kernel extends ConsoleKernel
         // One grouped scan per table keeps even this wide window cheap. Off-peak
         // on the 1st, after the 03:00 ops snapshot; heals go to the low queue.
         $schedule->command('reconcile:sales-rollups --days=400')->monthlyOn(1, '04:30')->withoutOverlapping();
+
+        // Transactions-index headline daily rollup (per-operator-per-day totals).
+        // Same moving-window rationale as the sales rollups above: nightly 14-day
+        // + weekly 45-day catch late settlements. Excludes today (still mutating).
+        // Populates vend_transaction_daily_summaries; the read path stays on the
+        // live query until transactions:rollup-verify shows an empty diff and the
+        // ENABLE_TRANSACTIONS_ROLLUP flag is turned on. Spaced away from 02:15 so
+        // the two vend_transactions scans don't contend.
+        // Gated by the same kill switch as the read path: with the flag OFF
+        // (default) NOTHING here auto-runs, so the feature is fully dormant until
+        // you opt in. Manual `php artisan transactions:rollup-daily` still works
+        // for backfill/verification regardless of the flag.
+        $schedule->command('transactions:rollup-daily --days=14')->dailyAt('03:20')->withoutOverlapping()
+            ->when(fn() => (bool) config('reporting.transactions_rollup_enabled'));
+        $schedule->command('transactions:rollup-daily --days=45')->weeklyOn(0, '03:40')->withoutOverlapping()
+            ->when(fn() => (bool) config('reporting.transactions_rollup_enabled'));
         // Locked Site Summaries are deliberately NOT re-healed by reconcile, so a
         // late settlement on an already-locked month would silently stay stale.
         // Audit last completed month's locked rows against live vend_transactions
@@ -107,7 +123,11 @@ class Kernel extends ConsoleKernel
         $schedule->job(new \App\Jobs\DetectTempTrends, 'low')->hourly();
         // $schedule->command('clean:ops-job-and-incoming-data')->daily();
         // $schedule->command('release:voucher-lock-every-2-mins')->everyMinute();
-        $schedule->command('check:vend-fan-enabled')->everyTenMinutes();
+        // is_fan_enabled is now latched at ingest in SyncVendParameter (real-time).
+        // This fleet scan (json_extract of parameter_json per row, ~4.3s) is kept
+        // only as a daily safety net to backfill any vend the ingest path missed
+        // (e.g. rows whose fan>1000 predates the latch), instead of running 144x/day.
+        $schedule->command('check:vend-fan-enabled')->dailyAt('04:10');
     }
 
     /**

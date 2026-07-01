@@ -119,6 +119,15 @@ class SyncVendParameter implements ShouldQueue
                 'value' => $input['fan'],
                 'type' => VendFan::TYPE_MAIN,
             ]);
+
+            // Event-driven latch, replacing the every-10-min check:vend-fan-enabled
+            // fleet scan (json_extract of parameter_json per row = ~4.3s). saveParameter()
+            // writes parameter_json from this same $input, so `fan > 1000` here is
+            // equivalent to the batch's `parameter_json->fan > 1000`. One-way latch;
+            // it rides the existing isDirty()->save() in handle() — no extra query.
+            if (!$vend->is_fan_enabled && (float) $input['fan'] > 1000) {
+                $vend->is_fan_enabled = true;
+            }
         }
     }
 

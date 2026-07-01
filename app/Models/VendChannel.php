@@ -73,7 +73,12 @@ class VendChannel extends Model
 
     public function vendChannelLatestError()
     {
-        return $this->hasOne(VendChannelErrorLog::class)->orderByDesc('created_at');
+        // latestOfMany() resolves the newest error log per channel via an efficient
+        // subquery. The old hasOne()->orderByDesc('created_at') had no limit, so on
+        // EAGER load it fetched EVERY error log for all channels (ordered) and kept
+        // the first per channel in PHP — ~400ms for 14 channels with long error
+        // history (DeliveryPlatformService). Result is identical: the latest error.
+        return $this->hasOne(VendChannelErrorLog::class)->latestOfMany('created_at');
     }
 
     public function vendTransactions()
