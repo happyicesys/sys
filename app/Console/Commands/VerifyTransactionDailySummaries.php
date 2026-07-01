@@ -53,6 +53,8 @@ class VerifyTransactionDailySummaries extends Command
             ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
             ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            // Match the rollup / live page: null-operator rows are never counted.
+            ->whereNotNull('vend_transactions.operator_id')
             ->whereBetween('vend_transactions.transaction_datetime', [$fromStr, $toStr])
             ->select(VendTransaction::salesRawTotalsSelect())
             ->first();
@@ -62,6 +64,7 @@ class VerifyTransactionDailySummaries extends Command
             ->where('is_multiple', true)
             ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->whereNotNull('vend_transactions.operator_id')
             ->whereBetween('vend_transactions.transaction_datetime', [$fromStr, $toStr])
             ->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
             ->select(VendTransaction::salesItemTotalsSelect())

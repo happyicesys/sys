@@ -101,6 +101,10 @@ class RollupTransactionDailySummaries extends Command
             ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
             ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            // The live page filters operator_id IN (...), so null-operator rows
+            // (old data) are never counted — exclude them here too (and it avoids
+            // a null group violating the summary's NOT NULL operator_id).
+            ->whereNotNull('vend_transactions.operator_id')
             ->whereBetween('vend_transactions.transaction_datetime', [$fromStr, $toStr])
             ->select(array_merge(
                 [
@@ -118,6 +122,7 @@ class RollupTransactionDailySummaries extends Command
             ->where('is_multiple', true)
             ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->whereNotNull('vend_transactions.operator_id')
             ->whereBetween('vend_transactions.transaction_datetime', [$fromStr, $toStr])
             ->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
             ->select(array_merge(
