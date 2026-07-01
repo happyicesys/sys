@@ -63,12 +63,6 @@
         </div>
 
         <div class="flex items-center gap-2 mt-3">
-          <label class="inline-flex items-center gap-1.5 mr-2 text-sm text-gray-700 cursor-pointer select-none"
-            title="Pull in every site of a co-located group when any one member matches the filters above.">
-            <input type="checkbox" v-model="f.group_siblings"
-              class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-            Group siblings
-          </label>
           <button type="button" @click="applyFilters()"
             class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">
             Apply
@@ -215,7 +209,6 @@ const f = reactive({
   category_ids: toObjects(props.filterOptions.categories, props.filters.category_ids),
   statuses: toObjects(props.filterOptions.statuses, props.filters.statuses),
   site_statuses: toObjects(props.filterOptions.siteStatuses, props.filters.site_statuses),
-  group_siblings: !!props.filters.group_siblings,
 });
 
 const ids = (arr) => (arr || []).map((o) => o.id);
@@ -234,7 +227,6 @@ function applyFilters() {
     statuses: ids(f.statuses),
     // Empty Site Status selection means "all sites" (no status constraint).
     site_statuses: (f.site_statuses.length ? ids(f.site_statuses) : ['all']),
-    group_siblings: f.group_siblings ? 1 : 0,
   }, { preserveState: true, preserveScroll: true });
 }
 
@@ -256,7 +248,6 @@ function exportExcel() {
   ids(f.category_ids).forEach((v) => p.append('category_ids[]', v));
   ids(f.statuses).forEach((v) => p.append('statuses[]', v));
   (f.site_statuses.length ? ids(f.site_statuses) : ['all']).forEach((v) => p.append('site_statuses[]', v));
-  if (f.group_siblings) p.append('group_siblings', '1');
   window.location.href = '/vends/ops-performance/excel?' + p.toString();
 }
 

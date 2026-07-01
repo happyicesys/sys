@@ -147,6 +147,15 @@ class MachineHealthDashboardService
                 $this->applyVendFilters($query, $filters);
                 $query->where('is_testing', false);
             })
+            // Lead the sort with vend_id so this doesn't match idx_vcse_channel_occurrence
+            // (vend_channel_id, occurred_at). Previously the ORDER BY matched that index
+            // exactly, so MySQL scanned the WHOLE table's events in channel order and
+            // filtered afterward (~0.8s). Leading with vend_id lets it drive from the
+            // filtered vends and range-seek their 30-day window via the existing
+            // (vend_id, occurred_at) index. Output is unchanged: the sold-out/restock
+            // pairing below keys on vend_channel_id and each channel belongs to one vend,
+            // so every channel's event sub-stream stays in the same chronological order.
+            ->orderBy('vend_id')
             ->orderBy('vend_channel_id')
             ->orderBy('occurred_at');
 
@@ -865,7 +874,16 @@ class MachineHealthDashboardService
         $l30dSales = [];
         if (!empty($allVendIds)) {
             $l30dStart = Carbon::now()->subDays(30);
+            // Pin idx_vtrans_optimal_sales (vend_id, transaction_datetime, amount).
+            // This is a covering index for "SUM(amount) GROUP BY vend_id" over a
+            // small set of vend_ids, so it resolves index-only with one seek per
+            // vend. Without the hint the optimizer was mis-choosing a
+            // transaction_datetime-leading index and range-scanning the whole
+            // fleet's 30-day window (~1.3s for just 2 machines). FORCE INDEX keeps
+            // the vend_id-first plan regardless of how many vend_ids are passed.
+            // Same table name, so the model's operator global scopes still apply.
             $l30dSales = VendTransaction::query()
+                ->from(DB::raw('`vend_transactions` FORCE INDEX (idx_vtrans_optimal_sales)'))
                 ->whereIn('vend_id', $allVendIds)
                 ->where('transaction_datetime', '>=', $l30dStart)
                 ->groupBy('vend_id')

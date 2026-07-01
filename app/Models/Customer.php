@@ -383,18 +383,36 @@ class Customer extends Model
 
     public function lastOpsJobItem()
     {
+        // Pin the (customer_id, created_at)-leading index. When eager-loaded with
+        // a per-customer limit, Laravel builds a ROW_NUMBER() window partitioned
+        // by customer_id ordered by created_at; the optimizer was otherwise
+        // picking (customer_id, status, created_at) — status as a range middle
+        // column breaks the created_at ordering, forcing a per-customer filesort.
+        // Both listed indexes lead with (customer_id, created_at) so either avoids
+        // the sort; the covering one also avoids heap reads for status/ops_job_id.
+        // Table name is preserved so eager constraints + whereHas still resolve.
         return $this->hasOne(OpsJobItem::class)
+            ->from(\Illuminate\Support\Facades\DB::raw('`ops_job_items` FORCE INDEX (idx_oji_cust_created_status_covering, idx_oji_cust_created)'))
             ->whereHas('opsJob', function ($query) {
                 $query->where('date', '<=', Carbon::today()->endOfDay());
             })
             ->where('status', '>=', OpsJob::STATUS_DELIVERED)
             ->where('status', '<>', OpsJob::STATUS_CANCELLED)
-            ->latest();
+            ->latest()
+            // take(1) makes the eager load use a per-customer ROW_NUMBER window
+            // (rn <= 1) — one row per customer — instead of fetching EVERY matching
+            // item for all customers and doing a global created_at filesort, then
+            // keeping the first per customer in PHP. Result is identical (the latest
+            // per customer); this just stops over-fetching. Mirrors lastSecondOpsJobItem.
+            ->take(1);
     }
 
     public function lastSecondOpsJobItem()
     {
+        // See lastOpsJobItem() — same windowed eager-load; pin the same
+        // (customer_id, created_at)-leading index to avoid the per-customer filesort.
         return $this->hasOne(OpsJobItem::class)
+            ->from(\Illuminate\Support\Facades\DB::raw('`ops_job_items` FORCE INDEX (idx_oji_cust_created_status_covering, idx_oji_cust_created)'))
             ->whereHas('opsJob', function ($query) {
                 $query->where('date', '<=', Carbon::today()->endOfDay());
             })

@@ -698,7 +698,32 @@ class VendController extends Controller
             // an N+1 lazy load.
             ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
 
-        $vends = $this->filterVendsDB($vends, $request);
+        // ── Grouped "travel together" (Operation Dashboard) ─────────────────
+        // When the "Grouped?" toggle is on, a co-located cluster must appear as
+        // a unit: if ANY member matches the current filters, ALL members show —
+        // even siblings that fail those filters (strong override) — and cluster
+        // members are ordered adjacent. We pre-compute the whole-cluster id set
+        // (matched sites ∪ their group-mates), restrict the query to it, and add
+        // the user sort via a slim request so filterVendsDB contributes ORDER BY
+        // only (its row-narrowing would otherwise re-exclude the siblings).
+        // When the toggle is off, nothing changes — the normal path runs.
+        $groupOn = $request->boolean('group_siblings');
+        if ($groupOn) {
+            $expandedGroupIds = $this->groupedExpandedCustomerIds($request);
+            $vends->whereIn('customers.id', $expandedGroupIds ?: [-1])
+                // Grouped rows first, clustered by group so members are contiguous.
+                ->orderByRaw('customers.customer_group_id IS NULL')
+                ->orderBy('customers.customer_group_id');
+            $sortReq = new Request([
+                'indexType' => 'customers',
+                'visited' => true,
+                'sortKey' => $request->sortKey,
+                'sortBy' => $request->sortBy,
+            ]);
+            $vends = $this->filterVendsDB($vends, $sortReq);
+        } else {
+            $vends = $this->filterVendsDB($vends, $request);
+        }
         $vends = $this->filterOperatorDB($vends, 'customers');
 
         $countQuery = clone $vends;
@@ -1048,6 +1073,9 @@ class VendController extends Controller
                 'customers.notes',
                 'customers.notes_updated_at',
                 'customers.notes_updated_by',
+                // Site grouping — drives the "stuck together" cluster border on
+                // the Operation Dashboard when the Grouped? filter is on.
+                'customers.customer_group_id',
                 'location_types.name AS location_type_name',
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',
@@ -4572,6 +4600,37 @@ class VendController extends Controller
         ]);
     }
 
+    /**
+     * Coin-float change history for one machine over the retention window
+     * (default 14 days). Powers the Coin Float pop-up on the Customer Index:
+     * the table shows the latest changes and the CSV export dumps the full
+     * window. Rows are already written only on actual change (see
+     * SyncVendParameter), so this is a single indexed range scan on
+     * (vend_id, created_at) with no aggregation.
+     */
+    public function coinFloatHistory(Request $request, Vend $vend)
+    {
+        $days = (int) $request->input('days', 14);
+        if ($days <= 0 || $days > 14) {
+            $days = 14; // hard-capped to the retention window
+        }
+        $cutoff = Carbon::now()->subDays($days);
+
+        $logs = \App\Models\VendCoinFloatLog::query()
+            ->select(['id', 'coin_cnt', 'prev_coin_cnt', 'delta', 'coin_stat', 'created_at'])
+            ->where('vend_id', $vend->id)
+            ->where('created_at', '>=', $cutoff)
+            ->orderByDesc('created_at')
+            ->limit(5000) // safety cap; a machine won't change coin float this often in 14d
+            ->get();
+
+        return response()->json([
+            'vend_code' => $vend->code,
+            'days' => $days,
+            'data' => $logs,
+        ]);
+    }
+
     public function editProducts(Request $request, $vendId)
     {
         $vend = Vend::findOrFail($vendId);
@@ -4767,6 +4826,65 @@ class VendController extends Controller
      * loads, no VendResource) — see the OpsJob/Edit QUIC lesson: never ship
      * heavy payloads for ancillary UI.
      */
+    /**
+     * Whole-cluster customer id set for the "Grouped?" toggle on the Operation
+     * Dashboard (Live Status). Sites matching the CURRENT filters, EXPANDED to
+     * include every member of any group they belong to — so a co-located
+     * cluster travels together and is never split by the other filters.
+     *
+     * Uses a slim id-only query mirroring the Live Status join set (so every
+     * filterVendsDB / filterOperatorDB branch resolves its tables), then unions
+     * the sibling ids. Returns an int[] (possibly empty when nothing matches).
+     */
+    private function groupedExpandedCustomerIds(Request $request): array
+    {
+        $seed = Customer::query()
+            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+            ->leftJoin('addresses', function ($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                    ->where('addresses.type', '=', 2);
+            })
+            ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
+
+        $seed = $this->filterVendsDB($seed, $request);
+        $seed = $this->filterOperatorDB($seed, 'customers');
+
+        // reorder() drops the ORDER BY filterVendsDB added — irrelevant for an
+        // id pluck and some sort keys reference SELECT aliases we don't expose.
+        $seedIds = $seed->reorder()->distinct()->pluck('customers.id')->all();
+
+        if (empty($seedIds)) {
+            return [];
+        }
+
+        $groupIds = DB::table('customers')
+            ->whereIn('id', $seedIds)
+            ->whereNotNull('customer_group_id')
+            ->distinct()
+            ->pluck('customer_group_id')
+            ->all();
+
+        if (empty($groupIds)) {
+            return $seedIds; // no grouped sites in the match → no expansion
+        }
+
+        $siblingIds = DB::table('customers')
+            ->whereIn('customer_group_id', $groupIds)
+            ->pluck('id')
+            ->all();
+
+        return array_values(array_unique(array_merge($seedIds, $siblingIds)));
+    }
+
     private function computeCustomerIndexCardStats(Request $request): array
     {
         // Same unconditional joins as the main indexCustomer query so every
@@ -5152,7 +5270,7 @@ class VendController extends Controller
                     SELECT oji.id, oji.customer_id, oji.cash_amount, oji.acc_total_amount,
                            oji.acc_total_count, oji.ops_job_id,
                            ROW_NUMBER() OVER (PARTITION BY oji.customer_id ORDER BY oji.created_at DESC) AS rn
-                    FROM ops_job_items oji
+                    FROM ops_job_items oji FORCE INDEX (idx_oji_cust_created_status_covering, idx_oji_cust_created)
                     WHERE oji.customer_id IN ($placeholders)
                     AND oji.status >= 3 AND oji.status <> 99
                 ) AS base

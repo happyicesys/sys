@@ -223,9 +223,17 @@ class VendDataService
       $vendCacheKey = 'vend_by_code_' . $vendCode;
       $vend = Cache::get($vendCacheKey);
       if (!$vend) {
+        // Select only the columns this hot poll path actually reads, instead of
+        // SELECT * — the vends row carries several large JSON blobs (parameter,
+        // settings, error-log, temp-monitoring, etc.) that made this a >200ms
+        // "slow" query on every cache miss even with idx_vends_code. Synchronous
+        // consumers here only touch id/code/operator_id(→operator)/customer_id/
+        // offline_restart_count; every fan-out job takes Vend via SerializesModels
+        // and re-fetches a full, fresh row by id at execution, so trimming the
+        // columns cached here doesn't starve them.
         $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)
           ->where('code', $vendCode)
-          ->first();
+          ->first(['id', 'code', 'operator_id', 'customer_id', 'offline_restart_count']);
         if ($vend) {
           Cache::put($vendCacheKey, $vend, now()->addMinutes(5));
         }
@@ -281,13 +289,13 @@ class VendDataService
         switch ($processedInput['Type']) {
           case 'ACBVMCPA':
             // TEMP DEBUG: confirm dispatch fires for vend 2004 ACBVMCPA.
-            if ((int) $vend->code === 2004) {
-              \Log::channel('vend2004')->info('Dispatching SyncAcbVmcPa', [
-                'vend_id' => $vend->id,
-                'vend_code' => $vend->code,
-                'payload_keys' => array_keys((array) $processedInput),
-              ]);
-            }
+            // if ((int) $vend->code === 2004) {
+            //   \Log::channel('vend2004')->info('Dispatching SyncAcbVmcPa', [
+            //     'vend_id' => $vend->id,
+            //     'vend_code' => $vend->code,
+            //     'payload_keys' => array_keys((array) $processedInput),
+            //   ]);
+            // }
             SyncAcbVmcPa::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'ACBSTATUS':

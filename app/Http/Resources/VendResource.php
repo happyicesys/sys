@@ -99,6 +99,9 @@ class VendResource extends JsonResource
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
             'customer_id' => isset($this->customer_id) ? $this->customer_id : null,
+            // Site grouping — cluster id for the "stuck together" row border on
+            // the Operation Dashboard (null = ungrouped).
+            'customer_group_id' => isset($this->customer_group_id) ? $this->customer_group_id : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
             'frequency_per_week_status' => isset($this->frequency_per_week_status) ? $this->frequency_per_week_status : null,
             'frequency_per_week_status_name' => isset($this->frequency_per_week_status) ? Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING[$this->frequency_per_week_status] : null,

@@ -47,9 +47,68 @@ class SyncVendParameter implements ShouldQueue
         $this->createVendFan($input, $vend);
         $this->createVendTemp($input, $vend, $vendTempService);
         $this->saveParameter($input, $vend);
+        $this->logCoinFloatChange($input, $vend);
 
         if ($vend->isDirty()) {
             $vend->save();
+        }
+    }
+
+    /**
+     * Record a coin-float change event.
+     *
+     * Fires on every VENDER packet, so it must stay O(1): the comparison is a
+     * plain read of vends.last_coin_cnt (already loaded on $vend) — no query,
+     * no table crawl. A history row is written ONLY when the coin float
+     * actually changed AND the coin acceptor is active (CHGEStat IN (1,3)),
+     * so cashless machines and stale/zero readings never generate rows.
+     *
+     * The last-value columns are updated on the in-memory model; the existing
+     * $vend->save() below persists them (no extra write). Fully fault-isolated:
+     * any failure here is logged and swallowed so it can never break ingest.
+     */
+    private function logCoinFloatChange($input, Vend $vend): void
+    {
+        try {
+            // Coin acceptor must be active (1 = inactive-but-present, 3 = active
+            // per the UI). Anything else means no meaningful coin float.
+            if (!array_key_exists('CHGEStat', $input) || !array_key_exists('CoinCnt', $input)) {
+                return;
+            }
+            $coinStat = (int) $input['CHGEStat'];
+            if (!in_array($coinStat, [1, 3], true)) {
+                return;
+            }
+
+            // CoinCnt may arrive as a numeric string; normalise to int.
+            if ($input['CoinCnt'] === '' || $input['CoinCnt'] === null) {
+                return;
+            }
+            $coinCnt = (int) $input['CoinCnt'];
+
+            $prev = $vend->last_coin_cnt; // null on first-ever observation
+            if ($prev !== null && (int) $prev === $coinCnt) {
+                return; // unchanged — nothing to log (the common case)
+            }
+
+            \Illuminate\Support\Facades\DB::table('vend_coin_float_logs')->insert([
+                'vend_id' => $vend->id,
+                'vend_code' => $vend->code,
+                'coin_cnt' => $coinCnt,
+                'prev_coin_cnt' => $prev,
+                'delta' => $prev === null ? null : $coinCnt - (int) $prev,
+                'coin_stat' => $coinStat,
+                'created_at' => Carbon::now(),
+            ]);
+
+            // Advance the last-known value; persisted by the caller's save().
+            $vend->last_coin_cnt = $coinCnt;
+            $vend->last_coin_cnt_at = Carbon::now();
+        } catch (\Throwable $e) {
+            \Log::warning('logCoinFloatChange failed', [
+                'vend_id' => $vend->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

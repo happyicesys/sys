@@ -130,16 +130,6 @@ class OpsPerformanceController extends Controller
         ];
         $statuses = array_values(array_filter((array) $request->statuses));
 
-        // "Group siblings together" override. When on, the customer set feeding
-        // every KPI is expanded so a co-located cluster's siblings are never
-        // dropped by the OTHER filters: if any one member of a group matches,
-        // the whole group is pulled in regardless of status/prefix/etc. — the
-        // Site-grouping "travel together" rule. When off, nothing changes.
-        $f['groupSiblings'] = filter_var($request->group_siblings, FILTER_VALIDATE_BOOLEAN);
-        if ($f['groupSiblings']) {
-            $f['groupCustomerIds'] = $this->effectiveCustomerIds($f);
-        }
-
         $dayColumns = $this->dayColumns($anchor);
         $monthColumns = $this->monthColumns($anchor);
         $anchorKey = $anchor->toDateString();
@@ -208,7 +198,6 @@ class OpsPerformanceController extends Controller
                 'site_statuses' => $siteStatusSelected,
                 'codes' => (string) $request->codes,
                 'customer' => (string) $request->customer,
-                'group_siblings' => $f['groupSiblings'],
             ],
         ];
     }
@@ -334,66 +323,9 @@ class OpsPerformanceController extends Controller
         return [$ids, $ids];
     }
 
-    /**
-     * Customer ids that should feed the KPIs when "Group siblings" is on.
-     *
-     * Start from the sites passing every OTHER filter, then expand to include
-     * EVERY member of any group those sites belong to — so a co-located cluster
-     * is never split, even when a sibling fails the status/prefix/etc. filters.
-     * Returns [-1] when nothing matches, keeping the whereIn well-formed.
-     */
-    private function effectiveCustomerIds(array $f): array
-    {
-        $base = DB::table('customers')
-            ->when($f['operatorIds'], fn ($q) => $q->whereIn('customers.operator_id', $f['operatorIds']))
-            ->when($f['locationTypeIds'], fn ($q) => $q->whereIn('customers.location_type_id', $f['locationTypeIds']))
-            ->when($f['categoryIds'], fn ($q) => $q->whereIn('customers.category_id', $f['categoryIds']))
-            ->when($f['customerIds'], fn ($q) => $q->whereIn('customers.id', $f['customerIds']))
-            ->when($f['siteStatusIds'] ?? [], fn ($q) => $q->whereIn('customers.status_id', $f['siteStatusIds']));
-
-        // Vend-level dimensions (prefix / model / specific machine): keep a site
-        // when ANY of its machines matches, so the whole site — and then its
-        // siblings — travel along.
-        $needVend = ! empty($f['vendPrefixIds']) || ! empty($f['vendModelIds']) || ! empty($f['vendIds']);
-        if ($needVend) {
-            $vendSub = DB::table('vends')->select('customer_id')
-                ->when($f['vendPrefixIds'], fn ($q) => $q->whereIn('vend_prefix_id', $f['vendPrefixIds']))
-                ->when($f['vendModelIds'], fn ($q) => $q->whereIn('vend_model_id', $f['vendModelIds']))
-                ->when($f['vendIds'], fn ($q) => $q->whereIn('id', $f['vendIds']))
-                ->when(! empty($f['testingVendIds']), fn ($q) => $q->whereNotIn('id', $f['testingVendIds']));
-            $base->whereIn('customers.id', $vendSub);
-        }
-
-        $baseIds = $base->pluck('id');
-
-        // Expand: every site sharing a group with a matched site.
-        $groupIds = DB::table('customers')
-            ->whereIn('id', $baseIds->all())
-            ->whereNotNull('customer_group_id')
-            ->distinct()
-            ->pluck('customer_group_id');
-
-        $siblingIds = $groupIds->isEmpty()
-            ? collect()
-            : DB::table('customers')->whereIn('customer_group_id', $groupIds->all())->pluck('id');
-
-        $all = $baseIds->merge($siblingIds)->unique()->values()->all();
-
-        return empty($all) ? [-1] : $all;
-    }
-
     /** Apply the dimension filters to a gp_metrics query. */
     private function applyGpFilters($q, array $f): void
     {
-        // Grouped-override: replace the per-dimension narrowing with the
-        // pre-expanded customer whitelist so siblings aren't re-excluded.
-        if (! empty($f['groupSiblings'])) {
-            $q->whereIn('customer_id', $f['groupCustomerIds'])
-                ->when(! empty($f['testingVendIds']), fn ($q) => $q->whereNotIn('vend_id', $f['testingVendIds']));
-
-            return;
-        }
-
         $q->when($f['operatorIds'], fn ($q) => $q->whereIn('operator_id', $f['operatorIds']))
             ->when($f['locationTypeIds'], fn ($q) => $q->whereIn('customer_location_type_id', $f['locationTypeIds']))
             ->when($f['vendPrefixIds'], fn ($q) => $q->whereIn('vend_prefix_id', $f['vendPrefixIds']))
@@ -417,12 +349,6 @@ class OpsPerformanceController extends Controller
     /** Apply the dimension filters to the per-machine snapshot table. */
     private function applySnapshotFilters($q, array $f): void
     {
-        if (! empty($f['groupSiblings'])) {
-            $q->whereIn('customer_id', $f['groupCustomerIds']);
-
-            return;
-        }
-
         $q->when($f['operatorIds'], fn ($q) => $q->whereIn('operator_id', $f['operatorIds']))
             ->when($f['locationTypeIds'], fn ($q) => $q->whereIn('location_type_id', $f['locationTypeIds']))
             ->when($f['vendPrefixIds'], fn ($q) => $q->whereIn('vend_prefix_id', $f['vendPrefixIds']))
@@ -436,12 +362,6 @@ class OpsPerformanceController extends Controller
     /** Apply the dimension filters to the live currentMachineQuery (vends). */
     private function applyLiveFilters($q, array $f): void
     {
-        if (! empty($f['groupSiblings'])) {
-            $q->whereIn('vends.customer_id', $f['groupCustomerIds']);
-
-            return;
-        }
-
         $q->when($f['operatorIds'], fn ($x) => $x->whereIn('vends.operator_id', $f['operatorIds']))
             ->when($f['locationTypeIds'], fn ($x) => $x->whereIn('customers.location_type_id', $f['locationTypeIds']))
             ->when($f['vendPrefixIds'], fn ($x) => $x->whereIn('vends.vend_prefix_id', $f['vendPrefixIds']))
@@ -1008,20 +928,14 @@ class OpsPerformanceController extends Controller
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->whereNotNull('vends.vend_transaction_totals_json')
-            ->when(
-                ! empty($f['groupSiblings']),
-                // Grouped-override: whole-cluster whitelist instead of narrowing.
-                fn ($q) => $q->whereIn('vends.customer_id', $f['groupCustomerIds']),
-                fn ($q) => $q
-                    ->when($f['operatorIds'], fn ($q) => $q->whereIn('vends.operator_id', $f['operatorIds']))
-                    ->when($f['locationTypeIds'], fn ($q) => $q->whereIn('customers.location_type_id', $f['locationTypeIds']))
-                    ->when($f['vendPrefixIds'], fn ($q) => $q->whereIn('vends.vend_prefix_id', $f['vendPrefixIds']))
-                    ->when($f['vendModelIds'], fn ($q) => $q->whereIn('vends.vend_model_id', $f['vendModelIds']))
-                    ->when($f['categoryIds'], fn ($q) => $q->whereIn('customers.category_id', $f['categoryIds']))
-                    ->when($f['vendIds'], fn ($q) => $q->whereIn('vends.id', $f['vendIds']))
-                    ->when($f['customerIds'], fn ($q) => $q->whereIn('vends.customer_id', $f['customerIds']))
-                    ->when($f['siteStatusIds'] ?? [], fn ($q) => $q->whereIn('customers.status_id', $f['siteStatusIds']))
-            )
+            ->when($f['operatorIds'], fn ($q) => $q->whereIn('vends.operator_id', $f['operatorIds']))
+            ->when($f['locationTypeIds'], fn ($q) => $q->whereIn('customers.location_type_id', $f['locationTypeIds']))
+            ->when($f['vendPrefixIds'], fn ($q) => $q->whereIn('vends.vend_prefix_id', $f['vendPrefixIds']))
+            ->when($f['vendModelIds'], fn ($q) => $q->whereIn('vends.vend_model_id', $f['vendModelIds']))
+            ->when($f['categoryIds'], fn ($q) => $q->whereIn('customers.category_id', $f['categoryIds']))
+            ->when($f['vendIds'], fn ($q) => $q->whereIn('vends.id', $f['vendIds']))
+            ->when($f['customerIds'], fn ($q) => $q->whereIn('vends.customer_id', $f['customerIds']))
+            ->when($f['siteStatusIds'] ?? [], fn ($q) => $q->whereIn('customers.status_id', $f['siteStatusIds']))
             ->select(
                 'vends.vend_transaction_totals_json as totals_json',
                 'customers.contract_commission_type as ctype',
@@ -1151,21 +1065,14 @@ class OpsPerformanceController extends Controller
             ->leftJoin('customers as c', 'c.id', '=', 'oji.customer_id')
             ->where('oj.date', $date)
             ->whereNotNull('oji.vend_id')
-            ->when(
-                ! empty($f['groupSiblings']),
-                // Grouped-override: whole-cluster whitelist so the anchor-day
-                // live fallback matches the snapshot days (which expand too).
-                fn ($x) => $x->whereIn('oji.customer_id', $f['groupCustomerIds']),
-                fn ($x) => $x
-                    ->when($f['operatorIds'], fn ($x) => $x->whereIn('v.operator_id', $f['operatorIds']))
-                    ->when($f['locationTypeIds'], fn ($x) => $x->whereIn('c.location_type_id', $f['locationTypeIds']))
-                    ->when($f['vendPrefixIds'], fn ($x) => $x->whereIn('v.vend_prefix_id', $f['vendPrefixIds']))
-                    ->when($f['vendModelIds'], fn ($x) => $x->whereIn('v.vend_model_id', $f['vendModelIds']))
-                    ->when($f['categoryIds'], fn ($x) => $x->whereIn('c.category_id', $f['categoryIds']))
-                    ->when($f['vendIds'], fn ($x) => $x->whereIn('oji.vend_id', $f['vendIds']))
-                    ->when($f['customerIds'], fn ($x) => $x->whereIn('oji.customer_id', $f['customerIds']))
-                    ->when($f['siteStatusIds'] ?? [], fn ($x) => $x->whereIn('c.status_id', $f['siteStatusIds']))
-            )
+            ->when($f['operatorIds'], fn ($x) => $x->whereIn('v.operator_id', $f['operatorIds']))
+            ->when($f['locationTypeIds'], fn ($x) => $x->whereIn('c.location_type_id', $f['locationTypeIds']))
+            ->when($f['vendPrefixIds'], fn ($x) => $x->whereIn('v.vend_prefix_id', $f['vendPrefixIds']))
+            ->when($f['vendModelIds'], fn ($x) => $x->whereIn('v.vend_model_id', $f['vendModelIds']))
+            ->when($f['categoryIds'], fn ($x) => $x->whereIn('c.category_id', $f['categoryIds']))
+            ->when($f['vendIds'], fn ($x) => $x->whereIn('oji.vend_id', $f['vendIds']))
+            ->when($f['customerIds'], fn ($x) => $x->whereIn('oji.customer_id', $f['customerIds']))
+            ->when($f['siteStatusIds'] ?? [], fn ($x) => $x->whereIn('c.status_id', $f['siteStatusIds']))
             ->when(! empty($f['testingVendIds']), fn ($x) => $x->whereNotIn('oji.vend_id', $f['testingVendIds']));
 
         $cents = $q->selectRaw('SUM(ojic.actual_qty * vc.amount) AS cents')->value('cents');
@@ -1193,16 +1100,11 @@ class OpsPerformanceController extends Controller
             $map[$col['key']] = (int) DB::table('customer_period_summaries as cps')
                 ->leftJoin('customers as c', 'c.id', '=', 'cps.customer_id')
                 ->where('cps.year_month', $yearMonth)
-                ->when(
-                    ! empty($f['groupSiblings']),
-                    fn ($q) => $q->whereIn('cps.customer_id', $f['groupCustomerIds']),
-                    fn ($q) => $q
-                        ->when($f['operatorIds'], fn ($q) => $q->whereIn('cps.operator_id', $f['operatorIds']))
-                        ->when($f['locationTypeIds'], fn ($q) => $q->whereIn('c.location_type_id', $f['locationTypeIds']))
-                        ->when($f['categoryIds'], fn ($q) => $q->whereIn('c.category_id', $f['categoryIds']))
-                        ->when($f['customerIds'], fn ($q) => $q->whereIn('cps.customer_id', $f['customerIds']))
-                        ->when($f['siteStatusIds'] ?? [], fn ($q) => $q->whereIn('c.status_id', $f['siteStatusIds']))
-                )
+                ->when($f['operatorIds'], fn ($q) => $q->whereIn('cps.operator_id', $f['operatorIds']))
+                ->when($f['locationTypeIds'], fn ($q) => $q->whereIn('c.location_type_id', $f['locationTypeIds']))
+                ->when($f['categoryIds'], fn ($q) => $q->whereIn('c.category_id', $f['categoryIds']))
+                ->when($f['customerIds'], fn ($q) => $q->whereIn('cps.customer_id', $f['customerIds']))
+                ->when($f['siteStatusIds'] ?? [], fn ($q) => $q->whereIn('c.status_id', $f['siteStatusIds']))
                 ->sum('cps.location_earning_cents');
         }
 

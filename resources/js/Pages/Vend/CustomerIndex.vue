@@ -466,6 +466,17 @@
 						>
 						</MultiSelect>
 				</div>
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'">
+					<label class="block text-sm font-medium text-gray-700">
+						Grouping
+					</label>
+					<label class="mt-1 flex items-center gap-2 h-[38px] text-sm text-gray-700 cursor-pointer select-none"
+						title="Show co-located sites as a group: if any member matches the filters, all its group-mates appear too, kept next to each other.">
+						<input type="checkbox" v-model="filters.group_siblings"
+							class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+						Grouped? (show siblings together)
+					</label>
+				</div>
 			</div>
 
 			<div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -1262,7 +1273,8 @@
 			</thead>
 			<tbody class="bg-white">
 				<tr v-for="(vend, vendIndex) in vends.data" :key="vendIndex"
-					class="cv-row divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
+					class="cv-row divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100"
+					:style="groupRowStyle(vend)">
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="isShowOperationDiv">
 						<input type="checkbox" v-model="vend.is_selected" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
 					</TableData>
@@ -2684,12 +2696,14 @@
 									</div>
 							</div>
 							<div
-							class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+							class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full cursor-pointer hover:ring-2 hover:ring-blue-400 transition"
 							:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > COIN_FLOAT_LOW_THRESHOLD ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
 							v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
+							@click.stop="onCoinFloatClicked(vend)"
+							title="Click to view 14-day coin float change history"
 							>
 									<div class="flex flex-col">
-											<span class="font-bold">
+											<span class="font-bold underline decoration-dotted">
 													Coin Float
 											</span>
 											<span>
@@ -2872,6 +2886,71 @@ v-if="showMapMarkerModal"
 @modalClose="onMapMarkerModalClose"
 >
 </MapMarker>
+
+<!-- Coin Float history pop-up. Self-contained overlay (no shared Modal dep):
+     opens on the Coin Float badge, lazy-loads 14 days of change events, shows
+     the latest 20 in a table and exports the full window as CSV. -->
+<div
+	v-if="showCoinFloatModal"
+	class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+	@click.self="onCoinFloatModalClose"
+>
+	<div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+		<div class="flex items-center justify-between border-b px-5 py-3">
+			<div>
+				<h3 class="text-base font-semibold text-gray-800">
+					Coin Float History
+					<span class="text-gray-500 font-normal">— Machine {{ coinFloatVend?.code }}</span>
+				</h3>
+				<p class="text-xs text-gray-500">Latest 20 changes shown · last 14 days · {{ operatorCountry.currency_symbol }}</p>
+			</div>
+			<button class="text-gray-400 hover:text-gray-700 text-xl leading-none" @click="onCoinFloatModalClose">&times;</button>
+		</div>
+
+		<div class="px-5 py-3 overflow-y-auto">
+			<div v-if="coinFloatLoading" class="py-10 text-center text-gray-500 text-sm">Loading…</div>
+			<div v-else-if="!coinFloatLogs.length" class="py-10 text-center text-gray-500 text-sm">
+				No coin float changes recorded in the last 14 days.
+			</div>
+			<table v-else class="w-full text-xs">
+				<thead>
+					<tr class="text-left text-gray-500 border-b">
+						<th class="py-1.5 pr-2 font-semibold">Date / Time</th>
+						<th class="py-1.5 px-2 font-semibold text-right">Coin Float</th>
+						<th class="py-1.5 px-2 font-semibold text-right">Change</th>
+						<th class="py-1.5 pl-2 font-semibold">Coin Acceptor</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr v-for="row in coinFloatLogs.slice(0, 20)" :key="row.id" class="border-b last:border-0">
+						<td class="py-1.5 pr-2 tabular-nums text-gray-700">{{ formatCoinFloatTime(row.created_at) }}</td>
+						<td class="py-1.5 px-2 text-right tabular-nums font-medium">{{ coinFloatDisplay(row.coin_cnt) }}</td>
+						<td
+							class="py-1.5 px-2 text-right tabular-nums"
+							:class="row.delta === null ? 'text-gray-400' : (row.delta >= 0 ? 'text-green-700' : 'text-red-700')"
+						>{{ coinFloatDelta(row.delta) }}</td>
+						<td class="py-1.5 pl-2">{{ row.coin_stat == 3 ? 'Active' : (row.coin_stat == 1 ? 'Inactive' : 'NA') }}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="flex items-center justify-between border-t px-5 py-3">
+			<span class="text-xs text-gray-500">{{ coinFloatLogs.length }} change(s) in window</span>
+			<div class="flex gap-2">
+				<button
+					class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+					@click="onCoinFloatModalClose"
+				>Close</button>
+				<button
+					class="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+					:disabled="!coinFloatLogs.length"
+					@click="exportCoinFloatCsv"
+				>Export CSV (14 days)</button>
+			</div>
+		</div>
+	</div>
+</div>
 </BreezeAuthenticatedLayout>
 </template>
 
@@ -3188,6 +3267,18 @@ font-size:13px;
 	// every re-render. Same output, computed once per change.
 	const selectedVends = computed(() => vends.value.data.filter((v) => v.is_selected))
 
+	// Grouped "stick together" cue on the Operation Dashboard. When the Grouped?
+	// filter is on, sibling rows that belong to the same cluster
+	// (customer_group_id) share a light colour — a soft left bar + faint tint —
+	// so a co-located cluster reads as one block at a glance. Ungrouped rows and
+	// the non-grouped view are untouched (returns {} → no inline style).
+	const GROUP_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#0ea5e9', '#8b5cf6', '#ec4899', '#14b8a6'];
+	function groupRowStyle(vend) {
+		if (!filters.value.group_siblings || !vend || !vend.customer_group_id) return {};
+		const c = GROUP_COLORS[vend.customer_group_id % GROUP_COLORS.length];
+		return { boxShadow: `inset 4px 0 0 0 ${c}`, backgroundColor: `${c}14` };
+	}
+
 	const filters = ref({
 			account_manager_name: '',
 			apk_ver: '',
@@ -3241,6 +3332,10 @@ font-size:13px;
 			vendContracts: [],
 			visited: true,
 			zones: [],
+			// "Grouped?" — when on, co-located sites (customer_group_id) travel
+			// together: any member matching the filters pulls in all its
+			// group-mates, ordered adjacent. Plain boolean; spread into router.get.
+			group_siblings: false,
 	})
 
 	const showAssignJobModal = ref(false)
@@ -3275,6 +3370,10 @@ font-size:13px;
 	const showMapMarkerModal = ref(false)
 	const showPickListModal = ref(false)
 	const showProductAvailabilityModal = ref(false)
+	const showCoinFloatModal = ref(false)
+	const coinFloatVend = ref(null)
+	const coinFloatLogs = ref([])
+	const coinFloatLoading = ref(false)
 	const statusOptions = ref([])
 	// 5-value Site Status options — populated from props.customerStatuses
 	// (Potential / New / Active / Pending / Inactive + "All" sentinel). Only
@@ -3496,6 +3595,7 @@ if(urlParams.has('channel_codes')) {
 		}
 
 		if(key === 'sortBy') filters.value.sortBy = (value === 'true');
+		if(cleanKey === 'group_siblings') filters.value.group_siblings = (value === 'true' || value === '1');
 
 		if(cleanKey === 'cashless_mfg') filters.value.cashless_mfg = cardTerminalOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.cashless_mfg;
 		if(cleanKey === 'delivery_platform_id') filters.value.delivery_platform_id = deliveryPlatformOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.delivery_platform_id;
@@ -4012,6 +4112,82 @@ function onMapAllMarkerClicked() {
 
 function onMapMarkerModalClose() {
 	showMapMarkerModal.value = false
+}
+
+// ── Coin Float history pop-up ────────────────────────────────────────────
+const coinFloatExponent = () => operatorCountry.currency_exponent ?? 2
+
+function coinFloatDisplay(raw) {
+	if (raw === null || raw === undefined) return '—'
+	return (raw / Math.pow(10, coinFloatExponent())).toFixed(2)
+}
+
+function coinFloatDelta(delta) {
+	if (delta === null || delta === undefined) return '—'
+	const v = delta / Math.pow(10, coinFloatExponent())
+	return (v >= 0 ? '+' : '') + v.toFixed(2)
+}
+
+function formatCoinFloatTime(ts) {
+	if (!ts) return '—'
+	const d = new Date(ts)
+	if (isNaN(d.getTime())) return ts
+	const pad = (n) => String(n).padStart(2, '0')
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+function onCoinFloatClicked(vendData) {
+	coinFloatVend.value = vendData
+	coinFloatLogs.value = []
+	coinFloatLoading.value = true
+	showCoinFloatModal.value = true
+
+	axios.get(`/vends/${vendData.id}/coin-float-history`, { params: { days: 14 } })
+		.then((response) => {
+			coinFloatLogs.value = response.data?.data ?? []
+		})
+		.catch(() => {
+			coinFloatLogs.value = []
+		})
+		.finally(() => {
+			coinFloatLoading.value = false
+		})
+}
+
+function onCoinFloatModalClose() {
+	showCoinFloatModal.value = false
+}
+
+function exportCoinFloatCsv() {
+	if (!coinFloatLogs.value.length) return
+
+	const header = ['Machine ID', 'Date/Time', 'Coin Float', 'Change', 'Coin Acceptor']
+	const rows = coinFloatLogs.value.map((row) => {
+		const acceptor = row.coin_stat == 3 ? 'Active' : (row.coin_stat == 1 ? 'Inactive' : 'NA')
+		return [
+			coinFloatVend.value?.code ?? '',
+			formatCoinFloatTime(row.created_at),
+			coinFloatDisplay(row.coin_cnt),
+			row.delta === null || row.delta === undefined ? '' : coinFloatDelta(row.delta),
+			acceptor,
+		]
+	})
+
+	const escape = (val) => {
+		const s = String(val ?? '')
+		return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+	}
+	const csv = [header, ...rows].map((r) => r.map(escape).join(',')).join('\n')
+
+	const blob = new Blob(["﻿" + csv], { type: 'text/csv;charset=utf-8;' })
+	const url = URL.createObjectURL(blob)
+	const link = document.createElement('a')
+	link.href = url
+	link.download = `coin-float-${coinFloatVend.value?.code ?? 'machine'}-14d.csv`
+	document.body.appendChild(link)
+	link.click()
+	document.body.removeChild(link)
+	URL.revokeObjectURL(url)
 }
 
 function onJobAssigned() {

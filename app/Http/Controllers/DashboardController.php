@@ -708,9 +708,13 @@ class DashboardController extends Controller
                 ->filterIndex($request)
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->groupBy('year', 'month')
+                // month_name is intentionally NOT selected: the consumer below
+                // recomputes it via Carbon (line ~730) and never reads it off this
+                // result. Dropping MONTHNAME(date) removes the only reference to
+                // `date`, so idx_vr_monthly_summary now covers the query fully
+                // (zero heap reads). Output is unchanged.
                 ->select(
                     DB::raw('month'),
-                    DB::raw('MONTHNAME(date) as month_name'),
                     DB::raw('year'),
                     DB::raw('SUM(total_amount) as amount'),
                     DB::raw('SUM(total_count) as count')
@@ -1016,7 +1020,9 @@ class DashboardController extends Controller
 
         // Subquery: daily active vend count per id (location_type_id/operator) & date
         $dailyActive = VendRecord::query()
-            ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
+            // Dedicated covering index for monthly-sales (see migration
+            // 2026_07_01_020000). Other dashboard queries keep idx_operator_date_vend.
+            ->from(DB::raw('`vend_records` USE INDEX (idx_vr_monthly_sales_covering)'))
             ->selectRaw('vend_records.location_type_id as location_type_id')
             ->selectRaw('vend_records.operator_id as operator_id')
             ->selectRaw('vend_records.date as date')
@@ -1037,7 +1043,9 @@ class DashboardController extends Controller
         }
 
         $query = VendRecord::query()
-            ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
+            // Dedicated covering index for monthly-sales (see migration
+            // 2026_07_01_020000). Other dashboard queries keep idx_operator_date_vend.
+            ->from(DB::raw('`vend_records` USE INDEX (idx_vr_monthly_sales_covering)'))
             ->selectRaw('vend_records.month')
             ->selectRaw('SUM(vend_records.total_amount) as amount')
             ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as vend_count')

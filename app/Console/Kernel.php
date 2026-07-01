@@ -21,6 +21,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('delete:vend-data')->dailyAt('01:30');
         $schedule->command('delete:vend-temp')->dailyAt('01:30');
         $schedule->command('delete:vend-log')->dailyAt('01:35');
+        $schedule->command('delete:vend-coin-float-log')->dailyAt('01:40');
         $schedule->command('sync:vend-online-status')->everyMinute();
         // $schedule->command('scheduler:heartbeat')->everyFiveMinutes();
         $schedule->command('sync:totals-json')->dailyAt('00:10');
