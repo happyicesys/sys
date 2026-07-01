@@ -197,7 +197,7 @@ return [
     'environments' => [
         'production' => [
             'supervisor-1' => [
-                'maxProcesses' => 15,
+                'maxProcesses' => 14,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
@@ -208,7 +208,7 @@ return [
             // generous headroom for the rest of the system (web requests,
             // schedule, etc). Bump only if you've raised MySQL max_connections.
             'supervisor-low' => [
-                'maxProcesses' => 4,
+                'maxProcesses' => 5,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
                 'nice' => 10, // deprioritise CPU-wise vs real-time supervisor
