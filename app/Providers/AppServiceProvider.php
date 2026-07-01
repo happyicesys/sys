@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\OpsJobItem;
 use App\Models\OpsJobItemChannel;
 use App\Models\ProductChild;
 use App\Models\UnitCost;
 use App\Observers\OpsJobItemChannelObserver;
+use App\Observers\OpsJobItemObserver;
 use App\Observers\ProductChildObserver;
 use App\Observers\UnitCostObserver;
 use App\Services\UserLogger;
@@ -38,6 +40,9 @@ class AppServiceProvider extends ServiceProvider
         ProductChild::observe(ProductChildObserver::class);
         // Blind SKU: snapshot the flavour set onto each ops job channel at creation.
         OpsJobItemChannel::observe(OpsJobItemChannelObserver::class);
+        // Keep the freeze work-queue in sync so ops:freeze-stock-in scans a tiny
+        // table instead of the whole ops_job_items history.
+        OpsJobItem::observe(OpsJobItemObserver::class);
 
         // App-wide user-action audit log (web CRUD only; cron/queue/machine excluded).
         // TEMPORARILY DISABLED 2026-07-01 while investigating queue backlog — the

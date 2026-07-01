@@ -45,6 +45,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('customer-summary:compute')->dailyAt('01:00');
         $schedule->command('vend:retry-jobs')->everyMinute();
         $schedule->command('ops:freeze-stock-in')->everyMinute()->withoutOverlapping();
+        // Safety net: re-enqueue any freeze-eligible items the observer missed
+        // (e.g. bulk/raw status updates that bypass model events).
+        $schedule->command('ops:freeze-queue-reconcile')->hourly()->withoutOverlapping();
         $schedule->command('vend:cleanup-jobs')->dailyAt('02:00');
         // Keep vend_records & gp_metrics tallied to vend_transactions and auto-heal
         // any drifted day (late settlements, backdated uploads, cost backfills,

@@ -290,9 +290,14 @@ class NoteNotificationService
                 // Escape every non-alphanumeric, non-space char so regex
                 // metacharacters in a name/alias (., (), -, +, …) are literal.
                 $escaped = preg_replace('/[^A-Za-z0-9 ]/', '\\\\$0', $token);
+                // Cheap LIKE pre-filter in front of the REGEXP (strict superset:
+                // any REGEXP match contains the literal "@<token>" substring), so
+                // MySQL rejects most rows with a substring test instead of running
+                // the regex engine on every row. LIKE metachars escaped.
+                $like = '%@' . addcslashes($token, '\\%_') . '%';
                 $w->orWhereRaw(
-                    'notes REGEXP ?',
-                    ['(^|[^[:alnum:]_])@' . $escaped . '([^[:alnum:]_]|$)']
+                    '(notes LIKE ? AND notes REGEXP ?)',
+                    [$like, '(^|[^[:alnum:]_])@' . $escaped . '([^[:alnum:]_]|$)']
                 );
             }
         });
@@ -351,9 +356,17 @@ class NoteNotificationService
         $query->where(function ($w) use ($tokens) {
             foreach ($tokens as $token) {
                 $escaped = preg_replace('/[^A-Za-z0-9 ]/', '\\\\$0', $token);
+                // Cheap LIKE pre-filter in front of the REGEXP. Every string the
+                // REGEXP can match necessarily contains the literal "@<token>"
+                // substring, so this LIKE is a strict superset — it never excludes
+                // a real match. It just lets MySQL reject the overwhelming majority
+                // of rows with a fast substring test instead of running the regex
+                // engine on every row (remarks is unindexed either way). LIKE
+                // metacharacters in the token are escaped so it stays a superset.
+                $like = '%@' . addcslashes($token, '\\%_') . '%';
                 $w->orWhereRaw(
-                    'remarks REGEXP ?',
-                    ['(^|[^[:alnum:]_])@' . $escaped . '([^[:alnum:]_]|$)']
+                    '(remarks LIKE ? AND remarks REGEXP ?)',
+                    [$like, '(^|[^[:alnum:]_])@' . $escaped . '([^[:alnum:]_]|$)']
                 );
             }
         });

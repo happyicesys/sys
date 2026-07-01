@@ -185,20 +185,35 @@ class PaymentController extends Controller
       }
     }
 
-    $updatedPaymentGatewayLog = PaymentGatewayLog::updateOrCreate([
-      'order_id' => $orderId,
-    ], [
+    // Fold the approval timestamp into this single updateOrCreate instead of
+    // issuing a SECOND UPDATE to the same (hot) payment_gateway_logs row below.
+    // Writing the row once halves this handler's lock/commit cycles on it, which
+    // is where the contention shows up. Identical value + conditions: approved_at
+    // is set only for an APPROVE callback inside the 210s window (a stale approve
+    // still early-returns to refund without setting it). $ageSeconds is computed
+    // once and reused by the guard below so both decisions stay consistent.
+    $ageSeconds = $paymentGatewayLog->created_at->diffInSeconds(Carbon::now());
+    $isFreshApprove = ($status === PaymentGatewayLog::STATUS_APPROVE) && $ageSeconds <= 210;
+
+    $updatedPaymentGatewayLogValues = [
       // 'response' => $input,
       'method' => $paymentGatewayLog->method ? $paymentGatewayLog->method : $method,
       'qr_ref_id' => $qrRefID,
       'ref_id' => $refId,
       'status' => $status,
       'response' => $input,
-    ]);
+    ];
+    if ($isFreshApprove) {
+      $updatedPaymentGatewayLogValues['approved_at'] = Carbon::now();
+    }
+
+    $updatedPaymentGatewayLog = PaymentGatewayLog::updateOrCreate([
+      'order_id' => $orderId,
+    ], $updatedPaymentGatewayLogValues);
 
     if ($updatedPaymentGatewayLog and $status === PaymentGatewayLog::STATUS_APPROVE) {
 
-      if ($paymentGatewayLog->created_at->diffInSeconds(Carbon::now()) > 210) {
+      if ($ageSeconds > 210) {
         switch ($company) {
           case 'midtrans':
             break;
@@ -209,9 +224,7 @@ class PaymentController extends Controller
         return;
       }
 
-      $updatedPaymentGatewayLog->update([
-        'approved_at' => Carbon::now(),
-      ]);
+      // approved_at was already persisted in the updateOrCreate above.
 
       // Schedule the "no-found-in-txn" daily-stats check. 5 minutes from now
       // we re-read this PG log; if the matching vend_transactions row has

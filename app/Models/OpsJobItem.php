@@ -336,6 +336,23 @@ class OpsJobItem extends Model
      * original live behaviour. Requires opsJobItemChannels + vend (with mapping
      * relations) eager-loaded; lazy-loads them otherwise.
      */
+    /**
+     * Whether this item is currently waiting to be frozen — the single source of
+     * truth shared by the freeze observer, the freeze command and the reconcile
+     * sweep. Mirrors the original scan filter: delivered-or-later, not cancelled,
+     * stocked-in (completed_at set) and not yet frozen. The 10-minute delay is
+     * applied separately via eligible_at (completed_at + 10 min).
+     */
+    public function isFreezeEligible(): bool
+    {
+        $status = (int) $this->status;
+
+        return $status >= (int) OpsJob::STATUS_DELIVERED
+            && $status !== (int) OpsJob::STATUS_CANCELLED
+            && $this->completed_at !== null
+            && $this->frozen_at === null;
+    }
+
     public function buildFreezeSnapshot(): array
     {
         if (!$this->relationLoaded('opsJobItemChannels')) {

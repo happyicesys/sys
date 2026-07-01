@@ -2683,10 +2683,13 @@ class VendController extends Controller
     public function getVendBannerImage($vendCode)
     {
         $imageArray = [];
-        // Eager load apkSettings and images to avoid N+1 queries
+        // Eager load apkSettings and images to avoid N+1 queries.
+        // Select id only: nothing below reads a vends column directly (just the
+        // apkSettings relation), so we skip vends' large JSON blobs. The eager
+        // loads still resolve off vends.id.
         $vend = Vend::with(['apkSettings.images'])
             ->where('code', $vendCode)
-            ->first();
+            ->first(['id']);
 
         if ($vend && $vend->apkSettings->isNotEmpty()) { // Ensure vend exists and apkSettings is not empty
             $apkSetting = $vend->apkSettings->first(); // Use first() to avoid undefined index error
@@ -2710,7 +2713,10 @@ class VendController extends Controller
     public function getVendBannerVideo($vendCode)
     {
         $videoArray = [];
-        $vend = Vend::where('code', $vendCode)->first();
+        // Only the apkSettings relation is read below (belongsToMany, keyed on
+        // vends.id). Select id only so this per-poll lookup doesn't drag vends'
+        // ~17 large JSON columns off disk. Same row, same relation, same output.
+        $vend = Vend::where('code', $vendCode)->first(['id']);
 
         if ($vend && $vend->apkSettings->isNotEmpty()) {
             $apkSetting = $vend->apkSettings->first();
@@ -2734,7 +2740,10 @@ class VendController extends Controller
     public function getVendCampaignImage($vendCode)
     {
         $imageArray = [];
-        $vend = Vend::where('code', $vendCode)->first();
+        // Only the apkSettings relation is read below (belongsToMany, keyed on
+        // vends.id). Select id only so this per-poll lookup doesn't drag vends'
+        // ~17 large JSON columns off disk. Same row, same relation, same output.
+        $vend = Vend::where('code', $vendCode)->first(['id']);
 
         if ($vend && $vend->apkSettings->isNotEmpty()) {
             $apkSetting = $vend->apkSettings->first();
@@ -2758,7 +2767,10 @@ class VendController extends Controller
     public function getVendCampaignVideo($vendCode)
     {
         $videoArray = [];
-        $vend = Vend::where('code', $vendCode)->first();
+        // Only the apkSettings relation is read below (belongsToMany, keyed on
+        // vends.id). Select id only so this per-poll lookup doesn't drag vends'
+        // ~17 large JSON columns off disk. Same row, same relation, same output.
+        $vend = Vend::where('code', $vendCode)->first(['id']);
 
         if ($vend && $vend->apkSettings->isNotEmpty()) {
             $apkSetting = $vend->apkSettings->first();
