@@ -44,11 +44,26 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue, ShouldBeUni
         $this->deliveryProductMappingVend->load([
             'vend.vendChannels',
             'deliveryProductMapping.deliveryProductMappingItems',
+            // Preload existing bridge rows so the per-match lookup below is an
+            // in-memory hit instead of a SELECT inside the nested loop (N+1).
+            'deliveryProductMappingVendChannels',
         ]);
 
         // Cache references to avoid repeated property traversal
         $vend = $this->deliveryProductMappingVend->vend;
         $deliveryProductMapping = $this->deliveryProductMappingVend->deliveryProductMapping;
+
+        // Index existing bridge rows by "item_id|vend_channel_id" for O(1) lookup.
+        // Mirrors the original query filter (mapping_vend + item + vend_channel).
+        // Keep first-by-id on any duplicate key so we update the same row the old
+        // ->first() would have (there is no unique constraint on this table).
+        $existingByKey = collect();
+        foreach ($this->deliveryProductMappingVend->deliveryProductMappingVendChannels->sortBy('id') as $row) {
+            $key = $row->delivery_product_mapping_item_id . '|' . $row->vend_channel_id;
+            if (! $existingByKey->has($key)) {
+                $existingByKey->put($key, $row);
+            }
+        }
 
         if($vend->vendChannels->isNotEmpty()) {
             foreach($vend->vendChannels as $vendChannel) {
@@ -56,11 +71,8 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue, ShouldBeUni
                 // create the existing vend channel data from android with local created template channel info
                 foreach($deliveryProductMapping->deliveryProductMappingItems as $item) {
                   if($item->channel_code === $vendChannel->code) {
-                    $deliveryProductMappingVendChannel = DeliveryProductMappingVendChannel::query()
-                      ->where('delivery_product_mapping_item_id', $item->id)
-                      ->where('delivery_product_mapping_vend_id', $this->deliveryProductMappingVend->id)
-                      ->where('vend_channel_id', $vendChannel->id)
-                      ->first();
+                    $lookupKey = $item->id . '|' . $vendChannel->id;
+                    $deliveryProductMappingVendChannel = $existingByKey->get($lookupKey);
 
                     // update existing if found
                     if($deliveryProductMappingVendChannel) {
@@ -84,7 +96,7 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue, ShouldBeUni
                       ]);
                     } else {
                       // create new if not found
-                      $this->deliveryProductMappingVend->deliveryProductMappingVendChannels()->create([
+                      $createdVendChannel = $this->deliveryProductMappingVend->deliveryProductMappingVendChannels()->create([
                         'delivery_product_mapping_item_id' => $item->id,
                         'delivery_product_mapping_vend_id' => $this->deliveryProductMappingVend->id,
                         'vend_channel_id' => $vendChannel->id,
@@ -105,6 +117,9 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue, ShouldBeUni
                         'vend_code' => $vend->code,
                         'vend_id' => $vend->id,
                       ]);
+                      // Keep the index current so any later match in this run
+                      // reuses the row (matches the original re-query behavior).
+                      $existingByKey->put($lookupKey, $createdVendChannel);
                     }
                   }
                 }

@@ -382,7 +382,18 @@ class VendDataService
                 'updated_at' => now(),
               ]);
             }
-            SyncP::dispatch($processedInput, $vend)->onQueue('default');
+            // 'P' is a heartbeat that fires continuously per machine. SyncP only
+            // rewrites offline_restart_count + its datetime — a monotonic counter
+            // that rarely moves — so almost every dispatch was a queued no-op.
+            // Only sync when the reported counter differs from what we already
+            // have. Safe against the cached vend being stale: a missed write would
+            // require the counter to fall back to the stale value, which a
+            // monotonic counter never does (a reset lowers it → differs → still
+            // dispatches, and it self-heals on the next differing packet).
+            $incomingRestartCount = $processedInput['OfflineRestartCount'] ?? 0;
+            if ((string) $vend->offline_restart_count !== (string) $incomingRestartCount) {
+              SyncP::dispatch($processedInput, $vend)->onQueue('default');
+            }
             $saveVendData = false;
             break;
           default:

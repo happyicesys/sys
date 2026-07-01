@@ -457,22 +457,24 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
     {
         $vendId = $vend->id;
 
-        // Fetch exactly the latest record per type via MAX(id) subquery.
-        // Replaces the take(10) buffer which could miss a type if recent readings
-        // happen to all be the same type. Returns 2 rows instead of up to 10.
-        $latestTemps = VendTemp::where('vend_id', $vendId)
-            ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
-            ->whereIn('id', function ($query) use ($vendId) {
-                $query->selectRaw('MAX(id)')
-                    ->from('vend_temps')
-                    ->where('vend_id', $vendId)
-                    ->whereIn('type', [VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR])
-                    ->groupBy('type');
-            })
-            ->get();
-
-        $t1 = $latestTemps->where('type', VendTemp::TYPE_CHAMBER)->first();
-        $t2 = $latestTemps->where('type', VendTemp::TYPE_EVAPORATOR)->first();
+        // Fetch the latest record per type. The previous MAX(id) sub-query could
+        // not be served by any index — id is not an index suffix after
+        // (vend_id, type) — so MySQL scanned every temp row for the machine. On
+        // the append-only vend_temps table that was the dominant cost of the
+        // light scan, which runs on every dispatch. These two direct "latest row"
+        // seeks are served by idx_vt_vid_type_created (vend_id, type, created_at)
+        // as a 1-row reverse scan. id is monotonic with created_at, so ordering
+        // by created_at DESC then id DESC returns the exact same row MAX(id) did.
+        $t1 = VendTemp::where('vend_id', $vendId)
+            ->where('type', VendTemp::TYPE_CHAMBER)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+        $t2 = VendTemp::where('vend_id', $vendId)
+            ->where('type', VendTemp::TYPE_EVAPORATOR)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
 
         if (!$t1 || !$t2)
             return;
@@ -497,25 +499,33 @@ class DetectTempTrends implements ShouldQueue, ShouldBeUnique
             unset($newState['comp_fan_off_start']);
             $this->resolveStatefulAlert($vendId, VendSmartAlert::TYPE_COMP_FAN_OFF, ['> 40 mins', '> 60 mins'], $existingAlerts);
         } else {
-            // Single aggregate query instead of two sequential VendFan queries:
-            // 1st checked any fan record exists, 2nd fetched latest active fan within 8h.
-            // COUNT(*) tells us if any fan record exists; MAX(CASE…) gives the latest active fan timestamp.
+            // "Any fan record ever?" plus "latest active fan within 8h". The old
+            // combined query used COUNT(*) over ALL history — an unbounded scan of
+            // every fan row for the machine — just to test > 0. Split into an O(1)
+            // existence check plus an 8h-bounded MAX (both served by
+            // idx_vf_vid_type_created). Same inputs → same result.
             $eightHoursAgo = $now->copy()->subHours(8);
-            $fanSummary = DB::table('vend_fans')
+            $hasFanRecord = DB::table('vend_fans')
                 ->where('vend_id', $vendId)
                 ->where('type', \App\Models\VendFan::TYPE_MAIN)
-                ->selectRaw(
-                    'COUNT(*) as fan_count, MAX(CASE WHEN value > 0 AND created_at >= ? THEN created_at END) as last_active_fan_at',
-                    [$eightHoursAgo->toDateTimeString()]
-                )
-                ->first();
+                ->exists();
+
+            $lastActiveFanAt = null;
+            if ($hasFanRecord) {
+                $lastActiveFanAt = DB::table('vend_fans')
+                    ->where('vend_id', $vendId)
+                    ->where('type', \App\Models\VendFan::TYPE_MAIN)
+                    ->where('value', '>', 0)
+                    ->where('created_at', '>=', $eightHoursAgo->toDateTimeString())
+                    ->max('created_at');
+            }
 
             $fanIsOff = false;
             $startOff = $now;
 
-            if ($fanSummary && $fanSummary->fan_count > 0) {
-                if ($fanSummary->last_active_fan_at) {
-                    $lastActiveFanTime = \Carbon\Carbon::parse($fanSummary->last_active_fan_at);
+            if ($hasFanRecord) {
+                if ($lastActiveFanAt) {
+                    $lastActiveFanTime = \Carbon\Carbon::parse($lastActiveFanAt);
                     $fanIsOff = $now->diffInMinutes($lastActiveFanTime) > 40;
                     $startOff = $lastActiveFanTime;
                 } else {

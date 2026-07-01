@@ -55,7 +55,6 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
             'vendChannels.product.sellingPrices',
             'vendChannels.latestOpsJobItemChannel',
             'vendChannels.vendChannelErrorLogs.vendChannelError',
-            'vendChannelsWithoutClaw',
         ])->find($this->vendId);
 
         if (!$vend) {
@@ -63,8 +62,14 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
             return;
         }
 
-        $vendChannelsWithoutClaw = $vend->vendChannelsWithoutClaw;
         $vendChannels = $vend->vendChannels;
+        // Derive "without claw" (channel codes 50-59 excluded) from the already
+        // loaded vendChannels instead of firing a second identical query. The
+        // vendChannels relation already scopes is_active + capacity > 0, which is
+        // exactly the base scope of vendChannelsWithoutClaw.
+        $vendChannelsWithoutClaw = $vendChannels->reject(function ($channel) {
+            return $channel->code >= 50 && $channel->code <= 59;
+        });
         $productLimitLookup = $this->resolveProductLimits($vendChannels);
 
 
