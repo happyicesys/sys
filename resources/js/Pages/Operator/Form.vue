@@ -73,6 +73,22 @@
                 </span>
               </FormInput>
             </div>
+            <div class="sm:col-span-3">
+              <FormInput v-model="form.bank_account_no" :error="form.errors.bank_account_no">
+                Bank Account No.
+                <span class="text-[9px]">
+                    (For Refund Bulk Transfer File Header)
+                </span>
+              </FormInput>
+            </div>
+            <div class="sm:col-span-3">
+              <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name">
+                Bank Account Name
+                <span class="text-[9px]">
+                    (Registered Company Name at Bank)
+                </span>
+              </FormInput>
+            </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
                 Remarks
@@ -638,6 +654,8 @@ function getDefaultForm() {
     code: '',
     name: '',
     gst_vat_rate: '',
+    bank_account_no: '',
+    bank_account_name: '',
     country_id: '',
     delivery_platform_id: '',
     delivery_platform_type: '',

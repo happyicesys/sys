@@ -64,7 +64,7 @@ return [
     'banks' => [
         'cimb' => [
             'label' => 'CIMB BizChannel Bulk Transaction',
-            'extension' => env('REFUND_CIMB_EXTENSION', 'csv'), // CIMB %-delimited content; .csv or .txt both import
+            'extension' => env('REFUND_CIMB_EXTENSION', 'txt'), // CIMB %-delimited content; .csv or .txt both import
             'delimiter' => '%',
             // --- originator (your company) header fields — set per deployment ---
             'service_code' => env('REFUND_CIMB_SERVICE_CODE', '2'),         // 1=Giro Collection, 2=Bulk Payment, 3=Payroll

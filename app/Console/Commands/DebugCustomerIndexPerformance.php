@@ -415,7 +415,9 @@ class DebugCustomerIndexPerformance extends Command
         // ── 16. Products dropdown (operator-scoped, short-TTL cache) ──────────
         $this->bench('Products dropdown (operator-scoped, cached 5min)', function () use ($operatorIds, $noCache) {
             sort($operatorIds);
-            $cacheKey = 'customer_product_options_' . implode('_', $operatorIds);
+            // Mirror VendController's version-stamped key (OptionCacheBuster).
+            $cacheKey = 'customer_product_options_v' . \App\Support\OptionCacheBuster::productOptionsVersion()
+                . '_' . implode('_', $operatorIds);
             if ($noCache) {
                 Cache::forget($cacheKey);
             }

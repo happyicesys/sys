@@ -27,6 +27,8 @@ class OperatorResource extends JsonResource
             'full_name'   => $this->code . ' - ' . $this->name,
             'remarks'     => $this->remarks,
             'gst_vat_rate'=> $this->gst_vat_rate,
+            'bank_account_no'   => $this->bank_account_no,
+            'bank_account_name' => $this->bank_account_name,
             'is_active'   => (bool) $this->is_active,
 
             'timezone' => [

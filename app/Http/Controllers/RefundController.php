@@ -92,7 +92,13 @@ class RefundController extends Controller
         ]);
         abort_unless(\App\Services\Refund\BankTemplates\BankTemplateRegistry::has($data['bank']), 422, 'Unknown bank template.');
 
-        $res = $this->payout->exportBank($data['ticket_ids'], $data['bank'], auth()->id());
+        try {
+            $res = $this->payout->exportBank($data['ticket_ids'], $data['bank'], auth()->id());
+        } catch (\RuntimeException $e) {
+            // Business-rule rejections (mixed operators, no eligible tickets,
+            // missing originating account) → 422 with a readable message.
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return response($res['content'], 200, [
             'Content-Type' => 'text/plain; charset=UTF-8',

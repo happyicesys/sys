@@ -427,9 +427,10 @@
             </div>
             <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y divide-gray-100 sm:divide-y-0">
               <div class="px-4 py-2 sm:border-b sm:border-gray-100 sm:border-r">
-                <dt class="truncate text-xs font-medium text-gray-500">Total Sales</dt>
+                <dt class="truncate text-xs font-medium text-gray-500">Total Sales <span class="text-gray-400">w/ GST, (excl GST)</span></dt>
                 <dd class="mt-0.5 text-lg font-semibold tracking-normal text-gray-900">
                   {{ formatMoney(totals.sales_cents) }}
+                  <span v-if="totals.sales_excl_gst_cents != null && totals.sales_excl_gst_cents !== totals.sales_cents" class="text-xs font-normal text-indigo-600">( {{ formatMoney(totals.sales_excl_gst_cents) }} )</span>
                 </dd>
               </div>
               <div class="px-4 py-2 sm:border-b sm:border-gray-100 lg:border-r">
@@ -3559,13 +3560,16 @@ function formatPercent(rate) {
 
 /**
  * Share of Total Sales for an aggregate-totals figure (e.g. Gross Earning,
- * Location Fees, Vend Earnings). Raw cents ratio against totals.sales_cents
- * so the percentage reconciles directly with the dollar figures shown on the
- * same cards. Returns null when sales is zero/missing so the span is hidden
- * rather than rendering NaN%/Infinity%.
+ * Location Fees, Vend Earnings). Denominator is the EXCL-GST sales total
+ * (totals.sales_excl_gst_cents, backend-derived per row via each operator's
+ * gst_vat_rate) because Gross Earning / Location Fees / Vend Earnings are
+ * all excl-GST figures — dividing them by GST-inclusive sales understated
+ * every percentage. Falls back to sales_cents for non-GST operators /
+ * older payloads (identical value there). Returns null when sales is
+ * zero/missing so the span is hidden rather than rendering NaN%/Infinity%.
  */
 function pctOfSales(cents) {
-  const sales = Number(props.totals?.sales_cents) || 0;
+  const sales = Number(props.totals?.sales_excl_gst_cents ?? props.totals?.sales_cents) || 0;
   if (!sales || cents == null) return null;
   return ((Number(cents) / sales) * 100).toFixed(2) + '%';
 }

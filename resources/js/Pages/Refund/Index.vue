@@ -47,9 +47,16 @@ async function exportBatch() {
         selected.value = [];
         router.reload({ only: ['tickets', 'counts'] });
     } catch (e) {
-        exportMsg.value = (e.response && e.response.status === 422)
-            ? 'None of the selected tickets are eligible (must be Approved + PayNow, not already batched).'
-            : 'Export failed. Please try again.';
+        let msg = 'Export failed. Please try again.';
+        if (e.response && e.response.status === 422) {
+            msg = 'None of the selected tickets are eligible (must be Approved + PayNow).';
+            // responseType is blob, so the JSON error body arrives as a Blob
+            try {
+                const body = JSON.parse(await e.response.data.text());
+                if (body && body.message) msg = body.message;
+            } catch (_) { /* keep fallback text */ }
+        }
+        exportMsg.value = msg;
     } finally {
         exporting.value = false;
     }

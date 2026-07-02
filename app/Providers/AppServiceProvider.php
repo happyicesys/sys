@@ -11,6 +11,7 @@ use App\Observers\OpsJobItemObserver;
 use App\Observers\ProductChildObserver;
 use App\Observers\UnitCostObserver;
 use App\Services\UserLogger;
+use App\Support\OptionCacheBuster;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 
@@ -43,6 +44,13 @@ class AppServiceProvider extends ServiceProvider
         // Keep the freeze work-queue in sync so ops:freeze-stock-in scans a tiny
         // table instead of the whole ops_job_items history.
         OpsJobItem::observe(OpsJobItemObserver::class);
+
+        // Master-data option caches (Refilling Routes / Zones, Location Types,
+        // Contracts, Models, Payment Methods, etc.): forget the cached dropdown
+        // payloads the moment the underlying row is created/updated/deleted so
+        // edits show up immediately instead of after the 24h TTL. Per-model
+        // listeners only — NOT a wildcard (see UserLogger note below).
+        OptionCacheBuster::listen();
 
         // App-wide user-action audit log (web CRUD only; cron/queue/machine excluded).
         // TEMPORARILY DISABLED 2026-07-01 while investigating queue backlog — the

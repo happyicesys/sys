@@ -19,6 +19,8 @@ class Operator extends Model
     }
 
     protected $fillable = [
+        'bank_account_name',
+        'bank_account_no',
         'code',
         'country_id',
         'created_at',

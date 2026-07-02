@@ -100,6 +100,16 @@ class RefundPayoutCsvService
                 throw new \RuntimeException('No eligible approved PayNow tickets selected.');
             }
 
+            // The bank file header carries a single originating account, so a
+            // batch must not mix operators — export one operator at a time.
+            $operatorIds = $tickets->pluck('operator_id')->unique()->values();
+            if ($operatorIds->count() > 1) {
+                throw new \RuntimeException('Selected tickets belong to different operators. The bank file header holds one originating account — please export each operator separately.');
+            }
+            $operator = $operatorIds->first()
+                ? \App\Models\Operator::withoutGlobalScopes()->find($operatorIds->first())
+                : null;
+
             $batch = RefundPayoutBatch::create([
                 'reference' => 'PENDING',
                 'method' => RefundTicket::METHOD_PAYNOW,
@@ -110,7 +120,7 @@ class RefundPayoutCsvService
             ]);
             $batch->reference = config('refund.batch_reference_prefix', 'BATCH') . '-' . str_pad((string) $batch->id, 6, '0', STR_PAD_LEFT);
 
-            $content = $template->generate($tickets, ['batch' => $batch]);
+            $content = $template->generate($tickets, ['batch' => $batch, 'operator' => $operator]);
             $filename = $batch->reference . '-' . $bankKey . '.' . $template->fileExtension();
             $path = 'refund-payouts/' . $filename;
             Storage::disk('local')->put($path, $content);

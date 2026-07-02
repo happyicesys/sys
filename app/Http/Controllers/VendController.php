@@ -1704,10 +1704,14 @@ class VendController extends Controller
             UserResource::collection(User::with('roles')->orderBy('name')->get())->resolve()
         );
 
-        // Products: operator-scoped (is_available can toggle), short TTL
+        // Products: operator-scoped (is_available can toggle), short TTL.
+        // Key carries a version stamp (bumped by OptionCacheBuster when a
+        // product's option-relevant fields change) so every operator combo
+        // goes stale at once — the combos themselves can't be enumerated.
         $operatorIds = array_values(array_filter((array) $request->operators));
         sort($operatorIds);
-        $productCacheKey = 'customer_product_options_' . implode('_', $operatorIds);
+        $productCacheKey = 'customer_product_options_v' . \App\Support\OptionCacheBuster::productOptionsVersion()
+            . '_' . implode('_', $operatorIds);
         $productOptions = Cache::remember($productCacheKey, $productTtl, function () use ($request) {
             return ProductResource::collection(
                 Product::query()
@@ -3417,6 +3421,13 @@ class VendController extends Controller
         // slow transaction_datetime sort on a large range.
         $userVendIds = $user->vends()->exists() ? $user->vends->pluck('id') : null;
 
+        // Align with the aggregate cards (transactionIndex totals): only settled
+        // sales and no testing machines. Must match the filters inside the
+        // export jobs so row counts / chunk ID boundaries stay consistent.
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
+            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int) $v)->all()
+        );
+
         $idQuery = VendTransaction::query()
             ->select('vend_transactions.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
@@ -3433,6 +3444,8 @@ class VendController extends Controller
                 $query->whereIn('vend_transactions.vend_id', $userVendIds);
             })
             ->filterTransactionIndex($request, true) // skip sort — we impose our own
+            ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
+            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->orderBy('vend_transactions.id');
 
         // Collect IDs in order to determine per-chunk keyset boundaries.
@@ -3489,6 +3502,13 @@ class VendController extends Controller
 
         $data = [];
 
+        // Align with the aggregate cards (transactionIndex totals): only settled
+        // sales and no testing machines, so the exported Amount total tallies
+        // with the dashboard "Total Sales".
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
+            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int) $v)->all()
+        );
+
         VendTransaction::query()
             ->with([
                 'vendTransactionItems.vendChannel:id,code,amount',
@@ -3507,6 +3527,8 @@ class VendController extends Controller
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->filterTransactionIndex($request)
+            ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
+            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->select([
                 'vend_transactions.*',
                 'vends.code AS vend_code',
@@ -3626,6 +3648,49 @@ class VendController extends Controller
                             'labels' => '', // or $labelStr if you want to repeat per item row
                         ];
                     }
+                }
+            });
+
+        // Append dispensed-but-unreported gateway revenue so the Excel total
+        // tallies with the dashboard "Total Sales" from the cutoff onward —
+        // same rows the CSV export appends via AppendsUnreportedGatewayCsvRows.
+        PaymentGatewayLog::query()
+            ->with(['vend:id,code', 'operatorPaymentGateway.operator:id,code'])
+            ->unreportedDispensed($request, $testingVendIds)
+            ->orderBy('payment_gateway_logs.approved_at')
+            ->chunk(500, function ($logs) use (&$data) {
+                foreach ($logs as $log) {
+                    $amount = (float) $log->amount; // already in major units
+
+                    $data[] = [
+                        'order_id' => $log->order_id,
+                        'transaction_datetime' => $log->approved_at ? $log->approved_at->toDateTimeString() : '',
+                        'machine_id' => $log->vend->code ?? $log->vend_code ?? '',
+                        'machine_prefix' => '',
+                        'customer_id' => '',
+                        'customer_code' => '',
+                        'customer_name' => '',
+                        'channel' => '',
+                        'product_code' => '',
+                        'product_name' => 'Unreported Gateway Revenue',
+                        'price_type' => '',
+                        'amount' => $amount,
+                        'amount_breakdown' => $amount,
+                        'unit_cost' => '',
+                        'payment_method' => $log->method ?: 'Payment Gateway',
+                        'error_code' => '',
+                        'location_type' => '',
+                        'operator' => $log->operatorPaymentGateway->operator->code ?? '',
+                        'is_successful' => 'Unreported Gateway',
+                        'is_refunded' => '',
+                        'is_multiple' => 'No',
+                        'multiple_qty' => 1,
+                        'txn_src' => $log->txn_src ?? '',
+                        'member_id' => '',
+                        'hid_card_id' => '',
+                        'voucher' => '',
+                        'labels' => '',
+                    ];
                 }
             });
 

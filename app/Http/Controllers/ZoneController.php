@@ -8,6 +8,9 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
+// NOTE: the cached 'zone_options' dropdown (Refilling Routes) is invalidated
+// automatically on Zone save/delete by App\Support\OptionCacheBuster.
+
 class ZoneController extends Controller
 {
     public function index(Request $request)

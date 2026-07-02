@@ -13,6 +13,7 @@ use DB;
 use Illuminate\Bus\Queueable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -72,6 +73,13 @@ class ExportVendTransactionCsv implements ShouldQueue
             $filename = 'vend_transactions_' . now()->format('Ymd_His') . '.csv';
             $spacesPath = "sys/exports/{$filename}";
 
+            // Align with the transaction page aggregate cards: exclude testing
+            // machines and non-settled rows (see filters on the query below) so
+            // the exported Amount total tallies with the dashboard "Total Sales".
+            $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
+                DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int) $v)->all()
+            );
+
             $stream = fopen('php://temp', 'r+');
 
             fputcsv($stream, [
@@ -120,6 +128,13 @@ class ExportVendTransactionCsv implements ShouldQueue
                     $query->whereIn('vend_transactions.vend_id', $user->vends->pluck('id'));
                 })
                 ->filterTransactionIndex($request)
+                // Mirror the aggregate-cards query (VendController@transactionIndex):
+                // only settled sales (excludes in-flight PENDING and voided REFUNDED
+                // gateway rows) and no testing machines. Without these the CSV
+                // contains rows the "Total Sales" card never counts, so the
+                // exported total comes out higher than the dashboard.
+                ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
+                ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
                 ->select([
                     'vend_transactions.*',
                     'vends.code AS vend_code',

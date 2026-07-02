@@ -43,11 +43,21 @@ class CimbBizChannelTemplate implements BankBulkTemplate
         $totalCents = (int) $tickets->sum('claimed_amount_cents');
         $count = $tickets->count();
 
+        // Originating account: prefer the operator's own bank details
+        // (Operator page), fall back to the env/config defaults.
+        $operator = $meta['operator'] ?? null;
+        $accountNo = trim((string) ($operator?->bank_account_no ?: ($cfg['account_no'] ?? '')));
+        $accountName = trim((string) ($operator?->bank_account_name ?: ($cfg['account_name'] ?? '') ?: ($operator?->name ?? '')));
+
+        if ($accountNo === '') {
+            throw new \RuntimeException('No originating bank account number set. Fill in "Bank Account No." on the Operator page (or set REFUND_CIMB_ACCOUNT_NO).');
+        }
+
         // ---- header record ----
         $header = implode($d, [
-            $cfg['service_code'] ?? '3',
-            $cfg['account_no'] ?? '',
-            $cfg['account_name'] ?? '',
+            $cfg['service_code'] ?? '2',
+            $this->clean($accountNo),
+            $this->clean($accountName),
             $currency,
             number_format($totalCents / 100, 2, '.', ''),
             $count,

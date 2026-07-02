@@ -325,6 +325,8 @@ class OperatorController extends Controller
             'country_id' => 'required',
             'name' => 'required',
             'timezone' => 'required',
+            'bank_account_no' => ['nullable', 'string', 'max:30'],
+            'bank_account_name' => ['nullable', 'string', 'max:120'],
             'email_recipients' => ['nullable', 'array'],
             'email_recipients.*.email' => ['required', 'email'],
             'email_recipients.*.label' => ['nullable', 'string', 'max:255'],
@@ -388,6 +390,8 @@ class OperatorController extends Controller
 
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'bank_account_no' => ['nullable', 'string', 'max:30'],
+            'bank_account_name' => ['nullable', 'string', 'max:120'],
             'email_user_ids' => ['nullable', 'array'],
             'email_user_ids.*' => ['integer', 'exists:users,id'],
             'email_customs' => ['nullable', 'array'],

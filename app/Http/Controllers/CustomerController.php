@@ -588,9 +588,18 @@ class CustomerController extends Controller
             ->whereIn('customer_id', $customerIds)
             ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
         $applyRowFilters($totalsQuery);
+        // sales_excl_gst_cents — Total Sales with each row's operator GST
+        // stripped out (sales_cents is stored gross of GST). De-grossed per
+        // row via the row's operator gst_vat_rate (correlated subquery — no
+        // join, so $applyRowFilters column references stay unambiguous).
+        // Feeds the "(excl GST ...)" figure on the Total Sales card AND the
+        // denominator for the % badges on the Gross Earning / Location Fees /
+        // Vend Earnings cards, which are all excl-GST figures — dividing
+        // them by GST-inclusive sales understated every percentage.
         $totalsRow = $totalsQuery
             ->selectRaw('
                 COALESCE(SUM(sales_cents), 0) AS sales_cents,
+                COALESCE(SUM(sales_cents / (1 + COALESCE((SELECT gst_vat_rate FROM operators WHERE operators.id = customer_period_summaries.operator_id), 0) / 100)), 0) AS sales_excl_gst_cents,
                 COALESCE(SUM(gross_earning_cents), 0) AS gross_earning_cents,
                 COALESCE(SUM(location_fees_cents), 0) AS location_fees_cents,
                 COALESCE(SUM(location_earning_cents), 0) AS location_earning_cents,
@@ -740,6 +749,7 @@ class CustomerController extends Controller
 
         $totals = [
             'sales_cents' => (int) ($totalsRow->sales_cents ?? 0),
+            'sales_excl_gst_cents' => (int) round((float) ($totalsRow->sales_excl_gst_cents ?? 0)),
             'gross_earning_cents' => (int) ($totalsRow->gross_earning_cents ?? 0),
             'location_fees_cents' => $locationFeesTotal,
             'location_earning_cents' => $locationEarningTotal,
