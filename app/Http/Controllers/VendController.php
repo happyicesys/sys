@@ -4779,17 +4779,15 @@ class VendController extends Controller
             'upcoming_product_mapping_id' => ['required', 'integer', 'exists:product_mappings,id'],
         ]);
 
-        $vend = Vend::with('vendPrefix')->findOrFail($id);
+        $vend = Vend::findOrFail($id);
         $vend->product_mapping_id = $validated['upcoming_product_mapping_id'];
         $vend->upcoming_product_mapping_id = null;
         $vend->binded_at = Carbon::now();
         $vend->save();
 
-        if ($vend->vendPrefix) {
-            $vend->vendPrefix
-                ->productMappings()
-                ->syncWithoutDetaching([$validated['upcoming_product_mapping_id']]);
-        }
+        // DEPRECATED (2026-07): prefix→mapping binding retired — promoting no
+        // longer writes into the product_mapping_vend_prefix pivot (kept
+        // read-only for historical data).
 
         return redirect()->back();
     }
@@ -5060,13 +5058,14 @@ class VendController extends Controller
         $errTotal = 0; $sumErr = 0.0;
         $greenTotal = 0; $greenCount = 0;
         $salesUpTotal = 0; $salesUpCount = 0;
+        $refill120 = 0; $refill150 = 0; $refill200 = 0; $refill250 = 0;
         $refill300 = 0; $refill350 = 0; $refill400 = 0; $refill450 = 0;
         $nextDayJobCount = 0;
-        // Next-day-scoped Refillable breakdown — same thresholds the new
-        // "Current" tile shows, but counted ONLY over machines whose next
-        // scheduled job lands tomorrow (the all-machines Refillable tile keeps
-        // its own $150..$450 counters above).
+        // Next-day-job subset of each Refillable threshold count — the
+        // "Current" Refillable tiles render "total (next-day subset)" per
+        // threshold, so both counter families cover all eight thresholds.
         $nextRefill120 = 0; $nextRefill150 = 0; $nextRefill200 = 0; $nextRefill250 = 0;
+        $nextRefill300 = 0; $nextRefill350 = 0; $nextRefill400 = 0; $nextRefill450 = 0;
 
         foreach ($rows as $row) {
             $json = $row->vend_transaction_totals_json;
@@ -5128,6 +5127,10 @@ class VendController extends Controller
             // Refillable Value thresholds — /100 to currency units, matching
             // VendResource's serialisation the frontend compares against.
             $refillVal = ((float) ($row->actual_stock_in_value ?? 0)) / 100;
+            if ($refillVal > 120) $refill120++;
+            if ($refillVal > 150) $refill150++;
+            if ($refillVal > 200) $refill200++;
+            if ($refillVal > 250) $refill250++;
             if ($refillVal > 300) $refill300++;
             if ($refillVal > 350) $refill350++;
             if ($refillVal > 400) $refill400++;
@@ -5140,6 +5143,10 @@ class VendController extends Controller
                 if ($refillVal > 150) $nextRefill150++;
                 if ($refillVal > 200) $nextRefill200++;
                 if ($refillVal > 250) $nextRefill250++;
+                if ($refillVal > 300) $nextRefill300++;
+                if ($refillVal > 350) $nextRefill350++;
+                if ($refillVal > 400) $nextRefill400++;
+                if ($refillVal > 450) $nextRefill450++;
             }
         }
 
@@ -5166,6 +5173,10 @@ class VendController extends Controller
                 'greenCount' => $greenCount,
                 'greenTotal' => $greenTotal,
                 'greenPct' => $greenTotal > 0 ? ($greenCount / $greenTotal) * 100 : 0,
+                'refillableOver120' => $refill120,
+                'refillableOver150' => $refill150,
+                'refillableOver200' => $refill200,
+                'refillableOver250' => $refill250,
                 'refillableOver300' => $refill300,
                 'refillableOver350' => $refill350,
                 'refillableOver400' => $refill400,
@@ -5174,11 +5185,16 @@ class VendController extends Controller
                 'salesUpTotal' => $salesUpTotal,
                 'salesUpPct' => $salesUpTotal > 0 ? ($salesUpCount / $salesUpTotal) * 100 : 0,
                 'nextDayJobCount' => $nextDayJobCount,
-                // Next-day Refillable breakdown for the new "Current" tile.
+                // Next-day-job subset per Refillable threshold (parenthesised
+                // figure on the "Current" Refillable tiles).
                 'nextDayRefillableOver120' => $nextRefill120,
                 'nextDayRefillableOver150' => $nextRefill150,
                 'nextDayRefillableOver200' => $nextRefill200,
                 'nextDayRefillableOver250' => $nextRefill250,
+                'nextDayRefillableOver300' => $nextRefill300,
+                'nextDayRefillableOver350' => $nextRefill350,
+                'nextDayRefillableOver400' => $nextRefill400,
+                'nextDayRefillableOver450' => $nextRefill450,
             ],
         ];
     }

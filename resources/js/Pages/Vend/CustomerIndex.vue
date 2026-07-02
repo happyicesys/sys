@@ -719,17 +719,6 @@
 							<dt class="truncate text-xs font-medium text-gray-500">Stock SKU Bal</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.stockSkuBal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) }}%</dd>
 						</div>
-						<!-- # of VM (# of Job Next Day), Refillable > $120/$150/$200/$250 —
-							scoped to machines whose next scheduled ops job lands TOMORROW
-							(unlike the all-machines Refillable tile below). First figure is
-							the next-day VM/job count; the four counts are those next-day
-							machines whose Refillable Value exceeds each threshold. -->
-						<div class="px-3 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM (# of Job Next Day), Refillable &gt; $120, $150, $200, $250</dt>
-							<dd class="mt-1 text-lg leading-7 font-semibold tracking-tight tabular-nums text-gray-800">
-								{{ currentStats.nextDayRefillableOver120 }}, {{ currentStats.nextDayRefillableOver150 }}, {{ currentStats.nextDayRefillableOver200 }}, {{ currentStats.nextDayRefillableOver250 }}
-							</dd>
-						</div>
 						<!-- % of VM, Avg Daily Sales L30D >= Avg/Day — % of machines whose
 							L30D avg daily sales are at/above the fleet-wide overall avg/day
 							(currentStats baseline). Label may wrap to 2 lines. -->
@@ -737,12 +726,25 @@
 							<dt class="text-xs font-medium leading-tight text-gray-500">% of VM, Avg Daily Sales L30D &gt;= Avg/Day</dt>
 							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-green-700">{{ currentStats.greenPct.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}% <span class="text-xs font-normal text-gray-400">({{ currentStats.greenCount }}/{{ currentStats.greenTotal }})</span></dd>
 						</div>
-						<!-- # of VM, Refillable > $300/$350/$400/$450 — counts of ALL filtered
-							machines whose Refillable Value exceeds each fixed threshold (not
-							next-day scoped). Smaller font so the counts fit on one line. -->
+						<!-- # of VM (# of Job Next Day), Refillable > $120/$150/$200/$250 —
+							per threshold: count of ALL filtered machines whose Refillable
+							Value exceeds it, with the subset of those that have an ops job
+							scheduled TOMORROW in parentheses. -->
 						<div class="px-3 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM, Refillable &gt; $300, $350, $400, $450</dt>
-							<dd class="mt-1 text-lg leading-7 font-semibold tracking-tight tabular-nums text-gray-800">{{ currentStats.refillableOver300 }}, {{ currentStats.refillableOver350 }}, {{ currentStats.refillableOver400 }}, {{ currentStats.refillableOver450 }}</dd>
+							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM (# of Job Next Day), Refillable &gt; $120, $150, $200, $250</dt>
+							<dd class="mt-1 text-base leading-6 font-semibold tracking-tight tabular-nums text-gray-800">
+								{{ currentStats.refillableOver120 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver120 }})</span>, {{ currentStats.refillableOver150 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver150 }})</span>, {{ currentStats.refillableOver200 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver200 }})</span>, {{ currentStats.refillableOver250 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver250 }})</span>
+							</dd>
+						</div>
+						<!-- # of VM (# of Job Next Day), Refillable > $300/$350/$400/$450 —
+							same concept as the $120–$250 tile, higher thresholds: total
+							count over each threshold with the next-day-job subset in
+							parentheses. -->
+						<div class="px-3 py-3">
+							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM (# of Job Next Day), Refillable &gt; $300, $350, $400, $450</dt>
+							<dd class="mt-1 text-base leading-6 font-semibold tracking-tight tabular-nums text-gray-800">
+								{{ currentStats.refillableOver300 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver300 }})</span>, {{ currentStats.refillableOver350 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver350 }})</span>, {{ currentStats.refillableOver400 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver400 }})</span>, {{ currentStats.refillableOver450 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver450 }})</span>
+							</dd>
 						</div>
 						<!-- # of Job, next day — machines with a scheduled ops job dated tomorrow -->
 						<div class="px-4 py-3">
@@ -2909,6 +2911,9 @@ v-if="showMapMarkerModal"
 
 		<div class="px-5 py-3 overflow-y-auto">
 			<div v-if="coinFloatLoading" class="py-10 text-center text-gray-500 text-sm">Loading…</div>
+			<div v-else-if="coinFloatError" class="py-10 text-center text-red-600 text-sm">
+				{{ coinFloatError }}
+			</div>
 			<div v-else-if="!coinFloatLogs.length" class="py-10 text-center text-gray-500 text-sm">
 				No coin float changes recorded in the last 14 days.
 			</div>
@@ -3143,9 +3148,10 @@ font-size:13px;
 	//   - salesUpCount/salesUpPct: share of machines whose L30D sales
 	//     (thirty_days_amount) beat last calendar month (last_mth_amount).
 	//   - nextDayJobCount: machines whose next scheduled ops job is dated tomorrow.
-	//   - refillableOver300/350/400/450: count of ALL machines whose Refillable
-	//     Value (actual_stock_in_value, currency units) exceeds each fixed threshold.
-	//   - nextDayRefillableOver120/150/200/250: same, but only over next-day-job machines.
+	//   - refillableOver120..450: count of ALL machines whose Refillable Value
+	//     (actual_stock_in_value, currency units) exceeds each fixed threshold.
+	//   - nextDayRefillableOver120..450: same thresholds, restricted to
+	//     next-day-job machines (the parenthesised figure on the tiles).
 	const currentStats = computed(() => {
 		// Pre-Search: backend-computed over ALL filtered rows (same shape,
 		// same per-metric denominators — see VendController::computeCustomerIndexCardStats).
@@ -3154,7 +3160,7 @@ font-size:13px;
 		}
 		const rows = props.vends?.data ?? [];
 		const n = rows.length;
-		const empty = { total: 0, stockTotal: 0, errTotal: 0, stockQtyBal: 0, stockSkuBal: 0, todayError: 0, greenCount: 0, greenPct: 0, greenTotal: 0, refillableOver300: 0, refillableOver350: 0, refillableOver400: 0, refillableOver450: 0, salesUpCount: 0, salesUpTotal: 0, salesUpPct: 0, nextDayJobCount: 0, nextDayRefillableOver120: 0, nextDayRefillableOver150: 0, nextDayRefillableOver200: 0, nextDayRefillableOver250: 0 };
+		const empty = { total: 0, stockTotal: 0, errTotal: 0, stockQtyBal: 0, stockSkuBal: 0, todayError: 0, greenCount: 0, greenPct: 0, greenTotal: 0, refillableOver120: 0, refillableOver150: 0, refillableOver200: 0, refillableOver250: 0, refillableOver300: 0, refillableOver350: 0, refillableOver400: 0, refillableOver450: 0, salesUpCount: 0, salesUpTotal: 0, salesUpPct: 0, nextDayJobCount: 0, nextDayRefillableOver120: 0, nextDayRefillableOver150: 0, nextDayRefillableOver200: 0, nextDayRefillableOver250: 0, nextDayRefillableOver300: 0, nextDayRefillableOver350: 0, nextDayRefillableOver400: 0, nextDayRefillableOver450: 0 };
 		if (!n) return empty;
 
 		// "Overall Avg/day" baseline (fleet-wide): the mean of each VM's L30D
@@ -3190,11 +3196,14 @@ font-size:13px;
 		let stockTotal = 0, sumQtyBal = 0, sumSkuBal = 0;
 		let errTotal = 0, sumErr = 0;
 		let greenTotal = 0, greenCount = 0;
+		let refillCount120 = 0, refillCount150 = 0, refillCount200 = 0, refillCount250 = 0;
 		let refillCount300 = 0, refillCount350 = 0, refillCount400 = 0, refillCount450 = 0;
 		let salesUpTotal = 0, salesUpCount = 0;
 		let nextDayJobCount = 0;
-		// Refillable thresholds counted ONLY over next-day-job machines (new tile).
+		// Next-day-job subset of the Refillable threshold counts (shown in
+		// parentheses on the two Refillable tiles).
 		let nextRefill120 = 0, nextRefill150 = 0, nextRefill200 = 0, nextRefill250 = 0;
+		let nextRefill300 = 0, nextRefill350 = 0, nextRefill400 = 0, nextRefill450 = 0;
 		for (const v of rows) {
 			if (v.vendChannelTotalsJson) {
 				stockTotal++;
@@ -3223,14 +3232,23 @@ font-size:13px;
 			}
 			const refillVal = Number(v.actual_stock_in_value ?? 0);
 			// # of Job, next day — VMs whose next scheduled ops job is dated tomorrow.
-			// New tile also breaks these down by Refillable Value threshold.
+			// The Refillable tiles show each threshold's total count with this
+			// next-day subset in parentheses.
 			if (v.nextOpsJobItem?.opsJob?.date === tomorrow) {
 				nextDayJobCount++;
 				if (refillVal > 120) nextRefill120++;
 				if (refillVal > 150) nextRefill150++;
 				if (refillVal > 200) nextRefill200++;
 				if (refillVal > 250) nextRefill250++;
+				if (refillVal > 300) nextRefill300++;
+				if (refillVal > 350) nextRefill350++;
+				if (refillVal > 400) nextRefill400++;
+				if (refillVal > 450) nextRefill450++;
 			}
+			if (refillVal > 120) refillCount120++;
+			if (refillVal > 150) refillCount150++;
+			if (refillVal > 200) refillCount200++;
+			if (refillVal > 250) refillCount250++;
 			if (refillVal > 300) refillCount300++;
 			if (refillVal > 350) refillCount350++;
 			if (refillVal > 400) refillCount400++;
@@ -3246,6 +3264,10 @@ font-size:13px;
 			greenCount,
 			greenTotal,
 			greenPct: greenTotal > 0 ? (greenCount / greenTotal) * 100 : 0,
+			refillableOver120: refillCount120,
+			refillableOver150: refillCount150,
+			refillableOver200: refillCount200,
+			refillableOver250: refillCount250,
 			refillableOver300: refillCount300,
 			refillableOver350: refillCount350,
 			refillableOver400: refillCount400,
@@ -3258,6 +3280,10 @@ font-size:13px;
 			nextDayRefillableOver150: nextRefill150,
 			nextDayRefillableOver200: nextRefill200,
 			nextDayRefillableOver250: nextRefill250,
+			nextDayRefillableOver300: nextRefill300,
+			nextDayRefillableOver350: nextRefill350,
+			nextDayRefillableOver400: nextRefill400,
+			nextDayRefillableOver450: nextRefill450,
 		};
 	});
 
@@ -3374,6 +3400,7 @@ font-size:13px;
 	const coinFloatVend = ref(null)
 	const coinFloatLogs = ref([])
 	const coinFloatLoading = ref(false)
+	const coinFloatError = ref('')
 	const statusOptions = ref([])
 	// 5-value Site Status options — populated from props.customerStatuses
 	// (Potential / New / Active / Pending / Inactive + "All" sentinel). Only
@@ -4139,6 +4166,7 @@ function formatCoinFloatTime(ts) {
 function onCoinFloatClicked(vendData) {
 	coinFloatVend.value = vendData
 	coinFloatLogs.value = []
+	coinFloatError.value = ''
 	coinFloatLoading.value = true
 	showCoinFloatModal.value = true
 
@@ -4146,8 +4174,11 @@ function onCoinFloatClicked(vendData) {
 		.then((response) => {
 			coinFloatLogs.value = response.data?.data ?? []
 		})
-		.catch(() => {
+		.catch((error) => {
 			coinFloatLogs.value = []
+			coinFloatError.value = 'Could not load coin float history'
+				+ (error?.response?.status ? ` (HTTP ${error.response.status})` : '')
+				+ '. The endpoint may be unreachable or the table not yet migrated.'
 		})
 		.finally(() => {
 			coinFloatLoading.value = false

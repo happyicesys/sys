@@ -27,7 +27,9 @@
                   Desc
                 </FormTextarea>
             </div>
-            <div class="sm:col-span-6">
+            <!-- DEPRECATED (2026-07): prefix→mapping binding retired; mapping is now
+                 assigned per-vend on the Setting page. Field hidden, pivot data kept. -->
+            <!-- <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Product Mapping
                 <span class="text-red-500">
@@ -49,7 +51,7 @@
               <div class="text-sm text-red-600" v-if="form.errors.productMappings">
                 {{ form.errors.productMappings }}
               </div>
-            </div>
+            </div> -->
 
             <!-- <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -293,11 +295,12 @@ function submit() {
   if(props.type === 'create') {
     form.value
     .transform((data) => {
+      // DEPRECATED (2026-07): productMappings / upcomingProductMapping are no
+      // longer sent — the prefix→mapping binding is retired.
+      const { productMappings, upcomingProductMapping, ...rest } = data
       return {
-        ...data,
+        ...rest,
         operator_id: data.operator_id.id,
-        productMappings: data.productMappings.map(productMapping => productMapping.id),
-        upcomingProductMapping: data.upcomingProductMapping ? data.upcomingProductMapping.id : null,
       }
     })
     .post('/vend-prefixes/create', {
@@ -316,11 +319,12 @@ function submit() {
   if(props.type === 'update') {
     form.value
       .transform((data) => {
+        // DEPRECATED (2026-07): productMappings / upcomingProductMapping are no
+        // longer sent — the prefix→mapping binding is retired.
+        const { productMappings, upcomingProductMapping, ...rest } = data
         return {
-          ...data,
+          ...rest,
           operator_id: data.operator_id.id,
-          productMappings: data.productMappings.map(productMapping => productMapping.id),
-          upcomingProductMapping: data.upcomingProductMapping ? data.upcomingProductMapping.id : null,
         }
       })
       .post('/vend-prefixes/' + form.value.id + '/update', {

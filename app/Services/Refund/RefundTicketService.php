@@ -190,6 +190,169 @@ class RefundTicketService
     }
 
     /**
+     * Ops manually attaches a source transaction (by Order ID) to a ticket that
+     * was submitted without a match (manual path). Rebuilds the flagged items
+     * and re-runs the auto-validation against the real transaction, so the
+     * ticket afterwards carries the same detail as an auto-matched one
+     * (transaction date / paid amount / pay method show up on Index + Show).
+     *
+     * @throws \RuntimeException on business-rule rejections (already matched,
+     *                           terminal status, order not found, double refund)
+     */
+    public function matchOrder(RefundTicket $ticket, string $orderId, ?int $userId = null, ?string $actorLabel = null): RefundTicket
+    {
+        if ($ticket->vend_transaction_id || $ticket->payment_gateway_log_id) {
+            throw new \RuntimeException('This ticket is already matched to a transaction.');
+        }
+        // Terminal tickets can't be re-opened, and approved/scheduled tickets are
+        // payout-locked — matching re-derives the refund amount, which must not
+        // change once a manager has approved the payout figure.
+        if (in_array($ticket->status, [
+            RefundTicket::STATUS_REJECTED,
+            RefundTicket::STATUS_COMPLETED,
+            RefundTicket::STATUS_AUTO_RESOLVED,
+            RefundTicket::STATUS_APPROVED,
+            RefundTicket::STATUS_SCHEDULED,
+        ], true)) {
+            throw new \RuntimeException('Cannot match a ticket that is already ' . $ticket->status . '.');
+        }
+
+        $orderId = trim($orderId);
+        if ($orderId === '') {
+            throw new \RuntimeException('Please enter an Order ID.');
+        }
+
+        // Look up the transaction the same way the auto-match does — tied to the
+        // ticket's machine so an Order ID from another machine can't be attached.
+        $txn = VendTransaction::withoutGlobalScopes()
+            ->with([
+                'vendTransactionItems.product',
+                'vendTransactionItems.vendChannel.product',
+                'vendTransactionItems.vendChannelError',
+                'product',
+                'vendChannel.product',
+                'vendChannelError',
+            ])
+            ->where('order_id', $orderId)
+            ->when($ticket->vend_id, fn ($q) => $q->where('vend_id', $ticket->vend_id))
+            ->first();
+
+        $log = null;
+        if (!$txn) {
+            $log = PaymentGatewayLog::query()
+                ->where('order_id', $orderId)
+                ->when($ticket->vend_code, fn ($q) => $q->where('vend_code', $ticket->vend_code))
+                ->first();
+        }
+        if (!$txn && !$log) {
+            throw new \RuntimeException("No transaction with Order ID '{$orderId}' found for machine {$ticket->vend_code}.");
+        }
+
+        // Rebuild items + validation exactly like create() does for a matched source.
+        $items = [];
+        $channel = RefundTicket::CHANNEL_UNKNOWN;
+        $cashlessMfg = null;
+        $txnRefunded = false;
+
+        if ($txn) {
+            $cashlessMfg = $txn->cashless_mfg;
+            $channel = $this->matching->classifyChannel($txn->cashless_mfg, $txn->payment_gateway_log_id);
+            $txnRefunded = (bool) $txn->is_refunded;
+            $items = $this->normalizeTransactionItems($txn, []);
+        } else {
+            $channel = RefundTicket::CHANNEL_QR;
+            $txnRefunded = ((int) $log->status === PaymentGatewayLog::STATUS_REFUND);
+            $items = [[
+                'vend_transaction_item_id' => null,
+                'product_id' => null,
+                'product_name' => 'Purchase',
+                'vend_channel_code' => null,
+                'unit_price_cents' => (int) $log->amount,
+                'had_channel_error' => isset($log->is_dispensed) ? ($log->is_dispensed === false) : false,
+                'vend_channel_error_code' => null,
+                'channel_error_weightage' => null,
+                'is_refunded' => $txnRefunded,
+            ]];
+        }
+
+        $isAutoChannel = $this->matching->isAutoRefundTerminal($cashlessMfg);
+        $validation = $this->validation->validate($items, [
+            'is_auto_refund_channel' => $isAutoChannel,
+            'txn_already_refunded' => $txnRefunded,
+            'is_manual' => true, // it remains a manually-submitted claim
+        ]);
+        $claimedCents = array_sum(array_map(
+            fn ($i) => ($i['already_refunded'] ?? false) ? 0 : (int) ($i['unit_price_cents'] ?? 0),
+            $validation['items']
+        ));
+
+        return DB::transaction(function () use ($ticket, $txn, $log, $orderId, $channel, $isAutoChannel, $validation, $claimedCents, $userId, $actorLabel) {
+            $from = $ticket->status;
+
+            // Backfill machine/operator if the vend was unrecognised at submission.
+            $vendId = $ticket->vend_id ?? $txn?->vend_id ?? $log?->vend_id;
+            $operatorId = $ticket->operator_id;
+            if (!$operatorId && $vendId) {
+                $operatorId = optional(\App\Models\Vend::withoutGlobalScopes()->find($vendId))->operator_id;
+            }
+
+            // Set the identity fields first so the standard double-refund guard applies.
+            $ticket->vend_transaction_id = $txn?->id;
+            $ticket->payment_gateway_log_id = $txn?->payment_gateway_log_id ?? $log?->id;
+            $ticket->order_id = $txn?->order_id ?? $log?->order_id;
+            if ($conflict = $ticket->conflictingRefund()) {
+                throw new \RuntimeException("This transaction is already being refunded under {$conflict->reference}.");
+            }
+
+            $ticket->fill([
+                'vend_id' => $vendId,
+                'operator_id' => $operatorId,
+                'payment_channel' => $channel,
+                'is_auto_refund_channel' => $isAutoChannel,
+                'system_recommendation' => $validation['recommendation'],
+                'system_validation_json' => $validation['evidence'],
+                'auto_refund_detected' => (bool) $validation['auto_refund_detected'],
+                'claimed_amount_cents' => $claimedCents,
+            ]);
+
+            // Nothing left to pay (Nayax auto-refund / everything already refunded)
+            // -> resolve the ticket, mirroring create().
+            if ($isAutoChannel) {
+                $ticket->status = RefundTicket::STATUS_AUTO_RESOLVED;
+                $ticket->refund_method = RefundTicket::METHOD_NAYAX_AUTO;
+            } elseif ($validation['recommendation'] === RefundTicket::REC_REJECT) {
+                $ticket->status = RefundTicket::STATUS_AUTO_RESOLVED;
+            }
+            $ticket->save();
+
+            // Replace the (empty/manual) items with the real transaction items.
+            $ticket->items()->delete();
+            foreach ($validation['items'] as $i) {
+                RefundTicketItem::create([
+                    'refund_ticket_id' => $ticket->id,
+                    'vend_transaction_item_id' => $i['vend_transaction_item_id'] ?? null,
+                    'product_id' => $i['product_id'] ?? null,
+                    'product_name' => $i['product_name'] ?? null,
+                    'product_sku' => $i['product_sku'] ?? null,
+                    'vend_channel_code' => $i['vend_channel_code'] ?? null,
+                    'unit_price_cents' => (int) ($i['unit_price_cents'] ?? 0),
+                    'had_channel_error' => (bool) ($i['had_channel_error'] ?? false),
+                    'vend_channel_error_code' => $i['vend_channel_error_code'] ?? null,
+                    'channel_error_desc' => $i['channel_error_desc'] ?? null,
+                    'channel_error_weightage' => $i['channel_error_weightage'] ?? null,
+                    'item_recommendation' => $i['item_recommendation'] ?? null,
+                    'approved' => null,
+                ]);
+            }
+
+            $this->log($ticket, 'matched', $from, $ticket->status, "Ops matched Order ID {$orderId}", $actorLabel ?? 'Ops', $userId);
+            $this->log($ticket, 'validated', null, null, 'System recommendation: ' . $validation['recommendation'], 'System');
+
+            return $ticket->fresh(['items']);
+        });
+    }
+
+    /**
      * @return array<int, array>
      */
     protected function normalizeTransactionItems(VendTransaction $txn, array $selectedIds): array

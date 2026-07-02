@@ -23,6 +23,13 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
+              <!-- BIC / SWIFT — used as column E of the CIMB bulk payment
+                   file when paying this bank's account holders. -->
+              <FormInput v-model="form.bic_code" :error="form.errors.bic_code" placeholderStr="e.g. DBSSSGSGXXX">
+                BIC / SWIFT Code
+              </FormInput>
+            </div>
+            <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Country
               </label>
@@ -104,6 +111,7 @@ onMounted(() => {
     form.value = useForm({
       id: props.bank.id,
       name: props.bank.name,
+      bic_code: props.bank.bic_code || '',
       country_id: props.countryOptions
         ? props.countryOptions.find(c => c.id === props.bank.country_id) || null
         : null,
@@ -117,6 +125,7 @@ onMounted(() => {
 function getDefaultForm() {
   return {
     name: '',
+    bic_code: '',
     country_id: null,
     is_active: true,
   }

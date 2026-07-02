@@ -52,7 +52,9 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <!-- DEPRECATED (2026-07): prefix→mapping binding retired; Machine Prefix
+               filter hidden (pivot kept read-only for historical data). -->
+          <!-- <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Machine Prefix
 						</label>
@@ -68,7 +70,7 @@
 							class="mt-1"
 						>
 						</MultiSelect>
-					</div>
+					</div> -->
           <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Machine Status
@@ -177,9 +179,10 @@
                     <TableHead>
                       Operator
                     </TableHead>
-                    <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name', false)">
+                    <!-- DEPRECATED (2026-07): prefix→mapping binding retired; Binded Prefix column hidden -->
+                    <!-- <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name', false)">
                       Binded Prefix
-                    </TableHeadSort>
+                    </TableHeadSort> -->
                     <TableHead>
                       Channel - Product
                     </TableHead>
@@ -254,7 +257,8 @@
                           {{ productMapping.operator.code }}
                         </span>
                       </TableData>
-                      <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
+                      <!-- DEPRECATED (2026-07): Binded Prefix cell hidden -->
+                      <!-- <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">
                           <li class="flex py-1 px-3 space-x-2" v-for="(vendPrefix, vendPrefixIndex) in productMapping.vendPrefixes">
                             <span>
@@ -265,7 +269,7 @@
                             </span>
                           </li>
                         </ul>
-                      </TableData>
+                      </TableData> -->
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">
                           <li class="flex py-1 px-3 space-x-2" v-for="(productMappingItem, productMappingItemIndex) in productMapping.productMappingItems">

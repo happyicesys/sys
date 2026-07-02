@@ -53,7 +53,9 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <!-- DEPRECATED (2026-07): prefix→mapping binding retired; mapping is now
+               assigned per-vend on the Setting page. Filter hidden, data kept. -->
+          <!-- <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Current Mapping
             </label>
@@ -68,7 +70,7 @@
               class="mt-1"
             >
             </MultiSelect>
-          </div>
+          </div> -->
           <!-- <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Upcoming Mapping
@@ -168,7 +170,8 @@
                     Prefix
                   </TableHeadSort>
                   <TableHead>Desc</TableHead>
-                  <TableHeadSort
+                  <!-- DEPRECATED (2026-07): prefix→mapping column hidden -->
+                  <!-- <TableHeadSort
                     modelName="product_mapping_name"
                     :sortKey="filters.sortKey"
                     :sortBy="filters.sortBy"
@@ -176,7 +179,7 @@
                     class="bg-sky-200"
                   >
                     Product Mapping <br /> Current
-                  </TableHeadSort>
+                  </TableHeadSort> -->
                   <!-- <TableHead>
                     Product Mapping <br /> Upcoming
                   </TableHead> -->
@@ -237,7 +240,8 @@
                   >
                     {{ vendPrefix.desc }}
                   </TableData>
-                  <TableData
+                  <!-- DEPRECATED (2026-07): prefix→mapping cell hidden -->
+                  <!-- <TableData
                     :currentIndex="vendPrefixIndex"
                     :totalLength="vendPrefixes.length"
                     inputClass="text-center"
@@ -256,7 +260,7 @@
                         </a>
                       </span>
                     </div>
-                  </TableData>
+                  </TableData> -->
 
                   <!-- <TableData
                     :currentIndex="vendPrefixIndex"

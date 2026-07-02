@@ -127,22 +127,6 @@
                   </span>
                 </FormInput>
               </div>
-              <div class="sm:col-span-3">
-                <FormInput v-model="form.bank_account_no" :error="form.errors.bank_account_no">
-                  Bank Account No.
-                  <span class="text-[9px]">
-                      (For Refund Bulk Transfer File Header)
-                  </span>
-                </FormInput>
-              </div>
-              <div class="sm:col-span-3">
-                <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name">
-                  Bank Account Name
-                  <span class="text-[9px]">
-                      (Registered Company Name at Bank)
-                  </span>
-                </FormInput>
-              </div>
               <div class="sm:col-span-2">
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   Status
@@ -178,6 +162,40 @@
                 <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
                     Remarks
                   </FormTextarea>
+              </div>
+
+              <!-- Refund bulk transfer (CIMB) — originator account for the bank file header -->
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Refund Bulk Transfer (CIMB) </span>
+                  </div>
+                </div>
+              </div>
+              <div class="sm:col-span-6">
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p class="text-xs text-gray-500 mb-3">
+                    Originating account used in the header of the CIMB BizChannel bulk transaction file (Refund Requests page export).
+                  </p>
+                  <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.bank_account_no" :error="form.errors.bank_account_no">
+                        CIMB Bank Account No.
+                      </FormInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name">
+                        Bank Account Name
+                        <span class="text-[9px] ml-1">
+                            (Registered Company Name at Bank)
+                        </span>
+                      </FormInput>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="sm:col-span-6">
                 <label class="flex justify-start text-sm font-medium text-gray-700">

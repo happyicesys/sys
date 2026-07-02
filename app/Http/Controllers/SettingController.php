@@ -475,21 +475,16 @@ class SettingController extends Controller
             'productMappingOptions' => ProductMappingResource::collection(
                 ProductMapping::withoutGlobalScopes()
                     ->with(['upcomingProductMapping', 'productMappingItems.product.thumbnail'])
-                    ->where(function($query) use ($request, $vend) {
-                        // Normal selectable options: match operator + prefix filter + active
-                        $query->where(function($normalQ) use ($request) {
+                    ->where(function($query) use ($vend) {
+                        // Normal selectable options: match operator + active.
+                        // DEPRECATED (2026-07): the prefix→mapping gate was removed —
+                        // ALL active mappings (own operator + global) are selectable,
+                        // ordered by name; the vend prefix no longer restricts this list.
+                        $query->where(function($normalQ) {
                             $normalQ->where(function($opQ) {
                                 $opQ->where('operator_id', auth()->user()->operator_id)
                                     ->orWhereNull('operator_id');
                             });
-                            if ($request->vend_prefix_id) {
-                                $normalQ->where(function($prefixQ) use ($request) {
-                                    $prefixQ->whereHas('vendPrefixes', function($q) use ($request) {
-                                        $q->where('vend_prefixes.id', $request->vend_prefix_id);
-                                    });
-                                    $prefixQ->orWhere('name', 'N/A');
-                                });
-                            }
                             $normalQ->where('is_active', 1);
                         });
                         // Always include the vend's currently assigned mappings regardless of

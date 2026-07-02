@@ -79,6 +79,9 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
+                      BIC / SWIFT
+                    </TableHead>
+                    <TableHead>
                       Country
                     </TableHead>
                     <TableHead>
@@ -95,6 +98,9 @@
                       </TableData>
                       <TableData :currentIndex="bankIndex" :totalLength="banks.length" inputClass="text-left">
                         {{ bank.name }}
+                      </TableData>
+                      <TableData :currentIndex="bankIndex" :totalLength="banks.length" inputClass="text-center">
+                        <span class="font-mono text-xs">{{ bank.bic_code || '—' }}</span>
                       </TableData>
                       <TableData :currentIndex="bankIndex" :totalLength="banks.length" inputClass="text-center">
                         {{ bank.country_name || '—' }}

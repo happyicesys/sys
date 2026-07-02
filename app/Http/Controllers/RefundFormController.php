@@ -94,6 +94,46 @@ class RefundFormController extends Controller
         ]);
     }
 
+    /**
+     * Distinct products currently loaded in a machine — feeds the manual-review
+     * "What did you buy?" dropdown (name + thumbnail + price). Public endpoint,
+     * so it returns only harmless catalogue data.
+     */
+    public function machineProducts(Request $request)
+    {
+        $data = $request->validate(['machineID' => ['required', 'string', 'max:191']]);
+        $vend = $this->matching->resolveMachine($data['machineID']);
+
+        if (!$vend) {
+            return response()->json(['found' => false, 'products' => []]);
+        }
+
+        $channels = \App\Models\VendChannel::query()
+            ->where('vend_id', $vend->id)
+            ->where('is_active', true)
+            ->whereNotNull('product_id')
+            ->with('product.thumbnail')
+            ->get(['id', 'vend_id', 'product_id', 'amount', 'code']);
+
+        $products = $channels
+            ->filter(fn ($c) => $c->product)
+            ->groupBy('product_id')
+            ->map(function ($group) {
+                $p = $group->first()->product;
+
+                return [
+                    'product_id' => $p->id,
+                    'name' => $p->name,
+                    'price_cents' => (int) ($group->min('amount') ?? 0),
+                    'image_url' => $p->thumbnail?->full_url,
+                ];
+            })
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        return response()->json(['found' => true, 'products' => $products]);
+    }
+
     public function candidates(Request $request)
     {
         $data = $request->validate([

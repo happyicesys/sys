@@ -41,7 +41,10 @@ class ProductMappingController extends Controller
             'vendStatus' => $request->vendStatus ? $request->vendStatus : 'active',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 5,
             'sortBy' => $request->sortBy ? $request->sortBy : true,
-            'sortKey' => $request->sortKey ? $request->sortKey : 'name'
+            // DEPRECATED (2026-07): vend_prefix_name sort retired with the Binded
+            // Prefix column — map stale/bookmarked URLs back to name so the
+            // orderBy below never references the dropped join column.
+            'sortKey' => $request->sortKey && $request->sortKey !== 'vend_prefix_name' ? $request->sortKey : 'name'
         ]);
 
         // NOTE: the "first vend_prefix per mapping" leftJoin (used only to select
@@ -72,15 +75,8 @@ class ProductMappingController extends Controller
                     $query->where('code', 'LIKE', "{$search}%");
                 });
             })
-            ->when($request->vendPrefixes, function ($query, $search) {
-                $query->whereHas('vendPrefixes', function ($query) use ($search) {
-                    if (in_array('single-ud', $search)) {
-                        $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
-                        unset($search[array_search('single-ud', $search)]);
-                    }
-                    $query->whereIn('vend_prefix_id', $search);
-                });
-            })
+            // DEPRECATED (2026-07): the Machine Prefix filter (whereHas vendPrefixes)
+            // was removed together with the prefix→mapping binding.
             ->when($request->vendStatus, function ($query, $search) {
                 if ($search != 'all') {
                     $query->whereHas('vends', function ($query) use ($search) {
@@ -138,20 +134,9 @@ class ProductMappingController extends Controller
             'totalBindedVends' => $totalBindedVends,
             'productMappings' => ProductMappingResource::collection(
                 (clone $query)
-                    // "First vend_prefix per mapping" — only the list needs it
-                    // (selects vend_prefixes.name below). Kept off the base query so
-                    // the $totalBindedVends COUNT doesn't pay for this correlated
-                    // subquery. <=1 row per mapping, so it doesn't change any row count.
-                    ->leftJoin('vend_prefixes', function ($join) {
-                        $join->on('product_mappings.id', '=', 'vend_prefixes.product_mapping_id')
-                            ->whereIn('vend_prefixes.id', function ($query) {
-                                $query->select(DB::raw('MIN(id)'))
-                                    ->from('vend_prefixes as vp')
-                                    ->whereColumn('vp.product_mapping_id', 'product_mappings.id')
-                                    ->orderBy('vp.name', 'asc')
-                                    ->groupBy('vp.product_mapping_id');
-                            });
-                    })
+                    // DEPRECATED (2026-07): the "first vend_prefix per mapping"
+                    // leftJoin (legacy vend_prefixes.product_mapping_id column) was
+                    // removed with the Binded Prefix column.
                     ->with([
                     'attachments',
                     'operator',
@@ -199,11 +184,13 @@ class ProductMappingController extends Controller
                     'vends.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
                     'vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
                     'vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
-                    'vendPrefixes',
+                    // DEPRECATED (2026-07): 'vendPrefixes' eager-load dropped with
+                    // the Binded Prefix column (ProductMappingResource guards with
+                    // whenLoaded()).
                     'upcomingProductMapping',
                 ])
 
-                    ->select('product_mappings.*', 'vend_prefixes.name as vend_prefix_name')
+                    ->select('product_mappings.*')
                     ->orderBy($request->sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc')
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()

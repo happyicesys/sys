@@ -59,8 +59,28 @@ class RefundController extends Controller
             })
             ->orderByDesc('created_at'); // latest on top
 
-        $tickets = $query->paginate(25)->withQueryString()
-            ->through(fn (RefundTicket $t) => $this->toRow($t));
+        $page = $query->paginate(25)->withQueryString();
+
+        // Batch-load the source transaction / gateway log / export batch for the
+        // rows on this page (25 max). Loaded manually withoutGlobalScopes because
+        // VendTransaction carries operator scopes that would filter rows away.
+        $rows = collect($page->items());
+        $txns = \App\Models\VendTransaction::withoutGlobalScopes()->with('paymentMethod')
+            ->whereIn('id', $rows->pluck('vend_transaction_id')->filter()->unique())
+            ->get()->keyBy('id');
+        $logs = \App\Models\PaymentGatewayLog::query()
+            ->whereIn('id', $rows->pluck('payment_gateway_log_id')->filter()->unique())
+            ->get()->keyBy('id');
+        $batches = RefundPayoutBatch::query()
+            ->whereIn('id', $rows->pluck('payout_batch_id')->filter()->unique())
+            ->get()->keyBy('id');
+
+        $tickets = $page->through(fn (RefundTicket $t) => $this->toRow(
+            $t,
+            $t->vend_transaction_id ? $txns->get($t->vend_transaction_id) : null,
+            $t->payment_gateway_log_id ? $logs->get($t->payment_gateway_log_id) : null,
+            $t->payout_batch_id ? $batches->get($t->payout_batch_id) : null,
+        ));
 
         // counts are over all tickets (unfiltered) so the chips always show true totals
         $counts = RefundTicket::selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status');
@@ -118,6 +138,7 @@ class RefundController extends Controller
                 RefundEmailService::T_AUTO_REFUND => 'Auto-refund already triggered',
                 RefundEmailService::T_CANCELLED_NO_CHARGE => 'Transaction cancelled (no charge)',
                 RefundEmailService::T_INFO_REQUIRED => 'Additional info required (PayNow)',
+                RefundEmailService::T_IN_PROGRESS => 'Refund in progress',
                 RefundEmailService::T_COMPLETED => 'Refund completed',
             ],
             'emailTemplateContents' => $this->email->templates(),
@@ -251,6 +272,58 @@ class RefundController extends Controller
         return back();
     }
 
+    /**
+     * Ops manually attaches the source transaction (by Order ID) to a
+     * manual-submitted ticket that had no match at submission time.
+     */
+    public function match(Request $request, RefundTicket $ticket)
+    {
+        $data = $request->validate(['order_id' => ['required', 'string', 'max:191']]);
+
+        try {
+            $this->tickets->matchOrder($ticket, $data['order_id'], auth()->id(), auth()->user()?->name ?? 'Ops');
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['match' => $e->getMessage()]);
+        }
+
+        return back();
+    }
+
+    /**
+     * Batch "Refund done" — mark the selected Approved/Scheduled tickets as
+     * completed in one go (after the bank bulk file has been uploaded). Sends
+     * the completion email per ticket, gated by REFUND_EMAIL_ENABLED
+     * (logged-only while the flag is off).
+     */
+    public function completeBatch(Request $request)
+    {
+        $data = $request->validate([
+            'ticket_ids' => ['required', 'array', 'min:1'],
+            'ticket_ids.*' => ['integer'],
+        ]);
+
+        $tickets = RefundTicket::whereIn('id', $data['ticket_ids'])
+            ->whereIn('status', [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED])
+            ->get();
+
+        if ($tickets->isEmpty()) {
+            return back()->withErrors(['batch' => 'None of the selected tickets can be completed (must be Approved or Scheduled).']);
+        }
+
+        foreach ($tickets as $ticket) {
+            $from = $ticket->status;
+            $ticket->update([
+                'status' => RefundTicket::STATUS_COMPLETED,
+                'paid_at' => $ticket->paid_at ?? now(),
+                'completed_at' => now(),
+            ]);
+            $this->email->send($ticket, RefundEmailService::T_COMPLETED);
+            $this->tickets->log($ticket, 'completed', $from, $ticket->status, 'Refund completed (batch)', auth()->user()?->name ?? 'Admin', auth()->id());
+        }
+
+        return back()->with('success', $tickets->count() . ' refund(s) marked completed.');
+    }
+
     public function updateItem(Request $request, RefundTicket $ticket, RefundTicketItem $item)
     {
         abort_unless($item->refund_ticket_id === $ticket->id, 404);
@@ -319,8 +392,15 @@ class RefundController extends Controller
 
     // ---- mappers ----
 
-    protected function toRow(RefundTicket $t): array
+    protected function toRow(RefundTicket $t, $txn = null, $log = null, $batch = null): array
     {
+        $matched = (bool) ($t->vend_transaction_id || $t->payment_gateway_log_id);
+
+        // Transaction details come from the matched source; manual tickets show
+        // nothing here until Ops matches the Order ID.
+        $txnDate = $txn?->transaction_datetime ?? $log?->approved_at ?? $log?->created_at;
+        $paidCents = $txn?->amount ?? $log?->amount;
+
         return [
             'id' => $t->id,
             'reference' => $t->reference,
@@ -332,15 +412,32 @@ class RefundController extends Controller
             'status' => $t->status,
             'recommendation' => $t->system_recommendation,
             'is_manual' => $t->is_manual,
+            'matched' => $matched,
             'contact_email' => $t->contact_email,
             'created_at' => optional($t->created_at)->toDateTimeString(),
             'created_ago' => optional($t->created_at)->diffForHumans(),
+            'submitted_at' => optional($t->created_at)->format('d M Y, g:i A'),
+            'txn_datetime' => $matched ? optional($txnDate)->format('d M Y, g:i A') : null,
+            'paid_amount' => ($matched && $paidCents !== null) ? number_format($paidCents / 100, 2) : null,
+            'pay_method' => $matched ? ($txn?->paymentMethod?->name ?? ($log ? 'QR' : null)) : null,
+            'batch' => $batch ? [
+                'id' => $batch->id,
+                'reference' => $batch->reference,
+                'filename' => $batch->csv_path ? basename($batch->csv_path) : null,
+            ] : null,
+            'completed_at' => optional($t->completed_at)->format('d M Y'),
         ];
     }
 
     protected function toDetail(RefundTicket $t): array
     {
-        return array_merge($this->toRow($t), [
+        $txn = $t->vend_transaction_id
+            ? \App\Models\VendTransaction::withoutGlobalScopes()->with('paymentMethod')->find($t->vend_transaction_id)
+            : null;
+        $log = $t->payment_gateway_log_id ? \App\Models\PaymentGatewayLog::find($t->payment_gateway_log_id) : null;
+        $batch = $t->payout_batch_id ? RefundPayoutBatch::find($t->payout_batch_id) : null;
+
+        return array_merge($this->toRow($t, $txn, $log, $batch), [
             'reason_text' => $t->reason_text,
             'payout_destination' => $t->payout_destination,
             'contact_phone' => $t->contact_phone,

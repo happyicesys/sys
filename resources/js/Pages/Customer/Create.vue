@@ -54,14 +54,39 @@
                    "Create API Invoice". Editable; paste the "SYS Linking ID" shown
                    on the matching CMS person page. -->
               <div class="sm:col-span-6">
-                <FormInput v-model="form.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
-                  <span class="inline-flex items-center gap-2">
-                    CMS Linking ID
-                    <a v-if="form.person_id && cmsEndpoint" :href="cmsEndpoint + '/person/' + form.person_id + '/edit'" target="_blank" rel="noopener noreferrer" class="text-blue-600 text-xs font-normal underline">
-                      Open in CMS ↗
-                    </a>
-                  </span>
-                </FormInput>
+                <div class="flex items-end gap-2">
+                  <div class="flex-1 min-w-0">
+                    <FormInput v-model="form.person_id" inputType="number" placeholderStr="CMS person id — links invoicing">
+                      <span class="inline-flex items-center gap-2">
+                        CMS Linking ID
+                        <a v-if="form.person_id && cmsEndpoint" :href="cmsEndpoint + '/person/' + form.person_id + '/edit'" target="_blank" rel="noopener noreferrer" class="text-blue-600 text-xs font-normal underline">
+                          Open in CMS ↗
+                        </a>
+                      </span>
+                    </FormInput>
+                  </div>
+                  <!-- "Pull from CMS" — on-demand, ONE-WAY CMS → form fill. Fetches
+                       the CMS person for the keyed-in ID and fills the fields below
+                       (Site Name, contacts, GST, bank, address via OneMap-by-postcode
+                       — same behaviour as the postcode key-in autofill). Nothing is
+                       saved until Save Site is pressed; nothing is pushed to CMS. -->
+                  <Button
+                    type="button"
+                    class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1 whitespace-nowrap"
+                    :class="{ 'opacity-50 cursor-not-allowed': !form.person_id || cmsPulling }"
+                    :disabled="!form.person_id || cmsPulling"
+                    v-if="cmsEndpoint"
+                    @click.prevent="pullFromCms()"
+                  >
+                    <ArrowPathIcon class="w-4 h-4" :class="{ 'animate-spin': cmsPulling }"></ArrowPathIcon>
+                    <span>{{ cmsPulling ? 'Pulling…' : 'Pull from CMS' }}</span>
+                  </Button>
+                </div>
+                <p
+                  v-if="cmsPullMessage"
+                  class="text-sm mt-1"
+                  :class="cmsPullOk ? 'text-green-600' : 'text-red-600'"
+                >{{ cmsPullMessage }}</p>
                 <!-- person_id error rendered with v-html so the duplicate-binding
                      message's <a> link to the already-bound site is clickable.
                      store() validates this top-level, so the key is person_id. -->
@@ -887,6 +912,89 @@ function submit() {
     preserveState: true,
     replace: true,
   })
+}
+
+// ── "Pull from CMS" — on-demand, ONE-WAY CMS → form fill ──────────────────
+// Backend: GET /customers/cms-person-pull (CmsPersonPullService). Fills the
+// form fields only; the user reviews and presses Save Site to persist.
+// Nothing is ever pushed back to CMS from here (CMS is the source of truth —
+// edit there, then re-pull).
+const cmsPulling = ref(false)
+const cmsPullMessage = ref('')
+const cmsPullOk = ref(false)
+
+async function pullFromCms() {
+  if (!form.value.person_id || cmsPulling.value) return
+  cmsPulling.value = true
+  cmsPullMessage.value = ''
+  try {
+    const { data } = await axios.get('/customers/cms-person-pull', {
+      params: { person_id: form.value.person_id },
+    })
+    if (!data.found) {
+      cmsPullOk.value = false
+      cmsPullMessage.value = data.message || 'No CMS person found for this ID.'
+      return
+    }
+    applyCmsPull(data.data)
+    cmsPullOk.value = true
+    cmsPullMessage.value = 'Pulled from CMS — review the fields below, then Save.'
+  } catch (e) {
+    cmsPullOk.value = false
+    cmsPullMessage.value = e?.response?.data?.message || 'Pull failed — please try again.'
+  } finally {
+    cmsPulling.value = false
+  }
+}
+
+// Apply the pulled CMS person to the form. Overwrites the mapped fields (CMS
+// is the source of truth for a pull); address block/building/street/geocode
+// come from OneMap-by-postcode (same as the postcode key-in autofill), unit
+// num from the CMS address text — never from OneMap.
+function applyCmsPull(d) {
+  if (d.name) form.value.name = d.name
+  form.value.site_contact_person = d.site_contact_person ?? ''
+  form.value.site_phone_number = d.site_phone_number ?? ''
+  form.value.site_alt_phone_number = d.site_alt_phone_number ?? ''
+  form.value.address_remarks = d.address_remarks ?? ''
+  form.value.is_gst_registered = !!d.is_gst_registered
+  form.value.contact.company = d.contact?.company ?? ''
+  form.value.contact.email = d.contact?.email ?? ''
+  // Bank — backend returns the mapped mark1 banks.id (null when CMS has no
+  // bank / an unmapped name); the dropdown needs the option object.
+  form.value.bank_id = d.bank_id ? (bankOptions.value.find(b => b.id === d.bank_id) || null) : null
+  form.value.bank_account_name = d.bank_account_name ?? ''
+  form.value.bank_account_number = d.bank_account_number ?? ''
+
+  if (d.address) {
+    form.value.address = {
+      ...form.value.address,
+      postcode: d.address.postcode ?? '',
+      unit_num: d.address.unit_num ?? '',
+      block_num: d.address.block_num ?? '',
+      building: d.address.building ?? '',
+      street_name: d.address.street_name ?? '',
+      latitude: d.address.latitude ?? '',
+      longitude: d.address.longitude ?? '',
+      map_url: d.address.map_url ?? '',
+      country_id: form.value.address.country_id || operatorCountryOption.value,
+    }
+  }
+
+  form.value.is_billing_same_as_delivery = !!d.is_billing_same_as_delivery
+  if (!d.is_billing_same_as_delivery && d.billing_address) {
+    form.value.billing_address = {
+      ...form.value.billing_address,
+      postcode: d.billing_address.postcode ?? '',
+      unit_num: d.billing_address.unit_num ?? '',
+      block_num: d.billing_address.block_num ?? '',
+      building: d.billing_address.building ?? '',
+      street_name: d.billing_address.street_name ?? '',
+      latitude: d.billing_address.latitude ?? '',
+      longitude: d.billing_address.longitude ?? '',
+      country_id: form.value.billing_address.country_id || operatorCountryOption.value,
+    }
+  }
 }
 
 function onAddressSelected(address) {

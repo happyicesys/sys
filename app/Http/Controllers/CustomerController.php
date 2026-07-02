@@ -37,6 +37,7 @@ use App\Models\VendConfig;
 use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\Zone;
+use App\Services\CmsPersonPullService;
 use App\Services\HistoryService;
 use App\Services\MapService;
 use App\Services\PerformanceReportContentService;
@@ -462,58 +463,15 @@ class CustomerController extends Controller
             ->whereIn('customer_id', $customerIds)
             ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
 
-        // Row-level filters (replicated / locked / paid). Applied to the
-        // listing query AND — via this same closure — to the totals query and
-        // the count-card customer set below, so the cards stay in lockstep with
-        // the table. (Customer-level filters are already baked into
-        // $customerIds, so they flow into all three automatically.)
-        //
-        //  - Replicated: keep only rows in a (customer_id, year_month) bucket
-        //    holding more than one row (a segmented month). Correlated count on
-        //    the same table; customer_id is indexed so it stays cheap.
-        //  - Period Locked / Location Fee Paid: 'true' → only matching rows,
-        //    'false' → only the opposite, 'all'/absent → no filter.
-        $applyRowFilters = function ($q) use ($request) {
-            // Contract changes (same month): 'true'/Changes only → rows in a
-            // segmented month (count > 1); 'false'/No → rows in a single-row
-            // month (count = 1); 'all'/absent → no filter.
-            if (in_array($request->replicated_only, ['true', 'false'], true)) {
-                $op = $request->replicated_only === 'true' ? '>' : '=';
-                $q->whereRaw(
-                    '(SELECT COUNT(*) FROM customer_period_summaries s_rep
-                      WHERE s_rep.customer_id = customer_period_summaries.customer_id
-                        AND s_rep.`year_month` = customer_period_summaries.`year_month`) ' . $op . ' 1'
-                );
-            }
-            if (in_array($request->period_locked, ['true', 'false'], true)) {
-                $request->period_locked === 'true'
-                    ? $q->whereNotNull('locked_at')
-                    : $q->whereNull('locked_at');
-            }
-            if (in_array($request->location_fee_paid, ['true', 'false'], true)) {
-                $request->location_fee_paid === 'true'
-                    ? $q->whereNotNull('paid_at')
-                    : $q->whereNull('paid_at');
-            }
-            // Payment Date range — filters on paid_date (the actual payment
-            // date entered in the Paid popup). Either bound may be empty for
-            // an open-ended range; rows with no paid_date drop out whenever a
-            // bound is set (SQL NULL comparison). Malformed values are
-            // ignored rather than erroring.
-            $parseDate = function ($v) {
-                try {
-                    return $v ? \Carbon\Carbon::parse($v)->toDateString() : null;
-                } catch (\Throwable $e) {
-                    return null;
-                }
-            };
-            if ($from = $parseDate($request->paid_date_from)) {
-                $q->where('paid_date', '>=', $from);
-            }
-            if ($to = $parseDate($request->paid_date_to)) {
-                $q->where('paid_date', '<=', $to);
-            }
-        };
+        // Row-level filters (replicated / locked / paid / payment-date).
+        // Applied to the listing query AND — via this same closure — to the
+        // totals query and the count-card customer set below, so the cards
+        // stay in lockstep with the table. (Customer-level filters are already
+        // baked into $customerIds, so they flow into all three automatically.)
+        // Extracted to applySummaryRowFilters() and SHARED with the Excel
+        // export (summaryExportExcel) so the .xlsx can never drift from the
+        // on-screen rows again — see that method for the filter semantics.
+        $applyRowFilters = fn ($q) => $this->applySummaryRowFilters($q, $request);
         $applyRowFilters($summariesQuery);
 
         // Ordering — extracted to applySummaryOrdering() and shared with the
@@ -1855,6 +1813,60 @@ class CustomerController extends Controller
     }
 
     /**
+     * Row-level filters for customer_period_summaries queries — shared by the
+     * Summary listing/totals/count-cards AND the Excel export so every surface
+     * returns the exact same row set.
+     *
+     *  - Contract changes (same month): 'true'/Changes only → rows in a
+     *    segmented month (count > 1); 'false'/No → rows in a single-row
+     *    month (count = 1); 'all'/absent → no filter. Correlated count on
+     *    the same table; customer_id is indexed so it stays cheap.
+     *  - Period Locked? / Location Fee Paid?: 'true' → only matching rows,
+     *    'false' → only the opposite, 'all'/absent → no filter.
+     *  - Payment Date range — filters on paid_date (the actual payment
+     *    date entered in the Paid popup). Either bound may be empty for
+     *    an open-ended range; rows with no paid_date drop out whenever a
+     *    bound is set (SQL NULL comparison). Malformed values are
+     *    ignored rather than erroring.
+     */
+    protected function applySummaryRowFilters($q, Request $request)
+    {
+        if (in_array($request->replicated_only, ['true', 'false'], true)) {
+            $op = $request->replicated_only === 'true' ? '>' : '=';
+            $q->whereRaw(
+                '(SELECT COUNT(*) FROM customer_period_summaries s_rep
+                  WHERE s_rep.customer_id = customer_period_summaries.customer_id
+                    AND s_rep.`year_month` = customer_period_summaries.`year_month`) ' . $op . ' 1'
+            );
+        }
+        if (in_array($request->period_locked, ['true', 'false'], true)) {
+            $request->period_locked === 'true'
+                ? $q->whereNotNull('locked_at')
+                : $q->whereNull('locked_at');
+        }
+        if (in_array($request->location_fee_paid, ['true', 'false'], true)) {
+            $request->location_fee_paid === 'true'
+                ? $q->whereNotNull('paid_at')
+                : $q->whereNull('paid_at');
+        }
+        $parseDate = function ($v) {
+            try {
+                return $v ? \Carbon\Carbon::parse($v)->toDateString() : null;
+            } catch (\Throwable $e) {
+                return null;
+            }
+        };
+        if ($from = $parseDate($request->paid_date_from)) {
+            $q->where('paid_date', '>=', $from);
+        }
+        if ($to = $parseDate($request->paid_date_to)) {
+            $q->where('paid_date', '<=', $to);
+        }
+
+        return $q;
+    }
+
+    /**
      * Apply the Summary page's "Placement Contract Type" filter to a
      * customers-table query. Accepts the request param `contract_commission_types`
      * as either an array of codes (F, S, R, U, PS, PS+U, PSORU) or a single
@@ -2421,6 +2433,43 @@ class CustomerController extends Controller
         }
 
         return back()->with('success', sprintf('Marked %d period(s) Paid.', $paid));
+    }
+
+    /**
+     * Site Summary ▸ batch bar ▸ "Export CIMB" — commission (location fee)
+     * payout file for the selected summary rows, in CIMB BizChannel bulk
+     * format. Mirrors the refund batch export: same permission gate as
+     * Mark Paid, 422 with a readable message on business-rule rejections,
+     * NO side effects (re-export freely; Verify Paid stays a manual step
+     * after the bank run succeeds).
+     */
+    public function exportCommissionBankFile(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->can('admin-access customers')) {
+            abort(403, 'You do not have permission to export commission payments.');
+        }
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+        ]);
+
+        try {
+            $res = app(\App\Services\Commission\CommissionCimbExportService::class)
+                ->export($validated['ids']);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        // txt for a single operator; zip (one txt per operator) when the
+        // selection spans operators — each file debits its own account.
+        return response($res['content'], 200, [
+            'Content-Type' => $res['mime'],
+            'Content-Disposition' => 'attachment; filename="' . $res['filename'] . '"',
+            'X-Filename' => $res['filename'],
+            'Access-Control-Expose-Headers' => 'Content-Disposition, X-Filename',
+        ]);
     }
 
     /**
@@ -3649,6 +3698,29 @@ class CustomerController extends Controller
         $this->applyContractAttachmentFilter($customerIdsQuery, $request, $rangeStart);
         $customerIds = $customerIdsQuery->pluck('customers.id')->unique()->values();
 
+        // Mirror summary()'s Unread / "@Me Mentioned" view restriction so
+        // exporting while either toggle is on downloads exactly the rows on
+        // screen. Read-only: unlike summary(), the export never markViewed()s,
+        // so downloading doesn't slide the unread window or clear badges.
+        $authUser = auth()->user();
+        if ($authUser && ($request->boolean('unread') || $request->boolean('mentioned'))) {
+            $noteService = app(\App\Services\NoteNotificationService::class);
+            if ($request->boolean('unread')) {
+                $unreadSince = $noteService->unreadSince(
+                    $authUser,
+                    \App\Services\NoteNotificationService::PAGE_SUMMARY
+                );
+                $customerIds = $customerIds
+                    ->intersect($noteService->customerUnreadIds($authUser, $unreadSince))
+                    ->values();
+            }
+            if ($request->boolean('mentioned')) {
+                $customerIds = $customerIds
+                    ->intersect($noteService->customerMentionedIds($authUser))
+                    ->values();
+            }
+        }
+
         // Mirror summary()'s per-month grain in the export — one row per
         // (customer, year_month) regardless of period_report. The user
         // can collapse / pivot in Excel themselves if they want a
@@ -3662,7 +3734,9 @@ class CustomerController extends Controller
             // and `notes` were added so the export now carries the stacked
             // "Contract End Date / Auto Renewal / Notice Period" + Customer
             // Note columns the on-screen page shows.
-            'customer:id,name,company_remark,code,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,active_date,removed_date,termination_date,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,contract_until,contract_auto_renewal,contract_notice_period,notes,loc_fee_remarks,loc_fee_remarks_updated_at,loc_fee_remarks_updated_by',
+            // status_id drives the new "Site Status" column; notes_updated_at
+            // drives "Note Last Updated" — both mirror the on-screen table.
+            'customer:id,name,company_remark,code,virtual_customer_code,virtual_customer_prefix,operator_id,status_id,selling_price_type,location_type_id,location_grading_placement,location_grading_access,location_grading_flexibility,begin_date,active_date,removed_date,termination_date,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,loc_fee_remarks,loc_fee_remarks_updated_at,loc_fee_remarks_updated_by',
             'customer.operator:id,code,name,gst_vat_rate',
             // Drives the "Remarks Updated By" column for the Site Summary
             // "Remarks for Loc Fees" field (mirrors the on-screen audit line).
@@ -3694,23 +3768,14 @@ class CustomerController extends Controller
             ->whereIn('customer_id', $customerIds)
             ->whereBetween('year_month', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
 
-        // Payment Date range — mirror summary()'s paid_date filter so the
-        // export matches the on-screen rows when this filter is active.
-        // (NOTE: the older Period Locked? / Location Fee Paid? dropdowns do
-        // NOT filter the export — pre-existing behaviour, left unchanged.)
-        $parseDate = function ($v) {
-            try {
-                return $v ? \Carbon\Carbon::parse($v)->toDateString() : null;
-            } catch (\Throwable $e) {
-                return null;
-            }
-        };
-        if ($from = $parseDate($request->paid_date_from)) {
-            $query->where('paid_date', '>=', $from);
-        }
-        if ($to = $parseDate($request->paid_date_to)) {
-            $query->where('paid_date', '<=', $to);
-        }
+        // Row-level filters — the SAME set the on-screen table applies
+        // (Contract changes same-month / Period Locked? / Location Fee Paid? /
+        // Payment Date range), via the shared applySummaryRowFilters() helper.
+        // The Locked?/Paid? dropdowns used to be skipped here ("pre-existing
+        // behaviour"), which meant filtering Paid = Yes on screen still
+        // exported unpaid rows — user-reported bug, fixed 2026-07-02. The
+        // export now always matches the visible row set exactly.
+        $this->applySummaryRowFilters($query, $request);
 
         // Order the export rows with the SAME logic the on-screen table uses,
         // so the .xlsx matches what the user sees (default: Note Last Updated,
@@ -3812,6 +3877,13 @@ class CustomerController extends Controller
         // total. Segment rows (contract_log_id set) keep their stored earning.
         $accumulateMap = [];
         $accumRunning = [];
+        // avgSalesMap[customer_id][period_start] = running "Avg Mthly Sales"
+        // (cumulative sales_cents / DISTINCT months) through that month —
+        // same formula attachAccumulatedVendingEarning() uses for the
+        // on-screen column, reusing this loop's ordered rows for free.
+        $avgSalesMap = [];
+        $avgSalesSum = [];
+        $avgSalesMonths = [];
         foreach ($accumRows as $r) {
             $eff = (int) $r->location_earning_cents;
             if ($r->locked_at === null && $r->contract_log_id === null) {
@@ -3853,6 +3925,18 @@ class CustomerController extends Controller
             $accumRunning[$r->customer_id] = ($accumRunning[$r->customer_id] ?? 0) + $eff;
             $psKey = \Carbon\Carbon::parse($r->period_start)->toDateString();
             $accumulateMap[$r->customer_id][$psKey] = $accumRunning[$r->customer_id];
+
+            // Running Avg Mthly Sales — count DISTINCT months (year_month) as
+            // the denominator so a month split into contract segments still
+            // counts once and doesn't deflate the average (mirrors the
+            // on-screen attachAccumulatedVendingEarning()).
+            $ymKey = \Carbon\Carbon::parse($r->year_month)->toDateString();
+            $avgSalesSum[$r->customer_id] = ($avgSalesSum[$r->customer_id] ?? 0) + (int) $r->sales_cents;
+            $avgSalesMonths[$r->customer_id][$ymKey] = true;
+            $monthCount = count($avgSalesMonths[$r->customer_id]);
+            $avgSalesMap[$r->customer_id][$psKey] = $monthCount > 0
+                ? intdiv($avgSalesSum[$r->customer_id], $monthCount)
+                : 0;
         }
 
         // Pre-fetch the latest API Invoice snapshot per (customer, period)
@@ -3877,7 +3961,7 @@ class CustomerController extends Controller
 
         return (new FastExcel($this->exportWithCursor($query)))->download(
             $this->formatExportFilename('CustomersSummary', 'xlsx'),
-            function ($row) use (&$rowIndex, $divisor, $currencySymbol, $contractTypeLabels, $formatLocationFeesRate, $accumulateMap, $invoiceSnapshots) {
+            function ($row) use (&$rowIndex, $divisor, $currencySymbol, $contractTypeLabels, $formatLocationFeesRate, $accumulateMap, $avgSalesMap, $invoiceSnapshots) {
                 $rowIndex++;
                 $customer = $row->customer;
                 $address = $customer?->deliveryAddress;
@@ -4024,6 +4108,17 @@ class CustomerController extends Controller
                     '#' => $rowIndex,
                     'Customer ID' => $customer ? ($customer->id + Customer::RUNNING_NUMBER_INIT) : null,
                     'Customer Name' => $customer?->name,
+                    // Site Status — mirrors the on-screen badge (customers.
+                    // status_id resolved to its label); Removed rows also carry
+                    // the removal date, same as the badge's "Removed 251031".
+                    'Site Status' => (function () use ($customer) {
+                        if (!$customer) return null;
+                        $label = Customer::STATUSES_MAPPING[$customer->status_id] ?? null;
+                        if ($label === 'Removed' && $customer->removed_date) {
+                            $label .= ' ' . \Carbon\Carbon::parse($customer->removed_date)->format('ymd');
+                        }
+                        return $label;
+                    })(),
                     // Company = billing company from the morphOne Contact
                     // (`contact.company`, the Edit form's "Bill From" field),
                     // falling back to the legacy CMS-mirrored `company_remark`
@@ -4041,6 +4136,16 @@ class CustomerController extends Controller
                     // New: Begin Date + Contract Attachment — the on-screen
                     // Customer cell stacks these below the name.
                     'Begin Date' => $customer?->begin_date ? \Carbon\Carbon::parse($customer->begin_date)->format('ymd') : null,
+                    // Avg Mthly Sales — running average of monthly sales up to
+                    // and including this row's period, mirroring the on-screen
+                    // Site column figure. Keyed by period_start like Accumulate.
+                    'Avg Mthly Sales' => (function () use ($row, $avgSalesMap, $divisor) {
+                        $psKey = $row->period_start instanceof \Carbon\Carbon
+                            ? $row->period_start->toDateString()
+                            : \Carbon\Carbon::parse($row->period_start)->toDateString();
+                        $cents = $avgSalesMap[$row->customer_id][$psKey] ?? null;
+                        return $cents !== null ? round(((int) $cents) / $divisor, 2) : null;
+                    })(),
                     'Contract Attachment' => $hasContract ? 'Yes' : 'No',
                     'Address' => $fullAddress,
                     'Period Report (YYMM)' => $row->year_month ? \Carbon\Carbon::parse($row->year_month)->format('ym') : null,
@@ -4090,6 +4195,12 @@ class CustomerController extends Controller
                     'Site Tag' => $tagNames,
                     // New: Site Note (stacked with Site Tag on screen).
                     'Site Note' => $customer?->notes,
+                    // Note Last Updated — customers.notes_updated_at, the same
+                    // timestamp the on-screen column (and default sort) uses.
+                    'Note Last Updated' => $fmtAuditDate($customer?->notes_updated_at),
+                    // NOTE: the Action column's "Outstanding($)" settlement owe
+                    // amount is INTENTIONALLY not exported (user request) —
+                    // every other on-screen column is covered.
                     // Lock / Paid / Unlocked / Unpaid audit — the on-screen
                     // Period Verify & Lock column shows all of these; split into
                     // separate columns here so the CSV/Excel is easy to filter.
@@ -4651,6 +4762,25 @@ class CustomerController extends Controller
         $customer->save();
 
         return redirect()->route('customers.edit', [$id]);
+    }
+
+    /**
+     * "Pull from CMS" (Create/Edit ▸ beside the CMS Linking ID field).
+     *
+     * On-demand, ONE-WAY CMS → form fetch: returns the CMS person mapped to
+     * the Customer form shape as JSON. The Vue page fills the form fields;
+     * NOTHING is persisted until the user presses Save, and nothing is ever
+     * pushed back to CMS from this path (CMS stays the source of truth).
+     * Field map + OneMap-by-postcode address rules live in
+     * CmsPersonPullService.
+     */
+    public function pullCmsPerson(Request $request, CmsPersonPullService $cmsPersonPullService)
+    {
+        $request->validate([
+            'person_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        return response()->json($cmsPersonPullService->pull((int) $request->person_id));
     }
 
     /**

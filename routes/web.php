@@ -189,6 +189,12 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Sites / Summary & Comm filters.
         Route::get('/performance', [CustomerController::class, 'performance'])->name('customers.performance');
         Route::get('/performance/excel', [CustomerController::class, 'performanceExportExcel'])->name('customers.performance.excel');
+        // "Pull from CMS" (Create/Edit ▸ beside CMS Linking ID) — on-demand,
+        // one-way CMS → form fetch (read-only JSON; nothing is saved until the
+        // user presses Save, and nothing is pushed back to CMS). Literal path,
+        // kept above the {id} wildcard routes below.
+        Route::get('/cms-person-pull', [CustomerController::class, 'pullCmsPerson'])
+            ->name('customers.cms-person-pull');
         // Action-triggered lock / unlock for a single Customer Summary row
         // (by customer_period_summaries.id). Lock = admin-access customers;
         // unlock is gated to superadmin/admin/supervisor in the controller.
@@ -213,6 +219,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->name('customers.summary.batch-lock');
         Route::post('/summary/batch-paid', [CustomerController::class, 'batchMarkPaidCustomerPeriodSummaries'])
             ->name('customers.summary.batch-paid');
+        // Batch CIMB commission export — locked+unpaid ticked rows → CIMB
+        // BizChannel bulk payment txt (one line per site+month, Net Loc Fee).
+        // Download only, no state change; eligibility re-checked server-side.
+        Route::post('/summary/export-cimb', [CustomerController::class, 'exportCommissionBankFile'])
+            ->name('customers.summary.export-cimb');
         // Batch Report Content — ticked rows on the Summary page → structured
         // Report Content per (customer, period) in one round trip, stitched
         // client-side into a single email body ("Export Batch Report Content").
@@ -835,6 +846,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
 Route::get('/refund', [RefundFormController::class, 'show'])->name('refund.form');
 Route::post('/refund/resolve', [RefundFormController::class, 'resolve'])->middleware('throttle:60,1')->name('refund.resolve');
 Route::post('/refund/candidates', [RefundFormController::class, 'candidates'])->middleware('throttle:60,1')->name('refund.candidates');
+Route::post('/refund/machine-products', [RefundFormController::class, 'machineProducts'])->middleware('throttle:60,1')->name('refund.machine-products');
 Route::post('/refund', [RefundFormController::class, 'store'])->middleware('throttle:20,1')->name('refund.store');
 
 /*
@@ -842,7 +854,11 @@ Route::post('/refund', [RefundFormController::class, 'store'])->middleware('thro
 */
 Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     Route::get('/', [RefundController::class, 'index'])->name('refunds.index')->middleware('can:read refunds');
+    // NOTE: /batch/complete must be registered BEFORE the /{ticket}/complete
+    // wildcard below, or 'batch' would be captured as a {ticket} binding.
+    Route::post('/batch/complete', [RefundController::class, 'completeBatch'])->name('refunds.batch.complete')->middleware('can:update refunds');
     Route::get('/{ticket}', [RefundController::class, 'show'])->name('refunds.show')->middleware('can:read refunds');
+    Route::post('/{ticket}/match', [RefundController::class, 'match'])->middleware('can:update refunds');
     Route::post('/{ticket}/verify', [RefundController::class, 'verify'])->middleware('can:verify refunds');
     Route::post('/{ticket}/reject', [RefundController::class, 'reject'])->middleware('can:verify refunds');
     Route::post('/{ticket}/request-info', [RefundController::class, 'requestInfo'])->middleware('can:update refunds');

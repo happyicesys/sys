@@ -36,10 +36,32 @@ const payoutDestination = ref('');
 const contactEmail = ref('');
 const contactPhone = ref('');
 
-// manual review
-const manualDate = ref('');
+// manual review — the day was already chosen at step 2 (today/yesterday/custom),
+// so the form only asks for time / amount / product / explanation.
 const manualTime = ref('');
 const manualText = ref('');
+const manualAmount = ref('');
+const machineProducts = ref([]);
+const productsLoaded = ref(false);
+const prodOpen = ref(false);
+const manualProduct = ref(null);
+const manualQty = ref(1);
+const manualPayMethod = ref('');
+const manualPayMethods = [
+    { value: 'PayNow / QR code', label: 'PayNow / QR code' },
+    { value: 'Credit / debit card', label: 'Credit / debit card (tap)' },
+    { value: 'Cash / coins', label: 'Cash / coins' },
+    { value: 'Not sure', label: 'Not sure' },
+];
+
+async function loadMachineProducts() {
+    if (productsLoaded.value || !machineId.value) return;
+    try {
+        const { data } = await window.axios.post('/refund/machine-products', { machineID: machineId.value });
+        machineProducts.value = data.products || [];
+        productsLoaded.value = true;
+    } catch (e) { /* dropdown is optional — fail silently */ }
+}
 
 // attachments: up to 3 photos OR short videos, camera or gallery
 const MAX_PHOTOS = 3;
@@ -97,6 +119,10 @@ const dayLabel = computed(() => {
 const amtInputRef = ref(null);
 watch(step, (s) => {
     if (s === 3) nextTick(() => amtInputRef.value && amtInputRef.value.focus());
+    if (s === '4c') {
+        if (!manualAmount.value && amount.value) manualAmount.value = amount.value;
+        loadMachineProducts();
+    }
 });
 
 const isAuto = computed(() => selected.value && selected.value.is_auto_refund_channel);
@@ -168,6 +194,13 @@ function onAmountInput(e) {
     const cents = digits ? Math.min(parseInt(digits, 10), 100000 * 100) : 0;
     amount.value = cents ? (cents / 100).toFixed(2) : '';
     e.target.value = amount.value;
+}
+
+function onManualAmountInput(e) {
+    const digits = String(e.target.value).replace(/\D/g, '');
+    const cents = digits ? Math.min(parseInt(digits, 10), 100000 * 100) : 0;
+    manualAmount.value = cents ? (cents / 100).toFixed(2) : '';
+    e.target.value = manualAmount.value;
 }
 
 async function resolveMachine() {
@@ -332,10 +365,15 @@ async function submitManual() {
         const fd = new FormData();
         fd.append('machineID', machineId.value);
         fd.append('is_manual', '1');
-        fd.append('entered_day', manualDate.value || dayValue.value);
-        if (amount.value) fd.append('entered_amount', amount.value);
+        fd.append('entered_day', dayValue.value);
+        const amt = manualAmount.value || amount.value;
+        if (amt) fd.append('entered_amount', amt);
         if (manualTime.value) fd.append('approx_time', manualTime.value);
-        if (manualText.value) fd.append('reason_text', manualText.value);
+        // product + payment method ride along in the reason text — no schema change needed
+        const boughtLine = manualProduct.value ? `Bought: ${manualProduct.value.name} × ${manualQty.value}` : '';
+        const paidLine = manualPayMethod.value ? `Paid by: ${manualPayMethod.value}` : '';
+        const text = [boughtLine, paidLine, manualText.value].filter(Boolean).join('\n');
+        if (text) fd.append('reason_text', text);
         if (contactEmail.value) fd.append('contact_email', contactEmail.value);
         appendPhotos(fd);
 
@@ -421,8 +459,7 @@ async function submitManual() {
                 <div class="top"><span class="amt">${{ Number(c.amount).toFixed(2) }}</span><span class="pill">{{ c.payment_method || c.payment_channel }}</span></div>
                 <div class="prodlist" v-if="c.items && c.items.length">
                     <div v-for="(it, ix) in c.items" :key="ix" class="prodline">
-                        <span class="pname">🍦 {{ it.product_name }}<span v-if="it.vend_channel_code" class="chan">Ch {{ it.vend_channel_code }}</span></span>
-                        <span class="psku" v-if="it.product_sku">{{ it.product_sku }}</span>
+                        <span class="pname">🍦 {{ it.product_name }}<span v-if="it.vend_channel_code" class="chan">Channel #{{ it.vend_channel_code }}</span></span>
                     </div>
                 </div>
                 <div class="meta">
@@ -449,11 +486,49 @@ async function submitManual() {
         <div v-else-if="step === '4c'">
             <div class="h2">Tell us what happened</div>
             <p class="p">Our team will check this against the machine records and get back to you.</p>
-            <label class="fld">When did you buy?</label>
-            <div style="display:flex;gap:8px">
-                <input class="inp" type="date" v-model="manualDate" />
-                <input class="inp" type="time" v-model="manualTime" />
+
+            <label class="fld">Around what time? <span class="dayhint">({{ dayLabel }})</span></label>
+            <input class="inp" type="time" v-model="manualTime" />
+
+            <label class="fld">Amount paid</label>
+            <div class="amtrow"><span class="cur2">$</span><input class="inp amt2" type="text" inputmode="numeric" :value="manualAmount" @input="onManualAmountInput" placeholder="0.00" /></div>
+
+            <label class="fld">How did you pay?</label>
+            <select class="inp" v-model="manualPayMethod">
+                <option value="" disabled>Select payment method…</option>
+                <option v-for="m in manualPayMethods" :key="m.value" :value="m.value">{{ m.label }}</option>
+            </select>
+
+            <label class="fld">What did you buy?</label>
+            <div class="proddd">
+                <button type="button" class="inp ddbtn" @click="prodOpen = !prodOpen">
+                    <span v-if="manualProduct" class="ddsel">
+                        <span class="ddthumb"><img v-if="manualProduct.image_url" :src="manualProduct.image_url" alt="" /><span v-else>🍦</span></span>
+                        <span class="ddname">{{ manualProduct.name }}</span>
+                    </span>
+                    <span v-else class="ddname muted">Select a product…</span>
+                    <span class="caret">▾</span>
+                </button>
+                <div v-if="prodOpen" class="ddlist">
+                    <div class="ddopt" @click="manualProduct = null; prodOpen = false">
+                        <span class="ddthumb">❔</span><span class="ddname muted">Not sure / not listed</span>
+                    </div>
+                    <div v-for="p in machineProducts" :key="p.product_id" class="ddopt" @click="manualProduct = p; prodOpen = false">
+                        <span class="ddthumb"><img v-if="p.image_url" :src="p.image_url" alt="" loading="lazy" /><span v-else>🍦</span></span>
+                        <span class="ddname">{{ p.name }}</span>
+                        <span class="ddprice" v-if="p.price_cents">${{ (p.price_cents / 100).toFixed(2) }}</span>
+                    </div>
+                </div>
             </div>
+            <div v-if="manualProduct" class="qtyrow">
+                <span class="qtylbl">Quantity</span>
+                <div class="stepper">
+                    <button type="button" @click="manualQty = Math.max(1, manualQty - 1)">−</button>
+                    <b>{{ manualQty }}</b>
+                    <button type="button" @click="manualQty = Math.min(10, manualQty + 1)">+</button>
+                </div>
+            </div>
+
             <label class="fld">Explain what happened</label>
             <textarea class="inp bigta" rows="6" v-model="manualText" placeholder="e.g. I paid $3.50 by PayNow around 2pm, the machine showed 'dispensing' but nothing came out."></textarea>
             <label class="fld">Email <span class="req">(required)</span></label>
@@ -481,11 +556,16 @@ async function submitManual() {
                  :class="{ sel: selectedRawIds.includes(it.vend_transaction_item_id), disabled: it.is_refunded || !it.vend_transaction_item_id }"
                  @click="(!it.is_refunded && it.vend_transaction_item_id) && toggleRaw(it.vend_transaction_item_id)">
                 <div class="cb"></div>
+                <div class="pthumb">
+                    <img v-if="it.product_image_url" :src="it.product_image_url" alt="" loading="lazy" />
+                    <span v-else>🍦</span>
+                </div>
                 <div class="ci">
                     <b>{{ it.product_name }}</b>
-                    <small><span v-if="it.product_sku">{{ it.product_sku }} · </span>${{ ((it.unit_price_cents || 0) / 100).toFixed(2) }}<span v-if="it.vend_channel_code"> · Ch {{ it.vend_channel_code }}</span></small>
+                    <small v-if="it.vend_channel_code">Channel #{{ it.vend_channel_code }}</small>
                 </div>
                 <span v-if="it.is_refunded" class="pill bad">Refunded</span>
+                <span v-else class="iprice">${{ ((it.unit_price_cents || 0) / 100).toFixed(2) }}</span>
             </div>
         </div>
 
@@ -623,7 +703,10 @@ async function submitManual() {
 .chk .cb{width:22px;height:22px;border-radius:7px;border:2px solid #e2e8f0;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff}
 .chk.sel .cb{background:#0ea5a4;border-color:#0ea5a4}
 .chk.sel .cb::after{content:"✓"}
-.chk .ci{flex:1}.chk .ci b{font-size:13.5px}.chk .ci small{display:block;color:#64748b;font-size:11.5px;margin-top:2px}
+.chk .pthumb{width:44px;height:44px;border-radius:12px;flex:0 0 auto;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:20px}
+.chk .pthumb img{width:100%;height:100%;object-fit:cover}
+.chk .iprice{flex:0 0 auto;margin-left:auto;font-size:17px;font-weight:800;color:#0f172a}
+.chk .ci{flex:1;min-width:0}.chk .ci b{font-size:13.5px}.chk .ci small{display:block;color:#64748b;font-size:11.5px;margin-top:2px}
 .chk .ci .qtybadge{margin-left:6px;font-size:11px;font-weight:700;color:#0e7490;background:#ecfeff;border-radius:6px;padding:1px 7px}
 .chk .ci .errhint{color:#b45309;font-weight:600}
 .qtyrow{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:#334155}
@@ -636,6 +719,27 @@ async function submitManual() {
 .opt.sel .r{border-color:#0ea5a4;background:radial-gradient(circle,#0ea5a4 40%,#fff 45%)}
 .opt b{font-size:13.5px}.opt small{display:block;color:#64748b;font-size:11.5px;margin-top:2px}
 label.fld{display:block;font-size:12px;font-weight:700;margin:12px 0 5px}
+label.fld .dayhint{color:#64748b;font-weight:600}
+.amtrow{display:flex;align-items:center;gap:8px}
+.amtrow .cur2{font-size:16px;font-weight:800;color:#64748b}
+.amtrow .amt2{font-size:17px;font-weight:800;max-width:140px}
+.proddd{position:relative}
+.ddbtn{display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left}
+.ddsel{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.ddbtn .caret{margin-left:auto;color:#64748b}
+.ddname{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ddname.muted{color:#94a3b8;font-weight:500;flex:1}
+.ddthumb{width:34px;height:34px;border-radius:9px;flex:0 0 auto;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:16px}
+.ddthumb img{width:100%;height:100%;object-fit:cover}
+.ddlist{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;max-height:260px;overflow:auto;box-shadow:0 10px 24px rgba(2,6,23,.12)}
+.ddopt{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer}
+.ddopt:hover{background:#f8fafc}
+.ddopt .ddprice{margin-left:auto;font-size:12.5px;font-weight:700;color:#0f172a}
+.qtyrow{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.qtylbl{font-size:12px;font-weight:700}
+.stepper{display:flex;align-items:center;gap:14px;background:#fff;border:1.5px solid #e2e8f0;border-radius:11px;padding:6px 10px}
+.stepper button{width:28px;height:28px;border-radius:8px;border:0;background:#f1f5f9;font-size:16px;font-weight:800;color:#0f172a;cursor:pointer}
+.stepper b{min-width:18px;text-align:center}
 label.fld .req{color:#dc2626;font-weight:700}
 .inp{width:100%;border:1.5px solid #e2e8f0;border-radius:11px;padding:11px 12px;font-size:13.5px;background:#fff;font-family:inherit}
 .inp:focus{outline:none;border-color:#0ea5a4}

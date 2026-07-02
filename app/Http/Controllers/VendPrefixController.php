@@ -42,7 +42,9 @@ class VendPrefixController extends Controller
                 VendPrefix::query()
                     ->with([
                         'operator',
-                        'productMappings.upcomingProductMappings',
+                        // DEPRECATED (2026-07): prefix→mapping binding retired — the
+                        // Product Mapping column is hidden, so the pivot is no longer
+                        // eager-loaded (VendPrefixResource guards with relationLoaded()).
                         'vendConfigs.attachments',
                         'vends' => function ($query) use ($request) {
                             if ($request->vendStatus && $request->vendStatus !== 'all') {
@@ -154,19 +156,10 @@ class VendPrefixController extends Controller
 
         $vendPrefix = VendPrefix::create($request->all());
 
-        $productMappingIds = array_values(array_unique(array_filter(
-            array_map('intval', (array) $request->input('productMappings', [])),
-            fn($id) => $id > 0
-        )));
-
-        if ($productMappingIds) {
-            $vendPrefix->productMappings()->sync($productMappingIds);
-        }
-
-        $upcomingProductMappingId = (int) $request->input('upcomingProductMapping');
-        $this->syncUpcomingProductMapping($productMappingIds, $upcomingProductMappingId);
-
-
+        // DEPRECATED (2026-07): the prefix→mapping binding is retired. Product
+        // mappings are assigned per-vend on the Setting page (all active mappings
+        // selectable, no prefix gate). The product_mapping_vend_prefix pivot is
+        // kept read-only for historical data — it must NOT be synced here.
 
         return redirect()->route('vend-prefixes');
     }
@@ -181,40 +174,13 @@ class VendPrefixController extends Controller
 
         $model->update($request->all());
 
-        $existingProductMappingIds = $model->productMappings()->pluck('product_mappings.id')->all();
-
-        $productMappingIds = array_values(array_unique(array_filter(
-            array_map('intval', (array) $request->input('productMappings', [])),
-            fn($id) => $id > 0
-        )));
-
-        $model->productMappings()->sync($productMappingIds);
-
-        $upcomingProductMappingId = (int) $request->input('upcomingProductMapping');
-        $this->syncUpcomingProductMapping($productMappingIds, $upcomingProductMappingId);
-
-        $removedProductMappings = array_diff($existingProductMappingIds, $productMappingIds);
-
-        if ($removedProductMappings) {
-            $this->syncUpcomingProductMapping($removedProductMappings, null);
-        }
-
-
-
-        // validate if product mapping is no longer in vend prefix, unmap the product mapping id of vend
-        $vends = $model->vends;
-        foreach ($vends as $vend) {
-            if ($vend->productMapping and $vend->vendPrefix) {
-                // check whether vendPrefix is in productMapping, if not, unmap the product_mapping_id of vend
-                $productMapping = $vend->productMapping;
-                $vendPrefixes = $productMapping->vendPrefixes;
-                if (!in_array($model->id, $vendPrefixes->pluck('id')->toArray())) {
-                    $vend->product_mapping_id = null;
-                    $vend->upcoming_product_mapping_id = null;
-                    $vend->save();
-                }
-            }
-        }
+        // DEPRECATED (2026-07): the prefix→mapping binding is retired. The old
+        // sync + "unmap vends whose mapping left the prefix" cascade was removed:
+        // with the Product Mapping field gone from the form, the request no longer
+        // carries productMappings, and the old sync([]) here would have detached
+        // every pivot row and nulled product_mapping_id / upcoming_product_mapping_id
+        // on all vends of this prefix on any prefix edit (e.g. a rename).
+        // The product_mapping_vend_prefix pivot is kept read-only for historical data.
 
         return redirect()->route('vend-prefixes');
     }
@@ -234,38 +200,7 @@ class VendPrefixController extends Controller
         return redirect()->route('vend-prefixes');
     }
 
-    protected function syncUpcomingProductMapping(array $productMappingIds, ?int $upcomingProductMappingId): void
-    {
-        $productMappingIds = array_filter(
-            array_map('intval', $productMappingIds),
-            fn ($id) => $id > 0
-        );
-
-        foreach ($productMappingIds as $productMappingId) {
-            $productMapping = ProductMapping::find($productMappingId);
-
-            if (! $productMapping) {
-                continue;
-            }
-
-            // Guard: upcoming mapping must not point to itself
-            $resolvedUpcomingId = ($upcomingProductMappingId && $upcomingProductMappingId > 0 && $upcomingProductMappingId !== $productMappingId)
-                ? $upcomingProductMappingId
-                : null;
-
-            // Sync the pivot table (product_mapping_product_mapping)
-            $syncIds = $resolvedUpcomingId ? [$resolvedUpcomingId] : [];
-            $productMapping->upcomingProductMappings()->sync($syncIds);
-
-            // Cascade: also directly set upcoming_product_mapping_id on the ProductMapping model
-            $productMapping->upcoming_product_mapping_id = $resolvedUpcomingId;
-            $productMapping->save();
-
-            // Cascade to all bound vends as well
-            foreach ($productMapping->vends as $vend) {
-                $vend->upcoming_product_mapping_id = $resolvedUpcomingId;
-                $vend->save();
-            }
-        }
-    }
+    // DEPRECATED (2026-07): syncUpcomingProductMapping() was removed together with
+    // the prefix→mapping binding. Upcoming mappings are managed on the Product
+    // Mapping Edit page (ProductMappingController@update).
 }

@@ -96,11 +96,11 @@ class RefundMatchingService
                 $q->whereNull('is_refunded')->orWhere('is_refunded', false);
             })
             ->with([
-                'vendTransactionItems.product',
-                'vendTransactionItems.vendChannel.product',
+                'vendTransactionItems.product.thumbnail',
+                'vendTransactionItems.vendChannel.product.thumbnail',
                 'vendTransactionItems.vendChannelError',
-                'product',
-                'vendChannel.product',
+                'product.thumbnail',
+                'vendChannel.product.thumbnail',
                 'vendChannelError',
                 'paymentMethod',
             ])
@@ -180,6 +180,7 @@ class RefundMatchingService
                 'product_id' => $item->product_id,
                 'product_name' => $product?->name ?? ($item->product_name ?? ($item->vend_channel_code ? 'Channel ' . $item->vend_channel_code : 'Item')),
                 'product_sku' => $product?->code ?? $item->vendChannel?->sku_code ?? $item->vend_channel_code,
+                'product_image_url' => $product?->thumbnail?->full_url,
                 'vend_channel_code' => $item->vend_channel_code,
                 // unit_price_amount can be 0/unset; fall back to the channel's price
                 'unit_price_cents' => (int) ($item->unit_price_amount ?: ($item->vendChannel?->amount ?? 0)),
@@ -200,6 +201,7 @@ class RefundMatchingService
                 'product_id' => $txn->product_id,
                 'product_name' => $product?->name ?? ($txn->vend_channel_code ? 'Channel ' . $txn->vend_channel_code : 'Purchase'),
                 'product_sku' => $product?->code ?? $txn->vendChannel?->sku_code ?? $txn->vend_channel_code,
+                'product_image_url' => $product?->thumbnail?->full_url,
                 'vend_channel_code' => $txn->vend_channel_code,
                 'unit_price_cents' => (int) $txn->amount,
                 'had_channel_error' => (bool) $txn->vend_channel_error_id && $this->isRealChannelError($txn->vendChannelError?->code),
@@ -249,6 +251,7 @@ class RefundMatchingService
                 'product_id' => null,
                 'product_name' => 'Purchase',
                 'product_sku' => null,
+                'product_image_url' => null,
                 'vend_channel_code' => null,
                 'unit_price_cents' => (int) $log->amount,
                 'had_channel_error' => isset($log->is_dispensed) ? ($log->is_dispensed === false) : false,

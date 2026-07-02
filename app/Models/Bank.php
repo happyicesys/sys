@@ -11,6 +11,9 @@ class Bank extends Model
 
     protected $fillable = [
         'name',
+        // BIC / SWIFT code — CIMB bulk file detail column E for account
+        // transfers (seeded by BankBicSeeder, editable on the Banks page).
+        'bic_code',
         'country_id',
         'is_active',
     ];

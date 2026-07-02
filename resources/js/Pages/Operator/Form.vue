@@ -75,8 +75,8 @@
             </div>
             <div class="sm:col-span-3">
               <FormInput v-model="form.bank_account_no" :error="form.errors.bank_account_no">
-                Bank Account No.
-                <span class="text-[9px]">
+                CIMB Bank Account No.
+                <span class="text-[9px] ml-1">
                     (For Refund Bulk Transfer File Header)
                 </span>
               </FormInput>
@@ -84,7 +84,7 @@
             <div class="sm:col-span-3">
               <FormInput v-model="form.bank_account_name" :error="form.errors.bank_account_name">
                 Bank Account Name
-                <span class="text-[9px]">
+                <span class="text-[9px] ml-1">
                     (Registered Company Name at Bank)
                 </span>
               </FormInput>

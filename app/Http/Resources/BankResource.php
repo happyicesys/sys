@@ -11,6 +11,7 @@ class BankResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'bic_code' => $this->bic_code,
             'country_id' => $this->country_id,
             'country_name' => $this->whenLoaded('country', fn () => $this->country?->name),
             'is_active' => (bool) $this->is_active,

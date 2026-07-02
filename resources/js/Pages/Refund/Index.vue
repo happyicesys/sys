@@ -19,7 +19,22 @@ const bank = ref(props.defaultBank || Object.keys(props.banks)[0] || 'cimb');
 const exporting = ref(false);
 const exportMsg = ref('');
 
-const eligible = (t) => t.status === 'approved' && t.refund_method === 'paynow';
+// Same checkbox drives both actions: export (Approved · PayNow) and batch
+// mark-completed (Approved / Scheduled). Backend filters each action again.
+const eligible = (t) => ['approved', 'scheduled'].includes(t.status);
+const completing = ref(false);
+const completeMsg = ref('');
+function completeBatch() {
+    if (!selected.value.length) { completeMsg.value = 'Select at least one Approved ticket.'; return; }
+    if (!confirm('Mark ' + selected.value.length + ' refund(s) as completed? The completion email is sent to each customer (or logged while emails are disabled).')) return;
+    completing.value = true; completeMsg.value = '';
+    router.post('/refunds/batch/complete', { ticket_ids: selected.value }, {
+        preserveScroll: true,
+        onError: (errors) => { completeMsg.value = errors.batch || Object.values(errors)[0] || 'Failed to complete.'; },
+        onSuccess: () => { selected.value = []; },
+        onFinish: () => { completing.value = false; },
+    });
+}
 const eligibleIds = () => props.tickets.data.filter(eligible).map((t) => t.id);
 const allSelected = computed(() => {
     const ids = eligibleIds();
@@ -167,19 +182,27 @@ const recClass = (r) => ({
             </div>
         </div>
 
-        <!-- batch export toolbar -->
+        <!-- batch toolbar: export bank file + mark completed (same selection) -->
         <div class="bg-teal-50 border border-teal-200 rounded-md px-4 py-3 mb-3 flex flex-wrap items-center gap-3">
             <span class="text-sm font-semibold text-teal-800">{{ selected.length }} selected</span>
-            <span class="text-xs text-gray-500">Select Approved · PayNow tickets to export a bank bulk file.</span>
+            <span class="text-xs text-gray-500">Select Approved tickets — export a bank bulk file (PayNow) or mark refunds done in batch.</span>
             <div class="flex-1"></div>
-            <select v-model="bank" class="border rounded-md px-3 py-2 text-sm bg-white">
+            <!-- only show the bank picker once there is more than one template -->
+            <select v-if="Object.keys(banks).length > 1" v-model="bank" class="border rounded-md px-3 py-2 text-sm bg-white">
                 <option v-for="(label, key) in banks" :key="key" :value="key">{{ label }}</option>
             </select>
             <button @click="exportBatch" :disabled="exporting || !selected.length"
-                class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
-                {{ exporting ? 'Exporting…' : '⬇ Export ' + (banks[bank] || 'bank file') }}
+                class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-teal-700 disabled:opacity-50"
+                :title="banks[bank] || ''">
+                {{ exporting ? 'Exporting…' : '⬇ Export ' + bank.toUpperCase() + ' Bulk' }}
+            </button>
+            <button @click="completeBatch" :disabled="completing || !selected.length"
+                class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
+                title="Mark the selected refunds as completed and send the completion email">
+                {{ completing ? 'Completing…' : '✓ Mark Completed' }}
             </button>
             <span v-if="exportMsg" class="w-full text-xs text-red-600">{{ exportMsg }}</span>
+            <span v-if="completeMsg" class="w-full text-xs text-red-600">{{ completeMsg }}</span>
         </div>
 
         <!-- table -->
@@ -187,33 +210,59 @@ const recClass = (r) => ({
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
-                        <th class="px-3 py-3 w-8"><input type="checkbox" :checked="allSelected" @change="toggleAll" /></th>
-                        <th class="text-left px-4 py-3">Ref</th>
-                        <th class="text-left px-4 py-3">Machine</th>
-                        <th class="text-left px-4 py-3">Amount</th>
-                        <th class="text-left px-4 py-3">Method</th>
-                        <th class="text-left px-4 py-3">Channel</th>
-                        <th class="text-left px-4 py-3">Advice</th>
-                        <th class="text-left px-4 py-3">Age</th>
-                        <th class="text-left px-4 py-3">Status</th>
+                        <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" /></th>
+                        <th colspan="8" class="text-left px-4 py-2 border-b border-gray-200">Refund Request</th>
+                        <th colspan="3" class="text-left px-4 py-2 border-b border-l border-gray-200 text-teal-700">Refund Progress</th>
+                    </tr>
+                    <tr>
+                        <th class="text-left px-4 py-2">Refund ID</th>
+                        <th class="text-left px-4 py-2">Machine ID</th>
+                        <th class="text-left px-4 py-2">Submitted</th>
+                        <th class="text-left px-4 py-2">Txn Date</th>
+                        <th class="text-left px-4 py-2">Paid Amt</th>
+                        <th class="text-left px-4 py-2">Pay Method</th>
+                        <th class="text-left px-4 py-2">Refund Amt</th>
+                        <th class="text-left px-4 py-2">Refund Method</th>
+                        <th class="text-left px-4 py-2 border-l border-gray-200">Validation</th>
+                        <th class="text-left px-4 py-2">Export for Bank Txf</th>
+                        <th class="text-left px-4 py-2">Refund Done?</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="t in tickets.data" :key="t.id" class="border-t hover:bg-gray-50 cursor-pointer" @click="router.get('/refunds/' + t.id)">
                         <td class="px-3 py-3" @click.stop>
                             <input type="checkbox" :disabled="!eligible(t)" :checked="selected.includes(t.id)" @change="toggleRow(t.id)"
-                                :title="!eligible(t) ? 'Only Approved PayNow tickets can be exported' : ''" />
+                                :title="!eligible(t) ? 'Only Approved / Scheduled tickets can be batch-processed' : ''" />
                         </td>
-                        <td class="px-4 py-3 font-semibold text-teal-700">{{ t.reference }}</td>
+                        <td class="px-4 py-3 font-semibold text-teal-700 whitespace-nowrap">{{ t.reference }}</td>
                         <td class="px-4 py-3">{{ t.vend_code }}</td>
-                        <td class="px-4 py-3">${{ t.amount }}</td>
+                        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ t.submitted_at }}</td>
+                        <!-- txn details only once matched; manual claims stay blank until Ops matches the Order ID -->
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span v-if="t.matched" class="text-gray-600">{{ t.txn_datetime || '—' }}</span>
+                            <span v-else class="text-amber-600 text-xs italic">pending match</span>
+                        </td>
+                        <td class="px-4 py-3">{{ t.matched && t.paid_amount ? '$' + t.paid_amount : '—' }}</td>
+                        <td class="px-4 py-3">{{ t.matched ? (t.pay_method || t.payment_channel || '—') : '—' }}</td>
+                        <td class="px-4 py-3 font-medium">{{ t.matched ? '$' + t.amount : '—' }}</td>
                         <td class="px-4 py-3">{{ t.refund_method }}</td>
-                        <td class="px-4 py-3">{{ t.payment_channel }}</td>
-                        <td class="px-4 py-3 font-semibold" :class="recClass(t.recommendation)">{{ t.recommendation }}</td>
-                        <td class="px-4 py-3 text-gray-500">{{ t.created_ago }}</td>
-                        <td class="px-4 py-3"><span class="text-xs font-bold px-2 py-1 rounded-full" :class="statusClass(t.status)">{{ statuses[t.status] || t.status }}</span></td>
+                        <td class="px-4 py-3 border-l border-gray-100">
+                            <span class="text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.status)">{{ statuses[t.status] || t.status }}</span>
+                            <span class="block mt-1 text-[11px] font-semibold capitalize" :class="recClass(t.recommendation)">{{ t.recommendation }}</span>
+                        </td>
+                        <td class="px-4 py-3" @click.stop>
+                            <a v-if="t.batch" :href="'/refunds/batch/' + t.batch.id + '/download'"
+                                class="text-teal-700 text-xs font-semibold hover:underline whitespace-nowrap"
+                                :title="t.batch.filename || ''">⬇ {{ t.batch.reference }}</a>
+                            <span v-else class="text-gray-300">—</span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span v-if="t.status === 'completed'" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Completed<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
+                            <span v-else-if="['approved', 'scheduled'].includes(t.status)" class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">In progress</span>
+                            <span v-else class="text-gray-300">—</span>
+                        </td>
                     </tr>
-                    <tr v-if="!tickets.data.length"><td colspan="9" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
+                    <tr v-if="!tickets.data.length"><td colspan="12" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
                 </tbody>
             </table>
         </div>

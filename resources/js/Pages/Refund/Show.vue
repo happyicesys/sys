@@ -58,6 +58,15 @@ const statusClass = (s) => ({ submitted: 'bg-yellow-100 text-yellow-800', auto_r
 
 const isPaynow = computed(() => t.value.refund_method === 'paynow');
 const s = computed(() => t.value.status);
+
+// ---- Ops manual match (manual claims arrive with no linked transaction) ----
+const matchOrderId = ref('');
+const unmatched = computed(() => !t.value.vend_transaction_id && !t.value.payment_gateway_log_id
+    && !['rejected', 'completed', 'auto_resolved'].includes(s.value));
+function doMatch() {
+    if (!matchOrderId.value.trim()) return;
+    post(base.value + '/match', { order_id: matchOrderId.value.trim() });
+}
 </script>
 
 <template>
@@ -197,6 +206,16 @@ const s = computed(() => t.value.status);
 
         <!-- right: actions -->
         <div class="space-y-3">
+            <!-- Ops manual match: link the real transaction to this manual claim -->
+            <div v-if="can('update refunds') && unmatched" class="bg-amber-50 rounded-md border border-amber-300 p-4">
+                <h3 class="text-xs uppercase tracking-wide text-amber-700 mb-1">Match transaction</h3>
+                <p class="text-xs text-gray-600 mb-2">No transaction is linked to this claim yet. Find the sale in Sales Transactions, then enter its Order ID — the transaction details and validation will fill in automatically.</p>
+                <input v-model="matchOrderId" @keyup.enter="doMatch" placeholder="Order ID"
+                    class="w-full border rounded px-2 py-1.5 text-sm mb-2" />
+                <button @click="doMatch" :disabled="busy || !matchOrderId.trim()"
+                    class="w-full bg-amber-600 text-white text-sm font-semibold rounded px-3 py-1.5 disabled:opacity-50">🔗 Match Order ID</button>
+            </div>
+
             <div class="bg-gray-50 rounded-md border p-4 space-y-2">
                 <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-1">Actions</h3>
 

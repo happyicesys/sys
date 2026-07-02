@@ -72,7 +72,7 @@ class SyncVendParameter implements ShouldQueue
         try {
             // Coin acceptor must be active (1 = inactive-but-present, 3 = active
             // per the UI). Anything else means no meaningful coin float.
-            if (!array_key_exists('CHGEStat', $input) || !array_key_exists('CoinCnt', $input)) {
+            if (!is_array($input) || !array_key_exists('CHGEStat', $input) || !array_key_exists('CoinCnt', $input)) {
                 return;
             }
             $coinStat = (int) $input['CHGEStat'];
@@ -107,6 +107,7 @@ class SyncVendParameter implements ShouldQueue
         } catch (\Throwable $e) {
             \Log::warning('logCoinFloatChange failed', [
                 'vend_id' => $vend->id ?? null,
+                'vend_code' => $vend->code ?? null,
                 'error' => $e->getMessage(),
             ]);
         }

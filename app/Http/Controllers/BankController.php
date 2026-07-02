@@ -40,12 +40,14 @@ class BankController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:191',
+            'bic_code' => 'nullable|string|max:11',
             'country_id' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
         ]);
 
         Bank::create([
             'name' => $request->name,
+            'bic_code' => $request->bic_code ? strtoupper(trim($request->bic_code)) : null,
             'country_id' => $request->country_id,
             'is_active' => $request->boolean('is_active', true),
         ]);
@@ -57,6 +59,7 @@ class BankController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:191',
+            'bic_code' => 'nullable|string|max:11',
             'country_id' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
         ]);
@@ -64,6 +67,7 @@ class BankController extends Controller
         $bank = Bank::findOrFail($id);
         $bank->update([
             'name' => $request->name,
+            'bic_code' => $request->bic_code ? strtoupper(trim($request->bic_code)) : null,
             'country_id' => $request->country_id,
             'is_active' => $request->boolean('is_active', true),
         ]);

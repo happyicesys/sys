@@ -18,6 +18,7 @@ class RefundEmailService
     public const T_AUTO_REFUND = 'auto_refund_triggered';
     public const T_CANCELLED_NO_CHARGE = 'cancelled_no_charge';
     public const T_INFO_REQUIRED = 'info_required';
+    public const T_IN_PROGRESS = 'in_progress';
     public const T_COMPLETED = 'completed';
 
     public function templates(): array
@@ -36,6 +37,10 @@ class RefundEmailService
             self::T_INFO_REQUIRED => [
                 'subject' => 'Additional information required for your refund',
                 'body' => "Dear Customer,\n\nWe have reviewed and approved your refund request. However, we were unable to process the refund as the PayNow number provided appears to be invalid or is not registered for PayNow transfers.\n\nTo proceed with the refund, kindly reply to this email with a valid PayNow-registered mobile number or UEN/NRIC-linked PayNow account.\n\nUpon receiving the correct PayNow details, we will process the refund as soon as possible." . $signoff,
+            ],
+            self::T_IN_PROGRESS => [
+                'subject' => 'Your refund is being processed',
+                'body' => "Dear Customer,\n\nThank you for your patience.\n\nWe would like to inform you that your refund request has been reviewed and is currently being processed. The refunded amount will be transferred to you shortly, and may take a few working days to be reflected depending on your bank or payment provider.\n\nWe apologize for the inconvenience caused. If you have any questions in the meantime, please feel free to contact us." . $signoff,
             ],
             self::T_COMPLETED => [
                 'subject' => 'Your refund has been processed',

@@ -514,6 +514,11 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
+                <tr class="bg-gray-50/60">
+                  <td class="px-3 py-1.5 text-xs font-semibold text-gray-700">Total Loc Fees</td>
+                  <td class="px-3 py-1.5 text-center text-base font-semibold tracking-normal text-gray-900">{{ formatMoney(totalLocFeesAllTimeCents) }}</td>
+                  <td class="border-l border-gray-100 px-3 py-1.5 text-center text-base font-semibold tracking-normal text-gray-900">{{ formatMoney(totalLocFeesPeriodCents) }}</td>
+                </tr>
                 <tr>
                   <td class="px-3 py-1.5 text-xs font-medium text-gray-500">Total Outstanding</td>
                   <td
@@ -574,6 +579,23 @@
         >
           <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
           <span>Mark Paid ({{ selectedPaidRows.length }})</span>
+        </Button>
+        <!--
+          Export CIMB — commission (Net Loc Fee) bulk payment txt for the
+          ticked rows, in CIMB BizChannel upload format. Same eligibility
+          as Mark Paid (locked + unpaid, 2605+) so exported figures are the
+          FROZEN ones displayed. Download only — no state change; Verify
+          Paid stays a manual step after the bank run succeeds.
+        -->
+        <Button
+          type="button"
+          class="inline-flex items-center space-x-1 rounded-md px-3 py-2 text-xs font-semibold bg-sky-100 hover:bg-sky-200 text-sky-800 ring-1 ring-inset ring-sky-300 disabled:opacity-40 disabled:cursor-not-allowed"
+          :disabled="!selectedPaidRows.length || cimbExporting"
+          v-tooltip="selectedPaidRows.length ? `CIMB BizChannel bulk payment file — ${selectedPaidRows.length} row(s), total ${formatMoney(selectedPaidNetTotal)}` : 'No selected rows are eligible (must be locked + unpaid, period 2605 onward)'"
+          @click="onExportCimbClicked"
+        >
+          <BanknotesIcon class="h-3.5 w-3.5" aria-hidden="true" />
+          <span>{{ cimbExporting ? 'Exporting…' : `Export CIMB (${selectedPaidRows.length})` }}</span>
         </Button>
         <Button
           type="button"
@@ -1534,10 +1556,12 @@
                         line below shows who last edited and when.
                       -->
                       <div class="mt-2 flex flex-col w-full">
-                        <!-- Editable only on the Current (latest) row; older
-                             rows show the note read-only/frozen. -->
+                        <!-- The note is a SITE-level field (customers.notes), so
+                             it's editable right here on the top row of the
+                             site's cluster — regardless of which month that row
+                             happens to be (multi-month "Last N months" views
+                             may not include the site's latest/current month). -->
                         <MentionTextarea
-                          v-if="row.is_latest_row"
                           :model-value="row.customer.notes"
                           @update:model-value="row.customer.notes = $event"
                           @change="onNotesChanged(row.customer)"
@@ -1547,7 +1571,6 @@
                           placeholder="Notes"
                           textarea-class="text-[13px] text-gray-700 border border-gray-400 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-1 block w-full resize-none overflow-hidden"
                         />
-                        <div v-else class="text-[13px] text-gray-600 whitespace-pre-wrap" v-tooltip="'Read-only — edit on the Current row'">{{ row.customer.notes || '—' }}</div>
                         <span class="text-[10px] text-gray-500 mt-1" v-if="row.customer?.notes_updated_by_user">
                           {{ row.customer.notes_updated_by_user.name }} ({{ moment(row.customer.notes_updated_at).format('YYMMDD hh:mma') }})
                         </span>
@@ -1573,15 +1596,18 @@
                   <TableData :currentIndex="rowIndex" :totalLength="summaries.data.length" inputClass="text-center">
                     <div class="flex flex-col items-center space-y-1">
                     <!--
-                      Removal (final) period: a removed site's removal-month row
-                      is the LAST row for that site, so always expose the
-                      "Show all Periods" link here too — regardless of lock
-                      state. It sits above whatever lock control renders below.
-                      (The top non-removed current row gets the link via the
-                      first branch instead.)
+                      "Show all Periods" — a SITE-level link (opens the site's
+                      full period history in a new tab), so it's pinned to the
+                      TOP row of each site's cluster in every view (single- and
+                      multi-month alike), plus:
+                        - the removal-month row (a removed site's final row),
+                          regardless of lock state, and
+                        - any current-month unlocked row (there's no Lock
+                          action to show there anyway).
+                      It sits above whatever lock control renders below.
                     -->
                     <a
-                      v-if="row.is_removed_in_period"
+                      v-if="isFirstRowForCustomer(rowIndex) || row.is_removed_in_period || (row.is_current_month && !row.is_locked)"
                       :href="allPeriodsUrl(row)"
                       target="_blank"
                       rel="noopener"
@@ -1590,21 +1616,7 @@
                     >
                       Show all Periods
                     </a>
-                    <template v-if="row.is_current_month && !row.is_locked && !row.is_removed_in_period">
-                      <!-- Current period (top row) can't be locked yet; instead
-                           expose a "Show all Periods" link that opens this
-                           site's full period history in a new tab. -->
-                      <a
-                        :href="allPeriodsUrl(row)"
-                        target="_blank"
-                        rel="noopener"
-                        class="inline-flex items-center justify-center text-center px-2 py-1 !text-[10px] font-semibold leading-tight bg-yellow-300 hover:bg-yellow-400 text-yellow-900 rounded shadow-sm border border-yellow-500 max-w-[64px] whitespace-normal break-words"
-                        v-tooltip="'Open Site Summary for this site only, showing all periods (new tab)'"
-                      >
-                        Show all Periods
-                      </a>
-                    </template>
-                    <template v-else-if="row.is_locked">
+                    <template v-if="row.is_locked">
                       <div class="flex flex-col items-center space-y-1">
                         <div class="flex items-center justify-center space-x-1">
                           <LockClosedIcon class="h-5 w-5 text-amber-600" aria-hidden="true" v-tooltip="lockedTooltip(row)" />
@@ -1695,7 +1707,10 @@
                         </Button>
                       </div>
                     </template>
-                    <template v-else-if="canLock">
+                    <!-- Lock — any completed (non-current) unlocked month, plus
+                         the removal exception: a current-month row whose site
+                         is removed in-period can be locked early. -->
+                    <template v-else-if="canLock && (!row.is_current_month || row.is_removed_in_period)">
                       <div class="flex flex-col items-center space-y-1">
                         <Button
                           type="button"
@@ -1719,7 +1734,9 @@
                         </div>
                       </div>
                     </template>
-                    <template v-else-if="!row.is_removed_in_period">
+                    <!-- Dash placeholder — only when the cell would otherwise
+                         be empty (no link above, no lock control). -->
+                    <template v-else-if="!row.is_removed_in_period && !row.is_current_month && !isFirstRowForCustomer(rowIndex)">
                       <span class="text-gray-300">—</span>
                     </template>
                     </div>
@@ -1871,11 +1888,13 @@
 
                       <!--
                         Payment History — opens the per-site settlement ledger
-                        (what we owe the site owner + payments made). Shown ONCE
-                        per Site on the latest row, like the remarks below. The
-                        pill shows the live outstanding balance at-a-glance.
+                        (what we owe the site owner + payments made). SITE-level
+                        data, so it's shown ONCE per Site on the TOP row of the
+                        site's cluster (like the Site Note), in every view —
+                        single- and multi-month alike. The pill shows the live
+                        outstanding balance at-a-glance.
                       -->
-                      <div v-if="row.is_latest_row" class="mt-1">
+                      <div v-if="isFirstRowForCustomer(rowIndex)" class="mt-1">
                         <Button
                           type="button"
                           class="w-full inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-800"
@@ -1903,10 +1922,10 @@
                         shows who last edited and when. Saved on blur via
                         onLocFeeRemarksChanged. No unread tracking.
                       -->
-                      <!-- Shown only ONCE per Site, on the Current (latest)
-                           row — like the Site Note. Older / historical period
-                           rows do not repeat the remarks. -->
-                      <div v-if="row.is_latest_row" class="mt-1 flex flex-col w-full text-left">
+                      <!-- Shown only ONCE per Site, on the TOP row of the
+                           site's cluster — like the Site Note. The other rows
+                           in the cluster do not repeat the remarks. -->
+                      <div v-if="isFirstRowForCustomer(rowIndex)" class="mt-1 flex flex-col w-full text-left">
                         <MentionTextarea
                           :model-value="row.customer.loc_fee_remarks"
                           @update:model-value="row.customer.loc_fee_remarks = $event"
@@ -3044,6 +3063,19 @@ const canUnlock = computed(() => (roles ?? []).includes('superadmin') || (roles 
 const canPaid = computed(() => canLock.value);
 const canUnpaid = computed(() => canUnlock.value);
 
+// "Total Loc Fees" summary row on the Payment to Loc Fees card:
+// Loc Fees = Outstanding + Paid + Waived, per column (All-time / Shown Period).
+const totalLocFeesAllTimeCents = computed(() =>
+  (Number(props.totals.outstanding_cents) || 0)
+  + (Number(props.totals.paid_cents) || 0)
+  + (Number(props.totals.waived_cents) || 0)
+);
+const totalLocFeesPeriodCents = computed(() =>
+  (Number(props.totals.outstanding_period_cents) || 0)
+  + (Number(props.totals.paid_period_cents) || 0)
+  + (Number(props.totals.waived_period_cents) || 0)
+);
+
 // Paid-tracking go-live cutoff: the Paid button only appears for period 2605
 // (May 2026) onward. Locked periods 2604 and earlier predate paid
 // reconciliation and must NOT show a Paid button. year_month is an ISO
@@ -3149,6 +3181,47 @@ function onBatchPaidClicked() {
   if (!selectedPaidRows.value.length) return;
   batchPaidDate.value = moment().format('YYYY-MM-DD'); // pre-fill today
   showBatchPaidModal.value = true;
+}
+
+// ---------------------------------------------------------------------------
+// Export CIMB — commission payout file (CIMB BizChannel bulk txt) for the
+// ticked locked+unpaid rows. Mirrors Refund/Index.vue's exportBatch: axios
+// blob POST → browser download via the X-Filename header. The server is the
+// authority on eligibility, amounts (frozen Net Loc Fee), bank details and
+// the single-operator rule; 422 bodies carry a readable message we surface.
+// ---------------------------------------------------------------------------
+const cimbExporting = ref(false);
+
+async function onExportCimbClicked() {
+  const ids = selectedPaidRows.value.map((r) => r.id);
+  if (!ids.length || cimbExporting.value) return;
+
+  cimbExporting.value = true;
+  try {
+    const res = await window.axios.post('/customers/summary/export-cimb', { ids }, { responseType: 'blob' });
+    // Single operator → .txt; multi-operator selection → .zip with one CIMB
+    // txt per operator (each debits that operator's own account).
+    const fn = res.headers['x-filename'] || 'commission-cimb.txt';
+    const url = URL.createObjectURL(new Blob([res.data], { type: res.headers['content-type'] || 'application/octet-stream' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`CIMB file exported (${ids.length} row(s) selected). Verify Paid after the bank run succeeds.`, { timeout: 5000 });
+  } catch (e) {
+    let msg = 'Export failed. Please try again.';
+    if (e.response && e.response.status === 422) {
+      // responseType is blob, so the JSON error body arrives as a Blob.
+      try {
+        const body = JSON.parse(await e.response.data.text());
+        if (body && body.message) msg = body.message;
+      } catch (_) { /* keep fallback text */ }
+    }
+    // Sticky (no auto-dismiss) — the 422 body lists every site/operator with
+    // missing bank details, which takes a while to read/act on. Close via ✕.
+    toast.error(msg, { timeout: false });
+  } finally {
+    cimbExporting.value = false;
+  }
 }
 
 function onBatchLockConfirm() {
@@ -4788,6 +4861,10 @@ function buildBackendParams() {
     location_fee_paid: filters.value.location_fee_paid?.id,
     paid_date_from: filters.value.paid_date_from,
     paid_date_to: filters.value.paid_date_to,
+    // Unread / "@Me Mentioned" view toggles — sent so the Excel export
+    // restricts to the same row set the screen shows while either is on.
+    unread: unreadMode.value ? 1 : 0,
+    mentioned: mentionMode.value ? 1 : 0,
     sortKey: filters.value.sortKey,
     sortBy: filters.value.sortBy,
     numberPerPage: filters.value.numberPerPage?.id ?? filters.value.numberPerPage,

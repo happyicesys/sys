@@ -594,7 +594,10 @@
             </div>
 
             <hr class="sm:col-span-6">
-            <div class="sm:col-span-3" v-if="form.vend_prefix_id">
+            <!-- DEPRECATED (2026-07): prefix→mapping binding retired — this dropdown now
+                 lists ALL active mappings (name asc) and no longer depends on the prefix,
+                 so the v-if="form.vend_prefix_id" gate was removed. -->
+            <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Product Mapping (current)
@@ -623,7 +626,7 @@
                   {{ form.errors.vend_prefix_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3" v-if="form.vend_prefix_id">
+            <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Product Mapping (upcoming)
@@ -1959,12 +1962,13 @@ watch(
 );
 
 function onVendConfigSelected() {
+  // DEPRECATED (2026-07): prefix→mapping binding retired — changing the Setting
+  // Chart no longer clears the chosen Product Mapping (only the prefix, which
+  // still depends on the config). Mapping options are prefix-independent now.
   form.value.vend_prefix_id = ''
-  form.value.product_mapping_id = ''
   vendPrefixOptions.value = []
-  productMappingOptions.value = []
   router.reload({
-    only: ['vendPrefixOptions', 'productMappingOptions', 'upcomingProductMappingOptions'],
+    only: ['vendPrefixOptions'],
     data: {
       vend_config_id: form.value.vend_config_id.id,
     },
@@ -1977,41 +1981,14 @@ function onVendConfigSelected() {
             ...page.props.vendPrefixOptions.data,
           ]
         : []
-      productMappingOptions.value = [
-        { id: '', name: '--- Clear ---'},
-        ...page.props.productMappingOptions.data,
-      ]
-      upcomingProductMappingOptions.value = [
-        { id: '', name: '--- Clear ---'},
-        ...page.props.upcomingProductMappingOptions.data,
-      ]
-      refreshUpcomingSelection()
     }
   })
 }
 
 function onVendPrefixSelected() {
-  form.value.product_mapping_id = ''
-  productMappingOptions.value = []
-  router.reload({
-    only: ['productMappingOptions', 'upcomingProductMappingOptions'],
-    data: {
-      vend_prefix_id: form.value.vend_prefix_id.id,
-    },
-    replace: true,
-    preserveState: true,
-    onSuccess: page => {
-      productMappingOptions.value = [
-        { id: '', name: '--- Clear ---'},
-        ...page.props.productMappingOptions.data,
-      ]
-      upcomingProductMappingOptions.value = [
-        { id: '', name: '--- Clear ---'},
-        ...page.props.upcomingProductMappingOptions.data,
-      ]
-      refreshUpcomingSelection()
-    }
-  })
+  // DEPRECATED (2026-07): prefix→mapping binding retired — the Product Mapping
+  // dropdown lists ALL active mappings regardless of prefix, so changing the
+  // prefix no longer clears the mapping or reloads its options.
 }
 
 function promoteUpcomingProductMapping() {
