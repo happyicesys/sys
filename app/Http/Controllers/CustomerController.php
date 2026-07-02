@@ -3957,11 +3957,22 @@ class CustomerController extends Controller
                     . '|' . $inv->period_end->toDateString();
             });
 
+        // Per-site Outstanding($) — the same settlement balance the on-screen
+        // Action column's "Owe $X" badge shows: SUM of signed amount_cents
+        // across the ledger (+ve = we owe the site, -ve = credit). A
+        // customer-level figure (identical across a site's monthly rows).
+        // Sites with no ledger rows are absent here and export as 0 below.
+        $settlementBalanceMap = \App\Models\CustomerSettlement::query()
+            ->whereIn('customer_id', $customerIds)
+            ->selectRaw('customer_id, SUM(amount_cents) AS bal')
+            ->groupBy('customer_id')
+            ->pluck('bal', 'customer_id');
+
         $rowIndex = 0;
 
         return (new FastExcel($this->exportWithCursor($query)))->download(
             $this->formatExportFilename('CustomersSummary', 'xlsx'),
-            function ($row) use (&$rowIndex, $divisor, $currencySymbol, $contractTypeLabels, $formatLocationFeesRate, $accumulateMap, $avgSalesMap, $invoiceSnapshots) {
+            function ($row) use (&$rowIndex, $divisor, $currencySymbol, $contractTypeLabels, $formatLocationFeesRate, $accumulateMap, $avgSalesMap, $invoiceSnapshots, $settlementBalanceMap) {
                 $rowIndex++;
                 $customer = $row->customer;
                 $address = $customer?->deliveryAddress;
@@ -4198,9 +4209,11 @@ class CustomerController extends Controller
                     // Note Last Updated — customers.notes_updated_at, the same
                     // timestamp the on-screen column (and default sort) uses.
                     'Note Last Updated' => $fmtAuditDate($customer?->notes_updated_at),
-                    // NOTE: the Action column's "Outstanding($)" settlement owe
-                    // amount is INTENTIONALLY not exported (user request) —
-                    // every other on-screen column is covered.
+                    // Outstanding($) — the Action column's "Owe $X" settlement
+                    // balance (per-site, signed: +ve = we owe the site). Header
+                    // states the amount only, no "owe" wording. Sites with no
+                    // ledger rows resolve to 0.
+                    'Outstanding($)' => round(((int) ($settlementBalanceMap[$row->customer_id] ?? 0)) / $divisor, 2),
                     // Lock / Paid / Unlocked / Unpaid audit — the on-screen
                     // Period Verify & Lock column shows all of these; split into
                     // separate columns here so the CSV/Excel is easy to filter.
