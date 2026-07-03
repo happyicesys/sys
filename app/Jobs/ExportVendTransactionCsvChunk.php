@@ -129,7 +129,8 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 'Member ID',
                 'HID Card ID',
                 'Voucher',
-                'Campaign Labels'
+                'Campaign Labels',
+                'Dispense Attempted?'
             ]);
 
             VendTransaction::query()
@@ -143,6 +144,10 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
                 ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+                // 1:1 gateway log (belongsTo via payment_gateway_log_id) so the CSV
+                // can surface "Dispense Attempted?" the same way the Payment Gateway
+                // Transactions page does (payment_gateway_logs.is_dispensed).
+                ->leftJoin('payment_gateway_logs', 'payment_gateway_logs.id', '=', 'vend_transactions.payment_gateway_log_id')
                 ->when($user->vends()->exists(), function ($query) use ($user) {
                     $query->whereIn('vend_transactions.vend_id', $user->vends->pluck('id'));
                 })
@@ -175,6 +180,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                     'vend_channels.amount AS vend_channel_amount',
                     'vend_channels.amount2 AS vend_channel_amount2',
                     'vend_channel_errors.code AS vend_channel_error_code',
+                    'payment_gateway_logs.is_dispensed AS pg_is_dispensed',
                     DB::raw('vend_transactions.label_json AS label_ids_json'),
                 ])
                 ->orderBy('vend_transactions.id')
@@ -281,6 +287,13 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             ? '="' . $txn->order_id . '"'
                             : '';
 
+                        // "Dispense Attempted?" mirrors the Payment Gateway
+                        // Transactions page: Yes/No when the sale is backed by a
+                        // gateway log, blank for non-gateway (cash/card) sales.
+                        $dispenseAttempted = $txn->payment_gateway_log_id
+                            ? ((int) $txn->pg_is_dispensed === 1 ? 'Yes' : 'No')
+                            : '';
+
                         // ✏️ Parent row — append $labelStr at the end
                         fputcsv($stream, [
                             $orderIdCell,
@@ -311,6 +324,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             $meta_json['hid_card_id'] ?? '',
                             (!empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
                             $labelStr, // 👈 new
+                            $dispenseAttempted,
                         ]);
 
                         // ✏️ Child item rows — keep Labels empty (or use $labelStr if you prefer)
@@ -347,6 +361,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 '',
                                 '',
                                 '', // Labels for item rows
+                                $dispenseAttempted, // inherit parent's gateway dispense state
                             ]);
                         }
                     }

@@ -153,6 +153,11 @@ class VendTransaction extends Model
         return $this->belongsTo(VendChannel::class);
     }
 
+    public function vendPrefix()
+    {
+        return $this->belongsTo(VendPrefix::class);
+    }
+
     public function vendChannelError()
     {
         return $this->belongsTo(VendChannelError::class);

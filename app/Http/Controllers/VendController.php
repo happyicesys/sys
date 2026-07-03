@@ -3515,6 +3515,9 @@ class VendController extends Controller
                 'vendTransactionItems.product:id,code,name',
                 'vendTransactionItems.unitCost:id,cost',
                 'vendTransactionItems.vendChannelError:id,code,desc',
+                // For "Dispense Attempted?" — mirrors the Payment Gateway
+                // Transactions page (payment_gateway_logs.is_dispensed).
+                'paymentGatewayLog:id,is_dispensed',
             ])
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
@@ -3617,6 +3620,9 @@ class VendController extends Controller
                         'hid_card_id' => $txn->meta_json['hid_card_id'] ?? '',
                         'voucher' => isset($txn->meta_json['vouchers']) ? $txn->meta_json['vouchers'][0]['code'] : '',
                         'labels' => $labelStr, // 👈 add this column
+                        'dispense_attempted' => $txn->paymentGatewayLog
+                            ? ($txn->paymentGatewayLog->is_dispensed ? 'Yes' : 'No')
+                            : '',
                     ];
 
                     foreach ($txn->vendTransactionItems as $item) {
@@ -3646,6 +3652,9 @@ class VendController extends Controller
                             'txn_src' => $txn->interface_type,
                             'member_id' => $txn_json['dcvend_user_id'] ?? '',
                             'labels' => '', // or $labelStr if you want to repeat per item row
+                            'dispense_attempted' => $txn->paymentGatewayLog
+                                ? ($txn->paymentGatewayLog->is_dispensed ? 'Yes' : 'No')
+                                : '',
                         ];
                     }
                 }
@@ -3690,6 +3699,7 @@ class VendController extends Controller
                         'hid_card_id' => '',
                         'voucher' => '',
                         'labels' => '',
+                        'dispense_attempted' => 'Yes', // unreportedDispensed => is_dispensed=true
                     ];
                 }
             });

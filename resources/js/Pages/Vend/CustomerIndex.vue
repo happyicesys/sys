@@ -731,9 +731,9 @@
 							Value exceeds it, with the subset of those that have an ops job
 							scheduled TOMORROW in parentheses. -->
 						<div class="px-3 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM (# of Job Next Day), Refillable &gt; $120, $150, $200, $250</dt>
+							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM <span class="text-blue-600">(# of Job Next Day)</span>, Refillable &gt; $120, $150, $200, $250</dt>
 							<dd class="mt-1 text-base leading-6 font-semibold tracking-tight tabular-nums text-gray-800">
-								{{ currentStats.refillableOver120 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver120 }})</span>, {{ currentStats.refillableOver150 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver150 }})</span>, {{ currentStats.refillableOver200 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver200 }})</span>, {{ currentStats.refillableOver250 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver250 }})</span>
+								{{ currentStats.refillableOver120 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver120 }})</span>, {{ currentStats.refillableOver150 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver150 }})</span>, {{ currentStats.refillableOver200 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver200 }})</span>, {{ currentStats.refillableOver250 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver250 }})</span>
 							</dd>
 						</div>
 						<!-- # of VM (# of Job Next Day), Refillable > $300/$350/$400/$450 —
@@ -741,9 +741,9 @@
 							count over each threshold with the next-day-job subset in
 							parentheses. -->
 						<div class="px-3 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM (# of Job Next Day), Refillable &gt; $300, $350, $400, $450</dt>
+							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM <span class="text-blue-600">(# of Job Next Day)</span>, Refillable &gt; $300, $350, $400, $450</dt>
 							<dd class="mt-1 text-base leading-6 font-semibold tracking-tight tabular-nums text-gray-800">
-								{{ currentStats.refillableOver300 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver300 }})</span>, {{ currentStats.refillableOver350 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver350 }})</span>, {{ currentStats.refillableOver400 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver400 }})</span>, {{ currentStats.refillableOver450 }}<span class="text-gray-500">({{ currentStats.nextDayRefillableOver450 }})</span>
+								{{ currentStats.refillableOver300 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver300 }})</span>, {{ currentStats.refillableOver350 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver350 }})</span>, {{ currentStats.refillableOver400 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver400 }})</span>, {{ currentStats.refillableOver450 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver450 }})</span>
 							</dd>
 						</div>
 						<!-- # of Job, next day — machines with a scheduled ops job dated tomorrow -->

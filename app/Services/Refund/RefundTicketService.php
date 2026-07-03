@@ -142,8 +142,11 @@ class RefundTicketService
                 'order_id' => $txn?->order_id ?? $log?->order_id,
                 'reason_code' => $input['reason_code'] ?? null,
                 'reason_text' => $input['reason_text'] ?? null,
+                'manual_items_summary' => $input['manual_items_summary'] ?? null,
+                'manual_pay_method' => $input['manual_pay_method'] ?? null,
                 'refund_method' => $method,
                 'payout_destination' => $isAutoChannel ? null : ($input['payout_destination'] ?? null),
+                'contact_name' => $input['contact_name'] ?? null,
                 'contact_email' => $input['contact_email'] ?? null,
                 'contact_phone' => $input['contact_phone'] ?? null,
                 'claimed_amount_cents' => $claimedCents,
@@ -201,18 +204,16 @@ class RefundTicketService
      */
     public function matchOrder(RefundTicket $ticket, string $orderId, ?int $userId = null, ?string $actorLabel = null): RefundTicket
     {
-        if ($ticket->vend_transaction_id || $ticket->payment_gateway_log_id) {
-            throw new \RuntimeException('This ticket is already matched to a transaction.');
-        }
-        // Terminal tickets can't be re-opened, and approved/scheduled tickets are
-        // payout-locked — matching re-derives the refund amount, which must not
-        // change once a manager has approved the payout figure.
+        // An already-matched ticket CAN be re-matched (to fix a wrong Order ID) at
+        // any stage of the workflow — the double-refund guard below excludes this
+        // ticket itself. Only truly terminal / auto-resolved tickets are blocked.
+        // If the ticket was payout-locked (approved/scheduled), re-matching
+        // re-derives the amount, so it is dropped back to Verified for re-approval
+        // (handled after save) — the approved figure never changes silently.
         if (in_array($ticket->status, [
             RefundTicket::STATUS_REJECTED,
             RefundTicket::STATUS_COMPLETED,
             RefundTicket::STATUS_AUTO_RESOLVED,
-            RefundTicket::STATUS_APPROVED,
-            RefundTicket::STATUS_SCHEDULED,
         ], true)) {
             throw new \RuntimeException('Cannot match a ticket that is already ' . $ticket->status . '.');
         }
@@ -245,6 +246,17 @@ class RefundTicketService
                 ->first();
         }
         if (!$txn && !$log) {
+            // Most obvious admin error: the Order ID DOES exist, just on a
+            // different machine. Stop right here with an explicit message rather
+            // than a vague "not found", so a wrong Order ID is caught immediately.
+            $otherTxn = VendTransaction::withoutGlobalScopes()->where('order_id', $orderId)->first();
+            $otherLog = $otherTxn ? null : PaymentGatewayLog::query()->where('order_id', $orderId)->first();
+            if ($otherTxn || $otherLog) {
+                $otherMachine = $otherTxn
+                    ? (optional(\App\Models\Vend::withoutGlobalScopes()->find($otherTxn->vend_id))->code ?? $otherTxn->vend_id)
+                    : $otherLog->vend_code;
+                throw new \RuntimeException("Order ID {$orderId} belongs to machine {$otherMachine}, not this claim's machine {$ticket->vend_code}. Please double-check the Order ID.");
+            }
             throw new \RuntimeException("No transaction with Order ID '{$orderId}' found for machine {$ticket->vend_code}.");
         }
 
@@ -322,6 +334,10 @@ class RefundTicketService
                 $ticket->refund_method = RefundTicket::METHOD_NAYAX_AUTO;
             } elseif ($validation['recommendation'] === RefundTicket::REC_REJECT) {
                 $ticket->status = RefundTicket::STATUS_AUTO_RESOLVED;
+            } elseif (in_array($from, [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED], true)) {
+                // Re-matching changed the amount on a payout-locked ticket — send it
+                // back for re-approval so the approved figure is never stale.
+                $ticket->status = RefundTicket::STATUS_VERIFIED;
             }
             $ticket->save();
 
@@ -347,6 +363,61 @@ class RefundTicketService
 
             $this->log($ticket, 'matched', $from, $ticket->status, "Ops matched Order ID {$orderId}", $actorLabel ?? 'Ops', $userId);
             $this->log($ticket, 'validated', null, null, 'System recommendation: ' . $validation['recommendation'], 'System');
+
+            return $ticket->fresh(['items']);
+        });
+    }
+
+    /**
+     * Unlink a wrongly-matched transaction and return the ticket to an unmatched
+     * manual state (so Ops can re-enter the correct Order ID). Re-runs validation
+     * with no items. Blocked for payout-locked / terminal tickets.
+     *
+     * @throws \RuntimeException
+     */
+    public function clearMatch(RefundTicket $ticket, ?int $userId = null, ?string $actorLabel = null): RefundTicket
+    {
+        if (! $ticket->vend_transaction_id && ! $ticket->payment_gateway_log_id) {
+            throw new \RuntimeException('This ticket is not matched to any transaction.');
+        }
+        // Clearing resets the ticket to an unmatched Submitted claim (below), which
+        // naturally unlocks any payout state — so only terminal / auto-resolved
+        // tickets are blocked.
+        if (in_array($ticket->status, [
+            RefundTicket::STATUS_REJECTED,
+            RefundTicket::STATUS_COMPLETED,
+            RefundTicket::STATUS_AUTO_RESOLVED,
+        ], true)) {
+            throw new \RuntimeException('Cannot clear the match on a ticket that is already ' . $ticket->status . '.');
+        }
+
+        $validation = $this->validation->validate([], [
+            'is_auto_refund_channel' => false,
+            'txn_already_refunded' => false,
+            'is_manual' => true,
+        ]);
+
+        return DB::transaction(function () use ($ticket, $validation, $userId, $actorLabel) {
+            $from = $ticket->status;
+            $priorOrderId = $ticket->order_id;
+
+            $ticket->items()->delete();
+            $ticket->fill([
+                'vend_transaction_id' => null,
+                'payment_gateway_log_id' => null,
+                'order_id' => null,
+                'is_manual' => true,
+                'payment_channel' => RefundTicket::CHANNEL_UNKNOWN,
+                'is_auto_refund_channel' => false,
+                'auto_refund_detected' => false,
+                'system_recommendation' => $validation['recommendation'],
+                'system_validation_json' => $validation['evidence'],
+                'claimed_amount_cents' => (int) ($ticket->entered_amount_cents ?? 0),
+                'status' => RefundTicket::STATUS_SUBMITTED,
+            ]);
+            $ticket->save();
+
+            $this->log($ticket, 'unmatched', $from, $ticket->status, "Ops cleared the match (was Order ID {$priorOrderId})", $actorLabel ?? 'Ops', $userId);
 
             return $ticket->fresh(['items']);
         });

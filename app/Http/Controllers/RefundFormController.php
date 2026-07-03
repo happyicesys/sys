@@ -108,27 +108,34 @@ class RefundFormController extends Controller
             return response()->json(['found' => false, 'products' => []]);
         }
 
+        // Public, customer-facing endpoint: the products shown must reflect the
+        // machine the customer is standing at, independent of who (if anyone) is
+        // logged in. Product has an auth-gated OperatorProductFilterScope, so an
+        // admin viewing this while logged in as another operator would otherwise
+        // see an empty list. Bypass global scopes on the product relation.
         $channels = \App\Models\VendChannel::query()
             ->where('vend_id', $vend->id)
             ->where('is_active', true)
             ->whereNotNull('product_id')
-            ->with('product.thumbnail')
+            ->with(['product' => fn ($q) => $q->withoutGlobalScopes()->with('thumbnail')])
             ->get(['id', 'vend_id', 'product_id', 'amount', 'code']);
 
+        // One row per channel (not grouped by product) so the customer can pick the
+        // exact channel they bought from. Ordered by product name, then channel number.
         $products = $channels
             ->filter(fn ($c) => $c->product)
-            ->groupBy('product_id')
-            ->map(function ($group) {
-                $p = $group->first()->product;
+            ->map(function ($c) {
+                $p = $c->product;
 
                 return [
                     'product_id' => $p->id,
                     'name' => $p->name,
-                    'price_cents' => (int) ($group->min('amount') ?? 0),
+                    'price_cents' => (int) ($c->amount ?? 0),
                     'image_url' => $p->thumbnail?->full_url,
+                    'channel_code' => $c->code,
                 ];
             })
-            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->sortBy(fn ($r) => mb_strtolower($r['name']) . '|' . str_pad((string) $r['channel_code'], 6, '0', STR_PAD_LEFT))
             ->values();
 
         return response()->json(['found' => true, 'products' => $products]);
@@ -163,8 +170,11 @@ class RefundFormController extends Controller
             'selected_item_ids.*' => ['integer'],
             'reason_code' => ['nullable', 'string', 'in:' . implode(',', array_keys(self::REASON_CODES))],
             'reason_text' => ['nullable', 'string', 'max:2000'],
+            'manual_items_summary' => ['nullable', 'string', 'max:1000'],
+            'manual_pay_method' => ['nullable', 'string', 'max:100'],
             'refund_method' => ['nullable', 'string', 'in:paynow,paypal'],
             'payout_destination' => ['nullable', 'string', 'max:191'],
+            'contact_name' => ['nullable', 'string', 'max:191'],
             'contact_email' => ['required', 'email', 'max:191'], // email is compulsory
             'contact_phone' => ['nullable', 'string', 'max:60'],
             'is_manual' => ['nullable', 'boolean'],
@@ -174,6 +184,14 @@ class RefundFormController extends Controller
             'photos' => ['nullable', 'array', 'max:' . config('refund.attachments.max_count', 3)],
             'photos.*' => ['file', 'mimetypes:image/*,video/*', 'max:' . config('refund.attachments.max_kb', 30720)],
         ]);
+
+        // A photo/video is required for standard (non-manual) refund requests;
+        // the manual-review path collects details differently and stays optional.
+        if (empty($data['is_manual']) && !$request->hasFile('photos')) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'photos' => 'Please attach at least one photo or a short video.',
+            ]);
+        }
 
         // PayNow is Singapore-only: validate the refund number as an SG mobile.
         $vend = $this->matching->resolveMachine($data['machineID']);
@@ -205,8 +223,11 @@ class RefundFormController extends Controller
             'selected_item_ids' => $data['selected_item_ids'] ?? [],
             'reason_code' => $data['reason_code'] ?? null,
             'reason_text' => $data['reason_text'] ?? null,
+            'manual_items_summary' => $data['manual_items_summary'] ?? null,
+            'manual_pay_method' => $data['manual_pay_method'] ?? null,
             'refund_method' => $data['refund_method'] ?? null,
             'payout_destination' => $data['payout_destination'] ?? null,
+            'contact_name' => $data['contact_name'] ?? null,
             'contact_email' => $data['contact_email'] ?? null,
             'contact_phone' => $data['contact_phone'] ?? null,
             'is_manual' => (bool) ($data['is_manual'] ?? false),
