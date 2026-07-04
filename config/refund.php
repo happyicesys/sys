@@ -10,9 +10,25 @@ return [
     'email_enabled' => env('REFUND_EMAIL_ENABLED', false),
 
     /*
-    | Reference prefix for tickets (RFD-000123) and payout batches.
+    | Sender identity for customer-facing refund emails. Keeps refund mail off
+    | the shared "HISG Alert" alert mailbox. Leave any of these blank to fall
+    | back to the global MAIL_* / default-mailer settings.
+    |  - mailer:       a named mailer from config/mail.php (blank = default).
+    |                  Set this only if you configure a dedicated SMTP mailbox.
+    |  - from_address: envelope/From address (e.g. refund@happyice.com.sg).
+    |  - from_name:    display name shown to the customer.
     */
-    'reference_prefix' => env('REFUND_REFERENCE_PREFIX', 'RFD'),
+    'mail' => [
+        'mailer' => env('REFUND_MAIL_MAILER'),
+        'from_address' => env('REFUND_MAIL_FROM_ADDRESS'),
+        'from_name' => env('REFUND_MAIL_FROM_NAME', 'HappyIce Customer Support'),
+    ],
+
+    /*
+    | Reference prefix for tickets (RF-260703001 = prefix-yymmdd + daily running
+    | number) and payout batches.
+    */
+    'reference_prefix' => env('REFUND_REFERENCE_PREFIX', 'RF'),
     'batch_reference_prefix' => env('REFUND_BATCH_REFERENCE_PREFIX', 'BATCH'),
 
     /*

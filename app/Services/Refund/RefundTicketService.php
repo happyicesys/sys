@@ -163,8 +163,17 @@ class RefundTicketService
                 'submit_ip' => $input['submit_ip'] ?? null,
             ]);
 
-            $prefix = config('refund.reference_prefix', 'RFD');
-            $ticket->reference = $prefix . '-' . str_pad((string) $ticket->id, 6, '0', STR_PAD_LEFT);
+            // Reference = PREFIX-yymmdd + a per-day running number, e.g. RF-260703001.
+            // The daily counter is derived by counting today's tickets up to this
+            // one; lockForUpdate serialises concurrent submissions so the unique
+            // reference can't collide.
+            $createdAt = $ticket->created_at ?? now();
+            $prefix = config('refund.reference_prefix', 'RF');
+            $seq = RefundTicket::whereDate('created_at', $createdAt->toDateString())
+                ->where('id', '<=', $ticket->id)
+                ->lockForUpdate()
+                ->count();
+            $ticket->reference = $prefix . '-' . $createdAt->format('ymd') . str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
             $ticket->save();
 
             foreach ($validation['items'] as $i) {
