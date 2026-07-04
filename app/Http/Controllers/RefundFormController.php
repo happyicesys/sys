@@ -188,13 +188,8 @@ class RefundFormController extends Controller
             'photos.*' => ['file', 'mimetypes:image/*,video/*', 'max:' . config('refund.attachments.max_kb', 30720)],
         ]);
 
-        // A photo/video is required for standard (non-manual) refund requests;
-        // the manual-review path collects details differently and stays optional.
-        if (empty($data['is_manual']) && !$request->hasFile('photos')) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'photos' => 'Please attach at least one photo or a short video.',
-            ]);
-        }
+        // Photos/videos are optional on every path — some phones (notably Android)
+        // block gallery/camera access, so we must not hard-require an attachment.
 
         // PayNow is Singapore-only: validate the refund number as an SG mobile.
         $vend = $this->matching->resolveMachine($data['machineID']);
