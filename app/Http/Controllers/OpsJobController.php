@@ -56,8 +56,6 @@ class OpsJobController extends Controller
 
     public function index(Request $request)
     {
-        $isDriver = auth()->user()->hasRole('driver');
-
         if (!$request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
@@ -82,12 +80,8 @@ class OpsJobController extends Controller
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->addWeek()->setTimezone($this->getUserTimezone())->endOfDay(),
         ]);
 
-        // If the current user is a driver, always restrict to their own jobs
-        if ($isDriver) {
-            $request->merge([
-                'delivered_by' => auth()->id(),
-            ]);
-        }
+        // Note: drivers CAN see peers' jobs on the Daily Jobs (index) page.
+        // The own-jobs-only restriction is intentionally applied on summary() only.
 
         $query = OpsJob::query()
             ->with(['createdBy', 'deliveredBy', 'operator', 'pickedBy', 'updatedBy']);
@@ -327,10 +321,7 @@ class OpsJobController extends Controller
                 $opsJobs
             ),
             'userOptions' => UserResource::collection(
-                User::when($isDriver, function ($q) {
-                    $q->where('id', auth()->id());
-                })
-                    ->orderBy('name')
+                User::orderBy('name')
                     ->get()
             ),
         ]);

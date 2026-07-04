@@ -130,6 +130,10 @@ const statusClass = (s) => ({
     completed: 'bg-green-100 text-green-800',
 }[s] || 'bg-gray-100 text-gray-700');
 
+// Machine ID → Operations Dashboard, deep-linked+auto-searched to that machine
+// via the ?codes= param (opens in a new tab so the refund list is kept).
+const opsDashboardUrl = (code) => code ? ('/vends/customers?codes=' + encodeURIComponent(code)) : null;
+
 // Three system-validation checks mirrored from the ticket detail page's
 // "System validation" badges (green = the favourable state, red = otherwise).
 const validationChecks = (t) => [
@@ -137,6 +141,58 @@ const validationChecks = (t) => [
     { ok: !t.is_manual, label: t.is_manual ? 'Manual claim' : 'Auto-matched' },
     { ok: !t.already_refunded, label: t.already_refunded ? 'Already refunded' : 'Not yet refunded' },
 ];
+
+// ---- column sorting (client-side, current page) ----
+// Every header is clickable; clicking toggles asc/desc. Because the list is
+// server-paginated, this reorders the rows currently on screen — quick triage
+// without a round-trip. Empty/unmatched values always sink to the bottom.
+const sortKey = ref('');
+const sortAsc = ref(true);
+function sortTable(key) {
+    if (sortKey.value === key) { sortAsc.value = !sortAsc.value; }
+    else { sortKey.value = key; sortAsc.value = true; }
+}
+const arrow = (key) => sortKey.value === key ? (sortAsc.value ? ' ▲' : ' ▼') : '';
+// parse a money/number string ("1,234.50") to a Number, or null if not numeric
+const toNum = (v) => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = parseFloat(String(v).replace(/,/g, ''));
+    return isNaN(n) ? null : n;
+};
+function sortVal(t, key) {
+    switch (key) {
+        case 'reference': return t.reference || '';
+        case 'vend_code': return t.vend_code || '';
+        case 'submitted': return t.created_at || '';           // ISO string sorts chronologically
+        case 'paid': return toNum(t.paid_amount);
+        case 'amount': return toNum(t.amount);
+        case 'refund_method': return t.refund_method || '';
+        case 'machine_rf_24h': return (t.machine_rf_24h ?? null);
+        case 'requester_repeat': return t.requester_repeat ? 1 : 0;
+        case 'dispense_attempted': return t.dispense_attempted === true ? 2 : (t.dispense_attempted === false ? 1 : null);
+        case 'error_code': return t.error_code || '';
+        case 'status': return t.status || '';
+        case 'batch': return t.batch?.reference || '';
+        // Refund Done? — completed > in progress > not started
+        case 'done': return t.status === 'completed' ? 2 : (['approved', 'scheduled'].includes(t.status) ? 1 : 0);
+        default: return '';
+    }
+}
+const sortedRows = computed(() => {
+    const rows = props.tickets?.data ? [...props.tickets.data] : [];
+    if (!sortKey.value) return rows;
+    const dir = sortAsc.value ? 1 : -1;
+    const isEmpty = (v) => v === null || v === undefined || v === '';
+    return rows.sort((a, b) => {
+        const av = sortVal(a, sortKey.value);
+        const bv = sortVal(b, sortKey.value);
+        if (isEmpty(av) && isEmpty(bv)) return 0;
+        if (isEmpty(av)) return 1;   // empties last, regardless of direction
+        if (isEmpty(bv)) return -1;
+        if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+        return String(av).localeCompare(String(bv)) * dir;
+    });
+});
 </script>
 
 <template>
@@ -216,41 +272,99 @@ const validationChecks = (t) => [
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
                         <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" /></th>
-                        <th colspan="8" class="text-left px-4 py-2 border-b border-gray-200">Refund Request</th>
-                        <th colspan="3" class="text-left px-4 py-2 border-b border-l border-gray-200 text-teal-700">Refund Progress</th>
+                        <th colspan="6" class="text-center px-4 py-2 border-b border-gray-200">Refund Request</th>
+                        <th colspan="4" class="text-center px-4 py-2 border-b border-l border-gray-200 text-indigo-700">System self-checking</th>
+                        <th colspan="3" class="text-center px-4 py-2 border-b border-l border-gray-200 text-teal-700">Refund Progress</th>
                     </tr>
-                    <tr>
-                        <th class="text-left px-4 py-2">Refund ID</th>
-                        <th class="text-left px-4 py-2">Machine ID</th>
-                        <th class="text-left px-4 py-2">Submitted</th>
-                        <th class="text-left px-4 py-2">Txn Date</th>
-                        <th class="text-left px-4 py-2">Paid Amt</th>
-                        <th class="text-left px-4 py-2">Pay Method</th>
-                        <th class="text-left px-4 py-2">Refund Amt</th>
-                        <th class="text-left px-4 py-2">Refund Method</th>
-                        <th class="text-center px-4 py-2 border-l border-gray-200">Validation</th>
-                        <th class="text-left px-4 py-2">Export for Bank Txf</th>
-                        <th class="text-left px-4 py-2">Refund Done?</th>
+                    <tr class="[&>th]:cursor-pointer [&>th]:select-none [&>th]:text-center [&>th]:px-4 [&>th]:py-2 [&>th]:whitespace-nowrap">
+                        <th @click="sortTable('reference')" class="hover:text-gray-700">Refund ID{{ arrow('reference') }}</th>
+                        <th @click="sortTable('vend_code')" class="hover:text-gray-700">Machine ID<br>Site Name{{ arrow('vend_code') }}</th>
+                        <th @click="sortTable('submitted')" class="hover:text-gray-700">RF Submitted{{ arrow('submitted') }}</th>
+                        <th @click="sortTable('paid')" class="hover:text-gray-700">Paid Amt<br>Pay Method{{ arrow('paid') }}</th>
+                        <th @click="sortTable('amount')" class="border-l border-gray-200 hover:text-gray-700">Refund Amt{{ arrow('amount') }}</th>
+                        <th @click="sortTable('refund_method')" class="hover:text-gray-700">Refund Method{{ arrow('refund_method') }}</th>
+                        <th @click="sortTable('machine_rf_24h')" class="border-l border-gray-200 hover:text-gray-700">Machine L24h<br># of RF{{ arrow('machine_rf_24h') }}</th>
+                        <th @click="sortTable('requester_repeat')" class="hover:text-gray-700">New / Repeat?{{ arrow('requester_repeat') }}</th>
+                        <th @click="sortTable('dispense_attempted')" class="hover:text-gray-700">Prod Exit Sensor{{ arrow('dispense_attempted') }}</th>
+                        <th @click="sortTable('error_code')" class="hover:text-gray-700">Error code{{ arrow('error_code') }}</th>
+                        <th @click="sortTable('status')" class="border-l border-gray-200 hover:text-gray-700">Validation{{ arrow('status') }}</th>
+                        <th @click="sortTable('batch')" class="hover:text-gray-700">Export for Bank Txf{{ arrow('batch') }}</th>
+                        <th @click="sortTable('done')" class="hover:text-gray-700">Refund Done?{{ arrow('done') }}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="t in tickets.data" :key="t.id" class="border-t hover:bg-gray-50 cursor-pointer" @click="router.get('/refunds/' + t.id)">
-                        <td class="px-3 py-3" @click.stop>
+                    <tr v-for="t in sortedRows" :key="t.id" class="border-t hover:bg-gray-50">
+                        <td class="px-3 py-3">
                             <input type="checkbox" :disabled="!eligible(t)" :checked="selected.includes(t.id)" @change="toggleRow(t.id)"
                                 :title="!eligible(t) ? 'Only Approved / Scheduled tickets can be batch-processed' : ''" />
                         </td>
-                        <td class="px-4 py-3 font-semibold text-teal-700 whitespace-nowrap">{{ t.reference }}</td>
-                        <td class="px-4 py-3">{{ t.vend_code }}</td>
-                        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ t.submitted_at }}</td>
-                        <!-- txn details only once matched; manual claims stay blank until Ops matches the Order ID -->
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <span v-if="t.matched" class="text-gray-600">{{ t.txn_datetime || '—' }}</span>
-                            <span v-else class="text-amber-600 text-xs italic">pending match</span>
+                            <a :href="'/refunds/' + t.id" target="_blank"
+                                class="font-semibold text-teal-700 hover:underline" title="Open refund ticket in a new tab">{{ t.reference }}</a>
                         </td>
-                        <td class="px-4 py-3">{{ t.matched && t.paid_amount ? '$' + t.paid_amount : '—' }}</td>
-                        <td class="px-4 py-3">{{ t.matched ? (t.pay_method || t.payment_channel || '—') : '—' }}</td>
-                        <td class="px-4 py-3 font-medium">{{ t.matched ? '$' + t.amount : '—' }}</td>
-                        <td class="px-4 py-3">{{ t.refund_method }}</td>
+                        <td class="px-4 py-3">
+                            <a v-if="t.vend_code" :href="opsDashboardUrl(t.vend_code)" target="_blank" @click.stop
+                                class="font-medium text-teal-700 hover:underline" title="Open in Operations Dashboard">{{ t.vend_code }}</a>
+                            <span v-else class="font-medium text-gray-800">—</span>
+                            <br>
+                            <span class="text-xs text-gray-500">{{ t.site_name || '—' }}</span>
+                        </td>
+                        <!-- RF submitted on top; matched txn date + elapsed delta stacked below -->
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-gray-700">{{ t.submitted_at }}</div>
+                            <div class="text-xs mt-1">
+                                <span v-if="t.matched" class="text-gray-500">Txn: {{ t.txn_datetime || '—' }}</span>
+                                <span v-else class="text-amber-600 italic">pending match</span>
+                            </div>
+                            <div v-if="t.matched && t.txn_delta" class="text-xs text-gray-400 mt-0.5">Δ {{ t.txn_delta }}</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-gray-700">{{ t.matched && t.paid_amount ? '$' + t.paid_amount : '—' }}</div>
+                            <div class="text-xs text-gray-500 mt-1">{{ t.matched ? (t.pay_method || t.payment_channel || '—') : '—' }}</div>
+                        </td>
+                        <td class="px-4 py-3 font-medium border-l border-gray-100">{{ t.matched ? '$' + t.amount : '—' }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div>{{ t.refund_method }}</div>
+                            <div v-if="t.refund_method === 'paynow' && t.payout_destination"
+                                class="text-xs mt-1 cursor-help"
+                                :class="t.paynow_duplicate ? 'text-red-600 font-semibold' : 'text-gray-500'"
+                                v-tooltip="t.paynow_duplicate
+                                    ? 'Same PayNow number used on another refund within 60 days — possible duplicate/abuse. Verify before paying.'
+                                    : 'PayNow number the refund will be paid to.'">
+                                {{ t.payout_destination }}
+                            </div>
+                        </td>
+                        <!-- System self-checking -->
+                        <td class="px-4 py-3 text-center border-l border-gray-100">
+                            <span v-if="t.machine_rf_24h != null"
+                                class="inline-flex items-center justify-center min-w-6 px-2 py-0.5 rounded-full text-xs font-semibold"
+                                :class="t.machine_rf_24h > 3 ? 'bg-red-100 text-red-700' : (t.machine_rf_24h > 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600')"
+                                v-tooltip="t.machine_rf_24h + ' refund request(s) on this machine in the 24h up to this submission.'">
+                                {{ t.machine_rf_24h }}
+                            </span>
+                            <span v-else class="text-gray-300">—</span>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                                :class="t.requester_repeat ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
+                                v-tooltip="t.requester_repeat
+                                    ? 'Repeat: this PayNow/PayPal account or email was used on an earlier refund request.'
+                                    : 'New: first refund request seen from this requester.'">
+                                {{ t.requester_repeat ? 'Repeat' : 'New' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <CheckCircleIcon v-if="t.dispense_attempted === true" class="h-5 w-5 text-green-600 inline"
+                                v-tooltip="'Payment gateway reports the product WAS dispensed (exit sensor triggered).'" />
+                            <XCircleIcon v-else-if="t.dispense_attempted === false" class="h-5 w-5 text-red-500 inline"
+                                v-tooltip="'Payment gateway reports the product was NOT dispensed — supports the refund.'" />
+                            <span v-else class="text-gray-300" v-tooltip="'No payment-gateway dispense reading (e.g. card terminal).'">—</span>
+                        </td>
+                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <span v-if="t.error_code" class="text-xs font-semibold text-amber-700"
+                                v-tooltip="t.error_desc || ('Error code ' + t.error_code)">{{ t.error_code }}</span>
+                            <span v-else class="text-gray-300">—</span>
+                        </td>
                         <td class="px-4 py-3 border-l border-gray-100 text-center">
                             <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.status)">{{ statuses[t.status] || t.status }}</span>
                             <span class="flex items-center justify-center gap-0.5 mt-1.5">
@@ -270,7 +384,7 @@ const validationChecks = (t) => [
                             <span v-else class="text-gray-300">—</span>
                         </td>
                     </tr>
-                    <tr v-if="!tickets.data.length"><td colspan="12" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
+                    <tr v-if="!tickets.data.length"><td colspan="14" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
                 </tbody>
             </table>
         </div>

@@ -171,10 +171,14 @@ class RefundMatchingService
 
     protected function buildTransactionCandidate(VendTransaction $txn, array $ticketedItemIds = []): array
     {
-        $items = $txn->vendTransactionItems->map(function ($item) use ($ticketedItemIds) {
+        $items = $txn->vendTransactionItems->map(function ($item) use ($ticketedItemIds, $txn) {
             $error = $item->vendChannelError;
             $product = $item->product ?? $item->vendChannel?->product;
             $refunded = (bool) $item->is_refunded || in_array((int) $item->id, $ticketedItemIds, true);
+            $itemHasError = (bool) $item->vend_channel_error_id && $this->isRealChannelError($item->vend_channel_error_code);
+            // Fall back to items_json / header when the pre-created item row never
+            // got its channel error backfilled (see fallbackChannelError()).
+            $fallback = $itemHasError ? null : $this->fallbackChannelError($txn, $item->vend_channel_code);
             return [
                 'vend_transaction_item_id' => $item->id,
                 'product_id' => $item->product_id,
@@ -184,10 +188,10 @@ class RefundMatchingService
                 'vend_channel_code' => $item->vend_channel_code,
                 // unit_price_amount can be 0/unset; fall back to the channel's price
                 'unit_price_cents' => (int) ($item->unit_price_amount ?: ($item->vendChannel?->amount ?? 0)),
-                'had_channel_error' => (bool) $item->vend_channel_error_id && $this->isRealChannelError($item->vend_channel_error_code),
-                'vend_channel_error_code' => $item->vend_channel_error_code,
-                'channel_error_desc' => $error?->desc,
-                'channel_error_weightage' => $error?->weightage,
+                'had_channel_error' => $itemHasError || $fallback !== null,
+                'vend_channel_error_code' => $item->vend_channel_error_code ?? ($fallback['code'] ?? null),
+                'channel_error_desc' => $error?->desc ?? ($fallback['desc'] ?? null),
+                'channel_error_weightage' => $error?->weightage ?? ($fallback['weightage'] ?? null),
                 'is_refunded' => $refunded,
             ];
         })->values()->all();
@@ -196,6 +200,8 @@ class RefundMatchingService
         // transaction's own product / channel so the customer still sees what they bought.
         if (empty($items)) {
             $product = $txn->product ?? $txn->vendChannel?->product;
+            $headerHasError = (bool) $txn->vend_channel_error_id && $this->isRealChannelError($txn->vendChannelError?->code);
+            $fallback = $headerHasError ? null : $this->fallbackChannelError($txn, $txn->vend_channel_code);
             $items = [[
                 'vend_transaction_item_id' => null,
                 'product_id' => $txn->product_id,
@@ -204,10 +210,10 @@ class RefundMatchingService
                 'product_image_url' => $product?->thumbnail?->full_url,
                 'vend_channel_code' => $txn->vend_channel_code,
                 'unit_price_cents' => (int) $txn->amount,
-                'had_channel_error' => (bool) $txn->vend_channel_error_id && $this->isRealChannelError($txn->vendChannelError?->code),
-                'vend_channel_error_code' => $txn->vendChannelError?->code,
-                'channel_error_desc' => $txn->vendChannelError?->desc,
-                'channel_error_weightage' => $txn->vendChannelError?->weightage,
+                'had_channel_error' => $headerHasError || $fallback !== null,
+                'vend_channel_error_code' => $txn->vendChannelError?->code ?? ($fallback['code'] ?? null),
+                'channel_error_desc' => $txn->vendChannelError?->desc ?? ($fallback['desc'] ?? null),
+                'channel_error_weightage' => $txn->vendChannelError?->weightage ?? ($fallback['weightage'] ?? null),
                 'is_refunded' => (bool) $txn->is_refunded,
             ]];
         }
@@ -284,6 +290,77 @@ class RefundMatchingService
     {
         $c = trim((string) $code);
         return $c !== '' && ltrim($c, '0') !== '';
+    }
+
+    /** @var array<int, \App\Models\VendChannelError|null> */
+    protected array $channelErrorCache = [];
+
+    /**
+     * Per-channel channel-error fallback for the refund read path.
+     *
+     * The canonical per-item error lives on
+     * vend_transaction_items.vend_channel_error_id. But gateway / unified
+     * transactions PRE-CREATE their item rows with a NULL error and only backfill
+     * them when the machine TRADE rebuilds them; if that rebuild never lands, the
+     * item row reads NULL even though the transaction really did record the error
+     * (e.g. Sensor error 7 on a multiple-purchase). The reliable per-channel copy
+     * survives in vend_transactions.items_json — each child carries
+     * vendChannelCode + errorCode + vendChannelErrorID — with the header
+     * vend_channel_error_id as a last resort.
+     *
+     * Returns null when no real channel error can be resolved for this channel,
+     * so callers only ever ADD an error signal, never remove one.
+     *
+     * @return array{id:int, code:mixed, desc:?string, weightage:mixed}|null
+     */
+    public function fallbackChannelError(VendTransaction $txn, $channelCode): ?array
+    {
+        // 1) items_json child matching this channel.
+        $children = $txn->items_json;
+        if (is_array($children) && $channelCode !== null) {
+            foreach ($children as $child) {
+                if (!is_array($child)) {
+                    continue;
+                }
+                if ((string) ($child['vendChannelCode'] ?? '') !== (string) $channelCode) {
+                    continue;
+                }
+                $errId = $child['vendChannelErrorID'] ?? null;
+                $errCode = $child['errorCode'] ?? null;
+                if ($errId && $this->isRealChannelError((string) $errCode)) {
+                    return $this->channelErrorPayload((int) $errId, $errCode);
+                }
+                return null; // channel matched but no real error → nothing to add
+            }
+        }
+
+        // 2) header-level error, only when it belongs to this channel (or there is
+        //    no channel code to disambiguate against).
+        if ($txn->vend_channel_error_id
+            && ($channelCode === null || (string) $txn->vend_channel_code === (string) $channelCode)) {
+            $hdr = $txn->vendChannelError;
+            if ($hdr && $this->isRealChannelError((string) $hdr->code)) {
+                return ['id' => (int) $txn->vend_channel_error_id, 'code' => $hdr->code, 'desc' => $hdr->desc, 'weightage' => $hdr->weightage];
+            }
+        }
+
+        return null;
+    }
+
+    /** Resolve a VendChannelError (cached) into the payload shape callers expect. */
+    protected function channelErrorPayload(int $id, $codeFallback = null): array
+    {
+        if (!array_key_exists($id, $this->channelErrorCache)) {
+            $this->channelErrorCache[$id] = \App\Models\VendChannelError::find($id);
+        }
+        $e = $this->channelErrorCache[$id];
+
+        return [
+            'id' => $id,
+            'code' => $e?->code ?? $codeFallback,
+            'desc' => $e?->desc,
+            'weightage' => $e?->weightage,
+        ];
     }
 
     public function isAutoRefundTerminal(?string $cashlessMfg): bool

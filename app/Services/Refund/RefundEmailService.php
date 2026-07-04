@@ -2,9 +2,11 @@
 
 namespace App\Services\Refund;
 
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\RefundTicket;
 use App\Models\RefundTicketLog;
+use App\Models\Vend;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -87,7 +89,12 @@ class RefundEmailService
 
         $groups = [];
         foreach ($ticket->items as $it) {
-            $key = ($it->product_id ?? 'x') . '|' . ($it->vend_channel_code ?? '') . '|' . (int) $it->unit_price_cents;
+            // Include the product NAME in the key so two genuinely different items
+            // never collapse into one line when both lack a product_id / channel
+            // (e.g. unmapped channels) but happen to share a price. Identical items
+            // still merge and carry a quantity.
+            $key = ($it->product_id ?? 'x') . '|' . ($it->vend_channel_code ?? '') . '|'
+                . (int) $it->unit_price_cents . '|' . mb_strtolower(trim((string) $it->product_name));
             if (!isset($groups[$key])) {
                 $groups[$key] = [
                     'product_id' => $it->product_id,
@@ -141,20 +148,50 @@ class RefundEmailService
         ][$code] ?? ucfirst(str_replace('_', ' ', $code));
     }
 
-    /** Human label for the chosen purchase day (today / yesterday / a date). */
-    protected function dayLabel(?string $day): ?string
+    /**
+     * Human label for the chosen purchase day, resolved to the real date and
+     * anchored on the submission date — mirrors the admin panel, e.g.
+     * "Today (260704)" / "Yesterday (260703)" / "01 Jul 2026" for a custom pick.
+     */
+    protected function dayLabel(RefundTicket $ticket): ?string
     {
+        $day = $ticket->entered_day;
         if (!$day) {
             return null;
         }
-        if ($day === 'today') {
-            return 'Today';
-        }
-        if ($day === 'yesterday') {
-            return 'Yesterday';
+
+        if ($day === 'today' || $day === 'yesterday') {
+            $label = ucfirst($day);
+            if ($ticket->created_at) {
+                $date = $day === 'today'
+                    ? $ticket->created_at->copy()
+                    : $ticket->created_at->copy()->subDay();
+                $label .= ' (' . $date->format('ymd') . ')';
+            }
+
+            return $label;
         }
 
-        return $day;
+        // Custom YYYY-MM-DD pick — show a friendly date.
+        try {
+            return \Carbon\Carbon::parse($day)->format('d M Y');
+        } catch (\Exception $e) {
+            return $day;
+        }
+    }
+
+    /** Site (customer) name for the ticket's machine — public context, scopes off. */
+    protected function siteName(RefundTicket $ticket): ?string
+    {
+        if (!$ticket->vend_id) {
+            return null;
+        }
+        $vend = Vend::withoutGlobalScopes()->find($ticket->vend_id);
+        if (!$vend || !$vend->customer_id) {
+            return null;
+        }
+
+        return optional(Customer::withoutGlobalScopes()->find($vend->customer_id))->name;
     }
 
     /**
@@ -171,7 +208,10 @@ class RefundEmailService
         if ($ticket->vend_code) {
             $rows['Machine ID'] = (string) $ticket->vend_code;
         }
-        if ($day = $this->dayLabel($ticket->entered_day)) {
+        if ($site = $this->siteName($ticket)) {
+            $rows['Site'] = $site;
+        }
+        if ($day = $this->dayLabel($ticket)) {
             $rows['Purchase date'] = $day;
         }
         if ($ticket->entered_amount_cents !== null) {

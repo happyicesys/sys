@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\RefundTicket;
 use App\Models\User;
 use App\Models\UserPageView;
 use Illuminate\Support\Carbon;
@@ -27,11 +28,13 @@ class NoteNotificationService
 {
     public const PAGE_SUMMARY = 'customers.summary';
     public const PAGE_AVAILABILITY = 'products.availability';
+    public const PAGE_REFUNDS = 'refunds';
 
     /** page_key => sidebar href, so the Vue layout can map badges to menu links. */
     public const PAGE_HREFS = [
         self::PAGE_SUMMARY => '/customers/summary',
         self::PAGE_AVAILABILITY => '/products/availability',
+        self::PAGE_REFUNDS => '/refunds',
     ];
 
     /** Cached once per process: is the tracking table migrated yet? */
@@ -85,6 +88,7 @@ class NoteNotificationService
             return [
                 self::PAGE_HREFS[self::PAGE_SUMMARY] => 0,
                 self::PAGE_HREFS[self::PAGE_AVAILABILITY] => 0,
+                self::PAGE_HREFS[self::PAGE_REFUNDS] => 0,
             ];
         }
 
@@ -101,6 +105,10 @@ class NoteNotificationService
             self::PAGE_HREFS[self::PAGE_AVAILABILITY] => $this->productUnreadCount(
                 $user,
                 $views[self::PAGE_AVAILABILITY]->last_viewed_at ?? null
+            ),
+            self::PAGE_HREFS[self::PAGE_REFUNDS] => $this->refundUnreadCount(
+                $user,
+                $views[self::PAGE_REFUNDS]->last_viewed_at ?? null
             ),
         ];
     }
@@ -221,6 +229,25 @@ class NoteNotificationService
         $this->scopeOperator($query, $user, 'products');
 
         return $query;
+    }
+
+    // --- Refund Requests --------------------------------------------------
+
+    /**
+     * Unread NEW refund requests for the sidebar badge = tickets that ARRIVED
+     * (were submitted by a customer) after the user last opened /refunds. It is
+     * per-user via last_viewed_at (opening the page clears it) and NOT operator-
+     * scoped, mirroring the Refund Requests page itself, which shows every
+     * operator's tickets. NULL $since (page never visited) counts 0 so a new
+     * user isn't flooded with the full backlog on first login.
+     */
+    public function refundUnreadCount(User $user, ?Carbon $since): int
+    {
+        if (!$since) {
+            return 0;
+        }
+
+        return RefundTicket::where('created_at', '>', $since)->count();
     }
 
     // --- Mentions (Phase 2 autocomplete) ---------------------------------

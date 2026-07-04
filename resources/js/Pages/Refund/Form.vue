@@ -335,6 +335,7 @@ function next() {
         step.value = 6; return;
     }
     if (s === 6) {
+        if (photos.value.length === 0) { errorMsg.value = 'Please add at least one photo or a short video.'; return; }
         if (!emailValid(contactEmail.value)) { errorMsg.value = 'Please enter a valid email so we can update you on your refund.'; return; }
         step.value = isAuto.value ? 8 : 7; return;
     }
@@ -365,6 +366,7 @@ function next() {
     }
     if (s === 8) { submit(); return; }
     if (s === '4c') {
+        if (photos.value.length === 0) { errorMsg.value = 'Please add at least one photo or a short video.'; return; }
         if (!emailValid(contactEmail.value)) { errorMsg.value = 'Please enter a valid email so we can update you.'; return; }
         step.value = 7; return;
     }
@@ -627,7 +629,7 @@ async function submitManual() {
             <textarea class="inp bigta" rows="6" v-model="manualText" placeholder="e.g. I paid $3.50 by PayNow around 2pm, the machine showed 'dispensing' but nothing came out."></textarea>
             <label class="fld">Email <span class="req">(required)</span></label>
             <input class="inp" type="email" v-model="contactEmail" placeholder="you@email.com" />
-            <label class="fld">Photos or video (optional, up to {{ MAX_PHOTOS }}, max {{ MAX_MB }} MB each)</label>
+            <label class="fld">Photos or video <span class="req">(required)</span> <span class="dayhint">— up to {{ MAX_PHOTOS }}, max {{ MAX_MB }} MB each</span></label>
             <div class="photogrid">
                 <div v-for="(p, i) in photoPreviews" :key="i" class="thumb">
                     <video v-if="p.isVideo" :src="p.url" class="thumbmedia" muted playsinline></video>
@@ -673,8 +675,8 @@ async function submitManual() {
             </select>
             <label class="fld">Add a note (optional)</label>
             <textarea class="inp" rows="3" v-model="reasonText" placeholder="Anything else we should know?"></textarea>
-            <label class="fld">Photo or video <span class="dayhint">(optional)</span></label>
-            <p class="p" style="margin-top:0">A photo or short video of the machine or screen helps us verify, if you're able to add one. Up to {{ MAX_PHOTOS }}, max {{ MAX_MB }} MB each.</p>
+            <label class="fld">Photo or video <span class="req">(required)</span></label>
+            <p class="p" style="margin-top:0">A photo or short video of the machine or screen helps us verify. Up to {{ MAX_PHOTOS }}, max {{ MAX_MB }} MB each.</p>
             <div class="photogrid">
                 <div v-for="(p, i) in photoPreviews" :key="i" class="thumb">
                     <video v-if="p.isVideo" :src="p.url" class="thumbmedia" muted playsinline></video>

@@ -31,6 +31,16 @@ class RefundController extends Controller
 
     public function index(Request $request)
     {
+        // Sidebar "Refund Requests" unread badge: clear it on a genuine page
+        // visit (not an in-page filter/search re-fetch or partial reload) by
+        // sliding this user's last_viewed_at to now. The badge counts tickets
+        // that arrived since. See NoteNotificationService.
+        $authUser = auth()->user();
+        if ($authUser && !$request->boolean('searched') && !$request->hasHeader('X-Inertia-Partial-Data')) {
+            app(\App\Services\NoteNotificationService::class)
+                ->markViewed($authUser, \App\Services\NoteNotificationService::PAGE_REFUNDS);
+        }
+
         $allStatuses = array_keys($this->statusLabels());
         // default view: everything except already-completed ("refunded") tickets
         $defaultStatuses = array_values(array_diff($allStatuses, [RefundTicket::STATUS_COMPLETED]));
@@ -68,19 +78,70 @@ class RefundController extends Controller
         $txns = \App\Models\VendTransaction::withoutGlobalScopes()->with('paymentMethod')
             ->whereIn('id', $rows->pluck('vend_transaction_id')->filter()->unique())
             ->get()->keyBy('id');
+        // Gateway logs: from the ticket directly AND from any matched transaction's
+        // own gateway log, so the "Prod Exit Sensor" (is_dispensed) reading is
+        // available even when the ticket matched by vend_transaction_id.
+        $logIds = $rows->pluck('payment_gateway_log_id')->filter()
+            ->merge($txns->pluck('payment_gateway_log_id')->filter())
+            ->unique();
         $logs = \App\Models\PaymentGatewayLog::query()
-            ->whereIn('id', $rows->pluck('payment_gateway_log_id')->filter()->unique())
+            ->whereIn('id', $logIds)
             ->get()->keyBy('id');
         $batches = RefundPayoutBatch::query()
             ->whereIn('id', $rows->pluck('payout_batch_id')->filter()->unique())
             ->get()->keyBy('id');
 
-        $tickets = $page->through(fn (RefundTicket $t) => $this->toRow(
-            $t,
-            $t->vend_transaction_id ? $txns->get($t->vend_transaction_id) : null,
-            $t->payment_gateway_log_id ? $logs->get($t->payment_gateway_log_id) : null,
-            $t->payout_batch_id ? $batches->get($t->payout_batch_id) : null,
-        ));
+        // Resolve each ticket's site (customer) name from its machine. Loaded
+        // withoutGlobalScopes for the same reason as the txns above (Vend/Customer
+        // carry operator scopes that would drop rows in a public/admin context),
+        // and batched to avoid an N+1 across the 25 rows on the page.
+        $vends = \App\Models\Vend::withoutGlobalScopes()
+            ->whereIn('id', $rows->pluck('vend_id')->filter()->unique())
+            ->get(['id', 'customer_id'])->keyBy('id');
+        $siteNames = \App\Models\Customer::withoutGlobalScopes()
+            ->whereIn('id', $vends->pluck('customer_id')->filter()->unique())
+            ->pluck('name', 'id');
+
+        // PayNow reuse flag: mark a ticket's PayNow number when the SAME number
+        // was used on ANOTHER refund ticket within 60 days (either side) — a
+        // possible duplicate claim / abuse signal, surfaced red in the UI.
+        $payNowDup = $this->payNowReuseFlags($rows);
+
+        // System self-checking: per-machine RF count in the trailing 24h + a
+        // New/Repeat flag (same requester seen before).
+        $selfCheck = $this->selfCheckData($rows);
+
+        // Error code shown in the self-check panel = the channel error frozen on
+        // the ticket's flagged item(s). One batched query.
+        $itemErrors = \App\Models\RefundTicketItem::whereIn('refund_ticket_id', $rows->pluck('id'))
+            ->where('had_channel_error', true)
+            ->get(['refund_ticket_id', 'vend_channel_error_code', 'channel_error_desc'])
+            ->groupBy('refund_ticket_id')
+            ->map->first();
+
+        $tickets = $page->through(function (RefundTicket $t) use ($txns, $logs, $batches, $vends, $siteNames, $payNowDup, $selfCheck, $itemErrors) {
+            $txn = $t->vend_transaction_id ? $txns->get($t->vend_transaction_id) : null;
+            // Resolve the gateway log from the ticket, else from its matched txn.
+            $log = $t->payment_gateway_log_id
+                ? $logs->get($t->payment_gateway_log_id)
+                : ($txn?->payment_gateway_log_id ? $logs->get($txn->payment_gateway_log_id) : null);
+            $errItem = $itemErrors->get($t->id);
+
+            return $this->toRow(
+                $t,
+                $txn,
+                $log,
+                $t->payout_batch_id ? $batches->get($t->payout_batch_id) : null,
+                $t->vend_id && $vends->get($t->vend_id) ? $siteNames->get($vends->get($t->vend_id)->customer_id) : null,
+                $payNowDup[$t->id] ?? false,
+                [
+                    'machine_rf_24h' => $selfCheck['rf24h'][$t->id] ?? null,
+                    'requester_repeat' => $selfCheck['repeat'][$t->id] ?? false,
+                    'error_code' => $errItem?->vend_channel_error_code,
+                    'error_desc' => $errItem?->channel_error_desc,
+                ],
+            );
+        });
 
         // counts are over all tickets (unfiltered) so the chips always show true totals
         $counts = RefundTicket::selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status');
@@ -132,8 +193,31 @@ class RefundController extends Controller
     {
         $ticket->load(['items', 'logs', 'attachments']);
 
+        // Prev / next ticket navigation for the detail page, matching the index
+        // ordering (created_at DESC, id DESC — newest on top). "Previous" is the
+        // row above the current ticket in that list (a newer request); "next" is
+        // the row below (an older request). Global across all tickets (no filter
+        // state), so admins can page straight through the whole queue. Only id +
+        // reference are selected — enough to build the link and its label.
+        $prev = RefundTicket::query()
+            ->where(function ($q) use ($ticket) {
+                $q->where('created_at', '>', $ticket->created_at)
+                    ->orWhere(fn ($w) => $w->where('created_at', $ticket->created_at)->where('id', '>', $ticket->id));
+            })
+            ->orderBy('created_at')->orderBy('id')
+            ->first(['id', 'reference']);
+        $next = RefundTicket::query()
+            ->where(function ($q) use ($ticket) {
+                $q->where('created_at', '<', $ticket->created_at)
+                    ->orWhere(fn ($w) => $w->where('created_at', $ticket->created_at)->where('id', '<', $ticket->id));
+            })
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->first(['id', 'reference']);
+
         return Inertia::render('Refund/Show', [
             'ticket' => $this->toDetail($ticket),
+            'prevTicket' => $prev ? ['id' => $prev->id, 'reference' => $prev->reference] : null,
+            'nextTicket' => $next ? ['id' => $next->id, 'reference' => $next->reference] : null,
             'emailTemplates' => [
                 RefundEmailService::T_RECEIVED => 'Request received (acknowledgement)',
                 RefundEmailService::T_AUTO_REFUND => 'Auto-refund already triggered',
@@ -374,9 +458,109 @@ class RefundController extends Controller
         return \Illuminate\Support\Facades\Storage::disk('local')->response($attachment->path);
     }
 
+    /**
+     * For the PayNow tickets on this page, flag the ones whose PayNow number was
+     * ALSO used on another refund ticket within 60 days (either direction) — a
+     * repeat-number signal Ops should eyeball before paying. One batched query.
+     *
+     * @return array<int, bool>  ticket id => reused-within-60d
+     */
+    protected function payNowReuseFlags($rows): array
+    {
+        $flags = [];
+        $payNow = collect($rows)->filter(
+            fn ($t) => $t->refund_method === RefundTicket::METHOD_PAYNOW && filled($t->payout_destination)
+        );
+        if ($payNow->isEmpty()) {
+            return $flags;
+        }
+
+        $dests = $payNow->pluck('payout_destination')->unique()->values()->all();
+        $windowStart = $payNow->min('created_at')?->copy()->subDays(60);
+        $windowEnd = $payNow->max('created_at')?->copy()->addDays(60);
+
+        $others = RefundTicket::where('refund_method', RefundTicket::METHOD_PAYNOW)
+            ->whereIn('payout_destination', $dests)
+            ->when($windowStart, fn ($q) => $q->where('created_at', '>=', $windowStart))
+            ->when($windowEnd, fn ($q) => $q->where('created_at', '<=', $windowEnd))
+            ->get(['id', 'payout_destination', 'created_at']);
+
+        foreach ($payNow as $t) {
+            $flags[$t->id] = $others->contains(
+                fn ($o) => (int) $o->id !== (int) $t->id
+                    && $o->payout_destination === $t->payout_destination
+                    && abs($o->created_at->diffInDays($t->created_at)) <= 60
+            );
+        }
+
+        return $flags;
+    }
+
+    /**
+     * System self-checking signals for the page rows, batched:
+     *   - rf24h[id]  : # of refund requests THIS machine had in the trailing 24h
+     *                  ending at that ticket's submission (spike detection).
+     *   - repeat[id] : true when the SAME requester (same PayNow/PayPal payout
+     *                  destination OR contact email) appears on an earlier ticket.
+     *
+     * @return array{rf24h: array<int,?int>, repeat: array<int,bool>}
+     */
+    protected function selfCheckData($rows): array
+    {
+        $rows = collect($rows);
+        $out = ['rf24h' => [], 'repeat' => []];
+        if ($rows->isEmpty()) {
+            return $out;
+        }
+
+        // Machine RF counts: pull every ticket for the page's machines within the
+        // widest 24h window, then tally each row's own trailing 24h in PHP.
+        $codes = $rows->pluck('vend_code')->filter()->unique()->values()->all();
+        $windowStart = $rows->min('created_at')?->copy()->subDay();
+        $windowEnd = $rows->max('created_at');
+        $machineTickets = $codes
+            ? RefundTicket::whereIn('vend_code', $codes)
+                ->when($windowStart, fn ($q) => $q->where('created_at', '>=', $windowStart))
+                ->when($windowEnd, fn ($q) => $q->where('created_at', '<=', $windowEnd))
+                ->get(['id', 'vend_code', 'created_at'])
+            : collect();
+
+        // Requester identities (payout destination + contact email) seen anywhere.
+        $dests = $rows->pluck('payout_destination')->filter()->unique()->values()->all();
+        $emails = $rows->pluck('contact_email')->filter()->unique()->values()->all();
+        $identityTickets = ($dests || $emails)
+            ? RefundTicket::where(function ($q) use ($dests, $emails) {
+                if ($dests) {
+                    $q->orWhereIn('payout_destination', $dests);
+                }
+                if ($emails) {
+                    $q->orWhereIn('contact_email', $emails);
+                }
+            })->get(['id', 'payout_destination', 'contact_email', 'created_at'])
+            : collect();
+
+        foreach ($rows as $t) {
+            $winStart = $t->created_at?->copy()->subDay();
+            $out['rf24h'][$t->id] = ($winStart && $t->vend_code)
+                ? $machineTickets->filter(fn ($m) => $m->vend_code === $t->vend_code
+                    && $m->created_at >= $winStart
+                    && $m->created_at <= $t->created_at)->count()
+                : null;
+
+            $out['repeat'][$t->id] = $identityTickets->contains(fn ($o) => (int) $o->id !== (int) $t->id
+                && $o->created_at <= $t->created_at
+                && (
+                    (filled($t->payout_destination) && $o->payout_destination === $t->payout_destination)
+                    || (filled($t->contact_email) && $o->contact_email === $t->contact_email)
+                ));
+        }
+
+        return $out;
+    }
+
     // ---- mappers ----
 
-    protected function toRow(RefundTicket $t, $txn = null, $log = null, $batch = null): array
+    protected function toRow(RefundTicket $t, $txn = null, $log = null, $batch = null, $siteName = null, bool $payNowDuplicate = false, array $self = []): array
     {
         $matched = (bool) ($t->vend_transaction_id || $t->payment_gateway_log_id);
 
@@ -394,12 +578,25 @@ class RefundController extends Controller
         $txnDate = $txn?->transaction_datetime ?? $log?->approved_at ?? $log?->created_at;
         $paidCents = $txn?->amount ?? $log?->amount;
 
+        // Delta = elapsed time between the transaction and the refund submission
+        // (how long after buying the customer raised the claim), as "Xd Yh Zm".
+        $txnDelta = null;
+        if ($matched && $txnDate && $t->created_at) {
+            $mins = abs((int) \Illuminate\Support\Carbon::parse($txnDate)->diffInMinutes($t->created_at));
+            $txnDelta = intdiv($mins, 1440) . 'd ' . intdiv($mins % 1440, 60) . 'h ' . ($mins % 60) . 'm';
+        }
+
         return [
             'id' => $t->id,
             'reference' => $t->reference,
             'vend_code' => $t->vend_code,
+            'site_name' => $siteName,
             'amount' => number_format($t->claimed_amount_cents / 100, 2),
             'refund_method' => $t->refund_method,
+            // PayNow number shown under the method (PayPal email is intentionally
+            // omitted to save space). paynow_duplicate drives the red reuse warning.
+            'payout_destination' => $t->refund_method === RefundTicket::METHOD_PAYNOW ? $t->payout_destination : null,
+            'paynow_duplicate' => $payNowDuplicate,
             'payment_channel' => $t->payment_channel,
             'reason_code' => $t->reason_code,
             'status' => $t->status,
@@ -415,6 +612,16 @@ class RefundController extends Controller
             'created_ago' => optional($t->created_at)->diffForHumans(),
             'submitted_at' => optional($t->created_at)->format('ymd h:i a'),
             'txn_datetime' => $matched ? optional($txnDate)->format('ymd h:i a') : null,
+            'txn_delta' => $txnDelta,
+            // --- System self-checking panel ---
+            'machine_rf_24h' => $self['machine_rf_24h'] ?? null,
+            'requester_repeat' => (bool) ($self['requester_repeat'] ?? false),
+            // Prod Exit Sensor = the payment-gateway "dispense attempted" reading
+            // (is_dispensed): true = product exited, false = not dispensed, null =
+            // no gateway log (e.g. card terminal) so unknown.
+            'dispense_attempted' => ($log && !is_null($log->is_dispensed)) ? (bool) $log->is_dispensed : null,
+            'error_code' => $self['error_code'] ?? null,
+            'error_desc' => $self['error_desc'] ?? null,
             'paid_amount' => ($matched && $paidCents !== null) ? number_format($paidCents / 100, 2) : null,
             'pay_method' => $matched ? ($txn?->paymentMethod?->name ?? ($log ? 'QR' : null)) : null,
             'batch' => $batch ? [
@@ -544,7 +751,25 @@ class RefundController extends Controller
         $log = $t->payment_gateway_log_id ? \App\Models\PaymentGatewayLog::find($t->payment_gateway_log_id) : null;
         $batch = $t->payout_batch_id ? RefundPayoutBatch::find($t->payout_batch_id) : null;
 
+        // Site (customer) name for the ticket's machine — public/admin context, scopes off.
+        $siteVend = $t->vend_id ? \App\Models\Vend::withoutGlobalScopes()->find($t->vend_id) : null;
+        $siteName = $siteVend && $siteVend->customer_id
+            ? optional(\App\Models\Customer::withoutGlobalScopes()->find($siteVend->customer_id))->name
+            : null;
+
+        // LIVE refunded state of the linked source, read fresh here (not from the
+        // frozen validation snapshot). The snapshot is captured at submission and
+        // is correct for audit, but a charge can be refunded LATER (e.g. the system
+        // auto-refunds an Omise non-dispense). The "Already refunded" badge must
+        // reflect this current state so it stays in sync with the Related
+        // Transactions panel below, which already reads the live is_refunded.
+        $liveTxnRefunded = $txn
+            ? (bool) $txn->is_refunded
+            : ($log ? ((int) $log->status === \App\Models\PaymentGatewayLog::STATUS_REFUND) : false);
+
         return array_merge($this->toRow($t, $txn, $log, $batch), [
+            'site_name' => $siteName,
+            'live_txn_refunded' => $liveTxnRefunded,
             'reason_text' => $t->reason_text,
             'manual_items_summary' => $t->manual_items_summary,
             'manual_pay_method' => $t->manual_pay_method,
@@ -671,8 +896,12 @@ class RefundController extends Controller
 
         return $q->orderByDesc('transaction_datetime')->get()->map(function ($t) use ($ticket) {
             $date = $t->transaction_datetime;
+            // Link to Sales Transactions filtered by THIS machine on the same day
+            // as the transaction (codes = vend_code + that day's window), so the
+            // admin can eyeball every sale on the machine around the disputed one
+            // — more useful than pinning to the single matched order_id.
             $link = '/vends/transactions?' . http_build_query(array_filter([
-                'order_id' => $t->order_id,
+                'codes' => $ticket->vend_code,
                 'date_from' => $date ? $date->copy()->startOfDay()->toDateTimeString() : null,
                 'date_to' => $date ? $date->copy()->endOfDay()->toDateTimeString() : null,
             ]));

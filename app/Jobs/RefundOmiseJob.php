@@ -50,7 +50,8 @@ class RefundOmiseJob implements ShouldQueue
             'amount' => $paymentGatewayLog->amount,
         ], $paymentGatewayLog->ref_id); // charge id
 
-        if($response->failed()) {
+        $refundFailed = $response->failed();
+        if($refundFailed) {
             $this->errorService->throwErrorWithMqtt('Refund failed' . $response->body(), $paymentGatewayLog->vend);
         }
 
@@ -73,6 +74,23 @@ class RefundOmiseJob implements ShouldQueue
                     'is_refunded' => true,
                     'settlement_status' => VendTransaction::SETTLEMENT_REFUNDED,
                 ])->save();
+            }
+        }
+
+        // If a customer had raised a refund ticket for this charge, the processor
+        // has now refunded it automatically — resolve that ticket and email the
+        // customer that it was handled, so no manual PayNow payout goes out on top.
+        // Best-effort and fully isolated: a ticket/email failure must never break
+        // the payment refund performed above.
+        if (!$refundFailed) {
+            try {
+                app(\App\Services\Refund\RefundTicketService::class)
+                    ->markAutoRefundedByCharge($this->orderId, $paymentGatewayLog->id);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Refund ticket auto-resolve after Omise refund failed', [
+                    'order_id' => $this->orderId,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
     }

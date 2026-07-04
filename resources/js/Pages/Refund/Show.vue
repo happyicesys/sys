@@ -6,6 +6,8 @@ import { ref, computed } from 'vue';
 const props = defineProps({
     ticket: { type: Object, required: true },
     statuses: { type: Object, default: () => ({}) },
+    prevTicket: { type: Object, default: null },
+    nextTicket: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -19,7 +21,12 @@ const hasChannelError = computed(() => (typeof sv.value.had_channel_error !== 'u
     ? !!sv.value.had_channel_error
     : (props.ticket.items || []).some((i) => i.had_channel_error)));
 const isManualClaim = computed(() => (typeof sv.value.is_manual !== 'undefined' ? !!sv.value.is_manual : !!props.ticket.is_manual));
-const alreadyRefunded = computed(() => !!(sv.value.txn_already_refunded || props.ticket.auto_refund_detected));
+// The double-refund badge must reflect the CURRENT refunded state, not just the
+// frozen snapshot: a charge can be refunded after submission (e.g. the system
+// auto-refunds an Omise non-dispense), and the badge has to stay in sync with the
+// live "Refunded" flag shown in Related Transactions. live_txn_refunded is read
+// fresh from the linked transaction/gateway log by the controller.
+const alreadyRefunded = computed(() => !!(props.ticket.live_txn_refunded || sv.value.txn_already_refunded || props.ticket.auto_refund_detected));
 const isVideo = (a) => a && a.mime && a.mime.startsWith('video/');
 
 // ---- Photo / video carousel (one large item at a time; shared index for
@@ -39,6 +46,10 @@ function nextMedia() {
 const showReject = ref(false);
 const rejectRemarks = ref('');
 const busy = ref(false);
+
+// Machine ID → Operations Dashboard, deep-linked+auto-searched to that machine
+// via the ?codes= param (opens in a new tab so the ticket stays open).
+const opsDashboardUrl = (code) => code ? ('/vends/customers?codes=' + encodeURIComponent(code)) : null;
 
 // ---- Sent-email preview (opened from an audit-trail email line) ----
 const emailPreview = ref(null); // the log entry's meta, or null when closed
@@ -68,7 +79,6 @@ const recClass = (r) => ({ proceed: 'text-green-700 bg-green-50 border-green-200
 // System-validation badges are a green (good/safe) vs red (danger/check) binary.
 const badgeGood = 'bg-green-50 border-green-200 text-green-700';
 const badgeBad = 'bg-red-50 border-red-200 text-red-700';
-const badgeWarn = 'bg-amber-50 border-amber-200 text-amber-700';
 const statusClass = (s) => ({ submitted: 'bg-yellow-100 text-yellow-800', auto_resolved: 'bg-cyan-100 text-cyan-800', verified: 'bg-blue-100 text-blue-800', rejected: 'bg-red-100 text-red-800', pending_approval: 'bg-indigo-100 text-indigo-800', approved: 'bg-indigo-100 text-indigo-800', pending_transfer_info: 'bg-orange-100 text-orange-800', scheduled: 'bg-violet-100 text-violet-800', completed: 'bg-green-100 text-green-800' }[s] || 'bg-gray-100 text-gray-700');
 
 const isPaynow = computed(() => t.value.refund_method === 'paynow');
@@ -161,7 +171,11 @@ const attachments = computed(() => t.value.attachments || []);
                     <dl class="grid grid-cols-3 gap-y-2 text-sm">
                         <dt class="text-gray-500">Name</dt><dd class="col-span-2 font-medium">{{ t.contact_name || '—' }}</dd>
                         <dt class="text-gray-500">Email</dt><dd class="col-span-2 font-medium break-all">{{ t.contact_email || '—' }}</dd>
-                        <dt class="text-gray-500">Machine ID</dt><dd class="col-span-2 font-medium">{{ t.vend_code || '—' }}</dd>
+                        <dt class="text-gray-500">Machine ID</dt><dd class="col-span-2 font-medium">
+                            <a v-if="t.vend_code" :href="opsDashboardUrl(t.vend_code)" target="_blank" class="text-teal-700 hover:underline" title="Open in Operations Dashboard">{{ t.vend_code }}</a>
+                            <span v-else>—</span>
+                        </dd>
+                        <dt class="text-gray-500">Site Name</dt><dd class="col-span-2 font-medium">{{ t.site_name || '—' }}</dd>
                         <dt class="text-gray-500">Day Chosen</dt>
                         <dd class="col-span-2 font-medium">
                             <span class="capitalize">{{ t.entered_day || '—' }}</span>
@@ -254,16 +268,6 @@ const attachments = computed(() => t.value.attachments || []);
                     title="This machine's payment provider (Nayax) issues refunds automatically at the terminal. No manual PayNow / PayPal payout is needed for this ticket.">⚡ Nayax auto-refund</span>
             </div>
 
-            <!-- Match sanity: does the customer's claim line up with the matched transaction? -->
-            <div v-if="t.match_checks && t.match_checks.length" class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-black/5">
-                <span class="text-[11px] font-semibold uppercase tracking-wide opacity-70 mr-1">Claim vs matched txn</span>
-                <span v-for="c in t.match_checks" :key="c.key"
-                    class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help"
-                    :class="c.ok ? badgeGood : (c.soft ? badgeWarn : badgeBad)"
-                    :title="c.detail">
-                    {{ c.ok ? '✓ ' : (c.soft ? '≈ ' : '⚠ ') }}{{ c.label }}
-                </span>
-            </div>
             <p v-if="t.system_validation && t.system_validation.evaluated_at" class="text-xs text-gray-400 mt-3">Evaluated {{ t.system_validation.evaluated_at }}</p>
         </div>
 
@@ -303,9 +307,9 @@ const attachments = computed(() => t.value.attachments || []);
                         </td>
                         <td>{{ it.unit_price !== null && it.unit_price !== undefined ? '$' + it.unit_price : '—' }}</td>
                         <td>
-                            <span v-if="it.had_channel_error" class="text-amber-700">
+                            <span v-if="it.had_channel_error" class="text-red-600 font-medium">
                                 {{ it.channel_error_desc || ('code ' + it.vend_channel_error_code) }}
-                                <span class="text-gray-500">(code {{ it.vend_channel_error_code }}<span v-if="it.channel_error_weightage">, weight {{ it.channel_error_weightage }}</span>)</span>
+                                <span class="text-red-400">(code {{ it.vend_channel_error_code }}<span v-if="it.channel_error_weightage">, weight {{ it.channel_error_weightage }}</span>)</span>
                             </span>
                             <span v-else class="text-gray-400">none</span>
                         </td>
@@ -331,7 +335,8 @@ const attachments = computed(() => t.value.attachments || []);
                         <span v-if="r.price_type" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">{{ r.price_type }}</span>
                         <span v-if="r.is_refunded" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">↩ Refunded</span>
                     </div>
-                    <a :href="r.link" target="_blank" class="shrink-0 text-teal-600 text-xs font-semibold hover:underline">View in Sales Transactions ↗</a>
+                    <a :href="r.link" target="_blank" class="shrink-0 text-teal-600 text-xs font-semibold hover:underline"
+                        title="Open Sales Transactions filtered to this machine on the same day">View same-day transactions ↗</a>
                 </div>
                 <!-- body: labeled detail grid -->
                 <div class="px-4 py-3">
@@ -346,7 +351,10 @@ const attachments = computed(() => t.value.attachments || []);
                         </div>
                         <div class="min-w-0">
                             <dt class="text-[10px] uppercase tracking-wide text-gray-500">Machine ID</dt>
-                            <dd class="text-sm text-gray-800 font-medium">{{ r.machine || '—' }}</dd>
+                            <dd class="text-sm font-medium">
+                                <a v-if="r.machine" :href="opsDashboardUrl(r.machine)" target="_blank" class="text-teal-700 hover:underline" title="Open in Operations Dashboard">{{ r.machine }}</a>
+                                <span v-else class="text-gray-800">—</span>
+                            </dd>
                         </div>
                         <div class="min-w-0">
                             <dt class="text-[10px] uppercase tracking-wide text-gray-500">Machine Prefix</dt>
@@ -420,6 +428,39 @@ const attachments = computed(() => t.value.attachments || []);
                 <h3 class="text-xs uppercase tracking-wide text-red-500 mb-2">Danger zone</h3>
                 <button @click="deleteTicket" :disabled="busy" class="w-full bg-red-600 text-white text-sm font-semibold rounded px-3 py-2 hover:bg-red-700">🗑 Delete ticket (permanent)</button>
                 <p class="text-xs text-gray-400 mt-2">Removes the ticket, its items, attachments and logs. For testing/cleanup.</p>
+            </div>
+        </div>
+
+        <!-- Prev / next navigation: page straight through the queue without going
+             back to the list. Previous = the newer request (row above on the
+             list); Next = the older request (row below). -->
+        <div class="flex items-stretch gap-3 pt-2 mt-1 border-t border-gray-100">
+            <!-- Previous (newer) -->
+            <Link v-if="prevTicket" :href="'/refunds/' + prevTicket.id" preserve-scroll
+                class="group flex-1 flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm transition hover:border-teal-300 hover:shadow hover:bg-teal-50/40">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 text-lg leading-none transition group-hover:bg-teal-600 group-hover:text-white">‹</span>
+                <span class="min-w-0">
+                    <span class="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Previous · newer</span>
+                    <span class="block text-sm font-bold text-teal-700 truncate">{{ prevTicket.reference }}</span>
+                </span>
+            </Link>
+            <div v-else class="flex-1 flex items-center gap-3 rounded-lg border border-dashed border-gray-200 px-4 py-3 text-gray-300">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-50 text-lg leading-none">‹</span>
+                <span class="text-xs">No newer request</span>
+            </div>
+
+            <!-- Next (older) -->
+            <Link v-if="nextTicket" :href="'/refunds/' + nextTicket.id" preserve-scroll
+                class="group flex-1 flex items-center justify-end gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm transition hover:border-teal-300 hover:shadow hover:bg-teal-50/40 text-right">
+                <span class="min-w-0">
+                    <span class="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Next · older</span>
+                    <span class="block text-sm font-bold text-teal-700 truncate">{{ nextTicket.reference }}</span>
+                </span>
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 text-lg leading-none transition group-hover:bg-teal-600 group-hover:text-white">›</span>
+            </Link>
+            <div v-else class="flex-1 flex items-center justify-end gap-3 rounded-lg border border-dashed border-gray-200 px-4 py-3 text-gray-300 text-right">
+                <span class="text-xs">No older request</span>
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-50 text-lg leading-none">›</span>
             </div>
         </div>
     </div>

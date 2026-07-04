@@ -7,6 +7,7 @@ use App\Models\RefundTicket;
 use App\Models\RefundTicketItem;
 use App\Models\RefundTicketLog;
 use App\Models\VendTransaction;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class RefundTicketService
@@ -78,6 +79,40 @@ class RefundTicketService
             abort(422, 'The selected charge could not be found.');
         }
 
+        // --- Duplicate-submission guard (matched claims only) ---------------
+        // One live claim per matched source. Stops a customer double-tapping
+        // Submit (two near-simultaneous POSTs) or re-scanning the same
+        // transaction while an earlier claim is still in play. A cache lock
+        // keyed by the source SERIALISES truly concurrent requests so the
+        // existence check below cannot be raced; the lock is released at the
+        // end of create() (finally) or auto-expires via its TTL. Rejected
+        // claims don't count, so a genuine resubmit after a rejection is still
+        // allowed. Manual claims have no source yet, so they're exempt.
+        $submitLock = null;
+        if (!$isManual && ($txn || $log)) {
+            $sourceKey = $txn ? ('vt-' . $txn->id) : ('pgl-' . $log->id);
+            $submitLock = Cache::lock('refund:submit:' . $sourceKey, 15);
+            // Wait up to 5s for a concurrent submit of the SAME source to finish.
+            // If the wait times out, proceed without the lock — the existence
+            // check below is still a strong guard (a slower duplicate lands after
+            // the first commits) and we never want to 500 a real customer.
+            try {
+                $submitLock->block(5);
+            } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+                $submitLock = null;
+            }
+
+            $liveClaimExists = RefundTicket::where('status', '!=', RefundTicket::STATUS_REJECTED)
+                ->when($txn, fn ($q) => $q->where('vend_transaction_id', $txn->id))
+                ->when(! $txn && $log, fn ($q) => $q->where('payment_gateway_log_id', $log->id))
+                ->exists();
+
+            if ($liveClaimExists) {
+                optional($submitLock)->release();
+                abort(422, 'A refund request for this transaction has already been submitted. Please check your email for your reference number — our team is reviewing it.');
+            }
+        }
+
         if ($txn) {
             $cashlessMfg = $txn->cashless_mfg;
             $channel = $this->matching->classifyChannel($txn->cashless_mfg, $txn->payment_gateway_log_id);
@@ -131,6 +166,7 @@ class RefundTicketService
             $method = $input['refund_method'] ?? RefundTicket::METHOD_PAYNOW;
         }
 
+        try {
         return DB::transaction(function () use ($input, $vend, $txn, $log, $isManual, $channel, $isAutoChannel, $validation, $claimedCents, $status, $method, $autoDetected) {
             $ticket = RefundTicket::create([
                 'reference' => 'PENDING',
@@ -199,6 +235,9 @@ class RefundTicketService
 
             return $ticket->fresh(['items']);
         });
+        } finally {
+            optional($submitLock)->release();
+        }
     }
 
     /**
@@ -217,7 +256,7 @@ class RefundTicketService
         // any stage of the workflow — the double-refund guard below excludes this
         // ticket itself. Only truly terminal / auto-resolved tickets are blocked.
         // If the ticket was payout-locked (approved/scheduled), re-matching
-        // re-derives the amount, so it is dropped back to Verified for re-approval
+        // re-derives the amount, so it is dropped back to Submitted for re-verify
         // (handled after save) — the approved figure never changes silently.
         if (in_array($ticket->status, [
             RefundTicket::STATUS_REJECTED,
@@ -345,8 +384,9 @@ class RefundTicketService
                 $ticket->status = RefundTicket::STATUS_AUTO_RESOLVED;
             } elseif (in_array($from, [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED], true)) {
                 // Re-matching changed the amount on a payout-locked ticket — send it
-                // back for re-approval so the approved figure is never stale.
-                $ticket->status = RefundTicket::STATUS_VERIFIED;
+                // back to Submitted so it must be re-verified (the single verify gate
+                // now also approves) and the locked-in figure is never stale.
+                $ticket->status = RefundTicket::STATUS_SUBMITTED;
             }
             $ticket->save();
 
@@ -442,6 +482,8 @@ class RefundTicketService
         // No line-item rows recorded — treat the whole transaction as one implicit item.
         if ($rows->isEmpty()) {
             $product = $txn->product ?? $txn->vendChannel?->product;
+            $headerHasError = (bool) $txn->vend_channel_error_id && $this->matching->isRealChannelError($txn->vendChannelError?->code);
+            $fallback = $headerHasError ? null : $this->matching->fallbackChannelError($txn, $txn->vend_channel_code);
             return [[
                 'vend_transaction_item_id' => null,
                 'product_id' => $txn->product_id,
@@ -449,10 +491,10 @@ class RefundTicketService
                 'product_sku' => $product?->code ?? $txn->vendChannel?->sku_code ?? $txn->vend_channel_code,
                 'vend_channel_code' => $txn->vend_channel_code,
                 'unit_price_cents' => (int) $txn->amount,
-                'had_channel_error' => (bool) $txn->vend_channel_error_id && $this->matching->isRealChannelError($txn->vendChannelError?->code),
-                'vend_channel_error_code' => $txn->vendChannelError?->code,
-                'channel_error_desc' => $txn->vendChannelError?->desc,
-                'channel_error_weightage' => $txn->vendChannelError?->weightage,
+                'had_channel_error' => $headerHasError || $fallback !== null,
+                'vend_channel_error_code' => $txn->vendChannelError?->code ?? ($fallback['code'] ?? null),
+                'channel_error_desc' => $txn->vendChannelError?->desc ?? ($fallback['desc'] ?? null),
+                'channel_error_weightage' => $txn->vendChannelError?->weightage ?? ($fallback['weightage'] ?? null),
                 'is_refunded' => (bool) $txn->is_refunded,
             ]];
         }
@@ -468,9 +510,13 @@ class RefundTicketService
             }
         }
 
-        return $selected->map(function ($item) {
+        return $selected->map(function ($item) use ($txn) {
             $error = $item->vendChannelError;
             $product = $item->product ?? $item->vendChannel?->product;
+            $itemHasError = (bool) $item->vend_channel_error_id && $this->matching->isRealChannelError($item->vend_channel_error_code);
+            // Fall back to items_json / header when the pre-created item row never
+            // got its channel error backfilled (see fallbackChannelError()).
+            $fallback = $itemHasError ? null : $this->matching->fallbackChannelError($txn, $item->vend_channel_code);
             return [
                 'vend_transaction_item_id' => $item->id,
                 'product_id' => $item->product_id,
@@ -478,13 +524,81 @@ class RefundTicketService
                 'product_sku' => $product?->code ?? $item->vendChannel?->sku_code ?? $item->vend_channel_code,
                 'vend_channel_code' => $item->vend_channel_code,
                 'unit_price_cents' => (int) ($item->unit_price_amount ?: ($item->vendChannel?->amount ?? 0)),
-                'had_channel_error' => (bool) $item->vend_channel_error_id && $this->matching->isRealChannelError($item->vend_channel_error_code),
-                'vend_channel_error_code' => $item->vend_channel_error_code,
-                'channel_error_desc' => $error?->desc,
-                'channel_error_weightage' => $error?->weightage,
+                'had_channel_error' => $itemHasError || $fallback !== null,
+                'vend_channel_error_code' => $item->vend_channel_error_code ?? ($fallback['code'] ?? null),
+                'channel_error_desc' => $error?->desc ?? ($fallback['desc'] ?? null),
+                'channel_error_weightage' => $error?->weightage ?? ($fallback['weightage'] ?? null),
                 'is_refunded' => (bool) $item->is_refunded,
             ];
         })->values()->all();
+    }
+
+    /**
+     * The system auto-refunded the underlying charge AFTER a customer had already
+     * raised a refund ticket for it (e.g. RefundOmiseJob refunds an Omise sale
+     * that didn't dispense). Resolve every live ticket for that charge and email
+     * the customer that it was handled automatically — no manual PayNow / PayPal
+     * payout is needed. This also stops a second (manual) payout going out on top
+     * of the processor refund.
+     *
+     * Matched by order_id / payment_gateway_log_id / vend_transaction_id so it
+     * works whether the ticket linked a sales transaction or a bare gateway log.
+     * Terminal + already-auto-resolved tickets are skipped (idempotent), so
+     * re-running the payment job never double-emails.
+     *
+     * Best-effort by contract: callers (payment jobs) MUST wrap this so a
+     * ticket/email hiccup can never break the actual payment refund.
+     *
+     * @return int number of tickets resolved
+     */
+    public function markAutoRefundedByCharge(?string $orderId, ?int $paymentGatewayLogId = null, ?int $vendTransactionId = null): int
+    {
+        if (!$orderId && !$paymentGatewayLogId && !$vendTransactionId) {
+            return 0;
+        }
+
+        $tickets = RefundTicket::query()
+            ->whereNotIn('status', [
+                RefundTicket::STATUS_REJECTED,
+                RefundTicket::STATUS_COMPLETED,
+                RefundTicket::STATUS_AUTO_RESOLVED,
+            ])
+            ->where(function ($q) use ($orderId, $paymentGatewayLogId, $vendTransactionId) {
+                if ($orderId) {
+                    $q->orWhere('order_id', $orderId);
+                }
+                if ($paymentGatewayLogId) {
+                    $q->orWhere('payment_gateway_log_id', $paymentGatewayLogId);
+                }
+                if ($vendTransactionId) {
+                    $q->orWhere('vend_transaction_id', $vendTransactionId);
+                }
+            })
+            ->get();
+
+        $resolved = 0;
+        foreach ($tickets as $ticket) {
+            $from = $ticket->status;
+            $ticket->update([
+                'status' => RefundTicket::STATUS_AUTO_RESOLVED,
+                'auto_refund_detected' => true,
+            ]);
+            $this->log(
+                $ticket,
+                'auto_resolved',
+                $from,
+                $ticket->status,
+                'System auto-refunded the charge; ticket resolved automatically',
+                'System'
+            );
+            // Tell the customer the refund was already processed automatically.
+            // RefundEmailService::send is itself gated by REFUND_EMAIL_ENABLED and
+            // internally guarded, so this line never throws on a mail failure.
+            app(RefundEmailService::class)->send($ticket, RefundEmailService::T_AUTO_REFUND);
+            $resolved++;
+        }
+
+        return $resolved;
     }
 
     public function log(RefundTicket $ticket, string $action, ?string $from, ?string $to, ?string $note = null, string $actorLabel = 'System', ?int $actorId = null): void
