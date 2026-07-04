@@ -22,7 +22,6 @@ return new class extends Migration
             'create refunds',
             'update refunds',
             'verify refunds',
-            'approve refunds',
             'payout refunds',
         ];
 
@@ -31,10 +30,10 @@ return new class extends Migration
         }
 
         $map = [
-            'superadmin' => ['read refunds', 'create refunds', 'update refunds', 'verify refunds', 'approve refunds', 'payout refunds'],
+            'superadmin' => ['read refunds', 'create refunds', 'update refunds', 'verify refunds', 'payout refunds'],
             'operator'   => ['read refunds', 'verify refunds'],
             'admin'      => ['read refunds', 'create refunds', 'update refunds', 'verify refunds', 'payout refunds'],
-            'supervisor' => ['read refunds', 'approve refunds'],
+            'supervisor' => ['read refunds', 'verify refunds'],
         ];
 
         foreach ($map as $roleName => $perms) {
@@ -51,7 +50,7 @@ return new class extends Migration
     {
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        foreach (['read refunds', 'create refunds', 'update refunds', 'verify refunds', 'approve refunds', 'payout refunds'] as $name) {
+        foreach (['read refunds', 'create refunds', 'update refunds', 'verify refunds', 'payout refunds'] as $name) {
             $permission = Permission::where('name', $name)->where('guard_name', 'web')->first();
             if ($permission) {
                 $permission->delete();

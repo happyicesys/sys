@@ -135,6 +135,7 @@ class RefundController extends Controller
         return Inertia::render('Refund/Show', [
             'ticket' => $this->toDetail($ticket),
             'emailTemplates' => [
+                RefundEmailService::T_RECEIVED => 'Request received (acknowledgement)',
                 RefundEmailService::T_AUTO_REFUND => 'Auto-refund already triggered',
                 RefundEmailService::T_CANCELLED_NO_CHARGE => 'Transaction cancelled (no charge)',
                 RefundEmailService::T_INFO_REQUIRED => 'Additional info required (PayNow)',
@@ -167,9 +168,20 @@ class RefundController extends Controller
             RefundTicket::STATUS_SUBMITTED,
             RefundTicket::STATUS_PENDING_TRANSFER_INFO,
         ], 'verify');
+
+        // Manager-approval step removed: verifying a claim now moves it straight
+        // to the payout-ready (Approved) gate. We carry over the double-refund
+        // guard that used to live on approve() so we still block paying the same
+        // transaction twice.
+        if ($conflict = $ticket->conflictingRefund()) {
+            return back()->withErrors([
+                'ticket' => "Cannot verify — this transaction is already being refunded under {$conflict->reference} (" . ($this->statusLabels()[$conflict->status] ?? $conflict->status) . ').',
+            ]);
+        }
+
         $from = $ticket->status;
         $ticket->update([
-            'status' => RefundTicket::STATUS_VERIFIED,
+            'status' => RefundTicket::STATUS_APPROVED,
             'ops_verified_by' => auth()->id(),
             'ops_verified_at' => now(),
         ]);
@@ -184,7 +196,7 @@ class RefundController extends Controller
         $this->guardTransition($ticket, [
             RefundTicket::STATUS_SUBMITTED,
             RefundTicket::STATUS_VERIFIED,
-            RefundTicket::STATUS_PENDING_APPROVAL,
+            RefundTicket::STATUS_APPROVED,
             RefundTicket::STATUS_PENDING_TRANSFER_INFO,
         ], 'reject');
         $from = $ticket->status;
@@ -202,6 +214,7 @@ class RefundController extends Controller
         $this->guardTransition($ticket, [
             RefundTicket::STATUS_SUBMITTED,
             RefundTicket::STATUS_VERIFIED,
+            RefundTicket::STATUS_APPROVED,
         ], 'request info on');
         $from = $ticket->status;
         $ticket->update(['status' => RefundTicket::STATUS_PENDING_TRANSFER_INFO]);
@@ -211,51 +224,11 @@ class RefundController extends Controller
         return back();
     }
 
-    public function submitForApproval(RefundTicket $ticket)
-    {
-        $this->guardTransition($ticket, [
-            RefundTicket::STATUS_VERIFIED,
-        ], 'submit for approval');
-        $from = $ticket->status;
-        $ticket->update([
-            'status' => RefundTicket::STATUS_PENDING_APPROVAL,
-            'submitted_for_approval_by' => auth()->id(),
-            'submitted_for_approval_at' => now(),
-        ]);
-        $this->tickets->log($ticket, 'submit_approval', $from, $ticket->status, 'Submitted for manager approval', auth()->user()?->name ?? 'Admin', auth()->id());
-
-        return back();
-    }
-
-    public function approve(RefundTicket $ticket)
-    {
-        $this->guardTransition($ticket, [
-            RefundTicket::STATUS_PENDING_APPROVAL,
-        ], 'approve');
-
-        // Double-refund guard: block if another ticket is already refunding this transaction.
-        if ($conflict = $ticket->conflictingRefund()) {
-            return back()->withErrors([
-                'ticket' => "Cannot approve — this transaction is already being refunded under {$conflict->reference} (" . ($this->statusLabels()[$conflict->status] ?? $conflict->status) . ').',
-            ]);
-        }
-
-        $from = $ticket->status;
-        $ticket->update([
-            'status' => RefundTicket::STATUS_APPROVED,
-            'manager_approved_by' => auth()->id(),
-            'manager_approved_at' => now(),
-        ]);
-        $this->tickets->log($ticket, 'approved', $from, $ticket->status, 'Manager approved', auth()->user()?->name ?? 'Manager', auth()->id());
-
-        return back();
-    }
-
     public function complete(RefundTicket $ticket)
     {
-        // Only a manager-approved (or already-scheduled-into-a-batch) ticket can
+        // Only a verified/approved (or already-scheduled-into-a-batch) ticket can
         // be marked paid — this is what stops 'complete' from skipping the
-        // approval gate, and stops a completed ticket being completed twice.
+        // verification gate, and stops a completed ticket being completed twice.
         $this->guardTransition($ticket, [
             RefundTicket::STATUS_APPROVED,
             RefundTicket::STATUS_SCHEDULED,
@@ -407,6 +380,10 @@ class RefundController extends Controller
     {
         $matched = (bool) ($t->vend_transaction_id || $t->payment_gateway_log_id);
 
+        // Frozen validation snapshot (same source the Show page badges read from),
+        // so the list-row icons match the ticket detail exactly.
+        $sv = $t->system_validation_json ?? [];
+
         // Resolve the customer's "Today / Yesterday" choice to a real calendar
         // date, anchored on the SUBMISSION date (not now) so it still reads right
         // when Ops handles the refund days later. Custom picks are already a date.
@@ -427,7 +404,9 @@ class RefundController extends Controller
             'reason_code' => $t->reason_code,
             'status' => $t->status,
             'recommendation' => $t->system_recommendation,
-            'is_manual' => $t->is_manual,
+            'is_manual' => array_key_exists('is_manual', $sv) ? (bool) $sv['is_manual'] : (bool) $t->is_manual,
+            'had_channel_error' => (bool) ($sv['had_channel_error'] ?? false),
+            'already_refunded' => (bool) ($sv['txn_already_refunded'] ?? $t->auto_refund_detected),
             'matched' => $matched,
             'entered_day_date' => $enteredDayDate ? $enteredDayDate->format('ymd') : null,
             'contact_name' => $t->contact_name,
@@ -613,6 +592,7 @@ class RefundController extends Controller
                 'from_status' => $l->from_status,
                 'to_status' => $l->to_status,
                 'note' => $l->note,
+                'meta' => $l->meta,
                 'created_at' => optional($l->created_at)->toDateTimeString(),
             ])->values(),
         ]);
@@ -737,11 +717,10 @@ class RefundController extends Controller
     protected function statusLabels(): array
     {
         return [
-            RefundTicket::STATUS_SUBMITTED => 'Submitted',
+            RefundTicket::STATUS_SUBMITTED => 'Received',
             RefundTicket::STATUS_AUTO_RESOLVED => 'Auto-resolved',
             RefundTicket::STATUS_VERIFIED => 'Verified',
             RefundTicket::STATUS_REJECTED => 'Rejected',
-            RefundTicket::STATUS_PENDING_APPROVAL => 'Pending approval',
             RefundTicket::STATUS_APPROVED => 'Approved',
             RefundTicket::STATUS_PENDING_TRANSFER_INFO => 'Pending info',
             RefundTicket::STATUS_COMPLETED => 'Completed',

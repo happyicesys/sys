@@ -20,10 +20,12 @@ class RefundTicketLog extends Model
         'from_status',
         'to_status',
         'note',
+        'meta',
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
+        'meta' => 'array',
     ];
 
     public function ticket()

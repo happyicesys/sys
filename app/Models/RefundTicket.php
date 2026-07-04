@@ -15,7 +15,6 @@ class RefundTicket extends Model
     const STATUS_AUTO_RESOLVED = 'auto_resolved';            // Nayax external / already auto-refunded
     const STATUS_VERIFIED = 'verified';
     const STATUS_REJECTED = 'rejected';
-    const STATUS_PENDING_APPROVAL = 'pending_approval';
     const STATUS_APPROVED = 'approved';
     const STATUS_PENDING_TRANSFER_INFO = 'pending_transfer_info';
     const STATUS_SCHEDULED = 'scheduled';
@@ -70,10 +69,6 @@ class RefundTicket extends Model
         'ops_verified_by',
         'ops_verified_at',
         'ops_remarks',
-        'submitted_for_approval_by',
-        'submitted_for_approval_at',
-        'manager_approved_by',
-        'manager_approved_at',
         'scheduled_at',
         'payout_batch_id',
         'paid_at',
@@ -92,8 +87,6 @@ class RefundTicket extends Model
         'claimed_amount_cents' => 'integer',
         'entered_amount_cents' => 'integer',
         'ops_verified_at' => 'datetime',
-        'submitted_for_approval_at' => 'datetime',
-        'manager_approved_at' => 'datetime',
         'scheduled_at' => 'datetime',
         'paid_at' => 'datetime',
         'completed_at' => 'datetime',

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Services\Refund\RefundEmailService;
 use App\Services\Refund\RefundMatchingService;
 use App\Services\Refund\RefundTicketService;
 use Illuminate\Http\Request;
@@ -25,11 +26,13 @@ class RefundFormController extends Controller
 
     protected RefundMatchingService $matching;
     protected RefundTicketService $tickets;
+    protected RefundEmailService $email;
 
-    public function __construct(RefundMatchingService $matching, RefundTicketService $tickets)
+    public function __construct(RefundMatchingService $matching, RefundTicketService $tickets, RefundEmailService $email)
     {
         $this->matching = $matching;
         $this->tickets = $tickets;
+        $this->email = $email;
     }
 
     /**
@@ -249,6 +252,22 @@ class RefundFormController extends Controller
                     'size' => $photo->getSize(),
                 ]);
             }
+        }
+
+        // First customer-facing email, sent automatically on submission.
+        // Nayax auto-refund tickets get the "already processed" note; everything
+        // else gets the acknowledgement with the RFD reference number. Delivery is
+        // still gated by REFUND_EMAIL_ENABLED (logged-only while off), and every
+        // send is recorded on the ticket's audit trail.
+        try {
+            $this->email->send(
+                $ticket,
+                $ticket->is_auto_refund_channel
+                    ? RefundEmailService::T_AUTO_REFUND
+                    : RefundEmailService::T_RECEIVED
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Refund submission email failed', ['ticket' => $ticket->reference, 'error' => $e->getMessage()]);
         }
 
         return response()->json([

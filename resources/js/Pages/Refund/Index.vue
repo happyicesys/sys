@@ -3,6 +3,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 
 const props = defineProps({
     tickets: { type: Object, required: true },
@@ -129,9 +130,13 @@ const statusClass = (s) => ({
     completed: 'bg-green-100 text-green-800',
 }[s] || 'bg-gray-100 text-gray-700');
 
-const recClass = (r) => ({
-    proceed: 'text-green-700', review: 'text-amber-700', reject: 'text-red-700',
-}[r] || 'text-gray-500');
+// Three system-validation checks mirrored from the ticket detail page's
+// "System validation" badges (green = the favourable state, red = otherwise).
+const validationChecks = (t) => [
+    { ok: !!t.had_channel_error, label: t.had_channel_error ? 'Channel error detected' : 'No channel error' },
+    { ok: !t.is_manual, label: t.is_manual ? 'Manual claim' : 'Auto-matched' },
+    { ok: !t.already_refunded, label: t.already_refunded ? 'Already refunded' : 'Not yet refunded' },
+];
 </script>
 
 <template>
@@ -223,7 +228,7 @@ const recClass = (r) => ({
                         <th class="text-left px-4 py-2">Pay Method</th>
                         <th class="text-left px-4 py-2">Refund Amt</th>
                         <th class="text-left px-4 py-2">Refund Method</th>
-                        <th class="text-left px-4 py-2 border-l border-gray-200">Validation</th>
+                        <th class="text-center px-4 py-2 border-l border-gray-200">Validation</th>
                         <th class="text-left px-4 py-2">Export for Bank Txf</th>
                         <th class="text-left px-4 py-2">Refund Done?</th>
                     </tr>
@@ -246,9 +251,12 @@ const recClass = (r) => ({
                         <td class="px-4 py-3">{{ t.matched ? (t.pay_method || t.payment_channel || '—') : '—' }}</td>
                         <td class="px-4 py-3 font-medium">{{ t.matched ? '$' + t.amount : '—' }}</td>
                         <td class="px-4 py-3">{{ t.refund_method }}</td>
-                        <td class="px-4 py-3 border-l border-gray-100">
-                            <span class="text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.status)">{{ statuses[t.status] || t.status }}</span>
-                            <span class="block mt-1 text-[11px] font-semibold capitalize" :class="recClass(t.recommendation)">{{ t.recommendation }}</span>
+                        <td class="px-4 py-3 border-l border-gray-100 text-center">
+                            <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.status)">{{ statuses[t.status] || t.status }}</span>
+                            <span class="flex items-center justify-center gap-0.5 mt-1.5">
+                                <component :is="c.ok ? CheckCircleIcon : XCircleIcon" v-for="(c, i) in validationChecks(t)" :key="i"
+                                    class="h-5 w-5" :class="c.ok ? 'text-green-600' : 'text-red-500'" :title="c.label" />
+                            </span>
                         </td>
                         <td class="px-4 py-3" @click.stop>
                             <a v-if="t.batch" :href="'/refunds/batch/' + t.batch.id + '/download'"

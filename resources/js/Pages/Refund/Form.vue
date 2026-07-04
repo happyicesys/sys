@@ -18,7 +18,7 @@ const machineName = ref(props.machineName || null);
 const siteName = ref(props.siteName || null);
 const machineResolved = ref(props.machineFound);
 
-const step = ref(props.machineFound ? 'name' : 'enter_machine');
+const step = ref('enter_machine');
 const loading = ref(false);
 const errorMsg = ref('');
 
@@ -32,8 +32,6 @@ const selectedRawIds = ref([]); // the specific item rows the customer tapped
 const reasonCode = ref('not_dispensed');
 const reasonText = ref('');
 const customerName = ref('');
-// first name only, for a friendlier greeting ("Sorry, Brian —")
-const firstName = computed(() => (customerName.value || '').trim().split(/\s+/)[0] || '');
 const refundMethod = ref('paynow');
 const payoutDestination = ref('');
 const contactEmail = ref('');
@@ -174,17 +172,19 @@ const itemGroups = computed(() => {
 });
 
 const titles = {
-    1: 'Refund', 2: 'When?', 3: 'Amount', 4: 'Your Purchase', '4b': 'Not Found',
+    2: 'When?', 3: 'Amount', 4: 'Your Purchase', '4b': 'Not Found',
     '4c': 'Manual Review', 5: 'Problem Item(s)', 6: 'What Happened?', 7: 'Refund Payout',
-    8: 'Review', 9: 'Done', enter_machine: 'Machine ID', name: 'Refund',
+    8: 'Review', 9: 'Done', enter_machine: 'Machine ID',
 };
 const title = computed(() => titles[step.value] || 'Refund');
 
-// progress (steps 2..8 -> 7 dots)
-const order = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+// progress (steps 2..8 -> 7 dots; the current step lights up)
+const order = [2, 3, 4, 5, 6, 7, 8];
 const progressOn = computed(() => {
+    // 4b / 4c are string variants of step 4
     const s = typeof step.value === 'number' ? step.value : 4;
-    return Math.max(0, order.indexOf(s) - 1);
+    const i = order.indexOf(s);
+    return i === -1 ? 0 : i + 1;
 });
 
 function emailValid(v) {
@@ -229,10 +229,25 @@ function onManualAmountInput(e) {
     e.target.value = manualAmount.value;
 }
 
-async function resolveMachine() {
+// Machine ID is a 4-digit code — strip anything non-numeric and cap at 4 digits.
+function onMachineIdInput(e) {
+    const digits = String(e.target.value).replace(/\D/g, '').slice(0, 4);
+    machineId.value = digits;
+    e.target.value = digits;
+    if (!props.machineFound) machineResolved.value = false;
+}
+
+// Combined first step: capture Machine ID (if not already resolved from the QR
+// link) + the customer's name, then resolve and jump straight to the hero.
+async function startRefund() {
     errorMsg.value = '';
+    if (!customerName.value || !customerName.value.trim()) { errorMsg.value = 'Please enter your name.'; return; }
+
+    // Machine already confirmed via the QR link — no need to re-enter/re-check the ID.
+    if (machineResolved.value && machineId.value) { step.value = 2; return; }
+
     const code = (machineId.value || '').trim();
-    if (!code) { errorMsg.value = 'Please enter the machine ID.'; return; }
+    if (!/^\d{4}$/.test(code)) { errorMsg.value = 'Please enter the 4-digit Machine ID.'; return; }
     loading.value = true;
     try {
         const { data } = await window.axios.post('/refund/resolve', { machineID: code });
@@ -241,9 +256,9 @@ async function resolveMachine() {
             machineName.value = data.machineName;
             siteName.value = data.siteName;
             machineResolved.value = true;
-            step.value = 'name';
+            step.value = 2;
         } else {
-            errorMsg.value = "We couldn't find that machine ID. Please check the number on the machine and try again.";
+            errorMsg.value = "We couldn't find that Machine ID. Please check the number on the machine and try again.";
         }
     } catch (e) {
         errorMsg.value = 'Something went wrong. Please try again.';
@@ -305,11 +320,6 @@ const selectedAmount = computed(() => {
 function next() {
     errorMsg.value = '';
     const s = step.value;
-    if (s === 'name') {
-        if (!customerName.value || !customerName.value.trim()) { errorMsg.value = 'Please enter your name.'; return; }
-        step.value = 1; return;
-    }
-    if (s === 1) { step.value = 2; return; }
     if (s === 2) {
         if (dayMode.value === 'custom' && !customDate.value) { errorMsg.value = 'Please pick the date you bought.'; return; }
         step.value = 3; return;
@@ -364,8 +374,7 @@ function next() {
 
 function back() {
     const s = step.value;
-    if (s === 2) step.value = 1;
-    else if (s === 1) step.value = 'name';
+    if (s === 2) step.value = 'enter_machine';
     else if (s === 3) step.value = 2;
     else if (s === 4 || s === '4b') step.value = 3;
     else if (s === '4c') step.value = '4b';
@@ -458,7 +467,7 @@ async function submitManual() {
                 </div>
             </div>
         </div>
-        <div class="progress" v-if="machineResolved && step !== 9 && step !== 'enter_machine' && step !== 'name'">
+        <div class="progress" v-if="machineResolved && step !== 9 && step !== 'enter_machine'">
             <i v-for="n in 7" :key="n" :class="{ on: n <= progressOn }"></i>
         </div>
     </div>
@@ -466,37 +475,41 @@ async function submitManual() {
     <div class="body">
         <p v-if="errorMsg" class="err">{{ errorMsg }}</p>
 
-        <!-- enter machine id (no/invalid machineID in the QR) -->
+        <!-- enter machine id + name (no/invalid machineID in the QR) -->
         <div v-if="step === 'enter_machine'">
             <div class="emptywrap" style="padding-top:14px">
-                <div class="e">🥤</div>
+                <div class="e">
+                    <svg width="60" height="76" viewBox="0 0 60 76" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 16px">
+                        <rect x="6" y="3" width="48" height="70" rx="8" fill="#0f766e"/>
+                        <rect x="11" y="8" width="26" height="46" rx="4" fill="#ecfdfb"/>
+                        <line x1="11" y1="20" x2="37" y2="20" stroke="#99f6e4" stroke-width="2"/>
+                        <line x1="11" y1="31" x2="37" y2="31" stroke="#99f6e4" stroke-width="2"/>
+                        <line x1="11" y1="42" x2="37" y2="42" stroke="#99f6e4" stroke-width="2"/>
+                        <circle cx="17" cy="14.5" r="3" fill="#f97316"/>
+                        <circle cx="25" cy="14.5" r="3" fill="#38bdf8"/>
+                        <circle cx="33" cy="14.5" r="3" fill="#f43f5e"/>
+                        <rect x="14" y="24" width="6" height="6" rx="1.5" fill="#38bdf8"/>
+                        <rect x="23" y="24" width="6" height="6" rx="1.5" fill="#f43f5e"/>
+                        <rect x="30" y="24" width="6" height="6" rx="1.5" fill="#f97316"/>
+                        <rect x="14" y="35" width="6" height="6" rx="1.5" fill="#f43f5e"/>
+                        <rect x="23" y="35" width="6" height="6" rx="1.5" fill="#f97316"/>
+                        <rect x="30" y="35" width="6" height="6" rx="1.5" fill="#38bdf8"/>
+                        <rect x="42" y="9" width="8" height="10" rx="2" fill="#5eead4"/>
+                        <circle cx="46" cy="25" r="2" fill="#5eead4"/>
+                        <circle cx="46" cy="32" r="2" fill="#5eead4"/>
+                        <rect x="11" y="58" width="38" height="9" rx="2" fill="#0b5c56"/>
+                    </svg>
+                </div>
                 <div class="h2">Which machine?</div>
-                <p class="p" style="text-align:center">Enter the <b>Machine ID</b> printed on the vending machine (usually near the QR sticker or on the front panel).</p>
+                <p class="p" style="text-align:center">Enter the <b>Machine ID</b> printed on the vending machine (usually near the QR sticker or on the front panel), and your name to start.</p>
             </div>
-            <label class="fld">Machine ID</label>
-            <input class="inp" v-model="machineId" placeholder="e.g. SG-00123" @keyup.enter="resolveMachine" autocapitalize="characters" />
-            <button class="btn" style="margin-top:14px" @click="resolveMachine" :disabled="loading">{{ loading ? 'Checking…' : 'Continue' }}</button>
-        </div>
-
-        <!-- name -->
-        <div v-else-if="step === 'name'">
-            <div class="emptywrap" style="padding-top:14px">
-                <div class="e">👋</div>
-                <div class="h2">Hi there! What's your name?</div>
-                <p class="p" style="text-align:center">So we can address you properly while we sort out your refund.</p>
-            </div>
-            <label class="fld">Your name</label>
-            <input class="inp" v-model="customerName" placeholder="Enter your name" @keyup.enter="next" autocapitalize="words" />
-            <button class="btn" style="margin-top:14px" @click="next">Continue</button>
-        </div>
-
-        <!-- 1 hero -->
-        <div v-else-if="step === 1" class="hero">
-            <div class="icbadge"><div class="ic">🍦🍱</div></div>
-            <h3>Didn't get<br>your item?</h3>
-            <p><template v-if="firstName">Sorry about that, <b>{{ firstName }}</b>. </template>No worries — we'll help you get your money back in a few quick taps.</p>
-            <button class="heroBtn" @click="next">Request a refund<small>Takes less than a minute</small></button>
-            <div class="trust">🔒 Secure · checked against this machine's records</div>
+            <template v-if="!machineResolved">
+                <label class="fld">Machine ID <span class="req">(required)</span></label>
+                <input class="inp" v-model="machineId" inputmode="numeric" maxlength="4" placeholder="e.g. 1234" @input="onMachineIdInput" @keyup.enter="startRefund" />
+            </template>
+            <label class="fld">Your name <span class="req">(required)</span></label>
+            <input class="inp" v-model="customerName" placeholder="Enter your name" @keyup.enter="startRefund" autocapitalize="words" />
+            <button class="btn" style="margin-top:14px" @click="startRefund" :disabled="loading">{{ loading ? 'Checking…' : 'Continue' }}</button>
         </div>
 
         <!-- 2 day -->
@@ -562,7 +575,7 @@ async function submitManual() {
             <label class="fld">Around what time? <span class="dayhint">({{ dayLabel }})</span></label>
             <input class="inp" type="time" v-model="manualTime" />
 
-            <label class="fld">Amount paid</label>
+            <label class="fld">Total amount paid</label>
             <div class="amtrow"><span class="cur2">$</span><input class="inp amt2" type="text" inputmode="numeric" :value="manualAmount" @input="onManualAmountInput" placeholder="0.00" /></div>
 
             <label class="fld">How did you pay?</label>
@@ -571,14 +584,17 @@ async function submitManual() {
                 <option v-for="m in manualPayMethods" :key="m.value" :value="m.value">{{ m.label }}</option>
             </select>
 
-            <label class="fld">What did you buy? <span class="dayhint">(add all affected items)</span></label>
+            <label class="fld">Affected Items? <span class="dayhint">(add all affected items)</span></label>
 
             <!-- items already added -->
             <div v-for="(it, idx) in manualItems" :key="it.product_id + '-' + it.channel_code" class="itemrow">
                 <span class="ddthumb"><img v-if="it.image_url" :src="it.image_url" alt="" /><span v-else>🥡</span></span>
                 <span class="ddinfo">
                     <span class="ddname">{{ it.name }}</span>
-                    <span class="ddchan" v-if="it.channel_code">Channel #{{ it.channel_code }}</span>
+                    <span class="ddmeta">
+                        <span class="ddchan" v-if="it.channel_code">Channel #{{ it.channel_code }}</span>
+                        <span class="ddprice-inline" v-if="it.price_cents">${{ (it.price_cents / 100).toFixed(2) }}</span>
+                    </span>
                 </span>
                 <div class="stepper sm">
                     <button type="button" @click="bumpManualQty(it, -1)">−</button>
@@ -730,7 +746,7 @@ async function submitManual() {
         </div>
     </div>
 
-    <div class="footer" v-if="step !== 1 && step !== 'enter_machine' && step !== '4b' && step !== 'name'">
+    <div class="footer" v-if="step !== 'enter_machine' && step !== '4b'">
         <button class="btn" @click="next" :disabled="loading">
             {{ loading ? 'Please wait…' : (step === 8 || (step === 7 && manualMode)) ? 'Submit request' : step === 9 ? 'Done' : 'Continue' }}
         </button>
@@ -834,6 +850,8 @@ label.fld .dayhint{color:#64748b;font-weight:600}
 .ddname.muted{color:#94a3b8;font-weight:500;flex:1}
 .ddinfo{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
 .ddchan{font-size:11px;font-weight:700;color:#0e7490;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ddmeta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ddprice-inline{font-size:11px;font-weight:800;color:#0f172a;background:#f1f5f9;border-radius:6px;padding:1px 7px;white-space:nowrap}
 .ddthumb{width:34px;height:34px;border-radius:9px;flex:0 0 auto;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:16px}
 .ddthumb img{width:100%;height:100%;object-fit:cover}
 .ddlist{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;max-height:260px;overflow:auto;box-shadow:0 10px 24px rgba(2,6,23,.12)}
