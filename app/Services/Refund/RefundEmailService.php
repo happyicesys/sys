@@ -124,6 +124,130 @@ class RefundEmailService
         ];
     }
 
+    /** Friendly label for a reason code (mirrors RefundFormController::REASON_CODES). */
+    protected function reasonLabel(?string $code): ?string
+    {
+        if (!$code) {
+            return null;
+        }
+
+        return [
+            'not_dispensed' => 'Product did not dispense',
+            'partial' => 'Only part of my order dispensed',
+            'wrong_item' => 'Wrong item dispensed',
+            'quality' => 'Quality issue',
+            'double_charge' => 'Charged twice',
+            'other' => 'Other',
+        ][$code] ?? ucfirst(str_replace('_', ' ', $code));
+    }
+
+    /** Human label for the chosen purchase day (today / yesterday / a date). */
+    protected function dayLabel(?string $day): ?string
+    {
+        if (!$day) {
+            return null;
+        }
+        if ($day === 'today') {
+            return 'Today';
+        }
+        if ($day === 'yesterday') {
+            return 'Yesterday';
+        }
+
+        return $day;
+    }
+
+    /**
+     * Customer-facing summary of what was submitted — mirrors the "Customer
+     * submission" panel on the admin ticket, trimmed to fields that make sense
+     * to the customer. Returns [label => value] pairs, blanks omitted.
+     *
+     * @return array<string, string>
+     */
+    protected function submissionRows(RefundTicket $ticket): array
+    {
+        $rows = [];
+        $rows['Reference'] = (string) $ticket->reference;
+        if ($ticket->vend_code) {
+            $rows['Machine ID'] = (string) $ticket->vend_code;
+        }
+        if ($day = $this->dayLabel($ticket->entered_day)) {
+            $rows['Purchase date'] = $day;
+        }
+        if ($ticket->entered_amount_cents !== null) {
+            $rows['Amount paid'] = '$' . number_format((int) $ticket->entered_amount_cents / 100, 2);
+        }
+        if (($ticket->claimed_amount_cents ?? 0) > 0) {
+            $rows['Refund amount'] = '$' . number_format((int) $ticket->claimed_amount_cents / 100, 2);
+        }
+        if ($reason = $this->reasonLabel($ticket->reason_code)) {
+            $rows['Reason'] = $reason;
+        }
+        if (trim((string) $ticket->reason_text) !== '') {
+            $rows['Note'] = trim((string) $ticket->reason_text);
+        }
+
+        // How they'll be refunded.
+        if ($ticket->is_auto_refund_channel) {
+            $rows['Refund method'] = 'Automatic to your card';
+        } elseif ($ticket->refund_method === 'paypal') {
+            $rows['Refund to'] = trim('PayPal ' . ($ticket->payout_destination ?? ''));
+        } elseif ($ticket->refund_method === 'paynow' && $ticket->payout_destination) {
+            $rows['Refund to'] = 'PayNow ' . $ticket->payout_destination;
+        }
+
+        if ($ticket->created_at) {
+            $rows['Submitted'] = $ticket->created_at->format('Y-m-d H:i');
+        }
+
+        return $rows;
+    }
+
+    /** Plain-text rendering of the request summary. */
+    protected function summaryText(RefundTicket $ticket): string
+    {
+        $rows = $this->submissionRows($ticket);
+        if (!$rows) {
+            return '';
+        }
+        $lines = ['Request summary:'];
+        foreach ($rows as $label => $value) {
+            $lines[] = '- ' . $label . ': ' . $value;
+        }
+
+        return implode("\n", $lines) . "\n\n";
+    }
+
+    /** Styled HTML card of the request summary for the delivered email. */
+    protected function summaryHtml(RefundTicket $ticket): string
+    {
+        $rows = $this->submissionRows($ticket);
+        if (!$rows) {
+            return '';
+        }
+        $rowsHtml = '';
+        foreach ($rows as $label => $value) {
+            // Free-text notes can be long — give them a full-width, left-aligned row
+            // so they don't wrap awkwardly against the right edge.
+            if ($label === 'Note') {
+                $rowsHtml .= '<tr><td colspan="2" style="padding:7px 0;vertical-align:top;">'
+                    . '<div style="color:#64748b;font-size:13px;margin-bottom:2px;">Note</div>'
+                    . '<div style="color:#0f172a;font-size:13px;font-weight:700;">' . e($value) . '</div>'
+                    . '</td></tr>';
+                continue;
+            }
+            $rowsHtml .= '<tr>'
+                . '<td style="padding:7px 0;color:#64748b;font-size:13px;vertical-align:top;white-space:nowrap;">' . e($label) . '</td>'
+                . '<td style="padding:7px 0 7px 16px;color:#0f172a;font-size:13px;font-weight:700;text-align:right;vertical-align:top;">' . e($value) . '</td>'
+                . '</tr>';
+        }
+
+        return '<div style="border:1px solid #e2e8f0;border-radius:12px;padding:6px 16px 12px;margin:6px 0 14px;background:#f8fafc;">'
+            . '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#64748b;padding:10px 0 2px;">Your request summary</div>'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">' . $rowsHtml . '</table>'
+            . '</div>';
+    }
+
     /** Plain-text rendering of the affected items (audit-trail / text fallback). */
     protected function itemsText(RefundTicket $ticket): string
     {
@@ -141,7 +265,6 @@ class RefundEmailService
         } else {
             $lines[] = '- ' . $data['manual_summary'];
         }
-        $lines[] = 'Total amount paid: $' . $data['total'];
 
         return implode("\n", $lines) . "\n\n";
     }
@@ -177,7 +300,6 @@ class RefundEmailService
         return '<div style="border:1px solid #e2e8f0;border-radius:12px;padding:6px 16px 10px;margin:6px 0 18px;background:#f8fafc;">'
             . '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#64748b;padding:10px 0 2px;">Affected items</div>'
             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">' . $rowsHtml . '</table>'
-            . '<div style="border-top:1px solid #e2e8f0;margin-top:6px;padding:10px 0 2px;text-align:right;font-size:13px;color:#0f172a;"><span style="color:#64748b;">Total amount paid</span> &nbsp;<b>$' . $data['total'] . '</b></div>'
             . '</div>';
     }
 
@@ -223,13 +345,14 @@ class RefundEmailService
         // Only the acknowledgement lists the affected items; other templates carry
         // no {items_block} placeholder, so both swaps below are no-ops for them.
         $hasItemsBlock = str_contains($rawBody, '{items_block}');
-        $itemsHtml = $hasItemsBlock ? $this->itemsHtml($ticket) : '';
-        $itemsText = $hasItemsBlock ? $this->itemsText($ticket) : '';
+        // The acknowledgement block = a request-summary card + the affected-items card.
+        $blockHtml = $hasItemsBlock ? ($this->summaryHtml($ticket) . $this->itemsHtml($ticket)) : '';
+        $blockText = $hasItemsBlock ? ($this->summaryText($ticket) . $this->itemsText($ticket)) : '';
 
-        // Plain-text copy (stored on the audit trail): placeholder -> text list.
-        $body = str_replace('{items_block}', $itemsText, $rawBody);
-        // Delivered copy: branded HTML shell with the styled items card injected.
-        $html = $this->renderHtml($rawBody, $itemsHtml);
+        // Plain-text copy (stored on the audit trail): placeholder -> text summary.
+        $body = str_replace('{items_block}', $blockText, $rawBody);
+        // Delivered copy: branded HTML shell with the styled cards injected.
+        $html = $this->renderHtml($rawBody, $blockHtml);
 
         $to = $ticket->contact_email;
         $enabled = (bool) config('refund.email_enabled', false);
