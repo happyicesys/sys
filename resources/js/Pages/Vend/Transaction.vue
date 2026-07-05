@@ -232,7 +232,7 @@
                 </label>
                 <MultiSelect
                     v-model="filters.is_refunded"
-                    :options="booleanOptions"
+                    :options="refundedOptions"
                     trackBy="id"
                     valueProp="id"
                     label="value"
@@ -835,7 +835,20 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <div class="flex justify-center">
-                                <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="vendTransaction.is_refunded"/>
+                                <span
+                                    v-if="vendTransaction.refund_type === 'manual'"
+                                    class="inline-flex rounded px-1.5 py-0.5 text-xs border w-fit font-semibold bg-blue-100 text-blue-800 border-blue-300"
+                                    :title="'Manual refund' + (vendTransaction.refund_reference ? ' — ' + vendTransaction.refund_reference : '')"
+                                >
+                                    {{ vendTransaction.refund_reference || 'RF' }}
+                                </span>
+                                <span
+                                    v-else-if="vendTransaction.refund_type === 'auto' || vendTransaction.is_refunded"
+                                    class="inline-flex rounded px-1.5 py-0.5 text-xs border w-fit font-semibold bg-green-100 text-green-800 border-green-300"
+                                    :title="vendTransaction.refund_reference ? 'Auto refund — ' + vendTransaction.refund_reference : 'Auto refund'"
+                                >
+                                    auto
+                                </span>
                             </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
@@ -980,6 +993,7 @@ const props = defineProps({
 })
 const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
+const refundedOptions = ref([])
 const successfulOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
@@ -1034,6 +1048,13 @@ onMounted(() => {
         {id: 'all', value: 'All'},
         {id: 'true', value: 'Yes'},
         {id: 'false', value: 'No'},
+    ]
+    refundedOptions.value = [
+        {id: 'all', value: 'All'},
+        {id: 'true', value: 'Refunded (any)'},
+        {id: 'auto', value: 'Auto'},
+        {id: 'manual', value: 'Manual (RF)'},
+        {id: 'false', value: 'Not refunded'},
     ]
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
@@ -1090,7 +1111,7 @@ onMounted(() => {
     filters.value.is_member = booleanOptions.value[0]
     filters.value.is_multiple = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
-    filters.value.is_refunded = booleanOptions.value[0]
+    filters.value.is_refunded = refundedOptions.value[0]
     filters.value.tag = tagOptions.value[0];
 })
 

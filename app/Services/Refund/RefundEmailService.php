@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Mail;
 class RefundEmailService
 {
     public const T_RECEIVED = 'received';
+    public const T_APPROVED = 'approved';
     public const T_AUTO_REFUND = 'auto_refund_triggered';
     public const T_CANCELLED_NO_CHARGE = 'cancelled_no_charge';
     public const T_INFO_REQUIRED = 'info_required';
@@ -35,6 +36,10 @@ class RefundEmailService
             self::T_RECEIVED => [
                 'subject' => "We've received your refund request ({reference})",
                 'body' => "Dear {name},\n\nThank you for reaching out to us. This is to confirm that we have received your refund request.\n\nYour reference number is {reference}. Please keep this for your records.\n\n{items_block}Our team will review your request against the machine's transaction records and update you by email on the outcome. Within 7 working days." . $signoff,
+            ],
+            self::T_APPROVED => [
+                'subject' => 'Your refund request has been approved ({reference})',
+                'body' => "Dear {name},\n\nYour refund request has been approved.\n\nWe will process your refund to the PayNow or PayPal account you provided. You should receive the refund within 5 working days.\n\nOnce the refund has been completed, we will send you another confirmation email.\n\nWe sincerely appreciate your support and look forward to serving you again in the future. We hope you will continue to enjoy our products and support HappyIce." . $signoff,
             ],
             self::T_AUTO_REFUND => [
                 'subject' => 'Your refund has already been processed automatically',
@@ -371,6 +376,59 @@ class RefundEmailService
             . '</div></div>';
     }
 
+    /**
+     * A unique, well-formed Message-ID (bare, without angle brackets) for one
+     * outgoing refund email, anchored on the ticket reference for readability.
+     * The domain is taken from the configured refund/global From address so the
+     * id is valid for the sending domain.
+     */
+    protected function buildMessageId(RefundTicket $ticket): string
+    {
+        $ref = preg_replace('/[^A-Za-z0-9._-]/', '', (string) $ticket->reference) ?: 'refund';
+
+        return strtolower($ref) . '.' . bin2hex(random_bytes(8)) . '@' . $this->messageIdDomain();
+    }
+
+    /** Host part for generated Message-IDs, derived from the sender address. */
+    protected function messageIdDomain(): string
+    {
+        $from = config('refund.mail.from_address')
+            ?: config('mail.from.address')
+            ?: 'happyice.com.sg';
+        $at = strrchr((string) $from, '@');
+
+        return $at ? substr($at, 1) : 'happyice.com.sg';
+    }
+
+    /**
+     * Interpolated, ready-to-read preview of a template for a specific ticket —
+     * same subject/plain-text body that send() would store on the audit trail, so
+     * the UI can show the real {name}/{reference} values before the action fires.
+     * Returns null for unknown keys.
+     *
+     * @return array{subject: string, body: string}|null
+     */
+    public function preview(RefundTicket $ticket, string $templateKey): ?array
+    {
+        $templates = $this->templates();
+        if (!isset($templates[$templateKey])) {
+            return null;
+        }
+
+        $tpl = $templates[$templateKey];
+        $subject = $this->interpolate($tpl['subject'], $ticket);
+        $rawBody = $this->interpolate($tpl['body'], $ticket);
+
+        $blockText = str_contains($rawBody, '{items_block}')
+            ? ($this->summaryText($ticket) . $this->itemsText($ticket))
+            : '';
+
+        return [
+            'subject' => $subject,
+            'body' => str_replace('{items_block}', $blockText, $rawBody),
+        ];
+    }
+
     public function send(RefundTicket $ticket, string $templateKey): bool
     {
         $templates = $this->templates();
@@ -394,6 +452,24 @@ class RefundEmailService
         // Delivered copy: branded HTML shell with the styled cards injected.
         $html = $this->renderHtml($rawBody, $blockHtml);
 
+        // --- Email threading -------------------------------------------------
+        // The first DELIVERED email (the acknowledgement) becomes the thread root:
+        // its Message-ID is stored on the ticket. Every later workflow email replies
+        // onto that root (In-Reply-To / References + a "Re:" subject) so the whole
+        // refund conversation stays as one thread in the customer's inbox. Each
+        // message still carries its own Message-ID so the chain is well-formed.
+        // Falls back to a normal standalone email if no root exists yet (e.g. the
+        // acknowledgement wasn't delivered because REFUND_EMAIL_ENABLED was off).
+        $rootMessageId = $ticket->email_message_id;
+        $isReply = !empty($rootMessageId);
+        if ($isReply) {
+            $rootSubject = $ticket->email_thread_subject ?: $subject;
+            $subject = \Illuminate\Support\Str::startsWith($rootSubject, 'Re:')
+                ? $rootSubject
+                : ('Re: ' . $rootSubject);
+        }
+        $thisMessageId = $this->buildMessageId($ticket);
+
         $to = $ticket->contact_email;
         $enabled = (bool) config('refund.email_enabled', false);
         $sent = false;
@@ -408,7 +484,7 @@ class RefundEmailService
                 $fromName = config('refund.mail.from_name');
 
                 $builder = $mailer ? Mail::mailer($mailer) : Mail::mailer();
-                $builder->html($html, function ($message) use ($to, $subject, $fromAddress, $fromName) {
+                $builder->html($html, function ($message) use ($to, $subject, $fromAddress, $fromName, $thisMessageId, $isReply, $rootMessageId) {
                     $message->to($to)->subject($subject);
                     if ($fromAddress) {
                         $message->from($fromAddress, $fromName ?: null);
@@ -416,6 +492,18 @@ class RefundEmailService
                         // No dedicated address configured — keep the global From
                         // address but still relabel the sender name.
                         $message->from(config('mail.from.address'), $fromName);
+                    }
+
+                    // Give this message a stable Message-ID (bare id, no angle
+                    // brackets — Symfony wraps them), and, when this is a follow-up,
+                    // point In-Reply-To / References at the stored thread root so
+                    // mail clients group it into the same conversation.
+                    $headers = $message->getSymfonyMessage()->getHeaders();
+                    $headers->remove('Message-ID');
+                    $headers->addIdHeader('Message-ID', $thisMessageId);
+                    if ($isReply && $rootMessageId) {
+                        $headers->addIdHeader('In-Reply-To', $rootMessageId);
+                        $headers->addIdHeader('References', $rootMessageId);
                     }
                 });
                 $sent = true;
@@ -467,10 +555,17 @@ class RefundEmailService
                 ],
             ]);
 
-            $ticket->update([
+            $updates = [
                 'last_email_template' => $templateKey,
                 'last_email_sent_at' => $sent ? now() : $ticket->last_email_sent_at,
-            ]);
+            ];
+            // Record the thread root the first time an email is actually delivered,
+            // so every subsequent workflow email replies onto this one.
+            if ($sent && empty($ticket->email_message_id)) {
+                $updates['email_message_id'] = $thisMessageId;
+                $updates['email_thread_subject'] = $subject;
+            }
+            $ticket->update($updates);
         } catch (\Throwable $e) {
             Log::error('Refund email audit log failed', ['ticket' => $ticket->reference, 'error' => $e->getMessage()]);
         }

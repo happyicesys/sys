@@ -862,6 +862,8 @@ Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     Route::post('/{ticket}/clear-match', [RefundController::class, 'clearMatch'])->middleware('can:update refunds');
     Route::post('/{ticket}/verify', [RefundController::class, 'verify'])->middleware('can:verify refunds');
     Route::post('/{ticket}/reject', [RefundController::class, 'reject'])->middleware('can:verify refunds');
+    Route::post('/{ticket}/resolve-no-charge', [RefundController::class, 'resolveNoCharge'])->middleware('can:verify refunds');
+    Route::post('/{ticket}/drop', [RefundController::class, 'drop'])->middleware('can:verify refunds');
     Route::post('/{ticket}/request-info', [RefundController::class, 'requestInfo'])->middleware('can:update refunds');
     Route::post('/{ticket}/complete', [RefundController::class, 'complete'])->middleware('can:update refunds');
     Route::post('/{ticket}/email', [RefundController::class, 'sendEmail'])->middleware('can:update refunds');

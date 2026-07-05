@@ -131,6 +131,10 @@ class GatewayVendTransactionService
                     'qty' => max(count($channels), 1),
                     'success_qty' => 0,   // unknown until dispense/TRADE
                     'dispensed_qty' => 0, // unknown until dispense/TRADE
+                    // Freeze the Product Drop Sensor state at paid-time so a
+                    // no-dispense row (which never receives a TRADE) still carries
+                    // it. A later TRADE refreshes it to the TRADE-moment value.
+                    'product_drop_sensor' => $vend->productDropSensorEnabled(),
                     'vend_id' => $vend->id,
                     'vend_channel_code' => $vendChannelCode,
                     'vend_channel_id' => $vendChannelId,

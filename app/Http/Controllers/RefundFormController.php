@@ -253,18 +253,19 @@ class RefundFormController extends Controller
             }
         }
 
-        // First customer-facing email, sent automatically on submission.
-        // Nayax auto-refund tickets get the "already processed" note; everything
-        // else gets the acknowledgement with the RFD reference number. Delivery is
-        // still gated by REFUND_EMAIL_ENABLED (logged-only while off), and every
-        // send is recorded on the ticket's audit trail.
+        // First customer-facing email, sent automatically on submission: the
+        // acknowledgement ("we've received your refund request") with the RFD
+        // reference. This is the ONLY email that goes out automatically — the
+        // auto-refund / approval / etc. emails are now sent by an admin button on
+        // the ticket (per the requested workflow), never fired on their own. Even
+        // Nayax auto-resolved tickets get the acknowledgement here; the admin then
+        // clicks "No charge / auto-refund" to email the customer that it was
+        // handled. Delivery is still gated by REFUND_EMAIL_ENABLED (logged-only
+        // while off), and every send is recorded on the ticket's audit trail.
+        // This first send also establishes the email thread root that later
+        // workflow emails reply onto (see RefundEmailService).
         try {
-            $this->email->send(
-                $ticket,
-                $ticket->is_auto_refund_channel
-                    ? RefundEmailService::T_AUTO_REFUND
-                    : RefundEmailService::T_RECEIVED
-            );
+            $this->email->send($ticket, RefundEmailService::T_RECEIVED);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Refund submission email failed', ['ticket' => $ticket->reference, 'error' => $e->getMessage()]);
         }

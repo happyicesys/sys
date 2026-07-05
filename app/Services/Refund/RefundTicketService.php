@@ -588,13 +588,13 @@ class RefundTicketService
                 'auto_resolved',
                 $from,
                 $ticket->status,
-                'System auto-refunded the charge; ticket resolved automatically',
+                'System auto-refunded the charge; ticket resolved automatically. Email the customer via the "No charge / auto-refund" action when ready.',
                 'System'
             );
-            // Tell the customer the refund was already processed automatically.
-            // RefundEmailService::send is itself gated by REFUND_EMAIL_ENABLED and
-            // internally guarded, so this line never throws on a mail failure.
-            app(RefundEmailService::class)->send($ticket, RefundEmailService::T_AUTO_REFUND);
+            // NOTE: the "auto-refund already processed" email is intentionally NOT
+            // sent here anymore. Per the requested workflow, no customer email fires
+            // automatically off a vend_transactions/charge refund — the admin sends
+            // it deliberately from the ticket's "No charge / auto-refund" action.
             $resolved++;
         }
 

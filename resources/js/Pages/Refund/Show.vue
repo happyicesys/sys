@@ -8,6 +8,8 @@ const props = defineProps({
     statuses: { type: Object, default: () => ({}) },
     prevTicket: { type: Object, default: null },
     nextTicket: { type: Object, default: null },
+    emailTemplates: { type: Object, default: () => ({}) },
+    emailTemplateContents: { type: Object, default: () => ({}) },
 });
 
 const page = usePage();
@@ -43,8 +45,6 @@ function nextMedia() {
     const n = attachments.value.length;
     if (n) mediaIndex.value = (mediaIndex.value + 1) % n;
 }
-const showReject = ref(false);
-const rejectRemarks = ref('');
 const busy = ref(false);
 
 // Machine ID → Operations Dashboard, deep-linked+auto-searched to that machine
@@ -56,15 +56,34 @@ const emailPreview = ref(null); // the log entry's meta, or null when closed
 function openEmail(meta) { emailPreview.value = meta; }
 function closeEmail() { emailPreview.value = null; }
 
+// ---- Email-template preview (opened from an action button; shows the template
+// that WOULD be sent, tokens like {name}/{reference} shown as placeholders) ----
+const templatePreview = ref(null);
+function openTemplate(key) {
+    const tpl = props.emailTemplateContents?.[key];
+    if (tpl) templatePreview.value = { label: props.emailTemplates?.[key] || key, subject: tpl.subject, body: tpl.body };
+}
+function closeTemplate() { templatePreview.value = null; }
+
 function post(url, data = {}) {
     busy.value = true;
     router.post(url, data, { preserveScroll: true, onFinish: () => (busy.value = false) });
 }
 const base = computed(() => '/refunds/' + t.value.id);
 
-function doReject() {
-    post(base.value + '/reject', { remarks: rejectRemarks.value });
-    showReject.value = false;
+// "No charge / auto-refund" — email the customer it was already handled and close
+// the ticket. Never triggers a new refund.
+function resolveNoCharge() {
+    if (!confirm('Email the customer that the charge was auto-refunded / no charge was captured, and close this ticket?\n\nNo payout will be made.')) return;
+    post(base.value + '/resolve-no-charge');
+}
+// "Drop / double submission" — close the ticket (kept, struck through in the
+// list). No email is sent.
+const showDrop = ref(false);
+const dropRemarks = ref('');
+function doDrop() {
+    post(base.value + '/drop', { remarks: dropRemarks.value });
+    showDrop.value = false;
 }
 function toggleItem(item) {
     post(base.value + '/items/' + item.id, { approved: !item.approved });
@@ -149,7 +168,11 @@ const attachments = computed(() => t.value.attachments || []);
     <template #header>
         <div class="flex items-center gap-3">
             <Link href="/refunds" class="text-teal-600 text-sm">← Refunds</Link>
-            <h2 class="font-semibold text-xl text-gray-800">{{ t.reference }} · {{ t.vend_code }}</h2>
+            <h2 class="font-semibold text-xl text-gray-800">
+                <span :class="t.is_dropped ? 'line-through text-gray-400' : ''"
+                    :title="t.is_dropped ? 'Dropped / closed (e.g. double submission)' : ''">{{ t.reference }}</span> · {{ t.vend_code }}
+            </h2>
+            <span v-if="t.is_dropped" class="text-[10px] font-semibold uppercase tracking-wide text-gray-400 px-2 py-1 rounded-full bg-gray-100">dropped</span>
             <span class="text-xs font-bold px-2 py-1 rounded-full" :class="statusClass(s)">{{ statuses[s] || s }}</span>
         </div>
     </template>
@@ -238,6 +261,56 @@ const attachments = computed(() => t.value.attachments || []);
                     </div>
                     <div v-else class="w-32 h-32 rounded-md border border-dashed border-gray-200 flex items-center justify-center text-[11px] text-gray-400 text-center px-2">No file</div>
                 </div>
+            </div>
+
+            <!-- System self-checking — mirrors the index list's self-check columns
+                 (machine RF-in-24h, New/Repeat, product exit sensor, error code). -->
+            <div class="mt-4 pt-4 border-t">
+                <h4 class="text-[10px] uppercase tracking-wide text-indigo-600 mb-2">System self-checking</h4>
+                <dl class="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-wide text-gray-500">Machine L24h # of RF</dt>
+                        <dd class="mt-1">
+                            <span v-if="t.machine_rf_24h != null"
+                                class="inline-flex items-center justify-center min-w-6 px-2 py-0.5 rounded-full text-xs font-semibold cursor-help"
+                                :class="t.machine_rf_24h > 3 ? 'bg-red-100 text-red-700' : (t.machine_rf_24h > 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600')"
+                                :title="t.machine_rf_24h + ' refund request(s) on this machine in the 24h up to this submission.'">
+                                {{ t.machine_rf_24h }}
+                            </span>
+                            <span v-else class="text-gray-300">—</span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-wide text-gray-500">New / Repeat?</dt>
+                        <dd class="mt-1">
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full cursor-help"
+                                :class="t.requester_repeat ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
+                                :title="t.requester_repeat
+                                    ? 'Repeat: this PayNow/PayPal account or email was used on an earlier refund request.'
+                                    : 'New: first refund request seen from this requester.'">
+                                {{ t.requester_repeat ? 'Repeat' : 'New' }}
+                            </span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-wide text-gray-500">Prod Exit Sensor</dt>
+                        <dd class="mt-1">
+                            <span v-if="t.product_drop_sensor === true" class="text-xs font-semibold text-green-700"
+                                title="Product Drop Sensor was Enabled on the machine at the time of the transaction.">Enabled</span>
+                            <span v-else-if="t.product_drop_sensor === false" class="text-xs font-semibold text-gray-500"
+                                title="Product Drop Sensor was Disabled on the machine at the time of the transaction.">Disabled</span>
+                            <span v-else class="text-gray-300" title="No Product Drop Sensor reading recorded for this transaction.">—</span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] uppercase tracking-wide text-gray-500">Error code</dt>
+                        <dd class="mt-1">
+                            <span v-if="t.error_code" class="text-xs font-semibold text-amber-700 cursor-help"
+                                :title="t.error_desc || ('Error code ' + t.error_code)">{{ t.error_code }}</span>
+                            <span v-else class="text-gray-300">—</span>
+                        </dd>
+                    </div>
+                </dl>
             </div>
         </div>
 
@@ -413,14 +486,24 @@ const attachments = computed(() => t.value.attachments || []);
             <div class="bg-gray-50 rounded-md border p-4 space-y-2">
                 <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-1">Actions</h3>
 
-                <button v-if="can('verify refunds') && ['submitted','pending_transfer_info'].includes(s)" @click="post(base + '/verify')" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-teal-600 text-white">✓ Verify (valid)</button>
+                <!-- ✓ Verified (Approved): moves to Approved and emails the customer
+                     that their refund is approved (paid within 5 working days). -->
+                <button v-if="can('verify refunds') && ['submitted','pending_transfer_info'].includes(s)" @click="post(base + '/verify')" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-teal-600 text-white">✓ Verify (Approved) — email customer</button>
+                <a v-if="can('verify refunds') && ['submitted','pending_transfer_info'].includes(s)" href="#" @click.prevent="openTemplate('approved')" class="block text-[11px] text-teal-700 underline hover:text-teal-900 -mt-1 mb-1">✉ Preview approval email</a>
                 <button v-if="can('update refunds') && s === 'approved'" @click="post(base + '/complete')" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-green-600 text-white">✓ Mark refund done</button>
-                <button v-if="can('update refunds') && ['submitted','approved'].includes(s)" @click="post(base + '/request-info')" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-white border border-amber-300 text-amber-800">✉ Request valid PayNow</button>
-                <button v-if="can('verify refunds') && !['rejected','completed'].includes(s)" @click="showReject = !showReject" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-white border border-red-300 text-red-700">✕ Reject — can't refund</button>
 
-                <div v-if="showReject" class="pt-1">
-                    <textarea v-model="rejectRemarks" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Reason for rejection"></textarea>
-                    <button @click="doReject" :disabled="busy" class="mt-1 w-full bg-red-600 text-white text-sm rounded px-3 py-1.5">Confirm reject</button>
+                <!-- ✕ No charge / auto-refund: charge already auto-refunded (or never
+                     captured). Emails the customer it's handled and closes the ticket;
+                     never starts a new refund. -->
+                <button v-if="can('verify refunds') && !['rejected','completed'].includes(s)" @click="resolveNoCharge" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-red-600 text-white">✕ Reject → No charge / auto-refund — email customer</button>
+                <a v-if="can('verify refunds') && !['rejected','completed'].includes(s)" href="#" @click.prevent="openTemplate('auto_refund_triggered')" class="block text-[11px] text-red-700 underline hover:text-red-900 -mt-1 mb-1">✉ Preview auto-refund email</a>
+
+                <!-- ✕ Drop / close (e.g. double submission): kept but struck through in
+                     the list. No customer email is sent. -->
+                <button v-if="can('verify refunds') && !['rejected','completed'].includes(s)" @click="showDrop = !showDrop" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-white border border-gray-300 text-gray-600">✕ Reject → Ignore / drop (double submission)</button>
+                <div v-if="showDrop" class="pt-1">
+                    <textarea v-model="dropRemarks" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Reason (optional) — e.g. duplicate of RF-…"></textarea>
+                    <button @click="doDrop" :disabled="busy" class="mt-1 w-full bg-gray-700 text-white text-sm rounded px-3 py-1.5">Confirm drop (no email)</button>
                 </div>
             </div>
 
@@ -435,31 +518,31 @@ const attachments = computed(() => t.value.attachments || []);
              back to the list. Previous = the newer request (row above on the
              list); Next = the older request (row below). -->
         <div class="flex items-stretch gap-3 pt-2 mt-1 border-t border-gray-100">
-            <!-- Previous (newer) -->
-            <Link v-if="prevTicket" :href="'/refunds/' + prevTicket.id" preserve-scroll
+            <!-- Next (older) — on the left -->
+            <Link v-if="nextTicket" :href="'/refunds/' + nextTicket.id" preserve-scroll
                 class="group flex-1 flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm transition hover:border-teal-300 hover:shadow hover:bg-teal-50/40">
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 text-lg leading-none transition group-hover:bg-teal-600 group-hover:text-white">‹</span>
-                <span class="min-w-0">
-                    <span class="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Previous · newer</span>
-                    <span class="block text-sm font-bold text-teal-700 truncate">{{ prevTicket.reference }}</span>
-                </span>
-            </Link>
-            <div v-else class="flex-1 flex items-center gap-3 rounded-lg border border-dashed border-gray-200 px-4 py-3 text-gray-300">
-                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-50 text-lg leading-none">‹</span>
-                <span class="text-xs">No newer request</span>
-            </div>
-
-            <!-- Next (older) -->
-            <Link v-if="nextTicket" :href="'/refunds/' + nextTicket.id" preserve-scroll
-                class="group flex-1 flex items-center justify-end gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm transition hover:border-teal-300 hover:shadow hover:bg-teal-50/40 text-right">
                 <span class="min-w-0">
                     <span class="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Next · older</span>
                     <span class="block text-sm font-bold text-teal-700 truncate">{{ nextTicket.reference }}</span>
                 </span>
+            </Link>
+            <div v-else class="flex-1 flex items-center gap-3 rounded-lg border border-dashed border-gray-200 px-4 py-3 text-gray-300">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-50 text-lg leading-none">‹</span>
+                <span class="text-xs">No older request</span>
+            </div>
+
+            <!-- Previous (newer) — on the right -->
+            <Link v-if="prevTicket" :href="'/refunds/' + prevTicket.id" preserve-scroll
+                class="group flex-1 flex items-center justify-end gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm transition hover:border-teal-300 hover:shadow hover:bg-teal-50/40 text-right">
+                <span class="min-w-0">
+                    <span class="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Previous · newer</span>
+                    <span class="block text-sm font-bold text-teal-700 truncate">{{ prevTicket.reference }}</span>
+                </span>
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 text-lg leading-none transition group-hover:bg-teal-600 group-hover:text-white">›</span>
             </Link>
             <div v-else class="flex-1 flex items-center justify-end gap-3 rounded-lg border border-dashed border-gray-200 px-4 py-3 text-gray-300 text-right">
-                <span class="text-xs">No older request</span>
+                <span class="text-xs">No newer request</span>
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-50 text-lg leading-none">›</span>
             </div>
         </div>
@@ -508,6 +591,30 @@ const attachments = computed(() => t.value.attachments || []);
             </div>
             <div class="border-t px-4 py-3 text-right">
                 <button type="button" @click="closeEmail" class="rounded bg-gray-100 px-4 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-200">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- email-template preview (opened from an action button; not yet sent) -->
+    <div v-if="templatePreview" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" @click.self="closeTemplate">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between border-b px-4 py-3">
+                <h3 class="text-sm font-semibold text-gray-800">✉ Email template — {{ templatePreview.label }}</h3>
+                <button type="button" @click="closeTemplate" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="overflow-y-auto px-4 py-3 text-sm space-y-3">
+                <div class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">Preview only — this is the exact email that will be sent to this customer when you click the action.</div>
+                <div>
+                    <div class="text-xs uppercase tracking-wide text-gray-400">Subject</div>
+                    <div class="font-medium">{{ templatePreview.subject }}</div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase tracking-wide text-gray-400">Message</div>
+                    <div class="mt-1 whitespace-pre-wrap rounded border bg-gray-50 px-3 py-2 text-gray-700">{{ templatePreview.body }}</div>
+                </div>
+            </div>
+            <div class="border-t px-4 py-3 text-right">
+                <button type="button" @click="closeTemplate" class="rounded bg-gray-100 px-4 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-200">Close</button>
             </div>
         </div>
     </div>

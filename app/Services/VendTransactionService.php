@@ -341,6 +341,9 @@ class VendTransactionService
             'qty' => $input['qty'],
             'success_qty' => $input['success_qty'],
             'dispensed_qty' => $input['dispensed_qty'],
+            // Freeze the Product Drop Sensor state at the moment of the TRADE so
+            // a later machine toggle never rewrites this record (Refund Index).
+            'product_drop_sensor' => $vend->productDropSensorEnabled(),
             'vend_id' => $vend->id,
             'vend_channel_code' => $input['vendChannelCode'],
             'vend_contract_id' => $vend->vendContract?->id ?? null,
@@ -433,6 +436,9 @@ class VendTransactionService
             'qty' => $input['qty'],
             'success_qty' => $input['success_qty'],
             'dispensed_qty' => $input['dispensed_qty'],
+            // The TRADE is the transaction moment for a gateway row — freeze the
+            // Product Drop Sensor state now (was null from the paid-time pre-create).
+            'product_drop_sensor' => $vend->productDropSensorEnabled(),
             'vend_channel_code' => $input['vendChannelCode'],
             'vend_channel_id' => $input['vendChannelID'],
             'vend_channel_error_id' => $input['vendChannelErrorID'],

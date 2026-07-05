@@ -28,6 +28,10 @@ class VendTransactionResource extends JsonResource
             'is_multiple' => $this->is_multiple,
             'is_payment_received' => $this->is_payment_received,
             'is_refunded' => isset($this->is_refunded) && $this->is_refunded ? true : false,
+            // Refund badge: 'auto' | 'manual' | null, plus the ticket reference
+            // (RF-xxxxxx) when there is one. Populated per-page in transactionIndex.
+            'refund_type' => $this->refund_type ?? null,
+            'refund_reference' => $this->refund_reference ?? null,
             'is_found_in_transaction' => (bool) ($this->is_found_in_transaction ?? true),
             'settlement_status' => $this->settlement_status ?? null,
             'itemsJson' => $this->items_json,

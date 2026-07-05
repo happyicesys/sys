@@ -412,6 +412,25 @@ class Vend extends Model
         'virtual_firmware_ver',
     ];
 
+    /**
+     * Product Drop Sensor state from the machine's live parameters
+     * (parameter_json->Sensor). Odd = Enabled, even = Disabled — the same
+     * derivation the CustomerIndex "Product Drop Sensor" badge uses. Returns
+     * null when the Sensor value is absent or non-numeric (unknown). Callers
+     * snapshot this onto vend_transactions at transaction time so a later
+     * toggle can't rewrite the recorded value.
+     */
+    public function productDropSensorEnabled(): ?bool
+    {
+        $sensor = $this->parameter_json['Sensor'] ?? null;
+
+        if ($sensor === null || $sensor === '' || ! is_numeric($sensor)) {
+            return null;
+        }
+
+        return ((int) $sensor) % 2 === 1;
+    }
+
     // relationships
     public function apkSettingVend()
     {

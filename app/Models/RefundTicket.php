@@ -65,6 +65,7 @@ class RefundTicket extends Model
         'system_recommendation',
         'system_validation_json',
         'auto_refund_detected',
+        'is_dropped',
         'status',
         'ops_verified_by',
         'ops_verified_at',
@@ -75,6 +76,8 @@ class RefundTicket extends Model
         'completed_at',
         'last_email_template',
         'last_email_sent_at',
+        'email_message_id',
+        'email_thread_subject',
         'submit_ip',
     ];
 
@@ -84,6 +87,7 @@ class RefundTicket extends Model
         'is_manual' => 'boolean',
         'is_auto_refund_channel' => 'boolean',
         'auto_refund_detected' => 'boolean',
+        'is_dropped' => 'boolean',
         'claimed_amount_cents' => 'integer',
         'entered_amount_cents' => 'integer',
         'ops_verified_at' => 'datetime',

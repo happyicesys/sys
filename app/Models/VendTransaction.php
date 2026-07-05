@@ -45,6 +45,7 @@ class VendTransaction extends Model
         'is_zero_amount' => 'boolean',
         'is_found_in_transaction' => 'boolean',
         'settlement_status' => 'integer',
+        'product_drop_sensor' => 'boolean',
     ];
 
     protected $fillable = [
@@ -74,6 +75,7 @@ class VendTransaction extends Model
         'revenue',
         'success_qty',
         'dispensed_qty',
+        'product_drop_sensor',
         'vend_channel_id',
         'vend_channel_code',
         'vend_channel_error_id',
@@ -304,6 +306,92 @@ class VendTransaction extends Model
         ];
     }
 
+    /**
+     * Shared "Is Refunded?" filter for the Sales Transaction index + report/export.
+     *
+     * A transaction can be refunded two ways:
+     *   - AUTO: the payment processor refunded it (is_refunded flag set by the
+     *     gateway/failed-dispense jobs), or a linked refund ticket was
+     *     auto-resolved (Nayax external / auto-refund channel).
+     *   - MANUAL: a customer refund ticket was approved/scheduled/completed and
+     *     paid out (PayNow etc.) — these do NOT set is_refunded, they live on
+     *     refund_tickets.
+     *
+     * $search values: 'all' | 'true' | 'false' | 'auto' | 'manual'.
+     * Behaviour-preserving for the existing 'all'/'true'/'false' options; 'auto'
+     * and 'manual' are new. A refund ticket is matched to the transaction by
+     * vend_transaction_id OR order_id (tickets can link either way).
+     */
+    public function scopeApplyRefundedFilter($query, $search)
+    {
+        if (!$search || $search === 'all') {
+            return $query;
+        }
+
+        $manualStatuses = [
+            RefundTicket::STATUS_APPROVED,
+            RefundTicket::STATUS_SCHEDULED,
+            RefundTicket::STATUS_COMPLETED,
+        ];
+
+        // EXISTS subquery: a refund ticket for this transaction in the given
+        // statuses. $manualOnly excludes auto-refund-channel tickets so a
+        // Nayax-auto ticket never counts as a "manual" refund.
+        $ticketExists = function ($sub, array $statuses, bool $manualOnly = false) {
+            $sub->select(DB::raw(1))
+                ->from('refund_tickets')
+                ->whereNull('refund_tickets.deleted_at')
+                ->whereIn('refund_tickets.status', $statuses)
+                ->where(function ($m) {
+                    $m->whereColumn('refund_tickets.vend_transaction_id', 'vend_transactions.id')
+                        ->orWhereColumn('refund_tickets.order_id', 'vend_transactions.order_id');
+                });
+            if ($manualOnly) {
+                $sub->where('refund_tickets.refund_method', '!=', RefundTicket::METHOD_NAYAX_AUTO);
+            }
+        };
+
+        switch ($search) {
+            case 'true':
+                $query->where(function ($q) use ($ticketExists) {
+                    $q->where('vend_transactions.is_refunded', true)
+                        ->orWhereExists(fn ($sub) => $ticketExists($sub, RefundTicket::ACTIVE_REFUND_STATUSES));
+                });
+                break;
+            case 'false':
+                $query->where('vend_transactions.is_refunded', false)
+                    ->whereNotExists(fn ($sub) => $ticketExists($sub, RefundTicket::ACTIVE_REFUND_STATUSES));
+                break;
+            case 'auto':
+                // Auto = gateway auto-refund flag, or an active ticket that is
+                // auto-resolved / on the auto-refund (Nayax) channel — mirrors the
+                // badge logic so filter and column agree.
+                $query->where(function ($q) {
+                    $q->where('vend_transactions.is_refunded', true)
+                        ->orWhereExists(function ($sub) {
+                            $sub->select(DB::raw(1))
+                                ->from('refund_tickets')
+                                ->whereNull('refund_tickets.deleted_at')
+                                ->whereIn('refund_tickets.status', RefundTicket::ACTIVE_REFUND_STATUSES)
+                                ->where(function ($a) {
+                                    $a->where('refund_tickets.status', RefundTicket::STATUS_AUTO_RESOLVED)
+                                        ->orWhere('refund_tickets.refund_method', RefundTicket::METHOD_NAYAX_AUTO);
+                                })
+                                ->where(function ($m) {
+                                    $m->whereColumn('refund_tickets.vend_transaction_id', 'vend_transactions.id')
+                                        ->orWhereColumn('refund_tickets.order_id', 'vend_transactions.order_id');
+                                });
+                        });
+                });
+                break;
+            case 'manual':
+                $query->whereExists(fn ($sub) => $ticketExists($sub, $manualStatuses, true));
+                break;
+        }
+
+        return $query;
+    }
+
     public function scopeFilterTransactionIndex($query, $request, $skipSort = false)
     {
         $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
@@ -434,13 +522,7 @@ class VendTransaction extends Model
                 }
             })
             ->when($request->is_refunded, function ($query, $search) {
-                if ($search != 'all') {
-                    if ($search == 'true') {
-                        $query->where('vend_transactions.is_refunded', true);
-                    } else {
-                        $query->where('vend_transactions.is_refunded', false);
-                    }
-                }
+                $query->applyRefundedFilter($search);
             })
             ->when($request->is_voucher, function ($query, $search) {
                 if ($search != 'all') {
@@ -750,13 +832,7 @@ class VendTransaction extends Model
                 }
             })
             ->when($request->is_refunded, function ($query, $search) {
-                if ($search != 'all') {
-                    if ($search == 'true') {
-                        $query->where('vend_transactions.is_refunded', true);
-                    } else {
-                        $query->where('vend_transactions.is_refunded', false);
-                    }
-                }
+                $query->applyRefundedFilter($search);
             })
             ->when($request->location_type_id, function ($query, $search) {
                 if ($search != 'all') {

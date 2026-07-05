@@ -220,13 +220,27 @@ class RefundController extends Controller
             'nextTicket' => $next ? ['id' => $next->id, 'reference' => $next->reference] : null,
             'emailTemplates' => [
                 RefundEmailService::T_RECEIVED => 'Request received (acknowledgement)',
+                RefundEmailService::T_APPROVED => 'Refund approved',
                 RefundEmailService::T_AUTO_REFUND => 'Auto-refund already triggered',
                 RefundEmailService::T_CANCELLED_NO_CHARGE => 'Transaction cancelled (no charge)',
                 RefundEmailService::T_INFO_REQUIRED => 'Additional info required (PayNow)',
                 RefundEmailService::T_IN_PROGRESS => 'Refund in progress',
                 RefundEmailService::T_COMPLETED => 'Refund completed',
             ],
-            'emailTemplateContents' => $this->email->templates(),
+            // Interpolated per-ticket previews (real {name}/{reference} filled in),
+            // keyed by template so the action-button "Preview" popups show exactly
+            // what would be sent for THIS ticket.
+            'emailTemplateContents' => collect([
+                RefundEmailService::T_RECEIVED,
+                RefundEmailService::T_APPROVED,
+                RefundEmailService::T_AUTO_REFUND,
+                RefundEmailService::T_CANCELLED_NO_CHARGE,
+                RefundEmailService::T_INFO_REQUIRED,
+                RefundEmailService::T_IN_PROGRESS,
+                RefundEmailService::T_COMPLETED,
+            ])->mapWithKeys(fn ($key) => [$key => $this->email->preview($ticket, $key)])
+              ->filter()
+              ->all(),
             'statuses' => $this->statusLabels(),
         ]);
     }
@@ -269,7 +283,67 @@ class RefundController extends Controller
             'ops_verified_by' => auth()->id(),
             'ops_verified_at' => now(),
         ]);
-        $this->tickets->log($ticket, 'verified', $from, $ticket->status, 'Ops verified claim', auth()->user()?->name ?? 'Ops', auth()->id());
+        // Approving the claim emails the customer that the refund is approved and
+        // will be paid to their PayNow/PayPal within 5 working days (replies onto
+        // the acknowledgement thread). Gated by REFUND_EMAIL_ENABLED, self-guarded.
+        $this->email->send($ticket, RefundEmailService::T_APPROVED);
+        $this->tickets->log($ticket, 'verified', $from, $ticket->status, 'Ops verified claim; approval email sent', auth()->user()?->name ?? 'Ops', auth()->id());
+
+        return back();
+    }
+
+    /**
+     * "No charge / auto-refund" close-out. The charge was already auto-refunded
+     * by the processor (or no charge was ever captured), so no manual payout is
+     * owed — we simply email the customer that it's been handled and resolve the
+     * ticket. This NEVER initiates a new refund. Allowed from any live state
+     * (including auto_resolved, e.g. the Omise job already flipped the status but
+     * no longer emails on its own).
+     */
+    public function resolveNoCharge(RefundTicket $ticket)
+    {
+        $this->guardTransition($ticket, [
+            RefundTicket::STATUS_SUBMITTED,
+            RefundTicket::STATUS_VERIFIED,
+            RefundTicket::STATUS_APPROVED,
+            RefundTicket::STATUS_PENDING_TRANSFER_INFO,
+            RefundTicket::STATUS_AUTO_RESOLVED,
+        ], 'resolve');
+
+        $from = $ticket->status;
+        $ticket->update([
+            'status' => RefundTicket::STATUS_AUTO_RESOLVED,
+            'auto_refund_detected' => true,
+        ]);
+        $this->email->send($ticket, RefundEmailService::T_AUTO_REFUND);
+        $this->tickets->log($ticket, 'auto_resolved', $from, $ticket->status, 'No charge / auto-refund — customer emailed, no payout required', auth()->user()?->name ?? 'Ops', auth()->id());
+
+        return back();
+    }
+
+    /**
+     * "Ignore / drop case" (e.g. a double submission). Closes the ticket as
+     * Rejected but flags it dropped so the list strikes a line through it instead
+     * of deleting it. No customer email is sent.
+     */
+    public function drop(Request $request, RefundTicket $ticket)
+    {
+        $data = $request->validate(['remarks' => ['nullable', 'string', 'max:2000']]);
+        $this->guardTransition($ticket, [
+            RefundTicket::STATUS_SUBMITTED,
+            RefundTicket::STATUS_VERIFIED,
+            RefundTicket::STATUS_APPROVED,
+            RefundTicket::STATUS_PENDING_TRANSFER_INFO,
+            RefundTicket::STATUS_AUTO_RESOLVED,
+        ], 'drop');
+
+        $from = $ticket->status;
+        $ticket->update([
+            'status' => RefundTicket::STATUS_REJECTED,
+            'is_dropped' => true,
+            'ops_remarks' => $data['remarks'] ?? $ticket->ops_remarks,
+        ]);
+        $this->tickets->log($ticket, 'dropped', $from, $ticket->status, $data['remarks'] ?: 'Dropped / closed (e.g. double submission) — no email', auth()->user()?->name ?? 'Ops', auth()->id());
 
         return back();
     }
@@ -600,6 +674,9 @@ class RefundController extends Controller
             'payment_channel' => $t->payment_channel,
             'reason_code' => $t->reason_code,
             'status' => $t->status,
+            // Dropped/double-submission tickets are kept (status Rejected) but the
+            // list strikes a line through them rather than deleting.
+            'is_dropped' => (bool) $t->is_dropped,
             'recommendation' => $t->system_recommendation,
             'is_manual' => array_key_exists('is_manual', $sv) ? (bool) $sv['is_manual'] : (bool) $t->is_manual,
             'had_channel_error' => (bool) ($sv['had_channel_error'] ?? false),
@@ -616,9 +693,14 @@ class RefundController extends Controller
             // --- System self-checking panel ---
             'machine_rf_24h' => $self['machine_rf_24h'] ?? null,
             'requester_repeat' => (bool) ($self['requester_repeat'] ?? false),
-            // Prod Exit Sensor = the payment-gateway "dispense attempted" reading
-            // (is_dispensed): true = product exited, false = not dispensed, null =
-            // no gateway log (e.g. card terminal) so unknown.
+            // Prod Exit Sensor = the machine's Product Drop Sensor state FROZEN on
+            // the matched transaction at the moment it occurred (true = Enabled,
+            // false = Disabled, null = unknown / not captured). A later machine
+            // toggle does not change this recorded value.
+            'product_drop_sensor' => (isset($txn) && !is_null($txn->product_drop_sensor)) ? (bool) $txn->product_drop_sensor : null,
+            // Payment-gateway "dispense attempted" reading (is_dispensed) is still
+            // recorded on the gateway log; kept in the payload but hidden from the
+            // UI for now (superseded by product_drop_sensor above).
             'dispense_attempted' => ($log && !is_null($log->is_dispensed)) ? (bool) $log->is_dispensed : null,
             'error_code' => $self['error_code'] ?? null,
             'error_desc' => $self['error_desc'] ?? null,
@@ -748,8 +830,27 @@ class RefundController extends Controller
                 ->with(['paymentMethod', 'vend', 'vendTransactionItems.product', 'vendTransactionItems.vendChannel'])
                 ->find($t->vend_transaction_id)
             : null;
-        $log = $t->payment_gateway_log_id ? \App\Models\PaymentGatewayLog::find($t->payment_gateway_log_id) : null;
+        // Resolve the gateway log from the ticket, else from its matched txn — same
+        // as the index list — so the "Prod Exit Sensor" (is_dispensed) reading is
+        // available even when the ticket matched by vend_transaction_id. The txn's
+        // own values still take precedence for date/amount (coalesced first in
+        // toRow), so this only fills in the otherwise-missing dispense reading.
+        $log = $t->payment_gateway_log_id
+            ? \App\Models\PaymentGatewayLog::find($t->payment_gateway_log_id)
+            : ($txn?->payment_gateway_log_id ? \App\Models\PaymentGatewayLog::find($txn->payment_gateway_log_id) : null);
         $batch = $t->payout_batch_id ? RefundPayoutBatch::find($t->payout_batch_id) : null;
+
+        // System self-checking (machine RF-in-24h + New/Repeat + error code),
+        // computed for this single ticket so the Show page mirrors the index
+        // "System self-checking" columns. selfCheckData accepts a collection.
+        $self = $this->selfCheckData(collect([$t]));
+        $errItem = $t->items->first(fn ($i) => $i->had_channel_error);
+        $selfRow = [
+            'machine_rf_24h' => $self['rf24h'][$t->id] ?? null,
+            'requester_repeat' => $self['repeat'][$t->id] ?? false,
+            'error_code' => $errItem?->vend_channel_error_code,
+            'error_desc' => $errItem?->channel_error_desc,
+        ];
 
         // Site (customer) name for the ticket's machine — public/admin context, scopes off.
         $siteVend = $t->vend_id ? \App\Models\Vend::withoutGlobalScopes()->find($t->vend_id) : null;
@@ -767,7 +868,7 @@ class RefundController extends Controller
             ? (bool) $txn->is_refunded
             : ($log ? ((int) $log->status === \App\Models\PaymentGatewayLog::STATUS_REFUND) : false);
 
-        return array_merge($this->toRow($t, $txn, $log, $batch), [
+        return array_merge($this->toRow($t, $txn, $log, $batch, $siteName, false, $selfRow), [
             'site_name' => $siteName,
             'live_txn_refunded' => $liveTxnRefunded,
             'reason_text' => $t->reason_text,

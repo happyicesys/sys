@@ -57,6 +57,7 @@ use App\Models\ModemUnit;
 use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\PaymentMethod;
+use App\Models\RefundTicket;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
 use App\Models\Product;
@@ -2932,6 +2933,36 @@ class VendController extends Controller
         // return $vend->apkSettings[0]->settings_parameter_json;
     }
 
+    /**
+     * Resolve the "Refunded?" badge for a sales transaction row.
+     *
+     * Returns [type, reference] where:
+     *   - type = 'manual' → a customer refund ticket paid out; show its reference.
+     *   - type = 'auto'   → gateway auto-refund (is_refunded flag) or an
+     *                       auto-resolved / Nayax-auto ticket; show "auto".
+     *   - type = null     → not refunded.
+     * Manual takes precedence over auto so a real payout is never masked.
+     */
+    private function resolveRefundBadge($record, $ticket): array
+    {
+        $isAutoTicket = $ticket && (
+            $ticket->status === RefundTicket::STATUS_AUTO_RESOLVED
+            || $ticket->refund_method === RefundTicket::METHOD_NAYAX_AUTO
+        );
+
+        // Manual (ticket-driven) refund actually paying out — show the reference.
+        if ($ticket && !$isAutoTicket) {
+            return ['manual', $ticket->reference];
+        }
+
+        // Auto refund: gateway flag or an auto-resolved ticket.
+        if ($record->is_refunded || $isAutoTicket) {
+            return ['auto', $ticket?->reference];
+        }
+
+        return [null, null];
+    }
+
     public function transactionIndex(Request $request)
     {
         if (!$request->has('operators')) {
@@ -3061,6 +3092,36 @@ class VendController extends Controller
                 $tag = $tagMap->get($t) ?? $tagMap->firstWhere('name', $t);
                 return $tag ? ['id' => $tag->id, 'slug' => $tag->slug, 'name' => $tag->name] : $t;
             })->toArray();
+        }
+
+        // Refund badge source. Auto-refunds set vend_transactions.is_refunded;
+        // manual (ticket-driven) refunds live on refund_tickets and never touch
+        // that flag. Look up the current page's active refund tickets in one query
+        // and attach a display label per row so the "Refunded?" column can show
+        // "auto" vs the ticket reference (RF-xxxxxx). Per-page, so cost is bounded.
+        $recordIds = $records->pluck('id')->filter()->unique()->all();
+        $recordOrderIds = $records->pluck('order_id')->filter()->unique()->all();
+        $refundTickets = collect();
+        if (!empty($recordIds) || !empty($recordOrderIds)) {
+            $refundTickets = RefundTicket::query()
+                ->whereIn('status', RefundTicket::ACTIVE_REFUND_STATUSES)
+                ->where(function ($q) use ($recordIds, $recordOrderIds) {
+                    if (!empty($recordIds)) {
+                        $q->orWhereIn('vend_transaction_id', $recordIds);
+                    }
+                    if (!empty($recordOrderIds)) {
+                        $q->orWhereIn('order_id', $recordOrderIds);
+                    }
+                })
+                ->get(['id', 'reference', 'status', 'refund_method', 'vend_transaction_id', 'order_id']);
+        }
+        $ticketByTxn = $refundTickets->whereNotNull('vend_transaction_id')->keyBy('vend_transaction_id');
+        $ticketByOrder = $refundTickets->filter(fn ($t) => filled($t->order_id))->keyBy('order_id');
+
+        foreach ($records as $record) {
+            $ticket = $ticketByTxn->get($record->id)
+                ?? (filled($record->order_id) ? $ticketByOrder->get($record->order_id) : null);
+            [$record->refund_type, $record->refund_reference] = $this->resolveRefundBadge($record, $ticket);
         }
 
         $vendTransactions = new LengthAwarePaginator(
