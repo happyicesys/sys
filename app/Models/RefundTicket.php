@@ -79,6 +79,8 @@ class RefundTicket extends Model
         'email_message_id',
         'email_thread_subject',
         'submit_ip',
+        'is_repeat',
+        'replicated_from_reference',
     ];
 
     protected $casts = [
@@ -88,6 +90,7 @@ class RefundTicket extends Model
         'is_auto_refund_channel' => 'boolean',
         'auto_refund_detected' => 'boolean',
         'is_dropped' => 'boolean',
+        'is_repeat' => 'boolean',
         'claimed_amount_cents' => 'integer',
         'entered_amount_cents' => 'integer',
         'ops_verified_at' => 'datetime',

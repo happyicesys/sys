@@ -119,7 +119,13 @@ class RefundController extends Controller
             ->groupBy('refund_ticket_id')
             ->map->first();
 
-        $tickets = $page->through(function (RefundTicket $t) use ($txns, $logs, $batches, $vends, $siteNames, $payNowDup, $selfCheck, $itemErrors) {
+        // Affected items the customer flagged (channel + product name), batched for
+        // the page so the list can show which channels/products were claimed.
+        $claimedItems = \App\Models\RefundTicketItem::whereIn('refund_ticket_id', $rows->pluck('id'))
+            ->get(['refund_ticket_id', 'vend_channel_code', 'product_name'])
+            ->groupBy('refund_ticket_id');
+
+        $tickets = $page->through(function (RefundTicket $t) use ($txns, $logs, $batches, $vends, $siteNames, $payNowDup, $selfCheck, $itemErrors, $claimedItems) {
             $txn = $t->vend_transaction_id ? $txns->get($t->vend_transaction_id) : null;
             // Resolve the gateway log from the ticket, else from its matched txn.
             $log = $t->payment_gateway_log_id
@@ -139,6 +145,11 @@ class RefundController extends Controller
                     'requester_repeat' => $selfCheck['repeat'][$t->id] ?? false,
                     'error_code' => $errItem?->vend_channel_error_code,
                     'error_desc' => $errItem?->channel_error_desc,
+                    'affected_items' => ($claimedItems->get($t->id) ?? collect())
+                        ->map(fn ($i) => [
+                            'channel' => $i->vend_channel_code,
+                            'product_name' => $i->product_name,
+                        ])->values()->all(),
                 ],
             );
         });
@@ -678,6 +689,22 @@ class RefundController extends Controller
             $txnDelta = intdiv($mins, 1440) . 'd ' . intdiv($mins % 1440, 60) . 'h ' . ($mins % 60) . 'm';
         }
 
+        // Deep link into Sales Transactions pinned to THIS transaction: filter by
+        // its order_id (the specific-transaction filter) plus the machine + that
+        // day's window so the disputed sale is isolated. Only when matched and an
+        // order_id is known; otherwise the txn line stays plain text.
+        $txnLink = null;
+        $txnOrderId = $txn?->order_id ?? $t->order_id;
+        if ($matched && $txnOrderId) {
+            $txnDay = $txnDate ? \Illuminate\Support\Carbon::parse($txnDate) : null;
+            $txnLink = '/vends/transactions?' . http_build_query(array_filter([
+                'order_id' => $txnOrderId,
+                'codes' => $t->vend_code,
+                'date_from' => $txnDay ? $txnDay->copy()->startOfDay()->toDateTimeString() : null,
+                'date_to' => $txnDay ? $txnDay->copy()->endOfDay()->toDateTimeString() : null,
+            ]));
+        }
+
         return [
             'id' => $t->id,
             'reference' => $t->reference,
@@ -695,6 +722,11 @@ class RefundController extends Controller
             // Dropped/double-submission tickets are kept (status Rejected) but the
             // list strikes a line through them rather than deleting.
             'is_dropped' => (bool) $t->is_dropped,
+            // New vs repeat: a repeat is a resubmission for a transaction that
+            // already had an active claim (the customer was allowed through, not
+            // blocked). replicated_from_reference points at the original.
+            'is_repeat' => (bool) $t->is_repeat,
+            'replicated_from_reference' => $t->replicated_from_reference,
             'recommendation' => $t->system_recommendation,
             'is_manual' => array_key_exists('is_manual', $sv) ? (bool) $sv['is_manual'] : (bool) $t->is_manual,
             'had_channel_error' => (bool) ($sv['had_channel_error'] ?? false),
@@ -708,6 +740,7 @@ class RefundController extends Controller
             'submitted_at' => optional($t->created_at)->format('ymd h:i a'),
             'txn_datetime' => $matched ? optional($txnDate)->format('ymd h:i a') : null,
             'txn_delta' => $txnDelta,
+            'txn_link' => $txnLink,
             // --- System self-checking panel ---
             'machine_rf_24h' => $self['machine_rf_24h'] ?? null,
             'requester_repeat' => (bool) ($self['requester_repeat'] ?? false),
@@ -722,6 +755,8 @@ class RefundController extends Controller
             'dispense_attempted' => ($log && !is_null($log->is_dispensed)) ? (bool) $log->is_dispensed : null,
             'error_code' => $self['error_code'] ?? null,
             'error_desc' => $self['error_desc'] ?? null,
+            // Customer-flagged affected items: channel(s) + product name(s).
+            'affected_items' => $self['affected_items'] ?? [],
             'paid_amount' => ($matched && $paidCents !== null) ? number_format($paidCents / 100, 2) : null,
             'pay_method' => $matched ? ($txn?->paymentMethod?->name ?? ($log ? 'QR' : null)) : null,
             'batch' => $batch ? [
@@ -1068,10 +1103,8 @@ class RefundController extends Controller
         return [
             RefundTicket::STATUS_SUBMITTED => 'Received',
             RefundTicket::STATUS_AUTO_RESOLVED => 'Auto-resolved',
-            RefundTicket::STATUS_VERIFIED => 'Verified',
             RefundTicket::STATUS_REJECTED => 'Rejected',
             RefundTicket::STATUS_APPROVED => 'Approved',
-            RefundTicket::STATUS_PENDING_TRANSFER_INFO => 'Pending info',
             RefundTicket::STATUS_COMPLETED => 'Completed',
         ];
     }

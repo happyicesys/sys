@@ -88,15 +88,11 @@ function pickStatus(key) {
 }
 
 const statusClass = (s) => ({
-    submitted: 'bg-yellow-100 text-yellow-800',
-    auto_resolved: 'bg-cyan-100 text-cyan-800',
-    verified: 'bg-blue-100 text-blue-800',
+    submitted: 'bg-yellow-100 text-yellow-800',   // Received
+    auto_resolved: 'bg-purple-100 text-purple-800',
     rejected: 'bg-red-100 text-red-800',
-    pending_approval: 'bg-indigo-100 text-indigo-800',
-    approved: 'bg-indigo-100 text-indigo-800',
-    pending_transfer_info: 'bg-orange-100 text-orange-800',
-    scheduled: 'bg-violet-100 text-violet-800',
-    completed: 'bg-green-100 text-green-800',
+    approved: 'bg-green-100 text-green-800',
+    completed: 'text-gray-500',                    // Completed = no colour
 }[s] || 'bg-gray-100 text-gray-700');
 
 // Machine ID → Operations Dashboard, deep-linked+auto-searched to that machine
@@ -143,7 +139,7 @@ function sortVal(t, key) {
         case 'amount': return toNum(t.amount);
         case 'refund_method': return t.refund_method || '';
         case 'machine_rf_24h': return (t.machine_rf_24h ?? null);
-        case 'requester_repeat': return t.requester_repeat ? 1 : 0;
+        case 'requester_repeat': return (t.is_repeat || t.requester_repeat) ? 1 : 0;
         case 'product_drop_sensor': return t.product_drop_sensor === true ? 2 : (t.product_drop_sensor === false ? 1 : null);
         case 'error_code': return t.error_code || '';
         case 'status': return t.status || '';
@@ -237,14 +233,22 @@ const sortedRows = computed(() => {
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
                         <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" title="Select all Approved tickets on this page" /></th>
-                        <th colspan="6" class="text-center px-4 py-2 border-b border-gray-200">Refund Request</th>
+                        <th colspan="7" class="text-center px-4 py-2 border-b border-gray-200">Refund Request</th>
                         <th colspan="4" class="text-center px-4 py-2 border-b border-l border-gray-200 text-indigo-700">System self-checking</th>
                         <th colspan="3" class="text-center px-4 py-2 border-b border-l border-gray-200 text-teal-700">Refund Progress</th>
                     </tr>
                     <tr class="[&>th]:cursor-pointer [&>th]:select-none [&>th]:text-center [&>th]:px-4 [&>th]:py-2 [&>th]:whitespace-nowrap">
                         <th @click="sortTable('reference')" class="hover:text-gray-700">Refund ID{{ arrow('reference') }}</th>
                         <th @click="sortTable('vend_code')" class="hover:text-gray-700">Machine ID<br>Site Name{{ arrow('vend_code') }}</th>
-                        <th @click="sortTable('submitted')" class="hover:text-gray-700">RF Submitted{{ arrow('submitted') }}</th>
+                        <th @click="sortTable('submitted')" class="hover:text-gray-700 whitespace-nowrap">
+                            <div>RF Submitted{{ arrow('submitted') }}</div>
+                            <div class="text-[11px] font-normal text-gray-400">Transaction</div>
+                            <div class="text-[11px] font-normal text-gray-400">Delta xD, xH, xxm</div>
+                        </th>
+                        <th class="border-l border-gray-200 max-w-[140px]">
+                            <div>Channel</div>
+                            <div class="text-[11px] font-normal text-gray-400">Product Name</div>
+                        </th>
                         <th @click="sortTable('paid')" class="hover:text-gray-700">Paid Amt<br>Pay Method{{ arrow('paid') }}</th>
                         <th @click="sortTable('amount')" class="border-l border-gray-200 hover:text-gray-700">Refund Amt{{ arrow('amount') }}</th>
                         <th @click="sortTable('refund_method')" class="hover:text-gray-700">Refund Method{{ arrow('refund_method') }}</th>
@@ -253,7 +257,7 @@ const sortedRows = computed(() => {
                         <th @click="sortTable('product_drop_sensor')" class="hover:text-gray-700">Prod Exit Sensor{{ arrow('product_drop_sensor') }}</th>
                         <th @click="sortTable('error_code')" class="hover:text-gray-700">Error code{{ arrow('error_code') }}</th>
                         <th @click="sortTable('status')" class="border-l border-gray-200 hover:text-gray-700">Validation{{ arrow('status') }}</th>
-                        <th @click="sortTable('batch')" class="hover:text-gray-700">Export for Bank Txf{{ arrow('batch') }}</th>
+                        <th @click="sortTable('batch')" class="hover:text-gray-700">Send to Settlement{{ arrow('batch') }}</th>
                         <th @click="sortTable('done')" class="hover:text-gray-700">Refund Done?{{ arrow('done') }}</th>
                     </tr>
                 </thead>
@@ -280,10 +284,22 @@ const sortedRows = computed(() => {
                         <td class="px-4 py-3 whitespace-nowrap">
                             <div class="text-gray-700">{{ t.submitted_at }}</div>
                             <div class="text-xs mt-1">
-                                <span v-if="t.matched" class="text-gray-600">Txn: {{ t.txn_datetime || '—' }}</span>
+                                <a v-if="t.matched && t.txn_link" :href="t.txn_link" target="_blank" @click.stop
+                                    class="text-teal-600 hover:text-teal-800 hover:underline">Txn: {{ t.txn_datetime || '—' }}</a>
+                                <span v-else-if="t.matched" class="text-gray-600">Txn: {{ t.txn_datetime || '—' }}</span>
                                 <span v-else class="text-amber-600 italic">pending match</span>
                             </div>
                             <div v-if="t.matched && t.txn_delta" class="text-xs text-gray-500 mt-0.5">Δ {{ t.txn_delta }}</div>
+                        </td>
+                        <!-- Customer-flagged affected items: channel + product name, one row each -->
+                        <td class="px-3 py-3 align-middle border-l border-gray-100 text-center">
+                            <div v-if="t.affected_items && t.affected_items.length" class="space-y-1 max-w-[140px] mx-auto">
+                                <div v-for="(it, i) in t.affected_items" :key="i" class="text-xs leading-tight">
+                                    <span class="font-medium text-gray-700">{{ it.channel || '—' }}</span>
+                                    <span class="block text-gray-500 break-words mt-1" :title="it.product_name || ''">{{ it.product_name || '—' }}</span>
+                                </div>
+                            </div>
+                            <span v-else class="text-xs text-gray-400">—</span>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <div class="text-gray-700">{{ t.matched && t.paid_amount ? '$' + t.paid_amount : '—' }}</div>
@@ -313,12 +329,17 @@ const sortedRows = computed(() => {
                         </td>
                         <td class="px-4 py-3 text-center">
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
-                                :class="t.requester_repeat ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
-                                v-tooltip="t.requester_repeat
-                                    ? 'Repeat: this PayNow/PayPal account or email was used on an earlier refund request.'
-                                    : 'New: first refund request seen from this requester.'">
-                                {{ t.requester_repeat ? 'Repeat' : 'New' }}
+                                :class="(t.is_repeat || t.requester_repeat) ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
+                                v-tooltip="t.is_repeat
+                                    ? ('Repeat: this transaction was already claimed under ' + (t.replicated_from_reference || 'an earlier request') + '. Re-validate before payout to avoid a double refund.')
+                                    : (t.requester_repeat
+                                        ? 'Repeat: this PayNow/PayPal account or email was used on an earlier refund request.'
+                                        : 'New: first refund request seen from this requester.')">
+                                {{ (t.is_repeat || t.requester_repeat) ? 'Repeat' : 'New' }}
                             </span>
+                            <span v-if="t.is_repeat && t.replicated_from_reference"
+                                class="block text-[10px] font-semibold text-red-500 mt-0.5"
+                                v-tooltip="'Duplicates ' + t.replicated_from_reference">↺ {{ t.replicated_from_reference }}</span>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <span v-if="t.product_drop_sensor === true" class="text-xs font-semibold text-green-700"
@@ -354,7 +375,7 @@ const sortedRows = computed(() => {
                             <span v-else class="text-gray-300">—</span>
                         </td>
                     </tr>
-                    <tr v-if="!tickets.data.length"><td colspan="14" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
+                    <tr v-if="!tickets.data.length"><td colspan="15" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
                 </tbody>
             </table>
         </div>

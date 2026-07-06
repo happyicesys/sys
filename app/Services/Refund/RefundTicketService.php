@@ -79,37 +79,41 @@ class RefundTicketService
             abort(422, 'The selected charge could not be found.');
         }
 
-        // --- Duplicate-submission guard (matched claims only) ---------------
-        // One live claim per matched source. Stops a customer double-tapping
-        // Submit (two near-simultaneous POSTs) or re-scanning the same
-        // transaction while an earlier claim is still in play. A cache lock
-        // keyed by the source SERIALISES truly concurrent requests so the
-        // existence check below cannot be raced; the lock is released at the
-        // end of create() (finally) or auto-expires via its TTL. Rejected
-        // claims don't count, so a genuine resubmit after a rejection is still
-        // allowed. Manual claims have no source yet, so they're exempt.
+        // --- Repeat-submission detection (matched claims only) --------------
+        // Previously a second submission for the same matched source was BLOCKED
+        // (422). Per product decision the customer is now allowed to resubmit;
+        // the new ticket is FLAGGED as a repeat (is_repeat + the original
+        // reference) so an admin re-validates it against the earlier claim
+        // instead of the system silently rejecting it. A cache lock keyed by the
+        // source still SERIALISES truly concurrent requests so the lookup below
+        // can't be raced; the lock is released at the end of create() (finally)
+        // or auto-expires via its TTL. Rejected claims don't count as an active
+        // original. Manual claims have no source yet, so they're exempt.
         $submitLock = null;
+        $isRepeat = false;
+        $replicatedFromReference = null;
         if (!$isManual && ($txn || $log)) {
             $sourceKey = $txn ? ('vt-' . $txn->id) : ('pgl-' . $log->id);
             $submitLock = Cache::lock('refund:submit:' . $sourceKey, 15);
-            // Wait up to 5s for a concurrent submit of the SAME source to finish.
-            // If the wait times out, proceed without the lock — the existence
-            // check below is still a strong guard (a slower duplicate lands after
-            // the first commits) and we never want to 500 a real customer.
+            // Wait up to 5s for a concurrent submit of the SAME source to finish
+            // so its ticket is visible here and this one is correctly tagged as a
+            // repeat. If the wait times out, proceed anyway — we never want to
+            // 500/stall a real customer.
             try {
                 $submitLock->block(5);
             } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
                 $submitLock = null;
             }
 
-            $liveClaimExists = RefundTicket::where('status', '!=', RefundTicket::STATUS_REJECTED)
+            $existingClaim = RefundTicket::where('status', '!=', RefundTicket::STATUS_REJECTED)
                 ->when($txn, fn ($q) => $q->where('vend_transaction_id', $txn->id))
                 ->when(! $txn && $log, fn ($q) => $q->where('payment_gateway_log_id', $log->id))
-                ->exists();
+                ->orderBy('id')
+                ->first(['id', 'reference']);
 
-            if ($liveClaimExists) {
-                optional($submitLock)->release();
-                abort(422, 'A refund request for this transaction has already been submitted. Please check your email for your reference number — our team is reviewing it.');
+            if ($existingClaim) {
+                $isRepeat = true;
+                $replicatedFromReference = $existingClaim->reference;
             }
         }
 
@@ -167,7 +171,7 @@ class RefundTicketService
         }
 
         try {
-        return DB::transaction(function () use ($input, $vend, $txn, $log, $isManual, $channel, $isAutoChannel, $validation, $claimedCents, $status, $method, $autoDetected) {
+        return DB::transaction(function () use ($input, $vend, $txn, $log, $isManual, $channel, $isAutoChannel, $validation, $claimedCents, $status, $method, $autoDetected, $isRepeat, $replicatedFromReference) {
             $ticket = RefundTicket::create([
                 'reference' => 'PENDING',
                 'vend_code' => $input['machineID'],
@@ -197,19 +201,31 @@ class RefundTicketService
                 'auto_refund_detected' => $autoDetected,
                 'status' => $status,
                 'submit_ip' => $input['submit_ip'] ?? null,
+                'is_repeat' => $isRepeat,
+                'replicated_from_reference' => $replicatedFromReference,
             ]);
 
             // Reference = PREFIX-yymmdd + a per-day running number, e.g. RF-260703001.
-            // The daily counter is derived by counting today's tickets up to this
-            // one; lockForUpdate serialises concurrent submissions so the unique
-            // reference can't collide.
+            // The daily number is the HIGHEST suffix already issued for today plus
+            // one, read across withTrashed() so soft-deleted / rejected tickets still
+            // reserve their number. This must mirror what the `reference` unique
+            // index sees: a live COUNT() excludes soft-deleted rows, so deleting any
+            // earlier ticket that day made the counter re-issue a used number and hit
+            // the unique index (the RF-260706009 duplicate). lockForUpdate on the
+            // day's range serialises concurrent submissions so the number can't be
+            // handed out twice.
             $createdAt = $ticket->created_at ?? now();
             $prefix = config('refund.reference_prefix', 'RF');
-            $seq = RefundTicket::whereDate('created_at', $createdAt->toDateString())
-                ->where('id', '<=', $ticket->id)
+            $datePart = $createdAt->format('ymd');
+            // Suffix begins right after "PREFIX-YYMMDD" (prefix + '-' + 6 date digits).
+            $suffixStart = strlen($prefix) + 1 + 6 + 1;
+            $lastSeq = (int) RefundTicket::withTrashed()
+                ->where('reference', 'like', $prefix . '-' . $datePart . '%')
+                ->where('reference', '!=', 'PENDING')
                 ->lockForUpdate()
-                ->count();
-            $ticket->reference = $prefix . '-' . $createdAt->format('ymd') . str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
+                ->selectRaw('COALESCE(MAX(CAST(SUBSTRING(reference, ?) AS UNSIGNED)), 0) AS seq', [$suffixStart])
+                ->value('seq');
+            $ticket->reference = $prefix . '-' . $datePart . str_pad((string) ($lastSeq + 1), 3, '0', STR_PAD_LEFT);
             $ticket->save();
 
             foreach ($validation['items'] as $i) {
@@ -232,6 +248,9 @@ class RefundTicketService
 
             $this->log($ticket, 'submitted', null, $ticket->status, 'Customer submitted refund ticket', 'Customer');
             $this->log($ticket, 'validated', null, null, 'System recommendation: ' . $validation['recommendation'], 'System');
+            if ($isRepeat) {
+                $this->log($ticket, 'repeat_submission', null, null, 'Repeat request for a transaction already claimed under ' . $replicatedFromReference . '. Please re-validate before payout to avoid a double refund.', 'System');
+            }
 
             return $ticket->fresh(['items']);
         });

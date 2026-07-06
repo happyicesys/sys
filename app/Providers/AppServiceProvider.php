@@ -5,10 +5,12 @@ namespace App\Providers;
 use App\Models\OpsJobItem;
 use App\Models\OpsJobItemChannel;
 use App\Models\ProductChild;
+use App\Models\RefundTicket;
 use App\Models\UnitCost;
 use App\Observers\OpsJobItemChannelObserver;
 use App\Observers\OpsJobItemObserver;
 use App\Observers\ProductChildObserver;
+use App\Observers\RefundTicketObserver;
 use App\Observers\UnitCostObserver;
 use App\Services\UserLogger;
 use App\Support\OptionCacheBuster;
@@ -44,6 +46,10 @@ class AppServiceProvider extends ServiceProvider
         // Keep the freeze work-queue in sync so ops:freeze-stock-in scans a tiny
         // table instead of the whole ops_job_items history.
         OpsJobItem::observe(OpsJobItemObserver::class);
+        // Mirror each refund ticket's live status onto its matched sales
+        // transaction (vend_transactions.refund_request_*) so the Transactions
+        // page reads the "Refund Request" column without joining refund_tickets.
+        RefundTicket::observe(RefundTicketObserver::class);
 
         // Master-data option caches (Refilling Routes / Zones, Location Types,
         // Contracts, Models, Payment Methods, etc.): forget the cached dropdown

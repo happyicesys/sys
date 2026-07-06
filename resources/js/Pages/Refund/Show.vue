@@ -98,10 +98,29 @@ const recClass = (r) => ({ proceed: 'text-green-700 bg-green-50 border-green-200
 // System-validation badges are a green (good/safe) vs red (danger/check) binary.
 const badgeGood = 'bg-green-50 border-green-200 text-green-700';
 const badgeBad = 'bg-red-50 border-red-200 text-red-700';
-const statusClass = (s) => ({ submitted: 'bg-yellow-100 text-yellow-800', auto_resolved: 'bg-cyan-100 text-cyan-800', verified: 'bg-blue-100 text-blue-800', rejected: 'bg-red-100 text-red-800', pending_approval: 'bg-indigo-100 text-indigo-800', approved: 'bg-indigo-100 text-indigo-800', pending_transfer_info: 'bg-orange-100 text-orange-800', scheduled: 'bg-violet-100 text-violet-800', completed: 'bg-green-100 text-green-800' }[s] || 'bg-gray-100 text-gray-700');
+const statusClass = (s) => ({ submitted: 'bg-yellow-100 text-yellow-800', auto_resolved: 'bg-purple-100 text-purple-800', rejected: 'bg-red-100 text-red-800', approved: 'bg-green-100 text-green-800', completed: 'text-gray-500' }[s] || 'bg-gray-100 text-gray-700');
 
 const isPaynow = computed(() => t.value.refund_method === 'paynow');
 const s = computed(() => t.value.status);
+
+// An auto_resolved ticket is terminal ONCE the customer has been emailed the
+// auto-refund notice. The Omise job can flip a ticket to auto_resolved WITHOUT
+// emailing (markAutoRefundedByCharge no longer sends), in which case Ops still
+// needs the "No charge / auto-refund — email customer" button to send that
+// notice. So the reject/drop actions disappear only after that email has gone
+// out (either logged on the trail or recorded as the last email template).
+const autoRefundEmailSent = computed(() =>
+    (t.value.logs || []).some(l => l.meta && l.meta.kind === 'email' && l.meta.template === 'auto_refund_triggered')
+    || t.value.last_email_template === 'auto_refund_triggered');
+const isResolved = computed(() =>
+    ['rejected', 'completed'].includes(s.value)
+    || (s.value === 'auto_resolved' && autoRefundEmailSent.value));
+// Whether any action control is available — keeps the Actions box from
+// rendering as an empty titled panel once the ticket is fully resolved.
+const hasActions = computed(() =>
+    (can('verify refunds') && ['submitted', 'pending_transfer_info'].includes(s.value))
+    || (can('update refunds') && s.value === 'approved')
+    || (can('verify refunds') && !isResolved.value));
 
 // ---- Ops manual match / re-match ----
 // Prefill with the currently-matched Order ID so admins can edit + re-match.
@@ -284,12 +303,17 @@ const attachments = computed(() => t.value.attachments || []);
                         <dt class="text-[10px] uppercase tracking-wide text-gray-500">New / Repeat?</dt>
                         <dd class="mt-1">
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-full cursor-help"
-                                :class="t.requester_repeat ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
-                                :title="t.requester_repeat
-                                    ? 'Repeat: this PayNow/PayPal account or email was used on an earlier refund request.'
-                                    : 'New: first refund request seen from this requester.'">
-                                {{ t.requester_repeat ? 'Repeat' : 'New' }}
+                                :class="(t.is_repeat || t.requester_repeat) ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
+                                :title="t.is_repeat
+                                    ? ('Repeat: this transaction was already claimed under ' + (t.replicated_from_reference || 'an earlier request') + '. Re-validate before payout to avoid a double refund.')
+                                    : (t.requester_repeat
+                                        ? 'Repeat: this PayNow/PayPal account or email was used on an earlier refund request.'
+                                        : 'New: first refund request seen from this requester.')">
+                                {{ (t.is_repeat || t.requester_repeat) ? 'Repeat' : 'New' }}
                             </span>
+                            <a v-if="t.is_repeat && t.replicated_from_reference" :href="'/refunds?search=' + t.replicated_from_reference"
+                                target="_blank" class="block text-[10px] font-semibold text-red-500 mt-0.5 hover:underline"
+                                title="Open the original request this one duplicates">↺ duplicates {{ t.replicated_from_reference }}</a>
                         </dd>
                     </div>
                     <div>
@@ -483,7 +507,7 @@ const attachments = computed(() => t.value.attachments || []);
 
         <!-- Actions (moved to the bottom) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-gray-50 rounded-md border p-4 space-y-2">
+            <div v-if="hasActions" class="bg-gray-50 rounded-md border p-4 space-y-2">
                 <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-1">Actions</h3>
 
                 <!-- ✓ Verified (Approved): moves to Approved and emails the customer
@@ -495,12 +519,12 @@ const attachments = computed(() => t.value.attachments || []);
                 <!-- ✕ No charge / auto-refund: charge already auto-refunded (or never
                      captured). Emails the customer it's handled and closes the ticket;
                      never starts a new refund. -->
-                <button v-if="can('verify refunds') && !['rejected','completed'].includes(s)" @click="resolveNoCharge" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-red-600 text-white">✕ Reject → No charge / auto-refund — email customer</button>
-                <a v-if="can('verify refunds') && !['rejected','completed'].includes(s)" href="#" @click.prevent="openTemplate('auto_refund_triggered')" class="block text-[11px] text-red-700 underline hover:text-red-900 -mt-1 mb-1">✉ Preview auto-refund email</a>
+                <button v-if="can('verify refunds') && !isResolved" @click="resolveNoCharge" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-red-600 text-white">✕ Reject → No charge / auto-refund — email customer</button>
+                <a v-if="can('verify refunds') && !isResolved" href="#" @click.prevent="openTemplate('auto_refund_triggered')" class="block text-[11px] text-red-700 underline hover:text-red-900 -mt-1 mb-1">✉ Preview auto-refund email</a>
 
                 <!-- ✕ Drop / close (e.g. double submission): kept but struck through in
                      the list. No customer email is sent. -->
-                <button v-if="can('verify refunds') && !['rejected','completed'].includes(s)" @click="showDrop = !showDrop" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-white border border-gray-300 text-gray-600">✕ Reject → Ignore / drop (double submission)</button>
+                <button v-if="can('verify refunds') && !isResolved" @click="showDrop = !showDrop" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-white border border-gray-300 text-gray-600">✕ Reject → Ignore / drop (double submission)</button>
                 <div v-if="showDrop" class="pt-1">
                     <textarea v-model="dropRemarks" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Reason (optional) — e.g. duplicate of RF-…"></textarea>
                     <button @click="doDrop" :disabled="busy" class="mt-1 w-full bg-gray-700 text-white text-sm rounded px-3 py-1.5">Confirm drop (no email)</button>

@@ -32,6 +32,12 @@ class VendTransactionResource extends JsonResource
             // (RF-xxxxxx) when there is one. Populated per-page in transactionIndex.
             'refund_type' => $this->refund_type ?? null,
             'refund_reference' => $this->refund_reference ?? null,
+            // Refund request link + live status (any-status ticket) for the
+            // "Refund Request" column. Populated per-page in transactionIndex.
+            'refund_request_id' => $this->refund_request_id ?? null,
+            'refund_request_reference' => $this->refund_request_reference ?? null,
+            'refund_request_status' => $this->refund_request_status ?? null,
+            'refund_request_is_dropped' => (bool) ($this->refund_request_is_dropped ?? false),
             'is_found_in_transaction' => (bool) ($this->is_found_in_transaction ?? true),
             'settlement_status' => $this->settlement_status ?? null,
             'itemsJson' => $this->items_json,

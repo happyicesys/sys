@@ -734,7 +734,10 @@
                             Channels Error
                         </TableHead>
                         <TableHead>
-                            Refunded?
+                            Auto-refunded?
+                        </TableHead>
+                        <TableHead>
+                            Refund Request
                         </TableHead>
                         <TableHead>
                             TXN_SRC
@@ -835,21 +838,41 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <div class="flex justify-center">
-                                <span
-                                    v-if="vendTransaction.refund_type === 'manual'"
-                                    class="inline-flex rounded px-1.5 py-0.5 text-xs border w-fit font-semibold bg-blue-100 text-blue-800 border-blue-300"
-                                    :title="'Manual refund' + (vendTransaction.refund_reference ? ' — ' + vendTransaction.refund_reference : '')"
-                                >
-                                    {{ vendTransaction.refund_reference || 'RF' }}
-                                </span>
-                                <span
-                                    v-else-if="vendTransaction.refund_type === 'auto' || vendTransaction.is_refunded"
-                                    class="inline-flex rounded px-1.5 py-0.5 text-xs border w-fit font-semibold bg-green-100 text-green-800 border-green-300"
+                                <CheckCircleIcon
+                                    v-if="vendTransaction.refund_type === 'auto' || vendTransaction.is_refunded"
+                                    class="h-4 w-4 text-green-500"
+                                    aria-hidden="true"
                                     :title="vendTransaction.refund_reference ? 'Auto refund — ' + vendTransaction.refund_reference : 'Auto refund'"
-                                >
-                                    auto
-                                </span>
+                                />
+                                <XCircleIcon
+                                    v-else
+                                    class="h-4 w-4 text-red-500"
+                                    aria-hidden="true"
+                                    title="Auto-refund not triggered"
+                                />
                             </div>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <a
+                                v-if="vendTransaction.refund_request_reference"
+                                :href="'/refunds/' + vendTransaction.refund_request_id"
+                                target="_blank"
+                                class="inline-flex flex-col items-center gap-0.5 group"
+                                :title="'View refund request ' + vendTransaction.refund_request_reference"
+                            >
+                                <span
+                                    class="text-xs font-semibold text-indigo-600 group-hover:underline"
+                                    :class="{ 'line-through opacity-60': vendTransaction.refund_request_is_dropped }"
+                                >
+                                    {{ vendTransaction.refund_request_reference }}
+                                </span>
+                                <span
+                                    class="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                                    :class="refundStatusClass(vendTransaction.refund_request_status)"
+                                >
+                                    {{ refundStatusLabel(vendTransaction.refund_request_status) }}
+                                </span>
+                            </a>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.interface_type }}
@@ -961,7 +984,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
-import { MagnifyingGlassIcon, BackspaceIcon, CheckCircleIcon, ArrowDownTrayIcon, XMarkIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon } from '@heroicons/vue/20/solid';
+import { MagnifyingGlassIcon, BackspaceIcon, CheckCircleIcon, XCircleIcon, ArrowDownTrayIcon, XMarkIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon } from '@heroicons/vue/20/solid';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import moment from 'moment';
 import SearchInput from '@/Components/SearchInput.vue';
@@ -994,6 +1017,27 @@ const props = defineProps({
 const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
 const refundedOptions = ref([])
+
+// Refund-request status → label/colour, mirrored from the Refund pages so the
+// "Refund Request" column stays visually in sync with the refund status page.
+const refundStatusLabels = {
+    submitted: 'Received',
+    auto_resolved: 'Auto-resolved',
+    verified: 'Verified',
+    rejected: 'Rejected',
+    approved: 'Approved',
+    pending_transfer_info: 'Pending info',
+    scheduled: 'Scheduled',
+    completed: 'Completed',
+}
+const refundStatusLabel = (s) => refundStatusLabels[s] || s
+const refundStatusClass = (s) => ({
+    submitted: 'bg-yellow-100 text-yellow-800',   // Received
+    auto_resolved: 'bg-purple-100 text-purple-800',
+    rejected: 'bg-red-100 text-red-800',
+    approved: 'bg-green-100 text-green-800',
+    completed: 'text-gray-500',                    // Completed = no colour
+}[s] || 'bg-gray-100 text-gray-700')
 const successfulOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])

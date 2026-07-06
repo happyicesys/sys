@@ -3072,6 +3072,10 @@ class VendController extends Controller
                     'vend_transactions.interface_type',
                     'vend_transactions.is_multiple',
                     'vend_transactions.is_refunded',
+                    'vend_transactions.refund_request_id',
+                    'vend_transactions.refund_request_reference',
+                    'vend_transactions.refund_request_status',
+                    'vend_transactions.refund_request_is_dropped',
                     'vend_transactions.is_payment_received',
                     'vend_transactions.items_json',
                     'vend_transactions.meta_json',
@@ -3099,6 +3103,13 @@ class VendController extends Controller
         // that flag. Look up the current page's active refund tickets in one query
         // and attach a display label per row so the "Refunded?" column can show
         // "auto" vs the ticket reference (RF-xxxxxx). Per-page, so cost is bounded.
+        // "Auto-refunded?" badge source. Auto-refunds set vend_transactions.is_refunded;
+        // an auto-resolved / Nayax-auto ticket is the other signal. Look up only the
+        // page's ACTIVE (paying-out) refund tickets in one bounded query for the badge.
+        //
+        // NOTE: the "Refund Request" column does NOT use this — it reads the
+        // denormalised vend_transactions.refund_request_* columns (kept in sync by
+        // RefundTicketObserver), so no per-page join is needed for it.
         $recordIds = $records->pluck('id')->filter()->unique()->all();
         $recordOrderIds = $records->pluck('order_id')->filter()->unique()->all();
         $refundTickets = collect();
