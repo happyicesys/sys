@@ -689,19 +689,17 @@ class RefundController extends Controller
             $txnDelta = intdiv($mins, 1440) . 'd ' . intdiv($mins % 1440, 60) . 'h ' . ($mins % 60) . 'm';
         }
 
-        // Deep link into Sales Transactions pinned to THIS transaction: filter by
-        // its order_id (the specific-transaction filter) plus the machine + that
-        // day's window so the disputed sale is isolated. Only when matched and an
-        // order_id is known; otherwise the txn line stays plain text.
+        // Deep link into Sales Transactions showing ALL sales on this machine for
+        // the SAME DAY as the disputed transaction (machine code + that day's
+        // window), so the admin can eyeball every sale around the claimed one.
+        // Only when matched and the machine + transaction date are known.
         $txnLink = null;
-        $txnOrderId = $txn?->order_id ?? $t->order_id;
-        if ($matched && $txnOrderId) {
-            $txnDay = $txnDate ? \Illuminate\Support\Carbon::parse($txnDate) : null;
+        if ($matched && $t->vend_code && $txnDate) {
+            $txnDay = \Illuminate\Support\Carbon::parse($txnDate);
             $txnLink = '/vends/transactions?' . http_build_query(array_filter([
-                'order_id' => $txnOrderId,
                 'codes' => $t->vend_code,
-                'date_from' => $txnDay ? $txnDay->copy()->startOfDay()->toDateTimeString() : null,
-                'date_to' => $txnDay ? $txnDay->copy()->endOfDay()->toDateTimeString() : null,
+                'date_from' => $txnDay->copy()->startOfDay()->toDateTimeString(),
+                'date_to' => $txnDay->copy()->endOfDay()->toDateTimeString(),
             ]));
         }
 

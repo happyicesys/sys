@@ -731,9 +731,9 @@
 							Value exceeds it, with the subset of those that have an ops job
 							scheduled TOMORROW in parentheses. -->
 						<div class="px-3 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM <span class="text-blue-600">(# of Job Next Day)</span>, Refillable &gt; $120, $150, $200, $250</dt>
-							<dd class="mt-1 text-base leading-6 font-semibold tracking-tight tabular-nums text-gray-800">
-								{{ currentStats.refillableOver120 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver120 }})</span>, {{ currentStats.refillableOver150 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver150 }})</span>, {{ currentStats.refillableOver200 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver200 }})</span>, {{ currentStats.refillableOver250 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver250 }})</span>
+							<dt class="text-xs font-medium leading-tight text-gray-500">&gt;Refillable $: # of VM <span class="text-blue-600 text-[0.625rem]">(# of Job Next Day)</span></dt>
+							<dd class="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-base leading-6 font-semibold tracking-tight tabular-nums text-gray-800">
+								<span class="whitespace-nowrap">&gt;$120: {{ currentStats.refillableOver120 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver120 }})</span></span><span class="whitespace-nowrap">&gt;$150: {{ currentStats.refillableOver150 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver150 }})</span></span><span class="whitespace-nowrap">&gt;$200: {{ currentStats.refillableOver200 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver200 }})</span></span><span class="whitespace-nowrap">&gt;$250: {{ currentStats.refillableOver250 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver250 }})</span></span>
 							</dd>
 						</div>
 						<!-- # of VM (# of Job Next Day), Refillable > $300/$350/$400/$450 —
@@ -741,15 +741,15 @@
 							count over each threshold with the next-day-job subset in
 							parentheses. -->
 						<div class="px-3 py-3">
-							<dt class="text-xs font-medium leading-tight text-gray-500"># of VM <span class="text-blue-600">(# of Job Next Day)</span>, Refillable &gt; $300, $350, $400, $450</dt>
-							<dd class="mt-1 text-base leading-6 font-semibold tracking-tight tabular-nums text-gray-800">
-								{{ currentStats.refillableOver300 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver300 }})</span>, {{ currentStats.refillableOver350 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver350 }})</span>, {{ currentStats.refillableOver400 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver400 }})</span>, {{ currentStats.refillableOver450 }}<span class="text-blue-600">({{ currentStats.nextDayRefillableOver450 }})</span>
+							<dt class="text-xs font-medium leading-tight text-gray-500">&gt;Refillable $: # of VM <span class="text-blue-600 text-[0.625rem]">(# of Job Next Day)</span></dt>
+							<dd class="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-base leading-6 font-semibold tracking-tight tabular-nums text-gray-800">
+								<span class="whitespace-nowrap">&gt;$300: {{ currentStats.refillableOver300 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver300 }})</span></span><span class="whitespace-nowrap">&gt;$350: {{ currentStats.refillableOver350 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver350 }})</span></span><span class="whitespace-nowrap">&gt;$400: {{ currentStats.refillableOver400 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver400 }})</span></span><span class="whitespace-nowrap">&gt;$450: {{ currentStats.refillableOver450 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver450 }})</span></span>
 							</dd>
 						</div>
 						<!-- # of Job, next day — machines with a scheduled ops job dated tomorrow -->
 						<div class="px-4 py-3">
 							<dt class="truncate text-xs font-medium text-gray-500"># of Job, next day</dt>
-							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-gray-800">{{ currentStats.nextDayJobCount }} <span class="text-xs font-normal text-gray-400">/ {{ currentStats.total }}</span></dd>
+							<dd class="mt-1 text-[1.375rem] leading-7 font-semibold tabular-nums text-blue-600">{{ currentStats.nextDayJobCount }} <span class="text-xs font-normal text-gray-600">/ {{ currentStats.total }}</span></dd>
 						</div>
 					</dl>
 				</section>

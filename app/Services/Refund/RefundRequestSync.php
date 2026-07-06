@@ -24,7 +24,7 @@ class RefundRequestSync
      */
     public static function syncTransaction(VendTransaction $txn): void
     {
-        $ticket = self::latestTicketFor($txn->id, $txn->order_id);
+        $ticket = self::latestTicketFor($txn->id, $txn->order_id, $txn->vend_id);
 
         $txn->forceFill([
             'refund_request_id' => $ticket?->id,
@@ -51,37 +51,44 @@ class RefundRequestSync
             $ticket->getOriginal('order_id'),
         ])->filter()->unique()->values();
 
-        if ($txnIds->isEmpty() && $orderIds->isEmpty()) {
+        // order_id is NOT globally unique — machines reuse small per-machine order
+        // numbers — so the order_id fallback MUST be scoped to the ticket's own
+        // machine (vend_id), or one ticket stamps every machine sharing that
+        // number. vend_transaction_id stays the precise, unscoped match.
+        $vendId = $ticket->vend_id;
+
+        if ($txnIds->isEmpty() && ($orderIds->isEmpty() || !$vendId)) {
             return;
         }
 
         VendTransaction::query()
-            ->where(function ($q) use ($txnIds, $orderIds) {
+            ->where(function ($q) use ($txnIds, $orderIds, $vendId) {
                 if ($txnIds->isNotEmpty()) {
                     $q->orWhereIn('id', $txnIds->all());
                 }
-                if ($orderIds->isNotEmpty()) {
-                    $q->orWhereIn('order_id', $orderIds->all());
+                if ($orderIds->isNotEmpty() && $vendId) {
+                    $q->orWhere(fn ($w) => $w->whereIn('order_id', $orderIds->all())->where('vend_id', $vendId));
                 }
             })
-            ->get(['id', 'order_id'])
+            ->get(['id', 'order_id', 'vend_id'])
             ->each(fn (VendTransaction $txn) => self::syncTransaction($txn));
     }
 
     /**
      * The latest (highest id) live refund ticket matched to a transaction by
-     * vend_transaction_id or, failing that, order_id. Soft-deleted tickets are
-     * excluded by the model's default scope.
+     * vend_transaction_id or, failing that, order_id PAIRED WITH vend_id (order_id
+     * alone isn't unique across machines). Soft-deleted tickets are excluded by
+     * the model's default scope.
      */
-    protected static function latestTicketFor($vendTransactionId, $orderId): ?RefundTicket
+    protected static function latestTicketFor($vendTransactionId, $orderId, $vendId): ?RefundTicket
     {
         return RefundTicket::query()
-            ->where(function ($q) use ($vendTransactionId, $orderId) {
+            ->where(function ($q) use ($vendTransactionId, $orderId, $vendId) {
                 if ($vendTransactionId) {
                     $q->orWhere('vend_transaction_id', $vendTransactionId);
                 }
-                if (filled($orderId)) {
-                    $q->orWhere('order_id', $orderId);
+                if (filled($orderId) && $vendId) {
+                    $q->orWhere(fn ($w) => $w->where('order_id', $orderId)->where('vend_id', $vendId));
                 }
             })
             ->orderByDesc('id')

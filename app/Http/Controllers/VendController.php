@@ -3695,6 +3695,8 @@ class VendController extends Controller
                         'dispense_attempted' => $txn->paymentGatewayLog
                             ? ($txn->paymentGatewayLog->is_dispensed ? 'Yes' : 'No')
                             : '',
+                        'refund_request' => $txn->refund_request_reference ?? '',
+                        'refund_status' => $txn->refund_request_status ?? '',
                     ];
 
                     foreach ($txn->vendTransactionItems as $item) {
@@ -3723,10 +3725,19 @@ class VendController extends Controller
                             'multiple_qty' => 0,
                             'txn_src' => $txn->interface_type,
                             'member_id' => $txn_json['dcvend_user_id'] ?? '',
+                            // hid_card_id + voucher were missing here, which shifted
+                            // the item row's later columns left under the wrong
+                            // headers — every row must carry identical keys for
+                            // FastExcel to align them. Blank because they're
+                            // transaction-level (shown on the parent row).
+                            'hid_card_id' => '',
+                            'voucher' => '',
                             'labels' => '', // or $labelStr if you want to repeat per item row
                             'dispense_attempted' => $txn->paymentGatewayLog
                                 ? ($txn->paymentGatewayLog->is_dispensed ? 'Yes' : 'No')
                                 : '',
+                            'refund_request' => '',
+                            'refund_status' => '',
                         ];
                     }
                 }
@@ -3772,6 +3783,8 @@ class VendController extends Controller
                         'voucher' => '',
                         'labels' => '',
                         'dispense_attempted' => 'Yes', // unreportedDispensed => is_dispensed=true
+                        'refund_request' => '',
+                        'refund_status' => '',
                     ];
                 }
             });

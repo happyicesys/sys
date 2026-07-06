@@ -42,7 +42,7 @@ class BackfillVendTransactionRefundRequestSeeder extends Seeder
         $applied = 0;
         RefundTicket::query()
             ->orderBy('id')
-            ->select(['id', 'reference', 'status', 'is_dropped', 'vend_transaction_id', 'order_id'])
+            ->select(['id', 'reference', 'status', 'is_dropped', 'vend_transaction_id', 'order_id', 'vend_id'])
             ->chunk(500, function ($tickets) use (&$applied) {
                 foreach ($tickets as $ticket) {
                     $applied += VendTransaction::query()
@@ -50,8 +50,11 @@ class BackfillVendTransactionRefundRequestSeeder extends Seeder
                             if ($ticket->vend_transaction_id) {
                                 $q->orWhere('id', $ticket->vend_transaction_id);
                             }
-                            if (filled($ticket->order_id)) {
-                                $q->orWhere('order_id', $ticket->order_id);
+                            // order_id is not unique across machines, so pair it
+                            // with vend_id (mirrors RefundRequestSync) — otherwise
+                            // one ticket stamps every machine sharing that number.
+                            if (filled($ticket->order_id) && $ticket->vend_id) {
+                                $q->orWhere(fn ($w) => $w->where('order_id', $ticket->order_id)->where('vend_id', $ticket->vend_id));
                             }
                         })
                         ->update([
