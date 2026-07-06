@@ -64,6 +64,7 @@ const navigation = computed(() => [
             {name: 'Daily Summary', href: '/vends/transactions-daily-summary', permission: 'read transactions-sales'},
             {name: 'Payment Gateway Txn', href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
             {name: 'Refund Requests', href: '/refunds', permission: 'read refunds'},
+            // {name: 'Refund Settlement', href: '/refund-settlements', permission: 'read refunds'},
         ]
     },
     {

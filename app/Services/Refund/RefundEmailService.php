@@ -34,31 +34,31 @@ class RefundEmailService
 
         return [
             self::T_RECEIVED => [
-                'subject' => "We've received your refund request ({reference})",
+                'headline' => "We've received your refund request ({reference})",
                 'body' => "Dear {name},\n\nThank you for reaching out to us. This is to confirm that we have received your refund request.\n\nYour reference number is {reference}. Please keep this for your records.\n\n{items_block}Our team will review your request against the machine's transaction records and update you by email on the outcome. Within 7 working days." . $signoff,
             ],
             self::T_APPROVED => [
-                'subject' => 'Your refund request has been approved ({reference})',
-                'body' => "Dear {name},\n\nYour refund request has been approved.\n\nWe will process your refund to the PayNow or PayPal account you provided. You should receive the refund within 5 working days.\n\nOnce the refund has been completed, we will send you another confirmation email.\n\nWe sincerely appreciate your support and look forward to serving you again in the future. We hope you will continue to enjoy our products and support HappyIce." . $signoff,
+                'headline' => 'This refund request has been approved, and we are now processing the refund to you',
+                'body' => "Dear {name},\n\nWe will process your refund to the PayNow or PayPal account you provided. You should receive the refund within 5 working days.\n\nOnce the refund has been completed, we will send you another confirmation email.\n\nWe sincerely appreciate your support and look forward to serving you again in the future. We hope you will continue to enjoy our products and support HappyIce." . $signoff,
             ],
             self::T_AUTO_REFUND => [
-                'subject' => 'Your refund has already been processed automatically',
-                'body' => "Dear {name},\n\nThank you for contacting us.\n\nUpon verification, our system has confirmed that the product was not dispensed successfully. An automatic refund has already been initiated, and the refund request submitted is therefore not required.\n\nPlease note that the refunded amount may take approximately 2–3 working days to be reflected in your bank account, depending on your card issuer or payment provider." . $signoff,
+                'headline' => 'Automatic Refund Has Been Initiated – Refund Request Resolved',
+                'body' => "Dear {name},\n\nUpon verification, our system has confirmed that the product was not dispensed successfully. An automatic refund was initiated at the time of the unsuccessful transaction.\n\nAs the refund has already been initiated automatically, no additional or manual refund is required. Your refund request has been successfully resolved, and this case is now closed.\n\nPlease note that the refunded amount may take approximately 2–3 working days to be reflected in your bank account, depending on your card issuer or payment provider.\n\nWe sincerely appreciate your support and look forward to serving you again in the future. We hope you will continue to enjoy our products and support HappyIce." . $signoff,
             ],
             self::T_CANCELLED_NO_CHARGE => [
-                'subject' => 'No charge was captured for your transaction',
+                'headline' => 'No charge was captured for your transaction',
                 'body' => "Dear {name},\n\nThank you for contacting us.\n\nUpon verification, we found that the transaction was automatically cancelled because the product was not dispensed successfully. As no payment was captured for this transaction, no refund is required.\n\nYou may notice a temporary pending or authorization hold on your bank account. This will normally be released automatically by your bank within a few working days." . $signoff,
             ],
             self::T_INFO_REQUIRED => [
-                'subject' => 'Additional information required for your refund',
+                'headline' => 'Additional information required for your refund',
                 'body' => "Dear {name},\n\nWe have reviewed and approved your refund request. However, we were unable to process the refund as the PayNow number provided appears to be invalid or is not registered for PayNow transfers.\n\nTo proceed with the refund, kindly email us at refund@happyice.com.sg with a valid PayNow-registered mobile number or UEN/NRIC-linked PayNow account.\n\nUpon receiving the correct PayNow details, we will process the refund as soon as possible." . $signoff,
             ],
             self::T_IN_PROGRESS => [
-                'subject' => 'Your refund is being processed',
+                'headline' => 'Your refund is being processed',
                 'body' => "Dear {name},\n\nThank you for your patience.\n\nWe would like to inform you that your refund request has been reviewed and is currently being processed. The refunded amount will be transferred to you shortly, and may take a few working days to be reflected depending on your bank or payment provider.\n\nWe apologize for the inconvenience caused." . $signoff,
             ],
             self::T_COMPLETED => [
-                'subject' => 'Your refund has been processed',
+                'headline' => 'Your refund has been processed',
                 'body' => "Dear {name},\n\nWe are pleased to inform you that your refund has been successfully processed.\n\nWe apologize for the inconvenience caused and thank you for your patience and understanding.\n\nWe sincerely appreciate your support and look forward to serving you again in the future." . $signoff,
             ],
         ];
@@ -78,6 +78,28 @@ class RefundEmailService
             '{name}' => $name !== '' ? $name : 'Customer',
             '{amount}' => number_format($amountCents / 100, 2),
         ]);
+    }
+
+    /**
+     * The stable, per-ticket subject shared by EVERY email in the refund
+     * conversation, so a customer's inbox groups them into one thread by subject
+     * alone (belt-and-suspenders with the Message-ID header threading below).
+     * The RF reference keeps different tickets in different threads.
+     *
+     * Cutover: a ticket whose thread was already started under the OLD per-status
+     * subject scheme has that subject frozen on email_thread_subject — we keep
+     * using it so their existing inbox thread isn't broken. Brand-new tickets get
+     * the new generic subject. The generic subject is deterministic (derived from
+     * the reference), so it stays identical across a ticket's emails even if the
+     * first one was never delivered (email disabled) and thus never stored.
+     */
+    protected function threadSubject(RefundTicket $ticket): string
+    {
+        if (filled($ticket->email_thread_subject)) {
+            return $ticket->email_thread_subject;
+        }
+
+        return $this->interpolate('Happy Ice - Refund Request ({reference})', $ticket);
     }
 
     /**
@@ -353,7 +375,7 @@ class RefundEmailService
      * placeholder with the styled items card (HTML) — the same placeholder is
      * swapped for a text list in the stored/plain-text copy.
      */
-    protected function renderHtml(string $bodyPlain, string $itemsHtml): string
+    protected function renderHtml(string $bodyPlain, string $itemsHtml, string $headline = ''): string
     {
         $parts = explode('{items_block}', $bodyPlain);
         $inner = '';
@@ -364,6 +386,14 @@ class RefundEmailService
             }
         }
 
+        // Bold status headline as the first line of the body — the per-email
+        // "what happened" line (received / approved / processed…) that used to be
+        // the subject. The subject is now a stable per-ticket thread subject, so
+        // this headline is what tells the customer the stage of THIS message.
+        $headlineHtml = $headline !== ''
+            ? '<div style="font-size:16px;font-weight:800;color:#0f172a;margin:0 0 16px;line-height:1.4;">' . e($headline) . '</div>'
+            : '';
+
         return '<div style="background:#f1f5f9;padding:20px 0;">'
             . '<div style="max-width:560px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">'
             . '<div style="background:#0f766e;padding:20px 24px;border-radius:14px 14px 0 0;">'
@@ -371,6 +401,7 @@ class RefundEmailService
             . '<div style="color:#99f6e4;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-top:2px;">Smart Frozen Vending &amp; Solution</div>'
             . '</div>'
             . '<div style="background:#ffffff;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 14px 14px;padding:24px;font-size:14px;line-height:1.65;">'
+            . $headlineHtml
             . $inner
             . '</div>'
             . '</div></div>';
@@ -416,17 +447,42 @@ class RefundEmailService
         }
 
         $tpl = $templates[$templateKey];
-        $subject = $this->interpolate($tpl['subject'], $ticket);
+        $subject = $this->threadSubject($ticket);
+        $headline = $this->interpolate($tpl['headline'], $ticket);
         $rawBody = $this->interpolate($tpl['body'], $ticket);
 
         $blockText = str_contains($rawBody, '{items_block}')
             ? ($this->summaryText($ticket) . $this->itemsText($ticket))
             : '';
 
+        // Mirror send(): the bold headline is the first line of the body.
         return [
             'subject' => $subject,
-            'body' => str_replace('{items_block}', $blockText, $rawBody),
+            'body' => $headline . "\n\n" . str_replace('{items_block}', $blockText, $rawBody),
         ];
+    }
+
+    /**
+     * The exact delivered HTML for a template — the branded shell, bold headline
+     * and item cards — WITHOUT sending. Backs the local in-browser email preview
+     * so the design can be eyeballed and iterated on. Returns null for unknown
+     * keys. Mirrors the rendering in send() (kept in step with it).
+     */
+    public function previewHtml(RefundTicket $ticket, string $templateKey): ?string
+    {
+        $templates = $this->templates();
+        if (!isset($templates[$templateKey])) {
+            return null;
+        }
+
+        $tpl = $templates[$templateKey];
+        $headline = $this->interpolate($tpl['headline'], $ticket);
+        $rawBody = $this->interpolate($tpl['body'], $ticket);
+        $blockHtml = str_contains($rawBody, '{items_block}')
+            ? ($this->summaryHtml($ticket) . $this->itemsHtml($ticket))
+            : '';
+
+        return $this->renderHtml($rawBody, $blockHtml, $headline);
     }
 
     public function send(RefundTicket $ticket, string $templateKey): bool
@@ -437,7 +493,11 @@ class RefundEmailService
         }
 
         $tpl = $templates[$templateKey];
-        $subject = $this->interpolate($tpl['subject'], $ticket);
+        // Subject = the stable per-ticket thread subject (shared by every email
+        // for this ticket). Headline = the per-email "what happened" line that
+        // used to be the subject; it now leads the body in bold.
+        $subject = $this->threadSubject($ticket);
+        $headline = $this->interpolate($tpl['headline'], $ticket);
         $rawBody = $this->interpolate($tpl['body'], $ticket);
 
         // Only the acknowledgement lists the affected items; other templates carry
@@ -447,33 +507,39 @@ class RefundEmailService
         $blockHtml = $hasItemsBlock ? ($this->summaryHtml($ticket) . $this->itemsHtml($ticket)) : '';
         $blockText = $hasItemsBlock ? ($this->summaryText($ticket) . $this->itemsText($ticket)) : '';
 
-        // Plain-text copy (stored on the audit trail): placeholder -> text summary.
-        $body = str_replace('{items_block}', $blockText, $rawBody);
-        // Delivered copy: branded HTML shell with the styled cards injected.
-        $html = $this->renderHtml($rawBody, $blockHtml);
+        // Plain-text copy (stored on the audit trail): headline first, then the
+        // body with the placeholder swapped for the text summary.
+        $body = $headline . "\n\n" . str_replace('{items_block}', $blockText, $rawBody);
+        // Delivered copy: branded HTML shell with the bold headline + styled cards.
+        $html = $this->renderHtml($rawBody, $blockHtml, $headline);
 
         // --- Email threading -------------------------------------------------
-        // The first DELIVERED email (the acknowledgement) becomes the thread root:
-        // its Message-ID is stored on the ticket. Every later workflow email replies
-        // onto that root (In-Reply-To / References + a "Re:" subject) so the whole
-        // refund conversation stays as one thread in the customer's inbox. Each
-        // message still carries its own Message-ID so the chain is well-formed.
-        // Falls back to a normal standalone email if no root exists yet (e.g. the
-        // acknowledgement wasn't delivered because REFUND_EMAIL_ENABLED was off).
+        // Two independent mechanisms keep the whole refund conversation in ONE
+        // inbox thread:
+        //   1. Subject: every email for a ticket shares $subject (above), so
+        //      clients that group by subject (Gmail) thread them regardless.
+        //   2. Headers: the first DELIVERED email's REAL Message-ID (the one the
+        //      transport actually assigned — see below) is stored as the thread
+        //      root; every later email points In-Reply-To / References at it, which
+        //      is what Outlook / Apple Mail thread on.
+        // If the root isn't stored yet (acknowledgement not delivered — e.g.
+        // REFUND_EMAIL_ENABLED was off), the header link is simply skipped and the
+        // shared subject still holds the thread together.
         $rootMessageId = $ticket->email_message_id;
         $isReply = !empty($rootMessageId);
-        if ($isReply) {
-            $rootSubject = $ticket->email_thread_subject ?: $subject;
-            $subject = \Illuminate\Support\Str::startsWith($rootSubject, 'Re:')
-                ? $rootSubject
-                : ('Re: ' . $rootSubject);
-        }
+        // Our own well-formed Message-ID for this outgoing message. For SMTP this
+        // is also what the recipient sees; API transports may reassign it, which is
+        // why the delivered id is read back from the SentMessage after sending.
         $thisMessageId = $this->buildMessageId($ticket);
 
         $to = $ticket->contact_email;
         $enabled = (bool) config('refund.email_enabled', false);
         $sent = false;
         $error = null;
+        // The Message-ID that will be stored as the thread root. Defaults to the
+        // one we set; overwritten below with the transport-assigned id if the
+        // mailer reports a different one (API mailers do).
+        $deliveredMessageId = $thisMessageId;
 
         if ($enabled && $to) {
             try {
@@ -484,7 +550,7 @@ class RefundEmailService
                 $fromName = config('refund.mail.from_name');
 
                 $builder = $mailer ? Mail::mailer($mailer) : Mail::mailer();
-                $builder->html($html, function ($message) use ($to, $subject, $fromAddress, $fromName, $thisMessageId, $isReply, $rootMessageId) {
+                $sentMessage = $builder->html($html, function ($message) use ($to, $subject, $fromAddress, $fromName, $thisMessageId, $isReply, $rootMessageId) {
                     $message->to($to)->subject($subject);
                     if ($fromAddress) {
                         $message->from($fromAddress, $fromName ?: null);
@@ -507,6 +573,14 @@ class RefundEmailService
                     }
                 });
                 $sent = true;
+
+                // Read back the id the transport actually assigned. SMTP keeps the
+                // one we set; API mailers reassign it. Storing the real delivered id
+                // means follow-up emails' In-Reply-To / References point at a
+                // message that genuinely exists in the customer's mailbox.
+                if ($sentMessage && $sentMessage->getMessageId()) {
+                    $deliveredMessageId = $sentMessage->getMessageId();
+                }
             } catch (\Throwable $e) {
                 $error = $e->getMessage();
                 Log::error('Refund email send failed', ['ticket' => $ticket->reference, 'error' => $error]);
@@ -560,9 +634,10 @@ class RefundEmailService
                 'last_email_sent_at' => $sent ? now() : $ticket->last_email_sent_at,
             ];
             // Record the thread root the first time an email is actually delivered,
-            // so every subsequent workflow email replies onto this one.
+            // so every subsequent workflow email replies onto this one. Store the
+            // transport-assigned (delivered) id, not the pre-generated one.
             if ($sent && empty($ticket->email_message_id)) {
-                $updates['email_message_id'] = $thisMessageId;
+                $updates['email_message_id'] = $deliveredMessageId;
                 $updates['email_thread_subject'] = $subject;
             }
             $ticket->update($updates);

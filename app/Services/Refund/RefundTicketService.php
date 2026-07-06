@@ -266,6 +266,11 @@ class RefundTicketService
             throw new \RuntimeException('Cannot match a ticket that is already ' . $ticket->status . '.');
         }
 
+        // Freeze while in a Refund Settlement: re-matching re-derives the amount and
+        // would desync an already-exported bank file. Force an explicit
+        // return-to-pool first (which also unlocks the fields in the new pool).
+        $this->assertNotInSettlement($ticket, 're-match');
+
         $orderId = trim($orderId);
         if ($orderId === '') {
             throw new \RuntimeException('Please enter an Order ID.');
@@ -440,6 +445,9 @@ class RefundTicketService
             throw new \RuntimeException('Cannot clear the match on a ticket that is already ' . $ticket->status . '.');
         }
 
+        // Frozen while in a Refund Settlement (see matchOrder()).
+        $this->assertNotInSettlement($ticket, 'clear the match on');
+
         $validation = $this->validation->validate([], [
             'is_auto_refund_channel' => false,
             'txn_already_refunded' => false,
@@ -599,6 +607,23 @@ class RefundTicketService
         }
 
         return $resolved;
+    }
+
+    /**
+     * Block edits that would desync a ticket already pooled into a Refund
+     * Settlement (freeze-on-export). Legacy non-settlement batches are exempt.
+     *
+     * @throws \RuntimeException
+     */
+    protected function assertNotInSettlement(RefundTicket $ticket, string $verb): void
+    {
+        if (!$ticket->payout_batch_id) {
+            return;
+        }
+        $batch = \App\Models\RefundPayoutBatch::find($ticket->payout_batch_id);
+        if ($batch && $batch->is_settlement) {
+            throw new \RuntimeException("This ticket is in settlement {$batch->reference}. Return it to the pool from that settlement before you {$verb} it.");
+        }
     }
 
     public function log(RefundTicket $ticket, string $action, ?string $from, ?string $to, ?string $note = null, string $actorLabel = 'System', ?int $actorId = null): void

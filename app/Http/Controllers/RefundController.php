@@ -485,6 +485,24 @@ class RefundController extends Controller
         return back();
     }
 
+    /**
+     * LOCAL-ONLY: render a workflow email's HTML in the browser so the design can
+     * be previewed and iterated on without actually sending. Nothing is written or
+     * dispatched. 404s outside the local environment so it can never be reached in
+     * production. Pick the template with ?template=received|approved|completed|…
+     * (defaults to the acknowledgement).
+     */
+    public function emailPreview(Request $request, RefundTicket $ticket)
+    {
+        abort_unless(app()->environment('local'), 404);
+
+        $template = (string) $request->query('template', RefundEmailService::T_RECEIVED);
+        $html = $this->email->previewHtml($ticket, $template);
+        abort_if($html === null, 404, 'Unknown email template: ' . $template);
+
+        return response($html);
+    }
+
     public function generateBatch(Request $request)
     {
         $data = $request->validate([
@@ -710,6 +728,7 @@ class RefundController extends Controller
                 'id' => $batch->id,
                 'reference' => $batch->reference,
                 'filename' => $batch->csv_path ? basename($batch->csv_path) : null,
+                'is_settlement' => (bool) $batch->is_settlement,
             ] : null,
             'completed_at' => optional($t->completed_at)->format('ymd h:i a'),
         ];

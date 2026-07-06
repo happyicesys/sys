@@ -21,6 +21,7 @@ class Operator extends Model
     protected $fillable = [
         'bank_account_name',
         'bank_account_no',
+        'payout_group_id',
         'code',
         'country_id',
         'created_at',
@@ -98,6 +99,11 @@ class Operator extends Model
     public function profile()
     {
         return $this->belongsTo(Profile::class);
+    }
+
+    public function payoutGroup()
+    {
+        return $this->belongsTo(PayoutGroup::class, 'payout_group_id');
     }
 
     public function startAddresses()

@@ -14,26 +14,24 @@ const props = defineProps({
     defaultBank: { type: String, default: 'cimb' },
 });
 
-// ---- batch selection / bank export ----
+// ---- batch selection / push to settlement ----
 const selected = ref([]);
-const bank = ref(props.defaultBank || Object.keys(props.banks)[0] || 'cimb');
-const exporting = ref(false);
-const exportMsg = ref('');
 
-// Same checkbox drives both actions: export (Approved · PayNow) and batch
-// mark-completed (Approved / Scheduled). Backend filters each action again.
-const eligible = (t) => ['approved', 'scheduled'].includes(t.status);
-const completing = ref(false);
-const completeMsg = ref('');
-function completeBatch() {
-    if (!selected.value.length) { completeMsg.value = 'Select at least one Approved ticket.'; return; }
-    if (!confirm('Mark ' + selected.value.length + ' refund(s) as completed? The completion email is sent to each customer (or logged while emails are disabled).')) return;
-    completing.value = true; completeMsg.value = '';
-    router.post('/refunds/batch/complete', { ticket_ids: selected.value }, {
+// The checkbox drives "Push to Settlement": only APPROVED tickets (PayNow or
+// PayPal) can be pushed. The backend re-filters and routes each into its day's
+// open settlement per payout group.
+const eligible = (t) => t.status === 'approved';
+const pushing = ref(false);
+const pushMsg = ref('');
+function pushToSettlement() {
+    if (!selected.value.length) { pushMsg.value = 'Select at least one Approved ticket.'; return; }
+    if (!confirm('Push ' + selected.value.length + ' approved refund(s) into their Refund Settlement?')) return;
+    pushing.value = true; pushMsg.value = '';
+    router.post('/refund-settlements/push', { ticket_ids: selected.value }, {
         preserveScroll: true,
-        onError: (errors) => { completeMsg.value = errors.batch || Object.values(errors)[0] || 'Failed to complete.'; },
+        onError: (errors) => { pushMsg.value = errors.settlement || Object.values(errors)[0] || 'Failed to push.'; },
         onSuccess: () => { selected.value = []; },
-        onFinish: () => { completing.value = false; },
+        onFinish: () => { pushing.value = false; },
     });
 }
 const eligibleIds = () => props.tickets.data.filter(eligible).map((t) => t.id);
@@ -47,35 +45,6 @@ function toggleAll(e) {
 function toggleRow(id) {
     const i = selected.value.indexOf(id);
     if (i === -1) selected.value.push(id); else selected.value.splice(i, 1);
-}
-async function exportBatch() {
-    if (!selected.value.length) { exportMsg.value = 'Select at least one approved PayNow ticket.'; return; }
-    exporting.value = true; exportMsg.value = '';
-    try {
-        const res = await window.axios.post('/refunds/batch/export',
-            { ticket_ids: selected.value, bank: bank.value },
-            { responseType: 'blob' });
-        let fn = res.headers['x-filename'] || 'refund_batch.txt';
-        const url = URL.createObjectURL(new Blob([res.data]));
-        const a = document.createElement('a');
-        a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove();
-        URL.revokeObjectURL(url);
-        selected.value = [];
-        router.reload({ only: ['tickets', 'counts'] });
-    } catch (e) {
-        let msg = 'Export failed. Please try again.';
-        if (e.response && e.response.status === 422) {
-            msg = 'None of the selected tickets are eligible (must be Approved + PayNow).';
-            // responseType is blob, so the JSON error body arrives as a Blob
-            try {
-                const body = JSON.parse(await e.response.data.text());
-                if (body && body.message) msg = body.message;
-            } catch (_) { /* keep fallback text */ }
-        }
-        exportMsg.value = msg;
-    } finally {
-        exporting.value = false;
-    }
 }
 
 // status options as {id: key, value: label} for the tags MultiSelect
@@ -249,37 +218,25 @@ const sortedRows = computed(() => {
             </div>
         </div>
 
-        <!-- batch toolbar: export bank file + mark completed (same selection)
-             HIDDEN for now (v-if="false") — kept intact; will be repurposed later
-             for batch-sending to "Refund Settlement". Do not delete. -->
-        <div v-if="false" class="bg-teal-50 border border-teal-200 rounded-md px-4 py-3 mb-3 flex flex-wrap items-center gap-3">
+        <!-- batch toolbar: push selected Approved tickets into their Refund Settlement -->
+        <!-- <div class="bg-teal-50 border border-teal-200 rounded-md px-4 py-3 mb-3 flex flex-wrap items-center gap-3">
             <span class="text-sm font-semibold text-teal-800">{{ selected.length }} selected</span>
-            <span class="text-xs text-gray-500">Select Approved tickets — export a bank bulk file (PayNow) or mark refunds done in batch.</span>
+            <span class="text-xs text-gray-500">Select Approved tickets and push them into their Refund Settlement. The CIMB (PayNow) and Excel (PayPal) files are exported from the settlement page.</span>
             <div class="flex-1"></div>
-            <!-- only show the bank picker once there is more than one template -->
-            <select v-if="Object.keys(banks).length > 1" v-model="bank" class="border rounded-md px-3 py-2 text-sm bg-white">
-                <option v-for="(label, key) in banks" :key="key" :value="key">{{ label }}</option>
-            </select>
-            <button @click="exportBatch" :disabled="exporting || !selected.length"
-                class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-teal-700 disabled:opacity-50"
-                :title="banks[bank] || ''">
-                {{ exporting ? 'Exporting…' : '⬇ Export ' + bank.toUpperCase() + ' Bulk' }}
+            <button @click="pushToSettlement" :disabled="pushing || !selected.length"
+                class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
+                {{ pushing ? 'Pushing…' : '➡ Push to Settlement' }}
             </button>
-            <button @click="completeBatch" :disabled="completing || !selected.length"
-                class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
-                title="Mark the selected refunds as completed and send the completion email">
-                {{ completing ? 'Completing…' : '✓ Mark Completed' }}
-            </button>
-            <span v-if="exportMsg" class="w-full text-xs text-red-600">{{ exportMsg }}</span>
-            <span v-if="completeMsg" class="w-full text-xs text-red-600">{{ completeMsg }}</span>
-        </div>
+            <a href="/refund-settlements" class="text-xs text-teal-700 underline whitespace-nowrap">Open Refund Settlement →</a>
+            <span v-if="pushMsg" class="w-full text-xs text-red-600">{{ pushMsg }}</span>
+        </div> -->
 
         <!-- table -->
         <div class="bg-white rounded-md border overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
-                        <th v-if="false" class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" /></th>
+                        <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" title="Select all Approved tickets on this page" /></th>
                         <th colspan="6" class="text-center px-4 py-2 border-b border-gray-200">Refund Request</th>
                         <th colspan="4" class="text-center px-4 py-2 border-b border-l border-gray-200 text-indigo-700">System self-checking</th>
                         <th colspan="3" class="text-center px-4 py-2 border-b border-l border-gray-200 text-teal-700">Refund Progress</th>
@@ -302,9 +259,9 @@ const sortedRows = computed(() => {
                 </thead>
                 <tbody>
                     <tr v-for="t in sortedRows" :key="t.id" class="border-t hover:bg-gray-50" :class="t.is_dropped ? 'opacity-60' : ''">
-                        <td v-if="false" class="px-3 py-3">
+                        <td class="px-3 py-3">
                             <input type="checkbox" :disabled="!eligible(t)" :checked="selected.includes(t.id)" @change="toggleRow(t.id)"
-                                :title="!eligible(t) ? 'Only Approved / Scheduled tickets can be batch-processed' : ''" />
+                                :title="!eligible(t) ? 'Only Approved tickets can be pushed to settlement' : ''" />
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <a :href="'/refunds/' + t.id" target="_blank"
@@ -383,7 +340,10 @@ const sortedRows = computed(() => {
                             </span>
                         </td>
                         <td class="px-4 py-3" @click.stop>
-                            <a v-if="t.batch" :href="'/refunds/batch/' + t.batch.id + '/download'"
+                            <a v-if="t.batch && t.batch.is_settlement" :href="'/refund-settlements/' + t.batch.id" target="_blank"
+                                class="text-teal-700 text-xs font-semibold hover:underline whitespace-nowrap"
+                                title="Open the Refund Settlement">{{ t.batch.reference }}</a>
+                            <a v-else-if="t.batch" :href="'/refunds/batch/' + t.batch.id + '/download'"
                                 class="text-teal-700 text-xs font-semibold hover:underline whitespace-nowrap"
                                 :title="t.batch.filename || ''">⬇ {{ t.batch.reference }}</a>
                             <span v-else class="text-gray-300">—</span>

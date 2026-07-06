@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\VendDataController;
 use App\Http\Controllers\ApkSettingController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\RefundController;
+use App\Http\Controllers\RefundSettlementController;
 use App\Http\Controllers\RefundFormController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CardTerminalController;
@@ -858,6 +859,9 @@ Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     // wildcard below, or 'batch' would be captured as a {ticket} binding.
     Route::post('/batch/complete', [RefundController::class, 'completeBatch'])->name('refunds.batch.complete')->middleware('can:update refunds');
     Route::get('/{ticket}', [RefundController::class, 'show'])->name('refunds.show')->middleware('can:read refunds');
+    // Local-only: render a workflow email's HTML in the browser to preview the
+    // design (?template=received|approved|completed|…). 404s outside local env.
+    Route::get('/{ticket}/email-preview', [RefundController::class, 'emailPreview'])->middleware('can:read refunds');
     Route::post('/{ticket}/match', [RefundController::class, 'match'])->middleware('can:update refunds');
     Route::post('/{ticket}/clear-match', [RefundController::class, 'clearMatch'])->middleware('can:update refunds');
     Route::post('/{ticket}/verify', [RefundController::class, 'verify'])->middleware('can:verify refunds');
@@ -874,6 +878,24 @@ Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     Route::post('/batch/export', [RefundController::class, 'exportBatch'])->name('refunds.batch.export')->middleware('can:payout refunds');
     Route::get('/batch/{batch}/download', [RefundController::class, 'downloadBatch'])->name('refunds.batch.download')->middleware('can:payout refunds');
     Route::post('/batch/{batch}/uploaded', [RefundController::class, 'markBatchUploaded'])->middleware('can:payout refunds');
+});
+
+/*
+| Refund Settlement — batch the approved refunds, export CIMB (.txt) / PayPal
+| (.xlsx) from the settlement, then mark the paid rows done.
+*/
+Route::middleware(['auth', 'cors'])->prefix('refund-settlements')->group(function () {
+    Route::get('/', [RefundSettlementController::class, 'index'])->name('refund-settlements.index')->middleware('can:read refunds');
+    // Static routes BEFORE the /{settlement} wildcard so they aren't captured as a binding.
+    Route::post('/push', [RefundSettlementController::class, 'push'])->name('refund-settlements.push')->middleware('can:payout refunds');
+    Route::get('/{settlement}', [RefundSettlementController::class, 'show'])->name('refund-settlements.show')->middleware('can:read refunds');
+    Route::post('/{settlement}/close', [RefundSettlementController::class, 'close'])->middleware('can:payout refunds');
+    Route::post('/{settlement}/export-cimb', [RefundSettlementController::class, 'exportCimb'])->middleware('can:payout refunds');
+    Route::post('/{settlement}/export-xlsx', [RefundSettlementController::class, 'exportXlsx'])->middleware('can:payout refunds');
+    Route::get('/{settlement}/exports/{export}/download', [RefundSettlementController::class, 'downloadExport'])->middleware('can:payout refunds');
+    Route::post('/{settlement}/mark-done', [RefundSettlementController::class, 'markDone'])->middleware('can:payout refunds');
+    Route::post('/{settlement}/return-to-pool/{ticket}', [RefundSettlementController::class, 'returnToPool'])->middleware('can:payout refunds');
+    Route::delete('/{settlement}', [RefundSettlementController::class, 'destroy'])->middleware('can:payout refunds');
 });
 
 require __DIR__ . '/auth.php';
