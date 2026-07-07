@@ -55,6 +55,14 @@ class RefundValidationService
             'had_channel_error' => count(array_filter($validated, fn ($i) => !empty($i['had_channel_error']))) > 0,
             'is_auto_refund_channel' => $isAutoChannel,
             'txn_already_refunded' => $txnRefunded,
+            // Single frozen "already refunded — nothing to pay" verdict, decided at
+            // submission (re-derived only when Ops re-matches an Order ID). The list
+            // icon, the ticket-page badge and the server Approve-guard all read THIS,
+            // not the live auto_refund_detected column — a later Reject/Drop sets that
+            // column as a reason marker and must NOT flip the frozen self-validation.
+            // Covers: the linked charge was already refunded, a Nayax terminal that
+            // auto-refunds externally, or every claimed item already refunded.
+            'already_refunded' => $txnRefunded || $isAutoChannel || $anyAlreadyRefunded,
             'is_manual' => $isManual,
             'evaluated_at' => now()->toDateTimeString(),
         ];

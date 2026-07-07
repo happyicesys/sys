@@ -273,7 +273,9 @@ class RefundFormController extends Controller
         return response()->json([
             'reference' => $ticket->reference,
             'status' => $ticket->status,
-            'auto_resolved' => $ticket->status === \App\Models\RefundTicket::STATUS_AUTO_RESOLVED,
+            // "Auto-resolved" status retired: the customer-facing "already being
+            // refunded" confirmation now keys off the auto-refund flag / channel.
+            'auto_resolved' => (bool) ($ticket->auto_refund_detected || $ticket->is_auto_refund_channel),
             'is_auto_refund_channel' => $ticket->is_auto_refund_channel,
             'recommendation' => $ticket->system_recommendation,
         ]);

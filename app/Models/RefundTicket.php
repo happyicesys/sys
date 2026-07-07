@@ -135,6 +135,34 @@ class RefundTicket extends Model
         return number_format($this->claimed_amount_cents / 100, 2);
     }
 
+    /**
+     * True when there is nothing left to pay because the charge was already
+     * refunded — the "third validation icon crossed" signal. Such a ticket must
+     * NOT be approved for a manual payout — only rejected or dropped.
+     *
+     * Reads the FROZEN self-validation verdict (system_validation_json.already_refunded)
+     * decided at submission and re-synced only on re-match / a genuine later
+     * auto-refund. It deliberately does NOT read the live auto_refund_detected
+     * column, which a later "Reject → no charge" sets as a reason marker and would
+     * otherwise make a manual, no-charge claim look already-refunded. Legacy tickets
+     * without the frozen key fall back to the old signals.
+     */
+    public function isAlreadyRefunded(): bool
+    {
+        $sv = $this->system_validation_json ?? [];
+
+        if (array_key_exists('already_refunded', $sv)) {
+            return (bool) $sv['already_refunded'];
+        }
+
+        // Legacy tickets predating the frozen key: fall back to the frozen
+        // submission signal only (not the mutable auto_refund_detected column, which
+        // a "Reject → no charge" sets as a reason marker). Genuinely auto-refunded
+        // legacy tickets were the old "auto_resolved" ones, which the retirement
+        // migration backfills with already_refunded = true.
+        return (bool) ($sv['txn_already_refunded'] ?? false);
+    }
+
     /** Statuses where a refund is locked in / paying out (blocks a second refund of the same txn). */
     const ACTIVE_REFUND_STATUSES = [
         self::STATUS_APPROVED,

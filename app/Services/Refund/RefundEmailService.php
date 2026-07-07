@@ -375,8 +375,37 @@ class RefundEmailService
      * placeholder with the styled items card (HTML) — the same placeholder is
      * swapped for a text list in the stored/plain-text copy.
      */
-    protected function renderHtml(string $bodyPlain, string $itemsHtml, string $headline = ''): string
+    /**
+     * Header colour keyed to the ticket stage this email represents, mirroring the
+     * status-badge palette in the admin panel (Refund/Show.vue `statusClass`):
+     *   yellow = received / awaiting, green = approved / resolved, red = rejected.
+     * Returns [background, subtitle-tint, title-text]. White title text reads on
+     * the green/red solids; the yellow uses dark text for contrast.
+     */
+    protected function headerTheme(string $templateKey): array
     {
+        // green (approved) — keeps the existing teal brand tone.
+        $green = ['#0f766e', '#99f6e4', '#ffffff'];
+        // yellow (received / info still needed) — dark text for legibility.
+        $yellow = ['#facc15', '#713f12', '#422006'];
+        // red (rejected / no charge captured).
+        $red = ['#dc2626', '#fecaca', '#ffffff'];
+
+        return [
+            self::T_RECEIVED => $yellow,
+            self::T_INFO_REQUIRED => $yellow,
+            self::T_APPROVED => $green,
+            self::T_IN_PROGRESS => $green,
+            self::T_COMPLETED => $green,
+            self::T_AUTO_REFUND => $red,
+            self::T_CANCELLED_NO_CHARGE => $red,
+        ][$templateKey] ?? $green;
+    }
+
+    protected function renderHtml(string $bodyPlain, string $itemsHtml, string $headline = '', string $templateKey = ''): string
+    {
+        [$headerBg, $subtitleColor, $titleColor] = $this->headerTheme($templateKey);
+
         $parts = explode('{items_block}', $bodyPlain);
         $inner = '';
         foreach ($parts as $i => $part) {
@@ -396,9 +425,9 @@ class RefundEmailService
 
         return '<div style="background:#f1f5f9;padding:20px 0;">'
             . '<div style="max-width:560px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">'
-            . '<div style="background:#0f766e;padding:20px 24px;border-radius:14px 14px 0 0;">'
-            . '<div style="color:#ffffff;font-size:19px;font-weight:800;letter-spacing:-.01em;">HappyIce</div>'
-            . '<div style="color:#99f6e4;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-top:2px;">Smart Frozen Vending &amp; Solution</div>'
+            . '<div style="background:' . $headerBg . ';padding:20px 24px;border-radius:14px 14px 0 0;">'
+            . '<div style="color:' . $titleColor . ';font-size:19px;font-weight:800;letter-spacing:-.01em;">HappyIce</div>'
+            . '<div style="color:' . $subtitleColor . ';font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-top:2px;">Smart Frozen Vending &amp; Solution</div>'
             . '</div>'
             . '<div style="background:#ffffff;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 14px 14px;padding:24px;font-size:14px;line-height:1.65;">'
             . $headlineHtml
@@ -482,7 +511,7 @@ class RefundEmailService
             ? ($this->summaryHtml($ticket) . $this->itemsHtml($ticket))
             : '';
 
-        return $this->renderHtml($rawBody, $blockHtml, $headline);
+        return $this->renderHtml($rawBody, $blockHtml, $headline, $templateKey);
     }
 
     public function send(RefundTicket $ticket, string $templateKey): bool
@@ -511,7 +540,7 @@ class RefundEmailService
         // body with the placeholder swapped for the text summary.
         $body = $headline . "\n\n" . str_replace('{items_block}', $blockText, $rawBody);
         // Delivered copy: branded HTML shell with the bold headline + styled cards.
-        $html = $this->renderHtml($rawBody, $blockHtml, $headline);
+        $html = $this->renderHtml($rawBody, $blockHtml, $headline, $templateKey);
 
         // --- Email threading -------------------------------------------------
         // Two independent mechanisms keep the whole refund conversation in ONE

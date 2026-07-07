@@ -732,8 +732,8 @@
 							scheduled TOMORROW in parentheses. -->
 						<div class="px-3 py-3">
 							<dt class="text-xs font-medium leading-tight text-gray-500">&gt;Refillable $: # of VM <span class="text-blue-600 text-[0.625rem]">(# of Job Next Day)</span></dt>
-							<dd class="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-base leading-6 font-semibold tracking-tight tabular-nums text-gray-800">
-								<span class="whitespace-nowrap">&gt;$120: {{ currentStats.refillableOver120 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver120 }})</span></span><span class="whitespace-nowrap">&gt;$150: {{ currentStats.refillableOver150 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver150 }})</span></span><span class="whitespace-nowrap">&gt;$200: {{ currentStats.refillableOver200 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver200 }})</span></span><span class="whitespace-nowrap">&gt;$250: {{ currentStats.refillableOver250 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver250 }})</span></span>
+							<dd class="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm leading-5 font-semibold tracking-tight tabular-nums text-gray-800">
+								<span class="whitespace-nowrap">&gt;$120: {{ currentStats.refillableOver120 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver120 }})</span></span><span class="whitespace-nowrap">&gt;$150: {{ currentStats.refillableOver150 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver150 }})</span></span><span class="whitespace-nowrap">&gt;$200: {{ currentStats.refillableOver200 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver200 }})</span></span><span class="whitespace-nowrap">&gt;$250: {{ currentStats.refillableOver250 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver250 }})</span></span>
 							</dd>
 						</div>
 						<!-- # of VM (# of Job Next Day), Refillable > $300/$350/$400/$450 —
@@ -742,8 +742,8 @@
 							parentheses. -->
 						<div class="px-3 py-3">
 							<dt class="text-xs font-medium leading-tight text-gray-500">&gt;Refillable $: # of VM <span class="text-blue-600 text-[0.625rem]">(# of Job Next Day)</span></dt>
-							<dd class="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-base leading-6 font-semibold tracking-tight tabular-nums text-gray-800">
-								<span class="whitespace-nowrap">&gt;$300: {{ currentStats.refillableOver300 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver300 }})</span></span><span class="whitespace-nowrap">&gt;$350: {{ currentStats.refillableOver350 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver350 }})</span></span><span class="whitespace-nowrap">&gt;$400: {{ currentStats.refillableOver400 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver400 }})</span></span><span class="whitespace-nowrap">&gt;$450: {{ currentStats.refillableOver450 }}<span class="text-blue-600 text-sm">({{ currentStats.nextDayRefillableOver450 }})</span></span>
+							<dd class="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm leading-5 font-semibold tracking-tight tabular-nums text-gray-800">
+								<span class="whitespace-nowrap">&gt;$300: {{ currentStats.refillableOver300 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver300 }})</span></span><span class="whitespace-nowrap">&gt;$350: {{ currentStats.refillableOver350 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver350 }})</span></span><span class="whitespace-nowrap">&gt;$400: {{ currentStats.refillableOver400 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver400 }})</span></span><span class="whitespace-nowrap">&gt;$450: {{ currentStats.refillableOver450 }}<span class="text-blue-600 text-xs">({{ currentStats.nextDayRefillableOver450 }})</span></span>
 							</dd>
 						</div>
 						<!-- # of Job, next day — machines with a scheduled ops job dated tomorrow -->

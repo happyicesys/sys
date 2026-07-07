@@ -278,6 +278,16 @@ class RefundController extends Controller
             RefundTicket::STATUS_PENDING_TRANSFER_INFO,
         ], 'verify');
 
+        // A ticket the system already auto-refunded (third validation icon crossed)
+        // can never be approved for a manual payout — approving would pay it twice.
+        // Ops must Reject (email) or Drop it instead. This mirrors the hidden
+        // Approve button on the ticket page and enforces it server-side.
+        if ($ticket->isAlreadyRefunded()) {
+            return back()->withErrors([
+                'ticket' => 'Cannot approve — this transaction was already auto-refunded by the system. Use “Reject → No charge / auto-refund” or Drop instead.',
+            ]);
+        }
+
         // Manager-approval step removed: verifying a claim now moves it straight
         // to the payout-ready (Approved) gate. We carry over the double-refund
         // guard that used to live on approve() so we still block paying the same
@@ -297,19 +307,24 @@ class RefundController extends Controller
         // Approving the claim emails the customer that the refund is approved and
         // will be paid to their PayNow/PayPal within 5 working days (replies onto
         // the acknowledgement thread). Gated by REFUND_EMAIL_ENABLED, self-guarded.
+        // The email is recorded as its own "Email sent" audit line, so the action
+        // note doesn't repeat it.
         $this->email->send($ticket, RefundEmailService::T_APPROVED);
-        $this->tickets->log($ticket, 'verified', $from, $ticket->status, 'Ops verified claim; approval email sent', auth()->user()?->name ?? 'Ops', auth()->id());
+        $this->tickets->log($ticket, 'verified', $from, $ticket->status, 'Ops verified claim (approved)', auth()->user()?->name ?? 'Ops', auth()->id());
 
         return back();
     }
 
     /**
-     * "No charge / auto-refund" close-out. The charge was already auto-refunded
-     * by the processor (or no charge was ever captured), so no manual payout is
-     * owed — we simply email the customer that it's been handled and resolve the
-     * ticket. This NEVER initiates a new refund. Allowed from any live state
-     * (including auto_resolved, e.g. the Omise job already flipped the status but
-     * no longer emails on its own).
+     * "Reject → No charge / auto-refund" close-out. The charge was already
+     * auto-refunded by the processor (or no charge was ever captured), so no
+     * manual payout is owed. This is an admin REJECTION of the payout request:
+     * the ticket is set to Rejected (red on the list, counted under the Rejected
+     * chip) so it reads the same way the admin clicked it. We still email the
+     * customer that it's been handled and keep auto_refund_detected as the reason.
+     * This NEVER initiates a new refund. Allowed from any live state (including
+     * auto_resolved, e.g. the Omise job already flipped the status but no longer
+     * emails on its own — the admin then closes it out from here).
      */
     public function resolveNoCharge(RefundTicket $ticket)
     {
@@ -323,11 +338,13 @@ class RefundController extends Controller
 
         $from = $ticket->status;
         $ticket->update([
-            'status' => RefundTicket::STATUS_AUTO_RESOLVED,
+            'status' => RefundTicket::STATUS_REJECTED,
             'auto_refund_detected' => true,
         ]);
+        // The customer notice is auto-generated and recorded as its own "Email
+        // sent" line on the audit trail, so the action note doesn't repeat it.
         $this->email->send($ticket, RefundEmailService::T_AUTO_REFUND);
-        $this->tickets->log($ticket, 'auto_resolved', $from, $ticket->status, 'No charge / auto-refund — customer emailed, no payout required', auth()->user()?->name ?? 'Ops', auth()->id());
+        $this->tickets->log($ticket, 'rejected', $from, $ticket->status, 'Rejected — no charge / auto-refund already handled, no payout required', auth()->user()?->name ?? 'Ops', auth()->id());
 
         return back();
     }
@@ -728,7 +745,13 @@ class RefundController extends Controller
             'recommendation' => $t->system_recommendation,
             'is_manual' => array_key_exists('is_manual', $sv) ? (bool) $sv['is_manual'] : (bool) $t->is_manual,
             'had_channel_error' => (bool) ($sv['had_channel_error'] ?? false),
-            'already_refunded' => (bool) ($sv['txn_already_refunded'] ?? $t->auto_refund_detected),
+            // Frozen self-validation verdict (see RefundValidationService): the icon
+            // is decided at submission and re-synced only on re-match / a genuine
+            // later auto-refund — a Reject/Drop must not flip it. Reads the SAME
+            // frozen key as the ticket page and the server guard; legacy tickets
+            // without it fall back to txn_already_refunded (never the mutable
+            // auto_refund_detected, which a no-charge reject sets as a reason marker).
+            'already_refunded' => (bool) ($sv['already_refunded'] ?? ($sv['txn_already_refunded'] ?? false)),
             'matched' => $matched,
             'entered_day_date' => $enteredDayDate ? $enteredDayDate->format('ymd') : null,
             'contact_name' => $t->contact_name,
@@ -966,6 +989,9 @@ class RefundController extends Controller
             ])->values(),
             'logs' => $t->logs->map(fn ($l) => [
                 'actor_label' => $l->actor_label,
+                // actor_id is null for System / Customer lines and set for admin
+                // button clicks — the Show page uses it to badge the action.
+                'actor_id' => $l->actor_id,
                 'action' => $l->action,
                 'from_status' => $l->from_status,
                 'to_status' => $l->to_status,
@@ -1098,9 +1124,11 @@ class RefundController extends Controller
 
     protected function statusLabels(): array
     {
+        // "Auto-resolved" was retired: tickets the system auto-refunds now stay in
+        // "Received" (flagged already-refunded) so Ops rejects or drops them by
+        // hand — approval is disabled for them. No separate chip/status anymore.
         return [
             RefundTicket::STATUS_SUBMITTED => 'Received',
-            RefundTicket::STATUS_AUTO_RESOLVED => 'Auto-resolved',
             RefundTicket::STATUS_REJECTED => 'Rejected',
             RefundTicket::STATUS_APPROVED => 'Approved',
             RefundTicket::STATUS_COMPLETED => 'Completed',

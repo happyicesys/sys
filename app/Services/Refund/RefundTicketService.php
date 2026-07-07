@@ -153,20 +153,23 @@ class RefundTicketService
         ));
 
         $autoDetected = (bool) $validation['auto_refund_detected'];
-        // Only fully auto-resolve when there is genuinely nothing left to pay:
-        //  - Nayax: processor refunds externally, or
-        //  - every selected item is already refunded (recommendation == reject).
+        // The "Auto-resolved" status was retired. Tickets with nothing left to pay
+        // (Nayax processor refunds externally, or every selected item is already
+        // refunded) now stay in "Received" flagged already-refunded, so Ops rejects
+        // or drops them by hand — approval is disabled for them. Only the refund
+        // METHOD differs per case; the status is always Received on submission.
         $allAlreadyRefunded = $validation['recommendation'] === RefundTicket::REC_REJECT;
 
+        $status = RefundTicket::STATUS_SUBMITTED;
         if ($isAutoChannel) {
-            $status = RefundTicket::STATUS_AUTO_RESOLVED;
             $method = RefundTicket::METHOD_NAYAX_AUTO;
+            // Nayax auto-refunds at the terminal → mark already-refunded so the
+            // "already refunded" validation icon crosses and Approve is disabled.
+            $autoDetected = true;
         } elseif ($allAlreadyRefunded) {
-            $status = RefundTicket::STATUS_AUTO_RESOLVED;
             $method = $input['refund_method'] ?? RefundTicket::METHOD_NONE;
         } else {
             // a partial already-refunded ticket still has owed items -> normal flow
-            $status = RefundTicket::STATUS_SUBMITTED;
             $method = $input['refund_method'] ?? RefundTicket::METHOD_PAYNOW;
         }
 
@@ -400,12 +403,15 @@ class RefundTicketService
             ]);
 
             // Nothing left to pay (Nayax auto-refund / everything already refunded)
-            // -> resolve the ticket, mirroring create().
+            // -> keep the ticket in "Received" flagged already-refunded (the
+            // Auto-resolved status was retired), mirroring create(). Ops rejects or
+            // drops it by hand; Approve is disabled for already-refunded tickets.
             if ($isAutoChannel) {
-                $ticket->status = RefundTicket::STATUS_AUTO_RESOLVED;
+                $ticket->status = RefundTicket::STATUS_SUBMITTED;
                 $ticket->refund_method = RefundTicket::METHOD_NAYAX_AUTO;
+                $ticket->auto_refund_detected = true;
             } elseif ($validation['recommendation'] === RefundTicket::REC_REJECT) {
-                $ticket->status = RefundTicket::STATUS_AUTO_RESOLVED;
+                $ticket->status = RefundTicket::STATUS_SUBMITTED;
             } elseif (in_array($from, [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED], true)) {
                 // Re-matching changed the amount on a payout-locked ticket — send it
                 // back to Submitted so it must be re-verified (the single verify gate
@@ -585,11 +591,14 @@ class RefundTicketService
         }
 
         $tickets = RefundTicket::query()
+            // Terminal tickets are left alone. auto_refund_detected already-true
+            // tickets are skipped so this stays idempotent (was: exclude the old
+            // auto_resolved status, which is retired).
             ->whereNotIn('status', [
                 RefundTicket::STATUS_REJECTED,
                 RefundTicket::STATUS_COMPLETED,
-                RefundTicket::STATUS_AUTO_RESOLVED,
             ])
+            ->where('auto_refund_detected', false)
             ->where(function ($q) use ($orderId, $paymentGatewayLogId, $vendTransactionId) {
                 if ($orderId) {
                     $q->orWhere('order_id', $orderId);
@@ -606,22 +615,44 @@ class RefundTicketService
         $resolved = 0;
         foreach ($tickets as $ticket) {
             $from = $ticket->status;
-            $ticket->update([
-                'status' => RefundTicket::STATUS_AUTO_RESOLVED,
-                'auto_refund_detected' => true,
-            ]);
+
+            // Tickets still awaiting a decision (Received) stay put — the admin now
+            // rejects or drops them by hand, and Approve is disabled once the system
+            // has auto-refunded. Tickets already pushed into a payout
+            // (verified/approved/scheduled) are pulled back to Rejected so the
+            // auto-refund can never be paid a second time — the same double-refund
+            // protection the retired auto_resolved flip used to give.
+            $pullFromPayout = in_array($from, [
+                RefundTicket::STATUS_VERIFIED,
+                RefundTicket::STATUS_APPROVED,
+                RefundTicket::STATUS_SCHEDULED,
+            ], true);
+
+            // Sync the FROZEN self-validation snapshot: a genuine later auto-refund
+            // is the one non-admin event allowed to amend it, so the "already
+            // refunded" icon/badge and the Approve-guard flip to reflect reality
+            // (an admin Reject/Drop never touches this — it only sets the column).
+            $sv = $ticket->system_validation_json ?? [];
+            $sv['already_refunded'] = true;
+
+            $ticket->update(array_merge(
+                ['auto_refund_detected' => true, 'system_validation_json' => $sv],
+                $pullFromPayout ? ['status' => RefundTicket::STATUS_REJECTED] : []
+            ));
+
             $this->log(
                 $ticket,
-                'auto_resolved',
+                $pullFromPayout ? 'rejected' : 'auto_resolved',
                 $from,
                 $ticket->status,
-                'System auto-refunded the charge; ticket resolved automatically. Email the customer via the "No charge / auto-refund" action when ready.',
+                $pullFromPayout
+                    ? 'System auto-refunded the charge after this claim was approved — pulled out of payout (Rejected) to prevent a double refund.'
+                    : 'System auto-refunded the charge; flagged as already refunded. The claim stays in Received — reject or drop it (approval is disabled).',
                 'System'
             );
-            // NOTE: the "auto-refund already processed" email is intentionally NOT
-            // sent here anymore. Per the requested workflow, no customer email fires
-            // automatically off a vend_transactions/charge refund — the admin sends
-            // it deliberately from the ticket's "No charge / auto-refund" action.
+            // NOTE: no customer email fires automatically off a vend_transactions /
+            // charge refund. Per the workflow, the admin sends it deliberately from
+            // the ticket's "Reject → No charge / auto-refund" action.
             $resolved++;
         }
 

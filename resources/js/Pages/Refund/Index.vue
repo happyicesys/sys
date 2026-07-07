@@ -1,9 +1,25 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+
+const page = usePage();
+const can = (p) => (page.props.auth?.roles || []).includes('superadmin') || (page.props.auth?.permissions || []).includes(p);
+
+// "Mark done" moved here from the ticket page: an approved refund is closed out
+// straight from the list once the payout has gone through. Posts to the same
+// /complete endpoint (guarded by `update refunds`), then reloads in place.
+const completing = ref(null); // id being completed, to disable just that button
+function markDone(t) {
+    if (!confirm('Mark ' + t.reference + ' as refund done? This emails the customer their completion notice.')) return;
+    completing.value = t.id;
+    router.post('/refunds/' + t.id + '/complete', {}, {
+        preserveScroll: true,
+        onFinish: () => { completing.value = null; },
+    });
+}
 
 const props = defineProps({
     tickets: { type: Object, required: true },
@@ -369,9 +385,14 @@ const sortedRows = computed(() => {
                                 :title="t.batch.filename || ''">⬇ {{ t.batch.reference }}</a>
                             <span v-else class="text-gray-300">—</span>
                         </td>
-                        <td class="px-4 py-3 whitespace-nowrap">
+                        <td class="px-4 py-3 whitespace-nowrap" @click.stop>
                             <span v-if="t.status === 'completed'" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Completed<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
-                            <span v-else-if="['approved', 'scheduled'].includes(t.status)" class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">In progress</span>
+                            <template v-else-if="['approved', 'scheduled'].includes(t.status)">
+                                <button v-if="can('update refunds')" @click="markDone(t)" :disabled="completing === t.id"
+                                    class="text-xs font-semibold px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 whitespace-nowrap"
+                                    title="Mark this approved refund as paid / done">✓ Mark done</button>
+                                <span v-else class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">In progress</span>
+                            </template>
                             <span v-else class="text-gray-300">—</span>
                         </td>
                     </tr>

@@ -23,12 +23,21 @@ const hasChannelError = computed(() => (typeof sv.value.had_channel_error !== 'u
     ? !!sv.value.had_channel_error
     : (props.ticket.items || []).some((i) => i.had_channel_error)));
 const isManualClaim = computed(() => (typeof sv.value.is_manual !== 'undefined' ? !!sv.value.is_manual : !!props.ticket.is_manual));
-// The double-refund badge must reflect the CURRENT refunded state, not just the
-// frozen snapshot: a charge can be refunded after submission (e.g. the system
-// auto-refunds an Omise non-dispense), and the badge has to stay in sync with the
-// live "Refunded" flag shown in Related Transactions. live_txn_refunded is read
-// fresh from the linked transaction/gateway log by the controller.
-const alreadyRefunded = computed(() => !!(props.ticket.live_txn_refunded || sv.value.txn_already_refunded || props.ticket.auto_refund_detected));
+// The System Validation panel is a FROZEN snapshot taken when the ticket is
+// received; it must NOT change on later user/system actions (reject → no-charge,
+// drop, verify all leave it untouched). It is re-derived only when Ops matches a
+// vend_transactions Order ID (matchOrder rewrites system_validation_json) or when
+// the system genuinely auto-refunds the charge later (markAutoRefundedByCharge
+// syncs the same snapshot). The badge + the Approve gate read this ONE frozen
+// verdict — never the live auto_refund_detected column, which a "Reject → no
+// charge" sets as a reason marker and made a manual, unmatched, $0 claim wrongly
+// read "Already refunded". `already_refunded` also folds in the Nayax auto-refund
+// and all-items-refunded cases, so it matches the list icon and the server guard.
+// (Legacy tickets predating the frozen key fall back to txn_already_refunded.)
+const alreadyRefunded = computed(() =>
+    typeof sv.value.already_refunded !== 'undefined'
+        ? !!sv.value.already_refunded
+        : !!sv.value.txn_already_refunded);
 const isVideo = (a) => a && a.mime && a.mime.startsWith('video/');
 
 // ---- Photo / video carousel (one large item at a time; shared index for
@@ -112,14 +121,17 @@ const s = computed(() => t.value.status);
 const autoRefundEmailSent = computed(() =>
     (t.value.logs || []).some(l => l.meta && l.meta.kind === 'email' && l.meta.template === 'auto_refund_triggered')
     || t.value.last_email_template === 'auto_refund_triggered');
+// 'approved' is treated as terminal for this Actions panel: once the customer
+// has been emailed that their refund is approved, Reject / Drop no longer make
+// sense (we'd be walking back a promise), and "Mark refund done" now lives on
+// the Refund Requests index instead. So an approved ticket shows no Actions box.
 const isResolved = computed(() =>
-    ['rejected', 'completed'].includes(s.value)
+    ['approved', 'rejected', 'completed'].includes(s.value)
     || (s.value === 'auto_resolved' && autoRefundEmailSent.value));
 // Whether any action control is available — keeps the Actions box from
 // rendering as an empty titled panel once the ticket is fully resolved.
 const hasActions = computed(() =>
     (can('verify refunds') && ['submitted', 'pending_transfer_info'].includes(s.value))
-    || (can('update refunds') && s.value === 'approved')
     || (can('verify refunds') && !isResolved.value));
 
 // ---- Ops manual match / re-match ----
@@ -179,6 +191,27 @@ const paymentChannelDisplay = computed(() => {
 
 // ---- Photo / video (right of the submission; up to 3 thumbnails) ----
 const attachments = computed(() => t.value.attachments || []);
+
+// ---- Audit-trail action badge ----
+// Highlights the timeline entries where a human admin operated a workflow
+// button (Approve / Reject / Drop / …), so it's obvious when someone stepped in
+// and changed the ticket vs. the automatic System / Customer lines. Only entries
+// with a real actor_id (an admin) are badged; System (actor_id null) and Customer
+// lines — including the auto-generated "Email sent" lines — are left plain.
+const actionBadges = {
+    verified: { label: 'Approved', cls: 'bg-green-100 text-green-700 border-green-200' },
+    rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-700 border-red-200' },
+    dropped: { label: 'Dropped', cls: 'bg-gray-200 text-gray-700 border-gray-300' },
+    completed: { label: 'Refund done', cls: 'bg-green-100 text-green-700 border-green-200' },
+    request_info: { label: 'Info requested', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+    matched: { label: 'Matched', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+    unmatched: { label: 'Match cleared', cls: 'bg-gray-100 text-gray-600 border-gray-300' },
+    item_decision: { label: 'Item decision', cls: 'bg-gray-100 text-gray-600 border-gray-300' },
+};
+function actionBadge(l) {
+    if (!l.actor_id) return null;            // system / customer lines stay plain
+    return actionBadges[l.action] || null;
+}
 </script>
 
 <template>
@@ -494,13 +527,19 @@ const attachments = computed(() => t.value.attachments || []);
         <!-- Audit trail -->
         <div class="bg-white rounded-md border p-4">
             <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-2">Audit trail</h3>
-            <div v-for="(l, i) in t.logs" :key="i" class="text-xs text-gray-600 border-l-2 pl-3 py-1" :class="l.meta && l.meta.kind === 'email' ? 'border-teal-300' : 'border-gray-200'">
-                <b class="text-gray-800">{{ l.actor_label }}</b> {{ l.note }}
-                <span class="text-gray-400">· {{ l.created_at }}</span>
-                <template v-if="l.meta && l.meta.kind === 'email'">
-                    <button type="button" @click="openEmail(l.meta)" class="ml-1 inline-flex items-center gap-1 rounded border border-teal-300 bg-teal-50 px-1.5 py-0.5 text-[11px] font-semibold text-teal-700 hover:bg-teal-100">✉ View email</button>
-                    <span v-if="!l.meta.delivered" class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">{{ l.meta.error ? 'failed' : 'not delivered' }}</span>
-                </template>
+            <div v-for="(l, i) in t.logs" :key="i" class="text-xs text-gray-600 border-l-2 pl-3 py-1 flex items-start justify-between gap-3"
+                :class="[l.meta && l.meta.kind === 'email' ? 'border-teal-300' : 'border-gray-200', actionBadge(l) ? 'bg-gray-50/60' : '']">
+                <div class="min-w-0">
+                    <b class="text-gray-800">{{ l.actor_label }}</b> {{ l.note }}
+                    <span class="text-gray-400">· {{ l.created_at }}</span>
+                    <template v-if="l.meta && l.meta.kind === 'email'">
+                        <button type="button" @click="openEmail(l.meta)" class="ml-1 inline-flex items-center gap-1 rounded border border-teal-300 bg-teal-50 px-1.5 py-0.5 text-[11px] font-semibold text-teal-700 hover:bg-teal-100">✉ View email</button>
+                        <span v-if="!l.meta.delivered" class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">{{ l.meta.error ? 'failed' : 'not delivered' }}</span>
+                    </template>
+                </div>
+                <!-- which button the admin clicked (only on human-actioned lines) -->
+                <span v-if="actionBadge(l)" class="shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                    :class="actionBadge(l).cls" title="Action performed by the admin">{{ actionBadge(l).label }}</span>
             </div>
             <div v-if="!t.logs.length" class="text-xs text-gray-400">No activity yet.</div>
         </div>
@@ -512,19 +551,21 @@ const attachments = computed(() => t.value.attachments || []);
 
                 <!-- ✓ Verified (Approved): moves to Approved and emails the customer
                      that their refund is approved (paid within 5 working days). -->
-                <button v-if="can('verify refunds') && ['submitted','pending_transfer_info'].includes(s)" @click="post(base + '/verify')" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-teal-600 text-white">✓ Verify (Approved) — email customer</button>
-                <a v-if="can('verify refunds') && ['submitted','pending_transfer_info'].includes(s)" href="#" @click.prevent="openTemplate('approved')" class="block text-[11px] text-teal-700 underline hover:text-teal-900 -mt-1 mb-1">✉ Preview approval email</a>
-                <button v-if="can('update refunds') && s === 'approved'" @click="post(base + '/complete')" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-green-600 text-white">✓ Mark refund done</button>
+                <!-- Approve is hidden once the transaction is already auto-refunded
+                     (third validation icon crossed): approving would pay it twice.
+                     Only Reject / Drop remain for those tickets. -->
+                <button v-if="can('verify refunds') && !alreadyRefunded && ['submitted','pending_transfer_info'].includes(s)" @click="post(base + '/verify')" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-teal-600 text-white">✓ Approve</button>
+                <a v-if="can('verify refunds') && !alreadyRefunded && ['submitted','pending_transfer_info'].includes(s)" href="#" @click.prevent="openTemplate('approved')" class="block text-[11px] text-teal-700 underline hover:text-teal-900 -mt-1 mb-1">✉ Preview approval email</a>
 
                 <!-- ✕ No charge / auto-refund: charge already auto-refunded (or never
                      captured). Emails the customer it's handled and closes the ticket;
                      never starts a new refund. -->
-                <button v-if="can('verify refunds') && !isResolved" @click="resolveNoCharge" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-red-600 text-white">✕ Reject → No charge / auto-refund — email customer</button>
+                <button v-if="can('verify refunds') && !isResolved" @click="resolveNoCharge" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-red-600 text-white">✕ Reject (No charge / auto-refund)</button>
                 <a v-if="can('verify refunds') && !isResolved" href="#" @click.prevent="openTemplate('auto_refund_triggered')" class="block text-[11px] text-red-700 underline hover:text-red-900 -mt-1 mb-1">✉ Preview auto-refund email</a>
 
                 <!-- ✕ Drop / close (e.g. double submission): kept but struck through in
                      the list. No customer email is sent. -->
-                <button v-if="can('verify refunds') && !isResolved" @click="showDrop = !showDrop" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-white border border-gray-300 text-gray-600">✕ Reject → Ignore / drop (double submission)</button>
+                <button v-if="can('verify refunds') && !isResolved" @click="showDrop = !showDrop" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-white border border-gray-300 text-gray-600">✕ Drop (or Ignore)</button>
                 <div v-if="showDrop" class="pt-1">
                     <textarea v-model="dropRemarks" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Reason (optional) — e.g. duplicate of RF-…"></textarea>
                     <button @click="doDrop" :disabled="busy" class="mt-1 w-full bg-gray-700 text-white text-sm rounded px-3 py-1.5">Confirm drop (no email)</button>
