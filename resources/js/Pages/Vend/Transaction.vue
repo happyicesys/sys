@@ -685,7 +685,7 @@
        <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
-              <table class="compact-table table-auto min-w-full border-separate" style="border-spacing: 0">
+              <table class="table-auto min-w-full border-separate" style="border-spacing: 0">
                   <thead class="">
                       <tr class="divide-x bg-gray-400">
                         <TableHead>
@@ -1517,22 +1517,3 @@ function sortTable(sortKey, inverse = false) {
   onSearchFilterUpdated()
 }
 </script>
-
-<style scoped>
-/* Compact the transactions table only (scoped so the shared TableData/TableHead
-   components are untouched for every other page). Higher specificity than the
-   components' single-class Tailwind padding, so it wins without !important. */
-.compact-table :deep(td) {
-    padding-top: 0.2rem;
-    padding-bottom: 0.2rem;
-    padding-left: 0.3rem;
-    padding-right: 0.3rem;
-    line-height: 1.2;
-}
-.compact-table :deep(th) {
-    padding-top: 0.35rem;
-    padding-bottom: 0.35rem;
-    padding-left: 0.3rem;
-    padding-right: 0.3rem;
-}
-</style>

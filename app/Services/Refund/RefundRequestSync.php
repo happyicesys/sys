@@ -88,7 +88,14 @@ class RefundRequestSync
                     $q->orWhere('vend_transaction_id', $vendTransactionId);
                 }
                 if (filled($orderId) && $vendId) {
-                    $q->orWhere(fn ($w) => $w->where('order_id', $orderId)->where('vend_id', $vendId));
+                    // order_id fallback: machine-scoped (order_id isn't unique) AND
+                    // only for tickets NOT already pinned to a specific transaction
+                    // — otherwise a ticket pinned to txn A would also claim txn B
+                    // just because they share a per-machine order number.
+                    $q->orWhere(fn ($w) => $w
+                        ->whereNull('vend_transaction_id')
+                        ->where('order_id', $orderId)
+                        ->where('vend_id', $vendId));
                 }
             })
             ->orderByDesc('id')

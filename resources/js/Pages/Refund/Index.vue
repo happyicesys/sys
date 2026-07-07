@@ -229,7 +229,7 @@ const sortedRows = computed(() => {
 
         <!-- table -->
         <div class="bg-white rounded-md border overflow-x-auto">
-            <table class="min-w-full text-sm">
+            <table class="compact-table min-w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
                         <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" title="Select all Approved tickets on this page" /></th>
@@ -395,3 +395,17 @@ const sortedRows = computed(() => {
     </div>
 </BreezeAuthenticatedLayout>
 </template>
+
+<style scoped>
+/* Compact the Refund Request list table only. Scoped to this page + higher
+   specificity than the cells' single-class Tailwind padding, so it wins the
+   px-4/py-3 without !important and without touching any other page. */
+.compact-table th,
+.compact-table td {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+    line-height: 1.2;
+}
+</style>
