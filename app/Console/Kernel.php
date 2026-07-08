@@ -45,6 +45,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('contract:apply-scheduled')->dailyAt('00:50')->withoutOverlapping();
         $schedule->command('customer-summary:compute')->dailyAt('01:00');
         $schedule->command('vend:retry-jobs')->everyMinute();
+        // Ingest the regional rainfall snapshot (data.gov.sg refreshes every 5 min);
+        // idempotent, so overlap-guarded re-runs never double-insert.
+        $schedule->command('weather:sync-rainfall')->everyFiveMinutes()->withoutOverlapping();
         $schedule->command('ops:freeze-stock-in')->everyMinute()->withoutOverlapping();
         // Safety net: re-enqueue any freeze-eligible items the observer missed
         // (e.g. bulk/raw status updates that bypass model events).

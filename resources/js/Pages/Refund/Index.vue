@@ -50,6 +50,21 @@ function pushToSettlement() {
         onFinish: () => { pushing.value = false; },
     });
 }
+// TEMPORARY: batch "Mark as done" replaces "Push to Settlement" while the
+// settlement flow is paused. Only Approved tickets are selectable; the backend
+// (/refunds/batch/complete) re-checks Approved/Scheduled and emails each customer.
+const marking = ref(false);
+function markDoneBatch() {
+    if (!selected.value.length) { pushMsg.value = 'Select at least one Approved ticket.'; return; }
+    if (!confirm('Mark ' + selected.value.length + ' approved refund(s) as done? This emails each customer their completion notice.')) return;
+    marking.value = true; pushMsg.value = '';
+    router.post('/refunds/batch/complete', { ticket_ids: selected.value }, {
+        preserveScroll: true,
+        onError: (errors) => { pushMsg.value = errors.batch || Object.values(errors)[0] || 'Failed to complete.'; },
+        onSuccess: () => { selected.value = []; },
+        onFinish: () => { marking.value = false; },
+    });
+}
 const eligibleIds = () => props.tickets.data.filter(eligible).map((t) => t.id);
 const allSelected = computed(() => {
     const ids = eligibleIds();
@@ -194,10 +209,10 @@ const sortedRows = computed(() => {
         <!-- status chips (quick single-status filter) -->
         <div class="flex flex-wrap gap-2 mb-3">
             <span v-for="(label, key) in statuses" :key="key"
-                class="text-xs font-semibold px-3 py-1.5 rounded-full border bg-white cursor-pointer"
-                :class="(filters.status.length === 1 && filters.status[0].id === key) ? 'border-teal-500 text-teal-700' : 'border-gray-200 text-gray-600'"
+                class="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 cursor-pointer transition"
+                :class="[statusClass(key), (filters.status.length === 1 && filters.status[0].id === key) ? 'ring-2 ring-offset-1 ring-teal-500' : 'opacity-80 hover:opacity-100']"
                 @click="pickStatus(key)">
-                {{ label }} <b class="text-gray-900">{{ counts[key] || 0 }}</b>
+                {{ label }} <b>{{ counts[key] || 0 }}</b>
             </span>
         </div>
 
@@ -231,25 +246,33 @@ const sortedRows = computed(() => {
             </div>
         </div>
 
-        <!-- batch toolbar: push selected Approved tickets into their Refund Settlement -->
-        <!-- <div class="bg-teal-50 border border-teal-200 rounded-md px-4 py-3 mb-3 flex flex-wrap items-center gap-3">
-            <span class="text-sm font-semibold text-teal-800">{{ selected.length }} selected</span>
-            <span class="text-xs text-gray-500">Select Approved tickets and push them into their Refund Settlement. The CIMB (PayNow) and Excel (PayPal) files are exported from the settlement page.</span>
-            <div class="flex-1"></div>
-            <button @click="pushToSettlement" :disabled="pushing || !selected.length"
-                class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
-                {{ pushing ? 'Pushing…' : '➡ Push to Settlement' }}
-            </button>
-            <a href="/refund-settlements" class="text-xs text-teal-700 underline whitespace-nowrap">Open Refund Settlement →</a>
-            <span v-if="pushMsg" class="w-full text-xs text-red-600">{{ pushMsg }}</span>
-        </div> -->
+        <!-- batch toolbar: TEMPORARY — batch "Mark as done" is live; "Push to
+             Settlement" is disabled for now. Only shows once at least one
+             (Approved) ticket is ticked. -->
+        <div v-if="selected.length" class="bg-teal-50 border border-teal-200 rounded-md px-4 py-3 mb-3">
+            <div class="flex items-center gap-3">
+                <span class="text-sm font-semibold text-teal-800">{{ selected.length }} selected</span>
+                <span class="text-xs text-gray-500">Select Approved tickets and mark them done in one go — this emails each customer their completion notice.</span>
+            </div>
+            <div class="flex items-center gap-3 mt-3">
+                <button @click="markDoneBatch" :disabled="marking"
+                    class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
+                    {{ marking ? 'Marking…' : '✓ Mark selected as done' }}
+                </button>
+                <button disabled title="Temporarily disabled"
+                    class="bg-gray-200 text-gray-400 rounded-md px-4 py-2 text-sm font-semibold cursor-not-allowed">
+                    ➡ Push to Settlement
+                </button>
+            </div>
+            <span v-if="pushMsg" class="block mt-2 text-xs text-red-600">{{ pushMsg }}</span>
+        </div>
 
         <!-- table -->
         <div class="bg-white rounded-md border overflow-x-auto">
             <table class="compact-table min-w-full text-xs">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
-                        <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" title="Select all Approved tickets on this page" /></th>
+                        <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" class="cursor-pointer" title="Select all Approved tickets on this page" /></th>
                         <th colspan="7" class="text-center px-4 py-2 border-b border-gray-200">Refund Request</th>
                         <th colspan="4" class="text-center px-4 py-2 border-b border-l border-gray-200 text-indigo-700">System self-checking</th>
                         <th colspan="3" class="text-center px-4 py-2 border-b border-l border-gray-200 text-teal-700">Refund Progress</th>
@@ -282,7 +305,8 @@ const sortedRows = computed(() => {
                     <tr v-for="t in sortedRows" :key="t.id" class="border-t hover:bg-gray-50" :class="t.is_dropped ? 'opacity-60' : ''">
                         <td class="px-3 py-3">
                             <input type="checkbox" :disabled="!eligible(t)" :checked="selected.includes(t.id)" @change="toggleRow(t.id)"
-                                :title="!eligible(t) ? 'Only Approved tickets can be pushed to settlement' : ''" />
+                                :class="eligible(t) ? 'cursor-pointer' : 'cursor-not-allowed opacity-40 grayscale'"
+                                :title="!eligible(t) ? 'Only Approved tickets can be marked done in a batch' : ''" />
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <a :href="'/refunds/' + t.id" target="_blank"
@@ -360,16 +384,17 @@ const sortedRows = computed(() => {
                                 v-tooltip="'Duplicates ' + t.repeat_ref">↺ {{ t.repeat_ref }}</span>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
-                            <span v-if="t.product_drop_sensor === true" class="text-xs font-semibold text-green-700"
+                            <span v-if="t.product_drop_sensor === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"
                                 v-tooltip="'Product Drop Sensor was Enabled on the machine at the time of the transaction.'">Enabled</span>
-                            <span v-else-if="t.product_drop_sensor === false" class="text-xs font-semibold text-gray-500"
+                            <span v-else-if="t.product_drop_sensor === false" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"
                                 v-tooltip="'Product Drop Sensor was Disabled on the machine at the time of the transaction.'">Disabled</span>
                             <span v-else class="text-gray-300" v-tooltip="'No Product Drop Sensor reading recorded for this transaction.'">—</span>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <span v-if="t.error_code" class="text-xs font-semibold text-amber-700"
                                 v-tooltip="t.error_desc || ('Error code ' + t.error_code)">{{ t.error_code }}</span>
-                            <span v-else class="text-gray-300">—</span>
+                            <span v-else class="text-xs font-semibold px-2 py-0.5 rounded-full bg-white text-gray-600 border border-gray-300"
+                                v-tooltip="'No error code recorded for this transaction.'">No</span>
                         </td>
                         <td class="px-4 py-3 border-l border-gray-100 text-center">
                             <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.is_dropped ? 'dropped' : t.status)">{{ t.is_dropped ? 'Dropped' : (statuses[t.status] || t.status) }}</span>
@@ -389,12 +414,9 @@ const sortedRows = computed(() => {
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-center" @click.stop>
                             <span v-if="t.status === 'completed'" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Completed<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
-                            <template v-else-if="['approved', 'scheduled'].includes(t.status)">
-                                <button v-if="can('update refunds')" @click="markDone(t)" :disabled="completing === t.id"
-                                    class="text-xs font-semibold px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 whitespace-nowrap"
-                                    title="Mark this approved refund as paid / done">✓ Mark done</button>
-                                <span v-else class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">In progress</span>
-                            </template>
+                            <!-- Per-row "Mark done" removed: completion is now batch-only via the
+                                 toolbar action. Approved/Scheduled just show an "In progress" badge. -->
+                            <span v-else-if="['approved', 'scheduled'].includes(t.status)" class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">In progress</span>
                             <span v-else class="text-gray-300">—</span>
                         </td>
                     </tr>
