@@ -134,7 +134,7 @@ class RefundSettlementService
             $path = 'refund-payouts/' . $filename;
             Storage::disk('local')->put($path, $content);
 
-            $total = (int) $tickets->sum('claimed_amount_cents');
+            $total = (int) $tickets->sum('payout_amount_cents');
             RefundSettlementExport::create([
                 'refund_payout_batch_id' => $settlement->id,
                 'method' => RefundTicket::METHOD_PAYNOW,
@@ -176,7 +176,7 @@ class RefundSettlementService
         $rows = $tickets->map(fn (RefundTicket $t) => [
             'Reference' => $t->reference,
             'PayPal Email' => $t->payout_destination,
-            'Amount (SGD)' => number_format($t->claimed_amount_cents / 100, 2, '.', ''),
+            'Amount (SGD)' => number_format($t->payout_amount_cents / 100, 2, '.', ''),
             'Operator' => optional(Operator::withoutGlobalScopes()->find($t->operator_id))->name,
             'Machine' => $t->vend_code,
             'Contact Email' => $t->contact_email,
@@ -190,7 +190,7 @@ class RefundSettlementService
         (new FastExcel(collect($rows)))->export($abs);
 
         return DB::transaction(function () use ($settlement, $tickets, $rel, $filename, $userId, $actorLabel) {
-            $total = (int) $tickets->sum('claimed_amount_cents');
+            $total = (int) $tickets->sum('payout_amount_cents');
             RefundSettlementExport::create([
                 'refund_payout_batch_id' => $settlement->id,
                 'method' => RefundTicket::METHOD_PAYPAL,
@@ -397,7 +397,7 @@ class RefundSettlementService
     {
         $agg = RefundTicket::where('payout_batch_id', $settlement->id)
             ->whereIn('status', [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_COMPLETED])
-            ->selectRaw('count(*) as c, coalesce(sum(claimed_amount_cents),0) as t')
+            ->selectRaw('count(*) as c, coalesce(sum(coalesce(final_refund_amount_cents, claimed_amount_cents)),0) as t')
             ->first();
         $settlement->update(['count' => (int) $agg->c, 'total_cents' => (int) $agg->t]);
     }

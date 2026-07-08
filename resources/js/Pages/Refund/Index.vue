@@ -1,9 +1,10 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import Button from '@/Components/Button.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
 
 const page = usePage();
 const can = (p) => (page.props.auth?.roles || []).includes('superadmin') || (page.props.auth?.permissions || []).includes(p);
@@ -81,12 +82,35 @@ function toggleRow(id) {
 // status options as {id: key, value: label} for the tags MultiSelect
 const statusOptions = ref(Object.entries(props.statuses).map(([id, value]) => ({ id, value })));
 
+// Per-page selector — same options + component (MultiSelect) as Vend/CustomerIndex.
+const numberPerPageOptions = ref([
+    { id: 25, value: 25 },
+    { id: 50, value: 50 },
+    { id: 100, value: 100 },
+    { id: 200, value: 200 },
+    { id: 500, value: 500 },
+    { id: 'All', value: 'All' },
+]);
+const fallbackPerPage = numberPerPageOptions.value.find((o) => o.id === 50) || numberPerPageOptions.value[0];
+const defaultPerPage = numberPerPageOptions.value.find((o) => String(o.id) === String(props.filters.numberPerPage)) || fallbackPerPage;
+
 const filters = ref({
     search: props.filters.search || '',
     status: statusOptions.value.filter((o) => (props.filters.status || []).includes(o.id)),
     refund_method: props.filters.refund_method || '',
     date_from: props.filters.date_from || '',
     date_to: props.filters.date_to || '',
+    site_name: props.filters.site_name || '',
+    channel: props.filters.channel || '',
+    product: props.filters.product || '',
+    paid_min: props.filters.paid_min || '',
+    paid_max: props.filters.paid_max || '',
+    repeat: props.filters.repeat || '',
+    product_drop_sensor: props.filters.product_drop_sensor || '',
+    error_code: props.filters.error_code || '',
+    settlement_ref: props.filters.settlement_ref || '',
+    refund_done: props.filters.refund_done || '',
+    numberPerPage: defaultPerPage,
 });
 
 function payload() {
@@ -95,6 +119,17 @@ function payload() {
         refund_method: filters.value.refund_method,
         date_from: filters.value.date_from,
         date_to: filters.value.date_to,
+        site_name: filters.value.site_name,
+        channel: filters.value.channel,
+        product: filters.value.product,
+        paid_min: filters.value.paid_min,
+        paid_max: filters.value.paid_max,
+        repeat: filters.value.repeat,
+        product_drop_sensor: filters.value.product_drop_sensor,
+        error_code: filters.value.error_code,
+        settlement_ref: filters.value.settlement_ref,
+        refund_done: filters.value.refund_done,
+        numberPerPage: filters.value.numberPerPage?.id ?? 50,
     };
     // omit status when empty -> server applies the default (all except completed), shown as "All statuses"
     if (filters.value.status.length) p.status = filters.value.status.map((s) => s.id);
@@ -104,8 +139,24 @@ function applyFilters() {
     router.get('/refunds', payload(), { preserveState: true, replace: true });
 }
 function clearFilters() {
-    filters.value = { search: '', status: [], refund_method: '', date_from: '', date_to: '' };
+    filters.value = {
+        search: '', status: [], refund_method: '', date_from: '', date_to: '',
+        site_name: '', channel: '', product: '', paid_min: '', paid_max: '',
+        repeat: '', product_drop_sensor: '', error_code: '', settlement_ref: '', refund_done: '',
+        numberPerPage: fallbackPerPage,
+    };
     applyFilters();
+}
+// Export the CURRENT filtered list to Excel. Plain browser navigation (not
+// Inertia) so the .xlsx file download is handled by the browser. The backend
+// exports the full filtered set regardless of the per-page value.
+function exportExcel() {
+    const params = new URLSearchParams();
+    Object.entries(payload()).forEach(([k, v]) => {
+        if (Array.isArray(v)) v.forEach((x) => params.append(k + '[]', x));
+        else if (v !== '' && v !== null && v !== undefined) params.append(k, v);
+    });
+    window.location.href = '/refunds/export?' + params.toString();
 }
 function pickStatus(key) {
     // toggle: clicking the active chip clears back to "All"
@@ -216,33 +267,192 @@ const sortedRows = computed(() => {
             </span>
         </div>
 
-        <!-- filters -->
-        <div class="bg-white rounded-md border p-3 mb-3 grid grid-cols-1 md:grid-cols-6 gap-2 items-start">
-            <input v-model="filters.search" placeholder="Ref / machine / email" class="border rounded-md px-3 py-2 text-sm md:col-span-2" @keyup.enter="applyFilters" />
-            <div class="md:col-span-2">
-                <MultiSelect
-                    v-model="filters.status"
-                    :options="statusOptions"
-                    trackBy="id"
-                    valueProp="id"
-                    label="value"
-                    mode="tags"
-                    placeholder="All statuses"
-                    open-direction="bottom"
-                />
+        <!-- filters (standardised to match Vend/CustomerIndex: labelled grid,
+             shared input styling, Search/Clear buttons, per-page selector) -->
+        <div class="bg-white rounded-md border my-3 px-3 py-3">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-start">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Search</label>
+                    <div class="mt-1">
+                        <input v-model="filters.search" type="text" placeholder="Ref / machine / email"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                            @keyup.enter="applyFilters" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Status</label>
+                    <MultiSelect
+                        v-model="filters.status"
+                        :options="statusOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        mode="tags"
+                        placeholder="All statuses"
+                        open-direction="bottom"
+                        class="mt-1"
+                    />
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Date From</label>
+                    <div class="mt-1">
+                        <input type="date" v-model="filters.date_from"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Date To</label>
+                    <div class="mt-1">
+                        <input type="date" v-model="filters.date_to"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Refund Method</label>
+                    <div class="mt-1">
+                        <select v-model="filters.refund_method"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md">
+                            <option value="">All methods</option>
+                            <option value="paynow">PayNow</option>
+                            <option value="paypal">PayPal</option>
+                            <option value="nayax_auto">Nayax (auto)</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Site Name</label>
+                    <div class="mt-1">
+                        <input v-model="filters.site_name" type="text" placeholder="Site / customer name"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                            @keyup.enter="applyFilters" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Channel</label>
+                    <div class="mt-1">
+                        <input v-model="filters.channel" type="text" placeholder="Channel code"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                            @keyup.enter="applyFilters" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Product</label>
+                    <div class="mt-1">
+                        <input v-model="filters.product" type="text" placeholder="Product name"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                            @keyup.enter="applyFilters" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Paid Amount ($)</label>
+                    <div class="mt-1 flex items-center space-x-1">
+                        <input v-model="filters.paid_min" type="number" step="0.01" min="0" placeholder="Min"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                            @keyup.enter="applyFilters" />
+                        <span class="text-gray-400">–</span>
+                        <input v-model="filters.paid_max" type="number" step="0.01" min="0" placeholder="Max"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                            @keyup.enter="applyFilters" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">New / Repeat</label>
+                    <div class="mt-1">
+                        <select v-model="filters.repeat"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md">
+                            <option value="">All</option>
+                            <option value="new">New</option>
+                            <option value="repeat">Repeat</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Prod Exit Sensor</label>
+                    <div class="mt-1">
+                        <select v-model="filters.product_drop_sensor"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md">
+                            <option value="">All</option>
+                            <option value="enabled">Enabled</option>
+                            <option value="disabled">Disabled</option>
+                            <option value="unknown">Unknown / none</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Error Code</label>
+                    <div class="mt-1">
+                        <input v-model="filters.error_code" type="text" placeholder="Error code"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                            @keyup.enter="applyFilters" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Settlement Ref</label>
+                    <div class="mt-1">
+                        <input v-model="filters.settlement_ref" type="text" placeholder="Settlement / batch ref"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                            @keyup.enter="applyFilters" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Refund Done</label>
+                    <div class="mt-1">
+                        <select v-model="filters.refund_done"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md">
+                            <option value="">All</option>
+                            <option value="completed">Completed</option>
+                            <option value="in_progress">In progress</option>
+                            <option value="not_started">Not started</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <input type="date" v-model="filters.date_from" class="border rounded-md px-3 py-2 text-sm" />
-            <input type="date" v-model="filters.date_to" class="border rounded-md px-3 py-2 text-sm" />
-            <select v-model="filters.refund_method" class="border rounded-md px-3 py-2 text-sm">
-                <option value="">All methods</option>
-                <option value="paynow">PayNow</option>
-                <option value="paypal">PayPal</option>
-                <option value="nayax_auto">Nayax (auto)</option>
-                <option value="none">None</option>
-            </select>
-            <div class="flex gap-2">
-                <button @click="applyFilters" class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-teal-700">Search</button>
-                <button @click="clearFilters" class="bg-gray-100 text-gray-700 rounded-md px-3 py-2 text-sm border">Clear</button>
+
+            <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
+                <div class="mt-3">
+                    <div class="flex flex-col space-y-1 md:flex-row md:space-y-0 md:space-x-1">
+                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            @click="applyFilters">
+                            <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
+                            <span>Search</span>
+                        </Button>
+                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            @click="clearFilters">
+                            <span>Clear</span>
+                        </Button>
+                        <Button type="button" class="inline-flex space-x-1 items-center rounded-md bg-white px-8 py-3 md:px-5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            @click="exportExcel" title="Export the current filtered list to Excel">
+                            <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true" />
+                            <span>Export Excel</span>
+                        </Button>
+                    </div>
+                </div>
+                <div class="flex flex-col space-y-1">
+                    <p class="text-sm text-gray-700 leading-5 flex space-x-1">
+                        <span>Showing</span>
+                        <span class="font-medium">{{ tickets.from ?? 0 }}</span>
+                        <span>to</span>
+                        <span class="font-medium">{{ tickets.to ?? 0 }}</span>
+                        <span>of</span>
+                        <span class="font-medium">{{ tickets.total }}</span>
+                        <span>results</span>
+                    </p>
+                    <div class="md:w-48">
+                        <label class="block text-xs font-medium text-gray-700">Per page</label>
+                        <MultiSelect
+                            v-model="filters.numberPerPage"
+                            :options="numberPerPageOptions"
+                            trackBy="id"
+                            valueProp="id"
+                            label="value"
+                            placeholder="Select"
+                            open-direction="bottom"
+                            class="mt-1"
+                            @selected="applyFilters"
+                        />
+                    </div>
+                </div>
             </div>
         </div>
 

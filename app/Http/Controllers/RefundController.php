@@ -41,6 +41,68 @@ class RefundController extends Controller
                 ->markViewed($authUser, \App\Services\NoteNotificationService::PAGE_REFUNDS);
         }
 
+        // Filtered query + resolved date/status filters (shared with export()).
+        [$query, $dateFrom, $dateTo, $statusSel] = $this->buildFilteredQuery($request);
+
+        // Per-page selector (same options as Vend/CustomerIndex): 25/50/100/200/500/All.
+        // "All" paginates the full filtered set; anything unrecognised falls back to 25.
+        $allowedPerPage = [25, 50, 100, 200, 500];
+        $rawPerPage = $request->input('numberPerPage', 50);
+        if (in_array($rawPerPage, ['All', 'all'], true)) {
+            $perPage = max(1, (clone $query)->count());
+        } else {
+            $perPage = in_array((int) $rawPerPage, $allowedPerPage, true) ? (int) $rawPerPage : 50;
+        }
+        $page = $query->paginate($perPage)->withQueryString();
+
+        // Enrich the page's rows (batched, no N+1) and keep the paginator shape.
+        $rowsById = $this->buildRows(collect($page->items()));
+        $tickets = $page->through(fn (RefundTicket $t) => $rowsById[$t->id]);
+
+        // counts are over all tickets (unfiltered) so the chips always show true totals
+        $counts = RefundTicket::selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')->toArray();
+        // Dropped is a pseudo-status (Rejected + is_dropped). Give it its own chip
+        // count and subtract it from Rejected so the two chips don't double-count.
+        $droppedCount = (int) RefundTicket::where('is_dropped', true)->count();
+        $counts['rejected'] = max(0, (int) ($counts['rejected'] ?? 0) - $droppedCount);
+        $counts['dropped'] = $droppedCount;
+
+        return Inertia::render('Refund/Index', [
+            'tickets' => $tickets,
+            'counts' => $counts,
+            'filters' => [
+                'search' => $request->input('search', ''),
+                'refund_method' => $request->input('refund_method', ''),
+                // only reflect status in the UI when the user explicitly chose some;
+                // the default (all except completed) is applied silently and shows as "All statuses"
+                'status' => $request->has('status') ? $statusSel : [],
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'site_name' => $request->input('site_name', ''),
+                'channel' => $request->input('channel', ''),
+                'product' => $request->input('product', ''),
+                'paid_min' => $request->input('paid_min', ''),
+                'paid_max' => $request->input('paid_max', ''),
+                'repeat' => $request->input('repeat', ''),
+                'product_drop_sensor' => $request->input('product_drop_sensor', ''),
+                'error_code' => $request->input('error_code', ''),
+                'settlement_ref' => $request->input('settlement_ref', ''),
+                'refund_done' => $request->input('refund_done', ''),
+                'numberPerPage' => $rawPerPage,
+            ],
+            'statuses' => $this->statusLabels(),
+            'banks' => \App\Services\Refund\BankTemplates\BankTemplateRegistry::all(),
+            'defaultBank' => config('refund.default_bank', 'cimb'),
+        ]);
+    }
+
+    /**
+     * Build the filtered ticket query shared by the list and the Excel export,
+     * so both always apply the exact same status / date / method / search rules.
+     * Returns [Builder $query, string $dateFrom, string $dateTo, array $statusSel].
+     */
+    protected function buildFilteredQuery(Request $request): array
+    {
         $allStatuses = array_keys($this->statusLabels());
         // default view: everything except already-completed ("refunded") tickets
         $defaultStatuses = array_values(array_diff($allStatuses, [RefundTicket::STATUS_COMPLETED]));
@@ -100,20 +162,90 @@ class RefundController extends Controller
                     }
                 });
             })
+            // --- Site name: match the ticket's machine's site (vend -> customer.name).
+            // Raw builder subquery so operator global scopes don't drop rows here.
+            ->when($request->site_name, function ($q, $s) {
+                $q->whereIn('vend_id', function ($sub) use ($s) {
+                    $sub->select('vends.id')->from('vends')
+                        ->join('customers', 'customers.id', '=', 'vends.customer_id')
+                        ->where('customers.name', 'like', "%{$s}%");
+                });
+            })
+            // --- Channel / Product: claimed refund line items on the ticket.
+            ->when($request->channel, fn ($q, $s) => $q->whereHas('items', fn ($i) => $i->where('vend_channel_code', 'like', "%{$s}%")))
+            ->when($request->product, fn ($q, $s) => $q->whereHas('items', fn ($i) => $i->where('product_name', 'like', "%{$s}%")))
+            // --- Paid amount range: the matched transaction / gateway charge amount
+            // (cents), read from either source so it matches the "Paid Amt" column.
+            ->when($request->filled('paid_min') || $request->filled('paid_max'), function ($q) use ($request) {
+                $min = $request->filled('paid_min') ? (int) round((float) $request->paid_min * 100) : null;
+                $max = $request->filled('paid_max') ? (int) round((float) $request->paid_max * 100) : null;
+                $q->where(function ($w) use ($min, $max) {
+                    $w->whereExists(function ($sub) use ($min, $max) {
+                        $sub->selectRaw('1')->from('vend_transactions')
+                            ->whereColumn('vend_transactions.id', 'refund_tickets.vend_transaction_id')
+                            ->when($min !== null, fn ($x) => $x->where('amount', '>=', $min))
+                            ->when($max !== null, fn ($x) => $x->where('amount', '<=', $max));
+                    })->orWhereExists(function ($sub) use ($min, $max) {
+                        $sub->selectRaw('1')->from('payment_gateway_logs')
+                            ->whereColumn('payment_gateway_logs.id', 'refund_tickets.payment_gateway_log_id')
+                            ->when($min !== null, fn ($x) => $x->where('amount', '>=', $min))
+                            ->when($max !== null, fn ($x) => $x->where('amount', '<=', $max));
+                    });
+                });
+            })
+            // --- New / Repeat: the stored resubmission flag on the ticket.
+            ->when(in_array($request->repeat, ['new', 'repeat'], true), fn ($q) => $q->where('is_repeat', $request->repeat === 'repeat'))
+            // --- Product drop / exit sensor state FROZEN on the matched transaction.
+            ->when($request->product_drop_sensor, function ($q, $sel) {
+                if ($sel === 'enabled' || $sel === 'disabled') {
+                    $q->whereExists(fn ($sub) => $sub->selectRaw('1')->from('vend_transactions')
+                        ->whereColumn('vend_transactions.id', 'refund_tickets.vend_transaction_id')
+                        ->where('product_drop_sensor', $sel === 'enabled' ? 1 : 0));
+                } elseif ($sel === 'unknown') {
+                    // No matched transaction, or one with no recorded sensor reading.
+                    $q->whereNotExists(fn ($sub) => $sub->selectRaw('1')->from('vend_transactions')
+                        ->whereColumn('vend_transactions.id', 'refund_tickets.vend_transaction_id')
+                        ->whereNotNull('product_drop_sensor'));
+                }
+            })
+            // --- Error code: a channel error captured on a claimed line item.
+            ->when($request->error_code, fn ($q, $s) => $q->whereHas('items', fn ($i) => $i
+                ->where('had_channel_error', true)
+                ->where('vend_channel_error_code', 'like', "%{$s}%")))
+            // --- Settlement / payout batch reference.
+            ->when($request->settlement_ref, fn ($q, $s) => $q->whereHas('batch', fn ($b) => $b->where('reference', 'like', "%{$s}%")))
+            // --- Refund done: completed vs in-progress (approved/scheduled) vs not started.
+            ->when($request->refund_done, function ($q, $sel) {
+                if ($sel === 'completed') {
+                    $q->where('status', RefundTicket::STATUS_COMPLETED);
+                } elseif ($sel === 'in_progress') {
+                    $q->whereIn('status', [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED]);
+                } elseif ($sel === 'not_started') {
+                    $q->whereNotIn('status', [RefundTicket::STATUS_COMPLETED, RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED]);
+                }
+            })
             ->orderByDesc('created_at'); // latest on top
 
-        $page = $query->paginate(25)->withQueryString();
+        return [$query, $dateFrom, $dateTo, $statusSel];
+    }
 
-        // Batch-load the source transaction / gateway log / export batch for the
-        // rows on this page (25 max). Loaded manually withoutGlobalScopes because
-        // VendTransaction carries operator scopes that would filter rows away.
-        $rows = collect($page->items());
+    /**
+     * Enrich a collection of RefundTickets into display rows (the same toRow()
+     * shape the list uses), batching every lookup so there is no N+1. Returns an
+     * array keyed by ticket id. Shared by the list page and the Excel export.
+     */
+    protected function buildRows(\Illuminate\Support\Collection $rows): array
+    {
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        // Source transaction / gateway log / export batch, all withoutGlobalScopes
+        // because Vend/VendTransaction/Customer carry operator scopes that would
+        // drop rows in an admin/public context.
         $txns = \App\Models\VendTransaction::withoutGlobalScopes()->with('paymentMethod')
             ->whereIn('id', $rows->pluck('vend_transaction_id')->filter()->unique())
             ->get()->keyBy('id');
-        // Gateway logs: from the ticket directly AND from any matched transaction's
-        // own gateway log, so the "Prod Exit Sensor" (is_dispensed) reading is
-        // available even when the ticket matched by vend_transaction_id.
         $logIds = $rows->pluck('payment_gateway_log_id')->filter()
             ->merge($txns->pluck('payment_gateway_log_id')->filter())
             ->unique();
@@ -124,10 +256,6 @@ class RefundController extends Controller
             ->whereIn('id', $rows->pluck('payout_batch_id')->filter()->unique())
             ->get()->keyBy('id');
 
-        // Resolve each ticket's site (customer) name from its machine. Loaded
-        // withoutGlobalScopes for the same reason as the txns above (Vend/Customer
-        // carry operator scopes that would drop rows in a public/admin context),
-        // and batched to avoid an N+1 across the 25 rows on the page.
         $vends = \App\Models\Vend::withoutGlobalScopes()
             ->whereIn('id', $rows->pluck('vend_id')->filter()->unique())
             ->get(['id', 'customer_id'])->keyBy('id');
@@ -135,38 +263,27 @@ class RefundController extends Controller
             ->whereIn('id', $vends->pluck('customer_id')->filter()->unique())
             ->pluck('name', 'id');
 
-        // PayNow reuse flag: mark a ticket's PayNow number when the SAME number
-        // was used on ANOTHER refund ticket within 60 days (either side) — a
-        // possible duplicate claim / abuse signal, surfaced red in the UI.
         $payNowDup = $this->payNowReuseFlags($rows);
-
-        // System self-checking: per-machine RF count in the trailing 24h + a
-        // New/Repeat flag (same order + same channel claimed before).
         $selfCheck = $this->selfCheckData($rows);
 
-        // Error code shown in the self-check panel = the channel error frozen on
-        // the ticket's flagged item(s). One batched query.
         $itemErrors = \App\Models\RefundTicketItem::whereIn('refund_ticket_id', $rows->pluck('id'))
             ->where('had_channel_error', true)
             ->get(['refund_ticket_id', 'vend_channel_error_code', 'channel_error_desc'])
             ->groupBy('refund_ticket_id')
             ->map->first();
 
-        // Affected items the customer flagged (channel + product name), batched for
-        // the page so the list can show which channels/products were claimed.
         $claimedItems = \App\Models\RefundTicketItem::whereIn('refund_ticket_id', $rows->pluck('id'))
             ->get(['refund_ticket_id', 'vend_channel_code', 'product_name'])
             ->groupBy('refund_ticket_id');
 
-        $tickets = $page->through(function (RefundTicket $t) use ($txns, $logs, $batches, $vends, $siteNames, $payNowDup, $selfCheck, $itemErrors, $claimedItems) {
+        return $rows->mapWithKeys(function (RefundTicket $t) use ($txns, $logs, $batches, $vends, $siteNames, $payNowDup, $selfCheck, $itemErrors, $claimedItems) {
             $txn = $t->vend_transaction_id ? $txns->get($t->vend_transaction_id) : null;
-            // Resolve the gateway log from the ticket, else from its matched txn.
             $log = $t->payment_gateway_log_id
                 ? $logs->get($t->payment_gateway_log_id)
                 : ($txn?->payment_gateway_log_id ? $logs->get($txn->payment_gateway_log_id) : null);
             $errItem = $itemErrors->get($t->id);
 
-            return $this->toRow(
+            return [$t->id => $this->toRow(
                 $t,
                 $txn,
                 $log,
@@ -185,33 +302,76 @@ class RefundController extends Controller
                             'product_name' => $i->product_name,
                         ])->values()->all(),
                 ],
-            );
+            )];
+        })->all();
+    }
+
+    /**
+     * Export the current (filtered) refund list to Excel — every table column and
+     * its data. Uses FastExcel streaming for a lean, fast download and reuses the
+     * exact same filter + row-building code as the list, so the sheet matches the
+     * screen. Chunked so even an "All" export stays memory-safe.
+     */
+    public function export(Request $request)
+    {
+        [$query] = $this->buildFilteredQuery($request);
+        $statusLabels = $this->statusLabels();
+
+        // Stream in offset-paged chunks of 500: each chunk is a real Collection so
+        // buildRows can batch-enrich it (no N+1) without re-running a lazy source.
+        // Only one chunk of models/rows is held in memory at a time.
+        $generator = function () use ($query) {
+            $pageNo = 1;
+            do {
+                $chunk = (clone $query)->forPage($pageNo, 500)->get();
+                foreach ($this->buildRows($chunk) as $row) {
+                    yield $row;
+                }
+                $pageNo++;
+            } while ($chunk->count() === 500);
+        };
+
+        $filename = 'Refund_Requests_' . now()->format('Ymd_His') . '.xlsx';
+
+        return (new \Rap2hpoutre\FastExcel\FastExcel($generator()))->download($filename, function (array $r) use ($statusLabels) {
+            $channels = collect($r['affected_items'] ?? [])->pluck('channel')->filter()->implode(', ');
+            $products = collect($r['affected_items'] ?? [])->pluck('product_name')->filter()->implode(', ');
+            $statusText = $r['is_dropped'] ? 'Dropped' : ($statusLabels[$r['status']] ?? $r['status']);
+            $sensor = is_null($r['product_drop_sensor']) ? '' : ($r['product_drop_sensor'] ? 'Enabled' : 'Disabled');
+            $doneText = $r['status'] === RefundTicket::STATUS_COMPLETED
+                ? 'Completed'
+                : (in_array($r['status'], [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED], true) ? 'In progress' : '');
+
+            return [
+                'Refund ID' => $r['reference'],
+                'Machine ID' => $r['vend_code'],
+                'Site Name' => $r['site_name'],
+                'RF Submitted' => $r['created_at'],
+                'Transaction Datetime' => $r['txn_datetime'],
+                'Txn Delta' => $r['txn_delta'],
+                'Channel' => $channels,
+                'Product Name' => $products,
+                'Paid Amount' => $r['paid_amount'],
+                'Pay Method' => $r['pay_method'],
+                'Pay Provider' => $r['pay_provider'],
+                'Refund Amount' => $r['amount'],
+                'Refund Method' => $r['refund_method'],
+                'PayNow / Payout Destination' => $r['payout_destination'],
+                'Machine L24h # of RF' => $r['machine_rf_24h'],
+                'New / Repeat' => $r['repeat_flag'] ? 'Repeat' : 'New',
+                'Repeat Ref' => $r['repeat_ref'],
+                'Prod Exit Sensor' => $sensor,
+                'Error Code' => $r['error_code'],
+                'Error Description' => $r['error_desc'],
+                'Status' => $statusText,
+                'Channel Error?' => $r['had_channel_error'] ? 'Yes' : 'No',
+                'Manual Match?' => $r['is_manual'] ? 'Yes' : 'No',
+                'Already Refunded?' => $r['already_refunded'] ? 'Yes' : 'No',
+                'Send to Settlement' => $r['batch']['reference'] ?? '',
+                'Refund Done?' => $doneText,
+                'Completed At' => $r['completed_at'],
+            ];
         });
-
-        // counts are over all tickets (unfiltered) so the chips always show true totals
-        $counts = RefundTicket::selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')->toArray();
-        // Dropped is a pseudo-status (Rejected + is_dropped). Give it its own chip
-        // count and subtract it from Rejected so the two chips don't double-count.
-        $droppedCount = (int) RefundTicket::where('is_dropped', true)->count();
-        $counts['rejected'] = max(0, (int) ($counts['rejected'] ?? 0) - $droppedCount);
-        $counts['dropped'] = $droppedCount;
-
-        return Inertia::render('Refund/Index', [
-            'tickets' => $tickets,
-            'counts' => $counts,
-            'filters' => [
-                'search' => $request->input('search', ''),
-                'refund_method' => $request->input('refund_method', ''),
-                // only reflect status in the UI when the user explicitly chose some;
-                // the default (all except completed) is applied silently and shows as "All statuses"
-                'status' => $request->has('status') ? $statusSel : [],
-                'date_from' => $dateFrom,
-                'date_to' => $dateTo,
-            ],
-            'statuses' => $this->statusLabels(),
-            'banks' => \App\Services\Refund\BankTemplates\BankTemplateRegistry::all(),
-            'defaultBank' => config('refund.default_bank', 'cimb'),
-        ]);
     }
 
     public function exportBatch(Request $request)
@@ -415,6 +575,33 @@ class RefundController extends Controller
         return back();
     }
 
+    /**
+     * "Un-drop" — the ONLY reversible outcome. Dropping is a purely internal
+     * close-out (no customer email was sent), so it can safely be rewound: the
+     * ticket returns to the queue in the exact state it held immediately before
+     * it was dropped (read off the drop audit line; falls back to Received).
+     * Approve / Reject email the customer, so they are deliberately NOT undoable.
+     */
+    public function undrop(RefundTicket $ticket)
+    {
+        if (!$ticket->is_dropped) {
+            return back()->withErrors(['ticket' => 'This refund is not dropped, so there is nothing to un-drop.']);
+        }
+
+        // logs() is ordered newest-first, so first() is the most recent drop.
+        $dropLog = $ticket->logs()->where('action', 'dropped')->first();
+        $restoreTo = $dropLog?->from_status ?: RefundTicket::STATUS_SUBMITTED;
+
+        $from = $ticket->status;
+        $ticket->update([
+            'status' => $restoreTo,
+            'is_dropped' => false,
+        ]);
+        $this->tickets->log($ticket, 'undropped', $from, $restoreTo, 'Un-dropped — restored to ' . ($this->statusLabels()[$restoreTo] ?? $restoreTo) . ' (no email)', auth()->user()?->name ?? 'Ops', auth()->id());
+
+        return back();
+    }
+
     public function reject(Request $request, RefundTicket $ticket)
     {
         $data = $request->validate(['remarks' => ['nullable', 'string', 'max:2000']]);
@@ -541,6 +728,45 @@ class RefundController extends Controller
         $this->tickets->log($ticket, 'item_decision', null, null, ($data['approved'] ? 'Approved' : 'Excluded') . ' item: ' . ($item->product_name ?? $item->id), auth()->user()?->name ?? 'Admin', auth()->id());
 
         return back();
+    }
+
+    /**
+     * Record the admin's FINAL refund amount (and optional remarks) — the amount we
+     * will actually pay out, which may differ from the customer's keyed-in claim
+     * (e.g. they entered $5 when only $3 is claimable). The original claim is left
+     * untouched (still shown as "Refund Amount"); the payout path reads the
+     * effective final ?? claimed amount. Editable up until the ticket is locked into
+     * a settlement (Scheduled) or already paid (Completed).
+     */
+    public function updateFinalAmount(Request $request, RefundTicket $ticket)
+    {
+        $data = $request->validate([
+            'final_refund_amount' => ['required', 'numeric', 'min:0', 'max:99999.99'],
+            'final_refund_remarks' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        if (in_array($ticket->status, [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_COMPLETED], true)) {
+            return back()->withErrors([
+                'final_refund_amount' => 'The refund amount can no longer be changed — this ticket is already ' . ($this->statusLabels()[$ticket->status] ?? $ticket->status) . '.',
+            ]);
+        }
+
+        $cents = (int) round($data['final_refund_amount'] * 100);
+        $remarks = trim((string) ($data['final_refund_remarks'] ?? '')) ?: null;
+        $prev = $ticket->payout_amount_cents;
+
+        $ticket->update([
+            'final_refund_amount_cents' => $cents,
+            'final_refund_remarks' => $remarks,
+        ]);
+
+        $note = 'Final refund amount set to $' . number_format($cents / 100, 2)
+            . ' (claim $' . number_format((int) $ticket->claimed_amount_cents / 100, 2) . ')'
+            . ($prev !== $cents ? ' — was $' . number_format($prev / 100, 2) : '')
+            . ($remarks ? ' — ' . $remarks : '');
+        $this->tickets->log($ticket, 'final_amount', null, null, $note, auth()->user()?->name ?? 'Admin', auth()->id());
+
+        return back()->with('success', 'Final refund amount saved.');
     }
 
     public function sendEmail(Request $request, RefundTicket $ticket)
@@ -1066,6 +1292,13 @@ class RefundController extends Controller
             'system_validation' => $t->system_validation_json,
             'entered_day' => $t->entered_day,
             'entered_amount' => $t->entered_amount_cents !== null ? number_format($t->entered_amount_cents / 100, 2) : null,
+            // Admin-adjustable final payout amount. Defaults (for the input) to the
+            // claimed amount when never overridden; the payout path reads the same
+            // effective value (final ?? claimed). Original claim stays in 'amount'.
+            'final_refund_amount' => number_format($t->payout_amount_cents / 100, 2, '.', ''),
+            'final_refund_amount_set' => $t->final_refund_amount_cents !== null,
+            'final_refund_overridden' => $t->hasFinalAmountOverride(),
+            'final_refund_remarks' => $t->final_refund_remarks,
             'approx_time' => $t->approx_time,
             'last_email_template' => $t->last_email_template,
             'last_email_sent_at' => optional($t->last_email_sent_at)->toDateTimeString(),

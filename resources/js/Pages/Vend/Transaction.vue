@@ -853,7 +853,7 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <a
-                                v-if="vendTransaction.refund_request_reference"
+                                v-if="vendTransaction.refund_request_reference && !vendTransaction.refund_request_on_items"
                                 :href="'/refunds/' + vendTransaction.refund_request_id"
                                 target="_blank"
                                 class="inline-flex flex-col items-center gap-0.5 group"
@@ -958,9 +958,32 @@
                                 <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="vendTransactionItem.is_refunded"/>
                             </div>
                         </TableData>
-                        <!-- Refund Request is transaction-level (shown on the parent row); keep an
-                             empty cell here so the per-item row's columns stay aligned with the header. -->
+                        <!-- Refund Request: for a multiple purchase where the customer
+                             asked to refund a specific SKU, the badge lives on that
+                             item's row (backend stamps refund_request_* onto the matched
+                             item and suppresses the parent header badge). Other item
+                             rows stay empty. -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
+                            <a
+                                v-if="vendTransactionItem.refund_request_reference"
+                                :href="'/refunds/' + vendTransactionItem.refund_request_id"
+                                target="_blank"
+                                class="inline-flex flex-col items-center gap-0.5 group"
+                                :title="'View refund request ' + vendTransactionItem.refund_request_reference"
+                            >
+                                <span
+                                    class="text-xs font-semibold text-indigo-600 group-hover:underline"
+                                    :class="{ 'line-through opacity-60': vendTransactionItem.refund_request_is_dropped }"
+                                >
+                                    {{ vendTransactionItem.refund_request_reference }}
+                                </span>
+                                <span
+                                    class="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                                    :class="refundStatusClass(vendTransactionItem.refund_request_status)"
+                                >
+                                    {{ refundStatusLabel(vendTransactionItem.refund_request_status) }}
+                                </span>
+                            </a>
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             {{ vendTransaction.interface_type }}

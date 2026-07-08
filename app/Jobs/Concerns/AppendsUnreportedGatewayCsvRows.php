@@ -22,7 +22,7 @@ trait AppendsUnreportedGatewayCsvRows
      *
      * Amount is written in major units (e.g. 3.50) to match the `/100` convention
      * used for the regular transaction rows. Column order mirrors the CSV header
-     * exactly (29 columns).
+     * exactly (31 columns).
      */
     protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null): void
     {
@@ -79,6 +79,8 @@ trait AppendsUnreportedGatewayCsvRows
                         '',                                                              // Voucher
                         '',                                                              // Campaign Labels
                         'Yes',                                                           // Dispense Attempted? (unreportedDispensed => is_dispensed=true)
+                        '',                                                              // Refund Request
+                        '',                                                              // Refund Status
                     ]);
                 }
             });

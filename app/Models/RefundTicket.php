@@ -56,6 +56,8 @@ class RefundTicket extends Model
         'contact_email',
         'contact_phone',
         'claimed_amount_cents',
+        'final_refund_amount_cents',
+        'final_refund_remarks',
         'is_manual',
         'entered_day',
         'entered_amount_cents',
@@ -92,6 +94,7 @@ class RefundTicket extends Model
         'is_dropped' => 'boolean',
         'is_repeat' => 'boolean',
         'claimed_amount_cents' => 'integer',
+        'final_refund_amount_cents' => 'integer',
         'entered_amount_cents' => 'integer',
         'ops_verified_at' => 'datetime',
         'scheduled_at' => 'datetime',
@@ -133,6 +136,34 @@ class RefundTicket extends Model
     public function amountDisplay(): string
     {
         return number_format($this->claimed_amount_cents / 100, 2);
+    }
+
+    /**
+     * The amount we will ACTUALLY pay out: the admin's final override when set,
+     * otherwise the customer's original claim. This is the single source of truth
+     * for every payout surface (settlement totals, CIMB/PayPal/PayNow files). NULL
+     * final_refund_amount_cents means "not overridden" so untouched tickets pay the
+     * claimed amount exactly as before. Mirror this rule in raw SQL sums with
+     * COALESCE(final_refund_amount_cents, claimed_amount_cents).
+     */
+    public function getPayoutAmountCentsAttribute(): int
+    {
+        return $this->final_refund_amount_cents !== null
+            ? (int) $this->final_refund_amount_cents
+            : (int) $this->claimed_amount_cents;
+    }
+
+    /** True when an admin has recorded a final amount that differs from the claim. */
+    public function hasFinalAmountOverride(): bool
+    {
+        return $this->final_refund_amount_cents !== null
+            && (int) $this->final_refund_amount_cents !== (int) $this->claimed_amount_cents;
+    }
+
+    /** Display ("12.30") of the effective payout amount. */
+    public function payoutAmountDisplay(): string
+    {
+        return number_format($this->payout_amount_cents / 100, 2);
     }
 
     /**

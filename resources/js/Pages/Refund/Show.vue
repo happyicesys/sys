@@ -94,6 +94,13 @@ function doDrop() {
     post(base.value + '/drop', { remarks: dropRemarks.value });
     showDrop.value = false;
 }
+// "Un-drop" — rewind a dropped ticket back into the queue. Only dropping is
+// reversible (no customer email was sent); Approve/Reject email the customer,
+// so they have no undo.
+function doUndrop() {
+    if (!confirm('Un-drop this refund request and restore it to the queue?')) return;
+    post(base.value + '/undrop');
+}
 function toggleItem(item) {
     post(base.value + '/items/' + item.id, { approved: !item.approved });
 }
@@ -153,6 +160,27 @@ function doClear() {
     post(base.value + '/clear-match');
 }
 
+// ---- Final refund amount (admin override of the customer's keyed-in claim) ----
+// Prefilled with the effective amount (final override if already set, else the
+// claimed amount). The customer's original claim stays visible as "Refund Amount";
+// this is what we ACTUALLY pay out. Editable until the ticket is locked into a
+// settlement (Scheduled) or paid (Completed).
+const finalAmount = ref(props.ticket.final_refund_amount ?? props.ticket.amount ?? '');
+const finalRemarks = ref(props.ticket.final_refund_remarks ?? '');
+const finalAmountLocked = computed(() => ['scheduled', 'completed'].includes(s.value));
+const canEditFinal = computed(() => can('update refunds') && !finalAmountLocked.value);
+function saveFinalAmount() {
+    const val = String(finalAmount.value).trim();
+    if (val === '' || isNaN(Number(val)) || Number(val) < 0) {
+        alert('Enter a valid final refund amount (0 or more).');
+        return;
+    }
+    post(base.value + '/final-amount', {
+        final_refund_amount: Number(val).toFixed(2),
+        final_refund_remarks: finalRemarks.value,
+    });
+}
+
 // Full basket (matched-transaction items) with the customer-claimed rows flagged;
 // falls back to the stored claimed items when nothing is matched yet.
 const flaggedRows = computed(() => (t.value.flagged_items && t.value.flagged_items.length)
@@ -202,9 +230,11 @@ const actionBadges = {
     verified: { label: 'Approved', cls: 'bg-green-100 text-green-700 border-green-200' },
     rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-700 border-red-200' },
     dropped: { label: 'Dropped', cls: 'bg-gray-200 text-gray-700 border-gray-300' },
+    undropped: { label: 'Un-dropped', cls: 'bg-teal-100 text-teal-700 border-teal-200' },
     completed: { label: 'Refund done', cls: 'bg-green-100 text-green-700 border-green-200' },
     request_info: { label: 'Info requested', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
     matched: { label: 'Matched', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+    final_amount: { label: 'Final amount', cls: 'bg-teal-100 text-teal-700 border-teal-200' },
     unmatched: { label: 'Match cleared', cls: 'bg-gray-100 text-gray-600 border-gray-300' },
     item_decision: { label: 'Item decision', cls: 'bg-gray-100 text-gray-600 border-gray-300' },
 };
@@ -224,8 +254,10 @@ function actionBadge(l) {
                 <span :class="t.is_dropped ? 'line-through text-gray-400' : ''"
                     :title="t.is_dropped ? 'Dropped / closed (e.g. double submission)' : ''">{{ t.reference }}</span> · {{ t.vend_code }}
             </h2>
+            <!-- Dropped is a pseudo-status (stored as Rejected + is_dropped). Show
+                 ONLY the Dropped badge for it, not the underlying Rejected badge. -->
             <span v-if="t.is_dropped" class="text-[10px] font-semibold uppercase tracking-wide text-gray-400 px-2 py-1 rounded-full bg-gray-100">dropped</span>
-            <span class="text-xs font-bold px-2 py-1 rounded-full" :class="statusClass(s)">{{ statuses[s] || s }}</span>
+            <span v-else class="text-xs font-bold px-2 py-1 rounded-full" :class="statusClass(s)">{{ statuses[s] || s }}</span>
         </div>
     </template>
 
@@ -237,83 +269,34 @@ function actionBadge(l) {
 
     <!-- Single column: info → transactions → actions last -->
     <div class="m-2 sm:mx-5 sm:my-3 space-y-4">
-        <!-- Customer submission (follows the customer input flow) -->
-        <div class="bg-white rounded-md border p-4">
-            <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-3">Customer submission</h3>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <!-- left: the input flow -->
-                <div class="lg:col-span-2">
-                    <dl class="grid grid-cols-3 gap-y-2 text-sm">
-                        <dt class="text-gray-500">Name</dt><dd class="col-span-2 font-medium">{{ t.contact_name || '—' }}</dd>
-                        <dt class="text-gray-500">Email</dt><dd class="col-span-2 font-medium break-all">{{ t.contact_email || '—' }}</dd>
-                        <dt class="text-gray-500">Machine ID</dt><dd class="col-span-2 font-medium">
-                            <a v-if="t.vend_code" :href="opsDashboardUrl(t.vend_code)" target="_blank" class="text-teal-700 hover:underline" title="Open in Operations Dashboard">{{ t.vend_code }}</a>
-                            <span v-else>—</span>
-                        </dd>
-                        <dt class="text-gray-500">Site Name</dt><dd class="col-span-2 font-medium">{{ t.site_name || '—' }}</dd>
-                        <dt class="text-gray-500">Day Chosen</dt>
-                        <dd class="col-span-2 font-medium">
-                            <span class="capitalize">{{ t.entered_day || '—' }}</span>
-                            <span v-if="t.entered_day_date && isRelativeDay" class="text-gray-500"> ({{ t.entered_day_date }})</span>
-                        </dd>
-                        <dt class="text-gray-500">Amount paid</dt><dd class="col-span-2 font-medium">{{ t.entered_amount ? '$' + t.entered_amount : '—' }}</dd>
-                        <dt class="text-gray-500">Matched with Transaction</dt>
-                        <dd class="col-span-2">
-                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full border"
-                                :class="t.matched ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'">
-                                {{ t.matched ? 'Yes' : 'No' }}
-                            </span>
-                        </dd>
-                        <dt class="text-gray-500">Multiple purchase</dt>
-                        <dd class="col-span-2">
-                            <span v-if="multiplePurchase === null" class="font-medium text-gray-400">—</span>
-                            <span v-else class="text-xs font-semibold px-2 py-0.5 rounded-full border"
-                                :class="multiplePurchase ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-500 border-gray-200'">
-                                {{ multiplePurchase ? 'Yes' : 'No' }}
-                            </span>
-                        </dd>
-                        <dt class="text-gray-500">Channel #</dt><dd class="col-span-2 font-medium">{{ claimedChannels || '—' }}</dd>
-                        <dt class="text-gray-500">SKU name</dt><dd class="col-span-2 font-medium">{{ skuDisplay }}</dd>
-                        <dt class="text-gray-500">Refund Amount</dt><dd class="col-span-2 font-semibold">${{ t.amount }}</dd>
-                        <dt class="text-gray-500">Refund Reason</dt><dd class="col-span-2 font-medium">{{ t.reason_code || '—' }}</dd>
-                        <dt class="text-gray-500">Note</dt><dd class="col-span-2 font-medium">{{ t.reason_text || '—' }}</dd>
-                    </dl>
-
-                    <!-- payout + meta -->
-                    <dl class="grid grid-cols-3 gap-y-2 text-sm mt-3 pt-3 border-t">
-                        <dt class="text-gray-500">{{ payoutLabel }}</dt><dd class="col-span-2 font-medium break-all">{{ t.payout_destination || '—' }}</dd>
-                        <dt class="text-gray-500">Submitted via</dt><dd class="col-span-2 font-medium">{{ t.is_manual ? 'Manual entry (no match found)' : 'Scanned QR' }}</dd>
-                        <dt class="text-gray-500">Submitted at</dt><dd class="col-span-2 font-medium">{{ t.created_at }}</dd>
-                        <dt class="text-gray-500">Payment channel</dt><dd class="col-span-2 font-medium">{{ paymentChannelDisplay }}</dd>
-                        <template v-if="t.is_manual"><dt class="text-gray-500">Approx. time</dt><dd class="col-span-2 font-medium">{{ t.approx_time || '—' }}</dd></template>
-                    </dl>
-                </div>
-
-                <!-- right: photo / video (one large item, arrows to browse) -->
-                <div>
-                    <h4 class="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Photo / video<span v-if="attachments.length"> ({{ attachments.length }})</span></h4>
-                    <div v-if="attachments.length">
-                        <div class="relative w-full rounded-md overflow-hidden border bg-black/5 group">
-                            <button type="button" @click="openLightbox()" class="block w-full">
-                                <video v-if="isVideo(attachments[mediaIndex])" :src="attachments[mediaIndex].url" muted preload="metadata" class="w-full max-h-[420px] object-contain bg-black"></video>
-                                <img v-else :src="attachments[mediaIndex].url" :alt="attachments[mediaIndex].original_name" class="w-full max-h-[420px] object-contain bg-black/5" />
-                                <span v-if="isVideo(attachments[mediaIndex])" class="absolute inset-0 flex items-center justify-center text-white text-4xl drop-shadow pointer-events-none">▶</span>
-                            </button>
-                            <template v-if="attachments.length > 1">
-                                <button type="button" @click.stop="prevMedia"
-                                    class="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white text-xl leading-none">‹</button>
-                                <button type="button" @click.stop="nextMedia"
-                                    class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white text-xl leading-none">›</button>
-                            </template>
-                        </div>
-                        <div class="flex items-center justify-between mt-1.5">
-                            <p class="text-[11px] text-gray-400">Click to enlarge (max 3 files).</p>
-                            <span class="text-[11px] font-semibold text-gray-500">{{ mediaIndex + 1 }}/{{ attachments.length }}</span>
-                        </div>
-                    </div>
-                    <div v-else class="w-32 h-32 rounded-md border border-dashed border-gray-200 flex items-center justify-center text-[11px] text-gray-400 text-center px-2">No file</div>
-                </div>
+        <!-- System validation + System self-checking (combined) -->
+        <div class="rounded-md border p-4" :class="recClass(t.recommendation)">
+            <h3 class="text-xs uppercase tracking-wide mb-2 opacity-80">System validation — RefundTicket</h3>
+            <div class="font-bold capitalize mb-3">Recommend: {{ t.recommendation }}</div>
+            <div class="flex flex-wrap gap-2">
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="hasChannelError ? badgeGood : badgeBad"
+                    :title="hasChannelError
+                        ? 'A vend channel / hardware error was recorded on this transaction (e.g. sensor or dispense fault). This is evidence the item may not have been dispensed — a valid reason to refund. Review the specific error code in Items flagged.'
+                        : 'No vend channel or hardware error was recorded. The machine reported a clean dispense, so there is no hardware evidence backing a not-dispensed claim — verify carefully before refunding.'">
+                    {{ hasChannelError ? '✓ Channel error detected' : '⚠ No channel error' }}
+                </span>
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="isManualClaim ? badgeBad : badgeGood"
+                    :title="isManualClaim
+                        ? 'The customer could not be auto-matched to a sale, so they typed the details in manually. Ops must match the real Order ID and verify the transaction before approving any payout.'
+                        : 'Automatically linked to the exact sales transaction behind this claim — the transaction details and validation were filled in by the system, so it is more trustworthy.'">
+                    {{ isManualClaim ? '✍ Manual claim' : '🔗 Auto-matched' }}
+                </span>
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="alreadyRefunded ? badgeBad : badgeGood"
+                    :title="alreadyRefunded
+                        ? 'A refund has already been recorded against this transaction. Check carefully before paying again — proceeding may create a DOUBLE refund.'
+                        : 'No prior refund was found for this transaction, so there is no double-refund risk. Safe to proceed on this check.'">
+                    {{ alreadyRefunded ? '↩ Already refunded' : '✓ Not yet refunded' }}
+                </span>
+                <span v-if="t.is_auto_refund_channel" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="badgeGood"
+                    title="This machine's payment provider (Nayax) issues refunds automatically at the terminal. No manual PayNow / PayPal payout is needed for this ticket.">⚡ Nayax auto-refund</span>
             </div>
+
+            <p v-if="t.system_validation && t.system_validation.evaluated_at" class="text-xs text-gray-400 mt-3">Evaluated {{ t.system_validation.evaluated_at }}</p>
 
             <!-- System self-checking — mirrors the index list's self-check columns
                  (machine RF-in-24h, New/Repeat, product exit sensor, error code). -->
@@ -369,34 +352,112 @@ function actionBadge(l) {
             </div>
         </div>
 
-        <!-- System validation -->
-        <div class="rounded-md border p-4" :class="recClass(t.recommendation)">
-            <h3 class="text-xs uppercase tracking-wide mb-2 opacity-80">System validation — RefundTicket</h3>
-            <div class="font-bold capitalize mb-3">Recommend: {{ t.recommendation }}</div>
-            <div class="flex flex-wrap gap-2">
-                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="hasChannelError ? badgeGood : badgeBad"
-                    :title="hasChannelError
-                        ? 'A vend channel / hardware error was recorded on this transaction (e.g. sensor or dispense fault). This is evidence the item may not have been dispensed — a valid reason to refund. Review the specific error code in Items flagged.'
-                        : 'No vend channel or hardware error was recorded. The machine reported a clean dispense, so there is no hardware evidence backing a not-dispensed claim — verify carefully before refunding.'">
-                    {{ hasChannelError ? '✓ Channel error detected' : '⚠ No channel error' }}
-                </span>
-                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="isManualClaim ? badgeBad : badgeGood"
-                    :title="isManualClaim
-                        ? 'The customer could not be auto-matched to a sale, so they typed the details in manually. Ops must match the real Order ID and verify the transaction before approving any payout.'
-                        : 'Automatically linked to the exact sales transaction behind this claim — the transaction details and validation were filled in by the system, so it is more trustworthy.'">
-                    {{ isManualClaim ? '✍ Manual claim' : '🔗 Auto-matched' }}
-                </span>
-                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="alreadyRefunded ? badgeBad : badgeGood"
-                    :title="alreadyRefunded
-                        ? 'A refund has already been recorded against this transaction. Check carefully before paying again — proceeding may create a DOUBLE refund.'
-                        : 'No prior refund was found for this transaction, so there is no double-refund risk. Safe to proceed on this check.'">
-                    {{ alreadyRefunded ? '↩ Already refunded' : '✓ Not yet refunded' }}
-                </span>
-                <span v-if="t.is_auto_refund_channel" class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="badgeGood"
-                    title="This machine's payment provider (Nayax) issues refunds automatically at the terminal. No manual PayNow / PayPal payout is needed for this ticket.">⚡ Nayax auto-refund</span>
-            </div>
+        <!-- Customer submission (follows the customer input flow) -->
+        <div class="bg-white rounded-md border p-4">
+            <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-3">Customer submission</h3>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <!-- left: the input flow -->
+                <div class="lg:col-span-2">
+                    <dl class="grid grid-cols-3 gap-y-2 text-sm">
+                        <dt class="text-gray-500">Name</dt><dd class="col-span-2 font-medium">{{ t.contact_name || '—' }}</dd>
+                        <dt class="text-gray-500">Email</dt><dd class="col-span-2 font-medium break-all">{{ t.contact_email || '—' }}</dd>
+                        <dt class="text-gray-500">Machine ID</dt><dd class="col-span-2 font-medium">
+                            <a v-if="t.vend_code" :href="opsDashboardUrl(t.vend_code)" target="_blank" class="text-teal-700 hover:underline" title="Open in Operations Dashboard">{{ t.vend_code }}</a>
+                            <span v-else>—</span>
+                        </dd>
+                        <dt class="text-gray-500">Site Name</dt><dd class="col-span-2 font-medium">{{ t.site_name || '—' }}</dd>
+                        <dt class="text-gray-500">Day Chosen</dt>
+                        <dd class="col-span-2 font-medium">
+                            <span class="capitalize">{{ t.entered_day || '—' }}</span>
+                            <span v-if="t.entered_day_date && isRelativeDay" class="text-gray-500"> ({{ t.entered_day_date }})</span>
+                        </dd>
+                        <dt class="text-gray-500">Amount paid</dt><dd class="col-span-2 font-medium">{{ t.entered_amount ? '$' + t.entered_amount : '—' }}</dd>
+                        <dt class="text-gray-500">Matched with Transaction</dt>
+                        <dd class="col-span-2">
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full border"
+                                :class="t.matched ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'">
+                                {{ t.matched ? 'Yes' : 'No' }}
+                            </span>
+                        </dd>
+                        <dt class="text-gray-500">Multiple purchase</dt>
+                        <dd class="col-span-2">
+                            <span v-if="multiplePurchase === null" class="font-medium text-gray-400">—</span>
+                            <span v-else class="text-xs font-semibold px-2 py-0.5 rounded-full border"
+                                :class="multiplePurchase ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-500 border-gray-200'">
+                                {{ multiplePurchase ? 'Yes' : 'No' }}
+                            </span>
+                        </dd>
+                        <dt class="text-gray-500">Channel #</dt><dd class="col-span-2 font-medium">{{ claimedChannels || '—' }}</dd>
+                        <dt class="text-gray-500">SKU name</dt><dd class="col-span-2 font-medium">{{ skuDisplay }}</dd>
+                        <dt class="text-gray-500">Refund Amount</dt><dd class="col-span-2 font-semibold">${{ t.amount }}</dd>
+                        <dt class="text-gray-500">Refund Reason</dt><dd class="col-span-2 font-medium">{{ t.reason_code || '—' }}</dd>
+                        <dt class="text-gray-500">Note</dt><dd class="col-span-2 font-medium">{{ t.reason_text || '—' }}</dd>
 
-            <p v-if="t.system_validation && t.system_validation.evaluated_at" class="text-xs text-gray-400 mt-3">Evaluated {{ t.system_validation.evaluated_at }}</p>
+                        <!-- Final refund amount: the amount we ACTUALLY pay out. Defaults to
+                             the customer's claim above but the admin can correct it (e.g. they
+                             keyed $5 when only $3 is claimable). Drives the settlement + payout files. -->
+                        <dt class="text-teal-700 font-medium pt-1">Final Refund Amount</dt>
+                        <dd class="col-span-2 pt-1">
+                            <div v-if="canEditFinal" class="flex flex-wrap items-center gap-2">
+                                <div class="flex items-center">
+                                    <span class="text-gray-500 mr-1">$</span>
+                                    <input v-model="finalAmount" @keyup.enter="saveFinalAmount" type="text" inputmode="decimal"
+                                        class="w-28 border rounded px-2 py-1 text-sm" placeholder="0.00" />
+                                </div>
+                                <button @click="saveFinalAmount" :disabled="busy"
+                                    class="bg-teal-600 text-white text-sm font-semibold rounded px-3 py-1 disabled:opacity-50">Save</button>
+                                <span v-if="t.final_refund_overridden" class="text-[11px] text-amber-600">Differs from claim (${{ t.amount }})</span>
+                            </div>
+                            <div v-else class="font-semibold">
+                                ${{ t.final_refund_amount }}
+                                <span v-if="t.final_refund_overridden" class="text-[11px] font-normal text-amber-600 ml-1">(claim ${{ t.amount }})</span>
+                                <span v-if="finalAmountLocked" class="text-[11px] font-normal text-gray-400 ml-1">· locked ({{ statuses[s] || s }})</span>
+                            </div>
+                        </dd>
+
+                        <dt class="text-teal-700 font-medium">Final Refund Remarks</dt>
+                        <dd class="col-span-2">
+                            <textarea v-if="canEditFinal" v-model="finalRemarks" rows="2"
+                                class="w-full border rounded px-2 py-1 text-sm" placeholder="Optional — reason for the adjustment"></textarea>
+                            <span v-else class="font-medium">{{ t.final_refund_remarks || '—' }}</span>
+                        </dd>
+                    </dl>
+
+                    <!-- payout + meta -->
+                    <dl class="grid grid-cols-3 gap-y-2 text-sm mt-3 pt-3 border-t">
+                        <dt class="text-gray-500">{{ payoutLabel }}</dt><dd class="col-span-2 font-medium break-all">{{ t.payout_destination || '—' }}</dd>
+                        <dt class="text-gray-500">Submitted via</dt><dd class="col-span-2 font-medium">{{ t.is_manual ? 'Manual entry (no match found)' : 'Scanned QR' }}</dd>
+                        <dt class="text-gray-500">Submitted at</dt><dd class="col-span-2 font-medium">{{ t.created_at }}</dd>
+                        <dt class="text-gray-500">Payment channel</dt><dd class="col-span-2 font-medium">{{ paymentChannelDisplay }}</dd>
+                        <template v-if="t.is_manual"><dt class="text-gray-500">Approx. time</dt><dd class="col-span-2 font-medium">{{ t.approx_time || '—' }}</dd></template>
+                    </dl>
+                </div>
+
+                <!-- right: photo / video (one large item, arrows to browse) -->
+                <div>
+                    <h4 class="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Photo / video<span v-if="attachments.length"> ({{ attachments.length }})</span></h4>
+                    <div v-if="attachments.length">
+                        <div class="relative w-full rounded-md overflow-hidden border bg-black/5 group">
+                            <button type="button" @click="openLightbox()" class="block w-full">
+                                <video v-if="isVideo(attachments[mediaIndex])" :src="attachments[mediaIndex].url" muted preload="metadata" class="w-full max-h-[420px] object-contain bg-black"></video>
+                                <img v-else :src="attachments[mediaIndex].url" :alt="attachments[mediaIndex].original_name" class="w-full max-h-[420px] object-contain bg-black/5" />
+                                <span v-if="isVideo(attachments[mediaIndex])" class="absolute inset-0 flex items-center justify-center text-white text-4xl drop-shadow pointer-events-none">▶</span>
+                            </button>
+                            <template v-if="attachments.length > 1">
+                                <button type="button" @click.stop="prevMedia"
+                                    class="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white text-xl leading-none">‹</button>
+                                <button type="button" @click.stop="nextMedia"
+                                    class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white text-xl leading-none">›</button>
+                            </template>
+                        </div>
+                        <div class="flex items-center justify-between mt-1.5">
+                            <p class="text-[11px] text-gray-400">Click to enlarge (max 3 files).</p>
+                            <span class="text-[11px] font-semibold text-gray-500">{{ mediaIndex + 1 }}/{{ attachments.length }}</span>
+                        </div>
+                    </div>
+                    <div v-else class="w-32 h-32 rounded-md border border-dashed border-gray-200 flex items-center justify-center text-[11px] text-gray-400 text-center px-2">No file</div>
+                </div>
+            </div>
         </div>
 
         <!-- Ops match / re-match: enter (or change) the Order ID to (re)sync the transaction + validation -->
@@ -568,6 +629,15 @@ function actionBadge(l) {
                     <textarea v-model="dropRemarks" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Reason (optional) — e.g. duplicate of RF-…"></textarea>
                     <button @click="doDrop" :disabled="busy" class="mt-1 w-full bg-gray-700 text-white text-sm rounded px-3 py-1.5">Confirm drop (no email)</button>
                 </div>
+            </div>
+
+            <!-- Dropped tickets keep an Actions box with the ONLY reversible action:
+                 Un-drop. Dropping sent no customer email, so it can be rewound back
+                 into the queue. Approve / Reject email the customer and have no undo. -->
+            <div v-else-if="t.is_dropped && can('verify refunds')" class="bg-gray-50 rounded-md border p-4 space-y-2">
+                <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-1">Actions</h3>
+                <button @click="doUndrop" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-teal-600 text-white">↩ Un-drop (restore to queue)</button>
+                <p class="text-xs text-gray-400">Reverses the drop and puts this request back in the queue. Approve and Reject email the customer, so those actions can't be undone.</p>
             </div>
 
             <div v-if="can('update refunds')" class="bg-gray-50 rounded-md border border-red-200 p-4">

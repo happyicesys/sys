@@ -58,6 +58,7 @@ use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\PaymentMethod;
 use App\Models\RefundTicket;
+use App\Models\RefundTicketItem;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
 use App\Models\Product;
@@ -3133,6 +3134,68 @@ class VendController extends Controller
             $ticket = $ticketByTxn->get($record->id)
                 ?? (filled($record->order_id) ? $ticketByOrder->get($record->order_id) : null);
             [$record->refund_type, $record->refund_reference] = $this->resolveRefundBadge($record, $ticket);
+        }
+
+        // Per-item "Refund Request" badge placement for MULTIPLE-purchase
+        // transactions. When a customer's refund request targets a specific SKU
+        // (the wizard lets them pick which line item to refund), the ticket
+        // records those selections as refund_ticket_items (vend_transaction_item_id
+        // / vend_channel_code). In that case the badge belongs on the matching
+        // vend_transaction_items row(s), not the parent header row. Single-purchase
+        // transactions, and multi tickets with no per-item selection, keep the
+        // header badge (refund_request_on_items stays false).
+        //
+        // Keyed off the already-denormalised vend_transactions.refund_request_id
+        // so it needs only one bounded per-page lookup and touches no infra.
+        $refundTicketIds = $records
+            ->filter(fn ($r) => $r->is_multiple && filled($r->refund_request_id))
+            ->pluck('refund_request_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        $ticketItemsByTicket = collect();
+        if (!empty($refundTicketIds)) {
+            $ticketItemsByTicket = RefundTicketItem::query()
+                ->whereIn('refund_ticket_id', $refundTicketIds)
+                ->get(['refund_ticket_id', 'vend_transaction_item_id', 'vend_channel_code'])
+                ->groupBy('refund_ticket_id');
+        }
+
+        foreach ($records as $record) {
+            $record->refund_request_on_items = false;
+
+            if (!$record->is_multiple || blank($record->refund_request_id)) {
+                continue;
+            }
+
+            $ticketItems = $ticketItemsByTicket->get($record->refund_request_id);
+            if (!$ticketItems || $ticketItems->isEmpty()) {
+                continue; // no specific SKU selected -> leave badge on header
+            }
+
+            $targetItemIds = $ticketItems->pluck('vend_transaction_item_id')
+                ->filter()->map(fn ($v) => (int) $v)->unique()->all();
+            $targetChannelCodes = $ticketItems->pluck('vend_channel_code')
+                ->filter()->map(fn ($v) => (string) $v)->unique()->all();
+
+            $matched = false;
+            foreach ($record->vendTransactionItems as $item) {
+                $isTarget = in_array((int) $item->id, $targetItemIds, true)
+                    || (filled($item->vend_channel_code)
+                        && in_array((string) $item->vend_channel_code, $targetChannelCodes, true));
+
+                if ($isTarget) {
+                    $item->refund_request_id = $record->refund_request_id;
+                    $item->refund_request_reference = $record->refund_request_reference;
+                    $item->refund_request_status = $record->refund_request_status;
+                    $item->refund_request_is_dropped = $record->refund_request_is_dropped;
+                    $matched = true;
+                }
+            }
+
+            // Only pull the badge off the header once it has a home on an item row.
+            $record->refund_request_on_items = $matched;
         }
 
         $vendTransactions = new LengthAwarePaginator(

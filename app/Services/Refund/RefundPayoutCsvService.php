@@ -51,11 +51,11 @@ class RefundPayoutCsvService
                 $map = [
                     'reference' => $ticket->reference,
                     'payout_destination' => $ticket->payout_destination,
-                    'amount' => number_format($ticket->claimed_amount_cents / 100, 2, '.', ''),
+                    'amount' => number_format($ticket->payout_amount_cents / 100, 2, '.', ''),
                     'contact_email' => $ticket->contact_email,
                 ];
                 $rows[] = implode(',', array_map(fn ($c) => $this->csvEscape($map[$c] ?? ''), $columns));
-                $total += (int) $ticket->claimed_amount_cents;
+                $total += (int) $ticket->payout_amount_cents;
 
                 $ticket->update([
                     'payout_batch_id' => $batch->id,
@@ -127,7 +127,7 @@ class RefundPayoutCsvService
 
             $total = 0;
             foreach ($tickets as $ticket) {
-                $total += (int) $ticket->claimed_amount_cents;
+                $total += (int) $ticket->payout_amount_cents;
                 // record the latest export batch for reference; keep status = Approved
                 $ticket->update(['payout_batch_id' => $batch->id]);
                 $this->tickets->log($ticket, 'exported', null, null, 'Exported in ' . strtoupper($bankKey) . ' batch ' . $batch->reference, 'System', $userId);

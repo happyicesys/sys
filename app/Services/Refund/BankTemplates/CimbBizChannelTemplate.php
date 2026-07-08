@@ -40,7 +40,7 @@ class CimbBizChannelTemplate implements BankBulkTemplate
         $d = $cfg['delimiter'] ?? '%';
         $currency = $cfg['currency'] ?? 'SGD';
 
-        $totalCents = (int) $tickets->sum('claimed_amount_cents');
+        $totalCents = (int) $tickets->sum('payout_amount_cents');
         $count = $tickets->count();
 
         // Originating account resolution.
@@ -82,7 +82,7 @@ class CimbBizChannelTemplate implements BankBulkTemplate
             $lines[] = implode($d, [
                 $this->clean($this->paynowMobile($t->payout_destination)), // A PayNow mobile (+65 E.164)
                 $this->clean($this->beneficiaryName($t)),        // B beneficiary name
-                number_format($t->claimed_amount_cents / 100, 2, '.', ''), // C amount
+                number_format($t->payout_amount_cents / 100, 2, '.', ''), // C amount (admin final override, else claim)
                 $currency,                                       // D currency
                 $cfg['proxy_type'] ?? 'MOB',                     // E proxy type — PayNow mobile only
                 $cfg['purpose_code'] ?? 'OTHR',                  // F purpose code

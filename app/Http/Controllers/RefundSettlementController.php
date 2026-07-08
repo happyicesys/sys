@@ -47,7 +47,7 @@ class RefundSettlementController extends Controller
 
         // Per-stream aggregates for the page's settlements, one grouped query.
         $agg = RefundTicket::whereIn('payout_batch_id', $rows->pluck('id'))
-            ->selectRaw("payout_batch_id, refund_method, count(*) as c, coalesce(sum(claimed_amount_cents),0) as t, coalesce(sum(case when status = 'completed' then 1 else 0 end),0) as done_c")
+            ->selectRaw("payout_batch_id, refund_method, count(*) as c, coalesce(sum(coalesce(final_refund_amount_cents, claimed_amount_cents)),0) as t, coalesce(sum(case when status = 'completed' then 1 else 0 end),0) as done_c")
             ->groupBy('payout_batch_id', 'refund_method')
             ->get()
             ->groupBy('payout_batch_id');
@@ -119,7 +119,7 @@ class RefundSettlementController extends Controller
                 'reference' => $t->reference,
                 'vend_code' => $t->vend_code,
                 'site_name' => $site,
-                'amount' => number_format($t->claimed_amount_cents / 100, 2),
+                'amount' => number_format($t->payout_amount_cents / 100, 2),
                 'payout_destination' => $t->payout_destination,
                 'contact_email' => $t->contact_email,
                 'status' => $t->status,

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Jobs\Concerns\AppendsUnreportedGatewayCsvRows;
 use App\Models\Operator;
+use App\Models\RefundTicketItem;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Models\ExportJob;
@@ -130,7 +131,9 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 'HID Card ID',
                 'Voucher',
                 'Campaign Labels',
-                'Dispense Attempted?'
+                'Dispense Attempted?',
+                'Refund Request',
+                'Refund Status',
             ]);
 
             VendTransaction::query()
@@ -207,6 +210,26 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                         ->whereIn('vend_transaction_id', $transactionIds)
                         ->get()
                         ->groupBy('vend_transaction_id');
+
+                    // Per-item refund-request placement (mirrors the on-screen
+                    // Transactions table): a multiple-purchase refund that targets a
+                    // specific SKU shows on that item row, not the parent. Keyed off
+                    // the denormalised vend_transactions.refund_request_id already
+                    // selected on each row; one bounded, index-backed lookup per chunk
+                    // (refund_ticket_items.refund_ticket_id is indexed).
+                    $refundTicketIds = $transactions
+                        ->filter(fn($t) => $t->is_multiple && filled($t->refund_request_id))
+                        ->pluck('refund_request_id')
+                        ->unique()
+                        ->values()
+                        ->all();
+
+                    $refundTicketItems = empty($refundTicketIds)
+                        ? collect()
+                        : RefundTicketItem::query()
+                            ->whereIn('refund_ticket_id', $refundTicketIds)
+                            ->get(['refund_ticket_id', 'vend_transaction_item_id', 'vend_channel_code'])
+                            ->groupBy('refund_ticket_id');
 
                     // 🔹 Collect all label values (ints and strings) across this chunk
                     $rawLabelVals = $transactions->pluck('label_ids_json')
@@ -294,6 +317,35 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             ? ((int) $txn->pg_is_dispensed === 1 ? 'Yes' : 'No')
                             : '';
 
+                        // Decide whether the refund badge belongs on the item rows
+                        // (targeted SKU inside a multiple purchase) or the parent row.
+                        $refundTargetItemIds = [];
+                        $refundTargetChannelCodes = [];
+                        $refundOnItems = false;
+                        if ($txn->is_multiple && filled($txn->refund_request_id)) {
+                            $ticketItems = $refundTicketItems->get($txn->refund_request_id);
+                            if ($ticketItems && $ticketItems->isNotEmpty()) {
+                                $refundTargetItemIds = $ticketItems->pluck('vend_transaction_item_id')
+                                    ->filter()->map(fn($v) => (int) $v)->unique()->all();
+                                $refundTargetChannelCodes = $ticketItems->pluck('vend_channel_code')
+                                    ->filter()->map(fn($v) => (string) $v)->unique()->all();
+                                foreach ($txnItems as $it) {
+                                    if (in_array((int) $it->id, $refundTargetItemIds, true)
+                                        || (filled($it->vend_channel_code)
+                                            && in_array((string) $it->vend_channel_code, $refundTargetChannelCodes, true))) {
+                                        $refundOnItems = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        // Parent row shows the refund reference only when it is NOT
+                        // pinned to a specific item row.
+                        $headerRefundRef = ($txn->refund_request_reference && !$refundOnItems)
+                            ? $txn->refund_request_reference : '';
+                        $headerRefundStatus = ($txn->refund_request_reference && !$refundOnItems)
+                            ? ($txn->refund_request_status ?? '') : '';
+
                         // ✏️ Parent row — append $labelStr at the end
                         fputcsv($stream, [
                             $orderIdCell,
@@ -325,10 +377,19 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             (!empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
                             $labelStr, // 👈 new
                             $dispenseAttempted,
+                            $headerRefundRef,
+                            $headerRefundStatus,
                         ]);
 
                         // ✏️ Child item rows — keep Labels empty (or use $labelStr if you prefer)
                         foreach ($txnItems as $item) {
+                            // A targeted-SKU multiple-purchase refund shows on the
+                            // matching item row.
+                            $itemIsRefundTarget = $refundOnItems && (
+                                in_array((int) $item->id, $refundTargetItemIds, true)
+                                || (filled($item->vend_channel_code)
+                                    && in_array((string) $item->vend_channel_code, $refundTargetChannelCodes, true))
+                            );
                             fputcsv($stream, [
                                 $orderIdCell,
                                 \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
@@ -362,6 +423,8 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 '',
                                 '', // Labels for item rows
                                 $dispenseAttempted, // inherit parent's gateway dispense state
+                                $itemIsRefundTarget ? $txn->refund_request_reference : '',
+                                $itemIsRefundTarget ? ($txn->refund_request_status ?? '') : '',
                             ]);
                         }
                     }

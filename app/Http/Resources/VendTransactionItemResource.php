@@ -17,6 +17,13 @@ class VendTransactionItemResource extends JsonResource
         return [
             'id' => $this->id,
             'is_refunded' => $this->is_refunded,
+            // Per-item refund-request badge — only populated (in VendController
+            // transactionIndex) when a multiple-purchase refund targets this
+            // specific line item. Null on every other item row.
+            'refund_request_id' => $this->refund_request_id ?? null,
+            'refund_request_reference' => $this->refund_request_reference ?? null,
+            'refund_request_status' => $this->refund_request_status ?? null,
+            'refund_request_is_dropped' => (bool) ($this->refund_request_is_dropped ?? false),
             'product' => ProductResource::make($this->whenLoaded('product')),
             'product_id' => $this->product_id,
             'unit_cost' => $this->unit_cost,

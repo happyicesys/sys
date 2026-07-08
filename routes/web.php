@@ -880,6 +880,9 @@ Route::post('/refund', [RefundFormController::class, 'store'])->middleware('thro
 */
 Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     Route::get('/', [RefundController::class, 'index'])->name('refunds.index')->middleware('can:read refunds');
+    // Excel export of the current filtered list. MUST be before the /{ticket}
+    // wildcard so 'export' isn't captured as a {ticket} binding.
+    Route::get('/export', [RefundController::class, 'export'])->name('refunds.export')->middleware('can:read refunds');
     // NOTE: /batch/complete must be registered BEFORE the /{ticket}/complete
     // wildcard below, or 'batch' would be captured as a {ticket} binding.
     Route::post('/batch/complete', [RefundController::class, 'completeBatch'])->name('refunds.batch.complete')->middleware('can:update refunds');
@@ -893,7 +896,9 @@ Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     Route::post('/{ticket}/reject', [RefundController::class, 'reject'])->middleware('can:verify refunds');
     Route::post('/{ticket}/resolve-no-charge', [RefundController::class, 'resolveNoCharge'])->middleware('can:verify refunds');
     Route::post('/{ticket}/drop', [RefundController::class, 'drop'])->middleware('can:verify refunds');
+    Route::post('/{ticket}/undrop', [RefundController::class, 'undrop'])->middleware('can:verify refunds');
     Route::post('/{ticket}/request-info', [RefundController::class, 'requestInfo'])->middleware('can:update refunds');
+    Route::post('/{ticket}/final-amount', [RefundController::class, 'updateFinalAmount'])->middleware('can:update refunds');
     Route::post('/{ticket}/complete', [RefundController::class, 'complete'])->middleware('can:update refunds');
     Route::post('/{ticket}/email', [RefundController::class, 'sendEmail'])->middleware('can:update refunds');
     Route::post('/{ticket}/items/{item}', [RefundController::class, 'updateItem'])->middleware('can:update refunds');

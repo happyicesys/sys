@@ -38,6 +38,10 @@ class VendTransactionResource extends JsonResource
             'refund_request_reference' => $this->refund_request_reference ?? null,
             'refund_request_status' => $this->refund_request_status ?? null,
             'refund_request_is_dropped' => (bool) ($this->refund_request_is_dropped ?? false),
+            // True when the refund-request badge has been moved onto the
+            // per-item rows (targeted SKU in a multiple purchase); the header
+            // column suppresses its own badge in that case.
+            'refund_request_on_items' => (bool) ($this->refund_request_on_items ?? false),
             'is_found_in_transaction' => (bool) ($this->is_found_in_transaction ?? true),
             'settlement_status' => $this->settlement_status ?? null,
             'itemsJson' => $this->items_json,
