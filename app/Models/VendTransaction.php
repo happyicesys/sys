@@ -524,6 +524,9 @@ class VendTransaction extends Model
             ->when($request->is_refunded, function ($query, $search) {
                 $query->applyRefundedFilter($search);
             })
+            ->when($request->refund_request, function ($query, $search) {
+                $query->where('vend_transactions.refund_request_reference', 'LIKE', "%{$search}%");
+            })
             ->when($request->is_voucher, function ($query, $search) {
                 if ($search != 'all') {
                     if ($search == 'true') {
@@ -833,6 +836,9 @@ class VendTransaction extends Model
             })
             ->when($request->is_refunded, function ($query, $search) {
                 $query->applyRefundedFilter($search);
+            })
+            ->when($request->refund_request, function ($query, $search) {
+                $query->where('vend_transactions.refund_request_reference', 'LIKE', "%{$search}%");
             })
             ->when($request->location_type_id, function ($query, $search) {
                 if ($search != 'all') {

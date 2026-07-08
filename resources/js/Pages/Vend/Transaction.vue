@@ -228,7 +228,7 @@
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Is Refunded?
+                    Auto Refunded?
                 </label>
                 <MultiSelect
                     v-model="filters.is_refunded"
@@ -241,6 +241,11 @@
                     class="mt-1"
                 >
                 </MultiSelect>
+            </div>
+            <div class="col-span-5 md:col-span-1" v-if="showAllFilters">
+                <SearchInput placeholderStr="Refund Request" v-model="filters.refund_request" @keyup.enter="onSearchFilterUpdated()">
+                    Refund Request
+                </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="showAllFilters && permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
@@ -1182,6 +1187,7 @@ const filters = ref({
     is_multiple: '',
     is_payment_received: '',
     is_refunded: '',
+    refund_request: '',
     is_voucher: '',
     paymentMethods: [],
     date_from: moment().format('YYYY-MM-DD'),

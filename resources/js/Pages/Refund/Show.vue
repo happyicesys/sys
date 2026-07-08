@@ -336,17 +336,15 @@ function actionBadge(l) {
                         <dt class="text-[10px] uppercase tracking-wide text-gray-500">New / Repeat?</dt>
                         <dd class="mt-1">
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-full cursor-help"
-                                :class="(t.is_repeat || t.requester_repeat) ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
-                                :title="t.is_repeat
-                                    ? ('Repeat: this transaction was already claimed under ' + (t.replicated_from_reference || 'an earlier request') + '. Re-validate before payout to avoid a double refund.')
-                                    : (t.requester_repeat
-                                        ? 'Repeat: this PayNow/PayPal account or email was used on an earlier refund request.'
-                                        : 'New: first refund request seen from this requester.')">
-                                {{ (t.is_repeat || t.requester_repeat) ? 'Repeat' : 'New' }}
+                                :class="t.repeat_flag ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
+                                :title="t.repeat_flag
+                                    ? ('Repeat: this order + channel was already claimed under ' + (t.repeat_ref || 'an earlier request') + '. Re-validate before payout to avoid a double refund.')
+                                    : 'New: this order + channel has not been claimed before.'">
+                                {{ t.repeat_flag ? 'Repeat' : 'New' }}
                             </span>
-                            <a v-if="t.is_repeat && t.replicated_from_reference" :href="'/refunds?search=' + t.replicated_from_reference"
+                            <a v-if="t.repeat_flag && t.repeat_ref" :href="'/refunds?search=' + t.repeat_ref"
                                 target="_blank" class="block text-[10px] font-semibold text-red-500 mt-0.5 hover:underline"
-                                title="Open the original request this one duplicates">↺ duplicates {{ t.replicated_from_reference }}</a>
+                                title="Open the original request this one duplicates">↺ duplicates {{ t.repeat_ref }}</a>
                         </dd>
                     </div>
                     <div>

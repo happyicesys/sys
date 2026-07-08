@@ -118,6 +118,7 @@ const navigation = computed(() => [
             {name: 'Setting Charts', href: '/vend-configs', permission: 'read vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes', permission: 'read vend-prefixes'},
             {name: 'Modem IMEI', href: '/modem-units', permission: 'read modem-imei'},
+            {name: 'Smart Freezer Settings', href: '/smart-freezer-settings', permission: 'read machine-settings'},
             // {name: 'Campaigns', href: '/campaigns'},
         ]
     },

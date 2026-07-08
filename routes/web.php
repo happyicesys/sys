@@ -40,6 +40,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ResourceCenterController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SmartFreezerSettingController;
+use App\Http\Controllers\OtaController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SimcardController;
 use App\Http\Controllers\RolePermissionController;
@@ -97,6 +99,10 @@ Route::get('/', function () {
 });
 
 Route::post('/SetPara2', [VendDataController::class, 'create']);
+
+// Device-facing Smart-Freezer APK OTA manifest (unauthenticated for v1, parity with
+// the /menu endpoint; on-device sha256 + signer pinning is the real control). GET only.
+Route::get('/ota/manifest', [OtaController::class, 'manifest'])->middleware('throttle:120,1');
 
 Route::get('/client/api-docs', function () {
     return Inertia::render('Client/ApiDocs');
@@ -650,6 +656,25 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/vend/store', [SettingController::class, 'store'])
             ->middleware('can:create machine-settings');
         Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation'])
+            ->middleware('can:update machine-settings');
+    });
+
+    Route::prefix('smart-freezer-settings')->group(function () {
+        Route::get('/', [SmartFreezerSettingController::class, 'index'])->name('smart-freezer-settings')
+            ->middleware('can:read machine-settings');
+        Route::post('/releases', [SmartFreezerSettingController::class, 'storeRelease'])
+            ->middleware('can:create machine-settings');
+        Route::post('/releases/{id}/publish', [SmartFreezerSettingController::class, 'publish'])
+            ->middleware('can:update machine-settings');
+        Route::post('/releases/{id}/unpublish', [SmartFreezerSettingController::class, 'unpublish'])
+            ->middleware('can:update machine-settings');
+        Route::post('/releases/{id}/rollout', [SmartFreezerSettingController::class, 'updateRollout'])
+            ->middleware('can:update machine-settings');
+        Route::post('/releases/{id}/mandatory', [SmartFreezerSettingController::class, 'toggleMandatory'])
+            ->middleware('can:update machine-settings');
+        Route::delete('/releases/{id}', [SmartFreezerSettingController::class, 'destroy'])
+            ->middleware('can:update machine-settings');
+        Route::post('/push-ota-check', [SmartFreezerSettingController::class, 'pushOtaCheck'])
             ->middleware('can:update machine-settings');
     });
 

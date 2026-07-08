@@ -49,22 +49,55 @@ class RefundController extends Controller
         $dateFrom = $request->has('date_from') ? $request->input('date_from') : now()->subWeeks(4)->toDateString();
         $dateTo = $request->has('date_to') ? $request->input('date_to') : now()->toDateString();
 
-        $statusSel = $request->has('status')
+        $explicitStatus = $request->has('status');
+        $statusSel = $explicitStatus
             ? array_values(array_filter((array) $request->input('status')))
             : $defaultStatuses;
         $applyStatus = !empty($statusSel) && !in_array('all', $statusSel, true);
 
+        // "Dropped" is a pseudo-status (dropped tickets are Rejected + is_dropped),
+        // so it filters on the flag, not the status column. Strip it out of the real
+        // status list; when the user EXPLICITLY picks statuses without Dropped, keep
+        // dropped tickets out of the real buckets so "Rejected" shows only truly
+        // rejected tickets (the default view still shows them, unchanged).
+        $wantDropped = in_array('dropped', $statusSel, true);
+        $realStatuses = array_values(array_diff($statusSel, ['dropped']));
+
         $query = RefundTicket::query()
-            ->when($applyStatus, fn ($q) => $q->whereIn('status', $statusSel))
+            ->when($applyStatus, function ($q) use ($realStatuses, $wantDropped, $explicitStatus) {
+                $q->where(function ($w) use ($realStatuses, $wantDropped, $explicitStatus) {
+                    if (!empty($realStatuses)) {
+                        $w->orWhere(function ($x) use ($realStatuses, $wantDropped, $explicitStatus) {
+                            $x->whereIn('status', $realStatuses);
+                            if ($explicitStatus && !$wantDropped) {
+                                $x->where('is_dropped', false);
+                            }
+                        });
+                    }
+                    if ($wantDropped) {
+                        $w->orWhere('is_dropped', true);
+                    }
+                });
+            })
             ->when($request->refund_method, fn ($q, $s) => $q->where('refund_method', $s))
             ->when($dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->whereDate('created_at', '<=', $dateTo))
             ->when($request->search, function ($q, $s) {
-                $q->where(function ($w) use ($s) {
+                // Digits-only form of the term so a plain "81339134" also matches a
+                // PayNow / phone number stored with spaces, dashes, or a +65 prefix.
+                $digits = preg_replace('/\D+/', '', $s);
+                $q->where(function ($w) use ($s, $digits) {
                     $w->where('reference', 'like', "%{$s}%")
                         ->orWhere('vend_code', 'like', "%{$s}%")
                         ->orWhere('contact_email', 'like', "%{$s}%")
-                        ->orWhere('payout_destination', 'like', "%{$s}%");
+                        ->orWhere('payout_destination', 'like', "%{$s}%")
+                        ->orWhere('contact_phone', 'like', "%{$s}%");
+                    // PayNow number (payout_destination) + requester phone, matched
+                    // ignoring spaces / dashes / plus so formatting can't block a hit.
+                    if ($digits !== '') {
+                        $w->orWhereRaw("REPLACE(REPLACE(REPLACE(payout_destination, ' ', ''), '-', ''), '+', '') LIKE ?", ["%{$digits}%"])
+                            ->orWhereRaw("REPLACE(REPLACE(REPLACE(contact_phone, ' ', ''), '-', ''), '+', '') LIKE ?", ["%{$digits}%"]);
+                    }
                 });
             })
             ->orderByDesc('created_at'); // latest on top
@@ -108,7 +141,7 @@ class RefundController extends Controller
         $payNowDup = $this->payNowReuseFlags($rows);
 
         // System self-checking: per-machine RF count in the trailing 24h + a
-        // New/Repeat flag (same requester seen before).
+        // New/Repeat flag (same order + same channel claimed before).
         $selfCheck = $this->selfCheckData($rows);
 
         // Error code shown in the self-check panel = the channel error frozen on
@@ -142,7 +175,8 @@ class RefundController extends Controller
                 $payNowDup[$t->id] ?? false,
                 [
                     'machine_rf_24h' => $selfCheck['rf24h'][$t->id] ?? null,
-                    'requester_repeat' => $selfCheck['repeat'][$t->id] ?? false,
+                    'repeat_flag' => $selfCheck['repeat'][$t->id] ?? false,
+                    'repeat_ref' => $selfCheck['repeat_ref'][$t->id] ?? null,
                     'error_code' => $errItem?->vend_channel_error_code,
                     'error_desc' => $errItem?->channel_error_desc,
                     'affected_items' => ($claimedItems->get($t->id) ?? collect())
@@ -155,7 +189,12 @@ class RefundController extends Controller
         });
 
         // counts are over all tickets (unfiltered) so the chips always show true totals
-        $counts = RefundTicket::selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status');
+        $counts = RefundTicket::selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')->toArray();
+        // Dropped is a pseudo-status (Rejected + is_dropped). Give it its own chip
+        // count and subtract it from Rejected so the two chips don't double-count.
+        $droppedCount = (int) RefundTicket::where('is_dropped', true)->count();
+        $counts['rejected'] = max(0, (int) ($counts['rejected'] ?? 0) - $droppedCount);
+        $counts['dropped'] = $droppedCount;
 
         return Inertia::render('Refund/Index', [
             'tickets' => $tickets,
@@ -618,17 +657,28 @@ class RefundController extends Controller
 
     /**
      * System self-checking signals for the page rows, batched:
-     *   - rf24h[id]  : # of refund requests THIS machine had in the trailing 24h
-     *                  ending at that ticket's submission (spike detection).
-     *   - repeat[id] : true when the SAME requester (same PayNow/PayPal payout
-     *                  destination OR contact email) appears on an earlier ticket.
+     *   - rf24h[id]      : # of refund requests THIS machine had in the trailing
+     *                      24h ending at that ticket's submission (spike detection).
+     *   - repeat[id]     : true when the SAME order AND the SAME channel were
+     *                      already claimed on an EARLIER, non-rejected ticket. See
+     *                      the New/Repeat definition below.
+     *   - repeat_ref[id] : reference of the earliest such prior ticket (for the
+     *                      tooltip / deep link), or null.
      *
-     * @return array{rf24h: array<int,?int>, repeat: array<int,bool>}
+     * New vs Repeat is decided ONLY on order + channel — a resubmission for the
+     * same order (matched by order_id / vend_transaction_id / payment_gateway_log_id)
+     * where at least one of the same machine channels is claimed again. Requester
+     * identity (same PayNow/PayPal number or email) is deliberately NOT part of this
+     * signal: that reuse case is surfaced separately as the red PayNow number under
+     * the Refund Method column. Rejected/dropped tickets don't count as a prior
+     * claim.
+     *
+     * @return array{rf24h: array<int,?int>, repeat: array<int,bool>, repeat_ref: array<int,?string>}
      */
     protected function selfCheckData($rows): array
     {
         $rows = collect($rows);
-        $out = ['rf24h' => [], 'repeat' => []];
+        $out = ['rf24h' => [], 'repeat' => [], 'repeat_ref' => []];
         if ($rows->isEmpty()) {
             return $out;
         }
@@ -645,19 +695,39 @@ class RefundController extends Controller
                 ->get(['id', 'vend_code', 'created_at'])
             : collect();
 
-        // Requester identities (payout destination + contact email) seen anywhere.
-        $dests = $rows->pluck('payout_destination')->filter()->unique()->values()->all();
-        $emails = $rows->pluck('contact_email')->filter()->unique()->values()->all();
-        $identityTickets = ($dests || $emails)
-            ? RefundTicket::where(function ($q) use ($dests, $emails) {
-                if ($dests) {
-                    $q->orWhereIn('payout_destination', $dests);
-                }
-                if ($emails) {
-                    $q->orWhereIn('contact_email', $emails);
-                }
-            })->get(['id', 'payout_destination', 'contact_email', 'created_at'])
+        // --- New / Repeat (same order + same channel) --------------------------
+        // Every non-rejected ticket that shares an order identity with any page row
+        // (this set includes the page rows themselves plus any sibling claims on the
+        // same orders). We then match earlier siblings on order identity + channel.
+        $orderIds = $rows->pluck('order_id')->filter()->unique()->values()->all();
+        $vtIds    = $rows->pluck('vend_transaction_id')->filter()->unique()->values()->all();
+        $logIds   = $rows->pluck('payment_gateway_log_id')->filter()->unique()->values()->all();
+
+        $candidates = ($orderIds || $vtIds || $logIds)
+            ? RefundTicket::where('status', '!=', RefundTicket::STATUS_REJECTED)
+                ->where(function ($q) use ($orderIds, $vtIds, $logIds) {
+                    if ($orderIds) { $q->orWhereIn('order_id', $orderIds); }
+                    if ($vtIds)    { $q->orWhereIn('vend_transaction_id', $vtIds); }
+                    if ($logIds)   { $q->orWhereIn('payment_gateway_log_id', $logIds); }
+                })
+                ->get(['id', 'reference', 'order_id', 'vend_transaction_id', 'payment_gateway_log_id', 'created_at'])
             : collect();
+
+        // Channel sets per ticket (candidates + page rows), one batched query.
+        $channelIds = $candidates->pluck('id')->merge($rows->pluck('id'))->unique()->values()->all();
+        $channelsByTicket = \App\Models\RefundTicketItem::whereIn('refund_ticket_id', $channelIds)
+            ->whereNotNull('vend_channel_code')
+            ->get(['refund_ticket_id', 'vend_channel_code'])
+            ->groupBy('refund_ticket_id')
+            ->map(fn ($g) => $g->pluck('vend_channel_code')->filter()->unique()->values()->all());
+
+        // Two tickets are the "same order" when they share ANY of order_id /
+        // vend_transaction_id / payment_gateway_log_id.
+        $sharesOrder = function ($t, $o): bool {
+            return (filled($t->order_id) && (string) $o->order_id === (string) $t->order_id)
+                || (filled($t->vend_transaction_id) && (int) $o->vend_transaction_id === (int) $t->vend_transaction_id)
+                || (filled($t->payment_gateway_log_id) && (int) $o->payment_gateway_log_id === (int) $t->payment_gateway_log_id);
+        };
 
         foreach ($rows as $t) {
             $winStart = $t->created_at?->copy()->subDay();
@@ -667,12 +737,42 @@ class RefundController extends Controller
                     && $m->created_at <= $t->created_at)->count()
                 : null;
 
-            $out['repeat'][$t->id] = $identityTickets->contains(fn ($o) => (int) $o->id !== (int) $t->id
-                && $o->created_at <= $t->created_at
-                && (
-                    (filled($t->payout_destination) && $o->payout_destination === $t->payout_destination)
-                    || (filled($t->contact_email) && $o->contact_email === $t->contact_email)
-                ));
+            $out['repeat'][$t->id] = false;
+            $out['repeat_ref'][$t->id] = null;
+
+            $myChannels = $channelsByTicket->get($t->id, []);
+            // No claimed channel on this ticket → nothing to match on → New.
+            if (empty($myChannels)) {
+                continue;
+            }
+
+            $earliest = null;
+            foreach ($candidates as $o) {
+                if ((int) $o->id === (int) $t->id) {
+                    continue;
+                }
+                // Only tickets submitted STRICTLY earlier count as the prior claim
+                // (created_at earlier, or same instant with a smaller id).
+                $isEarlier = $o->created_at < $t->created_at
+                    || ($o->created_at == $t->created_at && (int) $o->id < (int) $t->id);
+                if (! $isEarlier || ! $sharesOrder($t, $o)) {
+                    continue;
+                }
+                // Same channel? (overlap between the two tickets' claimed channels)
+                if (empty(array_intersect($myChannels, $channelsByTicket->get($o->id, [])))) {
+                    continue;
+                }
+                if ($earliest === null
+                    || $o->created_at < $earliest->created_at
+                    || ($o->created_at == $earliest->created_at && (int) $o->id < (int) $earliest->id)) {
+                    $earliest = $o;
+                }
+            }
+
+            if ($earliest) {
+                $out['repeat'][$t->id] = true;
+                $out['repeat_ref'][$t->id] = $earliest->reference;
+            }
         }
 
         return $out;
@@ -764,7 +864,10 @@ class RefundController extends Controller
             'txn_link' => $txnLink,
             // --- System self-checking panel ---
             'machine_rf_24h' => $self['machine_rf_24h'] ?? null,
-            'requester_repeat' => (bool) ($self['requester_repeat'] ?? false),
+            // New vs Repeat = same order + same channel already claimed on an
+            // earlier ticket (see selfCheckData). repeat_ref points at the original.
+            'repeat_flag' => (bool) ($self['repeat_flag'] ?? false),
+            'repeat_ref' => $self['repeat_ref'] ?? null,
             // Prod Exit Sensor = the machine's Product Drop Sensor state FROZEN on
             // the matched transaction at the moment it occurred (true = Enabled,
             // false = Disabled, null = unknown / not captured). A later machine
@@ -780,6 +883,9 @@ class RefundController extends Controller
             'affected_items' => $self['affected_items'] ?? [],
             'paid_amount' => ($matched && $paidCents !== null) ? number_format($paidCents / 100, 2) : null,
             'pay_method' => $matched ? ($txn?->paymentMethod?->name ?? ($log ? 'QR' : null)) : null,
+            // Card-terminal provider (Nayax / Nets / …) from vend_transactions.cashless_mfg,
+            // shown on its own line in brackets under the method to keep the column narrow.
+            'pay_provider' => ($matched && $txn && $txn->cashless_mfg) ? $txn->cashless_mfg : null,
             'batch' => $batch ? [
                 'id' => $batch->id,
                 'reference' => $batch->reference,
@@ -922,7 +1028,8 @@ class RefundController extends Controller
         $errItem = $t->items->first(fn ($i) => $i->had_channel_error);
         $selfRow = [
             'machine_rf_24h' => $self['rf24h'][$t->id] ?? null,
-            'requester_repeat' => $self['repeat'][$t->id] ?? false,
+            'repeat_flag' => $self['repeat'][$t->id] ?? false,
+            'repeat_ref' => $self['repeat_ref'][$t->id] ?? null,
             'error_code' => $errItem?->vend_channel_error_code,
             'error_desc' => $errItem?->channel_error_desc,
         ];
@@ -1130,6 +1237,10 @@ class RefundController extends Controller
         return [
             RefundTicket::STATUS_SUBMITTED => 'Received',
             RefundTicket::STATUS_REJECTED => 'Rejected',
+            // "Dropped" is a pseudo-status, not a real status column value: dropped
+            // tickets are stored as Rejected with is_dropped=true. It is surfaced as
+            // its own chip / filter option and counted separately from Rejected.
+            'dropped' => 'Dropped',
             RefundTicket::STATUS_APPROVED => 'Approved',
             RefundTicket::STATUS_COMPLETED => 'Completed',
         ];

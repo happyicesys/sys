@@ -109,6 +109,7 @@ const statusClass = (s) => ({
     rejected: 'bg-red-100 text-red-800',
     approved: 'bg-green-100 text-green-800',
     completed: 'text-gray-500',                    // Completed = no colour
+    dropped: 'bg-white text-gray-500 border border-gray-300',  // temporarily white
 }[s] || 'bg-gray-100 text-gray-700');
 
 // Machine ID → Operations Dashboard, deep-linked+auto-searched to that machine
@@ -155,7 +156,7 @@ function sortVal(t, key) {
         case 'amount': return toNum(t.amount);
         case 'refund_method': return t.refund_method || '';
         case 'machine_rf_24h': return (t.machine_rf_24h ?? null);
-        case 'requester_repeat': return (t.is_repeat || t.requester_repeat) ? 1 : 0;
+        case 'repeat_flag': return t.repeat_flag ? 1 : 0;
         case 'product_drop_sensor': return t.product_drop_sensor === true ? 2 : (t.product_drop_sensor === false ? 1 : null);
         case 'error_code': return t.error_code || '';
         case 'status': return t.status || '';
@@ -245,7 +246,7 @@ const sortedRows = computed(() => {
 
         <!-- table -->
         <div class="bg-white rounded-md border overflow-x-auto">
-            <table class="compact-table min-w-full text-sm">
+            <table class="compact-table min-w-full text-xs">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
                         <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" title="Select all Approved tickets on this page" /></th>
@@ -269,7 +270,7 @@ const sortedRows = computed(() => {
                         <th @click="sortTable('amount')" class="border-l border-gray-200 hover:text-gray-700">Refund Amt{{ arrow('amount') }}</th>
                         <th @click="sortTable('refund_method')" class="hover:text-gray-700">Refund Method{{ arrow('refund_method') }}</th>
                         <th @click="sortTable('machine_rf_24h')" class="border-l border-gray-200 hover:text-gray-700">Machine L24h<br># of RF{{ arrow('machine_rf_24h') }}</th>
-                        <th @click="sortTable('requester_repeat')" class="hover:text-gray-700">New / Repeat?{{ arrow('requester_repeat') }}</th>
+                        <th @click="sortTable('repeat_flag')" class="hover:text-gray-700">New / Repeat?{{ arrow('repeat_flag') }}</th>
                         <th @click="sortTable('product_drop_sensor')" class="hover:text-gray-700">Prod Exit Sensor{{ arrow('product_drop_sensor') }}</th>
                         <th @click="sortTable('error_code')" class="hover:text-gray-700">Error code{{ arrow('error_code') }}</th>
                         <th @click="sortTable('status')" class="border-l border-gray-200 hover:text-gray-700">Validation{{ arrow('status') }}</th>
@@ -319,7 +320,10 @@ const sortedRows = computed(() => {
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <div class="text-gray-700">{{ t.matched && t.paid_amount ? '$' + t.paid_amount : '—' }}</div>
-                            <div class="text-xs text-gray-600 mt-1">{{ t.matched ? (t.pay_method || t.payment_channel || '—') : '—' }}</div>
+                            <div class="text-xs text-gray-600 mt-1">
+                                {{ t.matched ? (t.pay_method || t.payment_channel || '—') : '—' }}
+                                <span v-if="t.matched && t.pay_provider" class="block text-gray-500">({{ t.pay_provider }})</span>
+                            </div>
                         </td>
                         <td class="px-4 py-3 font-medium border-l border-gray-100">{{ t.matched ? '$' + t.amount : '—' }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
@@ -345,17 +349,15 @@ const sortedRows = computed(() => {
                         </td>
                         <td class="px-4 py-3 text-center">
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
-                                :class="(t.is_repeat || t.requester_repeat) ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
-                                v-tooltip="t.is_repeat
-                                    ? ('Repeat: this transaction was already claimed under ' + (t.replicated_from_reference || 'an earlier request') + '. Re-validate before payout to avoid a double refund.')
-                                    : (t.requester_repeat
-                                        ? 'Repeat: this PayNow/PayPal account or email was used on an earlier refund request.'
-                                        : 'New: first refund request seen from this requester.')">
-                                {{ (t.is_repeat || t.requester_repeat) ? 'Repeat' : 'New' }}
+                                :class="t.repeat_flag ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
+                                v-tooltip="t.repeat_flag
+                                    ? ('Repeat: this order + channel was already claimed under ' + (t.repeat_ref || 'an earlier request') + '. Re-validate before payout to avoid a double refund.')
+                                    : 'New: this order + channel has not been claimed before.'">
+                                {{ t.repeat_flag ? 'Repeat' : 'New' }}
                             </span>
-                            <span v-if="t.is_repeat && t.replicated_from_reference"
+                            <span v-if="t.repeat_flag && t.repeat_ref"
                                 class="block text-[10px] font-semibold text-red-500 mt-0.5"
-                                v-tooltip="'Duplicates ' + t.replicated_from_reference">↺ {{ t.replicated_from_reference }}</span>
+                                v-tooltip="'Duplicates ' + t.repeat_ref">↺ {{ t.repeat_ref }}</span>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <span v-if="t.product_drop_sensor === true" class="text-xs font-semibold text-green-700"
@@ -370,13 +372,13 @@ const sortedRows = computed(() => {
                             <span v-else class="text-gray-300">—</span>
                         </td>
                         <td class="px-4 py-3 border-l border-gray-100 text-center">
-                            <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.status)">{{ statuses[t.status] || t.status }}</span>
+                            <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.is_dropped ? 'dropped' : t.status)">{{ t.is_dropped ? 'Dropped' : (statuses[t.status] || t.status) }}</span>
                             <span class="flex items-center justify-center gap-0.5 mt-1.5">
                                 <component :is="c.ok ? CheckCircleIcon : XCircleIcon" v-for="(c, i) in validationChecks(t)" :key="i"
                                     class="h-5 w-5" :class="c.ok ? 'text-green-600' : 'text-red-500'" v-tooltip="c.label" />
                             </span>
                         </td>
-                        <td class="px-4 py-3" @click.stop>
+                        <td class="px-4 py-3 text-center" @click.stop>
                             <a v-if="t.batch && t.batch.is_settlement" :href="'/refund-settlements/' + t.batch.id" target="_blank"
                                 class="text-teal-700 text-xs font-semibold hover:underline whitespace-nowrap"
                                 title="Open the Refund Settlement">{{ t.batch.reference }}</a>
@@ -385,7 +387,7 @@ const sortedRows = computed(() => {
                                 :title="t.batch.filename || ''">⬇ {{ t.batch.reference }}</a>
                             <span v-else class="text-gray-300">—</span>
                         </td>
-                        <td class="px-4 py-3 whitespace-nowrap" @click.stop>
+                        <td class="px-4 py-3 whitespace-nowrap text-center" @click.stop>
                             <span v-if="t.status === 'completed'" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Completed<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
                             <template v-else-if="['approved', 'scheduled'].includes(t.status)">
                                 <button v-if="can('update refunds')" @click="markDone(t)" :disabled="completing === t.id"
