@@ -899,6 +899,7 @@ Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     Route::post('/{ticket}/undrop', [RefundController::class, 'undrop'])->middleware('can:verify refunds');
     Route::post('/{ticket}/request-info', [RefundController::class, 'requestInfo'])->middleware('can:update refunds');
     Route::post('/{ticket}/final-amount', [RefundController::class, 'updateFinalAmount'])->middleware('can:update refunds');
+    Route::post('/{ticket}/override-status', [RefundController::class, 'overrideStatus'])->middleware('can:verify refunds');
     Route::post('/{ticket}/complete', [RefundController::class, 'complete'])->middleware('can:update refunds');
     Route::post('/{ticket}/email', [RefundController::class, 'sendEmail'])->middleware('can:update refunds');
     Route::post('/{ticket}/items/{item}', [RefundController::class, 'updateItem'])->middleware('can:update refunds');

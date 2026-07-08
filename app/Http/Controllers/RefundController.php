@@ -769,6 +769,57 @@ class RefundController extends Controller
         return back()->with('success', 'Final refund amount saved.');
     }
 
+    /**
+     * "Overwritten status" — an admin FORCES the ticket's status (e.g. flip an
+     * Approved ticket back to Rejected) from the Overwritten section. This is a
+     * deliberate manual override that bypasses the normal workflow guards, so NO
+     * email is sent to the customer. The forced status + the admin's remark are
+     * written to the audit trail on ONE line.
+     *
+     * "Dropped" is a pseudo-status stored as Rejected + is_dropped, exactly like
+     * the normal Drop action. Only the review states can be forced — a ticket
+     * already locked into a settlement batch (Scheduled) or paid (Completed) is
+     * refused so we never desync the settlement / payout exports.
+     */
+    public function overrideStatus(Request $request, RefundTicket $ticket)
+    {
+        $data = $request->validate([
+            'status' => ['required', 'string', 'in:submitted,approved,rejected,dropped'],
+            'remarks' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        if (in_array($ticket->status, [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_COMPLETED], true)) {
+            return back()->withErrors([
+                'override_status' => 'The status can no longer be overwritten — this ticket is already ' . ($this->statusLabels()[$ticket->status] ?? $ticket->status) . '.',
+            ]);
+        }
+
+        $target = $data['status'];
+        $remarks = trim((string) ($data['remarks'] ?? '')) ?: null;
+
+        // "dropped" is a pseudo-status: stored as Rejected + is_dropped.
+        $newStatus = $target === 'dropped' ? RefundTicket::STATUS_REJECTED : $target;
+        $isDropped = $target === 'dropped';
+
+        $from = $ticket->status;
+        $fromLabel = $ticket->is_dropped ? 'Dropped' : ($this->statusLabels()[$from] ?? $from);
+        $toLabel = $this->statusLabels()[$target] ?? $target; // 'dropped' has its own label
+
+        $ticket->update([
+            'status' => $newStatus,
+            'is_dropped' => $isDropped,
+            'status_override_remarks' => $remarks,
+            'status_overridden_at' => now(),
+        ]);
+
+        // One audit line: the forced status change + the remark entered (no email).
+        $note = 'Status overwritten: ' . $fromLabel . ' → ' . $toLabel . ' (no email)'
+            . ($remarks ? ' — ' . $remarks : '');
+        $this->tickets->log($ticket, 'status_override', $from, $newStatus, $note, auth()->user()?->name ?? 'Admin', auth()->id());
+
+        return back()->with('success', 'Status overwritten to ' . $toLabel . '.');
+    }
+
     public function sendEmail(Request $request, RefundTicket $ticket)
     {
         $data = $request->validate(['template' => ['required', 'string']]);
@@ -1299,6 +1350,9 @@ class RefundController extends Controller
             'final_refund_amount_set' => $t->final_refund_amount_cents !== null,
             'final_refund_overridden' => $t->hasFinalAmountOverride(),
             'final_refund_remarks' => $t->final_refund_remarks,
+            // Admin "Overwritten status" override (Overwritten section on the page).
+            'status_override_remarks' => $t->status_override_remarks,
+            'status_overridden_at' => optional($t->status_overridden_at)->toDateTimeString(),
             'approx_time' => $t->approx_time,
             'last_email_template' => $t->last_email_template,
             'last_email_sent_at' => optional($t->last_email_sent_at)->toDateTimeString(),

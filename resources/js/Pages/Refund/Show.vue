@@ -181,6 +181,34 @@ function saveFinalAmount() {
     });
 }
 
+// ---- Overwritten status (admin force-override of the ticket status) ----
+// An admin can FORCE the ticket into another status (e.g. flip Approved → Rejected).
+// This deliberately bypasses the normal workflow guards and sends NO email to the
+// customer. Blocked once the ticket is locked into a settlement (Scheduled) or paid
+// (Completed) so we never desync the payout/settlement exports. "Dropped" is stored
+// as Rejected + is_dropped, matching the normal Drop action.
+const overrideStatusOptions = [
+    { value: 'submitted', label: 'Received' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'dropped', label: 'Dropped' },
+];
+const overrideStatus = ref('');
+const overrideRemarks = ref('');
+const statusOverrideLocked = computed(() => ['scheduled', 'completed'].includes(s.value));
+const canOverrideStatus = computed(() => can('verify refunds') && !statusOverrideLocked.value);
+function saveOverrideStatus() {
+    if (!overrideStatus.value) { alert('Select a status to overwrite to.'); return; }
+    const label = (overrideStatusOptions.find(o => o.value === overrideStatus.value) || {}).label || overrideStatus.value;
+    if (!confirm('Force this ticket’s status to “' + label + '”?\n\nNo email will be sent to the customer. This is logged to the audit trail.')) return;
+    post(base.value + '/override-status', {
+        status: overrideStatus.value,
+        remarks: overrideRemarks.value,
+    });
+    overrideStatus.value = '';
+    overrideRemarks.value = '';
+}
+
 // Full basket (matched-transaction items) with the customer-claimed rows flagged;
 // falls back to the stored claimed items when nothing is matched yet.
 const flaggedRows = computed(() => (t.value.flagged_items && t.value.flagged_items.length)
@@ -235,6 +263,7 @@ const actionBadges = {
     request_info: { label: 'Info requested', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
     matched: { label: 'Matched', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
     final_amount: { label: 'Final amount', cls: 'bg-teal-100 text-teal-700 border-teal-200' },
+    status_override: { label: 'Status forced', cls: 'bg-purple-100 text-purple-700 border-purple-200' },
     unmatched: { label: 'Match cleared', cls: 'bg-gray-100 text-gray-600 border-gray-300' },
     item_decision: { label: 'Item decision', cls: 'bg-gray-100 text-gray-600 border-gray-300' },
 };
@@ -392,35 +421,7 @@ function actionBadge(l) {
                         <dt class="text-gray-500">Refund Amount</dt><dd class="col-span-2 font-semibold">${{ t.amount }}</dd>
                         <dt class="text-gray-500">Refund Reason</dt><dd class="col-span-2 font-medium">{{ t.reason_code || '—' }}</dd>
                         <dt class="text-gray-500">Note</dt><dd class="col-span-2 font-medium">{{ t.reason_text || '—' }}</dd>
-
-                        <!-- Final refund amount: the amount we ACTUALLY pay out. Defaults to
-                             the customer's claim above but the admin can correct it (e.g. they
-                             keyed $5 when only $3 is claimable). Drives the settlement + payout files. -->
-                        <dt class="text-teal-700 font-medium pt-1">Final Refund Amount</dt>
-                        <dd class="col-span-2 pt-1">
-                            <div v-if="canEditFinal" class="flex flex-wrap items-center gap-2">
-                                <div class="flex items-center">
-                                    <span class="text-gray-500 mr-1">$</span>
-                                    <input v-model="finalAmount" @keyup.enter="saveFinalAmount" type="text" inputmode="decimal"
-                                        class="w-28 border rounded px-2 py-1 text-sm" placeholder="0.00" />
-                                </div>
-                                <button @click="saveFinalAmount" :disabled="busy"
-                                    class="bg-teal-600 text-white text-sm font-semibold rounded px-3 py-1 disabled:opacity-50">Save</button>
-                                <span v-if="t.final_refund_overridden" class="text-[11px] text-amber-600">Differs from claim (${{ t.amount }})</span>
-                            </div>
-                            <div v-else class="font-semibold">
-                                ${{ t.final_refund_amount }}
-                                <span v-if="t.final_refund_overridden" class="text-[11px] font-normal text-amber-600 ml-1">(claim ${{ t.amount }})</span>
-                                <span v-if="finalAmountLocked" class="text-[11px] font-normal text-gray-400 ml-1">· locked ({{ statuses[s] || s }})</span>
-                            </div>
-                        </dd>
-
-                        <dt class="text-teal-700 font-medium">Final Refund Remarks</dt>
-                        <dd class="col-span-2">
-                            <textarea v-if="canEditFinal" v-model="finalRemarks" rows="2"
-                                class="w-full border rounded px-2 py-1 text-sm" placeholder="Optional — reason for the adjustment"></textarea>
-                            <span v-else class="font-medium">{{ t.final_refund_remarks || '—' }}</span>
-                        </dd>
+                        <!-- Final Refund Amount + Remarks moved to the "Overwritten" section at the bottom. -->
                     </dl>
 
                     <!-- payout + meta -->
@@ -578,6 +579,66 @@ function actionBadge(l) {
                                 <span class="text-xs text-gray-400 shrink-0">{{ it.product_code || '—' }}<span v-if="it.channel"> · Ch {{ it.channel }}</span> · ${{ it.price }}</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overwritten — admin overrides. Forcing a status sends NO email; the
+             final refund amount (moved here from the Customer submission panel) is
+             the amount we actually pay out. Both are written to the audit trail. -->
+        <div v-if="can('update refunds') || can('verify refunds')" class="bg-white rounded-md border border-amber-200 p-4">
+            <h3 class="text-xs uppercase tracking-wide text-amber-700 mb-1">Overwritten</h3>
+            <p class="text-xs text-gray-500 mb-4">Admin overrides. Forcing a status does <b>not</b> email the customer. Every change here is written to the audit trail.</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Overwritten status: force the ticket into another status (no email) -->
+                <div v-if="can('verify refunds')">
+                    <h4 class="text-[11px] font-semibold uppercase tracking-wide text-gray-600 mb-2">Overwritten status</h4>
+                    <div v-if="canOverrideStatus" class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <select v-model="overrideStatus" class="w-44 border rounded px-2 py-1.5 text-sm">
+                                <option value="">— force status to —</option>
+                                <option v-for="o in overrideStatusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                            </select>
+                        </div>
+                        <textarea v-model="overrideRemarks" rows="2" class="w-full border rounded px-2 py-1 text-sm"
+                            placeholder="Reason for forcing the status (optional)"></textarea>
+                        <button @click="saveOverrideStatus" :disabled="busy || !overrideStatus"
+                            class="bg-purple-600 text-white text-sm font-semibold rounded px-3 py-1.5 disabled:opacity-50">Overwrite status (no email)</button>
+                    </div>
+                    <p v-else class="text-xs text-gray-400">The status can’t be overwritten — this ticket is already {{ statuses[s] || s }}.</p>
+                    <p v-if="t.status_override_remarks" class="text-xs text-gray-500 mt-2">
+                        <span class="font-semibold text-gray-600">Last override:</span> {{ t.status_override_remarks }}
+                        <span v-if="t.status_overridden_at" class="text-gray-400">· {{ t.status_overridden_at }}</span>
+                    </p>
+                </div>
+
+                <!-- Final refund amount: the amount we ACTUALLY pay out. Defaults to the
+                     customer's claim but the admin can correct it. Drives settlement + payout files. -->
+                <div v-if="can('update refunds')">
+                    <h4 class="text-[11px] font-semibold uppercase tracking-wide text-gray-600 mb-2">Final Refund Amount</h4>
+                    <div v-if="canEditFinal" class="space-y-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="flex items-center">
+                                <span class="text-gray-500 mr-1">$</span>
+                                <input v-model="finalAmount" @keyup.enter="saveFinalAmount" type="text" inputmode="decimal"
+                                    class="w-28 border rounded px-2 py-1 text-sm" placeholder="0.00" />
+                            </div>
+                            <span v-if="t.final_refund_overridden" class="text-[11px] text-amber-600">Differs from claim (${{ t.amount }})</span>
+                        </div>
+                        <textarea v-model="finalRemarks" rows="2" class="w-full border rounded px-2 py-1 text-sm"
+                            placeholder="Final Refund Remarks — reason for the adjustment (optional)"></textarea>
+                        <button @click="saveFinalAmount" :disabled="busy"
+                            class="bg-teal-600 text-white text-sm font-semibold rounded px-3 py-1.5 disabled:opacity-50">Save final amount</button>
+                    </div>
+                    <div v-else class="text-sm">
+                        <div class="font-semibold">
+                            ${{ t.final_refund_amount }}
+                            <span v-if="t.final_refund_overridden" class="text-[11px] font-normal text-amber-600 ml-1">(claim ${{ t.amount }})</span>
+                            <span v-if="finalAmountLocked" class="text-[11px] font-normal text-gray-400 ml-1">· locked ({{ statuses[s] || s }})</span>
+                        </div>
+                        <p v-if="t.final_refund_remarks" class="text-xs text-gray-500 mt-1">{{ t.final_refund_remarks }}</p>
                     </div>
                 </div>
             </div>
