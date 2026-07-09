@@ -98,6 +98,9 @@
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Name
                     </TableHeadSort>
+                    <TableHead>
+                      Type
+                    </TableHead>
                     <TableHeadSort modelName="date_from" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('date_from')">
                       Date
                     </TableHeadSort>
@@ -112,6 +115,11 @@
                       </TableData>
                       <TableData :currentIndex="holidayIndex" :totalLength="holidays.length" inputClass="text-left">
                         {{ holiday.name }}
+                      </TableData>
+                      <TableData :currentIndex="holidayIndex" :totalLength="holidays.length" inputClass="text-center">
+                        <span :class="typeBadgeClass(holiday.type)" class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">
+                          {{ typeLabel(holiday.type) }}
+                        </span>
                       </TableData>
                       <TableData :currentIndex="holidayIndex" :totalLength="holidays.length" inputClass="text-center">
                         {{ holiday.date_from }}
@@ -262,5 +270,19 @@ function sortTable(sortKey) {
 
 function onModalClose() {
   showModal.value = false
+}
+
+function typeLabel(type) {
+  if (type === 'public') return 'Public'
+  if (type === 'school') return 'School'
+  if (type === 'other') return 'Other'
+  return 'Manual'
+}
+
+function typeBadgeClass(type) {
+  if (type === 'public') return 'bg-blue-100 text-blue-800'
+  if (type === 'school') return 'bg-amber-100 text-amber-800'
+  if (type === 'other') return 'bg-purple-100 text-purple-800'
+  return 'bg-gray-100 text-gray-700'
 }
 </script>

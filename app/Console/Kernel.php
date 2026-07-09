@@ -46,8 +46,24 @@ class Kernel extends ConsoleKernel
         $schedule->command('customer-summary:compute')->dailyAt('01:00');
         $schedule->command('vend:retry-jobs')->everyMinute();
         // Ingest the regional rainfall snapshot (data.gov.sg refreshes every 5 min);
-        // idempotent, so overlap-guarded re-runs never double-insert.
-        $schedule->command('weather:sync-rainfall')->everyFiveMinutes()->withoutOverlapping();
+        // idempotent, so overlap-guarded re-runs never double-insert. Gated by
+        // WEATHER_SYNC_ENABLED (config weather.enabled) so only opted-in regions
+        // (e.g. the SG app) run it — the ID app leaves it off until it has a provider.
+        $schedule->command('weather:sync-rainfall')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->when(fn () => (bool) config('weather.enabled'));
+        // Sync official public holidays into the holidays table monthly (1st,
+        // 00:00). The data barely changes and is published a year ahead, so a
+        // monthly cadence is plenty and self-heals if a run fails. Idempotent.
+        // Gated by HOLIDAY_SYNC_ENABLED (config holiday.sync_enabled) so only a
+        // region with a provider (e.g. the SG app) runs it — the Indonesia app
+        // leaves it off and the cron never fires. School holidays are seeded
+        // separately via SgSchoolHolidaySeeder (no cron; re-seed yearly).
+        $schedule->command('holidays:sync-public')
+            ->monthlyOn(1, '00:00')
+            ->withoutOverlapping()
+            ->when(fn () => (bool) config('holiday.sync_enabled'));
         $schedule->command('ops:freeze-stock-in')->everyMinute()->withoutOverlapping();
         // Safety net: re-enqueue any freeze-eligible items the observer missed
         // (e.g. bulk/raw status updates that bypass model events).

@@ -47,6 +47,24 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
         ],
 
+        /*
+        | Dedicated mailbox for customer-facing refund emails (refund@...), so
+        | they don't go out on the shared alert account. Each REFUND_MAIL_*
+        | falls back to its MAIL_* counterpart, so if you only override the
+        | From address (REFUND_MAIL_FROM_ADDRESS) this reuses the main SMTP
+        | connection. Selected via REFUND_MAIL_MAILER=refund in config/refund.php.
+        */
+        'refund' => [
+            'transport' => 'smtp',
+            'host' => env('REFUND_MAIL_HOST', env('MAIL_HOST', 'smtp.mailgun.org')),
+            'port' => env('REFUND_MAIL_PORT', env('MAIL_PORT', 587)),
+            'encryption' => env('REFUND_MAIL_ENCRYPTION', env('MAIL_ENCRYPTION', 'tls')),
+            'username' => env('REFUND_MAIL_USERNAME', env('MAIL_USERNAME')),
+            'password' => env('REFUND_MAIL_PASSWORD', env('MAIL_PASSWORD')),
+            'timeout' => null,
+            'local_domain' => env('REFUND_MAIL_EHLO_DOMAIN', env('MAIL_EHLO_DOMAIN')),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],

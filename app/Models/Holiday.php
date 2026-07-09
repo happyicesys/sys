@@ -14,5 +14,7 @@ class Holiday extends Model
         'date_to',
         'desc',
         'name',
+        'type',
+        'source',
     ];
 }

@@ -6,6 +6,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Ingestion enabled
+    |--------------------------------------------------------------------------
+    | Master switch for the every-5-min weather:sync-rainfall cron. Default OFF
+    | so a deployment only ingests when it explicitly opts in — set
+    | WEATHER_SYNC_ENABLED=true in .env on instances whose region has a provider
+    | (e.g. the SG app). Instances without a matching provider (e.g. Indonesia,
+    | until one is added) simply leave it unset and the cron never fires.
+    | Manual `php artisan weather:sync-rainfall` runs are unaffected by this.
+    */
+    'enabled' => env('WEATHER_SYNC_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Default provider
     |--------------------------------------------------------------------------
     | Which region's weather source this deployment ingests. One instance per
