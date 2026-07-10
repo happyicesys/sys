@@ -791,12 +791,18 @@ class DashboardController extends Controller
 
         $cacheKey = $this->makeCacheKey('active_machine_graph', $request);
         $activeMachineGraph = Cache::remember($cacheKey, 300, function () use ($request, $excludeVendIds, $lastYear, $thisYear) {
-            // After migration 2026_04_18_200000 runs, idx_vr_monthly_summary covers vend_id
-            // so NOT IN and COUNT DISTINCT resolve entirely within the index with zero heap reads.
-            // No USE INDEX hint: MySQL auto-selects the covering index when it exists, falls back
-            // to idx_operator_year_month before migration (avoids full scan from missing-index hint).
+            // Chart is "... Vending Machines (Site) in operation" — a SITE count.
+            // Count DISTINCT customer_id, NOT vend_id: a physical machine that is
+            // re-provisioned when moved to another site gets a new vends.id, so
+            // COUNT(DISTINCT vend_id) would double-count that one unit as 2. Keying
+            // on customer_id counts each site once (NULL customer_id rows — unbound
+            // machines — are ignored by COUNT DISTINCT, matching "in operation").
+            // whereNotIn('vend_id', ...) still strips testing machines' rows.
+            // Note: idx_vr_monthly_summary covers vend_id, not customer_id, so this
+            // COUNT DISTINCT may fall back to idx_operator_year_month — flag to brian
+            // if an idx on (year, month, customer_id) is wanted for scan cost.
             return DB::table('vend_records')
-                ->selectRaw('year, month, COUNT(DISTINCT vend_id) as count')
+                ->selectRaw('year, month, COUNT(DISTINCT customer_id) as count')
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->whereNotIn('vend_id', $excludeVendIds)
                 ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))

@@ -265,7 +265,7 @@ class RefundFormController extends Controller
         // This first send also establishes the email thread root that later
         // workflow emails reply onto (see RefundEmailService).
         try {
-            $this->email->send($ticket, RefundEmailService::T_RECEIVED);
+            $this->email->queue($ticket, RefundEmailService::T_RECEIVED);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Refund submission email failed', ['ticket' => $ticket->reference, 'error' => $e->getMessage()]);
         }

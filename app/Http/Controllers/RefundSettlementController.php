@@ -197,6 +197,17 @@ class RefundSettlementController extends Controller
         return back()->with('success', 'Settlement closed.');
     }
 
+    public function reopen(RefundPayoutBatch $settlement)
+    {
+        try {
+            $this->settlements->reopen($settlement, auth()->id(), auth()->user()?->name ?? 'Admin');
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['settlement' => $e->getMessage()]);
+        }
+
+        return back()->with('success', 'Settlement reopened.');
+    }
+
     public function exportCimb(RefundPayoutBatch $settlement)
     {
         try {

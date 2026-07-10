@@ -490,12 +490,19 @@ class RolePermissionSyncSeeder extends Seeder
                 ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee']
             ],
 
-            // Refund Requests module. Mirrors the grants in migration
-            // 2026_06_26_100004_seed_refund_permissions.php (which is the source of
-            // truth on fresh installs). Listed here too because this seeder
-            // truncates ALL permissions and rebuilds only what it lists — without
-            // this block, re-running it would delete refund access. superadmin is
-            // granted explicitly so the sidebar (literal permission check) shows it.
+            // Refund Requests module. Source of truth = migration
+            // 2026_06_26_100004_seed_refund_permissions.php, as amended by
+            // 2026_07_03_120001_drop_approve_refunds_permission.php (which removed the
+            // 'approve refunds' ability and moved supervisors onto 'verify refunds').
+            // Listed here too because this seeder truncates ALL permissions and
+            // rebuilds only what it lists — without this block, re-running it would
+            // delete refund access (and previously it also resurrected the retired
+            // 'approve refunds' permission and dropped supervisor's verify grant).
+            // superadmin is granted explicitly so the sidebar (literal permission
+            // check) shows it. NOTE: supervisor deliberately has read + verify only;
+            // its access to the ticket "Overwritten" Final Refund Amount control is
+            // granted by ROLE on the route (role_or_permission:supervisor|update
+            // refunds), NOT by the broad 'update refunds' permission.
             [
                 'refunds',
                 ['read'],
@@ -509,12 +516,19 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'refunds',
                 ['verify'],
-                ['superadmin', 'admin', 'operator']
+                ['superadmin', 'admin', 'supervisor', 'operator']
             ],
+
+            // Operator Groups (payout groups) module. Source of truth = migration
+            // 2026_07_06_120000_seed_operator_group_permissions.php. Listed here too
+            // because this seeder truncates ALL permissions and rebuilds only what it
+            // lists — without this block, re-running it would delete the operator-group
+            // permissions and 403 the /operator-groups page for admin (superadmin still
+            // sees it via Gate::before, but admin would lose access). Admin-only CRUD.
             [
-                'refunds',
-                ['approve'],
-                ['superadmin', 'supervisor']
+                'operator-groups',
+                ['read', 'manage'],
+                ['superadmin', 'admin']
             ],
         ];
 

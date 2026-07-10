@@ -66,6 +66,10 @@ class RefundController extends Controller
         $droppedCount = (int) RefundTicket::where('is_dropped', true)->count();
         $counts['rejected'] = max(0, (int) ($counts['rejected'] ?? 0) - $droppedCount);
         $counts['dropped'] = $droppedCount;
+        // "In settlement" tickets are stored as `scheduled` but shown under Approved,
+        // so fold their count into the Approved chip (no separate status/chip).
+        $counts['approved'] = (int) ($counts['approved'] ?? 0) + (int) ($counts['scheduled'] ?? 0);
+        unset($counts['scheduled']);
 
         return Inertia::render('Refund/Index', [
             'tickets' => $tickets,
@@ -88,6 +92,7 @@ class RefundController extends Controller
                 'error_code' => $request->input('error_code', ''),
                 'settlement_ref' => $request->input('settlement_ref', ''),
                 'refund_done' => $request->input('refund_done', ''),
+                'sent_settlement' => $request->input('sent_settlement', ''),
                 'numberPerPage' => $rawPerPage,
             ],
             'statuses' => $this->statusLabels(),
@@ -124,6 +129,14 @@ class RefundController extends Controller
         // rejected tickets (the default view still shows them, unchanged).
         $wantDropped = in_array('dropped', $statusSel, true);
         $realStatuses = array_values(array_diff($statusSel, ['dropped']));
+
+        // A ticket pushed into a settlement is stored as `scheduled`, but the UI
+        // keeps it under "Approved" (no separate status). So the Approved bucket
+        // also matches scheduled tickets; the "Is Sent to Settlement?" filter below
+        // distinguishes sent (scheduled) from not-yet-sent (approved).
+        if (in_array(RefundTicket::STATUS_APPROVED, $realStatuses, true)) {
+            $realStatuses[] = RefundTicket::STATUS_SCHEDULED;
+        }
 
         $query = RefundTicket::query()
             ->when($applyStatus, function ($q) use ($realStatuses, $wantDropped, $explicitStatus) {
@@ -224,6 +237,12 @@ class RefundController extends Controller
                     $q->whereNotIn('status', [RefundTicket::STATUS_COMPLETED, RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED]);
                 }
             })
+            // --- Is Sent to Settlement? A pushed ticket is stored as `scheduled`.
+            ->when(in_array($request->sent_settlement, ['yes', 'no'], true), function ($q) use ($request) {
+                $request->sent_settlement === 'yes'
+                    ? $q->where('status', RefundTicket::STATUS_SCHEDULED)
+                    : $q->where('status', '!=', RefundTicket::STATUS_SCHEDULED);
+            })
             ->orderByDesc('created_at'); // latest on top
 
         return [$query, $dateFrom, $dateTo, $statusSel];
@@ -243,7 +262,7 @@ class RefundController extends Controller
         // Source transaction / gateway log / export batch, all withoutGlobalScopes
         // because Vend/VendTransaction/Customer carry operator scopes that would
         // drop rows in an admin/public context.
-        $txns = \App\Models\VendTransaction::withoutGlobalScopes()->with('paymentMethod')
+        $txns = \App\Models\VendTransaction::withoutGlobalScopes()->with(['paymentMethod', 'vendPrefix'])
             ->whereIn('id', $rows->pluck('vend_transaction_id')->filter()->unique())
             ->get()->keyBy('id');
         $logIds = $rows->pluck('payment_gateway_log_id')->filter()
@@ -336,7 +355,9 @@ class RefundController extends Controller
         return (new \Rap2hpoutre\FastExcel\FastExcel($generator()))->download($filename, function (array $r) use ($statusLabels) {
             $channels = collect($r['affected_items'] ?? [])->pluck('channel')->filter()->implode(', ');
             $products = collect($r['affected_items'] ?? [])->pluck('product_name')->filter()->implode(', ');
-            $statusText = $r['is_dropped'] ? 'Dropped' : ($statusLabels[$r['status']] ?? $r['status']);
+            // `scheduled` (pushed into a settlement) is shown under Approved.
+            $statusKey = $r['status'] === RefundTicket::STATUS_SCHEDULED ? RefundTicket::STATUS_APPROVED : $r['status'];
+            $statusText = $r['is_dropped'] ? 'Dropped' : ($statusLabels[$statusKey] ?? $statusKey);
             $sensor = is_null($r['product_drop_sensor']) ? '' : ($r['product_drop_sensor'] ? 'Enabled' : 'Disabled');
             $doneText = $r['status'] === RefundTicket::STATUS_COMPLETED
                 ? 'Completed'
@@ -508,7 +529,7 @@ class RefundController extends Controller
         // the acknowledgement thread). Gated by REFUND_EMAIL_ENABLED, self-guarded.
         // The email is recorded as its own "Email sent" audit line, so the action
         // note doesn't repeat it.
-        $this->email->send($ticket, RefundEmailService::T_APPROVED);
+        $this->email->queue($ticket, RefundEmailService::T_APPROVED);
         $this->tickets->log($ticket, 'verified', $from, $ticket->status, 'Ops verified claim (approved)', auth()->user()?->name ?? 'Ops', auth()->id());
 
         return back();
@@ -542,7 +563,7 @@ class RefundController extends Controller
         ]);
         // The customer notice is auto-generated and recorded as its own "Email
         // sent" line on the audit trail, so the action note doesn't repeat it.
-        $this->email->send($ticket, RefundEmailService::T_AUTO_REFUND);
+        $this->email->queue($ticket, RefundEmailService::T_AUTO_REFUND);
         $this->tickets->log($ticket, 'rejected', $from, $ticket->status, 'Rejected — no charge / auto-refund already handled, no payout required', auth()->user()?->name ?? 'Ops', auth()->id());
 
         return back();
@@ -630,7 +651,7 @@ class RefundController extends Controller
         ], 'request info on');
         $from = $ticket->status;
         $ticket->update(['status' => RefundTicket::STATUS_PENDING_TRANSFER_INFO]);
-        $this->email->send($ticket, RefundEmailService::T_INFO_REQUIRED);
+        $this->email->queue($ticket, RefundEmailService::T_INFO_REQUIRED);
         $this->tickets->log($ticket, 'request_info', $from, $ticket->status, 'Requested valid PayNow details', auth()->user()?->name ?? 'Admin', auth()->id());
 
         return back();
@@ -651,7 +672,7 @@ class RefundController extends Controller
             'paid_at' => $ticket->paid_at ?? now(),
             'completed_at' => now(),
         ]);
-        $this->email->send($ticket, RefundEmailService::T_COMPLETED);
+        $this->email->queue($ticket, RefundEmailService::T_COMPLETED);
         $this->tickets->log($ticket, 'completed', $from, $ticket->status, 'Refund completed', auth()->user()?->name ?? 'Admin', auth()->id());
 
         return back();
@@ -713,7 +734,7 @@ class RefundController extends Controller
                 'paid_at' => $ticket->paid_at ?? now(),
                 'completed_at' => now(),
             ]);
-            $this->email->send($ticket, RefundEmailService::T_COMPLETED);
+            $this->email->queue($ticket, RefundEmailService::T_COMPLETED);
             $this->tickets->log($ticket, 'completed', $from, $ticket->status, 'Refund completed (batch)', auth()->user()?->name ?? 'Admin', auth()->id());
         }
 
@@ -823,8 +844,10 @@ class RefundController extends Controller
     public function sendEmail(Request $request, RefundTicket $ticket)
     {
         $data = $request->validate(['template' => ['required', 'string']]);
-        $sent = $this->email->send($ticket, $data['template']);
-        $this->tickets->log($ticket, 'email', null, null, ($sent ? 'Sent' : 'Logged') . ' email: ' . $data['template'], auth()->user()?->name ?? 'Admin', auth()->id());
+        // Delivery now runs on the queue; send() records its own "Email sent/queued"
+        // audit line when the job runs, so this action line just notes the request.
+        $this->email->queue($ticket, $data['template']);
+        $this->tickets->log($ticket, 'email', null, null, 'Queued email: ' . $data['template'], auth()->user()?->name ?? 'Admin', auth()->id());
 
         return back();
     }
@@ -1101,8 +1124,16 @@ class RefundController extends Controller
             'id' => $t->id,
             'reference' => $t->reference,
             'vend_code' => $t->vend_code,
+            // VendPrefix (mapping) name of the matched transaction, shown beside the
+            // machine ID on the same row. Null for unmatched/manual tickets.
+            'vend_prefix_name' => $txn?->vendPrefix?->name,
             'site_name' => $siteName,
             'amount' => number_format($t->claimed_amount_cents / 100, 2),
+            // Effective payout (final override ?? original claim), plus a flag for
+            // when the admin's Final Refund Amount differs from the claim so the
+            // list can show the original struck-through beside it.
+            'final_refund_amount' => number_format($t->payout_amount_cents / 100, 2),
+            'final_refund_overridden' => $t->hasFinalAmountOverride(),
             'refund_method' => $t->refund_method,
             // PayNow number shown under the method (PayPal email is intentionally
             // omitted to save space). paynow_duplicate drives the red reuse warning.

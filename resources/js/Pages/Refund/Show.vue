@@ -14,6 +14,12 @@ const props = defineProps({
 
 const page = usePage();
 const can = (p) => (page.props.auth?.roles || []).includes('superadmin') || (page.props.auth?.permissions || []).includes(p);
+// Supervisors get the two "Overwritten" section controls (force status + final
+// refund amount) even without the verify/update refund permissions — but NOT the
+// rest of the verify workflow (Approve / Reject / Drop stay permission-gated).
+const isSupervisor = computed(() => (page.props.auth?.roles || []).includes('supervisor'));
+const canForceStatus = computed(() => can('verify refunds') || isSupervisor.value);
+const canSetFinalAmount = computed(() => can('update refunds') || isSupervisor.value);
 
 const t = computed(() => props.ticket);
 // All badges read from the FROZEN validation snapshot taken at submission
@@ -168,7 +174,7 @@ function doClear() {
 const finalAmount = ref(props.ticket.final_refund_amount ?? props.ticket.amount ?? '');
 const finalRemarks = ref(props.ticket.final_refund_remarks ?? '');
 const finalAmountLocked = computed(() => ['scheduled', 'completed'].includes(s.value));
-const canEditFinal = computed(() => can('update refunds') && !finalAmountLocked.value);
+const canEditFinal = computed(() => canSetFinalAmount.value && !finalAmountLocked.value);
 function saveFinalAmount() {
     const val = String(finalAmount.value).trim();
     if (val === '' || isNaN(Number(val)) || Number(val) < 0) {
@@ -196,7 +202,7 @@ const overrideStatusOptions = [
 const overrideStatus = ref('');
 const overrideRemarks = ref('');
 const statusOverrideLocked = computed(() => ['scheduled', 'completed'].includes(s.value));
-const canOverrideStatus = computed(() => can('verify refunds') && !statusOverrideLocked.value);
+const canOverrideStatus = computed(() => canForceStatus.value && !statusOverrideLocked.value);
 function saveOverrideStatus() {
     if (!overrideStatus.value) { alert('Select a status to overwrite to.'); return; }
     const label = (overrideStatusOptions.find(o => o.value === overrideStatus.value) || {}).label || overrideStatus.value;
@@ -587,13 +593,13 @@ function actionBadge(l) {
         <!-- Overwritten — admin overrides. Forcing a status sends NO email; the
              final refund amount (moved here from the Customer submission panel) is
              the amount we actually pay out. Both are written to the audit trail. -->
-        <div v-if="can('update refunds') || can('verify refunds')" class="bg-white rounded-md border border-amber-200 p-4">
+        <div v-if="canForceStatus || canSetFinalAmount" class="bg-white rounded-md border border-amber-200 p-4">
             <h3 class="text-xs uppercase tracking-wide text-amber-700 mb-1">Overwritten</h3>
             <p class="text-xs text-gray-500 mb-4">Admin overrides. Forcing a status does <b>not</b> email the customer. Every change here is written to the audit trail.</p>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Overwritten status: force the ticket into another status (no email) -->
-                <div v-if="can('verify refunds')">
+                <div v-if="canForceStatus">
                     <h4 class="text-[11px] font-semibold uppercase tracking-wide text-gray-600 mb-2">Overwritten status</h4>
                     <div v-if="canOverrideStatus" class="space-y-2">
                         <div class="flex items-center gap-2">
@@ -616,7 +622,7 @@ function actionBadge(l) {
 
                 <!-- Final refund amount: the amount we ACTUALLY pay out. Defaults to the
                      customer's claim but the admin can correct it. Drives settlement + payout files. -->
-                <div v-if="can('update refunds')">
+                <div v-if="canSetFinalAmount">
                     <h4 class="text-[11px] font-semibold uppercase tracking-wide text-gray-600 mb-2">Final Refund Amount</h4>
                     <div v-if="canEditFinal" class="space-y-2">
                         <div class="flex flex-wrap items-center gap-2">

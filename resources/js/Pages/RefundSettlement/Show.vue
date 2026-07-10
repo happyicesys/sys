@@ -2,6 +2,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { LockClosedIcon, LockOpenIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
 
 const props = defineProps({
     settlement: { type: Object, required: true },
@@ -20,6 +21,10 @@ const isExported = computed(() => props.settlement.status === 'exported');
 const isDone = computed(() => props.settlement.status === 'done');
 const hasPaynow = computed(() => props.paynowTickets.length > 0);
 const hasPaypal = computed(() => props.paypalTickets.length > 0);
+// Every member is Approved, so there's no "Pending" label. The Done column only
+// appears once at least one row has actually been marked done, and shows just
+// "✓ Done" on those rows (blank for the rest).
+const showStatus = computed(() => props.paynowTickets.some((t) => t.is_done) || props.paypalTickets.some((t) => t.is_done));
 
 const statusLabel = { open: 'Open', closed: 'Closed', exported: 'Exported', done: 'Done' };
 const statusClass = (s) => ({
@@ -59,6 +64,10 @@ function closeSettlement() {
     if (!confirm('Close this settlement? No more tickets can be added after closing (later approvals open a new batch).')) return;
     post(`/refund-settlements/${props.settlement.id}/close`);
 }
+function reopenSettlement() {
+    if (!confirm('Undo close and reopen this settlement? You can add or remove tickets again.')) return;
+    post(`/refund-settlements/${props.settlement.id}/reopen`);
+}
 function voidSettlement() {
     if (!confirm('Void this empty settlement?')) return;
     busy.value = true; msg.value = '';
@@ -67,7 +76,7 @@ function voidSettlement() {
     });
 }
 function returnToPool(ticketId, ref_) {
-    if (!confirm('Return ' + ref_ + ' to the pool? It goes back to Approved so you can push it into a later settlement.')) return;
+    if (!confirm('Remove ' + ref_ + ' from this settlement? It goes back to Approved so you can push it into another settlement.')) return;
     post(`/refund-settlements/${props.settlement.id}/return-to-pool/${ticketId}`);
 }
 function markDone() {
@@ -101,6 +110,24 @@ async function blobExport(action, fallbackName) {
         busy.value = false;
     }
 }
+
+// ---- Audit-trail action badge (mirrors the Refund Request page) ----
+// Badges the settlement lifecycle events; the plain "Settlement opened" line is
+// left unbadged like the ticket page's system lines.
+const actionBadges = {
+    entry_added: { label: 'Added', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+    entry_removed: { label: 'Removed', cls: 'bg-gray-200 text-gray-700 border-gray-300' },
+    closed: { label: 'Closed', cls: 'bg-green-100 text-green-700 border-green-200' },
+    reopened: { label: 'Reopened', cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    exported_cimb: { label: 'Exported CIMB', cls: 'bg-violet-100 text-violet-700 border-violet-200' },
+    exported_xlsx: { label: 'Exported Excel', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    marked_done: { label: 'Refund done', cls: 'bg-green-100 text-green-700 border-green-200' },
+    settled: { label: 'Settled', cls: 'bg-green-100 text-green-700 border-green-200' },
+    voided: { label: 'Voided', cls: 'bg-gray-100 text-gray-600 border-gray-300' },
+};
+function actionBadge(l) {
+    return actionBadges[l.action] || null;
+}
 </script>
 
 <template>
@@ -127,19 +154,30 @@ async function blobExport(action, fallbackName) {
 
             <div class="flex flex-wrap items-center gap-2 border-t pt-3">
                 <button v-if="isOpen && settlement.count > 0" @click="closeSettlement" :disabled="busy"
-                    class="bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">Close settlement</button>
+                    class="inline-flex items-center gap-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
+                    <LockClosedIcon class="h-4 w-4" /> Close settlement
+                </button>
+                <button v-if="isClosed" @click="reopenSettlement" :disabled="busy"
+                    class="inline-flex items-center gap-1 bg-yellow-500 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-yellow-600 disabled:opacity-50">
+                    <LockOpenIcon class="h-4 w-4" /> Undo close settlement
+                </button>
                 <button v-if="isOpen && settlement.count === 0" @click="voidSettlement" :disabled="busy"
                     class="bg-gray-100 text-gray-700 border rounded-md px-4 py-2 text-sm hover:bg-gray-200 disabled:opacity-50">Void (empty)</button>
 
-                <button v-if="(isClosed || isExported) && hasPaynow" @click="blobExport('export-cimb', settlement.reference + '-cimb.txt')" :disabled="busy"
-                    class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">⬇ Export CIMB (PayNow)</button>
-                <button v-if="(isClosed || isExported) && hasPaypal" @click="blobExport('export-xlsx', settlement.reference + '-paypal.xlsx')" :disabled="busy"
-                    class="bg-emerald-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50">⬇ Export Excel (PayPal)</button>
+                <button v-if="(isOpen || isClosed || isExported) && hasPaynow" @click="blobExport('export-cimb', settlement.reference + '-cimb.txt')" :disabled="busy"
+                    class="inline-flex items-center gap-1 bg-white border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+                    title="Export the CIMB bulk-transfer .txt. Exporting while Open locks (closes) the settlement first.">
+                    <ArrowDownTrayIcon class="h-4 w-4" /> Export CIMB text (PayNow)
+                </button>
+                <button v-if="(isOpen || isClosed || isExported) && hasPaypal" @click="blobExport('export-xlsx', settlement.reference + '-paypal.xlsx')" :disabled="busy"
+                    class="inline-flex items-center gap-1 bg-white border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
+                    <ArrowDownTrayIcon class="h-4 w-4" /> Export Excel (PayPal)
+                </button>
 
                 <button v-if="isExported" @click="markDone" :disabled="busy || !selected.length"
                     class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">✓ Mark selected refund done ({{ selected.length }})</button>
 
-                <span v-if="isOpen" class="text-xs text-gray-500">Add more approved refunds from the Refund Requests page, then close.</span>
+                <span v-if="isOpen" class="text-xs text-gray-500">Add more approved refunds from the Refund Requests page. Export (or Close) locks the settlement.</span>
                 <span v-if="isExported" class="text-xs text-gray-500">Tick the rows that were actually paid, then mark them done. Leave bounced rows unchecked.</span>
                 <span v-if="isDone" class="text-xs text-green-700 font-medium">All member refunds completed.</span>
             </div>
@@ -164,7 +202,7 @@ async function blobExport(action, fallbackName) {
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr class="[&>th]:px-4 [&>th]:py-2 [&>th]:text-left [&>th]:whitespace-nowrap">
                         <th v-if="canMarkDone" class="w-8"><input type="checkbox" :checked="allSelected" @change="toggleAll" /></th>
-                        <th>Refund ID</th><th>Machine / Site</th><th class="text-right">Amount</th><th>PayNow</th><th class="text-center">Status</th><th></th>
+                        <th>Refund ID</th><th>Machine / Site</th><th class="!text-center">Amount</th><th class="!text-center">PayNow</th><th v-if="showStatus" class="!text-center">Done?</th><th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -174,18 +212,19 @@ async function blobExport(action, fallbackName) {
                         </td>
                         <td class="px-4 py-2"><a :href="'/refunds/' + t.id" target="_blank" class="text-teal-700 font-semibold hover:underline">{{ t.reference }}</a></td>
                         <td class="px-4 py-2">{{ t.vend_code }}<div class="text-xs text-gray-500">{{ t.site_name || '—' }}</div></td>
-                        <td class="px-4 py-2 text-right">${{ t.amount }}</td>
-                        <td class="px-4 py-2">
+                        <td class="px-4 py-2 text-center">${{ t.amount }}</td>
+                        <td class="px-4 py-2 text-center">
                             <span>{{ t.payout_destination }}</span>
                             <span v-if="!t.proxy_valid" class="ml-1 text-[10px] font-semibold uppercase bg-red-100 text-red-700 px-1 py-0.5 rounded" title="This PayNow number does not look valid — the bank will likely reject it. Fix or return to pool.">check no.</span>
                         </td>
-                        <td class="px-4 py-2 text-center">
+                        <td v-if="showStatus" class="px-4 py-2 text-center">
                             <span v-if="t.is_done" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Done<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
-                            <span v-else class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">Pending</span>
+                            <span v-else class="text-gray-300">—</span>
                         </td>
                         <td class="px-4 py-2 text-right">
-                            <button v-if="!t.is_done && (isExported || isClosed)" @click="returnToPool(t.id, t.reference)" :disabled="busy"
-                                class="text-xs text-gray-500 hover:text-red-600 underline">Return to pool</button>
+                            <button v-if="isOpen && !t.is_done" @click="returnToPool(t.id, t.reference)" :disabled="busy"
+                                class="text-xs text-gray-500 hover:text-red-600 underline"
+                                title="Remove from this settlement — the refund goes back to Approved. Only possible while the settlement is Open.">Remove</button>
                         </td>
                     </tr>
                 </tbody>
@@ -199,7 +238,7 @@ async function blobExport(action, fallbackName) {
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr class="[&>th]:px-4 [&>th]:py-2 [&>th]:text-left [&>th]:whitespace-nowrap">
                         <th v-if="canMarkDone" class="w-8"></th>
-                        <th>Refund ID</th><th>Machine / Site</th><th class="text-right">Amount</th><th>PayPal email</th><th class="text-center">Status</th><th></th>
+                        <th>Refund ID</th><th>Machine / Site</th><th class="!text-center">Amount</th><th class="!text-center">PayPal email</th><th v-if="showStatus" class="!text-center">Done?</th><th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -209,15 +248,16 @@ async function blobExport(action, fallbackName) {
                         </td>
                         <td class="px-4 py-2"><a :href="'/refunds/' + t.id" target="_blank" class="text-teal-700 font-semibold hover:underline">{{ t.reference }}</a></td>
                         <td class="px-4 py-2">{{ t.vend_code }}<div class="text-xs text-gray-500">{{ t.site_name || '—' }}</div></td>
-                        <td class="px-4 py-2 text-right">${{ t.amount }}</td>
-                        <td class="px-4 py-2">{{ t.payout_destination }}</td>
-                        <td class="px-4 py-2 text-center">
+                        <td class="px-4 py-2 text-center">${{ t.amount }}</td>
+                        <td class="px-4 py-2 text-center">{{ t.payout_destination }}</td>
+                        <td v-if="showStatus" class="px-4 py-2 text-center">
                             <span v-if="t.is_done" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Done<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
-                            <span v-else class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">Pending</span>
+                            <span v-else class="text-gray-300">—</span>
                         </td>
                         <td class="px-4 py-2 text-right">
-                            <button v-if="!t.is_done && (isExported || isClosed)" @click="returnToPool(t.id, t.reference)" :disabled="busy"
-                                class="text-xs text-gray-500 hover:text-red-600 underline">Return to pool</button>
+                            <button v-if="isOpen && !t.is_done" @click="returnToPool(t.id, t.reference)" :disabled="busy"
+                                class="text-xs text-gray-500 hover:text-red-600 underline"
+                                title="Remove from this settlement — the refund goes back to Approved. Only possible while the settlement is Open.">Remove</button>
                         </td>
                     </tr>
                 </tbody>
@@ -226,17 +266,20 @@ async function blobExport(action, fallbackName) {
 
         <div v-if="!hasPaynow && !hasPaypal" class="bg-white rounded-md border px-4 py-8 text-center text-gray-400 mb-3">No tickets in this settlement.</div>
 
-        <!-- audit log -->
-        <div v-if="logs.length" class="bg-white rounded-md border p-3">
-            <div class="text-xs font-semibold text-gray-500 uppercase mb-2">Audit trail</div>
-            <div class="flex flex-col gap-1 text-xs text-gray-600">
-                <div v-for="(l, i) in logs" :key="i" class="flex gap-2">
-                    <span class="text-gray-400 whitespace-nowrap">{{ l.created_at }}</span>
-                    <span class="font-semibold text-gray-700 whitespace-nowrap">{{ l.action }}</span>
-                    <span class="text-gray-500">{{ l.note }}</span>
-                    <span class="text-gray-400 ml-auto whitespace-nowrap">{{ l.actor_label }}</span>
+        <!-- Audit trail (mirrors the Refund Request page) -->
+        <div class="bg-white rounded-md border p-4">
+            <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-2">Audit trail</h3>
+            <div v-for="(l, i) in logs" :key="i"
+                class="text-xs text-gray-600 border-l-2 pl-3 py-1 flex items-start justify-between gap-3"
+                :class="[actionBadge(l) ? 'border-gray-300 bg-gray-50/60' : 'border-gray-200']">
+                <div class="min-w-0">
+                    <b class="text-gray-800">{{ l.actor_label }}</b> {{ l.note }}
+                    <span class="text-gray-400">· {{ l.created_at }}</span>
                 </div>
+                <span v-if="actionBadge(l)" class="shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                    :class="actionBadge(l).cls" title="Action performed by the admin">{{ actionBadge(l).label }}</span>
             </div>
+            <div v-if="!logs.length" class="text-xs text-gray-400">No activity yet.</div>
         </div>
     </div>
 </BreezeAuthenticatedLayout>

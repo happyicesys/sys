@@ -148,10 +148,11 @@ class ProductMappingController extends Controller
                     'productMappingItemsNormalSequence.product:id,code,name,is_active',
                     'productMappingItemsNormalSequence.product.thumbnail',
                     'vends' => function ($query) use ($request) {
-                        // vend_transaction_totals_json — surfaces the L30d Sales
-                        // chip per binded machine in ProductMapping/Index.vue
-                        // (thirty_days_amount / thirty_days_count), mirroring
-                        // the rolling-totals convention used on Vend/CustomerIndex.vue.
+                        // NOTE: the L30d Sales chip in ProductMapping/Index.vue now
+                        // reads the CUSTOMER's rolling totals (customers.totals_json,
+                        // eager-loaded on vends.customer below), NOT this vend column.
+                        // vend_transaction_totals_json is kept selected for any other
+                        // consumer of VendResource but is no longer the L30d source.
                         $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed', 'binded_at', 'updated_at', 'vend_transaction_totals_json');
 
                         if ($request->vendStatus and $request->vendStatus !== 'all') {
@@ -178,7 +179,13 @@ class ProductMappingController extends Controller
                     // next to each binded machine in ProductMapping/Index.vue
                     // (same source customers.selling_price_type used on the
                     // Vend/CustomerIndex Ref Price column).
-                    'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code,selling_price_type',
+                    // totals_json — surfaces the L30d Sales chip per machine.
+                    // Read from the CUSTOMER (customers.totals_json), NOT the vend's
+                    // own vend_transaction_totals_json: the vend total follows the
+                    // machine's vend_id and would keep showing sales made under a
+                    // PREVIOUS customer after the machine is moved. The customer
+                    // total is keyed on customer_id so it only reflects this site.
+                    'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code,selling_price_type,totals_json',
                     'vends.vendPrefix:id,name',
                     'vends.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
                     'vends.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',

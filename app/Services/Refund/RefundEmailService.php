@@ -514,6 +514,23 @@ class RefundEmailService
         return $this->renderHtml($rawBody, $blockHtml, $headline, $templateKey);
     }
 
+    /**
+     * Queue this email instead of sending it inline. Dispatches SendRefundEmailJob,
+     * which calls send() on the worker — so the caller (a /refund submission or an
+     * Ops workflow button) returns immediately and a slow/failing mail transport
+     * never blocks the request. Unknown template keys are dropped up front so no
+     * useless job is queued. Everything else (delivery gating, audit line, thread
+     * root) still happens in send() when the job runs.
+     */
+    public function queue(RefundTicket $ticket, string $templateKey): void
+    {
+        if (!isset($this->templates()[$templateKey])) {
+            return;
+        }
+
+        \App\Jobs\SendRefundEmailJob::dispatch($ticket->id, $templateKey);
+    }
+
     public function send(RefundTicket $ticket, string $templateKey): bool
     {
         $templates = $this->templates();

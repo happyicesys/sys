@@ -95,14 +95,11 @@ Format: **`RST-{yymmdd}-{groupcode}-{NN}`** — e.g. `RST-260705-HIPL-01`.
 
 ---
 
-## 5a. Two payout streams within one settlement (PayNow + PayPal)
+## 5a. Settlement is PayNow-only; PayPal is marked done on the index
 
-A settlement is one object per `(date, group, sequence)`, but it holds **two independent streams**, shown as two tables on the detail page:
+**Revised 2026-07-06.** A settlement handles **PayNow only** → **CIMB bulk `.txt`** via `CimbBizChannelTemplate`, subject to the one-originating-account rule (grouped by payout group). `nayax_auto`/`auto_resolved`, Card-terminal, and `none`-method tickets never enter a settlement.
 
-- **PayNow stream** (`refund_method = paynow`) → **CIMB bulk `.txt`** via `CimbBizChannelTemplate`. Subject to the one-originating-account rule, so it is grouped by payout group.
-- **PayPal stream** (`refund_method = paypal`) → **Excel `.xlsx`** (reference, PayPal email, amount, operator, date). No originating-account constraint — it is a worklist the admin uses to pay each PayPal manually.
-
-Each stream has its **own export button** and its **own per-row checkbox + Mark done**, so PayNow (upload the CIMB file) and PayPal (manual transfers) are tracked separately but live under the same settlement. `nayax_auto`/`auto_resolved`, Card-terminal, and `none`-method tickets never enter either stream. Method is a **filter within** the settlement, not part of its key — one RST covers both.
+**PayPal is excluded from settlements.** PayPal refunds are paid manually, so the admin marks them done directly on the **Refund Requests** page: the batch toolbar is method-aware — PayNow selection shows **Push to Settlement**, PayPal selection shows **Mark as done** (completes the ticket + sends the completion email via `/refunds/batch/complete`); a mixed selection prompts the admin to pick one method. The settlement's PayPal stream / `.xlsx` export code remains in place but dormant (no PayPal ticket ever enters), so it can be re-enabled later without a migration.
 
 ---
 
@@ -135,10 +132,10 @@ Reuse **`refund_payout_batches`** as the settlement object (it already has `csv_
 - **Per-ticket done, not batch done.** Settlement detail lists member tickets with a **leftmost checkbox + select-all header**. Admin ticks the rows the bank actually paid and clicks **Mark refund done**; only checked rows go `completed` (+ `paid_at`, completion email per existing flow). Bounced / wrong-PayNow / wrong-phone rows are left unchecked and stay pending for fix or re-export. No all-or-nothing.
 - **Double-refund guard preserved.** `RefundTicket::conflictingRefund()` over `ACTIVE_REFUND_STATUSES` still blocks a second ticket for the same transaction; entering a settlement puts the ticket in an active status so a sibling can't slip through the widened approve→pay window.
 - **Re-export vs re-generate.** Re-download serves the **stored** `csv_path`; it does not regenerate a new batch ref / new money instruction. Regeneration is locked once `exported`.
-- **Stale / empty settlements.** Close is **manual only** (no cron, per locked decision). An `OPEN` settlement whose `settlement_date` is in the past shows a **stale** warning badge on the index to prompt the admin — it is not auto-closed. Void an `OPEN` settlement whose only ticket got rejected (never export empty).
+- **Stale / empty settlements + nightly auto-close.** Admin closes manually, but a scheduled command **`refund-settlements:auto-close`** (daily 23:58, app TZ) is a safety net: it closes any still-open settlement at end of day, and **voids** empty ones (all tickets removed). An `OPEN` settlement whose `settlement_date` is in the past still shows a **stale** badge until the cron (or the admin) closes it.
 - **Originating-account guard (verified gap).** `CimbBizChannelTemplate::generate()` today throws only if *both* the operator field and the config default are blank — so a non-HIPL operator with empty bank fields would be silently paid from HIPL's env account. New rule: resolve the CIMB account from the settlement's **payout group → operator only**; if empty, **block export** with a clear message — never fall through to the global `config` default for a non-HIPL settlement. Best practice: store HIPL's account on its payout-group row so `config` stops being a silent catch-all.
 - **PayNow proxy validity (verified gap).** `paynowMobile()` falls back to the raw value when parsing fails, so a bad number ships a malformed row the bank rejects. Validate each PayNow proxy at **approval** (so ops can request corrected info early) and again at **close**; flag invalid rows so they cannot be selected for export.
-- **Return-to-pool for bounced rows.** A row left unchecked in an EXPORTED settlement is re-settled via an explicit **Return to pool** action that moves it into a new OPEN settlement (repointing `payout_batch_id`). The audit log records `removed_from RST-A` + `added_to RST-B` so history survives the FK move.
+- **Remove (Open only).** While a settlement is **Open**, the admin can **Remove** a member ticket — it goes back to `approved` (unlinked) so it can be pushed into another settlement. Once **Closed/Exported the pool is locked** — no removal (enforced in `returnToPool()` + the UI hides the button). Bounced rows after export are handled by leaving them unchecked at Mark-done (they stay pending in the settlement).
 - **Freeze on export.** Once a row is in an EXPORTED settlement, its `payout_destination`, `claimed_amount_cents`, and status are **locked** (enforced in the model, not just the UI); the only way to change them is Return to pool, which re-opens the fields in the new pool.
 
 ---
@@ -185,7 +182,7 @@ Everything else (the `refund_payout_batches` columns, the settlement controller/
 
 ## 12. Decisions locked (2026-07-05)
 
-- **Close = manual only.** No cron auto-close. `OPEN` settlements past their date get a stale badge (§7).
+- **Close = manual, + nightly auto-close safety net (revised 2026-07-06).** Admin closes when ready; the scheduled command `refund-settlements:auto-close` (23:58 app-TZ, `Console\Kernel`) closes any still-open settlement at end of day and voids empty ones. `OPEN` settlements past their date still get a stale badge (§7).
 - **Account resolver = payout group → `operators.bank_account_no`**, and for a **non-HIPL** settlement stop there (block if empty); `config('refund.banks.cimb')` is HIPL-only, not a silent global catch-all (§7).
 - **Two streams per settlement.** PayNow → CIMB `.txt`; PayPal → `.xlsx`. Each exported and marked-done independently (§5a).
 - **Singapore only (for now).** Built for the SG instance; ID/TH out of scope. A single config flag (default on for SG) hides the tab/export elsewhere — no multi-currency work.

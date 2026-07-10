@@ -34,23 +34,26 @@ class RefundSettlementService
     }
 
     /**
-     * Push selected APPROVED PayNow/PayPal tickets into the day's OPEN settlement
-     * for each ticket's payout head (find-or-create). Tickets that already sit in a
-     * settlement, or are not approved, are ignored.
+     * Push selected APPROVED PayNow tickets into the day's OPEN settlement for each
+     * ticket's payout head (find-or-create). PayPal tickets are excluded (paid
+     * manually, marked done on the Refund Requests page). Tickets already in a
+     * settlement, or not approved, are ignored.
      *
      * @return array{pushed:int, settlements:array<string>}
      */
     public function push(array $ticketIds, ?int $userId = null, ?string $actorLabel = 'Admin'): array
     {
         return DB::transaction(function () use ($ticketIds, $userId, $actorLabel) {
+            // PayNow only — PayPal refunds are paid manually and marked done from
+            // the Refund Requests page, they never enter a settlement.
             $tickets = RefundTicket::whereIn('id', $ticketIds)
                 ->where('status', RefundTicket::STATUS_APPROVED)
-                ->whereIn('refund_method', [RefundTicket::METHOD_PAYNOW, RefundTicket::METHOD_PAYPAL])
+                ->where('refund_method', RefundTicket::METHOD_PAYNOW)
                 ->whereNull('payout_batch_id')
                 ->get();
 
             if ($tickets->isEmpty()) {
-                throw new \RuntimeException('No eligible tickets to push. They must be Approved, PayNow/PayPal, and not already in a settlement.');
+                throw new \RuntimeException('No eligible tickets to push. They must be Approved PayNow tickets not already in a settlement (PayPal is marked done on the Refund Requests page).');
             }
 
             $pushed = 0;
@@ -109,6 +112,21 @@ class RefundSettlementService
         $this->settlementLog($settlement, 'closed', 'Settlement closed', $userId, $actorLabel);
     }
 
+    /** Undo a close: a Closed settlement goes back to Open so tickets can be added/removed again. */
+    public function reopen(RefundPayoutBatch $settlement, ?int $userId = null, ?string $actorLabel = 'Admin'): void
+    {
+        $this->assertSettlement($settlement);
+        if ($settlement->status !== RefundPayoutBatch::STATUS_CLOSED) {
+            throw new \RuntimeException('Only a closed settlement can be reopened (this one is ' . $settlement->status . ').');
+        }
+        $settlement->update([
+            'status' => RefundPayoutBatch::STATUS_OPEN,
+            'closed_by' => null,
+            'closed_at' => null,
+        ]);
+        $this->settlementLog($settlement, 'reopened', 'Settlement reopened', $userId, $actorLabel);
+    }
+
     /**
      * PayNow stream -> CIMB %-delimited .txt. Blocks (does not silently fall back to
      * the global config account) when the head has no originating account.
@@ -125,6 +143,9 @@ class RefundSettlementService
             if ($tickets->isEmpty()) {
                 throw new \RuntimeException('No PayNow tickets to export in this settlement.');
             }
+
+            // Lock the pool (close) if the admin exported straight from Open.
+            $this->lockForExport($settlement, $userId, $actorLabel);
 
             $account = $this->resolveOriginatingAccount($settlement);
             $template = BankTemplateRegistry::make('cimb');
@@ -190,6 +211,9 @@ class RefundSettlementService
         (new FastExcel(collect($rows)))->export($abs);
 
         return DB::transaction(function () use ($settlement, $tickets, $rel, $filename, $userId, $actorLabel) {
+            // Lock the pool (close) if the admin exported straight from Open.
+            $this->lockForExport($settlement, $userId, $actorLabel);
+
             $total = (int) $tickets->sum('payout_amount_cents');
             RefundSettlementExport::create([
                 'refund_payout_batch_id' => $settlement->id,
@@ -261,12 +285,12 @@ class RefundSettlementService
             return $tickets;
         });
 
-        // Completion emails are sent only AFTER the transaction commits, so a mail
+        // Completion emails are queued only AFTER the transaction commits, so a mail
         // hiccup can never roll back the completions, and no "refund done" email
-        // ever goes out for a completion that was rolled back. send() is itself
+        // ever goes out for a completion that was rolled back. Delivery itself is
         // gated by REFUND_EMAIL_ENABLED and internally guarded against throwing.
         foreach ($completed as $ticket) {
-            $this->email->send($ticket, RefundEmailService::T_COMPLETED);
+            $this->email->queue($ticket, RefundEmailService::T_COMPLETED);
         }
 
         return $completed->count();
@@ -280,11 +304,14 @@ class RefundSettlementService
     public function returnToPool(RefundPayoutBatch $settlement, RefundTicket $ticket, ?int $userId = null, ?string $actorLabel = 'Admin'): void
     {
         $this->assertSettlement($settlement);
+        if ($settlement->status !== RefundPayoutBatch::STATUS_OPEN) {
+            throw new \RuntimeException('Tickets can only be removed while the settlement is Open (this one is ' . $settlement->status . ').');
+        }
         if ((int) $ticket->payout_batch_id !== (int) $settlement->id) {
             throw new \RuntimeException('That ticket is not in this settlement.');
         }
         if ($ticket->status === RefundTicket::STATUS_COMPLETED) {
-            throw new \RuntimeException('A completed refund cannot be returned to the pool.');
+            throw new \RuntimeException('A completed refund cannot be removed.');
         }
 
         DB::transaction(function () use ($settlement, $ticket, $userId, $actorLabel) {
@@ -429,8 +456,23 @@ class RefundSettlementService
 
     protected function assertExportable(RefundPayoutBatch $settlement): void
     {
-        if (!in_array($settlement->status, [RefundPayoutBatch::STATUS_CLOSED, RefundPayoutBatch::STATUS_EXPORTED], true)) {
-            throw new \RuntimeException('Close the settlement before exporting its files.');
+        // Open is allowed: exporting an open settlement locks (closes) it first, so
+        // the file can't drift. Done/voided cannot be exported.
+        if (!in_array($settlement->status, [RefundPayoutBatch::STATUS_OPEN, RefundPayoutBatch::STATUS_CLOSED, RefundPayoutBatch::STATUS_EXPORTED], true)) {
+            throw new \RuntimeException('This settlement cannot be exported (status: ' . $settlement->status . ').');
+        }
+    }
+
+    /** If the settlement is still Open, lock it (close) as part of exporting. */
+    protected function lockForExport(RefundPayoutBatch $settlement, ?int $userId, ?string $actorLabel): void
+    {
+        if ($settlement->status === RefundPayoutBatch::STATUS_OPEN) {
+            $settlement->update([
+                'status' => RefundPayoutBatch::STATUS_CLOSED,
+                'closed_by' => $userId,
+                'closed_at' => now(),
+            ]);
+            $this->settlementLog($settlement, 'closed', 'Closed automatically on export', $userId, $actorLabel);
         }
     }
 

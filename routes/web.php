@@ -30,6 +30,7 @@ use App\Http\Controllers\ModemTypeController;
 use App\Http\Controllers\ModemUnitController;
 use App\Http\Controllers\OauthController;
 use App\Http\Controllers\OperatorController;
+use App\Http\Controllers\PayoutGroupController;
 use App\Http\Controllers\OpsJobController;
 use App\Http\Controllers\OpsJobTaskController;
 use App\Http\Controllers\PaymentMethodController;
@@ -562,6 +563,15 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::delete('/{id}', [BankController::class, 'delete']);
     });
 
+    // Operator Groups (payout groups) — admin only. Manage the shared CIMB account
+    // and which operators belong to each group (drives refund settlement grouping).
+    Route::prefix('operator-groups')->group(function () {
+        Route::get('/', [PayoutGroupController::class, 'index'])->name('operator-groups')->middleware('can:read operator-groups');
+        Route::post('/store', [PayoutGroupController::class, 'store'])->middleware('can:manage operator-groups');
+        Route::post('/{id}/update', [PayoutGroupController::class, 'update'])->middleware('can:manage operator-groups');
+        Route::delete('/{id}', [PayoutGroupController::class, 'delete'])->middleware('can:manage operator-groups');
+    });
+
     Route::prefix('modem-units')->group(function () {
         Route::get('/', [ModemUnitController::class, 'index'])->name('modem-units');
         Route::post('/{id}/reset', [ModemUnitController::class, 'reset']);
@@ -898,8 +908,11 @@ Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     Route::post('/{ticket}/drop', [RefundController::class, 'drop'])->middleware('can:verify refunds');
     Route::post('/{ticket}/undrop', [RefundController::class, 'undrop'])->middleware('can:verify refunds');
     Route::post('/{ticket}/request-info', [RefundController::class, 'requestInfo'])->middleware('can:update refunds');
-    Route::post('/{ticket}/final-amount', [RefundController::class, 'updateFinalAmount'])->middleware('can:update refunds');
-    Route::post('/{ticket}/override-status', [RefundController::class, 'overrideStatus'])->middleware('can:verify refunds');
+    // Overwritten-section controls: also reachable by the supervisor role, even
+    // without the update/verify refund permissions (the rest of the workflow stays
+    // permission-only). superadmin still bypasses via Gate::before.
+    Route::post('/{ticket}/final-amount', [RefundController::class, 'updateFinalAmount'])->middleware('role_or_permission:supervisor|update refunds');
+    Route::post('/{ticket}/override-status', [RefundController::class, 'overrideStatus'])->middleware('role_or_permission:supervisor|verify refunds');
     Route::post('/{ticket}/complete', [RefundController::class, 'complete'])->middleware('can:update refunds');
     Route::post('/{ticket}/email', [RefundController::class, 'sendEmail'])->middleware('can:update refunds');
     Route::post('/{ticket}/items/{item}', [RefundController::class, 'updateItem'])->middleware('can:update refunds');
@@ -921,6 +934,7 @@ Route::middleware(['auth', 'cors'])->prefix('refund-settlements')->group(functio
     Route::post('/push', [RefundSettlementController::class, 'push'])->name('refund-settlements.push')->middleware('can:payout refunds');
     Route::get('/{settlement}', [RefundSettlementController::class, 'show'])->name('refund-settlements.show')->middleware('can:read refunds');
     Route::post('/{settlement}/close', [RefundSettlementController::class, 'close'])->middleware('can:payout refunds');
+    Route::post('/{settlement}/reopen', [RefundSettlementController::class, 'reopen'])->middleware('can:payout refunds');
     Route::post('/{settlement}/export-cimb', [RefundSettlementController::class, 'exportCimb'])->middleware('can:payout refunds');
     Route::post('/{settlement}/export-xlsx', [RefundSettlementController::class, 'exportXlsx'])->middleware('can:payout refunds');
     Route::get('/{settlement}/exports/{export}/download', [RefundSettlementController::class, 'downloadExport'])->middleware('can:payout refunds');

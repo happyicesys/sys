@@ -41,28 +41,31 @@ const eligible = (t) => t.status === 'approved';
 const pushing = ref(false);
 const pushMsg = ref('');
 function pushToSettlement() {
-    if (!selected.value.length) { pushMsg.value = 'Select at least one Approved ticket.'; return; }
-    if (!confirm('Push ' + selected.value.length + ' approved refund(s) into their Refund Settlement?')) return;
+    const ids = paynowSelectedIds.value;
+    if (!ids.length) { pushMsg.value = 'Select at least one Approved PayNow ticket.'; return; }
+    if (!confirm('Push ' + ids.length + ' approved PayNow refund(s) into their Refund Settlement?')) return;
     pushing.value = true; pushMsg.value = '';
-    router.post('/refund-settlements/push', { ticket_ids: selected.value }, {
+    router.post('/refund-settlements/push', { ticket_ids: ids }, {
         preserveScroll: true,
         onError: (errors) => { pushMsg.value = errors.settlement || Object.values(errors)[0] || 'Failed to push.'; },
-        onSuccess: () => { selected.value = []; },
+        // Clear only the pushed (PayNow) tickets — any PayPal ones stay selected.
+        onSuccess: () => { selected.value = selected.value.filter((id) => !ids.includes(id)); },
         onFinish: () => { pushing.value = false; },
     });
 }
-// TEMPORARY: batch "Mark as done" replaces "Push to Settlement" while the
-// settlement flow is paused. Only Approved tickets are selectable; the backend
-// (/refunds/batch/complete) re-checks Approved/Scheduled and emails each customer.
+// PayPal refunds are paid manually — no settlement. Admin marks them done here,
+// which completes the ticket and emails the customer (backend re-checks status).
 const marking = ref(false);
-function markDoneBatch() {
-    if (!selected.value.length) { pushMsg.value = 'Select at least one Approved ticket.'; return; }
-    if (!confirm('Mark ' + selected.value.length + ' approved refund(s) as done? This emails each customer their completion notice.')) return;
+function markDonePaypal() {
+    const ids = paypalSelectedIds.value;
+    if (!ids.length) { pushMsg.value = 'Select at least one Approved PayPal ticket.'; return; }
+    if (!confirm('Mark ' + ids.length + ' PayPal refund(s) as done? This emails each customer their completion notice.')) return;
     marking.value = true; pushMsg.value = '';
-    router.post('/refunds/batch/complete', { ticket_ids: selected.value }, {
+    router.post('/refunds/batch/complete', { ticket_ids: ids }, {
         preserveScroll: true,
-        onError: (errors) => { pushMsg.value = errors.batch || Object.values(errors)[0] || 'Failed to complete.'; },
-        onSuccess: () => { selected.value = []; },
+        onError: (errors) => { pushMsg.value = errors.batch || Object.values(errors)[0] || 'Failed to mark done.'; },
+        // Clear only the marked (PayPal) tickets — any PayNow ones stay selected.
+        onSuccess: () => { selected.value = selected.value.filter((id) => !ids.includes(id)); },
         onFinish: () => { marking.value = false; },
     });
 }
@@ -78,6 +81,16 @@ function toggleRow(id) {
     const i = selected.value.indexOf(id);
     if (i === -1) selected.value.push(id); else selected.value.splice(i, 1);
 }
+// Method-aware toolbar: PayNow → push to settlement; PayPal → mark done here.
+const selectedTickets = computed(() => props.tickets.data.filter((t) => selected.value.includes(t.id)));
+const selMethods = computed(() => [...new Set(selectedTickets.value.map((t) => t.refund_method))]);
+const allPaynow = computed(() => selMethods.value.length === 1 && selMethods.value[0] === 'paynow');
+const allPaypal = computed(() => selMethods.value.length === 1 && selMethods.value[0] === 'paypal');
+const mixedMethods = computed(() => selMethods.value.length > 1);
+// Method-specific subsets of the current selection, so a mixed selection can run
+// each action on its own group (PayNow → settlement, PayPal → mark done here).
+const paynowSelectedIds = computed(() => selectedTickets.value.filter((t) => t.refund_method === 'paynow').map((t) => t.id));
+const paypalSelectedIds = computed(() => selectedTickets.value.filter((t) => t.refund_method === 'paypal').map((t) => t.id));
 
 // status options as {id: key, value: label} for the tags MultiSelect
 const statusOptions = ref(Object.entries(props.statuses).map(([id, value]) => ({ id, value })));
@@ -110,6 +123,7 @@ const filters = ref({
     error_code: props.filters.error_code || '',
     settlement_ref: props.filters.settlement_ref || '',
     refund_done: props.filters.refund_done || '',
+    sent_settlement: props.filters.sent_settlement || '',
     numberPerPage: defaultPerPage,
 });
 
@@ -129,6 +143,7 @@ function payload() {
         error_code: filters.value.error_code,
         settlement_ref: filters.value.settlement_ref,
         refund_done: filters.value.refund_done,
+        sent_settlement: filters.value.sent_settlement,
         numberPerPage: filters.value.numberPerPage?.id ?? 50,
     };
     // omit status when empty -> server applies the default (all except completed), shown as "All statuses"
@@ -142,7 +157,7 @@ function clearFilters() {
     filters.value = {
         search: '', status: [], refund_method: '', date_from: '', date_to: '',
         site_name: '', channel: '', product: '', paid_min: '', paid_max: '',
-        repeat: '', product_drop_sensor: '', error_code: '', settlement_ref: '', refund_done: '',
+        repeat: '', product_drop_sensor: '', error_code: '', settlement_ref: '', refund_done: '', sent_settlement: '',
         numberPerPage: fallbackPerPage,
     };
     applyFilters();
@@ -173,7 +188,7 @@ const statusClass = (s) => ({
     submitted: 'bg-yellow-100 text-yellow-800',   // Received
     auto_resolved: 'bg-purple-100 text-purple-800',
     rejected: 'bg-red-100 text-red-800',
-    approved: 'bg-green-100 text-green-800',
+    approved: 'bg-green-100 text-green-800',       // also used for `scheduled` (in a settlement)
     completed: 'text-gray-500',                    // Completed = no colour
     dropped: 'bg-white text-gray-500 border border-gray-300',  // temporarily white
 }[s] || 'bg-gray-100 text-gray-700');
@@ -181,6 +196,19 @@ const statusClass = (s) => ({
 // Machine ID → Operations Dashboard, deep-linked+auto-searched to that machine
 // via the ?codes= param (opens in a new tab so the refund list is kept).
 const opsDashboardUrl = (code) => code ? ('/vends/customers?codes=' + encodeURIComponent(code)) : null;
+
+// Split a settlement ref (RST-260710-HIPL-01) after the date onto two lines so the
+// "Send to Settlement" column stays narrow: "RST-260710" / "HIPL-01".
+const settlementRefTop = (r) => (r || '').split('-').slice(0, 2).join('-');
+const settlementRefBottom = (r) => (r || '').split('-').slice(2).join('-');
+
+// Split a pay-method label like "Omise (Paynow)" into a main part and the
+// parenthetical, so the "(Paynow)" bracket can sit on its own line.
+const payMethodParts = (label) => {
+    const s = String(label ?? '').trim();
+    const m = s.match(/^(.*?)\s*(\([^)]*\))\s*$/);
+    return m ? { main: m[1], paren: m[2] } : { main: s, paren: '' };
+};
 
 // Three system-validation checks mirrored from the ticket detail page's
 // "System validation" badges (green = the favourable state, red = otherwise).
@@ -219,7 +247,7 @@ function sortVal(t, key) {
         case 'vend_code': return t.vend_code || '';
         case 'submitted': return t.created_at || '';           // ISO string sorts chronologically
         case 'paid': return toNum(t.paid_amount);
-        case 'amount': return toNum(t.amount);
+        case 'amount': return toNum(t.final_refund_overridden ? t.final_refund_amount : t.amount);
         case 'refund_method': return t.refund_method || '';
         case 'machine_rf_24h': return (t.machine_rf_24h ?? null);
         case 'repeat_flag': return t.repeat_flag ? 1 : 0;
@@ -407,6 +435,17 @@ const sortedRows = computed(() => {
                         </select>
                     </div>
                 </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">Is Sent to Settlement?</label>
+                    <div class="mt-1">
+                        <select v-model="filters.sent_settlement"
+                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md">
+                            <option value="">All</option>
+                            <option value="yes">Yes — in a settlement</option>
+                            <option value="no">No — not yet sent</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -456,23 +495,25 @@ const sortedRows = computed(() => {
             </div>
         </div>
 
-        <!-- batch toolbar: TEMPORARY — batch "Mark as done" is live; "Push to
-             Settlement" is disabled for now. Only shows once at least one
-             (Approved) ticket is ticked. -->
+        <!-- batch toolbar (method-aware): PayNow → push to settlement; PayPal →
+             mark done here (paid manually). Only shows once a ticket is ticked. -->
         <div v-if="selected.length" class="bg-teal-50 border border-teal-200 rounded-md px-4 py-3 mb-3">
             <div class="flex items-center gap-3">
                 <span class="text-sm font-semibold text-teal-800">{{ selected.length }} selected</span>
-                <span class="text-xs text-gray-500">Select Approved tickets and mark them done in one go — this emails each customer their completion notice.</span>
+                <span v-if="allPaynow" class="text-xs text-gray-500">PayNow — push into the Refund Settlement (the CIMB file is exported from there).</span>
+                <span v-else-if="allPaypal" class="text-xs text-gray-500">PayPal — paid manually, so mark them done here. This emails each customer their completion notice. PayPal is not settled via CIMB.</span>
+                <span v-else class="text-xs text-gray-500">Mixed methods — run each action on its own group: PayNow tickets are pushed to a settlement, PayPal tickets are marked done here.</span>
             </div>
             <div class="flex items-center gap-3 mt-3">
-                <button @click="markDoneBatch" :disabled="marking"
+                <button v-if="paynowSelectedIds.length" @click="pushToSettlement" :disabled="pushing"
+                    class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
+                    {{ pushing ? 'Pushing…' : '➡ Send to Settlement (' + paynowSelectedIds.length + ')' }}
+                </button>
+                <button v-if="paypalSelectedIds.length" @click="markDonePaypal" :disabled="marking"
                     class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
-                    {{ marking ? 'Marking…' : '✓ Mark selected as done' }}
+                    {{ marking ? 'Marking…' : '✓ Mark as Done — PayPal (' + paypalSelectedIds.length + ')' }}
                 </button>
-                <button disabled title="Temporarily disabled"
-                    class="bg-gray-200 text-gray-400 rounded-md px-4 py-2 text-sm font-semibold cursor-not-allowed">
-                    ➡ Push to Settlement
-                </button>
+                <a href="/refund-settlements" class="text-xs text-teal-700 underline whitespace-nowrap">Open Refund Settlement →</a>
             </div>
             <span v-if="pushMsg" class="block mt-2 text-xs text-red-600">{{ pushMsg }}</span>
         </div>
@@ -501,14 +542,14 @@ const sortedRows = computed(() => {
                         </th>
                         <th @click="sortTable('paid')" class="hover:text-gray-700">Paid Amt<br>Pay Method{{ arrow('paid') }}</th>
                         <th @click="sortTable('amount')" class="border-l border-gray-200 hover:text-gray-700">Refund Amt{{ arrow('amount') }}</th>
-                        <th @click="sortTable('refund_method')" class="hover:text-gray-700">Refund Method{{ arrow('refund_method') }}</th>
+                        <th @click="sortTable('refund_method')" class="hover:text-gray-700">Refund<br>Method{{ arrow('refund_method') }}</th>
                         <th @click="sortTable('machine_rf_24h')" class="border-l border-gray-200 hover:text-gray-700">Machine L24h<br># of RF{{ arrow('machine_rf_24h') }}</th>
-                        <th @click="sortTable('repeat_flag')" class="hover:text-gray-700">New / Repeat?{{ arrow('repeat_flag') }}</th>
-                        <th @click="sortTable('product_drop_sensor')" class="hover:text-gray-700">Prod Exit Sensor{{ arrow('product_drop_sensor') }}</th>
-                        <th @click="sortTable('error_code')" class="hover:text-gray-700">Error code{{ arrow('error_code') }}</th>
+                        <th @click="sortTable('repeat_flag')" class="hover:text-gray-700">New /<br>Repeat?{{ arrow('repeat_flag') }}</th>
+                        <th @click="sortTable('product_drop_sensor')" class="hover:text-gray-700">Prod Exit<br>Sensor{{ arrow('product_drop_sensor') }}</th>
+                        <th @click="sortTable('error_code')" class="hover:text-gray-700">Error<br>Code{{ arrow('error_code') }}</th>
                         <th @click="sortTable('status')" class="border-l border-gray-200 hover:text-gray-700">Validation{{ arrow('status') }}</th>
-                        <th @click="sortTable('batch')" class="hover:text-gray-700">Send to Settlement{{ arrow('batch') }}</th>
-                        <th @click="sortTable('done')" class="hover:text-gray-700">Refund Done?{{ arrow('done') }}</th>
+                        <th @click="sortTable('batch')" class="hover:text-gray-700">Send to<br>Settlement{{ arrow('batch') }}</th>
+                        <th @click="sortTable('done')" class="hover:text-gray-700">Refund<br>Done?{{ arrow('done') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -528,6 +569,8 @@ const sortedRows = computed(() => {
                             <a v-if="t.vend_code" :href="opsDashboardUrl(t.vend_code)" target="_blank" @click.stop
                                 class="font-medium text-teal-700 hover:underline" title="Open in Operations Dashboard">{{ t.vend_code }}</a>
                             <span v-else class="font-medium text-gray-800">—</span>
+                            <span v-if="t.vend_prefix_name" class="ml-1 text-xs text-gray-500"
+                                v-tooltip="'VendPrefix (mapping) name of the matched transaction.'">({{ t.vend_prefix_name }})</span>
                             <br>
                             <span class="text-xs text-gray-600">{{ t.site_name || '—' }}</span>
                         </td>
@@ -555,11 +598,27 @@ const sortedRows = computed(() => {
                         <td class="px-4 py-3 whitespace-nowrap">
                             <div class="text-gray-700">{{ t.matched && t.paid_amount ? '$' + t.paid_amount : '—' }}</div>
                             <div class="text-xs text-gray-600 mt-1">
-                                {{ t.matched ? (t.pay_method || t.payment_channel || '—') : '—' }}
+                                <template v-if="t.matched">
+                                    {{ payMethodParts(t.pay_method || t.payment_channel || '—').main }}
+                                    <span v-if="payMethodParts(t.pay_method || t.payment_channel || '—').paren" class="block text-gray-500">{{ payMethodParts(t.pay_method || t.payment_channel || '—').paren }}</span>
+                                </template>
+                                <template v-else>—</template>
                                 <span v-if="t.matched && t.pay_provider" class="block text-gray-500">({{ t.pay_provider }})</span>
                             </div>
                         </td>
-                        <td class="px-4 py-3 font-medium border-l border-gray-100">{{ t.matched ? '$' + t.amount : '—' }}</td>
+                        <!-- Refund Amt = effective final payout. When the admin overrode
+                             the amount, the original claim is shown struck-through beside it
+                             (same treatment as the ticket page's "Overwritten" section). -->
+                        <td class="px-4 py-3 font-medium border-l border-gray-100">
+                            <template v-if="t.matched">
+                                <div>${{ t.final_refund_overridden ? t.final_refund_amount : t.amount }}</div>
+                                <div v-if="t.final_refund_overridden" class="text-[11px] font-normal text-amber-600 mt-0.5"
+                                    v-tooltip="'Final refund amount overridden from the original claim of $' + t.amount + '.'">
+                                    <span class="line-through text-gray-400">${{ t.amount }}</span> claim
+                                </div>
+                            </template>
+                            <template v-else>—</template>
+                        </td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <div>{{ t.refund_method }}</div>
                             <div v-if="t.refund_method === 'paynow' && t.payout_destination"
@@ -607,7 +666,7 @@ const sortedRows = computed(() => {
                                 v-tooltip="'No error code recorded for this transaction.'">No</span>
                         </td>
                         <td class="px-4 py-3 border-l border-gray-100 text-center">
-                            <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.is_dropped ? 'dropped' : t.status)">{{ t.is_dropped ? 'Dropped' : (statuses[t.status] || t.status) }}</span>
+                            <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.is_dropped ? 'dropped' : (t.status === 'scheduled' ? 'approved' : t.status))">{{ t.is_dropped ? 'Dropped' : (statuses[t.status === 'scheduled' ? 'approved' : t.status] || t.status) }}</span>
                             <span class="flex items-center justify-center gap-0.5 mt-1.5">
                                 <component :is="c.ok ? CheckCircleIcon : XCircleIcon" v-for="(c, i) in validationChecks(t)" :key="i"
                                     class="h-5 w-5" :class="c.ok ? 'text-green-600' : 'text-red-500'" v-tooltip="c.label" />
@@ -615,15 +674,21 @@ const sortedRows = computed(() => {
                         </td>
                         <td class="px-4 py-3 text-center" @click.stop>
                             <a v-if="t.batch && t.batch.is_settlement" :href="'/refund-settlements/' + t.batch.id" target="_blank"
-                                class="text-teal-700 text-xs font-semibold hover:underline whitespace-nowrap"
-                                title="Open the Refund Settlement">{{ t.batch.reference }}</a>
+                                class="text-teal-700 text-xs font-semibold hover:underline leading-tight inline-block"
+                                title="Open the Refund Settlement">
+                                <span class="block whitespace-nowrap">{{ settlementRefTop(t.batch.reference) }}</span>
+                                <span class="block whitespace-nowrap">{{ settlementRefBottom(t.batch.reference) }}</span>
+                            </a>
                             <a v-else-if="t.batch" :href="'/refunds/batch/' + t.batch.id + '/download'"
                                 class="text-teal-700 text-xs font-semibold hover:underline whitespace-nowrap"
                                 :title="t.batch.filename || ''">⬇ {{ t.batch.reference }}</a>
                             <span v-else class="text-gray-300">—</span>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-center" @click.stop>
-                            <span v-if="t.status === 'completed'" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Completed<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
+                            <template v-if="t.status === 'completed'">
+                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Completed</span>
+                                <div v-if="t.completed_at" class="text-[11px] text-gray-500 mt-1">{{ t.completed_at }}</div>
+                            </template>
                             <!-- Per-row "Mark done" removed: completion is now batch-only via the
                                  toolbar action. Approved/Scheduled just show an "In progress" badge. -->
                             <span v-else-if="['approved', 'scheduled'].includes(t.status)" class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">In progress</span>

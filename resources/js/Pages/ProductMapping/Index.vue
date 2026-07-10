@@ -193,8 +193,9 @@
                           (1) Ref Price tier chip (RP1..RP5) sourced from
                               customers.selling_price_type — same source used
                               by Vend/CustomerIndex.vue's "Ref Price" column.
-                          (2) L30d Sales = vendTransactionTotalsJson.thirty_days_amount
-                              — identical formula/colours to
+                          (2) L30d Sales = customer.vendTransactionTotalsJson
+                              .thirty_days_amount (customers.totals_json) —
+                              site-based, identical formula/colours to
                               Vend/CustomerIndex.vue's Last30d figure.
                         Binded date stays as the subtitle / per-row chip; the
                         header subtitle is expanded so users know what to look
@@ -300,7 +301,7 @@
                               basis-full sub-row beneath the existing inline
                               (#. code, customer block) row carrying:
                                 • RP tier chip — from vend.customer.selling_price_type
-                                • L30d Sales — from vend.vendTransactionTotalsJson
+                                • L30d Sales — from vend.customer.vendTransactionTotalsJson (site-based)
                               Both pieces fall back gracefully (chip omitted if
                               no selling_price_type; L30d omitted if the json
                               hasn't been hydrated yet). Mirrors the styling
@@ -389,16 +390,26 @@
                                 >
                                   RP{{ vend.customer.selling_price_type }}
                                 </span>
+                                <!--
+                                  L30d Sales is read from the CUSTOMER's rolling
+                                  totals (vend.customer.vendTransactionTotalsJson,
+                                  i.e. customers.totals_json), NOT the vend's own
+                                  vend_transaction_totals_json. The vend total is
+                                  keyed on vend_id and follows the machine, so a
+                                  machine moved to a new site would keep showing
+                                  sales earned under the previous customer. The
+                                  customer total is keyed on customer_id — site-based.
+                                -->
                                 <span
-                                  v-if="vend.vendTransactionTotalsJson && 'thirty_days_amount' in vend.vendTransactionTotalsJson"
+                                  v-if="vend.customer && vend.customer.vendTransactionTotalsJson && 'thirty_days_amount' in vend.customer.vendTransactionTotalsJson"
                                   :class="[
                                     vend.is_active || vend.is_testing
-                                      ? ((vend.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)) > 1000 ? 'text-green-700' : 'text-red-700')
+                                      ? ((vend.customer.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)) > 1000 ? 'text-green-700' : 'text-red-700')
                                       : 'text-gray-400'
                                   ]"
-                                  v-tooltip="'L30d Sales'"
+                                  v-tooltip="'L30d Sales (site)'"
                                 >
-                                  L30d: {{ operatorCountry.currency_symbol }}{{ (vend.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                                  L30d: {{ operatorCountry.currency_symbol }}{{ (vend.customer.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
                                 </span>
                                 <!-- Binded date — moved here from the customer-name line per the latest screenshot arrangement. -->
                                 <span class="text-black" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
