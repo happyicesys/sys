@@ -245,9 +245,11 @@ function sortVal(t, key) {
     switch (key) {
         case 'reference': return t.reference || '';
         case 'vend_code': return t.vend_code || '';
+        case 'name': return (t.contact_name || '').toLowerCase();
         case 'submitted': return t.created_at || '';           // ISO string sorts chronologically
         case 'paid': return toNum(t.paid_amount);
-        case 'amount': return toNum(t.final_refund_overridden ? t.final_refund_amount : t.amount);
+        // Mirror the cell: "—" (empty → sinks) unless matched or admin-overridden.
+        case 'amount': return (t.matched || t.final_refund_overridden) ? toNum(t.final_refund_overridden ? t.final_refund_amount : t.amount) : null;
         case 'refund_method': return t.refund_method || '';
         case 'machine_rf_24h': return (t.machine_rf_24h ?? null);
         case 'repeat_flag': return t.repeat_flag ? 1 : 0;
@@ -524,13 +526,14 @@ const sortedRows = computed(() => {
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
                         <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" class="cursor-pointer" title="Select all Approved tickets on this page" /></th>
-                        <th colspan="7" class="text-center px-4 py-2 border-b border-gray-200">Refund Request</th>
+                        <th colspan="8" class="text-center px-4 py-2 border-b border-gray-200">Refund Request</th>
                         <th colspan="4" class="text-center px-4 py-2 border-b border-l border-gray-200 text-indigo-700">System self-checking</th>
                         <th colspan="3" class="text-center px-4 py-2 border-b border-l border-gray-200 text-teal-700">Refund Progress</th>
                     </tr>
                     <tr class="[&>th]:cursor-pointer [&>th]:select-none [&>th]:text-center [&>th]:px-4 [&>th]:py-2 [&>th]:whitespace-nowrap">
                         <th @click="sortTable('reference')" class="hover:text-gray-700">Refund ID{{ arrow('reference') }}</th>
-                        <th @click="sortTable('vend_code')" class="hover:text-gray-700">Machine ID<br>Site Name{{ arrow('vend_code') }}</th>
+                        <th @click="sortTable('vend_code')" class="hover:text-gray-700 max-w-[160px]">Machine ID<br>Site Name{{ arrow('vend_code') }}</th>
+                        <th @click="sortTable('name')" class="hover:text-gray-700">Name{{ arrow('name') }}</th>
                         <th @click="sortTable('submitted')" class="hover:text-gray-700 whitespace-nowrap">
                             <div>RF Submitted{{ arrow('submitted') }}</div>
                             <div class="text-[11px] font-normal text-gray-400">Transaction</div>
@@ -565,14 +568,19 @@ const sortedRows = computed(() => {
                                 :title="t.is_dropped ? 'Dropped / closed (e.g. double submission)' : 'Open refund ticket in a new tab'">{{ t.reference }}</a>
                             <span v-if="t.is_dropped" class="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">dropped</span>
                         </td>
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-3 max-w-[160px]">
                             <a v-if="t.vend_code" :href="opsDashboardUrl(t.vend_code)" target="_blank" @click.stop
                                 class="font-medium text-teal-700 hover:underline" title="Open in Operations Dashboard">{{ t.vend_code }}</a>
                             <span v-else class="font-medium text-gray-800">—</span>
                             <span v-if="t.vend_prefix_name" class="ml-1 text-xs text-gray-500"
                                 v-tooltip="'VendPrefix (mapping) name of the matched transaction.'">({{ t.vend_prefix_name }})</span>
                             <br>
-                            <span class="text-xs text-gray-600">{{ t.site_name || '—' }}</span>
+                            <span class="text-xs text-gray-600 break-words">{{ t.site_name || '—' }}</span>
+                        </td>
+                        <!-- Name = the customer's name as typed into the public /refund form -->
+                        <td class="px-4 py-3">
+                            <span v-if="t.contact_name" class="text-sm text-gray-700">{{ t.contact_name }}</span>
+                            <span v-else class="text-gray-300">—</span>
                         </td>
                         <!-- RF submitted on top; matched txn date + elapsed delta stacked below -->
                         <td class="px-4 py-3 whitespace-nowrap">
@@ -608,13 +616,20 @@ const sortedRows = computed(() => {
                         </td>
                         <!-- Refund Amt = effective final payout. When the admin overrode
                              the amount, the original claim is shown struck-through beside it
-                             (same treatment as the ticket page's "Overwritten" section). -->
+                             (same treatment as the ticket page's "Overwritten" section).
+                             Unmatched/manual (pending-match) tickets have no matched
+                             transaction, so there is no system-derived claim — they stay
+                             "—" until an admin sets a Final Refund Amount. That admin figure
+                             then shows here in the same format, so a ticket whose machine
+                             lost signal / never uploaded its transaction can still be paid. -->
                         <td class="px-4 py-3 font-medium border-l border-gray-100">
-                            <template v-if="t.matched">
+                            <template v-if="t.matched || t.final_refund_overridden">
                                 <div>${{ t.final_refund_overridden ? t.final_refund_amount : t.amount }}</div>
                                 <div v-if="t.final_refund_overridden" class="text-[11px] font-normal text-amber-600 mt-0.5"
-                                    v-tooltip="'Final refund amount overridden from the original claim of $' + t.amount + '.'">
-                                    <span class="line-through text-gray-400">${{ t.amount }}</span> claim
+                                    v-tooltip="(t.matched ? 'Final refund amount overridden from the original claim of $' + t.amount + '.' : 'Final refund amount set by an admin (no matched transaction to derive a claim from).') + (t.final_refund_remarks ? ' Remark: ' + t.final_refund_remarks : '')">
+                                    <span v-if="t.matched"><span class="line-through text-gray-400">${{ t.amount }}</span> claim</span>
+                                    <span v-else>admin-set</span>
+                                    <span v-if="t.final_refund_remarks" class="block text-gray-500 italic break-words">“{{ t.final_refund_remarks }}”</span>
                                 </div>
                             </template>
                             <template v-else>—</template>
@@ -671,6 +686,10 @@ const sortedRows = computed(() => {
                                 <component :is="c.ok ? CheckCircleIcon : XCircleIcon" v-for="(c, i) in validationChecks(t)" :key="i"
                                     class="h-5 w-5" :class="c.ok ? 'text-green-600' : 'text-red-500'" v-tooltip="c.label" />
                             </span>
+                            <div v-if="t.validation_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                <span class="block font-medium text-gray-600">{{ t.validation_actor.name }}</span>
+                                <span class="block">{{ t.validation_actor.at }}</span>
+                            </div>
                         </td>
                         <td class="px-4 py-3 text-center" @click.stop>
                             <a v-if="t.batch && t.batch.is_settlement" :href="'/refund-settlements/' + t.batch.id" target="_blank"
@@ -683,11 +702,19 @@ const sortedRows = computed(() => {
                                 class="text-teal-700 text-xs font-semibold hover:underline whitespace-nowrap"
                                 :title="t.batch.filename || ''">⬇ {{ t.batch.reference }}</a>
                             <span v-else class="text-gray-300">—</span>
+                            <div v-if="t.settlement_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                <span class="block font-medium text-gray-600">{{ t.settlement_actor.name }}</span>
+                                <span class="block">{{ t.settlement_actor.at }}</span>
+                            </div>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-center" @click.stop>
                             <template v-if="t.status === 'completed'">
                                 <span class="inline-block text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Completed</span>
-                                <div v-if="t.completed_at" class="text-[11px] text-gray-500 mt-1">{{ t.completed_at }}</div>
+                                <div v-if="t.done_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                    <span class="block font-medium text-gray-600">{{ t.done_actor.name }}</span>
+                                    <span class="block">{{ t.done_actor.at }}</span>
+                                </div>
+                                <div v-else-if="t.completed_at" class="text-[11px] text-gray-500 mt-1">{{ t.completed_at }}</div>
                             </template>
                             <!-- Per-row "Mark done" removed: completion is now batch-only via the
                                  toolbar action. Approved/Scheduled just show an "In progress" badge. -->
@@ -695,7 +722,7 @@ const sortedRows = computed(() => {
                             <span v-else class="text-gray-300">—</span>
                         </td>
                     </tr>
-                    <tr v-if="!tickets.data.length"><td colspan="15" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
+                    <tr v-if="!tickets.data.length"><td colspan="16" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
                 </tbody>
             </table>
         </div>

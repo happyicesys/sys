@@ -160,7 +160,7 @@
                             </span>
                             <span v-if="deliveryProductMappingVend.vend.customer && deliveryProductMappingVend.vend.customer.person_id">
                               {{ deliveryProductMappingVend.vend.code }} <br>
-                              ({{ deliveryProductMappingVend.vend.customer.virtual_customer_code }})
+                              ({{ deliveryProductMappingVend.vend.customer.id + 20000 }})
                               <!-- ({{ deliveryProductMappingVend.vend.customer.virtual_customer_prefix }}) -  -->
                               {{ deliveryProductMappingVend.vend.customer.name }}
                             </span>

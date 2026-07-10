@@ -295,7 +295,44 @@ class RefundController extends Controller
             ->get(['refund_ticket_id', 'vend_channel_code', 'product_name'])
             ->groupBy('refund_ticket_id');
 
-        return $rows->mapWithKeys(function (RefundTicket $t) use ($txns, $logs, $batches, $vends, $siteNames, $payNowDup, $selfCheck, $itemErrors, $claimedItems) {
+        // Who did each Refund-Progress stage, and when — read from the audit trail so
+        // the Validation / Send-to-Settlement / Refund-Done columns can show the admin
+        // (actor) + timestamp beside the status. One batched query; the latest entry
+        // per stage wins (ordered ascending, so a later row overwrites an earlier one).
+        $stageActions = [
+            'validation' => ['verified', 'rejected', 'status_override', 'dropped', 'undropped'],
+            'settlement' => ['scheduled', 'returned_to_pool'],
+            'done'       => ['completed'],
+        ];
+        $actionStage = [];
+        foreach ($stageActions as $stage => $acts) {
+            foreach ($acts as $a) {
+                $actionStage[$a] = $stage;
+            }
+        }
+        $stageActors = [];
+        \App\Models\RefundTicketLog::whereIn('refund_ticket_id', $rows->pluck('id'))
+            ->whereIn('action', array_keys($actionStage))
+            ->orderBy('created_at')
+            ->get(['refund_ticket_id', 'actor_label', 'action', 'created_at'])
+            ->each(function ($lg) use (&$stageActors, $actionStage) {
+                $stage = $actionStage[$lg->action] ?? null;
+                if (! $stage) {
+                    return;
+                }
+                // 'returned_to_pool' means the ticket left settlement — clear the stamp.
+                if ($lg->action === 'returned_to_pool') {
+                    unset($stageActors[$lg->refund_ticket_id]['settlement']);
+
+                    return;
+                }
+                $stageActors[$lg->refund_ticket_id][$stage] = [
+                    'name' => $lg->actor_label,
+                    'at' => optional($lg->created_at)->format('ymd h:i a'),
+                ];
+            });
+
+        return $rows->mapWithKeys(function (RefundTicket $t) use ($txns, $logs, $batches, $vends, $siteNames, $payNowDup, $selfCheck, $itemErrors, $claimedItems, $stageActors) {
             $txn = $t->vend_transaction_id ? $txns->get($t->vend_transaction_id) : null;
             $log = $t->payment_gateway_log_id
                 ? $logs->get($t->payment_gateway_log_id)
@@ -320,6 +357,9 @@ class RefundController extends Controller
                             'channel' => $i->vend_channel_code,
                             'product_name' => $i->product_name,
                         ])->values()->all(),
+                    'validation_actor' => $stageActors[$t->id]['validation'] ?? null,
+                    'settlement_actor' => $stageActors[$t->id]['settlement'] ?? null,
+                    'done_actor' => $stageActors[$t->id]['done'] ?? null,
                 ],
             )];
         })->all();
@@ -1134,6 +1174,7 @@ class RefundController extends Controller
             // list can show the original struck-through beside it.
             'final_refund_amount' => number_format($t->payout_amount_cents / 100, 2),
             'final_refund_overridden' => $t->hasFinalAmountOverride(),
+            'final_refund_remarks' => $t->final_refund_remarks,
             'refund_method' => $t->refund_method,
             // PayNow number shown under the method (PayPal email is intentionally
             // omitted to save space). paynow_duplicate drives the red reuse warning.
@@ -1201,6 +1242,11 @@ class RefundController extends Controller
                 'is_settlement' => (bool) $batch->is_settlement,
             ] : null,
             'completed_at' => optional($t->completed_at)->format('ymd h:i a'),
+            // Refund-Progress stage actors (admin who did it + when), from the audit
+            // trail — shown beside the status badge in each progress column.
+            'validation_actor' => $self['validation_actor'] ?? null,
+            'settlement_actor' => $self['settlement_actor'] ?? null,
+            'done_actor' => $self['done_actor'] ?? null,
         ];
     }
 

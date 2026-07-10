@@ -337,7 +337,7 @@
                         <span v-if="deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.person_id">
                             <span v-if="permissions.includes('admin-access vends')">
                                 <a class="text-blue-700" target="_blank" :href="'/customers/' + deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.id + '/edit'">
-                                    {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.virtual_customer_code }}
+                                    {{ deliveryPlatformOrder.deliveryProductMappingVend && (deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.id + 20000) }}
                                     <br>
                                     {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend && deliveryPlatformOrder.deliveryProductMappingVend.vend.vendPrefix ? deliveryPlatformOrder.deliveryProductMappingVend.vend.vendPrefix.name : '' }}
                                     <!-- ({{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.virtual_customer_prefix }}) -->
@@ -346,7 +346,7 @@
                                 </a>
                             </span>
                             <span v-else>
-                                {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.virtual_customer_code }}
+                                {{ deliveryPlatformOrder.deliveryProductMappingVend && (deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.id + 20000) }}
                                 <!-- ({{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.virtual_customer_prefix }}) -->
                                 <br>
                                 {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.name }}

@@ -1341,7 +1341,7 @@
 							<span v-if="vend.person_id" class="flex flex-col">
 								<span v-if="permissions.includes('admin-access vend-customers')">
 									<a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" class="hover:underline" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'" v-tooltip="'Open this site in the Site editor'">
-											{{ vend.virtual_customer_code }}
+											{{ vend.customer_id + 20000 }}
 											<br>
 											{{ vend.customer_name }}
 									</a>

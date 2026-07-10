@@ -194,7 +194,7 @@
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             <span v-if="vend.customer && vend.customer.person_id">
-                              {{ vend.customer.virtual_customer_prefix }}-{{ vend.customer.virtual_customer_code }} <br>
+                              {{ vend.customer.id + 20000 }} <br>
                               {{ vend.customer.name }}
                             </span>
                             <span v-if="vend.customer">

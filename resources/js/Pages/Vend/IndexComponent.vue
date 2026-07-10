@@ -624,13 +624,13 @@
                           <span v-if="vend.person_id" class="flex flex-col space-y-1">
                               <span v-if="permissions.includes('admin-access vends')">
                                   <a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
-                                      {{ vend.virtual_customer_code }} ({{ vend.virtual_customer_prefix }})
+                                      {{ vend.customer_id + 20000 }}
                                       <br>
                                       {{ vend.customer_name }}
                                   </a>
                               </span>
                               <span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-                                  {{ vend.virtual_customer_code }} ({{ vend.virtual_customer_prefix }})
+                                  {{ vend.customer_id + 20000 }}
                                   <br>
                                   {{ vend.customer_name }}
                               </span>

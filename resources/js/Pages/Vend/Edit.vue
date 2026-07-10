@@ -839,7 +839,7 @@ onMounted(() => {
   }) : useForm(getDefaultForm())
   adminCustomerOptions.value = props.adminCustomerOptions.data.map(customer => ({
     id: customer.id,
-    full_name: customer.person_id ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name  : customer.code + ' - ' + customer.name,
+    full_name: customer.person_id ? (customer.id + 20000) + ' - ' + customer.name  : customer.code + ' - ' + customer.name,
   }))
   // console.log(JSON.parse(JSON.stringify(form.value)))
 })

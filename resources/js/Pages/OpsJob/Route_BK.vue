@@ -213,7 +213,7 @@
                                 <div class="flex flex-col space-y-1 max-w-40 md:max-w-72">
                                   <span>
                                     <span v-if="opsJobItem.customer && opsJobItem.customer.person_id">
-                                      {{ opsJobItem.customer.virtual_customer_code }}
+                                      {{ opsJobItem.customer.id + 20000 }}
                                       ({{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }})
                                       - {{ opsJobItem.customer.name }}
                                     </span>

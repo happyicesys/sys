@@ -581,7 +581,7 @@
                               </div>
                               <span>
                                 <span v-if="row.customer && row.customer.person_id">
-                                    {{ row.customer.virtual_customer_code }} ({{ row.vend && row.vend.vendPrefix ? row.vend.vendPrefix.name : '' }})
+                                    {{ row.customer.id + 20000 }} ({{ row.vend && row.vend.vendPrefix ? row.vend.vendPrefix.name : '' }})
                                     <br>
                                     {{ row.customer.name }}
                                 </span>

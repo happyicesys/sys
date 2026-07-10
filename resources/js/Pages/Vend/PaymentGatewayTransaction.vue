@@ -345,7 +345,7 @@
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-left">
                             <span v-if="paymentGatewayLog.vend?.customer">
-                                {{ paymentGatewayLog.vend?.customer?.virtual_customer_code }} <br>
+                                {{ paymentGatewayLog.vend.customer.id + 20000 }} <br>
                                 {{ paymentGatewayLog.vend?.customer?.name }}
                             </span>
                         </TableData>

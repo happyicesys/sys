@@ -391,7 +391,7 @@
                                                                 {{ vend.vend.vendPrefix.name }}
                                                             </span>
                                                             <span v-if="(vend.customer || vend.vend?.customer) && (vend.customer || vend.vend?.customer).person_id" class="block text-gray-500">
-                                                                {{ (vend.customer || vend.vend?.customer).virtual_customer_code }}
+                                                                {{ (vend.customer || vend.vend?.customer).id + 20000 }}
                                                                 <br>
                                                                 {{ (vend.customer || vend.vend?.customer).name }}
                                                             </span>
@@ -477,7 +477,7 @@
                                                                 {{ vend.vend.vendPrefix.name }}
                                                             </span>
                                                             <span v-if="(vend.customer || vend.vend?.customer) && (vend.customer || vend.vend?.customer).person_id" class="block text-gray-500">
-                                                                {{ (vend.customer || vend.vend?.customer).virtual_customer_code }}
+                                                                {{ (vend.customer || vend.vend?.customer).id + 20000 }}
                                                                 <br>
                                                                 {{ (vend.customer || vend.vend?.customer).name }}
                                                             </span>

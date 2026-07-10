@@ -20,7 +20,7 @@
             <span class="block truncate">
               {{ option.vend.code }}
               <span v-if="option.person_id">
-                - {{ option.virtual_customer_code }} ({{ option.virtual_customer_prefix }}) - {{ option.name }}
+                - {{ option.id + 20000 }} - {{ option.name }}
               </span>
               <span v-if="option.operator">
                 - [{{ option.operator.name }}]

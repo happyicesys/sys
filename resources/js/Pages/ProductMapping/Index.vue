@@ -321,7 +321,7 @@
                               <span v-if="vend.customer && vend.customer.person_id">
                                   <span v-if="permissions.includes('admin-access vends')">
                                       <a :class="[vend.customer && vend.customer.person_id && vend.customer.is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'">
-                                          {{ vend.customer.virtual_customer_code }} ({{ vend.vendPrefix ? vend.vendPrefix.name : '' }})
+                                          {{ vend.customer.id + 20000 }} ({{ vend.vendPrefix ? vend.vendPrefix.name : '' }})
                                           <br>
                                           {{ vend.customer.name }}<!-- Grab (delivery platform) pill — moved next to the customer name so it doesn't trail after the binded_at date -->
                                           <span v-if="vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.deliveryProductMappingVends" :key="'dpmv-a-' + index">
@@ -335,7 +335,7 @@
                                       </a>
                                   </span>
                                   <span v-else>
-                                      {{ vend.customer.virtual_customer_code }} ({{ vend.vendPrefix ? vend.vendPrefix.name : '' }})
+                                      {{ vend.customer.id + 20000 }} ({{ vend.vendPrefix ? vend.vendPrefix.name : '' }})
                                       <br>
                                       {{ vend.customer.name }}<!-- Grab pill — moved next to the customer name -->
                                       <span v-if="vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.deliveryProductMappingVends" :key="'dpmv-b-' + index">

@@ -309,14 +309,10 @@ const vend = ref(props.vendObj.data)
 const selectedVendOption = ref(null);
 const vendSelectionOptions = computed(() => {
   return (props.vendOptions ?? []).map((option) => {
-    const virtualCustomer = option.virtual_customer_prefix && option.virtual_customer_code
-      ? `${option.virtual_customer_prefix}-${option.virtual_customer_code}`
-      : null;
     const segments = [
       option.code,
       option.customer_name,
-      virtualCustomer,
-      option.customer_ref_id ? ` #${option.customer_ref_id}` : null,
+      option.customer_ref_id ? `#${option.customer_ref_id}` : null,
     ].filter(Boolean);
 
     return {

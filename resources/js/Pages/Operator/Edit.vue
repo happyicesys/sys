@@ -733,7 +733,7 @@
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <span v-if="vend.customer && vend.customer.person_id">
-                                {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
+                                {{ vend.customer.id + 20000 }}
                                 <br>
                                 {{ vend.customer.name }}
                             </span>
@@ -1178,7 +1178,7 @@ function onSearchFilterUpdated() {
 }
 
 function selected(obj) {
-  form.value.vend_id = obj.code + ' - ' + obj.customer.virtual_customer_code + ' (' + obj.customer.virtual_customer_prefix + ') ' + obj.customer.name
+  form.value.vend_id = obj.code + ' - ' + (obj.customer.id + 20000) + ' ' + obj.customer.name
   form.value.vend_id_value = obj.id
 }
 

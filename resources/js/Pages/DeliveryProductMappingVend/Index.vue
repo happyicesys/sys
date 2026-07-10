@@ -220,7 +220,7 @@
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.customer">
-                        {{ deliveryProductMappingVend.vend.customer.virtual_customer_code }}
+                        {{ deliveryProductMappingVend.vend.customer.id + 20000 }}
                         <!-- <span v-if="deliveryProductMappingVend.vend.customer.virtual_customer_prefix">
                          ({{ deliveryProductMappingVend.vend.customer.virtual_customer_prefix }})
                         </span> -->

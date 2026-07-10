@@ -518,7 +518,7 @@
                           v-if="customer.person_id && (customer.virtual_customer_code || customer.virtual_customer_prefix)"
                         >
                           <span v-if="customer.virtual_customer_code">
-                            {{ customer.virtual_customer_code }}
+                            {{ customer.id + 20000 }}
                           </span>
                           <br />
                         </span>

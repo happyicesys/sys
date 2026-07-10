@@ -987,7 +987,7 @@
                     <span class="ml-4 flex min-w-0 flex-col">
                       <span class="text-sm font-medium">
                         <span v-if="customerVendBinding.customer?.virtual_customer_prefix">
-                          ({{ customerVendBinding.customer.id + 20000 }}{{ vend.vend_prefix_name ? ' - ' + vend.vend_prefix_name : '' }}) {{ customerVendBinding.customer.virtual_customer_code }}
+                          ({{ customerVendBinding.customer.id + 20000 }}{{ vend.vend_prefix_name ? ' - ' + vend.vend_prefix_name : '' }})
                         </span>
                         {{ customerVendBinding?.customer?.name }}
                       </span>
@@ -1663,7 +1663,7 @@ onMounted(() => {
 
   adminCustomerOptions.value = props.adminCustomerOptions.data.map(customer => ({
     id: customer.id,
-    full_name: customer.person_id && customer.virtual_customer_code ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name + ' [cms]'  : customer.name,
+    full_name: customer.person_id && customer.virtual_customer_code ? (customer.id + 20000) + ' - ' + customer.name + ' [cms]'  : customer.name,
   }))
 
   const initialChannels = props.vend && Array.isArray(props.vend.vend_channels) ? props.vend.vend_channels : [];
@@ -1954,7 +1954,7 @@ watch(
     if (newVal && newVal.data) {
       adminCustomerOptions.value = newVal.data.map(customer => ({
         id: customer.id,
-        full_name: customer.person_id && customer.virtual_customer_code ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name + ' [cms]'  : customer.name,
+        full_name: customer.person_id && customer.virtual_customer_code ? (customer.id + 20000) + ' - ' + customer.name + ' [cms]'  : customer.name,
       }))
     }
   },
