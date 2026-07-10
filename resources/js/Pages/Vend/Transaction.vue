@@ -782,7 +782,7 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
                             <span v-if="vendTransaction.person_id">
                                 <!-- {{ vendTransaction.virtual_customer_prefix }}- -->
-                                {{ vendTransaction.customer_id + 20000 }} <br>
+                                {{ vendTransaction.customer_id ? vendTransaction.customer_id + 20000 : '' }} <br>
                                 {{ vendTransaction.customer_name }}
                             </span>
                             <span v-else-if="!vendTransaction.person_id">

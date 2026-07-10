@@ -23,6 +23,7 @@ class VendTransactionResource extends JsonResource
             'cashless_mfg' => $this->cashless_mfg,
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
+            'customer_id' => isset($this->customer_id) ? $this->customer_id : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
             'interface_type' => isset($this->interface_type) ? $this->interface_type : null,
             'is_multiple' => $this->is_multiple,

@@ -3055,6 +3055,7 @@ class VendController extends Controller
                     'vend_prefixes.name AS vend_prefix_name',
                     'customers.code AS customer_code',
                     'customers.name AS customer_name',
+                    'customers.id AS customer_id',
                     'customers.person_id',
                     'customers.virtual_customer_prefix',
                     'customers.virtual_customer_code',
