@@ -67,7 +67,8 @@ class RefundController extends Controller
         $counts['rejected'] = max(0, (int) ($counts['rejected'] ?? 0) - $droppedCount);
         $counts['dropped'] = $droppedCount;
         // "In settlement" tickets are stored as `scheduled` but shown under Approved,
-        // so fold their count into the Approved chip (no separate status/chip).
+        // so fold their count into the Approved chip. `insufficient_info` keeps its own
+        // count (it has its own chip).
         $counts['approved'] = (int) ($counts['approved'] ?? 0) + (int) ($counts['scheduled'] ?? 0);
         unset($counts['scheduled']);
 
@@ -137,6 +138,8 @@ class RefundController extends Controller
         if (in_array(RefundTicket::STATUS_APPROVED, $realStatuses, true)) {
             $realStatuses[] = RefundTicket::STATUS_SCHEDULED;
         }
+        // `insufficient_info` is its own status/chip now, and is part of the default
+        // view (all keys except Completed), so it needs no special folding here.
 
         $query = RefundTicket::query()
             ->when($applyStatus, function ($q) use ($realStatuses, $wantDropped, $explicitStatus) {
@@ -233,15 +236,19 @@ class RefundController extends Controller
                     $q->where('status', RefundTicket::STATUS_COMPLETED);
                 } elseif ($sel === 'in_progress') {
                     $q->whereIn('status', [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED]);
+                } elseif ($sel === 'insufficient_info') {
+                    $q->where('status', RefundTicket::STATUS_INSUFFICIENT_INFO);
                 } elseif ($sel === 'not_started') {
-                    $q->whereNotIn('status', [RefundTicket::STATUS_COMPLETED, RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED]);
+                    $q->whereNotIn('status', [RefundTicket::STATUS_COMPLETED, RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_INSUFFICIENT_INFO]);
                 }
             })
             // --- Is Sent to Settlement? A pushed ticket is stored as `scheduled`.
             ->when(in_array($request->sent_settlement, ['yes', 'no'], true), function ($q) use ($request) {
+                // Insufficient-info tickets stay in their settlement (payout_batch_id kept),
+                // so they count as "sent" too.
                 $request->sent_settlement === 'yes'
-                    ? $q->where('status', RefundTicket::STATUS_SCHEDULED)
-                    : $q->where('status', '!=', RefundTicket::STATUS_SCHEDULED);
+                    ? $q->whereIn('status', [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_INSUFFICIENT_INFO])
+                    : $q->whereNotIn('status', [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_INSUFFICIENT_INFO]);
             })
             ->orderByDesc('created_at'); // latest on top
 
@@ -300,9 +307,10 @@ class RefundController extends Controller
         // (actor) + timestamp beside the status. One batched query; the latest entry
         // per stage wins (ordered ascending, so a later row overwrites an earlier one).
         $stageActions = [
-            'validation' => ['verified', 'rejected', 'status_override', 'dropped', 'undropped'],
-            'settlement' => ['scheduled', 'returned_to_pool'],
-            'done'       => ['completed'],
+            'validation'   => ['verified', 'rejected', 'status_override', 'dropped', 'undropped'],
+            'settlement'   => ['scheduled', 'returned_to_pool'],
+            'insufficient' => ['insufficient_info'],
+            'done'         => ['completed'],
         ];
         $actionStage = [];
         foreach ($stageActions as $stage => $acts) {
@@ -359,6 +367,7 @@ class RefundController extends Controller
                         ])->values()->all(),
                     'validation_actor' => $stageActors[$t->id]['validation'] ?? null,
                     'settlement_actor' => $stageActors[$t->id]['settlement'] ?? null,
+                    'insufficient_actor' => $stageActors[$t->id]['insufficient'] ?? null,
                     'done_actor' => $stageActors[$t->id]['done'] ?? null,
                 ],
             )];
@@ -395,13 +404,17 @@ class RefundController extends Controller
         return (new \Rap2hpoutre\FastExcel\FastExcel($generator()))->download($filename, function (array $r) use ($statusLabels) {
             $channels = collect($r['affected_items'] ?? [])->pluck('channel')->filter()->implode(', ');
             $products = collect($r['affected_items'] ?? [])->pluck('product_name')->filter()->implode(', ');
-            // `scheduled` (pushed into a settlement) is shown under Approved.
-            $statusKey = $r['status'] === RefundTicket::STATUS_SCHEDULED ? RefundTicket::STATUS_APPROVED : $r['status'];
+            // `scheduled` (pushed into a settlement) and `insufficient_info` (parked in
+            // one) are both shown under Approved for the Status column — the special
+            // state surfaces only in the "Refund Done?" column, mirroring the screen.
+            $statusKey = in_array($r['status'], [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_INSUFFICIENT_INFO], true) ? RefundTicket::STATUS_APPROVED : $r['status'];
             $statusText = $r['is_dropped'] ? 'Dropped' : ($statusLabels[$statusKey] ?? $statusKey);
             $sensor = is_null($r['product_drop_sensor']) ? '' : ($r['product_drop_sensor'] ? 'Enabled' : 'Disabled');
             $doneText = $r['status'] === RefundTicket::STATUS_COMPLETED
                 ? 'Completed'
-                : (in_array($r['status'], [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED], true) ? 'In progress' : '');
+                : ($r['status'] === RefundTicket::STATUS_INSUFFICIENT_INFO
+                    ? 'Insufficient Info'
+                    : (in_array($r['status'], [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED], true) ? 'In progress' : ''));
 
             return [
                 'Refund ID' => $r['reference'],
@@ -705,6 +718,7 @@ class RefundController extends Controller
         $this->guardTransition($ticket, [
             RefundTicket::STATUS_APPROVED,
             RefundTicket::STATUS_SCHEDULED,
+            RefundTicket::STATUS_INSUFFICIENT_INFO,
         ], 'complete');
         $from = $ticket->status;
         $ticket->update([
@@ -760,11 +774,11 @@ class RefundController extends Controller
         ]);
 
         $tickets = RefundTicket::whereIn('id', $data['ticket_ids'])
-            ->whereIn('status', [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED])
+            ->whereIn('status', [RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_INSUFFICIENT_INFO])
             ->get();
 
         if ($tickets->isEmpty()) {
-            return back()->withErrors(['batch' => 'None of the selected tickets can be completed (must be Approved or Scheduled).']);
+            return back()->withErrors(['batch' => 'None of the selected tickets can be completed (must be Approved, Scheduled, or Insufficient Info).']);
         }
 
         foreach ($tickets as $ticket) {
@@ -1246,6 +1260,7 @@ class RefundController extends Controller
             // trail — shown beside the status badge in each progress column.
             'validation_actor' => $self['validation_actor'] ?? null,
             'settlement_actor' => $self['settlement_actor'] ?? null,
+            'insufficient_actor' => $self['insufficient_actor'] ?? null,
             'done_actor' => $self['done_actor'] ?? null,
         ];
     }
@@ -1606,6 +1621,10 @@ class RefundController extends Controller
             // its own chip / filter option and counted separately from Rejected.
             'dropped' => 'Dropped',
             RefundTicket::STATUS_APPROVED => 'Approved',
+            // Scheduled tickets the bank couldn't pay — their own chip so they can be
+            // filtered for manual follow-up. The Validation column still shows them as
+            // Approved; the red "Insufficient Info" state lives in the Refund Done column.
+            RefundTicket::STATUS_INSUFFICIENT_INFO => 'Insufficient Info',
             RefundTicket::STATUS_COMPLETED => 'Completed',
         ];
     }

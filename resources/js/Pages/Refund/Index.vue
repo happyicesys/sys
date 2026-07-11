@@ -37,7 +37,9 @@ const selected = ref([]);
 // The checkbox drives "Push to Settlement": only APPROVED tickets (PayNow or
 // PayPal) can be pushed. The backend re-filters and routes each into its day's
 // open settlement per payout group.
-const eligible = (t) => t.status === 'approved';
+// Selectable for a batch action: Approved (→ settlement / mark done) or an
+// Insufficient-Info ticket (→ mark done here once handled by hand).
+const eligible = (t) => t.status === 'approved' || t.status === 'insufficient_info';
 const pushing = ref(false);
 const pushMsg = ref('');
 function pushToSettlement() {
@@ -89,8 +91,24 @@ const allPaypal = computed(() => selMethods.value.length === 1 && selMethods.val
 const mixedMethods = computed(() => selMethods.value.length > 1);
 // Method-specific subsets of the current selection, so a mixed selection can run
 // each action on its own group (PayNow → settlement, PayPal → mark done here).
-const paynowSelectedIds = computed(() => selectedTickets.value.filter((t) => t.refund_method === 'paynow').map((t) => t.id));
-const paypalSelectedIds = computed(() => selectedTickets.value.filter((t) => t.refund_method === 'paypal').map((t) => t.id));
+const paynowSelectedIds = computed(() => selectedTickets.value.filter((t) => t.status === 'approved' && t.refund_method === 'paynow').map((t) => t.id));
+const paypalSelectedIds = computed(() => selectedTickets.value.filter((t) => t.status === 'approved' && t.refund_method === 'paypal').map((t) => t.id));
+// Insufficient-info tickets (any method) — the bank couldn't pay them; once the
+// admin has sorted the payout out by hand, they're marked done straight here.
+const insufficientSelectedIds = computed(() => selectedTickets.value.filter((t) => t.status === 'insufficient_info').map((t) => t.id));
+const markingInsufficient = ref(false);
+function markDoneInsufficient() {
+    const ids = insufficientSelectedIds.value;
+    if (!ids.length) { pushMsg.value = 'Select at least one Insufficient Info ticket.'; return; }
+    if (!confirm('Mark ' + ids.length + ' Insufficient-Info refund(s) as done? This emails each customer their completion notice.')) return;
+    markingInsufficient.value = true; pushMsg.value = '';
+    router.post('/refunds/batch/complete', { ticket_ids: ids }, {
+        preserveScroll: true,
+        onError: (errors) => { pushMsg.value = errors.batch || Object.values(errors)[0] || 'Failed to mark done.'; },
+        onSuccess: () => { selected.value = selected.value.filter((id) => !ids.includes(id)); },
+        onFinish: () => { markingInsufficient.value = false; },
+    });
+}
 
 // status options as {id: key, value: label} for the tags MultiSelect
 const statusOptions = ref(Object.entries(props.statuses).map(([id, value]) => ({ id, value })));
@@ -189,8 +207,9 @@ const statusClass = (s) => ({
     auto_resolved: 'bg-purple-100 text-purple-800',
     rejected: 'bg-red-100 text-red-800',
     approved: 'bg-green-100 text-green-800',       // also used for `scheduled` (in a settlement)
-    completed: 'text-gray-500',                    // Completed = no colour
-    dropped: 'bg-white text-gray-500 border border-gray-300',  // temporarily white
+    insufficient_info: 'text-red-600',             // red text, no background
+    completed: 'text-green-700',                   // green text, no background
+    dropped: 'text-gray-900',                      // black text, no background
 }[s] || 'bg-gray-100 text-gray-700');
 
 // Machine ID → Operations Dashboard, deep-linked+auto-searched to that machine
@@ -257,8 +276,8 @@ function sortVal(t, key) {
         case 'error_code': return t.error_code || '';
         case 'status': return t.status || '';
         case 'batch': return t.batch?.reference || '';
-        // Refund Done? — completed > in progress > not started
-        case 'done': return t.status === 'completed' ? 2 : (['approved', 'scheduled'].includes(t.status) ? 1 : 0);
+        // Refund Done? — insufficient info (needs action) > completed > in progress > not started
+        case 'done': return t.status === 'insufficient_info' ? 3 : (t.status === 'completed' ? 2 : (t.batch && ['approved', 'scheduled'].includes(t.status) ? 1 : 0));
         default: return '';
     }
 }
@@ -433,6 +452,7 @@ const sortedRows = computed(() => {
                             <option value="">All</option>
                             <option value="completed">Completed</option>
                             <option value="in_progress">In progress</option>
+                            <option value="insufficient_info">Insufficient Info</option>
                             <option value="not_started">Not started</option>
                         </select>
                     </div>
@@ -502,9 +522,10 @@ const sortedRows = computed(() => {
         <div v-if="selected.length" class="bg-teal-50 border border-teal-200 rounded-md px-4 py-3 mb-3">
             <div class="flex items-center gap-3">
                 <span class="text-sm font-semibold text-teal-800">{{ selected.length }} selected</span>
-                <span v-if="allPaynow" class="text-xs text-gray-500">PayNow — push into the Refund Settlement (the CIMB file is exported from there).</span>
+                <span v-if="insufficientSelectedIds.length" class="text-xs text-gray-500">Insufficient Info — handle the payout by hand, then mark them done here. This emails each customer their completion notice.</span>
+                <span v-else-if="allPaynow" class="text-xs text-gray-500">PayNow — push into the Refund Settlement (the CIMB file is exported from there).</span>
                 <span v-else-if="allPaypal" class="text-xs text-gray-500">PayPal — paid manually, so mark them done here. This emails each customer their completion notice. PayPal is not settled via CIMB.</span>
-                <span v-else class="text-xs text-gray-500">Mixed methods — run each action on its own group: PayNow tickets are pushed to a settlement, PayPal tickets are marked done here.</span>
+                <span v-else class="text-xs text-gray-500">Mixed selection — run each action on its own group: PayNow tickets are pushed to a settlement, PayPal / Insufficient-Info tickets are marked done here.</span>
             </div>
             <div class="flex items-center gap-3 mt-3">
                 <button v-if="paynowSelectedIds.length" @click="pushToSettlement" :disabled="pushing"
@@ -514,6 +535,10 @@ const sortedRows = computed(() => {
                 <button v-if="paypalSelectedIds.length" @click="markDonePaypal" :disabled="marking"
                     class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
                     {{ marking ? 'Marking…' : '✓ Mark as Done — PayPal (' + paypalSelectedIds.length + ')' }}
+                </button>
+                <button v-if="insufficientSelectedIds.length" @click="markDoneInsufficient" :disabled="markingInsufficient"
+                    class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
+                    {{ markingInsufficient ? 'Marking…' : '✓ Mark as Done — Insufficient Info (' + insufficientSelectedIds.length + ')' }}
                 </button>
                 <a href="/refund-settlements" class="text-xs text-teal-700 underline whitespace-nowrap">Open Refund Settlement →</a>
             </div>
@@ -560,7 +585,7 @@ const sortedRows = computed(() => {
                         <td class="px-3 py-3">
                             <input type="checkbox" :disabled="!eligible(t)" :checked="selected.includes(t.id)" @change="toggleRow(t.id)"
                                 :class="eligible(t) ? 'cursor-pointer' : 'cursor-not-allowed opacity-40 grayscale'"
-                                :title="!eligible(t) ? 'Only Approved tickets can be marked done in a batch' : ''" />
+                                :title="!eligible(t) ? 'Only Approved or Insufficient-Info tickets can be actioned in a batch' : ''" />
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <a :href="'/refunds/' + t.id" target="_blank"
@@ -627,7 +652,7 @@ const sortedRows = computed(() => {
                                 <div>${{ t.final_refund_overridden ? t.final_refund_amount : t.amount }}</div>
                                 <div v-if="t.final_refund_overridden" class="text-[11px] font-normal text-amber-600 mt-0.5"
                                     v-tooltip="(t.matched ? 'Final refund amount overridden from the original claim of $' + t.amount + '.' : 'Final refund amount set by an admin (no matched transaction to derive a claim from).') + (t.final_refund_remarks ? ' Remark: ' + t.final_refund_remarks : '')">
-                                    <span v-if="t.matched"><span class="line-through text-gray-400">${{ t.amount }}</span> claim</span>
+                                    <span v-if="t.matched"><span class="line-through text-gray-400">${{ t.amount }}</span> was</span>
                                     <span v-else>admin-set</span>
                                     <span v-if="t.final_refund_remarks" class="block text-gray-500 italic break-words">“{{ t.final_refund_remarks }}”</span>
                                 </div>
@@ -681,7 +706,7 @@ const sortedRows = computed(() => {
                                 v-tooltip="'No error code recorded for this transaction.'">No</span>
                         </td>
                         <td class="px-4 py-3 border-l border-gray-100 text-center">
-                            <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.is_dropped ? 'dropped' : (t.status === 'scheduled' ? 'approved' : t.status))">{{ t.is_dropped ? 'Dropped' : (statuses[t.status === 'scheduled' ? 'approved' : t.status] || t.status) }}</span>
+                            <span class="inline-block text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" :class="statusClass(t.is_dropped ? 'dropped' : (['scheduled', 'insufficient_info'].includes(t.status) ? 'approved' : t.status))">{{ t.is_dropped ? 'Dropped' : (statuses[['scheduled', 'insufficient_info'].includes(t.status) ? 'approved' : t.status] || t.status) }}</span>
                             <span class="flex items-center justify-center gap-0.5 mt-1.5">
                                 <component :is="c.ok ? CheckCircleIcon : XCircleIcon" v-for="(c, i) in validationChecks(t)" :key="i"
                                     class="h-5 w-5" :class="c.ok ? 'text-green-600' : 'text-red-500'" v-tooltip="c.label" />
@@ -709,16 +734,28 @@ const sortedRows = computed(() => {
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-center" @click.stop>
                             <template v-if="t.status === 'completed'">
-                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Completed</span>
+                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-green-700">✓ Completed</span>
                                 <div v-if="t.done_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
                                     <span class="block font-medium text-gray-600">{{ t.done_actor.name }}</span>
                                     <span class="block">{{ t.done_actor.at }}</span>
                                 </div>
                                 <div v-else-if="t.completed_at" class="text-[11px] text-gray-500 mt-1">{{ t.completed_at }}</div>
                             </template>
+                            <!-- Insufficient Info: the bank couldn't pay (bad / missing PayNow info).
+                                 Flagged from the settlement page; the admin handles it by hand and then
+                                 batch-marks it done here. Red so it stands out for follow-up. -->
+                            <template v-else-if="t.status === 'insufficient_info'">
+                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-red-600"
+                                    title="The bank could not pay this refund (bad / missing PayNow info). Handle the payout by hand, then tick the row and mark it done.">Insufficient Info</span>
+                                <div v-if="t.insufficient_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                    <span class="block font-medium text-gray-600">{{ t.insufficient_actor.name }}</span>
+                                    <span class="block">{{ t.insufficient_actor.at }}</span>
+                                </div>
+                            </template>
                             <!-- Per-row "Mark done" removed: completion is now batch-only via the
-                                 toolbar action. Approved/Scheduled just show an "In progress" badge. -->
-                            <span v-else-if="['approved', 'scheduled'].includes(t.status)" class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">In progress</span>
+                                 toolbar action. "In progress" only once the refund has actually been
+                                 sent to a settlement/batch (t.batch); approved-but-not-yet-sent shows "—". -->
+                            <span v-else-if="t.batch && ['approved', 'scheduled'].includes(t.status)" class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">In progress</span>
                             <span v-else class="text-gray-300">—</span>
                         </td>
                     </tr>

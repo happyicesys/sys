@@ -19,6 +19,11 @@ class RefundTicket extends Model
     const STATUS_PENDING_TRANSFER_INFO = 'pending_transfer_info';
     const STATUS_SCHEDULED = 'scheduled';
     const STATUS_COMPLETED = 'completed';
+    // Payout-stage flag: a scheduled refund the bank could not pay (bad/missing
+    // PayNow/transfer info). Kept in its settlement for the record but pulled out
+    // of the CIMB export / mark-done flow so an admin can handle it by hand and
+    // then batch-complete it from the Refund Requests page.
+    const STATUS_INSUFFICIENT_INFO = 'insufficient_info';
 
     // ---- system recommendation ----
     const REC_PROCEED = 'proceed';
@@ -105,6 +110,56 @@ class RefundTicket extends Model
         'completed_at' => 'datetime',
         'last_email_sent_at' => 'datetime',
     ];
+
+    /**
+     * Canonicalise a PayNow payout destination to a bare 8-digit SG mobile.
+     *
+     * The public refund form lets people type their PayNow number however they
+     * like — "81555004", "+6590145155", "6598765432", "9299 1964" — so the list
+     * showed a mix of formats. We strip formatting and any SG country prefix and
+     * return the 8-digit local number when the value is an SG mobile (starts 8/9).
+     *
+     * Anything that is NOT an SG mobile is returned unchanged so we never mangle
+     * the other proxies this column can hold: a PayPal email, an NRIC, or a UEN.
+     * The CIMB export re-parses the stored value into +65 E.164, so an 8-digit
+     * store is safe there too.
+     */
+    public static function normalizePaynowMobile(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $raw = trim($value);
+        if ($raw === '' || str_contains($raw, '@')) {
+            return $raw; // blank, or a PayPal email — leave alone
+        }
+
+        $digits = preg_replace('/\D+/', '', $raw); // drop +, spaces, dashes, parens
+        if ($digits === '') {
+            return $raw;
+        }
+
+        // Strip an SG country prefix in front of an 8-digit local number.
+        if (strlen($digits) === 12 && str_starts_with($digits, '0065')) {
+            $digits = substr($digits, 4);
+        } elseif (strlen($digits) === 10 && str_starts_with($digits, '65')) {
+            $digits = substr($digits, 2);
+        }
+
+        // Canonical SG mobile: exactly 8 digits starting 8 or 9.
+        if (preg_match('/^[89]\d{7}$/', $digits)) {
+            return $digits;
+        }
+
+        return $raw; // NRIC / UEN / foreign / partial — keep as entered
+    }
+
+    /** Store PayNow numbers in one canonical 8-digit shape (see normalizePaynowMobile). */
+    public function setPayoutDestinationAttribute($value): void
+    {
+        $this->attributes['payout_destination'] = static::normalizePaynowMobile($value);
+    }
 
     public function items()
     {
@@ -203,6 +258,9 @@ class RefundTicket extends Model
         self::STATUS_SCHEDULED,
         self::STATUS_COMPLETED,
         self::STATUS_AUTO_RESOLVED,
+        // Still an in-flight refund (being handled manually) — must keep blocking a
+        // second refund of the same transaction.
+        self::STATUS_INSUFFICIENT_INFO,
     ];
 
     /**

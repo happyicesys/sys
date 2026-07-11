@@ -1420,6 +1420,20 @@ const versionOptions = ref([])
 const isPromoting = ref(false)
 let hasMounted = false;
 
+// Reorders an options array so any "N/A" entry sits last, keeping the
+// relative order of all other options unchanged. Matches on the common
+// label keys used across the dropdowns (name / value / full_name).
+function moveNaLast(options) {
+  if (!Array.isArray(options)) return options
+  const isNa = (o) => {
+    const label = o?.name ?? o?.value ?? o?.full_name
+    return typeof label === 'string' && label.trim().toUpperCase() === 'N/A'
+  }
+  const naItems = options.filter(isNa)
+  if (!naItems.length) return options
+  return [...options.filter((o) => !isNa(o)), ...naItems]
+}
+
 const isVendConfigNA = computed(() => {
   return form.value.vend_config_id && form.value.vend_config_id.name === 'N/A';
 })
@@ -1602,6 +1616,23 @@ onMounted(() => {
     { id: '-', value: '-'},
     ...Object.entries(props.versionOptions).map(([id, version]) => ({id: version, value: version}))
   ]
+
+  // Keep any "N/A" choice at the bottom of every dropdown that has one
+  // (Product Mapping, Machine Prefix, Setting Chart, etc.). No-op for
+  // lists without an N/A entry. Relative order of the other options is
+  // preserved, so the "--- Clear ---" placeholder stays on top.
+  const naOrderedDropdowns = [
+    cardTerminalOptions, cashlessTerminalOptions, clawMachineBoardOptions,
+    clawMachineBodyOptions, lcdMonitorOptions, ledMatrixPanelOptions,
+    keyOptions, menuFrameOptions, modemTypeOptions, modemUnitOptions,
+    operatorOptions, productMappingOptions, serverPriceTypeOptions,
+    simcardOptions, upcomingProductMappingOptions, vendConfigOptions,
+    vendContractOptions, vendModelOptions, vendPrefixOptions,
+    vendSerialNumberOptions,
+  ]
+  naOrderedDropdowns.forEach((optionsRef) => {
+    optionsRef.value = moveNaLast(optionsRef.value)
+  })
 
   form.value = props.vend ? useForm({
     ...props.vend,

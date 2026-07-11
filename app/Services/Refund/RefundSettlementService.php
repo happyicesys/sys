@@ -116,8 +116,8 @@ class RefundSettlementService
     public function reopen(RefundPayoutBatch $settlement, ?int $userId = null, ?string $actorLabel = 'Admin'): void
     {
         $this->assertSettlement($settlement);
-        if ($settlement->status !== RefundPayoutBatch::STATUS_CLOSED) {
-            throw new \RuntimeException('Only a closed settlement can be reopened (this one is ' . $settlement->status . ').');
+        if ($settlement->status === RefundPayoutBatch::STATUS_OPEN) {
+            throw new \RuntimeException('This settlement is already open.');
         }
         $settlement->update([
             'status' => RefundPayoutBatch::STATUS_OPEN,
@@ -136,16 +136,21 @@ class RefundSettlementService
     public function exportCimb(RefundPayoutBatch $settlement, ?int $userId = null, ?string $actorLabel = 'Admin'): array
     {
         $this->assertSettlement($settlement);
-        $this->assertExportable($settlement);
 
         return DB::transaction(function () use ($settlement, $userId, $actorLabel) {
-            $tickets = $this->members($settlement, RefundTicket::METHOD_PAYNOW, [RefundTicket::STATUS_SCHEDULED]);
+            // Export the whole PayNow batch — every member, whatever its stage. This
+            // lets the file be regenerated for the record even after rows have been
+            // marked done or flagged insufficient info (it no longer blocks once
+            // nothing is left in `scheduled`). Only a settlement with zero PayNow
+            // members has genuinely nothing to export.
+            $tickets = $this->members($settlement, RefundTicket::METHOD_PAYNOW, [
+                RefundTicket::STATUS_SCHEDULED,
+                RefundTicket::STATUS_COMPLETED,
+                RefundTicket::STATUS_INSUFFICIENT_INFO,
+            ]);
             if ($tickets->isEmpty()) {
                 throw new \RuntimeException('No PayNow tickets to export in this settlement.');
             }
-
-            // Lock the pool (close) if the admin exported straight from Open.
-            $this->lockForExport($settlement, $userId, $actorLabel);
 
             $account = $this->resolveOriginatingAccount($settlement);
             $template = BankTemplateRegistry::make('cimb');
@@ -167,8 +172,8 @@ class RefundSettlementService
                 'exported_at' => now(),
             ]);
 
+            // Export does NOT change the open/closed status — it just records the file.
             $settlement->update([
-                'status' => RefundPayoutBatch::STATUS_EXPORTED,
                 'exported_by' => $userId,
                 'exported_at' => now(),
                 'csv_path' => $path,
@@ -187,7 +192,6 @@ class RefundSettlementService
     public function exportXlsx(RefundPayoutBatch $settlement, ?int $userId = null, ?string $actorLabel = 'Admin'): array
     {
         $this->assertSettlement($settlement);
-        $this->assertExportable($settlement);
 
         $tickets = $this->members($settlement, RefundTicket::METHOD_PAYPAL, [RefundTicket::STATUS_SCHEDULED]);
         if ($tickets->isEmpty()) {
@@ -211,9 +215,6 @@ class RefundSettlementService
         (new FastExcel(collect($rows)))->export($abs);
 
         return DB::transaction(function () use ($settlement, $tickets, $rel, $filename, $userId, $actorLabel) {
-            // Lock the pool (close) if the admin exported straight from Open.
-            $this->lockForExport($settlement, $userId, $actorLabel);
-
             $total = (int) $tickets->sum('payout_amount_cents');
             RefundSettlementExport::create([
                 'refund_payout_batch_id' => $settlement->id,
@@ -225,13 +226,7 @@ class RefundSettlementService
                 'exported_by' => $userId,
                 'exported_at' => now(),
             ]);
-            if ($settlement->status === RefundPayoutBatch::STATUS_CLOSED) {
-                $settlement->update([
-                    'status' => RefundPayoutBatch::STATUS_EXPORTED,
-                    'exported_by' => $userId,
-                    'exported_at' => now(),
-                ]);
-            }
+            $settlement->update(['exported_by' => $userId, 'exported_at' => now()]);
             $this->settlementLog($settlement, 'exported_xlsx', 'Exported PayPal worklist ' . $filename . ' (' . $tickets->count() . ')', $userId, $actorLabel, ['file' => $rel, 'count' => $tickets->count()]);
 
             return ['filename' => $filename, 'path' => $rel];
@@ -247,9 +242,9 @@ class RefundSettlementService
     public function markDone(RefundPayoutBatch $settlement, array $ticketIds, ?int $userId = null, ?string $actorLabel = 'Admin'): int
     {
         $this->assertSettlement($settlement);
-        if ($settlement->status !== RefundPayoutBatch::STATUS_EXPORTED) {
-            throw new \RuntimeException('Export the settlement file before marking refunds done.');
-        }
+        // Marking a refund done is allowed whether the settlement is open or closed:
+        // the admin may pay a row via PayNow/PayPal and tick it done before formally
+        // closing the batch. Membership + not-already-completed are still enforced below.
 
         $completed = DB::transaction(function () use ($settlement, $ticketIds, $userId, $actorLabel) {
             $tickets = RefundTicket::whereIn('id', $ticketIds)
@@ -274,14 +269,6 @@ class RefundSettlementService
 
             $this->recount($settlement);
 
-            $remaining = RefundTicket::where('payout_batch_id', $settlement->id)
-                ->whereIn('status', [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_APPROVED])
-                ->count();
-            if ($remaining === 0) {
-                $settlement->update(['status' => RefundPayoutBatch::STATUS_DONE]);
-                $this->settlementLog($settlement, 'settled', 'All member refunds completed', $userId, $actorLabel);
-            }
-
             return $tickets;
         });
 
@@ -294,6 +281,41 @@ class RefundSettlementService
         }
 
         return $completed->count();
+    }
+
+    /**
+     * Flag the selected member tickets as "insufficient info" — the bank could not
+     * pay them (bad / missing PayNow number, etc.). They STAY in the settlement for
+     * the record but drop out of the CIMB export and mark-done flow; an admin then
+     * handles them by hand and batch-completes them from the Refund Requests page.
+     * Only scheduled/approved (not-yet-completed) members can be flagged.
+     */
+    public function markInsufficientInfo(RefundPayoutBatch $settlement, array $ticketIds, ?int $userId = null, ?string $actorLabel = 'Admin'): int
+    {
+        $this->assertSettlement($settlement);
+
+        return DB::transaction(function () use ($settlement, $ticketIds, $userId, $actorLabel) {
+            $tickets = RefundTicket::whereIn('id', $ticketIds)
+                ->where('payout_batch_id', $settlement->id)
+                ->whereIn('status', [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_APPROVED])
+                ->get();
+
+            if ($tickets->isEmpty()) {
+                throw new \RuntimeException('None of the selected tickets can be flagged (must be in this settlement and not already completed).');
+            }
+
+            foreach ($tickets as $ticket) {
+                $from = $ticket->status;
+                $ticket->update(['status' => RefundTicket::STATUS_INSUFFICIENT_INFO]);
+                $this->tickets->log($ticket, 'insufficient_info', $from, $ticket->status, 'Flagged insufficient info (handle manually) in settlement ' . $settlement->reference, $actorLabel ?? 'Admin', $userId);
+                $this->settlementLog($settlement, 'insufficient_info', 'Flagged ' . $ticket->reference . ' as insufficient info', $userId, $actorLabel, ['ticket_id' => $ticket->id]);
+            }
+
+            // Kept as a member, so the settlement count/total stay unchanged.
+            $this->recount($settlement);
+
+            return $tickets->count();
+        });
     }
 
     /**
@@ -423,7 +445,7 @@ class RefundSettlementService
     protected function recount(RefundPayoutBatch $settlement): void
     {
         $agg = RefundTicket::where('payout_batch_id', $settlement->id)
-            ->whereIn('status', [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_COMPLETED])
+            ->whereIn('status', [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_COMPLETED, RefundTicket::STATUS_INSUFFICIENT_INFO])
             ->selectRaw('count(*) as c, coalesce(sum(coalesce(final_refund_amount_cents, claimed_amount_cents)),0) as t')
             ->first();
         $settlement->update(['count' => (int) $agg->c, 'total_cents' => (int) $agg->t]);
@@ -452,28 +474,6 @@ class RefundSettlementService
     protected function assertSettlement(RefundPayoutBatch $settlement): void
     {
         abort_unless($settlement->is_settlement, 404);
-    }
-
-    protected function assertExportable(RefundPayoutBatch $settlement): void
-    {
-        // Open is allowed: exporting an open settlement locks (closes) it first, so
-        // the file can't drift. Done/voided cannot be exported.
-        if (!in_array($settlement->status, [RefundPayoutBatch::STATUS_OPEN, RefundPayoutBatch::STATUS_CLOSED, RefundPayoutBatch::STATUS_EXPORTED], true)) {
-            throw new \RuntimeException('This settlement cannot be exported (status: ' . $settlement->status . ').');
-        }
-    }
-
-    /** If the settlement is still Open, lock it (close) as part of exporting. */
-    protected function lockForExport(RefundPayoutBatch $settlement, ?int $userId, ?string $actorLabel): void
-    {
-        if ($settlement->status === RefundPayoutBatch::STATUS_OPEN) {
-            $settlement->update([
-                'status' => RefundPayoutBatch::STATUS_CLOSED,
-                'closed_by' => $userId,
-                'closed_at' => now(),
-            ]);
-            $this->settlementLog($settlement, 'closed', 'Closed automatically on export', $userId, $actorLabel);
-        }
     }
 
     protected function settlementLog(RefundPayoutBatch $settlement, string $action, ?string $note, ?int $userId, ?string $actorLabel, ?array $meta = null): void

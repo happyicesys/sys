@@ -36,7 +36,10 @@ class RefundSettlementController extends Controller
         $this->scopeToUser($query);
 
         $status = $request->input('status');
-        $query->when($status && $status !== 'all', fn ($q) => $q->where('status', $status))
+        // Only open / closed are surfaced; "closed" matches any non-open row.
+        $query->when($status && $status !== 'all', function ($q) use ($status) {
+                $status === 'open' ? $q->where('status', 'open') : $q->where('status', '!=', 'open');
+            })
             ->when($request->input('date_from'), fn ($q, $d) => $q->whereDate('settlement_date', '>=', $d))
             ->when($request->input('date_to'), fn ($q, $d) => $q->whereDate('settlement_date', '<=', $d))
             ->when($request->input('search'), fn ($q, $s) => $q->where('reference', 'like', "%{$s}%"))
@@ -64,7 +67,7 @@ class RefundSettlementController extends Controller
                 'id' => $s->id,
                 'reference' => $s->reference,
                 'settlement_date' => optional($s->settlement_date)->format('ymd'),
-                'status' => $s->status,
+                'status' => $s->status === RefundPayoutBatch::STATUS_OPEN ? 'open' : 'closed',
                 'head' => $s->payout_group_id
                     ? ($groups->get($s->payout_group_id)?->name ?? ('Group #' . $s->payout_group_id))
                     : ($operators->get($s->operator_id)?->name ?? ('Operator #' . $s->operator_id)),
@@ -80,9 +83,15 @@ class RefundSettlementController extends Controller
             ];
         });
 
-        $countsQuery = RefundPayoutBatch::query()->settlements();
-        $this->scopeToUser($countsQuery);
-        $statusCounts = $countsQuery->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status');
+        $mkCount = function () {
+            $q = RefundPayoutBatch::query()->settlements();
+            $this->scopeToUser($q);
+            return $q;
+        };
+        $statusCounts = [
+            'open' => $mkCount()->where('status', RefundPayoutBatch::STATUS_OPEN)->count(),
+            'closed' => $mkCount()->where('status', '!=', RefundPayoutBatch::STATUS_OPEN)->count(),
+        ];
 
         return Inertia::render('RefundSettlement/Index', [
             'settlements' => $settlements,
@@ -124,6 +133,7 @@ class RefundSettlementController extends Controller
                 'contact_email' => $t->contact_email,
                 'status' => $t->status,
                 'is_done' => $t->status === RefundTicket::STATUS_COMPLETED,
+                'is_insufficient' => $t->status === RefundTicket::STATUS_INSUFFICIENT_INFO,
                 'completed_at' => optional($t->completed_at)->format('ymd h:i a'),
                 // PayNow proxy sanity flag (invalid numbers ship a bad CIMB row).
                 'proxy_valid' => $t->refund_method === RefundTicket::METHOD_PAYNOW
@@ -141,7 +151,7 @@ class RefundSettlementController extends Controller
                 'id' => $settlement->id,
                 'reference' => $settlement->reference,
                 'settlement_date' => optional($settlement->settlement_date)->format('ymd'),
-                'status' => $settlement->status,
+                'status' => $settlement->status === RefundPayoutBatch::STATUS_OPEN ? 'open' : 'closed',
                 'head' => $head,
                 'count' => (int) $settlement->count,
                 'total' => number_format($settlement->total_cents / 100, 2),
@@ -256,6 +266,21 @@ class RefundSettlementController extends Controller
         }
 
         return back()->with('success', $done . ' refund(s) marked done.');
+    }
+
+    public function markInsufficientInfo(Request $request, RefundPayoutBatch $settlement)
+    {
+        $data = $request->validate([
+            'ticket_ids' => ['required', 'array', 'min:1'],
+            'ticket_ids.*' => ['integer'],
+        ]);
+        try {
+            $n = $this->settlements->markInsufficientInfo($settlement, $data['ticket_ids'], auth()->id(), auth()->user()?->name ?? 'Admin');
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['settlement' => $e->getMessage()]);
+        }
+
+        return back()->with('success', $n . ' refund(s) flagged as insufficient info — handle them on the Refund Requests page.');
     }
 
     public function returnToPool(RefundPayoutBatch $settlement, RefundTicket $ticket)

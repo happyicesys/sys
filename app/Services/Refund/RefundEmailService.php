@@ -29,8 +29,7 @@ class RefundEmailService
 
     public function templates(): array
     {
-        $signoff = "\n\nBest regards,\nHappyIce Customer Support"
-            . "\n\n(This is a computer-generated email, please do not reply. Meanwhile, if you have any questions, please feel free to contact us at refund@happyice.com.sg)";
+        $signoff = "\n\nBest regards,\nHappyIce Customer Support";
 
         return [
             self::T_RECEIVED => [
@@ -59,7 +58,7 @@ class RefundEmailService
             ],
             self::T_COMPLETED => [
                 'headline' => 'Your refund has been processed',
-                'body' => "Dear {name},\n\nWe are pleased to inform you that your refund has been successfully processed.\n\nWe apologize for the inconvenience caused and thank you for your patience and understanding.\n\nWe sincerely appreciate your support and look forward to serving you again in the future." . $signoff,
+                'body' => "Dear {name},\n\nWe are pleased to inform you that your refund has completed (via your provided PayNow or PayPal account).\n\nWe apologize for the inconvenience caused and thank you for your patience and understanding.\n\nWe sincerely appreciate your support and look forward to serving you again in the future." . $signoff,
             ],
         ];
     }
@@ -376,30 +375,42 @@ class RefundEmailService
      * swapped for a text list in the stored/plain-text copy.
      */
     /**
-     * Header colour keyed to the ticket stage this email represents, mirroring the
-     * status-badge palette in the admin panel (Refund/Show.vue `statusClass`):
-     *   yellow = received / awaiting, green = approved / resolved, red = rejected.
-     * Returns [background, subtitle-tint, title-text]. White title text reads on
-     * the green/red solids; the yellow uses dark text for contrast.
+     * Header colour keyed to the ticket stage this email represents, replicating the
+     * EXACT status-badge styles from the admin panel (Refund Index `statusClass`) so
+     * the banner reads as the same chip the operator sees — same fill, same text:
+     *   Received          bg-yellow-100 / text-yellow-800   (#fef9c3 / #854d0e)
+     *   Approved / prog.   bg-green-100  / text-green-800    (#dcfce7 / #166534)
+     *   Completed          text-green-700, NO background     (#ffffff / #15803d)
+     *   Insufficient Info  text-red-600,  NO background      (#ffffff / #dc2626)
+     *   Auto-refund / rej. bg-red-100    / text-red-800      (#fee2e2 / #991b1b)
+     * Auto-refund shares the red fill because it is sent by the red "Reject (No
+     * charge / auto-refund)" button and lands the ticket under the Rejected chip.
+     * Returns [background, subtitle-tint, title-text]. The subtitle uses the next
+     * lighter stop of the same ramp; "no background" statuses fall back to white so
+     * only the coloured badge text shows (mirroring the chip's transparent fill).
      */
     protected function headerTheme(string $templateKey): array
     {
-        // green (approved) — keeps the existing teal brand tone.
-        $green = ['#0f766e', '#99f6e4', '#ffffff'];
-        // yellow (received / info still needed) — dark text for legibility.
-        $yellow = ['#facc15', '#713f12', '#422006'];
-        // red (rejected / no charge captured).
-        $red = ['#dc2626', '#fecaca', '#ffffff'];
+        // Received — yellow-100 fill, yellow-800/700 text.
+        $yellow = ['#fef9c3', '#a16207', '#854d0e'];
+        // Approved / In progress — green-100 fill, green-800/700 text.
+        $greenFill = ['#dcfce7', '#15803d', '#166534'];
+        // Completed — no fill (white), green-700/600 text.
+        $greenText = ['#ffffff', '#16a34a', '#15803d'];
+        // No charge / auto-refund / rejected — red-100 fill, red-800/700 text.
+        $redFill = ['#fee2e2', '#b91c1c', '#991b1b'];
+        // Additional info required — no fill (white), red-600/500 text.
+        $redText = ['#ffffff', '#ef4444', '#dc2626'];
 
         return [
             self::T_RECEIVED => $yellow,
-            self::T_INFO_REQUIRED => $yellow,
-            self::T_APPROVED => $green,
-            self::T_IN_PROGRESS => $green,
-            self::T_COMPLETED => $green,
-            self::T_AUTO_REFUND => $red,
-            self::T_CANCELLED_NO_CHARGE => $red,
-        ][$templateKey] ?? $green;
+            self::T_INFO_REQUIRED => $redText,
+            self::T_APPROVED => $greenFill,
+            self::T_IN_PROGRESS => $greenFill,
+            self::T_COMPLETED => $greenText,
+            self::T_AUTO_REFUND => $redFill,
+            self::T_CANCELLED_NO_CHARGE => $redFill,
+        ][$templateKey] ?? $greenFill;
     }
 
     protected function renderHtml(string $bodyPlain, string $itemsHtml, string $headline = '', string $templateKey = ''): string

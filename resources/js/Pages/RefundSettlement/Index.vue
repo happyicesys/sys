@@ -12,8 +12,6 @@ const props = defineProps({
 const statusLabels = {
     open: 'Open',
     closed: 'Closed',
-    exported: 'Exported',
-    done: 'Done',
 };
 
 const filters = ref({
@@ -38,8 +36,6 @@ function pickStatus(key) {
 const statusClass = (s) => ({
     open: 'bg-amber-100 text-amber-800',
     closed: 'bg-blue-100 text-blue-800',
-    exported: 'bg-violet-100 text-violet-800',
-    done: 'bg-green-100 text-green-800',
 }[s] || 'bg-gray-100 text-gray-700');
 </script>
 

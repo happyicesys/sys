@@ -939,6 +939,7 @@ Route::middleware(['auth', 'cors'])->prefix('refund-settlements')->group(functio
     Route::post('/{settlement}/export-xlsx', [RefundSettlementController::class, 'exportXlsx'])->middleware('can:payout refunds');
     Route::get('/{settlement}/exports/{export}/download', [RefundSettlementController::class, 'downloadExport'])->middleware('can:payout refunds');
     Route::post('/{settlement}/mark-done', [RefundSettlementController::class, 'markDone'])->middleware('can:payout refunds');
+    Route::post('/{settlement}/mark-insufficient-info', [RefundSettlementController::class, 'markInsufficientInfo'])->middleware('can:payout refunds');
     Route::post('/{settlement}/return-to-pool/{ticket}', [RefundSettlementController::class, 'returnToPool'])->middleware('can:payout refunds');
     Route::delete('/{settlement}', [RefundSettlementController::class, 'destroy'])->middleware('can:payout refunds');
 });

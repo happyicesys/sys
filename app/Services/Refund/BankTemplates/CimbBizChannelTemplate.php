@@ -111,13 +111,25 @@ class CimbBizChannelTemplate implements BankBulkTemplate
 
     protected function beneficiaryName(RefundTicket $t): string
     {
-        // We don't capture a payee name on the form; PayNow resolves it from the
-        // proxy. Use the email local-part as a best-effort label, else the ref.
+        // Prefer the name the claimant keyed in on the /refund form. Fall back to
+        // the email local-part, then the reference, if no name was captured.
+        // CIMB benef name is space-stripped ("Ayaan Agarwal" -> "AyaanAgarwal").
+        $name = trim((string) $t->contact_name);
+        if ($name !== '') {
+            return $this->stripSpaces($name);
+        }
+
         if ($t->contact_email && str_contains($t->contact_email, '@')) {
             return strtok($t->contact_email, '@');
         }
 
         return $t->reference;
+    }
+
+    /** Remove all whitespace from a beneficiary name. */
+    protected function stripSpaces(string $v): string
+    {
+        return (string) preg_replace('/\s+/u', '', $v);
     }
 
     /** Strip the delimiter / newlines from any field value. */

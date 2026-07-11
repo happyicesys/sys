@@ -492,17 +492,16 @@ class RolePermissionSyncSeeder extends Seeder
 
             // Refund Requests module. Source of truth = migration
             // 2026_06_26_100004_seed_refund_permissions.php, as amended by
-            // 2026_07_03_120001_drop_approve_refunds_permission.php (which removed the
-            // 'approve refunds' ability and moved supervisors onto 'verify refunds').
-            // Listed here too because this seeder truncates ALL permissions and
-            // rebuilds only what it lists — without this block, re-running it would
-            // delete refund access (and previously it also resurrected the retired
-            // 'approve refunds' permission and dropped supervisor's verify grant).
-            // superadmin is granted explicitly so the sidebar (literal permission
-            // check) shows it. NOTE: supervisor deliberately has read + verify only;
-            // its access to the ticket "Overwritten" Final Refund Amount control is
-            // granted by ROLE on the route (role_or_permission:supervisor|update
-            // refunds), NOT by the broad 'update refunds' permission.
+            // 2026_07_03_120001_drop_approve_refunds_permission.php (removed the
+            // 'approve refunds' ability, moved supervisors onto 'verify refunds') and
+            // 2026_07_11_120000_grant_supervisor_full_refund_access.php (gave
+            // supervisor create/update/payout for full parity with admin on the
+            // Refund Requests + Refund Settlement pages, e.g. the Re-match box and the
+            // settlement actions). Listed here too because this seeder truncates ALL
+            // permissions and rebuilds only what it lists — without this block,
+            // re-running it would delete refund access. superadmin is granted
+            // explicitly so the sidebar (literal permission check) shows it.
+            // supervisor now mirrors admin: read/create/update/verify/payout.
             [
                 'refunds',
                 ['read'],
@@ -511,7 +510,7 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'refunds',
                 ['create', 'update', 'payout'],
-                ['superadmin', 'admin']
+                ['superadmin', 'admin', 'supervisor']
             ],
             [
                 'refunds',
