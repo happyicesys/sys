@@ -394,13 +394,31 @@ class SettingController extends Controller
             'vend_prefix_id' => $request->vend_prefix_id ? $request->vend_prefix_id : $vend->vend_prefix_id,
             'vend_config_id' => $request->vend_config_id ? $request->vend_config_id : $vend->vend_config_id,
         ]);
-        $currentMapping = ProductMapping::find($vend->product_mapping_id);
-        $upcomingMapping = $currentMapping ? $currentMapping->upcomingProductMapping : null;
-        $upcomingProductMappingOptions = $upcomingMapping ? collect([$upcomingMapping]) : collect();
-        $naProductMapping = ProductMapping::withoutGlobalScopes()->where('name', 'N/A')->whereNull('operator_id')->first();
-        if ($naProductMapping && ! $upcomingProductMappingOptions->contains('id', $naProductMapping->id)) {
-            $upcomingProductMappingOptions = $upcomingProductMappingOptions->push($naProductMapping);
-        }
+        // Upcoming Product Mapping is now user-selectable on the edit form, so its
+        // dropdown mirrors the full "current" mapping list (all active mappings for
+        // this operator + global, plus the vend's own current/upcoming so they always
+        // appear regardless of active status). Previously this list held only the
+        // current mapping's derived upcoming + N/A, which made a real dropdown empty.
+        $upcomingProductMappingOptions = ProductMapping::withoutGlobalScopes()
+            ->with(['upcomingProductMapping'])
+            ->where(function ($query) use ($vend) {
+                $query->where(function ($normalQ) {
+                    $normalQ->where(function ($opQ) {
+                        $opQ->where('operator_id', auth()->user()->operator_id)
+                            ->orWhereNull('operator_id');
+                    });
+                    $normalQ->where('is_active', 1);
+                });
+                if ($vend && $vend->product_mapping_id) {
+                    $query->orWhere('id', $vend->product_mapping_id);
+                }
+                if ($vend && $vend->upcoming_product_mapping_id) {
+                    $query->orWhere('id', $vend->upcoming_product_mapping_id);
+                }
+            })
+            ->orderByRaw("CASE WHEN name = 'N/A' AND operator_id IS NULL THEN 1 ELSE 0 END ASC")
+            ->orderBy('name')
+            ->get();
 
         $selectedProductMapping = null;
         if ($request->has('product_mapping_id')) {

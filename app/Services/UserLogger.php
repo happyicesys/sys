@@ -35,6 +35,16 @@ class UserLogger
             return;
         }
 
+        // Never register the wildcard listeners in console contexts — artisan
+        // commands, scheduled cron, and queue workers (queue:work runs in the
+        // console) have no 'web' user and would only ever be gated out anyway.
+        // Skipping registration entirely keeps those high-volume Eloquent writes
+        // (machine ingestion via queued jobs) completely off this listener,
+        // avoiding the boot-time overhead that caused the 2026-07-01 backlog.
+        if (app()->runningInConsole()) {
+            return;
+        }
+
         foreach (self::EVENTS as $event) {
             Event::listen("eloquent.{$event}: *", function (string $eventName, array $payload) use ($event): void {
                 $model = $payload[0] ?? null;

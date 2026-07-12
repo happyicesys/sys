@@ -4431,15 +4431,21 @@ class VendController extends Controller
         $vend = Vend::findOrFail($vendID);
 
         if ($request->product_mapping_id != $vend->product_mapping_id) {
-            $newProductMapping = ProductMapping::find($request->product_mapping_id);
-            $newUpcomingId = $newProductMapping ? $newProductMapping->upcoming_product_mapping_id : null;
-            // Guard: upcoming must never equal the new product_mapping_id (Gap 1 fix)
-            if ($newUpcomingId == $request->product_mapping_id) {
-                $newUpcomingId = null;
+            // The Setting edit form now lets users pick the upcoming mapping directly,
+            // so an explicitly-sent upcoming_product_mapping_id must win. Only fall back
+            // to deriving it from the newly-selected current mapping when the request
+            // did NOT include the key (e.g. other callers that don't manage upcoming).
+            if (! $request->has('upcoming_product_mapping_id')) {
+                $newProductMapping = ProductMapping::find($request->product_mapping_id);
+                $newUpcomingId = $newProductMapping ? $newProductMapping->upcoming_product_mapping_id : null;
+                // Guard: upcoming must never equal the new product_mapping_id (Gap 1 fix)
+                if ($newUpcomingId == $request->product_mapping_id) {
+                    $newUpcomingId = null;
+                }
+                $request->merge([
+                    'upcoming_product_mapping_id' => $newUpcomingId,
+                ]);
             }
-            $request->merge([
-                'upcoming_product_mapping_id' => $newUpcomingId,
-            ]);
             $isProductMappingChanged = true;
         }
 

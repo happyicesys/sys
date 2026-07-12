@@ -59,9 +59,10 @@ class AppServiceProvider extends ServiceProvider
         OptionCacheBuster::listen();
 
         // App-wide user-action audit log (web CRUD only; cron/queue/machine excluded).
-        // TEMPORARILY DISABLED 2026-07-01 while investigating queue backlog — the
-        // wildcard listener fired on every Eloquent write inside machine/queue jobs.
-        // Re-enable after the gate is made queue-cheap (runningInConsole early-out).
-        // UserLogger::listen();
+        // Re-enabled 2026-07-12: UserLogger::listen() now short-circuits in console
+        // contexts (runningInConsole early-out), so it never registers inside artisan
+        // /cron/queue workers — the source of the 2026-07-01 backlog. On web requests
+        // the per-write cost is the cheap Auth::guard('web') gate.
+        UserLogger::listen();
     }
 }

@@ -637,12 +637,17 @@
                     </span>
                   </div>
                 </label>
-                <input
-                  type="text"
-                  class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 mt-1"
-                  :value="form.product_mapping_id ? form.product_mapping_id.upcoming_product_mapping_name : (vend.upcoming_product_mapping_name ? vend.upcoming_product_mapping_name : (vend.upcoming_product_mapping ? vend.upcoming_product_mapping.name : ''))"
-                  disabled
-                />
+                <MultiSelect
+                  v-model="form.upcoming_product_mapping_id"
+                  :options="upcomingProductMappingOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
                 <div class="text-sm text-red-600" v-if="form.errors.upcoming_product_mapping_id">
                   {{ form.errors.upcoming_product_mapping_id }}
                 </div>
@@ -1709,8 +1714,15 @@ onMounted(() => {
 })
 
 watch(() => form.value.product_mapping_id, (newVal) => {
+  // When the current mapping changes, pre-fill "upcoming" with that mapping's
+  // preset upcoming as a sensible DEFAULT. The field is now a user-editable
+  // dropdown, so we resolve the derived id to a full option object (MultiSelect
+  // binds objects), and the user can still override the pick afterwards.
   if (hasMounted && newVal && newVal.upcoming_product_mapping_id) {
-    form.value.upcoming_product_mapping_id = newVal.upcoming_product_mapping_id
+    const derived = upcomingProductMappingOptions.value.find(
+      (option) => String(option.id) === String(newVal.upcoming_product_mapping_id)
+    )
+    form.value.upcoming_product_mapping_id = derived || null
   } else if (hasMounted) {
     form.value.upcoming_product_mapping_id = null
   }

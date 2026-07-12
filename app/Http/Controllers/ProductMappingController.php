@@ -390,9 +390,15 @@ class ProductMappingController extends Controller
             'products' => ProductResource::collection(
                 Product::with(['thumbnail'])
                     ->where('is_active', true)
-                    // Channel-facing products: stocked SKUs OR blind housings.
-                    ->where(function ($q) {
-                        $q->where('is_inventory', true)->orWhere('is_parent_sku', true);
+                    // Channel-facing products: always active + stocked SKUs.
+                    // Parent-SKU "blind housings" only make sense on smart-freezer
+                    // planograms, so keep them out of vending-machine dropdowns
+                    // (they read as inactive/irrelevant options there).
+                    ->where(function ($q) use ($productMapping) {
+                        $q->where('is_inventory', true);
+                        if ($productMapping->is_smart) {
+                            $q->orWhere('is_parent_sku', true);
+                        }
                     })
                     ->orderBy('code')
                     ->get()
