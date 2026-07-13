@@ -43,9 +43,9 @@ const allTickets = computed(() => [...props.paynowTickets, ...props.paypalTicket
 // Checkboxes are available as soon as there are tickets; a refund can be paid and
 // ticked done before the settlement is formally closed.
 const canMarkDone = computed(() => allTickets.value.length > 0);
-// A row is still actionable (tickable) only while it's payable — not once it's
-// paid (done) or flagged insufficient info.
-const doneEligible = (t) => !t.is_done && !t.is_insufficient;
+// A row is tickable until it's paid (done). Insufficient-info rows stay tickable
+// so the admin can mark them done here once the payout is handled by hand.
+const doneEligible = (t) => !t.is_done;
 const eligibleIds = () => allTickets.value.filter(doneEligible).map((t) => t.id);
 const allSelected = computed(() => {
     const ids = eligibleIds();
@@ -202,7 +202,7 @@ function actionBadge(l) {
                         </td>
                         <td v-if="showStatus" class="px-4 py-2 text-center">
                             <span v-if="t.is_done" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Done<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
-                            <span v-else-if="t.is_insufficient" class="text-xs font-bold px-2 py-1 rounded-full bg-red-100 text-red-800" title="The bank could not pay this — handle it manually on the Refund Requests page, then mark it done there.">Insufficient Info</span>
+                            <span v-else-if="t.is_insufficient" class="text-xs font-bold px-2 py-1 rounded-full bg-red-100 text-red-800" title="The bank could not pay this — handle the payout by hand, then tick it and mark it done here.">Insufficient Info</span>
                             <span v-else class="text-gray-300">—</span>
                         </td>
                         <td class="px-4 py-2 text-right">
@@ -236,7 +236,7 @@ function actionBadge(l) {
                         <td class="px-4 py-2 text-center">{{ t.payout_destination }}</td>
                         <td v-if="showStatus" class="px-4 py-2 text-center">
                             <span v-if="t.is_done" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Done<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
-                            <span v-else-if="t.is_insufficient" class="text-xs font-bold px-2 py-1 rounded-full bg-red-100 text-red-800" title="The bank could not pay this — handle it manually on the Refund Requests page, then mark it done there.">Insufficient Info</span>
+                            <span v-else-if="t.is_insufficient" class="text-xs font-bold px-2 py-1 rounded-full bg-red-100 text-red-800" title="The bank could not pay this — handle the payout by hand, then tick it and mark it done here.">Insufficient Info</span>
                             <span v-else class="text-gray-300">—</span>
                         </td>
                         <td class="px-4 py-2 text-right">
@@ -254,34 +254,10 @@ function actionBadge(l) {
         <!-- Actions — all settlement actions live here, below the rows they act on. -->
         <div class="bg-white rounded-md border p-4 mb-3">
             <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-3">Actions</h3>
-            <!-- Top row: the two checkbox-driven actions on the ticked rows. -->
-            <div v-if="!allDone && allTickets.length" class="flex flex-wrap items-center gap-2">
-                <!-- Mark done — tick the rows that were actually paid (open or closed). -->
-                <button @click="markDone" :disabled="busy || !selected.length"
-                    class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">✓ Mark selected as Completed ({{ selected.length }})</button>
 
-                <!-- Insufficient info — the bank couldn't pay these; flag them so an admin
-                     handles them by hand from the Refund Requests page. -->
-                <button @click="markInsufficientInfo" :disabled="busy || !selected.length"
-                    class="bg-red-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
-                    title="Flag the ticked rows the bank could not pay (bad / missing PayNow info). They stay in this settlement but leave the payout file; handle them manually on the Refund Requests page.">Mark selected as Insufficient Info ({{ selected.length }})</button>
-            </div>
-
-            <!-- Second row: settlement lifecycle + export actions. -->
-            <div class="flex flex-wrap items-center gap-2" :class="{ 'mt-2': !allDone && allTickets.length }">
-                <!-- Close / Undo-close toggle — always one of them is present. -->
-                <button v-if="isOpen && settlement.count > 0" @click="closeSettlement" :disabled="busy"
-                    class="inline-flex items-center gap-1 bg-red-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
-                    <LockClosedIcon class="h-4 w-4" /> Close settlement
-                </button>
-                <button v-if="isClosed" @click="reopenSettlement" :disabled="busy"
-                    class="inline-flex items-center gap-1 bg-yellow-500 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-yellow-600 disabled:opacity-50">
-                    <LockOpenIcon class="h-4 w-4" /> Undo close settlement
-                </button>
-                <button v-if="isOpen && settlement.count === 0" @click="voidSettlement" :disabled="busy"
-                    class="bg-gray-100 text-gray-700 border rounded-md px-4 py-2 text-sm hover:bg-gray-200 disabled:opacity-50">Void (empty)</button>
-
-                <!-- Export CIMB / Excel. -->
+            <!-- 1) Export + reopen. No manual Close: the settlement auto-closes once
+                 every row is completed; Undo close appears only when closed. -->
+            <div class="flex flex-wrap items-center gap-2">
                 <button v-if="hasPaynow" @click="blobExport('export-cimb', settlement.reference + '-cimb.txt')" :disabled="busy"
                     class="inline-flex items-center gap-1 bg-white border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
                     title="Export the CIMB bulk-transfer .txt.">
@@ -291,12 +267,37 @@ function actionBadge(l) {
                     class="inline-flex items-center gap-1 bg-white border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
                     <ArrowDownTrayIcon class="h-4 w-4" /> Export Excel (PayPal)
                 </button>
+                <button v-if="isOpen && settlement.count === 0" @click="voidSettlement" :disabled="busy"
+                    class="bg-gray-100 text-gray-700 border rounded-md px-4 py-2 text-sm hover:bg-gray-200 disabled:opacity-50">Void (empty)</button>
             </div>
 
-            <div class="mt-3 text-xs">
-                <span v-if="!allDone && allTickets.length" class="text-gray-500">Pay the refunds (export the CIMB file for PayNow), then tick the rows that were actually paid and mark them done. Rows the bank could not pay (bad / missing PayNow info) can be ticked and flagged <b>Insufficient Info</b> — they stay here for the record but you handle them by hand on the Refund Requests page. You can do this before or after closing.</span>
-                <span v-else-if="allDone" class="text-green-700 font-medium">All refunds in this settlement are done.</span>
+            <template v-if="!allDone && allTickets.length">
+                <!-- 2) Pay + mark completed. -->
+                <p class="mt-3 text-xs text-gray-500">Pay the refunds (export the CIMB file for PayNow), then tick the rows that were actually paid and mark them done.</p>
+                <div class="mt-2">
+                    <button @click="markDone" :disabled="busy || !selected.length"
+                        class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">✓ Mark selected as Completed ({{ selected.length }})</button>
+                </div>
+
+                <!-- 3) Insufficient info. -->
+                <p class="mt-3 text-xs text-gray-500">Rows the bank could not pay (bad / missing PayNow info) can be ticked and flagged <b>Insufficient Info</b>; once you've handled the payout by hand, tick them again and mark them done here.</p>
+                <div class="mt-2">
+                    <button @click="markInsufficientInfo" :disabled="busy || !selected.length"
+                        class="bg-red-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+                        title="Flag the ticked rows the bank could not pay (bad / missing PayNow info). They stay in this settlement but leave the payout file.">Mark selected as Insufficient Info ({{ selected.length }})</button>
+                </div>
+            </template>
+
+            <p v-else-if="allDone" class="mt-3 text-xs text-green-700 font-medium">All refunds in this settlement are done.</p>
+
+            <!-- Undo close — its own row at the bottom, only when closed. -->
+            <div v-if="isClosed" class="mt-3">
+                <button @click="reopenSettlement" :disabled="busy"
+                    class="inline-flex items-center gap-1 bg-yellow-500 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-yellow-600 disabled:opacity-50">
+                    <LockOpenIcon class="h-4 w-4" /> Undo close settlement
+                </button>
             </div>
+
             <div v-if="msg" class="text-xs text-red-600 mt-2">{{ msg }}</div>
         </div>
 

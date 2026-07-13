@@ -88,7 +88,7 @@ class CimbBizChannelTemplate implements BankBulkTemplate
                 $cfg['purpose_code'] ?? 'OTHR',                  // F purpose code
                 $this->clean(mb_substr((string) $t->reference, 0, 35)), // G remark to counterparty (<=35)
                 '',                                              // H DDA reference (blank for payments)
-                $this->clean($t->contact_email),                // I beneficiary email
+                '',                                              // I beneficiary email — left blank (not required)
             ]) . $d; // trailing delimiter (matches template)
         }
 

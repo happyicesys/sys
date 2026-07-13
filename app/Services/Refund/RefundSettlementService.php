@@ -249,7 +249,9 @@ class RefundSettlementService
         $completed = DB::transaction(function () use ($settlement, $ticketIds, $userId, $actorLabel) {
             $tickets = RefundTicket::whereIn('id', $ticketIds)
                 ->where('payout_batch_id', $settlement->id)
-                ->whereIn('status', [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_APPROVED])
+                // Insufficient-info rows (bank couldn't pay) can also be marked done
+                // here once the admin has handled the payout by hand.
+                ->whereIn('status', [RefundTicket::STATUS_SCHEDULED, RefundTicket::STATUS_APPROVED, RefundTicket::STATUS_INSUFFICIENT_INFO])
                 ->get();
 
             if ($tickets->isEmpty()) {
@@ -268,6 +270,19 @@ class RefundSettlementService
             }
 
             $this->recount($settlement);
+
+            // No manual close: auto-close once every member refund is completed.
+            $remaining = RefundTicket::where('payout_batch_id', $settlement->id)
+                ->where('status', '!=', RefundTicket::STATUS_COMPLETED)
+                ->count();
+            if ($remaining === 0 && $settlement->status === RefundPayoutBatch::STATUS_OPEN) {
+                $settlement->update([
+                    'status' => RefundPayoutBatch::STATUS_CLOSED,
+                    'closed_by' => $userId,
+                    'closed_at' => now(),
+                ]);
+                $this->settlementLog($settlement, 'closed', 'Auto-closed — all refunds completed', $userId, $actorLabel);
+            }
 
             return $tickets;
         });

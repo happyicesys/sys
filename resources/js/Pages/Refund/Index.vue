@@ -37,9 +37,9 @@ const selected = ref([]);
 // The checkbox drives "Push to Settlement": only APPROVED tickets (PayNow or
 // PayPal) can be pushed. The backend re-filters and routes each into its day's
 // open settlement per payout group.
-// Selectable for a batch action: Approved (→ settlement / mark done) or an
-// Insufficient-Info ticket (→ mark done here once handled by hand).
-const eligible = (t) => t.status === 'approved' || t.status === 'insufficient_info';
+// Selectable for a batch action: only Approved tickets. Insufficient-Info tickets
+// are resolved in the Refund Settlement edit page, not batched here.
+const eligible = (t) => t.status === 'approved';
 const pushing = ref(false);
 const pushMsg = ref('');
 function pushToSettlement() {
@@ -93,23 +93,6 @@ const mixedMethods = computed(() => selMethods.value.length > 1);
 // each action on its own group (PayNow → settlement, PayPal → mark done here).
 const paynowSelectedIds = computed(() => selectedTickets.value.filter((t) => t.status === 'approved' && t.refund_method === 'paynow').map((t) => t.id));
 const paypalSelectedIds = computed(() => selectedTickets.value.filter((t) => t.status === 'approved' && t.refund_method === 'paypal').map((t) => t.id));
-// Insufficient-info tickets (any method) — the bank couldn't pay them; once the
-// admin has sorted the payout out by hand, they're marked done straight here.
-const insufficientSelectedIds = computed(() => selectedTickets.value.filter((t) => t.status === 'insufficient_info').map((t) => t.id));
-const markingInsufficient = ref(false);
-function markDoneInsufficient() {
-    const ids = insufficientSelectedIds.value;
-    if (!ids.length) { pushMsg.value = 'Select at least one Insufficient Info ticket.'; return; }
-    if (!confirm('Mark ' + ids.length + ' Insufficient-Info refund(s) as done? This emails each customer their completion notice.')) return;
-    markingInsufficient.value = true; pushMsg.value = '';
-    router.post('/refunds/batch/complete', { ticket_ids: ids }, {
-        preserveScroll: true,
-        onError: (errors) => { pushMsg.value = errors.batch || Object.values(errors)[0] || 'Failed to mark done.'; },
-        onSuccess: () => { selected.value = selected.value.filter((id) => !ids.includes(id)); },
-        onFinish: () => { markingInsufficient.value = false; },
-    });
-}
-
 // status options as {id: key, value: label} for the tags MultiSelect
 const statusOptions = ref(Object.entries(props.statuses).map(([id, value]) => ({ id, value })));
 
@@ -522,10 +505,9 @@ const sortedRows = computed(() => {
         <div v-if="selected.length" class="bg-teal-50 border border-teal-200 rounded-md px-4 py-3 mb-3">
             <div class="flex items-center gap-3">
                 <span class="text-sm font-semibold text-teal-800">{{ selected.length }} selected</span>
-                <span v-if="insufficientSelectedIds.length" class="text-xs text-gray-500">Insufficient Info — handle the payout by hand, then mark them done here. This emails each customer their completion notice.</span>
-                <span v-else-if="allPaynow" class="text-xs text-gray-500">PayNow — push into the Refund Settlement (the CIMB file is exported from there).</span>
+                <span v-if="allPaynow" class="text-xs text-gray-500">PayNow — push into the Refund Settlement (the CIMB file is exported from there).</span>
                 <span v-else-if="allPaypal" class="text-xs text-gray-500">PayPal — paid manually, so mark them done here. This emails each customer their completion notice. PayPal is not settled via CIMB.</span>
-                <span v-else class="text-xs text-gray-500">Mixed selection — run each action on its own group: PayNow tickets are pushed to a settlement, PayPal / Insufficient-Info tickets are marked done here.</span>
+                <span v-else class="text-xs text-gray-500">Mixed selection — PayNow tickets are pushed to a settlement, PayPal tickets are marked done here.</span>
             </div>
             <div class="flex items-center gap-3 mt-3">
                 <button v-if="paynowSelectedIds.length" @click="pushToSettlement" :disabled="pushing"
@@ -535,10 +517,6 @@ const sortedRows = computed(() => {
                 <button v-if="paypalSelectedIds.length" @click="markDonePaypal" :disabled="marking"
                     class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
                     {{ marking ? 'Marking…' : '✓ Mark as Done — PayPal (' + paypalSelectedIds.length + ')' }}
-                </button>
-                <button v-if="insufficientSelectedIds.length" @click="markDoneInsufficient" :disabled="markingInsufficient"
-                    class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
-                    {{ markingInsufficient ? 'Marking…' : '✓ Mark as Done — Insufficient Info (' + insufficientSelectedIds.length + ')' }}
                 </button>
                 <a href="/refund-settlements" class="text-xs text-teal-700 underline whitespace-nowrap">Open Refund Settlement →</a>
             </div>
