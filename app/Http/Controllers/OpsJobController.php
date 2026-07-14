@@ -2339,7 +2339,12 @@ class OpsJobController extends Controller
         if (!$vend) return;
 
         $currentMapping = $vend->productMapping;
-        $upcomingMapping = $currentMapping?->upcomingProductMapping ?: $vend->upcomingProductMapping;
+        // Prefer the vend's OWN manually-set upcoming mapping, falling back to the
+        // current mapping's preset upcoming. This mirrors the promotion logic
+        // ($vend->upcoming_product_mapping_id ?: currentMapping preset) so the
+        // products staged for "implement new mapping" match the per-machine
+        // upcoming an operator set manually on the Setting/Edit form.
+        $upcomingMapping = $vend->upcomingProductMapping ?: $currentMapping?->upcomingProductMapping;
 
         if (!$upcomingMapping) return;
 

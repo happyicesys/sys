@@ -2094,9 +2094,9 @@
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.lastSecondOpsJobItem.vend && (vend.lastSecondOpsJobItem.vend.upcomingProductMapping || (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping))">
 										{{ vend.lastSecondOpsJobItem.vend.productMapping ? vend.lastSecondOpsJobItem.vend.productMapping.name : '' }}
-										<span v-if="(vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.lastSecondOpsJobItem.vend.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
+										<span v-if="getUpcomingMappingName(vend.lastSecondOpsJobItem.vend)">
 											&RightArrow;
-											{{ (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.lastSecondOpsJobItem.vend.upcomingProductMapping && vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.lastSecondOpsJobItem.vend.upcomingProductMapping.name : '') }}
+											{{ getUpcomingMappingName(vend.lastSecondOpsJobItem.vend) }}
 										</span>
 									</span>
 								</div>
@@ -2165,9 +2165,9 @@
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.nextOpsJobItem.vend && (vend.nextOpsJobItem.vend.upcomingProductMapping || (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping))">
 										{{ vend.nextOpsJobItem.vend.productMapping ? vend.nextOpsJobItem.vend.productMapping.name : '' }}
-										<span v-if="(vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') || (vend.nextOpsJobItem.vend.upcomingProductMapping && vend.nextOpsJobItem.vend.upcomingProductMapping.name !== 'N/A')">
+										<span v-if="getUpcomingMappingName(vend.nextOpsJobItem.vend)">
 											&RightArrow;
-											{{ (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name !== 'N/A') ? vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping.name : (vend.nextOpsJobItem.vend.upcomingProductMapping && vend.nextOpsJobItem.vend.upcomingProductMapping.name !== 'N/A' ? vend.nextOpsJobItem.vend.upcomingProductMapping.name : '') }}
+											{{ getUpcomingMappingName(vend.nextOpsJobItem.vend) }}
 										</span>
 									</span>
 								</div>
@@ -3933,21 +3933,27 @@ function netLocFeeCents(vend) {
 // there isn't one. An upcoming mapping can live directly on the vend
 // (vend.upcomingProductMapping) or on its current mapping
 // (productMapping.upcomingProductMapping). 'N/A' is treated as "no upcoming
-// mapping". Drives the "New" badge in the machine column. Mirrors the same
-// precedence the Ops Job columns use (current mapping's upcoming wins first).
+// mapping". Drives the "New" badge in the machine column.
+//
+// Precedence: the vend's OWN upcoming wins first, falling back to the current
+// mapping's preset upcoming. Since the Setting/Edit form now lets ops manually
+// set upcoming_product_mapping_id per machine, that per-machine value is the
+// source of truth — matching the promotion logic (OpsJobController) and
+// OpsJob/Edit.vue. Only fall back to the mapping's preset when the vend has no
+// own upcoming (legacy rows never saved through the new form).
 function getUpcomingMappingName(vendData) {
 	if (!vendData) return null
+	const fromVend = vendData.upcomingProductMapping
+		&& vendData.upcomingProductMapping.name !== 'N/A'
+			? vendData.upcomingProductMapping.name
+			: null
+	if (fromVend) return fromVend
 	const fromMapping = vendData.productMapping
 		&& vendData.productMapping.upcomingProductMapping
 		&& vendData.productMapping.upcomingProductMapping.name !== 'N/A'
 			? vendData.productMapping.upcomingProductMapping.name
 			: null
-	if (fromMapping) return fromMapping
-	const fromVend = vendData.upcomingProductMapping
-		&& vendData.upcomingProductMapping.name !== 'N/A'
-			? vendData.upcomingProductMapping.name
-			: null
-	return fromVend
+	return fromMapping
 }
 
 // Last Job mapping (the "Last Job" column) — frozen-aware. Once the last-job
@@ -3973,11 +3979,14 @@ function lastJobMappingUpcoming(oji) {
 		return ''
 	}
 	if (!oji.vend) return ''
-	if (oji.vend.productMapping && oji.vend.productMapping.upcomingProductMapping && oji.vend.productMapping.upcomingProductMapping.name !== 'N/A') {
-		return oji.vend.productMapping.upcomingProductMapping.name
-	}
+	// Prefer the vend's OWN manually-set upcoming, then fall back to the current
+	// mapping's preset upcoming (matches getUpcomingMappingName + the promotion
+	// logic). Frozen rows above keep their snapshot precedence untouched.
 	if (oji.vend.upcomingProductMapping && oji.vend.upcomingProductMapping.name !== 'N/A') {
 		return oji.vend.upcomingProductMapping.name
+	}
+	if (oji.vend.productMapping && oji.vend.productMapping.upcomingProductMapping && oji.vend.productMapping.upcomingProductMapping.name !== 'N/A') {
+		return oji.vend.productMapping.upcomingProductMapping.name
 	}
 	return ''
 }

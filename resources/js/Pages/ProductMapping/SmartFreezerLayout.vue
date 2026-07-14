@@ -4,8 +4,9 @@
 
     Renders the mapping as a basket grid (instead of the classic channel-row
     table used for vending machines). Each basket has a configurable number of
-    divisions (0-4); channel codes follow `${basket}${letter}` ("1a", "2b"), or
-    just `${basket}` when a basket has zero divisions (single slot).
+    divisions (1-4); channel codes are all-numeric `${basket}${division}`
+    ("11", "12", "23", "41") — division is 1-indexed within the basket, matching
+    the physical slot addressing on the freezer VMC.
 
     Binding lives on the SAME backend endpoints the vending UI uses:
       POST  /product-mappings/{id}/items/create
@@ -34,9 +35,9 @@
         </span>
       </div>
       <div class="text-xs text-gray-500">
-        Channel codes follow
-        <code class="bg-white px-1.5 py-0.5 rounded text-indigo-700 font-medium">basket + letter</code>
-        — e.g. <code class="bg-white px-1 rounded">1a</code>, <code class="bg-white px-1 rounded">2b</code>, or just <code class="bg-white px-1 rounded">3</code> when a basket has no divisions.
+        Channel codes are
+        <code class="bg-white px-1.5 py-0.5 rounded text-indigo-700 font-medium">basket + division</code>
+        — e.g. <code class="bg-white px-1 rounded">11</code>, <code class="bg-white px-1 rounded">23</code>, <code class="bg-white px-1 rounded">41</code>.
       </div>
     </div>
 
@@ -75,7 +76,7 @@
               type="button"
               class="px-2.5 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
               @click="decDivisions(basket)"
-              :disabled="basket.divisions <= 0"
+              :disabled="basket.divisions <= MIN_DIVISIONS"
             >
               −
             </button>
@@ -250,6 +251,7 @@ const props = defineProps({
 const emit = defineEmits(['layout-changed', 'items-changed'])
 
 const MAX_DIVISIONS = 4
+const MIN_DIVISIONS = 1
 const BASKET_COUNT = 6
 
 const toast = useToast()
@@ -274,9 +276,8 @@ const itemsByCode = computed(() => {
 
 const boundCount = computed(() => Object.keys(itemsByCode.value).length)
 
-// A basket with divisions=0 still counts as one slot (the basket itself).
 const totalSlots = computed(() =>
-  localLayout.value.reduce((sum, b) => sum + (b.divisions === 0 ? 1 : b.divisions), 0)
+  localLayout.value.reduce((sum, b) => sum + b.divisions, 0)
 )
 
 function deriveInitialLayout(layout) {

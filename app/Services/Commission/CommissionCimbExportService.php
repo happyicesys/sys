@@ -50,7 +50,7 @@ class CommissionCimbExportService
             ->with([
                 'customer' => fn ($q) => $q->withoutGlobalScopes()
                     ->select(['id', 'name', 'bank_id', 'bank_account_name', 'bank_account_number', 'report_email']),
-                'customer.bank:id,name,bic_code',
+                'customer.bank:id,name,bic_code,proxy_type',
             ])
             ->get();
 
@@ -175,14 +175,22 @@ class CommissionCimbExportService
 
             $siteName = $customer?->name ?: ('Site #' . $first->customer_id);
             $accNo = preg_replace('/[\s\-]+/', '', (string) ($customer?->bank_account_number ?? ''));
-            $bic = trim((string) ($customer?->bank?->bic_code ?? ''));
 
             if ($accNo === '') {
                 $problems[] = $siteName . ' — no bank account number (Site Edit ▸ Bank Details)';
                 continue;
             }
-            if ($bic === '') {
-                $problems[] = $siteName . ' — bank ' . ($customer?->bank?->name ? '"' . $customer->bank->name . '" has no BIC code (Data Management ▸ Banks)' : 'not selected (Site Edit ▸ Bank Details)');
+
+            // CIMB detail column E: the bank BIC (account transfer) or a PayNow
+            // proxy type (MOB/NRIC/UEN) — auto-detected from the value for legacy
+            // "Paynow" rows without an explicit proxy_type.
+            $colE = \App\Services\Banking\CimbBankDirectory::resolveColE(
+                $customer?->bank?->bic_code,
+                $customer?->bank?->proxy_type,
+                $accNo
+            );
+            if ($colE === '') {
+                $problems[] = $siteName . ' — bank ' . ($customer?->bank?->name ? '"' . $customer->bank->name . '" has no BIC / PayNow proxy type (Data Management ▸ Banks)' : 'not selected (Site Edit ▸ Bank Details)');
                 continue;
             }
 
@@ -195,7 +203,7 @@ class CommissionCimbExportService
                 $accNo,
                 (string) ($customer?->bank_account_name ?: $siteName),
                 $netCents,
-                $bic,
+                $colE,
                 (string) ($cfg['purpose_code'] ?? 'COMC'),
                 trim(($cfg['description_prefix'] ?? 'Loc fees') . ($month ? ' ' . $month->format('M Y') : '')),
                 (string) ($customer?->report_email ?? '')

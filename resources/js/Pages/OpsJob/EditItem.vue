@@ -1653,11 +1653,15 @@ const addChannelFormRefDesktop = ref(null)
 const replaceRowRefMobile = ref(null)
 const replaceRowRefDesktop = ref(null)
 
-// The upcoming mapping that "implement new mapping" will switch the machine to
+// The upcoming mapping that "implement new mapping" will switch the machine to.
+// Prefer the vend's OWN manually-set upcoming, falling back to the current
+// mapping's preset upcoming — matching the promotion logic in OpsJobController
+// (which keys off vend.upcoming_product_mapping_id first) so the badge/preview
+// reflects a manual per-machine upcoming change.
 const upcomingMapping = computed(() => {
   const v = opsJobItem.value?.vend
   if (!v) return null
-  return v.productMapping?.upcomingProductMapping || v.upcomingProductMapping || null
+  return v.upcomingProductMapping || v.productMapping?.upcomingProductMapping || null
 })
 
 // Channels in product mapping that are NOT already in the job (capacity=0, driver activated them)
@@ -1722,7 +1726,9 @@ function loadingData() {
       if (!v) return false;
 
       const cMapping = v.productMapping;
-      const uMapping = cMapping?.upcomingProductMapping || v.upcomingProductMapping;
+      // Prefer the vend's own manual upcoming, then the mapping's preset —
+      // consistent with the promotion logic and the upcomingMapping computed.
+      const uMapping = v.upcomingProductMapping || cMapping?.upcomingProductMapping;
       if (!uMapping) return false;
 
       // Key is 'productMappingItems' in the serialised JSON

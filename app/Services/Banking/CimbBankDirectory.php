@@ -54,6 +54,55 @@ class CimbBankDirectory
     ];
 
     /**
+     * Best-effort PayNow proxy type from a proxy value, for legacy "Paynow" rows
+     * that have no explicit proxy_type. Returns '' when it can't be classified
+     * confidently. Explicit banks.proxy_type should be preferred over this.
+     *
+     *  - MOB : SG mobile, 8 digits starting 8/9 (optionally +65 prefixed)
+     *  - NRIC: [STFGM] + 7 digits + letter (e.g. S1234567A)
+     *  - UEN : business/entity numbers ending in a letter — 8/9-digit ROB/ROC
+     *          (e.g. 201434411Z, 53012345A) and the T/S/R 10-char formats
+     *          (e.g. T08LL1234A).
+     */
+    public static function detectProxyType(?string $value): string
+    {
+        $v = strtoupper(trim((string) $value));
+        if ($v === '') {
+            return '';
+        }
+        $compact = preg_replace('/[\s\-]/', '', $v);
+
+        if (preg_match('/^(?:\+?65)?[89]\d{7}$/', $compact)) {
+            return 'MOB';
+        }
+        if (preg_match('/^[STFGM]\d{7}[A-Z]$/', $compact)) {
+            return 'NRIC';
+        }
+        if (preg_match('/^\d{8,9}[A-Z]$/', $compact) || preg_match('/^[TSR]\d{2}[A-Z]{2}\d{4}[A-Z]$/', $compact)) {
+            return 'UEN';
+        }
+        return '';
+    }
+
+    /**
+     * Resolve CIMB detail column E for a beneficiary: the bank BIC (account
+     * transfer) if present, else the explicit PayNow proxy type, else a best-effort
+     * detection from the proxy value. Returns '' when nothing resolves.
+     */
+    public static function resolveColE(?string $bicCode, ?string $proxyType, ?string $accountValue): string
+    {
+        $bic = trim((string) $bicCode);
+        if ($bic !== '') {
+            return $bic;
+        }
+        $proxy = strtoupper(trim((string) $proxyType));
+        if ($proxy !== '' && isset(self::PROXY_TYPES[$proxy])) {
+            return $proxy;
+        }
+        return self::detectProxyType($accountValue);
+    }
+
+    /**
      * Singapore FAST/GIRO participant directory — bank code => [BIC, name].
      * Verbatim from the template's "BIC Code" sheet (trailing spaces trimmed).
      */

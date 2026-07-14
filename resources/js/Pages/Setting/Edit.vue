@@ -635,6 +635,9 @@
                         <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
                       </a>
                     </span>
+                    <span v-if="presetUpcomingName" class="text-xs font-normal text-blue-600">
+                      Pre-set upcoming: {{ presetUpcomingName }}
+                    </span>
                   </div>
                 </label>
                 <MultiSelect
@@ -1452,6 +1455,27 @@ const showPromoteUpcoming = computed(() => {
   }
 
   return String(upcomingId) !== String(currentId ?? '')
+})
+
+// Name of the preset/bound upcoming mapping configured on the CURRENTLY-selected
+// mapping (set in the Product Mapping edit page). Since the "upcoming" field is
+// now a free-select dropdown of ALL active mappings, the user can lose track of
+// what the current mapping's own preset upcoming was — this label surfaces it.
+// Prefer the name shipped on the option (upcoming_product_mapping_name, loaded
+// via the upcomingProductMapping relation); fall back to resolving the id.
+const presetUpcomingName = computed(() => {
+  const current = form.value?.product_mapping_id
+  const presetId = current?.upcoming_product_mapping_id
+  if (!current || !presetId) {
+    return null
+  }
+  if (current.upcoming_product_mapping_name) {
+    return current.upcoming_product_mapping_name
+  }
+  const match = upcomingProductMappingOptions.value.find(
+    (option) => String(option.id) === String(presetId)
+  )
+  return match ? (match.name || null) : null
 })
 
 function getDefaultForm() {
