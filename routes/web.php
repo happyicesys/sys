@@ -54,6 +54,7 @@ use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\OpsPerformanceController;
+use App\Http\Controllers\SiteGroupingController;
 use App\Http\Controllers\VendController;
 use App\Http\Controllers\VendConfigController;
 use App\Http\Controllers\VendContractController;
@@ -768,6 +769,18 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/customers/aggregates', [VendController::class, 'customerIndexAggregates'])->name('vends.customer.aggregates');
         Route::get('/ops-performance', [OpsPerformanceController::class, 'index'])->name('vends.ops-performance');
         Route::get('/ops-performance/excel', [OpsPerformanceController::class, 'export'])->name('vends.ops-performance.excel');
+
+        // Operations > Site Grouping — manage co-located Site clusters as objects
+        // (create/rename/delete groups, attach/detach member Sites). Membership
+        // still lives on customers.customer_group_id, so the "Grouped?" toggle
+        // and Customer::siblings() are unaffected. See SiteGroupingController.
+        Route::get('/grouping', [SiteGroupingController::class, 'index'])->name('vends.grouping');
+        Route::get('/grouping/site-search', [SiteGroupingController::class, 'searchSites'])->name('vends.grouping.site-search');
+        Route::post('/grouping', [SiteGroupingController::class, 'store'])->name('vends.grouping.store');
+        Route::put('/grouping/{group}', [SiteGroupingController::class, 'update'])->name('vends.grouping.update');
+        Route::delete('/grouping/{group}', [SiteGroupingController::class, 'destroy'])->name('vends.grouping.destroy');
+        Route::post('/grouping/{group}/members', [SiteGroupingController::class, 'addMembers'])->name('vends.grouping.members.add');
+        Route::delete('/grouping/{group}/members/{customer}', [SiteGroupingController::class, 'removeMember'])->name('vends.grouping.members.remove');
         Route::get('/', [VendController::class, 'index'])->name('vends');
         Route::get('/{id}/edit', [VendController::class, 'edit'])->name('vends.edit');
         Route::get('/{vend}/logs', [VendController::class, 'logs']);
@@ -789,6 +802,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/update', [VendController::class, 'update']);
         Route::post('/{id}/unbind/{returnUrl?}', [VendController::class, 'unbindCustomer']);
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
+        Route::get('/{id}/smart-planogram', [VendController::class, 'smartPlanogram']);
         Route::post('/{id}/dispense-product', [VendController::class, 'dispenseProduct']);
         Route::post('/{id}/restart-apk', [VendController::class, 'restartAPK']);
         Route::post('/{id}/restart-vmc', [VendController::class, 'restartVMC']);

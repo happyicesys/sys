@@ -284,12 +284,15 @@ function deriveInitialLayout(layout) {
   if (Array.isArray(layout) && layout.length) {
     return layout.map(b => ({
       basket: Number(b.basket),
-      divisions: Math.min(MAX_DIVISIONS, Math.max(0, Number(b.divisions ?? 0))),
+      // Clamp to 1..4. Legacy mappings stored divisions=0 (the old "single
+      // slot" shape) migrate up to 1 so every basket renders at least one
+      // numeric slot.
+      divisions: Math.min(MAX_DIVISIONS, Math.max(MIN_DIVISIONS, Number(b.divisions ?? MIN_DIVISIONS))),
     }))
   }
   // Match the server-side seed (ProductMappingController::create) so a fresh
   // smart mapping renders the same default whether the JSON came from the DB
-  // or is being derived client-side: 6 baskets × 2 divisions (a/b).
+  // or is being derived client-side: 6 baskets × 2 divisions (slots 1 & 2).
   return Array.from({ length: BASKET_COUNT }, (_, i) => ({ basket: i + 1, divisions: 2 }))
 }
 
@@ -305,15 +308,15 @@ function selectedProduct(code) {
   return productOptions.value.find(p => p && p.id === sel) || null
 }
 
-// Channel code rule: "${basket}${letter}" when divisions > 0; "${basket}" when 0.
+// Channel code rule: all-numeric "${basket}${division}", division 1-indexed.
+// e.g. basket 1 → "11","12"; basket 4 (single) → "41"; basket 6 → "61".."64".
+// Matches the freezer VMC's physical slot addressing.
 function channelCodeFor(basket, divisionIndex) {
-  if (basket.divisions === 0) return String(basket.basket)
-  const letter = String.fromCharCode(97 + divisionIndex) // 0 -> 'a'
-  return `${basket.basket}${letter}`
+  return `${basket.basket}${divisionIndex + 1}`
 }
 
 function cellsFor(basket) {
-  const count = basket.divisions === 0 ? 1 : basket.divisions
+  const count = basket.divisions
   const cells = []
   for (let i = 0; i < count; i++) {
     const code = channelCodeFor(basket, i)
@@ -323,15 +326,17 @@ function cellsFor(basket) {
 }
 
 function cellGridClasses(basket) {
-  const count = basket.divisions === 0 ? 1 : basket.divisions
-  // Responsive: stack on phones, fan out as the basket grows.
+  const count = basket.divisions
+  // Always keep a basket's divisions on ONE row, whatever the count — mirrors
+  // the physical basket (a single horizontal strip of slots). No responsive
+  // wrapping, so "11 12", "21 22 23", "61 62 63 64" each stay on one line.
   const cols = {
-    1: 'grid-cols-1 sm:grid-cols-1',
-    2: 'grid-cols-1 sm:grid-cols-2',
-    3: 'grid-cols-1 sm:grid-cols-3',
-    4: 'grid-cols-2 sm:grid-cols-2 md:grid-cols-4',
+    1: 'grid-cols-1',
+    2: 'grid-cols-2',
+    3: 'grid-cols-3',
+    4: 'grid-cols-4',
   }
-  return ['grid gap-3', cols[count] || 'grid-cols-2']
+  return ['grid gap-3', cols[count] || 'grid-cols-4']
 }
 
 function cellWrapperClasses(cell) {
@@ -342,48 +347,16 @@ function cellWrapperClasses(cell) {
 
 function incDivisions(basket) {
   if (basket.divisions >= MAX_DIVISIONS) return
-  // Skip the 1-division state on the way up: a basket with a single
-  // letter-suffixed slot ("1a") carries no information beyond the basket
-  // itself ("1"), so 0 jumps straight to 2. Symmetric with decDivisions.
-  basket.divisions = basket.divisions === 0 ? 2 : basket.divisions + 1
+  basket.divisions += 1
   emit('layout-changed', cloneLayout())
 }
 
 async function decDivisions(basket) {
-  if (basket.divisions <= 0) return
+  if (basket.divisions <= MIN_DIVISIONS) return
 
-  // Collapse straight to single-slot mode when going below 2. A 1-division
-  // basket is functionally the same as 0 (just "1a" vs "1"), so we skip it.
-  // No confirm prompt — the user asked for direct collapse — but if any
-  // bound items live in the doomed slots we delete them and surface a brief
-  // toast so the loss isn't silent. Covers the legacy divisions=1 case too.
-  if (basket.divisions <= 2) {
-    const orphans = []
-    for (let i = 0; i < basket.divisions; i++) {
-      const code = channelCodeFor(basket, i)
-      const item = itemsByCode.value[code]
-      if (item) orphans.push(item)
-    }
-    for (const item of orphans) {
-      // Sequential awaits: at most 2 deletes here, and serialising avoids
-      // racing concurrent /items/{id} DELETEs against the same mapping.
-      await deleteItem(item)
-    }
-    basket.divisions = 0
-    if (orphans.length > 0) {
-      toast.success(
-        `Collapsed basket ${basket.basket}; removed ${orphans.length} item${orphans.length === 1 ? '' : 's'}.`,
-        { timeout: 3000 }
-      )
-    }
-    emit('layout-changed', cloneLayout())
-    return
-  }
-
-  // Normal stepwise decrement (4→3, 3→2). Only the last slot is at risk
-  // here, so the existing confirm-then-delete behaviour stays — that prompt
-  // is about saving accidental loss of a single bound product, not about
-  // the collapse semantics above.
+  // Stepwise decrement (4→3, 3→2, 2→1). Only the last slot is at risk on a
+  // step-down, so if it's bound we confirm before dropping — that prompt
+  // guards against accidental loss of a single bound product.
   const lastIndex = basket.divisions - 1
   const lastCode = channelCodeFor(basket, lastIndex)
   const lastItem = itemsByCode.value[lastCode]

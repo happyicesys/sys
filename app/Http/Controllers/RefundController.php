@@ -428,9 +428,13 @@ class RefundController extends Controller
                 'Paid Amount' => $r['paid_amount'],
                 'Pay Method' => $r['pay_method'],
                 'Pay Provider' => $r['pay_provider'],
-                'Refund Amount' => $r['amount'],
+                // Mirror the screen: show the effective payout — the admin's final
+                // amount when overridden (incl. admin-set tickets whose original claim
+                // is 0), otherwise the original claim. Prevents overridden/admin-set
+                // rows exporting as 0.00.
+                'Refund Amount' => $r['final_refund_overridden'] ? $r['final_refund_amount'] : $r['amount'],
                 'Refund Method' => $r['refund_method'],
-                'PayNow / Payout Destination' => $r['payout_destination'],
+                'PayNow / PayPal Email' => $r['payout_destination_any'],
                 'Machine L24h # of RF' => $r['machine_rf_24h'],
                 'New / Repeat' => $r['repeat_flag'] ? 'Repeat' : 'New',
                 'Repeat Ref' => $r['repeat_ref'],
@@ -1193,6 +1197,10 @@ class RefundController extends Controller
             // PayNow number shown under the method (PayPal email is intentionally
             // omitted to save space). paynow_duplicate drives the red reuse warning.
             'payout_destination' => $t->refund_method === RefundTicket::METHOD_PAYNOW ? $t->payout_destination : null,
+            // Method-agnostic destination for the Excel export only (PayNow number OR
+            // PayPal email). The UI keeps 'payout_destination' above, which stays null
+            // for non-PayNow so the screen is unchanged.
+            'payout_destination_any' => $t->payout_destination,
             'paynow_duplicate' => $payNowDuplicate,
             'payment_channel' => $t->payment_channel,
             'reason_code' => $t->reason_code,

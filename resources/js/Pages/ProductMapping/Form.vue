@@ -34,8 +34,8 @@
               Edit page surfaces the type as a read-only badge.
 
               is_smart = true ⇒ ProductMapping/Edit.vue renders SmartFreezerLayout
-              (6 baskets × 0-4 divisions, channel codes "1a", "2b", "3"); a
-              default basket layout is seeded server-side at create.
+              (6 baskets × 1-4 divisions, all-numeric channel codes "11","12","41");
+              a default basket layout is seeded server-side at create.
             -->
             <div class="sm:col-span-6" v-if="type === 'create'">
               <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">
@@ -59,7 +59,7 @@
                   <input type="radio" :value="true" v-model="form.is_smart" class="mt-1" />
                   <span class="flex flex-col">
                     <span class="text-sm font-semibold text-gray-900">Smart Freezer</span>
-                    <span class="text-xs text-gray-500">Basket grid (1a, 1b, 2a…). 6 baskets × up to 4 divisions.</span>
+                    <span class="text-xs text-gray-500">Basket grid (11, 12, 21…). 6 baskets × up to 4 divisions.</span>
                   </span>
                 </label>
               </div>

@@ -5345,8 +5345,35 @@ class CustomerController extends Controller
                 'created_at' => optional($log->created_at)->toDateTimeString(),
             ]);
 
+        // Site grouping — existing groups for this site's operator, fed to the
+        // Site Grouping dropdown as { value: name, label: name } with a leading
+        // "--- Clear ---" (value '') to ungroup. The save path still binds by
+        // customer_group_name (firstOrCreate), so selecting a managed group just
+        // resolves to it; groups are created on Operations ▸ Site Grouping.
+        $siteGroupNames = \App\Models\CustomerGroup::query()
+            ->when($customer && $customer->operator_id, fn ($q) => $q->where('operator_id', $customer->operator_id))
+            ->orderBy('name')
+            ->pluck('name');
+
+        // Always include the site's CURRENT group so the dropdown can render the
+        // existing binding — a group assigned on the Site Grouping page may fall
+        // outside this operator-scoped list, which would otherwise leave the
+        // field blank even though the site is grouped.
+        if ($customer && $customer->customerGroup) {
+            $siteGroupNames = $siteGroupNames
+                ->push($customer->customerGroup->name)
+                ->unique()
+                ->sort()
+                ->values();
+        }
+
+        $siteGroupOptions = collect([['value' => '', 'label' => '--- Clear ---']])
+            ->merge($siteGroupNames->map(fn ($n) => ['value' => $n, 'label' => $n]))
+            ->values();
+
         return Inertia::render('Customer/Edit', [
             'cmsEndpoint' => env('CMS_URL'),
+            'siteGroupOptions' => $siteGroupOptions,
             'countries' => $optionsService->countries(),
             'customerTagOptions' => $optionsService->tags(Customer::class),
             'days' => Customer::DAYS_MAPPING,

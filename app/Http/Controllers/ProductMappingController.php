@@ -261,10 +261,10 @@ class ProductMappingController extends Controller
         $productMapping->operator_id = auth()->user()->operator_id;
 
         // Seed a sensible default basket layout for smart-freezer mappings so
-        // the Edit page can render the grid immediately. Six baskets, each
-        // with two divisions (a/b) — the common physical shape for our smart
-        // freezers. Users can bump divisions to 3 or 4 per basket on the Edit
-        // UI when a basket has more columns. Vending mappings stay null.
+        // the Edit page can render the grid immediately. Six baskets, each with
+        // two divisions (numeric slots 1 & 2, e.g. "11"/"12") — the common
+        // physical shape for our smart freezers. Users can set divisions 1-4
+        // per basket on the Edit UI to match the real unit. Vending stays null.
         if ($productMapping->is_smart && empty($productMapping->basket_layout_json)) {
             $productMapping->basket_layout_json = collect(range(1, 6))
                 ->map(fn ($basket) => ['basket' => $basket, 'divisions' => 2])

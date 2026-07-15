@@ -253,6 +253,7 @@ class VendResource extends JsonResource
             'product_mapping_id' => isset($this->product_mapping_id) ? $this->product_mapping_id : null,
             'product_mapping_name' => isset($this->product_mapping_name) ? $this->product_mapping_name : null,
             'product_mapping_remarks' => isset($this->product_mapping_remarks) ? $this->product_mapping_remarks : null,
+            'product_mapping_is_smart' => isset($this->product_mapping_is_smart) ? (bool) $this->product_mapping_is_smart : false,
             'private_key' => isset($this->private_key) ? $this->private_key : null,
             'simcard' => SimcardResource::make($this->whenLoaded('simcard')),
             'simcard_id' => isset($this->simcard_id) ? $this->simcard_id : null,

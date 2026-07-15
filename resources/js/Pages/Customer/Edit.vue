@@ -257,21 +257,27 @@
                     </div>
                   </div>
 
-                  <!-- Site Group — link co-located sites so they "travel
-                       together" on grouped views (e.g. Ops Dashboard). -->
+                  <!-- Site Grouping — link co-located sites so they "travel
+                       together" on grouped views (e.g. Ops Dashboard). Pick a
+                       managed group; create new ones under Operations ▸ Site
+                       Grouping. "--- Clear ---" ungroups the site. -->
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Site Group
-                      <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Type the same group name on 2-3 co-located sites to link them. Leave blank to ungroup.'"></ExclamationCircleIcon>
+                      Site Grouping
+                      <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Assign this site to a co-located cluster. Pick an existing group or choose --- Clear --- to ungroup. Manage groups under Operations ▸ Site Grouping.'"></ExclamationCircleIcon>
                     </label>
-                    <input
-                      type="text"
+                    <MultiSelect
                       v-model="form.customer_group_name"
-                      placeholder="e.g. Blk 123 cluster"
-                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                    />
+                      :options="siteGroupOptions"
+                      trackBy="value"
+                      valueProp="value"
+                      label="label"
+                      placeholder="Select a group"
+                      open-direction="bottom"
+                      class="mt-1"
+                    ></MultiSelect>
                     <p class="mt-1 text-xs text-gray-400">
-                      Same name on co-located sites links them. Blank = ungroup.
+                      Manage groups under Operations ▸ Site Grouping.
                     </p>
                     <div class="text-sm text-red-600" v-if="form.errors['customer.customer_group_name']">
                       {{ form.errors['customer.customer_group_name'] }}
@@ -1763,6 +1769,9 @@ const props = defineProps({
   sellingPriceTypeOptions: [Array, Object],
   type: String,
   zoneOptions: Object,
+  // Existing Site Group names for this operator — drives the datalist on the
+  // Site Group field so you can pick a managed group instead of retyping.
+  siteGroupOptions: { type: Array, default: () => [] },
 });
 
 const form = ref(useForm(getDefaultForm()));
@@ -2467,7 +2476,12 @@ onMounted(() => {
     zone_id: props.customer && props.customer.zone_id ? zoneOptions.value.find(zone => zone.id === props.customer.zone_id) : null,
     // Site grouping — free-text group name. Type the SAME name on co-located
     // sites to link them (find-or-created server-side, scoped to operator).
-    customer_group_name: props.customer?.customer_group?.name ?? '',
+    // The shared MultiSelect runs with :object="true", so this must hold the
+    // option OBJECT ({value,label}), not a bare string — otherwise the current
+    // binding won't render. Reduced back to its .value string on submit.
+    customer_group_name: props.customer?.customer_group
+      ? { value: props.customer.customer_group.name, label: props.customer.customer_group.name }
+      : null,
     contract_commission_type: props.customer ? (props.customer.contract_commission_type ?? null) : null,
     contract_commission_value: props.customer ? (props.customer.contract_commission_value ?? null) : null,
     contract_commission_value2: props.customer ? (props.customer.contract_commission_value2 ?? null) : null,
@@ -2626,6 +2640,10 @@ function saveCustomer(customerID) {
       bank_id: data.bank_id ? data.bank_id.id : null,
       vend_id: data.vend_id ? data.vend_id.id : null,
       zone_id: data.zone_id ? data.zone_id.id : null,
+      // Site grouping — the MultiSelect holds the option object; the server
+      // expects the group name string ('' = ungroup, via the "--- Clear ---"
+      // option whose value is '').
+      customer_group_name: data.customer_group_name ? data.customer_group_name.value : '',
       // Contract details
       contract_commission_type: data.contract_commission_type || null,
       contract_commission_value: data.contract_commission_value !== null && data.contract_commission_value !== '' ? parseFloat(data.contract_commission_value) : null,

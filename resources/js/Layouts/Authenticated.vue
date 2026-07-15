@@ -50,6 +50,7 @@ const navigation = computed(() => [
         children: [
             {name: 'Dashboard', href: '/vends/customers', permission: 'read vends'},
             {name: 'Ops Performance', href: '/vends/ops-performance', permission: 'read vends'},
+            {name: 'Site Grouping', href: '/vends/grouping', permission: 'read vends'},
         ]
     },
     {

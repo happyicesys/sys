@@ -158,11 +158,25 @@ function actionBadge(l) {
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3 max-w-5xl">
         <!-- summary -->
         <div class="bg-white rounded-md border p-4 mb-3">
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                <div><div class="text-xs text-gray-500">Payout Group / Operator</div><div class="font-medium">{{ settlement.head }}</div></div>
-                <div><div class="text-xs text-gray-500">Date</div><div class="font-medium">{{ settlement.settlement_date }}</div></div>
-                <div><div class="text-xs text-gray-500">Tickets</div><div class="font-medium">{{ settlement.count }}</div></div>
-                <div><div class="text-xs text-gray-500">Total</div><div class="font-medium">${{ settlement.total }}</div></div>
+            <div class="flex items-start justify-between gap-4">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm flex-1">
+                    <div><div class="text-xs text-gray-500">Payout Group / Operator</div><div class="font-medium">{{ settlement.head }}</div></div>
+                    <div><div class="text-xs text-gray-500">Date</div><div class="font-medium">{{ settlement.settlement_date }}</div></div>
+                    <div><div class="text-xs text-gray-500">Tickets</div><div class="font-medium">{{ settlement.count }}</div></div>
+                    <div><div class="text-xs text-gray-500">Total</div><div class="font-medium">${{ settlement.total }}</div></div>
+                </div>
+                <!-- Close / Undo-close settlement — top-right quick action. Open shows
+                     Close; closed shows Undo close. Same handlers/endpoints as before. -->
+                <button v-if="isOpen" @click="closeSettlement" :disabled="busy || settlement.count === 0"
+                    class="shrink-0 inline-flex items-center gap-1 bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                    title="Close this settlement. No more tickets can be added after closing (later approvals open a new batch).">
+                    <LockClosedIcon class="h-4 w-4" /> Close settlement
+                </button>
+                <button v-else @click="reopenSettlement" :disabled="busy"
+                    class="shrink-0 inline-flex items-center gap-1 bg-yellow-500 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-yellow-600 disabled:opacity-50"
+                    title="Reopen this settlement so tickets can be added or removed again.">
+                    <LockOpenIcon class="h-4 w-4" /> Undo close settlement
+                </button>
             </div>
             <p v-if="isOpen" class="text-xs text-gray-500 mt-3">Add more approved refunds from the Refund Requests page, then use the Actions below.</p>
         </div>
@@ -251,51 +265,68 @@ function actionBadge(l) {
 
         <div v-if="!hasPaynow && !hasPaypal" class="bg-white rounded-md border px-4 py-8 text-center text-gray-400 mb-3">No tickets in this settlement.</div>
 
-        <!-- Actions — all settlement actions live here, below the rows they act on. -->
+        <!-- Actions — one row per action: button on the left, what it does on the
+             right, a divider under each. Close / Undo close live at the top of the
+             summary card; the settlement also auto-closes once every row is done. -->
         <div class="bg-white rounded-md border p-4 mb-3">
             <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-3">Actions</h3>
 
-            <!-- 1) Export + reopen. No manual Close: the settlement auto-closes once
-                 every row is completed; Undo close appears only when closed. -->
-            <div class="flex flex-wrap items-center gap-2">
-                <button v-if="hasPaynow" @click="blobExport('export-cimb', settlement.reference + '-cimb.txt')" :disabled="busy"
-                    class="inline-flex items-center gap-1 bg-white border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
-                    title="Export the CIMB bulk-transfer .txt.">
-                    <ArrowDownTrayIcon class="h-4 w-4" /> Export CIMB text (PayNow)
-                </button>
-                <button v-if="hasPaypal" @click="blobExport('export-xlsx', settlement.reference + '-paypal.xlsx')" :disabled="busy"
-                    class="inline-flex items-center gap-1 bg-white border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
-                    <ArrowDownTrayIcon class="h-4 w-4" /> Export Excel (PayPal)
-                </button>
-                <button v-if="isOpen && settlement.count === 0" @click="voidSettlement" :disabled="busy"
-                    class="bg-gray-100 text-gray-700 border rounded-md px-4 py-2 text-sm hover:bg-gray-200 disabled:opacity-50">Void (empty)</button>
-            </div>
-
-            <template v-if="!allDone && allTickets.length">
-                <!-- 2) Pay + mark completed. -->
-                <p class="mt-3 text-xs text-gray-500">Pay the refunds (export the CIMB file for PayNow), then tick the rows that were actually paid and mark them done.</p>
-                <div class="mt-2">
-                    <button @click="markDone" :disabled="busy || !selected.length"
-                        class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">✓ Mark selected as Completed ({{ selected.length }})</button>
+            <!-- Export CIMB text (PayNow) -->
+            <template v-if="hasPaynow">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3">
+                    <div class="sm:w-72 shrink-0">
+                        <button @click="blobExport('export-cimb', settlement.reference + '-cimb.txt')" :disabled="busy"
+                            class="w-full inline-flex items-center justify-center gap-1 bg-white border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
+                            <ArrowDownTrayIcon class="h-4 w-4" /> Export CIMB text (PayNow)
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-600 flex-1">Export the text file, then attach this file at the CIMB platform under Bulk Payment.</p>
                 </div>
-
-                <!-- 3) Insufficient info. -->
-                <p class="mt-3 text-xs text-gray-500">Rows the bank could not pay (bad / missing PayNow info) can be ticked and flagged <b>Insufficient Info</b>; once you've handled the payout by hand, tick them again and mark them done here.</p>
-                <div class="mt-2">
-                    <button @click="markInsufficientInfo" :disabled="busy || !selected.length"
-                        class="bg-red-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
-                        title="Flag the ticked rows the bank could not pay (bad / missing PayNow info). They stay in this settlement but leave the payout file.">Mark selected as Insufficient Info ({{ selected.length }})</button>
-                </div>
+                <hr class="border-gray-200" />
             </template>
 
-            <p v-else-if="allDone" class="mt-3 text-xs text-green-700 font-medium">All refunds in this settlement are done.</p>
+            <!-- Export Excel (PayPal) -->
+            <template v-if="hasPaypal">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3">
+                    <div class="sm:w-72 shrink-0">
+                        <button @click="blobExport('export-xlsx', settlement.reference + '-paypal.xlsx')" :disabled="busy"
+                            class="w-full inline-flex items-center justify-center gap-1 bg-white border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
+                            <ArrowDownTrayIcon class="h-4 w-4" /> Export Excel (PayPal)
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-600 flex-1">Export the Excel worklist, then pay each PayPal refund manually on the PayPal platform.</p>
+                </div>
+                <hr class="border-gray-200" />
+            </template>
 
-            <!-- Undo close — its own row at the bottom, only when closed. -->
-            <div v-if="isClosed" class="mt-3">
-                <button @click="reopenSettlement" :disabled="busy"
-                    class="inline-flex items-center gap-1 bg-yellow-500 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-yellow-600 disabled:opacity-50">
-                    <LockOpenIcon class="h-4 w-4" /> Undo close settlement
-                </button>
+            <template v-if="!allDone && allTickets.length">
+                <!-- Mark selected as Completed -->
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3">
+                    <div class="sm:w-72 shrink-0">
+                        <button @click="markDone" :disabled="busy || !selected.length"
+                            class="w-full bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">✓ Mark selected as Completed ({{ selected.length }})</button>
+                    </div>
+                    <p class="text-sm text-gray-600 flex-1">PayNow info correct and refund completed. Tick the refund rows, then click this button — it will trigger an email to customers to inform them the refund is completed.</p>
+                </div>
+                <hr class="border-gray-200" />
+
+                <!-- Mark selected as Insufficient Info -->
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3">
+                    <div class="sm:w-72 shrink-0">
+                        <button @click="markInsufficientInfo" :disabled="busy || !selected.length"
+                            class="w-full bg-red-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50">Mark selected as Insufficient Info ({{ selected.length }})</button>
+                    </div>
+                    <p class="text-sm text-gray-600 flex-1">PayNow info is wrong or insufficient. Tick the refund rows, then click this button to mark them as <b>Insufficient Info</b> — it will <b>not</b> trigger any email to customers. Admin will need to manually email customers to obtain the needed PayNow info; once the refund is complete, tick them again and mark as Completed.</p>
+                </div>
+                <hr class="border-gray-200" />
+            </template>
+
+            <p v-else-if="allDone" class="text-sm text-green-700 font-medium py-3">All refunds in this settlement are done.</p>
+
+            <!-- Void empty settlement -->
+            <div v-if="isOpen && settlement.count === 0" class="py-3">
+                <button @click="voidSettlement" :disabled="busy"
+                    class="bg-gray-100 text-gray-700 border rounded-md px-4 py-2 text-sm hover:bg-gray-200 disabled:opacity-50">Void (empty)</button>
             </div>
 
             <div v-if="msg" class="text-xs text-red-600 mt-2">{{ msg }}</div>

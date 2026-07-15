@@ -361,6 +361,7 @@ class VendController extends Controller
             'modem_units.last_updated_at AS modem_unit_last_updated_at',
             'product_mappings.name AS product_mapping_name',
             'product_mappings.remarks AS product_mapping_remarks',
+            'product_mappings.is_smart AS product_mapping_is_smart',
             'operators.code AS operator_code',
             'operators.name AS operator_name',
             'vend_configs.name AS vend_config_name',
@@ -711,11 +712,15 @@ class VendController extends Controller
         // When the toggle is off, nothing changes — the normal path runs.
         $groupOn = $request->boolean('group_siblings');
         if ($groupOn) {
+            // Restrict to whole matched clusters (matched sites ∪ their
+            // group-mates), then order by the USER's sort only — no top-pinning.
+            // The "travel together" clustering (pull a cluster's members up to
+            // the rank of its best member) is applied in PHP once the rows are
+            // fetched (see the $groupOn pagination branch below). Doing it there
+            // keeps clusters contiguous even when they'd straddle a page break,
+            // and lets a cluster sit at its ranked position instead of the top.
             $expandedGroupIds = $this->groupedExpandedCustomerIds($request);
-            $vends->whereIn('customers.id', $expandedGroupIds ?: [-1])
-                // Grouped rows first, clustered by group so members are contiguous.
-                ->orderByRaw('customers.customer_group_id IS NULL')
-                ->orderBy('customers.customer_group_id');
+            $vends->whereIn('customers.id', $expandedGroupIds ?: [-1]);
             $sortReq = new Request([
                 'indexType' => 'customers',
                 'visited' => true,
@@ -1081,6 +1086,7 @@ class VendController extends Controller
                 'location_types.name AS location_type_name',
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',
+                'product_mappings.is_smart AS product_mapping_is_smart',
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
                 'addresses.postcode AS postcode',
@@ -1292,7 +1298,44 @@ class VendController extends Controller
             $page = Paginator::resolveCurrentPage() ?: 1;
             $perPage = $request->numberPerPage === 'All' ? 10000 : ($request->numberPerPage ?: 50);
 
-            $items = $vends->forPage($page, $perPage)->get();
+            if ($groupOn) {
+                // ── Cluster-aware ordering (Grouped? toggle) ─────────────────
+                // Rows arrive globally sorted by the user's chosen metric. We
+                // pull each co-located cluster's members up so they sit
+                // contiguously at the slot of the cluster's best-ranked member,
+                // leaving ungrouped rows in their sorted position. The full
+                // matched set is materialised once (a cluster's members can span
+                // page boundaries, so global order must be known) and those same
+                // row objects are reused for the page — no second heavy query.
+                $allRows = $vends->get();
+
+                $groupRows = [];
+                foreach ($allRows as $r) {
+                    if ($r->customer_group_id !== null) {
+                        $groupRows[$r->customer_group_id][] = $r;
+                    }
+                }
+
+                $orderedRows = [];
+                $placed = [];
+                foreach ($allRows as $r) {
+                    $gid = $r->customer_group_id;
+                    if ($gid === null) {
+                        $orderedRows[] = $r;                 // ungrouped: keep sorted slot
+                    } elseif (! isset($placed[$gid])) {
+                        $placed[$gid] = true;                // place whole cluster at its best member
+                        foreach ($groupRows[$gid] as $gr) {
+                            $orderedRows[] = $gr;
+                        }
+                    }
+                    // grouped + already placed → skip (member inserted with its cluster)
+                }
+
+                $total = count($orderedRows);
+                $items = collect(array_slice($orderedRows, ($page - 1) * $perPage, $perPage))->values();
+            } else {
+                $items = $vends->forPage($page, $perPage)->get();
+            }
 
             $vends = new LengthAwarePaginator($items, $total, $perPage, $page, [
                 'path' => Paginator::resolveCurrentPath(),
@@ -2712,6 +2755,89 @@ class VendController extends Controller
         }
 
         return response()->json($dataArr, 200);
+    }
+
+    /**
+     * Smart-freezer planogram for the 2D basket overview.
+     *
+     * Unlike the vending ChannelOverview (which reads vend_channels telemetry
+     * that a smart freezer never reports), this is "reverse" management: the
+     * product mapping IS the source of truth. We return the basket layout plus
+     * every mapped SKU with thumbnail/name so the UI can draw the six-basket
+     * grid straight from the planogram, whether or not channel data ever lands.
+     *
+     * qty is best-effort: if a vend_channels row happens to exist for the same
+     * numeric channel_code we surface it, otherwise null (rendered as "—").
+     */
+    public function smartPlanogram($id)
+    {
+        $vend = Vend::with([
+            'productMapping.productMappingItems.product.thumbnail',
+        ])->find($id, ['id', 'code', 'product_mapping_id']);
+
+        if (!$vend || !$vend->productMapping) {
+            return response()->json(['is_smart' => false, 'basket_layout' => [], 'items' => []], 200);
+        }
+
+        $mapping = $vend->productMapping;
+
+        // Best-effort qty lookup by numeric channel_code (may be empty for a
+        // freezer that never syncs vend_channels — that's expected).
+        $vend->loadMissing('vendChannels:id,vend_id,code,qty');
+        $qtyByCode = $vend->vendChannels->keyBy(fn ($c) => (int) $c->code);
+
+        // Basket layout: prefer the persisted shape; fall back to the same
+        // 6-basket × 2-division default the editor seeds.
+        $basketLayout = collect($mapping->basket_layout_json ?? [])
+            ->map(fn ($b) => [
+                'basket' => (int) ($b['basket'] ?? 0),
+                'divisions' => (int) ($b['divisions'] ?? 0),
+            ])
+            ->filter(fn ($b) => $b['basket'] > 0)
+            ->values();
+
+        if ($basketLayout->isEmpty()) {
+            $basketLayout = collect(range(1, 6))
+                ->map(fn ($basket) => ['basket' => $basket, 'divisions' => 2])
+                ->values();
+        }
+
+        $items = ($mapping->productMappingItems ?? collect())->map(function ($item) use ($qtyByCode) {
+            $code = (string) $item->channel_code;
+            $product = $item->product;
+
+            // Numeric code "<basket><division>": first digit = basket, second =
+            // division (1-indexed). Single-digit legacy codes map to basket only.
+            $basket = null;
+            $division = null;
+            if (ctype_digit($code) && strlen($code) >= 2) {
+                $basket = (int) substr($code, 0, 1);
+                $division = (int) substr($code, 1);
+            } elseif (ctype_digit($code)) {
+                $basket = (int) $code;
+                $division = 1;
+            }
+
+            return [
+                'channel_code' => $code,
+                'basket' => $basket,
+                'division' => $division,
+                'product_id' => $product?->id,
+                'product_code' => $product?->code,
+                'product_name' => $product?->name,
+                'thumbnail' => $product?->thumbnail?->full_url,
+                'qty' => $qtyByCode[(int) $code]->qty ?? null,
+            ];
+        })->values();
+
+        return response()->json([
+            'vend_code' => $vend->code,
+            'is_smart' => (bool) $mapping->is_smart,
+            'product_mapping_id' => $mapping->id,
+            'product_mapping_name' => $mapping->name,
+            'basket_layout' => $basketLayout,
+            'items' => $items,
+        ], 200);
     }
 
     public function getVendBannerImage($vendCode)

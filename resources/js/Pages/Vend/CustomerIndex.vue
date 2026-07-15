@@ -468,7 +468,7 @@
 				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 					<label class="block text-sm font-medium text-gray-700">
-						Grouping
+						Site Grouping
 					</label>
 					<label class="mt-1 flex items-center gap-2 h-[38px] text-sm text-gray-700 cursor-pointer select-none"
 						title="Show co-located sites as a group: if any member matches the filters, all its group-mates appear too, kept next to each other.">
@@ -2839,6 +2839,13 @@
 	@modalClose="onChannelOverviewClosed"
 >
 </ChannelOverview>
+<SmartFreezerChannelOverview
+	v-if="showSmartChannelOverviewModal"
+	:vend="vend"
+	:showModal="showSmartChannelOverviewModal"
+	@modalClose="onSmartChannelOverviewClosed"
+>
+</SmartFreezerChannelOverview>
 <Create
 	v-if="showCreateModal"
 	:showModal="showCreateModal"
@@ -3045,6 +3052,7 @@ font-size:13px;
 
 	const AssignJob = defineAsyncComponent(() => import('@/Pages/Vend/AssignJob.vue'));
 	const ChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/ChannelOverview.vue'));
+	const SmartFreezerChannelOverview = defineAsyncComponent(() => import('@/Pages/Vend/SmartFreezerChannelOverview.vue'));
 	const Create = defineAsyncComponent(() => import('@/Pages/Vend/Create.vue'));
 	const Form = defineAsyncComponent(() => import('@/Pages/Vend/Form.vue'));
 	const MapMarker = defineAsyncComponent(() => import('@/Components/MapMarker.vue'));
@@ -3391,6 +3399,7 @@ font-size:13px;
 	const sellingPriceTypeOptions = ref([])
 	const showAllFilters = ref(false)
 	const showChannelOverviewModal = ref(false)
+	const showSmartChannelOverviewModal = ref(false)
 	const showCreateModal = ref(false)
 	const showEditModal = ref(false)
 	const showMapMarkerModal = ref(false)
@@ -4083,11 +4092,21 @@ function avgMthlySales(vend) {
 
 function onChannelOverviewClicked(vendData) {
 		vend.value = vendData
-		showChannelOverviewModal.value = true
+		// Smart freezers report no channel telemetry, so the vending overview
+		// would render blank. Route them to the planogram-driven 2D basket view.
+		if (vendData.product_mapping_is_smart) {
+			showSmartChannelOverviewModal.value = true
+		} else {
+			showChannelOverviewModal.value = true
+		}
 }
 
 function onChannelOverviewClosed() {
 		showChannelOverviewModal.value = false
+}
+
+function onSmartChannelOverviewClosed() {
+		showSmartChannelOverviewModal.value = false
 }
 
 function onCreateClicked() {
