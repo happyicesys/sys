@@ -20,6 +20,7 @@ use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -290,6 +291,22 @@ class ProductMappingController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated, $productMappingId) {
+            // Smart-freezer channel_code is a physical slot address — one product
+            // per slot. Reject a second binding to a channel_code already used in
+            // this planogram (e.g. two products both on "61"). Vending mappings
+            // are left untouched.
+            $mapping = ProductMapping::find($productMappingId);
+            if ($mapping && $mapping->is_smart) {
+                $duplicate = ProductMappingItem::where('product_mapping_id', $productMappingId)
+                    ->where('channel_code', $validated['channel_code'])
+                    ->exists();
+                if ($duplicate) {
+                    throw ValidationException::withMessages([
+                        'channel_code' => "Channel {$validated['channel_code']} is already used in this smart-freezer planogram. Each slot can hold only one product.",
+                    ]);
+                }
+            }
+
             // Normalize seq: ensure null or >=1 int
             $seq = array_key_exists('sequence', $validated)
                 ? ($validated['sequence'] !== null ? (int) $validated['sequence'] : null)
@@ -452,6 +469,20 @@ class ProductMappingController extends Controller
         }
 
         if ($request->productMappingItems) {
+            // Smart freezers: one product per physical slot. Block a bulk save
+            // that carries the same channel_code twice before we wipe + recreate.
+            if ($productMapping->is_smart) {
+                $codes = collect($request->productMappingItems)
+                    ->pluck('channel_code')
+                    ->map(fn ($c) => (string) $c);
+                $dupes = $codes->duplicates()->unique()->values();
+                if ($dupes->isNotEmpty()) {
+                    throw ValidationException::withMessages([
+                        'productMappingItems' => 'Duplicate channel(s) ' . $dupes->implode(', ') . ' — each smart-freezer slot can hold only one product.',
+                    ]);
+                }
+            }
+
             $productMapping->productMappingItems()->delete();
             foreach ($request->productMappingItems as $productMappingItem) {
                 $productMapping->productMappingItems()->create([

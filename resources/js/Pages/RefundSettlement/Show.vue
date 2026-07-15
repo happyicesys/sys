@@ -215,8 +215,21 @@ function actionBadge(l) {
                             <span v-if="!t.proxy_valid" class="ml-1 text-[10px] font-semibold uppercase bg-red-100 text-red-700 px-1 py-0.5 rounded" title="This PayNow number does not look valid — the bank will likely reject it. Fix or return to pool.">check no.</span>
                         </td>
                         <td v-if="showStatus" class="px-4 py-2 text-center">
-                            <span v-if="t.is_done" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Done<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
-                            <span v-else-if="t.is_insufficient" class="text-xs font-bold px-2 py-1 rounded-full bg-red-100 text-red-800" title="The bank could not pay this — handle the payout by hand, then tick it and mark it done here.">Insufficient Info</span>
+                            <template v-if="t.is_done">
+                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-green-700">✓ Completed</span>
+                                <div v-if="t.done_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                    <span class="block font-medium text-gray-600">{{ t.done_actor.name }}</span>
+                                    <span class="block">{{ t.done_actor.at }}</span>
+                                </div>
+                                <div v-else-if="t.completed_at" class="text-[11px] text-gray-500 mt-1">{{ t.completed_at }}</div>
+                            </template>
+                            <template v-else-if="t.is_insufficient">
+                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-red-600" title="The bank could not pay this — handle the payout by hand, then tick it and mark it done here.">Insufficient Info</span>
+                                <div v-if="t.insufficient_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                    <span class="block font-medium text-gray-600">{{ t.insufficient_actor.name }}</span>
+                                    <span class="block">{{ t.insufficient_actor.at }}</span>
+                                </div>
+                            </template>
                             <span v-else class="text-gray-300">—</span>
                         </td>
                         <td class="px-4 py-2 text-right">
@@ -249,8 +262,21 @@ function actionBadge(l) {
                         <td class="px-4 py-2 text-center">${{ t.amount }}</td>
                         <td class="px-4 py-2 text-center">{{ t.payout_destination }}</td>
                         <td v-if="showStatus" class="px-4 py-2 text-center">
-                            <span v-if="t.is_done" class="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">✓ Done<template v-if="t.completed_at"> · {{ t.completed_at }}</template></span>
-                            <span v-else-if="t.is_insufficient" class="text-xs font-bold px-2 py-1 rounded-full bg-red-100 text-red-800" title="The bank could not pay this — handle the payout by hand, then tick it and mark it done here.">Insufficient Info</span>
+                            <template v-if="t.is_done">
+                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-green-700">✓ Completed</span>
+                                <div v-if="t.done_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                    <span class="block font-medium text-gray-600">{{ t.done_actor.name }}</span>
+                                    <span class="block">{{ t.done_actor.at }}</span>
+                                </div>
+                                <div v-else-if="t.completed_at" class="text-[11px] text-gray-500 mt-1">{{ t.completed_at }}</div>
+                            </template>
+                            <template v-else-if="t.is_insufficient">
+                                <span class="inline-block text-xs font-bold px-2 py-1 rounded-full text-red-600" title="The bank could not pay this — handle the payout by hand, then tick it and mark it done here.">Insufficient Info</span>
+                                <div v-if="t.insufficient_actor" class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                    <span class="block font-medium text-gray-600">{{ t.insufficient_actor.name }}</span>
+                                    <span class="block">{{ t.insufficient_actor.at }}</span>
+                                </div>
+                            </template>
                             <span v-else class="text-gray-300">—</span>
                         </td>
                         <td class="px-4 py-2 text-right">

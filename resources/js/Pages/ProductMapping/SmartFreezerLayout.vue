@@ -402,8 +402,9 @@ function onBind(cell) {
       selections[cell.code] = null
       emit('items-changed')
     },
-    onError: () => {
-      toast.error(`Failed to bind slot ${cell.code}`, { timeout: 3500 })
+    onError: (errors) => {
+      const msg = (errors && errors.channel_code) || `Failed to bind slot ${cell.code}`
+      toast.error(msg, { timeout: 3500 })
     },
   })
 }

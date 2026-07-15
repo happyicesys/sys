@@ -38,7 +38,7 @@ class RefundEmailService
             ],
             self::T_APPROVED => [
                 'headline' => 'This refund request has been approved, and we are now processing the refund to you',
-                'body' => "Dear {name},\n\nWe will process your refund to the PayNow or PayPal account you provided. You should receive the refund within 5 working days.\n\nOnce the refund has been completed, we will send you another confirmation email.\n\nWe sincerely appreciate your support and look forward to serving you again in the future. We hope you will continue to enjoy our products and support HappyIce." . $signoff,
+                'body' => "Dear {name},\n\nWe will process your refund to the PayNow or PayPal account you provided. You should receive the refund within 7 working days.\n\nOnce the refund has been completed, we will send you another confirmation email.\n\nWe sincerely appreciate your support and look forward to serving you again in the future. We hope you will continue to enjoy our products and support HappyIce." . $signoff,
             ],
             self::T_AUTO_REFUND => [
                 'headline' => 'Automatic Refund Has Been Initiated – Refund Request Resolved',

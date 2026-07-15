@@ -121,7 +121,23 @@ class RefundSettlementController extends Controller
             ->whereIn('id', $vends->pluck('customer_id')->filter()->unique())
             ->pluck('name', 'id');
 
-        $mapTicket = function (RefundTicket $t) use ($vends, $siteNames) {
+        // Who marked each ticket Completed / Insufficient Info, and when — read from
+        // the audit trail so the Done? column can show the actor + timestamp exactly
+        // like the Refund Requests index. Latest entry per stage wins (asc order).
+        $stageActs = ['completed' => 'done', 'insufficient_info' => 'insufficient'];
+        $actors = [];
+        \App\Models\RefundTicketLog::whereIn('refund_ticket_id', $tickets->pluck('id'))
+            ->whereIn('action', array_keys($stageActs))
+            ->orderBy('created_at')
+            ->get(['refund_ticket_id', 'actor_label', 'action', 'created_at'])
+            ->each(function ($lg) use (&$actors, $stageActs) {
+                $actors[$lg->refund_ticket_id][$stageActs[$lg->action]] = [
+                    'name' => $lg->actor_label,
+                    'at' => optional($lg->created_at)->format('ymd h:i a'),
+                ];
+            });
+
+        $mapTicket = function (RefundTicket $t) use ($vends, $siteNames, $actors) {
             $site = $t->vend_id && $vends->get($t->vend_id) ? $siteNames->get($vends->get($t->vend_id)->customer_id) : null;
             return [
                 'id' => $t->id,
@@ -135,6 +151,8 @@ class RefundSettlementController extends Controller
                 'is_done' => $t->status === RefundTicket::STATUS_COMPLETED,
                 'is_insufficient' => $t->status === RefundTicket::STATUS_INSUFFICIENT_INFO,
                 'completed_at' => optional($t->completed_at)->format('ymd h:i a'),
+                'done_actor' => $actors[$t->id]['done'] ?? null,
+                'insufficient_actor' => $actors[$t->id]['insufficient'] ?? null,
                 // PayNow proxy sanity flag (invalid numbers ship a bad CIMB row).
                 'proxy_valid' => $t->refund_method === RefundTicket::METHOD_PAYNOW
                     ? $this->isValidPaynow($t->payout_destination)

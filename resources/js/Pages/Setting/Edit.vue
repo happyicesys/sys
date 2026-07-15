@@ -1734,7 +1734,19 @@ onMounted(() => {
     applyMappingPreview(selectedProductMapping.value);
   }
 
-  hasMounted = true;
+  // Defer flipping hasMounted until AFTER the watchers scheduled by the
+  // `form.value = useForm(...)` reassignment above have flushed. Reassigning
+  // form.value changes form.value.product_mapping_id (default '' -> loaded
+  // option), which triggers the product_mapping_id watcher below. If hasMounted
+  // were already true when that initial trigger runs, the watcher would treat it
+  // as a user-initiated mapping change and overwrite the freshly-loaded
+  // upcoming_product_mapping_id with the current mapping's preset (or null) --
+  // making a saved "upcoming" appear unbound after refresh. nextTick resolves
+  // after the watcher flush, so the initial trigger sees hasMounted === false
+  // and correctly skips; only genuine user changes take effect afterwards.
+  nextTick(() => {
+    hasMounted = true;
+  })
 })
 
 watch(() => form.value.product_mapping_id, (newVal) => {
@@ -1812,7 +1824,7 @@ function computeUpcomingSelection(existingId = null) {
   const normalizedId = existingId ? existingId : null
   if (normalizedId) {
     const matched = upcomingProductMappingOptions.value.find(
-      (option) => option.id === normalizedId
+      (option) => option.id !== '' && String(option.id) === String(normalizedId)
     )
     if (matched) {
       return matched
