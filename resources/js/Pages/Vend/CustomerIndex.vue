@@ -3369,7 +3369,9 @@ font-size:13px;
 			// "Grouped?" — when on, co-located sites (customer_group_id) travel
 			// together: any member matching the filters pulls in all its
 			// group-mates, ordered adjacent. Plain boolean; spread into router.get.
-			group_siblings: false,
+			// Defaults ON for the Operation Dashboard (customers view); the
+			// machines view leaves it off since grouping is site-based.
+			group_siblings: props.indexType === 'customers',
 	})
 
 	const showAssignJobModal = ref(false)
