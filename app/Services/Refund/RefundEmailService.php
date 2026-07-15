@@ -57,7 +57,7 @@ class RefundEmailService
                 'body' => "Dear {name},\n\nThank you for your patience.\n\nWe would like to inform you that your refund request has been reviewed and is currently being processed. The refunded amount will be transferred to you shortly, and may take a few working days to be reflected depending on your bank or payment provider.\n\nWe apologize for the inconvenience caused." . $signoff,
             ],
             self::T_COMPLETED => [
-                'headline' => 'Your refund has been processed',
+                'headline' => 'Your refund has completed',
                 'body' => "Dear {name},\n\nWe are pleased to inform you that your refund has completed (via your provided PayNow or PayPal account).\n\nWe apologize for the inconvenience caused and thank you for your patience and understanding.\n\nWe sincerely appreciate your support and look forward to serving you again in the future." . $signoff,
             ],
         ];
