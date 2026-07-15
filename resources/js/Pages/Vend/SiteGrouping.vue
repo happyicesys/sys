@@ -27,13 +27,6 @@
       <!-- ===================== TOOLBAR ===================== -->
       <div class="bg-white rounded-md border my-3 px-3 py-3">
         <div class="flex flex-wrap items-end gap-3">
-          <div v-if="canPickOperator" class="min-w-[240px]">
-            <label class="block text-sm font-medium text-gray-700">Operator</label>
-            <MultiSelect class="mt-1" v-model="operatorFilter" :options="operatorOptions"
-              valueProp="id" trackBy="id" label="name" mode="tags" placeholder="All operators"
-              @change="applyOperatorFilter" />
-          </div>
-
           <div class="min-w-[220px] flex-1">
             <label class="block text-sm font-medium text-gray-700">Find a group</label>
             <input v-model="nameFilter" type="text" placeholder="Filter by group name…"
@@ -59,10 +52,6 @@
             <div>
               <div class="flex items-center gap-2">
                 <h3 class="font-semibold text-gray-800">{{ group.name }}</h3>
-                <span v-if="group.operator_name"
-                  class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                  {{ group.operator_name }}
-                </span>
                 <span class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
                   {{ group.member_count }} site{{ group.member_count === 1 ? '' : 's' }}
                 </span>
@@ -121,7 +110,6 @@
                   <span v-if="site.machine_id" class="text-gray-500">(#{{ site.machine_id }}) - {{ site.site_id }}</span>
                   <span v-else class="text-gray-500">{{ site.site_id }}</span>
                   <span class="font-medium ml-1">{{ site.name }}</span>
-                  <span v-if="site.operator_name" class="text-gray-400 text-xs"> · {{ site.operator_name }}</span>
                 </button>
               </div>
             </div>
@@ -144,16 +132,6 @@
             <input v-model="form.name" type="text" placeholder="e.g. Blk 123 cluster"
               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
             <p v-if="formError" class="text-sm text-red-600 mt-1">{{ formError }}</p>
-          </div>
-
-          <div v-if="canPickOperator && !form.id">
-            <label class="block text-sm font-medium text-gray-700">Operator</label>
-            <select v-model="form.operator_id"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-              <option :value="null">— None —</option>
-              <option v-for="op in operatorOptions" :key="op.id" :value="op.id">{{ op.name }}</option>
-            </select>
-            <p class="text-xs text-gray-400 mt-1">Only sites of this operator can join the group.</p>
           </div>
 
           <div>
@@ -179,7 +157,6 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import MultiSelect from '@/Components/MultiSelect.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { PencilSquareIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import { ref, reactive, computed } from 'vue';
@@ -187,13 +164,10 @@ import axios from 'axios';
 
 const props = defineProps({
   groups: { type: Array, default: () => [] },
-  operatorOptions: { type: Array, default: () => [] },
-  canPickOperator: { type: Boolean, default: false },
-  filters: { type: Object, default: () => ({ operator_id: null, q: '' }) },
+  filters: { type: Object, default: () => ({ q: '' }) },
 });
 
-// --- toolbar filters ---
-const operatorFilter = ref([...(props.filters?.operator_ids ?? [])]);
+// --- toolbar filter ---
 const nameFilter = ref('');
 
 const visibleGroups = computed(() => {
@@ -202,23 +176,15 @@ const visibleGroups = computed(() => {
   return props.groups.filter((g) => (g.name || '').toLowerCase().includes(q));
 });
 
-function applyOperatorFilter() {
-  router.get('/vends/grouping',
-    operatorFilter.value.length ? { operator_ids: operatorFilter.value } : {},
-    { preserveScroll: true, preserveState: false });
-}
-
 // --- create / edit modal ---
 const modalOpen = ref(false);
 const saving = ref(false);
 const formError = ref('');
-const form = reactive({ id: null, name: '', operator_id: null, notes: '' });
+const form = reactive({ id: null, name: '', notes: '' });
 
 function openCreate() {
   form.id = null;
   form.name = '';
-  // Pre-fill the operator only when exactly one is being filtered on.
-  form.operator_id = operatorFilter.value.length === 1 ? operatorFilter.value[0] : null;
   form.notes = '';
   formError.value = '';
   modalOpen.value = true;
@@ -227,7 +193,6 @@ function openCreate() {
 function openEdit(group) {
   form.id = group.id;
   form.name = group.name;
-  form.operator_id = group.operator_id;
   form.notes = group.notes ?? '';
   formError.value = '';
   modalOpen.value = true;
@@ -252,8 +217,7 @@ function saveGroup() {
   if (form.id) {
     router.put(`/vends/grouping/${form.id}`, { name: form.name, notes: form.notes }, done);
   } else {
-    router.post('/vends/grouping',
-      { name: form.name, operator_id: form.operator_id, notes: form.notes }, done);
+    router.post('/vends/grouping', { name: form.name, notes: form.notes }, done);
   }
 }
 

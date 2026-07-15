@@ -5350,25 +5350,16 @@ class CustomerController extends Controller
         // "--- Clear ---" (value '') to ungroup. The save path still binds by
         // customer_group_name (firstOrCreate), so selecting a managed group just
         // resolves to it; groups are created on Operations ▸ Site Grouping.
-        $siteGroupNames = \App\Models\CustomerGroup::query()
-            ->when($customer && $customer->operator_id, fn ($q) => $q->where('operator_id', $customer->operator_id))
-            ->orderBy('name')
-            ->pluck('name');
-
-        // Always include the site's CURRENT group so the dropdown can render the
-        // existing binding — a group assigned on the Site Grouping page may fall
-        // outside this operator-scoped list, which would otherwise leave the
-        // field blank even though the site is grouped.
-        if ($customer && $customer->customerGroup) {
-            $siteGroupNames = $siteGroupNames
-                ->push($customer->customerGroup->name)
-                ->unique()
-                ->sort()
-                ->values();
-        }
-
+        // Site grouping is operator-agnostic (managed on Operations ▸ Site
+        // Grouping), so the Edit dropdown lists every group, with a leading
+        // "--- Clear ---" (value '') to ungroup.
         $siteGroupOptions = collect([['value' => '', 'label' => '--- Clear ---']])
-            ->merge($siteGroupNames->map(fn ($n) => ['value' => $n, 'label' => $n]))
+            ->merge(
+                \App\Models\CustomerGroup::query()
+                    ->orderBy('name')
+                    ->pluck('name')
+                    ->map(fn ($n) => ['value' => $n, 'label' => $n])
+            )
             ->values();
 
         return Inertia::render('Customer/Edit', [
@@ -5755,23 +5746,23 @@ class CustomerController extends Controller
                 $requestCustomerArr['zone_id'] = null;
             }
 
-            // Site grouping — resolve the typed Group name into a
-            // customer_group_id, find-or-creating the group scoped to this
-            // site's (possibly just-changed) operator. A blank name unbinds the
-            // site (NULL). customer_group_name is a UI-only field, never a
-            // column, so it must not reach the mass-assign below. Only the Site
-            // edit form sends this key; other save paths (saveVend/submit) post
-            // a flat payload and never enter this branch, so grouping is left
-            // untouched there.
+            // Site grouping — resolve the selected Group name into a
+            // customer_group_id, find-or-creating the group by NAME only. Site
+            // Grouping is operator-agnostic, so groups are matched globally (no
+            // operator scoping — matching by operator+name would spawn a
+            // duplicate when the same-named group has no/other operator). A
+            // blank name unbinds the site (NULL). customer_group_name is a
+            // UI-only field, never a column, so it must not reach the mass-assign
+            // below. Only the Site edit form sends this key; other save paths
+            // (saveVend/submit) post a flat payload and never enter this branch.
             if (array_key_exists('customer_group_name', $requestCustomerArr)) {
                 $groupName = trim((string) $requestCustomerArr['customer_group_name']);
                 unset($requestCustomerArr['customer_group_name']);
                 if ($groupName === '') {
                     $requestCustomerArr['customer_group_id'] = null;
                 } else {
-                    $groupOperatorId = $requestCustomerArr['operator_id'] ?? ($customer->operator_id ?? null);
                     $group = \App\Models\CustomerGroup::firstOrCreate(
-                        ['operator_id' => $groupOperatorId, 'name' => $groupName],
+                        ['name' => $groupName],
                         ['created_by' => auth()->id()]
                     );
                     $requestCustomerArr['customer_group_id'] = $group->id;
