@@ -64,6 +64,13 @@ class VendSerialNumber extends Model
                 $query->whereIn('vends.vend_prefix_id', $search);
             }
         })
+        ->when($request->stickers, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereHas('vend.stickers', function($q) use ($search) {
+                    $q->whereIn('vend_stickers.id', $search);
+                });
+            }
+        })
         ->when($request->status, function($query, $search) {
             if($search != 'all') {
                 if($search === 'active') {

@@ -281,6 +281,12 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                'machine-stickers',
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+            ],
+
+            [
                 'location-types',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']

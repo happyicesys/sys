@@ -9,12 +9,14 @@ use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendSerialNumberResource;
+use App\Http\Resources\VendStickerResource;
 use App\Http\Resources\VendResource;
 use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\VendConfig;
 use App\Models\VendContract;
 use App\Models\VendPrefix;
+use App\Models\VendSticker;
 use App\Models\VendSerialNumber;
 use App\Models\Vend;
 use App\Models\VendModel;
@@ -58,6 +60,9 @@ class VendSerialNumberController extends Controller
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
+            ),
+            'stickerOptions' => VendStickerResource::collection(
+                VendSticker::orderBy('name')->get()
             ),
             'permissions' => [
                 'create' => auth()->user()->can('create serial-numbers'),
@@ -133,7 +138,7 @@ class VendSerialNumberController extends Controller
     private function getMainQuery()
     {
         return VendSerialNumber::query()
-            ->with('vend')
+            ->with('vend.stickers')
             ->leftJoin('vends', 'vends.vend_serial_number_id', '=', 'vend_serial_numbers.id')
             ->leftJoin('vend_models', 'vend_models.id', '=', 'vends.vend_model_id')
             ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
@@ -178,6 +183,7 @@ class VendSerialNumberController extends Controller
                 '),
                 'vend_contracts.name as vend_contract_name',
                 'vend_models.name as vend_model_name',
+                DB::raw('(SELECT vs.name FROM vend_sticker_vend vsv INNER JOIN vend_stickers vs ON vs.id = vsv.vend_sticker_id WHERE vsv.vend_id = vends.id ORDER BY vs.name LIMIT 1) as vend_sticker_name'),
                 'vend_configs.name as vend_config_name',
                 'vend_prefixes.name as vend_prefix_name'
             );

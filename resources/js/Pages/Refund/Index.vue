@@ -187,6 +187,7 @@ function pickStatus(key) {
 
 const statusClass = (s) => ({
     submitted: 'bg-yellow-100 text-yellow-800',   // Received
+    pending: 'bg-blue-100 text-blue-800',         // Pending — manual follow-up
     auto_resolved: 'bg-purple-100 text-purple-800',
     rejected: 'bg-red-100 text-red-800',
     approved: 'bg-green-100 text-green-800',       // also used for `scheduled` (in a settlement)

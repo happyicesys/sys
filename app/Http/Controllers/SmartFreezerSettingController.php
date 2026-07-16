@@ -49,7 +49,7 @@ class SmartFreezerSettingController extends Controller
                     ->with('uploader')
                     ->orderByDesc('version_code')
                     ->get()
-            ),
+            )->resolve(), // bare array — the Vue page treats `releases` as a plain array (not {data:[]})
             'fleetVersions' => $fleet,
             'smartFleetCount' => Vend::query()->smart()->count(),
         ]);

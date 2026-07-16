@@ -165,6 +165,11 @@ class RefundFormController extends Controller
 
     public function store(Request $request)
     {
+        // On the manual-review path (no matched transaction) the customer must key in
+        // the total amount they paid, and it must be more than $1. Matched claims
+        // derive the amount from the transaction, so entered_amount stays optional there.
+        $isManual = $request->boolean('is_manual');
+
         $data = $request->validate([
             'machineID' => ['required', 'string', 'max:191'],
             'vend_transaction_id' => ['nullable', 'integer'],
@@ -182,10 +187,15 @@ class RefundFormController extends Controller
             'contact_phone' => ['nullable', 'string', 'max:60'],
             'is_manual' => ['nullable', 'boolean'],
             'entered_day' => ['nullable', 'string', 'max:30'],
-            'entered_amount' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'entered_amount' => $isManual
+                ? ['required', 'numeric', 'gt:1', 'max:100000']
+                : ['nullable', 'numeric', 'min:0', 'max:100000'],
             'approx_time' => ['nullable', 'string', 'max:191'],
             'photos' => ['nullable', 'array', 'max:' . config('refund.attachments.max_count', 3)],
             'photos.*' => ['file', 'mimetypes:image/*,video/*', 'max:' . config('refund.attachments.max_kb', 30720)],
+        ], [
+            'entered_amount.required' => 'Please enter the total amount you paid.',
+            'entered_amount.gt' => 'The amount you paid must be more than $1.',
         ]);
 
         // A photo/video is required on every path (matched and manual review).

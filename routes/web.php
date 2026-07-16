@@ -64,6 +64,7 @@ use App\Http\Controllers\VendCriteriaBindingController;
 use App\Http\Controllers\VendModelController;
 use App\Http\Controllers\VendPrefixController;
 use App\Http\Controllers\VendSerialNumberController;
+use App\Http\Controllers\VendStickerController;
 use App\Http\Controllers\UserLogController;
 use App\Http\Controllers\VendAlertParameterController;
 use App\Http\Controllers\VoucherController;
@@ -784,6 +785,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/', [VendController::class, 'index'])->name('vends');
         Route::get('/{id}/edit', [VendController::class, 'edit'])->name('vends.edit');
         Route::get('/{vend}/logs', [VendController::class, 'logs']);
+        Route::get('/{vend}/field-audit', [VendController::class, 'fieldAudit'])->name('vends.field-audit')
+            ->middleware('can:read machine-settings');
         Route::get('/{vend}/coin-float-history', [VendController::class, 'coinFloatHistory']);
         Route::get('/{id}/temp/{type}', [VendController::class, 'temp'])->name('temp');
         Route::get('/{id}/temp/{type}/excel', [VendController::class, 'exportTempExcel']);
@@ -856,6 +859,17 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::delete('/{id}', [VendPrefixController::class, 'delete']);
     });
 
+    Route::prefix('machine-stickers')->group(function () {
+        Route::get('/', [VendStickerController::class, 'index'])->name('machine-stickers')
+            ->middleware('can:read machine-stickers');
+        Route::post('/create', [VendStickerController::class, 'create'])
+            ->middleware('can:create machine-stickers');
+        Route::post('/{id}/update', [VendStickerController::class, 'update'])
+            ->middleware('can:update machine-stickers');
+        Route::delete('/{id}', [VendStickerController::class, 'delete'])
+            ->middleware('can:delete machine-stickers');
+    });
+
     Route::prefix('vend-serial-numbers')->group(function () {
         Route::get('/', [VendSerialNumberController::class, 'index'])->name('vend-serial-numbers')
             ->middleware('can:read serial-numbers');
@@ -918,6 +932,7 @@ Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     Route::post('/{ticket}/clear-match', [RefundController::class, 'clearMatch'])->middleware('can:update refunds');
     Route::post('/{ticket}/verify', [RefundController::class, 'verify'])->middleware('can:verify refunds');
     Route::post('/{ticket}/reject', [RefundController::class, 'reject'])->middleware('can:verify refunds');
+    Route::post('/{ticket}/pending', [RefundController::class, 'markPending'])->middleware('can:verify refunds');
     Route::post('/{ticket}/resolve-no-charge', [RefundController::class, 'resolveNoCharge'])->middleware('can:verify refunds');
     Route::post('/{ticket}/drop', [RefundController::class, 'drop'])->middleware('can:verify refunds');
     Route::post('/{ticket}/undrop', [RefundController::class, 'undrop'])->middleware('can:verify refunds');

@@ -50,6 +50,23 @@
             </MultiSelect>
           </div>
           <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Machine Sticker
+            </label>
+            <MultiSelect
+                v-model="filters.stickers"
+                :options="stickerOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
+          <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Machine Status
 						</label>
@@ -241,7 +258,7 @@
                     <TableHeadSort modelName="desc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('desc')" class="max-w-600">
                       Remarks
                     </TableHeadSort>
-                    <TableHead colspan="8">
+                    <TableHead colspan="9">
                       Machine Info
                     </TableHead>
                     <TableHead colspan="4">
@@ -256,6 +273,9 @@
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_model_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_model_name')">
                       Model
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vend_sticker_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_sticker_name')">
+                      Machine Sticker
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_lcd_monitor" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_lcd_monitor')">
                       LCD Monitor
@@ -323,6 +343,13 @@
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_model_name }}
+                      </TableData>
+                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
+                        <div class="flex flex-wrap gap-1 justify-center">
+                          <span v-for="s in vendSerialNumber.stickers" :key="s.id" class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                            {{ s.name }}
+                          </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_lcd_monitor }}
@@ -403,6 +430,7 @@ const props = defineProps({
   vendPrefixOptions: Object,
   vendSerialNumbers: Object,
   permissions: Object,
+  stickerOptions: Object,
 })
 
 const filters = ref({
@@ -416,6 +444,7 @@ const filters = ref({
   vendContracts: [],
   vendModels: [],
   vendPrefixes: [],
+  stickers: [],
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -433,6 +462,7 @@ const vendConfigOptions = ref([])
 const vendContractOptions = ref([])
 const vendPrefixOptions = ref([])
 const vendModelOptions = ref([])
+const stickerOptions = ref([])
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -480,6 +510,10 @@ onMounted(() => {
       {id: 'single-ud', value: 'Single UD'},
       ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
+  stickerOptions.value = [
+      {id: 'all', value: 'All'},
+      ...((props.stickerOptions && props.stickerOptions.data) ? props.stickerOptions.data : []).map((data) => {return {id: data.id, value: data.name}})
+  ]
 
   // filters.value.locationType = locationTypeOptions.value[0]
   // filters.value.operators = operatorOptions.value[0]
@@ -522,6 +556,7 @@ function onExportExcelClicked() {
           vendModels: filters.value.vendModels.map((model) => model.id),
           vendPrefixes: filters.value.vendPrefixes.map((prefix) => prefix.id),
           status: filters.value.status.id,
+          stickers: filters.value.stickers.map((sticker) => sticker.id),
         },
         responseType: 'blob',
     }).then(response => {
@@ -556,6 +591,7 @@ function onSearchFilterUpdated() {
       vendModels: filters.value.vendModels.map((model) => model.id),
       vendPrefixes: filters.value.vendPrefixes.map((prefix) => prefix.id),
       status: filters.value.status.id,
+          stickers: filters.value.stickers.map((sticker) => sticker.id),
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

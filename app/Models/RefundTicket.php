@@ -12,6 +12,10 @@ class RefundTicket extends Model
 
     // ---- status machine ----
     const STATUS_SUBMITTED = 'submitted';
+    // Manual follow-up: Ops has emailed the customer to get more info. Sits between
+    // Received and a decision; Approve/Reject/Drop stay available. No email is sent
+    // by the system when a ticket is moved here.
+    const STATUS_PENDING = 'pending';
     const STATUS_AUTO_RESOLVED = 'auto_resolved';            // Nayax external / already auto-refunded
     const STATUS_VERIFIED = 'verified';
     const STATUS_REJECTED = 'rejected';

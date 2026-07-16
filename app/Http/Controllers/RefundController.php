@@ -307,7 +307,7 @@ class RefundController extends Controller
         // (actor) + timestamp beside the status. One batched query; the latest entry
         // per stage wins (ordered ascending, so a later row overwrites an earlier one).
         $stageActions = [
-            'validation'   => ['verified', 'rejected', 'status_override', 'dropped', 'undropped'],
+            'validation'   => ['verified', 'rejected', 'pending', 'status_override', 'dropped', 'undropped'],
             'settlement'   => ['scheduled', 'returned_to_pool'],
             'insufficient' => ['insufficient_info'],
             'done'         => ['completed'],
@@ -402,6 +402,11 @@ class RefundController extends Controller
         $filename = 'Refund_Requests_' . now()->format('Ymd_His') . '.xlsx';
 
         return (new \Rap2hpoutre\FastExcel\FastExcel($generator()))->download($filename, function (array $r) use ($statusLabels) {
+            // Money columns are built as number_format() strings for the on-screen
+            // list (and can carry a thousands "," separator). For the spreadsheet we
+            // want real numeric cells so Excel can sum/sort them, so cast back to
+            // float (strip the separator first); null/blank stays empty (not 0).
+            $money = fn ($v) => ($v === null || $v === '') ? null : (float) str_replace(',', '', (string) $v);
             $channels = collect($r['affected_items'] ?? [])->pluck('channel')->filter()->implode(', ');
             $products = collect($r['affected_items'] ?? [])->pluck('product_name')->filter()->implode(', ');
             // `scheduled` (pushed into a settlement) and `insufficient_info` (parked in
@@ -425,14 +430,14 @@ class RefundController extends Controller
                 'Txn Delta' => $r['txn_delta'],
                 'Channel' => $channels,
                 'Product Name' => $products,
-                'Paid Amount' => $r['paid_amount'],
+                'Paid Amount' => $money($r['paid_amount']),
                 'Pay Method' => $r['pay_method'],
                 'Pay Provider' => $r['pay_provider'],
                 // Mirror the screen: show the effective payout — the admin's final
                 // amount when overridden (incl. admin-set tickets whose original claim
                 // is 0), otherwise the original claim. Prevents overridden/admin-set
                 // rows exporting as 0.00.
-                'Refund Amount' => $r['final_refund_overridden'] ? $r['final_refund_amount'] : $r['amount'],
+                'Refund Amount' => $money($r['final_refund_overridden'] ? $r['final_refund_amount'] : $r['amount']),
                 'Refund Method' => $r['refund_method'],
                 'PayNow / PayPal Email' => $r['payout_destination_any'],
                 'Machine L24h # of RF' => $r['machine_rf_24h'],
@@ -552,8 +557,21 @@ class RefundController extends Controller
     {
         $this->guardTransition($ticket, [
             RefundTicket::STATUS_SUBMITTED,
+            RefundTicket::STATUS_PENDING,
             RefundTicket::STATUS_PENDING_TRANSFER_INFO,
         ], 'verify');
+
+        // Manual submissions carry no matched transaction, so the claimed amount is
+        // 0 until an admin records the Final Refund Amount. Block approval until that
+        // amount is set and greater than 0 — otherwise the ticket would pay out $0.
+        // Uses the same frozen is_manual verdict the ticket page reads.
+        $sv = $ticket->system_validation_json ?? [];
+        $isManualClaim = array_key_exists('is_manual', $sv) ? (bool) $sv['is_manual'] : (bool) $ticket->is_manual;
+        if ($isManualClaim && ($ticket->final_refund_amount_cents === null || (int) $ticket->final_refund_amount_cents <= 0)) {
+            return back()->withErrors([
+                'ticket' => 'Please set a Final Refund Amount greater than $0 before approving this manual submission.',
+            ]);
+        }
 
         // A ticket the system already auto-refunded (third validation icon crossed)
         // can never be approved for a manual payout — approving would pay it twice.
@@ -607,6 +625,7 @@ class RefundController extends Controller
     {
         $this->guardTransition($ticket, [
             RefundTicket::STATUS_SUBMITTED,
+            RefundTicket::STATUS_PENDING,
             RefundTicket::STATUS_VERIFIED,
             RefundTicket::STATUS_APPROVED,
             RefundTicket::STATUS_PENDING_TRANSFER_INFO,
@@ -636,6 +655,7 @@ class RefundController extends Controller
         $data = $request->validate(['remarks' => ['nullable', 'string', 'max:2000']]);
         $this->guardTransition($ticket, [
             RefundTicket::STATUS_SUBMITTED,
+            RefundTicket::STATUS_PENDING,
             RefundTicket::STATUS_VERIFIED,
             RefundTicket::STATUS_APPROVED,
             RefundTicket::STATUS_PENDING_TRANSFER_INFO,
@@ -685,6 +705,7 @@ class RefundController extends Controller
         $data = $request->validate(['remarks' => ['nullable', 'string', 'max:2000']]);
         $this->guardTransition($ticket, [
             RefundTicket::STATUS_SUBMITTED,
+            RefundTicket::STATUS_PENDING,
             RefundTicket::STATUS_VERIFIED,
             RefundTicket::STATUS_APPROVED,
             RefundTicket::STATUS_PENDING_TRANSFER_INFO,
@@ -695,6 +716,25 @@ class RefundController extends Controller
             'ops_remarks' => $data['remarks'] ?? $ticket->ops_remarks,
         ]);
         $this->tickets->log($ticket, 'rejected', $from, $ticket->status, $data['remarks'] ?? 'Rejected', auth()->user()?->name ?? 'Ops', auth()->id());
+
+        return back();
+    }
+
+    /**
+     * "Pending - manual follow-up": Ops is emailing the customer by hand to get
+     * more info. Distinct from pending_transfer_info (which auto-emails T_INFO_REQUIRED);
+     * this sends NO system email. Only reachable from Received; Approve / Reject /
+     * Drop stay usable from here (STATUS_PENDING is in their allowedFrom lists).
+     */
+    public function markPending(RefundTicket $ticket)
+    {
+        $this->guardTransition($ticket, [
+            RefundTicket::STATUS_SUBMITTED,
+        ], 'mark pending');
+
+        $from = $ticket->status;
+        $ticket->update(['status' => RefundTicket::STATUS_PENDING]);
+        $this->tickets->log($ticket, 'pending', $from, $ticket->status, 'Marked Pending - manually following up with the customer for more info (no email)', auth()->user()?->name ?? 'Ops', auth()->id());
 
         return back();
     }
@@ -1623,6 +1663,7 @@ class RefundController extends Controller
         // hand — approval is disabled for them. No separate chip/status anymore.
         return [
             RefundTicket::STATUS_SUBMITTED => 'Received',
+            RefundTicket::STATUS_PENDING => 'Pending',
             RefundTicket::STATUS_REJECTED => 'Rejected',
             // "Dropped" is a pseudo-status, not a real status column value: dropped
             // tickets are stored as Rejected with is_dropped=true. It is surfaced as

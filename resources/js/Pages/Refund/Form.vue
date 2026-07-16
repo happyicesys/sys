@@ -366,6 +366,8 @@ function next() {
     }
     if (s === 8) { submit(); return; }
     if (s === '4c') {
+        const paid = parseFloat(manualAmount.value);
+        if (!manualAmount.value || isNaN(paid) || paid <= 1) { errorMsg.value = 'Please enter the total amount you paid (must be more than $1).'; return; }
         if (photos.value.length === 0) { errorMsg.value = 'Please add at least one photo or a short video.'; return; }
         if (!emailValid(contactEmail.value)) { errorMsg.value = 'Please enter a valid email so we can update you.'; return; }
         step.value = 7; return;
@@ -576,7 +578,7 @@ async function submitManual() {
             <label class="fld">Around what time? <span class="dayhint">({{ dayLabel }})</span></label>
             <input class="inp" type="time" v-model="manualTime" />
 
-            <label class="fld">Total amount paid</label>
+            <label class="fld">Total amount paid <span style="color:#dc2626">*</span> <span class="dayhint">(total from your bill)</span></label>
             <div class="amtrow"><span class="cur2">$</span><input class="inp amt2" type="text" inputmode="numeric" :value="manualAmount" @input="onManualAmountInput" placeholder="0.00" /></div>
 
             <label class="fld">How did you pay?</label>

@@ -565,6 +565,11 @@ class Vend extends Model
         return $this->belongsTo(VendModel::class);
     }
 
+    public function stickers()
+    {
+        return $this->belongsToMany(VendSticker::class, 'vend_sticker_vend');
+    }
+
     /**
      * Whether this vend is an AI smart freezer (model = VendModel::SMART_VEND).
      *

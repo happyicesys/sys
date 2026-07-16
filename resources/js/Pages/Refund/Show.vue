@@ -86,6 +86,14 @@ function post(url, data = {}) {
 }
 const base = computed(() => '/refunds/' + t.value.id);
 
+// "Pending" — park the ticket for manual follow-up (Ops emails the customer for
+// more info by hand). Sets status to Pending only; the system sends NO email.
+// Approve / Reject / Drop stay available afterwards.
+function doPending() {
+    if (!confirm('Move this ticket to Pending?\n\nUse this when you are manually emailing the customer to get more info. No email is sent by the system.')) return;
+    post(base.value + '/pending');
+}
+
 // "No charge / auto-refund" — email the customer it was already handled and close
 // the ticket. Never triggers a new refund.
 function resolveNoCharge() {
@@ -120,7 +128,7 @@ const recClass = (r) => ({ proceed: 'text-green-700 bg-green-50 border-green-200
 // System-validation badges are a green (good/safe) vs red (danger/check) binary.
 const badgeGood = 'bg-green-50 border-green-200 text-green-700';
 const badgeBad = 'bg-red-50 border-red-200 text-red-700';
-const statusClass = (s) => ({ submitted: 'bg-yellow-100 text-yellow-800', auto_resolved: 'bg-purple-100 text-purple-800', rejected: 'bg-red-100 text-red-800', approved: 'bg-green-100 text-green-800', completed: 'text-gray-500' }[s] || 'bg-gray-100 text-gray-700');
+const statusClass = (s) => ({ submitted: 'bg-yellow-100 text-yellow-800', pending: 'bg-blue-100 text-blue-800', auto_resolved: 'bg-purple-100 text-purple-800', rejected: 'bg-red-100 text-red-800', approved: 'bg-green-100 text-green-800', completed: 'text-gray-500' }[s] || 'bg-gray-100 text-gray-700');
 
 const isPaynow = computed(() => t.value.refund_method === 'paynow');
 const s = computed(() => t.value.status);
@@ -175,6 +183,11 @@ const finalAmount = ref(props.ticket.final_refund_amount ?? props.ticket.amount 
 const finalRemarks = ref(props.ticket.final_refund_remarks ?? '');
 const finalAmountLocked = computed(() => ['scheduled', 'completed'].includes(s.value));
 const canEditFinal = computed(() => canSetFinalAmount.value && !finalAmountLocked.value);
+// Manual submissions carry no matched transaction (claim defaults to $0), so an
+// admin must record a Final Refund Amount (> $0) before the ticket can be
+// approved — mirrors the server guard in RefundController::verify().
+const needsFinalAmount = computed(() =>
+    isManualClaim.value && (!t.value.final_refund_amount_set || Number(t.value.final_refund_amount) <= 0));
 function saveFinalAmount() {
     const val = String(finalAmount.value).trim();
     if (val === '' || isNaN(Number(val)) || Number(val) < 0) {
@@ -261,6 +274,7 @@ const attachments = computed(() => t.value.attachments || []);
 // with a real actor_id (an admin) are badged; System (actor_id null) and Customer
 // lines — including the auto-generated "Email sent" lines — are left plain.
 const actionBadges = {
+    pending: { label: 'Pending', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
     verified: { label: 'Approved', cls: 'bg-green-100 text-green-700 border-green-200' },
     rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-700 border-red-200' },
     dropped: { label: 'Dropped', cls: 'bg-gray-200 text-gray-700 border-gray-300' },
@@ -675,13 +689,22 @@ function actionBadge(l) {
             <div v-if="hasActions" class="bg-gray-50 rounded-md border p-4 space-y-2">
                 <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-1">Actions</h3>
 
+                <!-- Pending: manual follow-up. Shown only for a freshly Received ticket.
+                     Parks it as Pending (blue) so Ops can email the customer by hand for
+                     more info. Sends NO system email; Approve / Reject / Drop stay below. -->
+                <template v-if="can('verify refunds') && s === 'submitted'">
+                    <button @click="doPending" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-blue-600 text-white disabled:opacity-50">◷ Pending</button>
+                    <p class="text-[11px] text-blue-700 -mt-1 mb-1">Manually email customer to get more info</p>
+                </template>
+
                 <!-- ✓ Verified (Approved): moves to Approved and emails the customer
                      that their refund is approved (paid within 5 working days). -->
                 <!-- Approve is hidden once the transaction is already auto-refunded
                      (third validation icon crossed): approving would pay it twice.
                      Only Reject / Drop remain for those tickets. -->
-                <button v-if="can('verify refunds') && !alreadyRefunded && ['submitted','pending_transfer_info'].includes(s)" @click="post(base + '/verify')" :disabled="busy" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-teal-600 text-white">✓ Approve</button>
-                <a v-if="can('verify refunds') && !alreadyRefunded && ['submitted','pending_transfer_info'].includes(s)" href="#" @click.prevent="openTemplate('approved')" class="block text-[11px] text-teal-700 underline hover:text-teal-900 -mt-1 mb-1">✉ Preview approval email</a>
+                <button v-if="can('verify refunds') && !alreadyRefunded && ['submitted','pending','pending_transfer_info'].includes(s)" @click="post(base + '/verify')" :disabled="busy || needsFinalAmount" :title="needsFinalAmount ? 'Set a Final Refund Amount (> $0) first' : ''" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-teal-600 text-white disabled:opacity-50 disabled:cursor-not-allowed">✓ Approve</button>
+                <p v-if="can('verify refunds') && !alreadyRefunded && needsFinalAmount && ['submitted','pending','pending_transfer_info'].includes(s)" class="text-[11px] text-amber-600 -mt-1 mb-1">Set a Final Refund Amount greater than $0 before approving this manual submission.</p>
+                <a v-if="can('verify refunds') && !alreadyRefunded && ['submitted','pending','pending_transfer_info'].includes(s)" href="#" @click.prevent="openTemplate('approved')" class="block text-[11px] text-teal-700 underline hover:text-teal-900 -mt-1 mb-1">✉ Preview approval email</a>
 
                 <!-- ✕ No charge / auto-refund: charge already auto-refunded (or never
                      captured). Emails the customer it's handled and closes the ticket;

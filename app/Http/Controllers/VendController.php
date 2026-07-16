@@ -4689,7 +4689,71 @@ class VendController extends Controller
             }
         }
 
+        // Sync optional Machine Stickers (multi-select on the edit form). Only
+        // touch the pivot when the key was sent, so other callers of update()
+        // that don't manage stickers never clear existing bindings.
+        if ($request->has('sticker_ids')) {
+            $vend->stickers()->sync($request->input('sticker_ids', []) ?: []);
+        }
+
         return redirect()->back();
+    }
+
+    /**
+     * Read-only per-field attribution for the machine edit screen, derived from
+     * the app-wide user_logs audit (App\Services\UserLogger). Returns, per Vend
+     * column, the newest { who, at } that changed it — no schema change needed.
+     */
+    public function fieldAudit($id)
+    {
+        $vend = Vend::withoutGlobalScopes()->findOrFail($id);
+
+        // Columns represented by the single "Status" control on the form.
+        $statusCols = ['is_active', 'is_disposed', 'is_sold', 'is_testing'];
+
+        $rows = \App\Models\UserLog::query()
+            ->where('auditable_type', Vend::class)
+            ->where('auditable_id', $vend->id)
+            ->where('event', 'updated')
+            ->orderByDesc('id')
+            ->limit(500)
+            ->get(['user_name', 'changes', 'created_at']);
+
+        // Two values count as a real change only if they differ after normalizing
+        // type: the form posts booleans/strings while the DB stores ints, so an
+        // unchanged save can log e.g. is_active [1 -> true] or key_id [100 -> "100"].
+        // Those are NOT genuine edits and must not stamp a field.
+        $sameValue = function ($a, $b): bool {
+            $na = is_bool($a) ? (int) $a : $a;
+            $nb = is_bool($b) ? (int) $b : $b;
+            if (is_numeric($na) && is_numeric($nb)) {
+                return (float) $na === (float) $nb;
+            }
+            return $na === $nb;
+        };
+
+        $audit = [];
+        foreach ($rows as $row) {
+            $changes = $row->changes ?? [];
+            if (! is_array($changes)) {
+                continue;
+            }
+            foreach ($changes as $col => $diff) {
+                // Skip type-only, no-op diffs so only truly-changed fields appear.
+                if (is_array($diff) && count($diff) === 2 && $sameValue($diff[0], $diff[1])) {
+                    continue;
+                }
+                $key = in_array($col, $statusCols, true) ? 'status' : $col;
+                if (! isset($audit[$key])) {
+                    $audit[$key] = [
+                        'who' => $row->user_name ?: 'Unknown',
+                        'at'  => optional($row->created_at)->toIso8601String(),
+                    ];
+                }
+            }
+        }
+
+        return response()->json($audit);
     }
 
     public function unbindCustomer($vendID, $returnUrl = null)

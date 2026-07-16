@@ -73,6 +73,7 @@
               <FormInput v-model="form.label_name" :error="form.errors.label_name">
                 Label
               </FormInput>
+                <FieldAudit :entry="fieldAudit.label_name" />
             </div>
 
             <div class="sm:col-span-2">
@@ -80,12 +81,14 @@
               v-if="permissions.includes('update machine-settings')">
                 Begin Date
               </DatePicker>
+                <FieldAudit :entry="fieldAudit.begin_date" />
             </div>
             <div class="sm:col-span-2">
               <DatePicker v-model="form.termination_date" :error="form.errors.termination_date" :minDate="form.begin_date"
               v-if="permissions.includes('update machine-settings')">
                 Retired Date
               </DatePicker>
+                <FieldAudit :entry="fieldAudit.termination_date" />
             </div>
             <!-- <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -140,6 +143,7 @@
                 class="mt-1"
               >
               </MultiSelect>
+                <FieldAudit :entry="fieldAudit.status" />
               <div class="text-sm text-red-600" v-if="form.errors['customer.is_testing']">
                 {{ form.errors['customer.is_testing'] }}
               </div>
@@ -162,9 +166,26 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.vend_model_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.simcard_id">
                   {{ form.errors.vend_model_id }}
                 </div>
+            </div>
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Machine Sticker
+                </label>
+                <MultiSelect
+                  v-model="form.sticker_id"
+                  :options="stickerOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
             </div>
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -190,6 +211,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.vend_serial_number_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.key_id">
                   {{ form.errors.key_id }}
                 </div>
@@ -209,6 +231,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.key_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.key_id">
                   {{ form.errors.key_id }}
                 </div>
@@ -231,6 +254,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.operator_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.operator_id">
                   {{ form.errors.operator_id }}
                 </div>
@@ -287,6 +311,7 @@
                   @selected="onVendConfigSelected"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.vend_config_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.vend_config_id">
                   {{ form.errors.vend_config_id }}
                 </div>
@@ -347,6 +372,7 @@
                   @selected="onVendPrefixSelected"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.vend_prefix_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.vend_prefix_id">
                   {{ form.errors.vend_prefix_id }}
                 </div>
@@ -367,6 +393,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.simcard_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.simcard_id">
                   {{ form.errors.simcard_id }}
                 </div>
@@ -387,6 +414,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.card_terminal_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.card_terminal_id">
                   {{ form.errors.card_terminal_id }}
                 </div>
@@ -414,6 +442,7 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+                <FieldAudit :entry="fieldAudit.modem_type_id" />
                 <div class="text-sm text-red-600" v-if="form.errors.modem_type_id">
                   {{ form.errors.modem_type_id }}
                 </div>
@@ -1335,6 +1364,7 @@ import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 
 import FormInput from '@/Components/FormInput.vue';
+import FieldAudit from '@/Components/FieldAudit.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon, XMarkIcon } from '@heroicons/vue/20/solid';
@@ -1369,6 +1399,7 @@ const props = defineProps({
     vendModelOptions: Object,
     vendPrefixOptions: Object,
     vendSerialNumberOptions: Object,
+    stickerOptions: Object,
     versionOptions: Object,
   })
 
@@ -1424,6 +1455,8 @@ const vendContractOptions = ref([])
 const vendModelOptions = ref([])
 const vendPrefixOptions = ref([])
 const vendSerialNumberOptions = ref([])
+const stickerOptions = ref([])
+const fieldAudit = ref({})
 const versionOptions = ref([])
 const isPromoting = ref(false)
 let hasMounted = false;
@@ -1540,6 +1573,15 @@ function getDefaultForm() {
 }
 
 onMounted(() => {
+  stickerOptions.value = [{ id: '', name: '--- Clear ---' }, ...(((props.stickerOptions && props.stickerOptions.data) ? props.stickerOptions.data : []).map(s => ({ id: s.id, name: s.name })))]
+
+  // Per-field audit (who/when) for this machine, derived from user_logs.
+  if (props.vend && props.vend.id) {
+    axios.get('/vends/' + props.vend.id + '/field-audit')
+      .then((res) => { fieldAudit.value = res.data || {} })
+      .catch(() => {})
+  }
+
   // Card Terminal types (Nayax / Nets / Nets-Auresys / PAX / MLS) — populated from
   // CardTerminalResource::collection in SettingController@edit.
   cardTerminalOptions.value = [
@@ -1690,6 +1732,7 @@ onMounted(() => {
     vend_model_id: props.vend ? props.vend.vend_model_id ? vendModelOptions.value.find(vendModel => vendModel.id == props.vend.vend_model_id) : null : null,
     vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id == props.vend.vend_prefix_id) : null : null,
     vend_serial_number_id: props.vend ? props.vend.vend_serial_number_id ? vendSerialNumberOptions.value.find(vendSerialNumber => vendSerialNumber.id == props.vend.vend_serial_number_id) : null : null,
+    sticker_id: props.vend && props.vend.stickers && props.vend.stickers.length ? (stickerOptions.value.find(o => o.id === props.vend.stickers[0].id) || null) : null,
     vend_vend_config_version: props.vend.vend_vend_config_version ? {id: props.vend.vend_vend_config_version, value: props.vend.vend_vend_config_version} : null,
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
@@ -2243,6 +2286,7 @@ function saveVend(vendID) {
       vend_model_id: data.vend_model_id ? data.vend_model_id.id : null,
       vend_prefix_id: data.vend_prefix_id ? data.vend_prefix_id.id : null,
       vend_serial_number_id: data.vend_serial_number_id ? data.vend_serial_number_id.id : null,
+      sticker_ids: data.sticker_id && data.sticker_id.id ? [data.sticker_id.id] : [],
       vend_vend_config_version: data.vend_vend_config_version ? data.vend_vend_config_version.id : null,
     }))
     .post('/vends/' + vendID + '/update', {

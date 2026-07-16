@@ -22,6 +22,7 @@ use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendSerialNumberResource;
+use App\Http\Resources\VendStickerResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
 use App\Jobs\PublishMqtt;
@@ -47,6 +48,7 @@ use App\Models\VendContract;
 use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\VendSerialNumber;
+use App\Models\VendSticker;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DB;
@@ -304,6 +306,7 @@ class SettingController extends Controller
                 'vendModel',
                 'vendPrefix',
                 'vendSerialNumber',
+                'stickers',
             ])
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
@@ -529,6 +532,9 @@ class SettingController extends Controller
                 $upcomingProductMappingOptions
             ),
             'vend' => $vend,
+            'stickerOptions' => VendStickerResource::collection(
+                VendSticker::orderBy('name')->get()
+            ),
             'vendConfigOptions' => VendConfigResource::collection(
                 VendConfig::orderBy('name')->get()
             ),
