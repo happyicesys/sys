@@ -671,24 +671,40 @@ class VendTransactionService
             }
         }
 
-        // mapping product ID, and find unit cost, gst rate
-        if ($vendChannel && $this->productMappingItems) {
+        // Resolve the planogram item → product, then unit cost + gst rate.
+        //
+        // Smart freezers report no channel telemetry (the door never uploads
+        // vend_channels; inventory qty is validated by the transaction + AI as a
+        // separate logical layer). So for a smart mapping we resolve the product
+        // straight from product_mapping_items by channel_code and NEVER create a
+        // vend_channels row. Vending machines keep their existing vend_channel-
+        // keyed path, untouched.
+        $isSmart = $vend->productMapping && $vend->productMapping->is_smart;
+
+        $productMappingItem = null;
+        if ($isSmart) {
+            $productMappingItem = ($this->productMappingItems && $vendChannelCode !== 0)
+                ? $this->productMappingItems->get($vendChannelCode)
+                : null;
+        } elseif ($vendChannel && $this->productMappingItems) {
             $productMappingItem = $this->productMappingItems->get($vendChannel->code);
-            if ($productMappingItem) {
-                $product = $productMappingItem->product;
-                // For a blind parent, its current cost IS the derived blended cost
-                // (one per product), so the normal resolution path covers both.
-                $unitCost = $product->unitCosts->where('is_current', true)->first();
-                if ($unitCost) {
-                    $unitCostId = $unitCost->id;
-                    $unitCostValue = $unitCost->cost * 100;
-                }
-                $gstVatRate = $product->operator ? $product->operator->gst_vat_rate : 0;
-            }
         }
 
-        // handle not found vend channel
-        if (!$vendChannel and $vendChannelCode != 0) {
+        if ($productMappingItem) {
+            $product = $productMappingItem->product;
+            // For a blind parent, its current cost IS the derived blended cost
+            // (one per product), so the normal resolution path covers both.
+            $unitCost = $product->unitCosts->where('is_current', true)->first();
+            if ($unitCost) {
+                $unitCostId = $unitCost->id;
+                $unitCostValue = $unitCost->cost * 100;
+            }
+            $gstVatRate = $product->operator ? $product->operator->gst_vat_rate : 0;
+        }
+
+        // handle not found vend channel (vending only — smart freezers never
+        // create vend_channels rows)
+        if (!$isSmart and !$vendChannel and $vendChannelCode != 0) {
             $vendChannel = $this->createVendChannel($vend->id, $vendChannelCode);
         }
 

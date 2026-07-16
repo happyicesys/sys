@@ -279,6 +279,10 @@ class PaymentController extends Controller
           'name' => $paymentMethod->paymentMerchant->name,
           'image_url' => $paymentMethod->paymentMerchant->image_url,
           'slug' => $paymentMethod->type_name,
+          // Numeric PAY_TYPE the machine echoes back on the TRADE frame (e.g. 201
+          // = Omise PayNow). Card Terminal is 1; every gateway method carries its
+          // own code. Lets a smart freezer report the exact merchant it charged.
+          'code' => $paymentMethod->code,
           'sequence' => $paymentMethod->sequence,
           'timeout_seconds' => 150,
           'is_default' => $paymentMethod->paymentGateway->default_payment_method_id === $paymentMethod->id,

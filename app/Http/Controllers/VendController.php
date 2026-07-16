@@ -2718,11 +2718,24 @@ class VendController extends Controller
             return (int) $a->channel_code <=> (int) $b->channel_code;
         })->values();
 
+        // Smart-freezer terminals cache thumbnails hard (metered 4G), keyed by URL. For smart mappings
+        // only, append a version token that changes whenever the product or its image row is touched,
+        // so a replaced photo (served under the SAME CDN URL) busts the on-device cache while unchanged
+        // images stay cached. Vending machines (is_smart = false) get the exact same output as before.
+        $isSmart = (bool) ($vend->productMapping?->is_smart);
+
         $dataArr = [];
 
         foreach ($sortedItems as $item) {
             $product = $item->product;
             $serverPrice = $sellingPrices[$item->product_id]->amount ?? null;
+
+            $thumbnailUrl = $product?->thumbnail?->full_url;
+            if ($isSmart && $thumbnailUrl) {
+                $ver = (optional($product->updated_at)->timestamp ?? 0)
+                    . '-' . (optional($product->thumbnail->updated_at)->timestamp ?? 0);
+                $thumbnailUrl .= (str_contains($thumbnailUrl, '?') ? '&' : '?') . 'v=' . $ver;
+            }
 
             $data = [
                 'vend_code' => $vend->code,
@@ -2737,7 +2750,7 @@ class VendController extends Controller
                 'product_sub_category' => $product?->category?->name,
                 'product_volumn_weight' => $product?->measurement_value,
                 'sequence' => $item->sequence,
-                'thumbnail' => $product?->thumbnail?->full_url,
+                'thumbnail' => $thumbnailUrl,
                 'server_price' => $serverPrice,
                 'labels' => $product?->tagBindings->map(fn($tb) => [
                     'id' => $tb->tag?->id,
