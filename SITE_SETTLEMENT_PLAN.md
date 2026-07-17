@@ -141,3 +141,25 @@ Everything else (the `commission_settlements` table, its controller/service/page
 
 1. **Does manual Mark-Paid stay fully?** Assumed yes (for out-of-band payments), just gated so a row in a settlement can't also be Mark-Paid. Flag if you'd rather Mark-Paid go away too.
 2. **Legacy commission-export code** (`CommissionCimbExportService`) is refactored into a reusable core; the on-summary *button* is removed but the service stays (settlement uses it). Confirm no other caller depends on the old public method.
+
+---
+
+## As-built (2026-07-13)
+
+Built end-to-end, mirroring the finalized Refund Settlement UI (two states open/closed, no manual Close, auto-close when all rows paid, Undo-close, Export-first ACTIONS block).
+
+**Backend**
+- Migrations `2026_07_13_1100xx`: `commission_settlements`, `customer_period_summaries.commission_settlement_id`, `commission_settlement_logs`, `commission_settlement_exports`.
+- Models: `CommissionSettlement` / `…Log` / `…Export`; `CustomerPeriodSummary` gets `commission_settlement_id` (fillable) + resource field.
+- `CommissionSettlementService`: push (eligible = locked + unpaid + not current + ≥2605 + Net Loc Fee>0 + not in a settlement), grouped by payout head (`payout_group_id ?? operator`); reopen; return-to-pool; voidEmpty; exportCimb (per site+month, `CimbBulkPaymentFile` + `resolveColE`, debit = group/operator account); **markDone** = sets paid flags AND posts the `customer_settlements` credit (replicates `batchMarkPaid`), auto-closes when all paid.
+- `CommissionSettlementController` + `/site-settlements/*` routes (admin only, `admin-access customers`).
+- **Mutual exclusion**: rows in a settlement are excluded from on-summary batch Mark-Paid and single Mark-Paid (backend guards); a paid row can't be pushed.
+
+**Frontend**
+- `Pages/SiteSettlement/Index.vue` + `Show.vue` (mirror the refund pages, single site-row stream).
+- Nav: **Site Management ▸ Site Settlement**.
+- Site Summary: the on-summary **Export CIMB** button is replaced by **Push to Settlement**; settled rows drop out of the Mark-Paid eligibility.
+
+**Deploy (you run):** `php artisan migrate` → `npm run build`. Ensure the HIPL payout group (or each operator) has a CIMB account set (Admin ▸ Operator Group), else export blocks.
+
+**⚠ Test carefully (money path):** Mark-Paid in a settlement writes the paid flags + `customer_settlements` ledger credit exactly like the on-summary flow — verify Payment History reflects a settlement payment correctly on a test row before relying on it. The bank-vs-PayNow settlement-mode / file-split question (Phase 2 open item) still stands — keep single-rail batches until CIMB confirms.

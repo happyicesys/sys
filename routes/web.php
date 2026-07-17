@@ -31,6 +31,7 @@ use App\Http\Controllers\ModemUnitController;
 use App\Http\Controllers\OauthController;
 use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\PayoutGroupController;
+use App\Http\Controllers\CommissionSettlementController;
 use App\Http\Controllers\OpsJobController;
 use App\Http\Controllers\OpsJobTaskController;
 use App\Http\Controllers\PaymentMethodController;
@@ -971,6 +972,22 @@ Route::middleware(['auth', 'cors'])->prefix('refund-settlements')->group(functio
     Route::post('/{settlement}/mark-insufficient-info', [RefundSettlementController::class, 'markInsufficientInfo'])->middleware('can:payout refunds');
     Route::post('/{settlement}/return-to-pool/{ticket}', [RefundSettlementController::class, 'returnToPool'])->middleware('can:payout refunds');
     Route::delete('/{settlement}', [RefundSettlementController::class, 'destroy'])->middleware('can:payout refunds');
+});
+
+/*
+| Site Settlement — batch site location-fee / commission payouts, export CIMB,
+| mark rows paid (posts the ledger credit). Admin only.
+*/
+Route::middleware(['auth', 'cors'])->prefix('site-settlements')->group(function () {
+    Route::get('/', [CommissionSettlementController::class, 'index'])->name('site-settlements.index')->middleware('can:admin-access customers');
+    Route::post('/push', [CommissionSettlementController::class, 'push'])->name('site-settlements.push')->middleware('can:admin-access customers');
+    Route::get('/{settlement}', [CommissionSettlementController::class, 'show'])->name('site-settlements.show')->middleware('can:admin-access customers');
+    Route::post('/{settlement}/reopen', [CommissionSettlementController::class, 'reopen'])->middleware('can:admin-access customers');
+    Route::post('/{settlement}/export-cimb', [CommissionSettlementController::class, 'exportCimb'])->middleware('can:admin-access customers');
+    Route::get('/{settlement}/exports/{export}/download', [CommissionSettlementController::class, 'downloadExport'])->middleware('can:admin-access customers');
+    Route::post('/{settlement}/mark-done', [CommissionSettlementController::class, 'markDone'])->middleware('can:admin-access customers');
+    Route::post('/{settlement}/return-to-pool/{summary}', [CommissionSettlementController::class, 'returnToPool'])->middleware('can:admin-access customers');
+    Route::delete('/{settlement}', [CommissionSettlementController::class, 'destroy'])->middleware('can:admin-access customers');
 });
 
 require __DIR__ . '/auth.php';

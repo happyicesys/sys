@@ -68,6 +68,9 @@ class CustomerPeriodSummary extends Model
         'paid_at',
         'paid_date',
         'paid_by',
+        // Site-settlement membership (which commission_settlements batch this row
+        // was pushed into). Retained after paid as the audit link.
+        'commission_settlement_id',
         'last_unpaid_at',
         'last_unpaid_by',
         'last_unlocked_at',

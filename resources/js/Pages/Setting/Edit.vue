@@ -1773,7 +1773,16 @@ onMounted(() => {
   originalVendChannels.value = initialChannels ? JSON.parse(JSON.stringify(initialChannels)) : [];
   vendChannels.value = Array.isArray(originalVendChannels.value) ? [...originalVendChannels.value] : [];
 
-  if (selectedProductMapping.value) {
+  // On a fresh load the dropdown always resets to the vend's SAVED (bound)
+  // mapping -- an unsaved preview selection does not persist across a refresh --
+  // yet the URL may still carry a previously-previewed product_mapping_id (the
+  // preview reload rewrites it). Drive the initial table from the dropdown value
+  // (form.product_mapping_id) so the menu returns to the bound mapping on
+  // refresh, instead of rendering the stale URL-param preview and leaving the
+  // table inconsistent with the dropdown.
+  if (form.value && form.value.product_mapping_id) {
+    applyMappingPreview(form.value.product_mapping_id);
+  } else if (selectedProductMapping.value) {
     applyMappingPreview(selectedProductMapping.value);
   }
 
@@ -1944,6 +1953,29 @@ function buildChannelFromMappingItem(item, index) {
 
 function applyMappingPreview(mapping) {
   if (!mapping) {
+    resetMappingPreview();
+    return;
+  }
+
+  // The server ships the single ProductMapping preview inside a Laravel resource
+  // envelope (ProductMappingResource::make -> { data: {...} }), whereas the
+  // dropdown option objects are already unwrapped. Without normalizing, the
+  // reloaded { data } object has no top-level productMappingItems, so the block
+  // below treated it as an empty mapping and resetMappingPreview() snapped the
+  // table back to the bound mapping (the "select -> flashes -> jumps back" bug).
+  // Unwrap here so both the wrapped reload payload and the plain option object
+  // (which has id/name at the top level and no `data` key) are handled.
+  if (mapping.data && typeof mapping.data === 'object' && mapping.data.id !== undefined && mapping.id === undefined) {
+    mapping = mapping.data;
+  }
+
+  // For the vend's CURRENTLY-BOUND mapping, keep showing the live vend_channels,
+  // which carry the machine's actual P1/P2 server prices. A product-mapping
+  // *template* has no per-vend server prices, so previewing the bound mapping
+  // from its template would blank P1/P2 for the default view. Only *other*
+  // (candidate) mappings fall through to the template preview below.
+  const boundMappingId = props.vend?.product_mapping_id;
+  if (boundMappingId != null && mapping.id != null && String(mapping.id) === String(boundMappingId)) {
     resetMappingPreview();
     return;
   }

@@ -581,21 +581,20 @@
           <span>Mark Paid ({{ selectedPaidRows.length }})</span>
         </Button>
         <!--
-          Export CIMB — commission (Net Loc Fee) bulk payment txt for the
-          ticked rows, in CIMB BizChannel upload format. Same eligibility
-          as Mark Paid (locked + unpaid, 2605+) so exported figures are the
-          FROZEN ones displayed. Download only — no state change; Verify
-          Paid stays a manual step after the bank run succeeds.
+          Push to Settlement — pools the ticked locked+unpaid rows into their
+          Site Settlement (per payout group). CIMB is exported, and each row is
+          marked paid, from the settlement page. Replaces the old on-summary
+          Export CIMB. Rows already in a settlement are excluded.
         -->
         <Button
           type="button"
-          class="inline-flex items-center space-x-1 rounded-md px-3 py-2 text-xs font-semibold bg-sky-100 hover:bg-sky-200 text-sky-800 ring-1 ring-inset ring-sky-300 disabled:opacity-40 disabled:cursor-not-allowed"
-          :disabled="!selectedPaidRows.length || cimbExporting"
-          v-tooltip="selectedPaidRows.length ? `CIMB BizChannel bulk payment file — ${selectedPaidRows.length} row(s), total ${formatMoney(selectedPaidNetTotal)}` : 'No selected rows are eligible (must be locked + unpaid, period 2605 onward)'"
-          @click="onExportCimbClicked"
+          class="inline-flex items-center space-x-1 rounded-md px-3 py-2 text-xs font-semibold bg-teal-100 hover:bg-teal-200 text-teal-800 ring-1 ring-inset ring-teal-300 disabled:opacity-40 disabled:cursor-not-allowed"
+          :disabled="!selectedPaidRows.length || pushingSettlement"
+          v-tooltip="selectedPaidRows.length ? `Push ${selectedPaidRows.length} row(s), total ${formatMoney(selectedPaidNetTotal)}, into their Site Settlement` : 'No selected rows are eligible (must be locked + unpaid, period 2605 onward, not already in a settlement)'"
+          @click="onPushToSettlement"
         >
           <BanknotesIcon class="h-3.5 w-3.5" aria-hidden="true" />
-          <span>{{ cimbExporting ? 'Exporting…' : `Export CIMB (${selectedPaidRows.length})` }}</span>
+          <span>{{ pushingSettlement ? 'Pushing…' : `Push to Settlement (${selectedPaidRows.length})` }}</span>
         </Button>
         <Button
           type="button"
@@ -3111,7 +3110,9 @@ const batchPaidDate = ref('');
 // elapsed) — the latter mirrors the backend exception in CustomerController.
 const isLockEligibleRow = (row) => !row.is_locked && (!row.is_current_month || row.is_removed_in_period);
 const isPaidEligibleRow = (row) =>
-  !row.is_current_month && row.is_locked && !row.is_paid && isPaidEligiblePeriod(row);
+  !row.is_current_month && row.is_locked && !row.is_paid && isPaidEligiblePeriod(row)
+  // Not already in a Site Settlement (paid via the settlement flow instead).
+  && !row.commission_settlement_id;
 // Report-eligible = the row has renderable Report Content (R/U/PS families;
 // F/S excluded — same server flag the per-row "Report Content" button uses).
 // Any such row can be ticked for the "Export Batch Report Content" button,
@@ -3191,6 +3192,23 @@ function onBatchPaidClicked() {
 // the single-operator rule; 422 bodies carry a readable message we surface.
 // ---------------------------------------------------------------------------
 const cimbExporting = ref(false);
+
+// Push selected locked+unpaid rows into their Site Settlement (replaces the
+// on-summary Export CIMB — CIMB is now exported from the settlement). Rows
+// already in a settlement are excluded by isPaidEligibleRow.
+const pushingSettlement = ref(false);
+function onPushToSettlement() {
+  const ids = selectedPaidRows.value.map((r) => r.id);
+  if (!ids.length || pushingSettlement.value) return;
+  if (!confirm(`Push ${ids.length} row(s) into their Site Settlement?`)) return;
+  pushingSettlement.value = true;
+  router.post('/site-settlements/push', { ids }, {
+    preserveScroll: true,
+    onSuccess: () => { clearBatchSelection(); toast.success('Rows pushed to Site Settlement.', { timeout: 4000 }); },
+    onError: (e) => { toast.error(e.settlement || Object.values(e)[0] || 'Failed to push.', { timeout: 5000 }); },
+    onFinish: () => { pushingSettlement.value = false; },
+  });
+}
 
 async function onExportCimbClicked() {
   const ids = selectedPaidRows.value.map((r) => r.id);

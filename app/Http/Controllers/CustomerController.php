@@ -2134,6 +2134,9 @@ class CustomerController extends Controller
         if ($summary->paid_at !== null) {
             return back()->with('success', 'This period is already marked Paid.');
         }
+        if ($summary->commission_settlement_id !== null) {
+            return back()->withErrors(['paid' => 'This row is in a Site Settlement — mark it done from the settlement page instead.']);
+        }
 
         // Actual payment date from the Paid popup — optional; empty defaults
         // to today. paid_at stays the audit timestamp of the click itself.
@@ -2380,6 +2383,11 @@ class CustomerController extends Controller
                 // Paid-tracking cutoff — same gate as Summary.vue's
                 // isPaidEligiblePeriod (period 2605 onward only).
                 if ($summary->year_month && $summary->year_month->toDateString() < '2026-05-01') {
+                    continue;
+                }
+                // A row being paid via a Site Settlement is excluded from the
+                // on-summary batch Mark-Paid (mutual exclusion — no double pay).
+                if ($summary->commission_settlement_id !== null) {
                     continue;
                 }
                 $summary->paid_at = $now;

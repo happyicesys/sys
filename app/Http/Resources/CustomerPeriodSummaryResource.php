@@ -274,6 +274,10 @@ class CustomerPeriodSummaryResource extends JsonResource
             'paid_by_user' => $this->relationLoaded('paidBy') && $this->paidBy
                 ? ['id' => $this->paidBy->id, 'name' => $this->paidBy->name]
                 : null,
+            // Site-settlement membership. When set, the row is being paid via a
+            // Site Settlement, so it's excluded from the on-summary Mark-Paid /
+            // Push flows (mutual exclusion).
+            'commission_settlement_id' => $this->commission_settlement_id,
             // "Waived" state — drives the Waived badge on Customer/Summary.vue.
             // A waived row is still recorded through the Paid flow (is_paid stays
             // true); is_waived only distinguishes waived vs actually paid. Money
