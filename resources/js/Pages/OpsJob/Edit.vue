@@ -237,6 +237,9 @@
                     </span>
                     API Inv(s)
                   </span>
+                  <span v-if="opsJob.opsJobItems && getCancelledCount() > 0" class="text-xs text-rose-500">
+                    incl. {{ getCancelledCount() }} cancelled (no API Inv)
+                  </span>
                 </div>
               </div>
               <div class="sm:col-span-6 flex flex-col">
@@ -827,7 +830,7 @@
                   </Button>
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 hover:cursor-pointer w-fit"
                   @click.prevent="syncCMSInvoices()"
-                  v-if="props.cmsBaseUrl && (!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null) && (opsJob.opsJobItems.some(item => item.status >= 3 && item.status != 99)))"
+                  v-if="props.cmsBaseUrl && (!opsJob.opsJobItems || (opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null && item.status >= 3 && item.status != 99)))"
                   >
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">
@@ -1418,6 +1421,10 @@ function deleteOpsJobItem(opsJobItem) {
 
 function getApiInvCount() {
   return opsJob.value.opsJobItems.filter(item => item.cms_transaction_id != null).length
+}
+
+function getCancelledCount() {
+  return opsJob.value.opsJobItems.filter(item => item.status == 99).length
 }
 
 // reload opsJob when modal opened

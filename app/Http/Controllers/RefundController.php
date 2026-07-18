@@ -284,9 +284,15 @@ class RefundController extends Controller
 
         $vends = \App\Models\Vend::withoutGlobalScopes()
             ->whereIn('id', $rows->pluck('vend_id')->filter()->unique())
-            ->get(['id', 'customer_id'])->keyBy('id');
+            ->get(['id', 'customer_id', 'vend_prefix_id'])->keyBy('id');
         $siteNames = \App\Models\Customer::withoutGlobalScopes()
             ->whereIn('id', $vends->pluck('customer_id')->filter()->unique())
+            ->pluck('name', 'id');
+        // VendPrefix (mapping) name keyed by prefix id, so manual / unmatched
+        // tickets can still show their machine's prefix beside the machine ID
+        // (matched tickets keep the prefix frozen on their transaction — see toRow).
+        $prefixNames = \App\Models\VendPrefix::withoutGlobalScopes()
+            ->whereIn('id', $vends->pluck('vend_prefix_id')->filter()->unique())
             ->pluck('name', 'id');
 
         $payNowDup = $this->payNowReuseFlags($rows);
@@ -340,7 +346,7 @@ class RefundController extends Controller
                 ];
             });
 
-        return $rows->mapWithKeys(function (RefundTicket $t) use ($txns, $logs, $batches, $vends, $siteNames, $payNowDup, $selfCheck, $itemErrors, $claimedItems, $stageActors) {
+        return $rows->mapWithKeys(function (RefundTicket $t) use ($txns, $logs, $batches, $vends, $siteNames, $prefixNames, $payNowDup, $selfCheck, $itemErrors, $claimedItems, $stageActors) {
             $txn = $t->vend_transaction_id ? $txns->get($t->vend_transaction_id) : null;
             $log = $t->payment_gateway_log_id
                 ? $logs->get($t->payment_gateway_log_id)
@@ -356,6 +362,11 @@ class RefundController extends Controller
                 $payNowDup[$t->id] ?? false,
                 [
                     'machine_rf_24h' => $selfCheck['rf24h'][$t->id] ?? null,
+                    // Machine's own VendPrefix name — fallback for manual / unmatched
+                    // tickets that have no transaction prefix (used in toRow).
+                    'machine_prefix_name' => ($t->vend_id && $vends->get($t->vend_id))
+                        ? $prefixNames->get($vends->get($t->vend_id)->vend_prefix_id)
+                        : null,
                     'repeat_flag' => $selfCheck['repeat'][$t->id] ?? false,
                     'repeat_ref' => $selfCheck['repeat_ref'][$t->id] ?? null,
                     'error_code' => $errItem?->vend_channel_error_code,
@@ -1222,9 +1233,11 @@ class RefundController extends Controller
             'id' => $t->id,
             'reference' => $t->reference,
             'vend_code' => $t->vend_code,
-            // VendPrefix (mapping) name of the matched transaction, shown beside the
-            // machine ID on the same row. Null for unmatched/manual tickets.
-            'vend_prefix_name' => $txn?->vendPrefix?->name,
+            // VendPrefix (mapping) name shown beside the machine ID on the same row.
+            // Matched tickets use the prefix frozen on their transaction; manual /
+            // unmatched tickets fall back to the machine's own prefix (resolved in
+            // buildRows / toDetail) so they show it too.
+            'vend_prefix_name' => $txn?->vendPrefix?->name ?? ($self['machine_prefix_name'] ?? null),
             'site_name' => $siteName,
             'amount' => number_format($t->claimed_amount_cents / 100, 2),
             // Effective payout (final override ?? original claim), plus a flag for
@@ -1455,6 +1468,12 @@ class RefundController extends Controller
         $siteVend = $t->vend_id ? \App\Models\Vend::withoutGlobalScopes()->find($t->vend_id) : null;
         $siteName = $siteVend && $siteVend->customer_id
             ? optional(\App\Models\Customer::withoutGlobalScopes()->find($siteVend->customer_id))->name
+            : null;
+        // Machine's own VendPrefix name, so a manual / unmatched ticket still shows
+        // the prefix beside the machine ID on the Show page (matched tickets use the
+        // transaction's prefix inside toRow).
+        $selfRow['machine_prefix_name'] = $siteVend && $siteVend->vend_prefix_id
+            ? optional(\App\Models\VendPrefix::withoutGlobalScopes()->find($siteVend->vend_prefix_id))->name
             : null;
 
         // LIVE refunded state of the linked source, read fresh here (not from the

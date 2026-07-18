@@ -685,6 +685,15 @@ class OpsJobController extends Controller
                     }
                 }
 
+                // Enforce the auto-return of the OLD product's remaining machine
+                // stock on an "implement new mapping" swap, so it never depends on
+                // the operator remembering to key a negative Stock In (which was
+                // done inconsistently -> old stock silently never returned, CMS
+                // inventory never credited). Runs BEFORE the mapping is advanced.
+                if ($opsJobItem->stock_action_type === 'implement_new_mapping') {
+                    $this->enforceMappingSwapReturns($opsJobItem);
+                }
+
                 if ($hasMappingChange) {
                     $vend = $opsJobItem->vend;
                     if ($vend) {
@@ -1777,7 +1786,7 @@ class OpsJobController extends Controller
 
             if (!empty($ids)) {
                 $opsJob->opsJobItems()
-                    ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')')
+                    ->orderByRaw('FIELD(id, ' . implode(',', array_map('intval', $ids)) . ')')
                     ->get()
                     ->each(function ($opsJobItem, $index) {
                         $opsJobItem->update(['sequence' => $index + 1]);
@@ -1791,7 +1800,7 @@ class OpsJobController extends Controller
             if (!empty($taskIds)) {
                 $startSeq = count($ids) + 1;
                 $opsJob->opsJobTasks()
-                    ->orderByRaw('FIELD(id, ' . implode(',', $taskIds) . ')')
+                    ->orderByRaw('FIELD(id, ' . implode(',', array_map('intval', $taskIds)) . ')')
                     ->get()
                     ->each(function ($task, $index) use ($startSeq) {
                         $task->update(['sequence' => $startSeq + $index]);
@@ -2419,6 +2428,55 @@ class OpsJobController extends Controller
                     ]);
                 }
             }
+        }
+    }
+
+    /**
+     * Enforce the auto-return of the OLD product's remaining machine stock when
+     * an "implement new mapping" swap removes it from a slot.
+     *
+     * A current channel (is_upcoming_product = false) whose physical slot
+     * (vend_channel_code) has an upcoming replacement staged for a DIFFERENT
+     * product must be stocked OUT: its Stock In (actual_qty) becomes -qty so the
+     * return flows to CMS + inventory. Produces the exact same row state an
+     * operator would by manually keying the negative Stock In.
+     *
+     * Guards:
+     *  - Only current channels genuinely replaced by a different product (a
+     *    concrete staged upcoming row), so it cannot misfire on a not-yet-
+     *    effective / future-dated mapping (nothing is staged in that case).
+     *  - Never overrides a return the operator already entered (actual_qty < 0),
+     *    so manual / partial returns are preserved.
+     *  - Idempotent: an already-negative actual_qty is left untouched on re-save.
+     */
+    private function enforceMappingSwapReturns($opsJobItem)
+    {
+        $channels = $opsJobItem->opsJobItemChannels()->get();
+
+        $upcomingByCode = $channels
+            ->where('is_upcoming_product', true)
+            ->keyBy('vend_channel_code');
+
+        foreach ($channels as $ojic) {
+            if ($ojic->is_upcoming_product) {
+                continue;
+            }
+
+            $replacement = $upcomingByCode->get($ojic->vend_channel_code);
+            $isReplaced = $replacement && $replacement->product_id != $ojic->product_id;
+            if (!$isReplaced) {
+                continue;
+            }
+
+            // Preserve an operator-entered return; only backfill the dropped ones.
+            if ($ojic->actual_qty < 0) {
+                continue;
+            }
+
+            $ojic->update([
+                'actual_before_qty' => $ojic->qty,
+                'actual_qty' => -$ojic->qty,
+            ]);
         }
     }
 

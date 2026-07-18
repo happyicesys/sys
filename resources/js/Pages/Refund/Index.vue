@@ -577,7 +577,7 @@ const sortedRows = computed(() => {
                                 class="font-medium text-teal-700 hover:underline" title="Open in Operations Dashboard">{{ t.vend_code }}</a>
                             <span v-else class="font-medium text-gray-800">—</span>
                             <span v-if="t.vend_prefix_name" class="ml-1 text-xs text-gray-500"
-                                v-tooltip="'VendPrefix (mapping) name of the matched transaction.'">({{ t.vend_prefix_name }})</span>
+                                v-tooltip="'VendPrefix (mapping) name of the machine.'">({{ t.vend_prefix_name }})</span>
                             <br>
                             <span class="text-xs text-gray-600 break-words">{{ t.site_name || '—' }}</span>
                         </td>

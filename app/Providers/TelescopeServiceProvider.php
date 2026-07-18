@@ -18,7 +18,11 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
 
         $this->hideSensitiveRequestDetails();
 
-        $isLocal = $this->app->environment('production') || $this->app->environment('local');
+        // SECURITY: only record *everything* in local. In production, recording
+        // every request/query/job persists full payloads (payment callbacks, PII)
+        // into the Telescope store. Previously this flag also included
+        // 'production', so prod captured everything — that is the bug being fixed.
+        $isLocal = $this->app->environment('local');
 
         Telescope::filter(function (IncomingEntry $entry) use ($isLocal) {
 
@@ -43,7 +47,21 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
             return;
         }
 
-        Telescope::hideRequestParameters(['_token']);
+        // Redact credentials, payment-gateway secrets and raw device payloads so
+        // they are never persisted to the Telescope store in non-local envs.
+        Telescope::hideRequestParameters([
+            '_token',
+            'password',
+            'password_confirmation',
+            'current_password',
+            'access_token',
+            'skey',
+            'vkey',
+            'key1',
+            'key2',
+            'key3',
+            'p',
+        ]);
 
         Telescope::hideRequestHeaders([
             'cookie',
