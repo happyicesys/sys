@@ -474,6 +474,16 @@ def _build_http_app():
                 token = authz[7:].strip()
             else:
                 token = headers.get("x-mcp-token", "").strip()
+            if not token:
+                # Fallback: token in the URL query string (?token=... or ?key=...),
+                # for clients whose connector dialog accepts only a URL and has no
+                # static-bearer field (e.g. Claude's custom connector = URL + OAuth).
+                try:
+                    from urllib.parse import parse_qs
+                    _qs = parse_qs(scope.get("query_string", b"").decode("latin1"))
+                    token = (_qs.get("token") or _qs.get("key") or [""])[0].strip()
+                except Exception:
+                    token = ""
             identity = (
                 await anyio.to_thread.run_sync(_authenticate, token) if token else None
             )
