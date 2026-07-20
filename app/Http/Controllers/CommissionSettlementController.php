@@ -106,7 +106,7 @@ class CommissionSettlementController extends Controller
             ->map(function ($group) {
                 $first = $group->first();
                 $customer = $first->customer;
-                $net = (int) $group->sum(fn ($s) => (int) $s->location_fees_cents - (int) $s->external_subsidize_cents);
+                $net = (int) $group->sum(fn ($s) => $s->payoutCents());
                 $accNo = preg_replace('/[\s\-]+/', '', (string) ($customer?->bank_account_number ?? ''));
                 $colE = CimbBankDirectory::resolveColE($customer?->bank?->bic_code, $customer?->bank?->proxy_type, $accNo);
                 $isPaid = $group->every(fn ($s) => $s->paid_at !== null);
@@ -167,9 +167,11 @@ class CommissionSettlementController extends Controller
         $data = $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['integer'],
+            // Amount captured from the single Send-to-Settlement modal (cents).
+            'amount_cents' => ['nullable', 'integer', 'min:0'],
         ]);
         try {
-            $res = $this->settlements->push($data['ids'], auth()->id(), auth()->user()?->name ?? 'Admin');
+            $res = $this->settlements->push($data['ids'], auth()->id(), auth()->user()?->name ?? 'Admin', $data['amount_cents'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->withErrors(['settlement' => $e->getMessage()]);
         }

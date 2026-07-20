@@ -35,6 +35,11 @@ class RolePermissionSyncSeeder extends Seeder
         // Define permissions and link them to roles based on the data from the file
         $permissionsData = [
             [
+                'mcp-tokens',
+                ['read', 'manage'],
+                ['superadmin', 'admin']
+            ],
+            [
                 'dashboard',
                 ['read', 'export'],
                 ['superadmin', 'admin', 'supervisor', 'observer', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']

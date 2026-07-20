@@ -107,3 +107,48 @@ own read-only SQL. Examples:
   -h 127.0.0.1 mark1` should connect.
 - *Docker DB not on 127.0.0.1*: set `MARK1_DB_HOST`/`MARK1_DB_PORT` to the
   published port (see `docker-compose.yml`).
+
+---
+
+## Per-user access (tokens bound to mark1 users)
+
+Access is managed from mark1 itself: **Admin ▸ MCP Access** (visible only to
+`superadmin`/`admin`). An admin picks a user, gives the token a label, and the
+token is shown **once**. Revoking it — or deactivating that mark1 user — cuts
+access immediately. Only the token's SHA-256 hash is stored; the server
+validates by hashing the presented token and looking it up in
+`mcp_access_tokens` (read-only, like everything else). Every tool call is
+appended to an audit log (`mcp/audit.log` by default) as
+`time · user_id · email · action · query`.
+
+Run the migrations first so the table and permissions exist:
+
+```bash
+php artisan migrate
+```
+
+### Local / stdio (one trusted person)
+Set the issued token in `.env` (or the Desktop config `env` block) as
+`MARK1_MCP_TOKEN=mk1_...`. If left blank, the server runs in trusted-local mode
+(the SELECT-only DB user is the guard) — fine for your own machine.
+
+### Hosted for a team (no SSH — recommended for boss/admin)
+Run one instance in HTTP mode and put it behind HTTPS (e.g. an nginx subdomain
+on Forge with a Let's Encrypt cert, proxying to `127.0.0.1:8765`). MySQL stays
+private; nothing is exposed except the authenticated HTTPS endpoint.
+
+```bash
+# on the server, in this mcp/ folder
+source .venv/bin/activate
+MARK1_MCP_TRANSPORT=http .venv/bin/python server.py    # binds 127.0.0.1:8765
+```
+
+Each person adds it as a custom connector by URL and supplies their own token as
+`Authorization: Bearer <token>` (the admin page issues one per person). A
+revoked or deactivated user is rejected on their next request (HTTP 401).
+
+> Note: exactly how a custom remote connector is added in the Claude app (URL +
+> token vs OAuth) depends on the app version/plan — confirm the current steps in
+> Anthropic's docs. The server accepts a static bearer token / `X-MCP-Token`
+> header; if your client only supports OAuth remote MCP, use the stdio-over-SSH
+> option in the section above instead, still with per-user `MARK1_MCP_TOKEN`.

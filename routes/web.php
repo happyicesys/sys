@@ -54,6 +54,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\McpTokenController;
 use App\Http\Controllers\OpsPerformanceController;
 use App\Http\Controllers\SiteGroupingController;
 use App\Http\Controllers\VendController;
@@ -241,6 +242,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Read-only (no writes); mirrors the single-row performance-report-content.
         Route::post('/summary/batch-report-content', [CustomerController::class, 'batchPerformanceReportContent'])
             ->name('customers.summary.batch-report-content');
+        // Batch "Paid Report" — payment-advice emails for paid (settlement) rows.
+        Route::post('/summary/batch-paid-report', [CustomerController::class, 'batchPaidReport'])
+            ->name('customers.summary.batch-paid-report');
         // Performance Report email send (button on Customer Summary > Action).
         // Currently a stub — the actual queued send is wired in a follow-up.
         Route::post('/{id}/send-performance-report', [CustomerController::class, 'sendPerformanceReport'])
@@ -759,6 +763,15 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::delete('/{id}', [UserController::class, 'delete']);
         Route::post('/bind-vend', [UserController::class, 'bindVend']);
         Route::post('/unbind-vend', [UserController::class, 'unbindVend']);
+    });
+
+    Route::prefix('mcp-tokens')->group(function () {
+        Route::get('/', [McpTokenController::class, 'index'])->name('mcp-tokens')
+            ->middleware('can:read mcp-tokens');
+        Route::post('/create', [McpTokenController::class, 'store'])
+            ->middleware('can:manage mcp-tokens');
+        Route::delete('/{id}', [McpTokenController::class, 'revoke'])
+            ->middleware('can:manage mcp-tokens');
     });
 
     Route::prefix('vends')->group(function () {

@@ -278,6 +278,14 @@ class CustomerPeriodSummaryResource extends JsonResource
             // Site Settlement, so it's excluded from the on-summary Mark-Paid /
             // Push flows (mutual exclusion).
             'commission_settlement_id' => $this->commission_settlement_id,
+            // Reference of the settlement this row is staged in (when loaded) —
+            // drives the yellow "Settlement in progress" badge in the
+            // Period Verify & Lock column. Null when not staged / not loaded.
+            'settlement_reference' => $this->relationLoaded('commissionSettlement') && $this->commissionSettlement
+                ? $this->commissionSettlement->reference
+                : null,
+            // Admin-set payout override (minor units); null = auto Net Loc Fee.
+            'settlement_amount_cents' => $this->settlement_amount_cents,
             // "Waived" state — drives the Waived badge on Customer/Summary.vue.
             // A waived row is still recorded through the Paid flow (is_paid stays
             // true); is_waived only distinguishes waived vs actually paid. Money

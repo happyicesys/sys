@@ -1,2 +1,5 @@
 mcp>=1.2.0
 PyMySQL>=1.1.0
+# Only needed for hosted HTTP mode (MARK1_MCP_TRANSPORT=http); harmless otherwise.
+uvicorn>=0.30.0
+starlette>=0.37.0

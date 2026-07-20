@@ -408,6 +408,9 @@ class CustomerController extends Controller
 
         $eagerLoads = [
             'customer:id,name,code,company_remark,virtual_customer_code,virtual_customer_prefix,person_id,operator_id,selling_price_type,is_active,status_id,location_type_id,contract_commission_type,contract_commission_value,contract_commission_value2,contract_ps_term,is_external_subsidize,external_subsidize_amount,begin_date,active_date,removed_date,termination_date,report_email,is_report_email_enabled,location_grading_placement,location_grading_access,location_grading_flexibility,contract_until,contract_auto_renewal,contract_notice_period,notes,notes_updated_at,notes_updated_by,loc_fee_remarks,loc_fee_remarks_updated_at,loc_fee_remarks_updated_by',
+            // Site Settlement this row is staged in — drives the "Settlement in
+            // progress · CST-…" badge in the lock/paid column.
+            'commissionSettlement:id,reference',
             // Customer's primary contact (morphOne) — used to render the
             // Billing Company (`company`, the Edit form's "Bill From" field)
             // and Billing Contact Person (`name`) lines stacked under Address
@@ -4497,6 +4500,86 @@ class CustomerController extends Controller
                 'period_start' => $periodStart->toDateString(),
                 'period_end'   => $periodEnd->toDateString(),
                 'content'      => $service->generate($customer, $periodStart, $periodEnd, $summaryRow),
+            ];
+        }
+
+        return response()->json(['rows' => $out]);
+    }
+
+    /**
+     * Site Summary ▸ batch bar ▸ "Export Batch Paid Report".
+     *
+     * Builds a location-fee PAYMENT ADVICE email per selected paid site+month
+     * (rows paid through a Site Settlement). Returns one {to, subject, body} block
+     * per site so the operator can copy them into their mail client. Read-only.
+     */
+    public function batchPaidReport(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->can('admin-access customers')) {
+            abort(403, 'You do not have permission to export the paid report.');
+        }
+
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1|max:500',
+            'ids.*' => 'integer',
+        ]);
+
+        $rows = \App\Models\CustomerPeriodSummary::query()
+            ->whereIn('id', $validated['ids'])
+            ->whereNotNull('paid_at')                 // paid only
+            ->whereNotNull('commission_settlement_id') // via a Site Settlement
+            ->with([
+                'customer' => fn ($q) => $q->withoutGlobalScopes()->with(['contact', 'operator:id,gst_vat_rate']),
+                'commissionSettlement:id,reference',
+            ])
+            ->get();
+
+        $money = fn ($cents) => 'S$' . number_format(((int) $cents) / 100, 2);
+
+        $out = [];
+        foreach ($rows->groupBy(fn ($s) => $s->customer_id . '|' . optional($s->year_month)->toDateString()) as $group) {
+            $first = $group->first();
+            $c = $first->customer;
+            if (!$c) {
+                continue;
+            }
+            $month = $first->year_month ? \Carbon\Carbon::parse($first->year_month) : null;
+            $monthLabel = $month ? $month->format('M Y') : '—';
+            $monthCode = $month ? $month->format('ym') : '';
+            $siteId = $c->id + \App\Models\Customer::RUNNING_NUMBER_INIT;
+            $siteName = $c->name ?: ('Site #' . $c->id);
+            $billing = ($c->contact && $c->contact->company) ? $c->contact->company : $siteName;
+            $ref = $first->commissionSettlement?->reference ?? '';
+
+            $net = (int) $group->sum(fn ($s) => $s->payoutCents());
+            $paidDate = $group->max('paid_date');
+            $paidDateStr = $paidDate ? \Carbon\Carbon::parse($paidDate)->format('d M Y') : '';
+
+            $pad = fn ($label) => str_pad($label, 23);
+            $body = implode("\n", [
+                'Dear Valued Partner: "' . $billing . '",',
+                '',
+                $pad('Payment reference') . ': ' . $ref,
+                $pad('Site ID') . ': ' . $siteId,
+                $pad('Site') . ': ' . $siteName,
+                $pad('Period') . ': ' . $monthLabel . ($monthCode ? ' (' . $monthCode . ')' : ''),
+                '',
+                'We are pleased to confirm that the location fee for the above period',
+                'has been paid to you.',
+                '',
+                '  ' . str_pad('Amount paid', 14) . ': ' . $money($net),
+                '  ' . str_pad('Payment date', 14) . ': ' . $paidDateStr,
+                '',
+                'Thank you.',
+            ]);
+
+            $out[] = [
+                'to' => $c->report_email ?? '',
+                'subject' => 'Location Fee Payment Advice — ' . $siteName . ' (' . $monthLabel . ')',
+                'body' => $body,
+                'site_id' => $siteId,
+                'site_name' => $siteName,
             ];
         }
 

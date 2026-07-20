@@ -71,6 +71,9 @@ class CustomerPeriodSummary extends Model
         // Site-settlement membership (which commission_settlements batch this row
         // was pushed into). Retained after paid as the audit link.
         'commission_settlement_id',
+        // Admin-set payout override (minor units) for a row Sent to Settlement.
+        // Null = use the auto Net Loc Fee. See migration 2026_07_18_100000.
+        'settlement_amount_cents',
         'last_unpaid_at',
         'last_unpaid_by',
         'last_unlocked_at',
@@ -101,6 +104,7 @@ class CustomerPeriodSummary extends Model
         'is_waived' => 'boolean',
         'paid_at' => 'datetime',
         'paid_date' => 'date',
+        'settlement_amount_cents' => 'integer',
         'last_unpaid_at' => 'datetime',
         'last_unlocked_at' => 'datetime',
         'report_emailed_at' => 'datetime',
@@ -123,6 +127,29 @@ class CustomerPeriodSummary extends Model
     public function lockedBy()
     {
         return $this->belongsTo(User::class, 'locked_by');
+    }
+
+    /**
+     * Site Settlement this row was pushed into (null when not staged). Drives
+     * the "Settlement in progress" badge + reference on Customer/Summary.vue.
+     */
+    public function commissionSettlement()
+    {
+        return $this->belongsTo(CommissionSettlement::class, 'commission_settlement_id');
+    }
+
+    /**
+     * Payout amount (minor units) for settlement / CIMB / ledger purposes.
+     * Uses the admin-set override (settlement_amount_cents) when present, else
+     * falls back to the auto Net Loc Fee (location_fees - external_subsidize),
+     * floored at 0. Single source of truth so every settlement surface agrees.
+     */
+    public function payoutCents(): int
+    {
+        if ($this->settlement_amount_cents !== null) {
+            return max(0, (int) $this->settlement_amount_cents);
+        }
+        return max(0, (int) $this->location_fees_cents - (int) $this->external_subsidize_cents);
     }
 
     /**

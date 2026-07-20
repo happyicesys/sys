@@ -1976,6 +1976,9 @@
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-1 max-w-28 mx-auto">
 							<div v-if="vend && vend.lastOpsJobItem" class="flex flex-col space-y-1">
+								<span v-if="vend.lastOpsJobItem.sequence" class="font-semibold">
+									({{ vend.lastOpsJobItem.sequence }})
+								</span>
 								<a :href="'/ops-jobs/items/' + vend.lastOpsJobItem.id + '/edit'" v-tooltip="'Open this ops job item'">
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
@@ -2044,6 +2047,9 @@
 							<!-- Divider between Last Job and Last 2 Job -->
 							<div v-if="vend && vend.lastSecondOpsJobItem" class="border-t border-gray-300 my-2 pt-2"></div>
 							<div v-if="vend && vend.lastSecondOpsJobItem" class="flex flex-col space-y-1">
+								<span v-if="vend.lastSecondOpsJobItem.sequence" class="font-semibold">
+									({{ vend.lastSecondOpsJobItem.sequence }})
+								</span>
 								<a :href="'/ops-jobs/items/' + vend.lastSecondOpsJobItem.id + '/edit'" v-tooltip="'Open this ops job item'">
 									<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"

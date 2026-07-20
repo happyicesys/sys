@@ -37,9 +37,9 @@ class CommissionSettlementService
      *
      * @return array{pushed:int, settlements:array<string>}
      */
-    public function push(array $summaryIds, ?int $userId = null, ?string $actorLabel = 'Admin'): array
+    public function push(array $summaryIds, ?int $userId = null, ?string $actorLabel = 'Admin', ?int $amountCents = null): array
     {
-        return DB::transaction(function () use ($summaryIds, $userId, $actorLabel) {
+        return DB::transaction(function () use ($summaryIds, $userId, $actorLabel, $amountCents) {
             $rows = CustomerPeriodSummary::query()
                 ->whereIn('id', $summaryIds)
                 ->whereNotNull('locked_at')
@@ -64,7 +64,13 @@ class CommissionSettlementService
                 $settlement = $this->openSettlementFor($head, $userId, $actorLabel);
 
                 foreach ($group as $summary) {
-                    $summary->update(['commission_settlement_id' => $settlement->id]);
+                    // Capture the "Amount paid" from the single Send-to-Settlement
+                    // modal (null on batch push → the row keeps the auto Net Loc Fee).
+                    $attrs = ['commission_settlement_id' => $settlement->id];
+                    if ($amountCents !== null) {
+                        $attrs['settlement_amount_cents'] = max(0, $amountCents);
+                    }
+                    $summary->update($attrs);
                     $this->settlementLog($settlement, 'entry_added', 'Added ' . $this->siteLabel($summary) . ' ' . $this->monthLabel($summary), $userId, $actorLabel, ['summary_id' => $summary->id]);
                     $pushed++;
                     $refs[$settlement->reference] = true;
@@ -123,7 +129,7 @@ class CommissionSettlementService
             throw new \RuntimeException('A paid row cannot be removed.');
         }
         DB::transaction(function () use ($settlement, $summary, $userId, $actorLabel) {
-            $summary->update(['commission_settlement_id' => null]);
+            $summary->update(['commission_settlement_id' => null, 'settlement_amount_cents' => null]);
             $this->settlementLog($settlement, 'entry_removed', 'Removed ' . $this->siteLabel($summary) . ' ' . $this->monthLabel($summary), $userId, $actorLabel, ['summary_id' => $summary->id]);
             $this->recount($settlement);
         });
@@ -172,7 +178,7 @@ class CommissionSettlementService
             foreach ($groups as $group) {
                 $first = $group->first();
                 $customer = $first->customer;
-                $net = (int) $group->sum(fn ($s) => (int) $s->location_fees_cents - (int) $s->external_subsidize_cents);
+                $net = (int) $group->sum(fn ($s) => $s->payoutCents());
                 if ($net <= 0) {
                     continue;
                 }
@@ -188,14 +194,18 @@ class CommissionSettlementService
                     continue;
                 }
                 $month = $first->year_month ? Carbon::parse($first->year_month) : null;
+                // Remark (CIMB column G): "HI <site ref> <site name ≤17 chars> <Mon+yy>"
+                // e.g. "HI 20123 Sube Mediacorp Jun26". Capped at 35 chars overall.
+                $siteRef = $first->customer_id + \App\Models\Customer::RUNNING_NUMBER_INIT;
+                $remark = mb_substr(trim('HI ' . $siteRef . ' ' . mb_substr($siteName, 0, 17) . ($month ? ' ' . $month->format('My') : '')), 0, 35);
                 $file->addRow(
                     $accNo,
                     (string) ($customer?->bank_account_name ?: $siteName),
                     $net,
                     $colE,
                     (string) ($cfg['purpose_code'] ?? 'COMC'),
-                    trim(($cfg['description_prefix'] ?? 'Loc fees') . ($month ? ' ' . $month->format('M Y') : '')),
-                    (string) ($customer?->report_email ?? '')
+                    $remark,
+                    '' // beneficiary email — not required in the file
                 );
                 $total += $net;
             }
@@ -268,7 +278,7 @@ class CommissionSettlementService
                     ->where('source', CustomerSettlement::SOURCE_PAID_ACTION)
                     ->delete();
 
-                $netLocFee = (int) $summary->location_fees_cents - (int) $summary->external_subsidize_cents;
+                $netLocFee = $summary->payoutCents();
                 if ($netLocFee > 0) {
                     $monthLabel = $summary->year_month ? Carbon::parse($summary->year_month)->format('M Y') : '';
                     $entry = CustomerSettlement::create([
@@ -386,7 +396,7 @@ class CommissionSettlementService
     {
         $rows = $this->members($settlement);
         $groups = $rows->groupBy(fn ($s) => $s->customer_id . '|' . ($s->year_month ? $s->year_month->toDateString() : ''));
-        $total = (int) $rows->sum(fn ($s) => max(0, (int) $s->location_fees_cents - (int) $s->external_subsidize_cents));
+        $total = (int) $rows->sum(fn ($s) => $s->payoutCents());
         $settlement->update(['count' => $groups->count(), 'total_cents' => $total]);
     }
 

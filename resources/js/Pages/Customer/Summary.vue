@@ -307,6 +307,23 @@
                   <span>Export Batch Report Content{{ selectedReportRows.length ? ` (${selectedReportRows.length})` : '' }}</span>
                 </div>
               </Button>
+              <!--
+                Export Batch Paid Report — payment-advice email for each ticked
+                row that was PAID via a Site Settlement. Shown in a modal to copy.
+              -->
+              <Button
+                v-if="canLock"
+                type="button"
+                class="inline-flex items-center whitespace-nowrap rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                :disabled="!selectedPaidReportRows.length || paidReportLoading"
+                v-tooltip="selectedPaidReportRows.length ? 'Build payment-advice emails for the ticked paid sites' : 'Tick one or more rows that were paid via a Site Settlement first'"
+                @click.prevent="onExportBatchPaidReportClicked()"
+              >
+                <div class="flex items-center space-x-1">
+                  <DocumentTextIcon class="h-4 w-4" aria-hidden="true" />
+                  <span>Export Batch Paid Report{{ selectedPaidReportRows.length ? ` (${selectedPaidReportRows.length})` : '' }}</span>
+                </div>
+              </Button>
               <!-- Unread Site-Note toggle: shows only sites whose Site Note
                    changed (by someone else) since your last visit, newest
                    first. Badge count comes from the server. -->
@@ -554,7 +571,7 @@
         and paid-eligible rows); 0-eligible buttons are disabled.
       -->
       <div
-        v-if="canLock && (selectedLockRows.length > 0 || selectedPaidRows.length > 0)"
+        v-if="canLock && selectedLockRows.length > 0"
         class="sticky top-0 z-40 mt-4 flex flex-wrap items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 shadow-md"
       >
         <span class="text-sm font-semibold text-emerald-900">
@@ -570,32 +587,12 @@
           <LockClosedIcon class="h-3.5 w-3.5" aria-hidden="true" />
           <span>Lock ({{ selectedLockRows.length }})</span>
         </Button>
-        <Button
-          type="button"
-          class="inline-flex items-center space-x-1 rounded-md px-3 py-2 text-xs font-semibold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 ring-1 ring-inset ring-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed"
-          :disabled="!selectedPaidRows.length || batchSubmitting"
-          v-tooltip="selectedPaidRows.length ? '' : 'No selected rows are eligible to mark Paid (must be locked + unpaid, period 2605 onward)'"
-          @click="onBatchPaidClicked"
-        >
-          <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
-          <span>Mark Paid ({{ selectedPaidRows.length }})</span>
-        </Button>
         <!--
-          Push to Settlement — pools the ticked locked+unpaid rows into their
-          Site Settlement (per payout group). CIMB is exported, and each row is
-          marked paid, from the settlement page. Replaces the old on-summary
-          Export CIMB. Rows already in a settlement are excluded.
+          Batch Mark Paid and Push to Settlement removed per request — these
+          actions are no longer exposed from the summary action bar. Only
+          batch Lock remains here. Payment / settlement are handled from the
+          Site Settlement page.
         -->
-        <Button
-          type="button"
-          class="inline-flex items-center space-x-1 rounded-md px-3 py-2 text-xs font-semibold bg-teal-100 hover:bg-teal-200 text-teal-800 ring-1 ring-inset ring-teal-300 disabled:opacity-40 disabled:cursor-not-allowed"
-          :disabled="!selectedPaidRows.length || pushingSettlement"
-          v-tooltip="selectedPaidRows.length ? `Push ${selectedPaidRows.length} row(s), total ${formatMoney(selectedPaidNetTotal)}, into their Site Settlement` : 'No selected rows are eligible (must be locked + unpaid, period 2605 onward, not already in a settlement)'"
-          @click="onPushToSettlement"
-        >
-          <BanknotesIcon class="h-3.5 w-3.5" aria-hidden="true" />
-          <span>{{ pushingSettlement ? 'Pushing…' : `Push to Settlement (${selectedPaidRows.length})` }}</span>
-        </Button>
         <Button
           type="button"
           class="ml-auto rounded-md px-3 py-2 text-xs font-semibold bg-white hover:bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300"
@@ -1649,6 +1646,17 @@
                           <div v-if="row.is_paid && row.paid_date" class="text-emerald-700">
                             <span class="font-semibold">Pymt</span> {{ moment(row.paid_date).format('YYMMDD') }}
                           </div>
+                          <!-- Paid via a Site Settlement — its reference, green. -->
+                          <div v-if="row.is_paid && row.commission_settlement_id && row.settlement_reference" class="mt-0.5">
+                            <a
+                              :href="'/site-settlements/' + row.commission_settlement_id"
+                              target="_blank"
+                              class="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold border border-emerald-300 hover:bg-emerald-200"
+                              v-tooltip="'Paid via Site Settlement'"
+                            >
+                              {{ row.settlement_reference }}
+                            </a>
+                          </div>
                           <!-- Waived badge — set when the row was marked via the
                                Mark as Paid / Waived popup with Waived ticked.
                                Reason surfaces on hover. -->
@@ -1681,7 +1689,7 @@
                              only from the paid-tracking cutoff (2605) onward;
                              periods 2604 and earlier never show it. -->
                         <Button
-                          v-if="canPaid && !row.is_paid && isPaidEligiblePeriod(row)"
+                          v-if="canPaid && !row.is_paid && isPaidEligiblePeriod(row) && !row.commission_settlement_id"
                           type="button"
                           class="inline-flex items-center justify-center space-x-1 px-2 py-0.5 !text-[10px] font-medium leading-tight whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white rounded-md shadow-sm border border-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           :disabled="lockingFor.has(row.id)"
@@ -1691,6 +1699,18 @@
                           <CheckBadgeIcon class="h-3 w-3 shrink-0" aria-hidden="true" />
                           <span>Loc Fees paid?</span>
                         </Button>
+                        <!-- Staged into a Site Settlement — it's paid from the
+                             settlement page, not here. Badge links to it. -->
+                        <a
+                          v-if="row.commission_settlement_id && !row.is_paid"
+                          :href="'/site-settlements/' + row.commission_settlement_id"
+                          target="_blank"
+                          class="inline-flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-semibold leading-tight rounded bg-yellow-200 text-yellow-900 hover:bg-yellow-300 text-center"
+                          v-tooltip="'This period is in a Site Settlement — mark it paid from the settlement page.'"
+                        >
+                          <span>Settlement in progress</span>
+                          <span v-if="row.settlement_reference">{{ row.settlement_reference }}</span>
+                        </a>
                         <!-- Unpaid — only visible on a locked+paid row.
                              Same access tier as Unlock (superadmin/admin). -->
                         <Button
@@ -2010,6 +2030,9 @@
             <div class="text-blue-900 font-semibold text-base leading-tight">
               Vending Machine Location Fees Report
             </div>
+            <div v-if="reportContentHeaderLine" class="mt-1 text-blue-900 font-semibold text-sm">
+              {{ reportContentHeaderLine }}
+            </div>
             <div class="mt-1 text-blue-700 font-bold uppercase tracking-wide text-sm">
               Term: {{ reportContent.contract_type_label }}
             </div>
@@ -2245,6 +2268,39 @@
       </template>
     </Modal>
 
+    <!-- Batch Paid Report — payment-advice email per paid (settlement) site. -->
+    <Modal :open="showPaidReportModal" @modalClose="showPaidReportModal = false">
+      <template #header>
+        <div class="flex items-center space-x-2">
+          <DocumentTextIcon class="w-5 h-5 text-emerald-600" />
+          <span>Batch Paid Report</span>
+        </div>
+      </template>
+      <template #default>
+        <div v-if="paidReportLoading" class="text-center py-10 text-gray-500">
+          <div class="animate-pulse text-sm">Building paid report…</div>
+        </div>
+        <div v-else-if="paidReportText" class="text-sm">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <p class="text-xs text-gray-500">
+              Payment-advice email per paid site — review, then copy and send to each site owner.
+            </p>
+            <Button
+              type="button"
+              class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 shrink-0"
+              v-tooltip="'Copy all payment advices to the clipboard'"
+              @click="copyPaidReport"
+            >
+              <ClipboardDocumentIcon class="w-4 h-4" />
+              <span>Copy</span>
+            </Button>
+          </div>
+          <pre class="whitespace-pre-wrap break-words rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-gray-800 text-[13px] leading-relaxed font-sans max-h-[60vh] overflow-auto">{{ paidReportText }}</pre>
+        </div>
+        <div v-else class="text-center py-10 text-gray-500 text-sm">No paid rows to report.</div>
+      </template>
+    </Modal>
+
     <!--
       Paid confirmation modal — opened by the Paid button on a locked row.
       Captures the ACTUAL payment date (paid_date) before marking Paid.
@@ -2256,7 +2312,7 @@
       <template #header>
         <div class="flex items-center space-x-2">
           <CheckCircleIcon class="w-5 h-5 text-emerald-600" />
-          <span>Mark as Paid/ Waived</span>
+          <span>Send to Settlement / Mark as Waived</span>
         </div>
       </template>
       <template #default>
@@ -2418,7 +2474,7 @@
               @click="onPaidModalConfirm"
             >
               <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{{ paidModalWaived ? 'Confirm Waived' : 'Confirm Paid' }}</span>
+              <span>{{ paidModalWaived ? 'Confirm Waived' : 'Send to Settlement' }}</span>
             </Button>
           </div>
         </div>
@@ -2598,15 +2654,8 @@
         <div v-if="!settlementLoading" class="mb-3 flex flex-wrap items-center justify-between gap-2">
           <!-- Add Paid / Waived credit -->
           <div v-if="canAddSettlement" class="flex items-center gap-2">
-            <Button
-              type="button"
-              class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
-              v-tooltip="'Add a Paid credit to this site\'s ledger'"
-              @click="startAddSettlement('payment')"
-            >
-              <PlusIcon class="h-4 w-4" />
-              <span>Record Paid</span>
-            </Button>
+            <!-- "Record Paid" removed — payments enter the ledger only via a Site
+                 Settlement (mark done). Admins can't mark paid directly here. -->
             <Button
               type="button"
               class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-sky-600 hover:bg-sky-700 text-white shadow-sm transition-colors"
@@ -3119,8 +3168,12 @@ const isPaidEligibleRow = (row) =>
 // independent of lock/paid state, so current-month or already-paid rows can
 // still be batched into a client email.
 const isReportEligibleRow = (row) => !!row.customer?.has_report_content;
+// Paid through a Site Settlement — eligible for "Export Batch Paid Report".
+const isPaidReportEligibleRow = (row) => !!row.is_paid && !!row.commission_settlement_id;
 const isBatchSelectable = (row) =>
-  isLockEligibleRow(row) || isPaidEligibleRow(row) || isReportEligibleRow(row);
+  // Only Lock, Report Content, and paid-via-settlement (Paid Report) make a row
+  // selectable — batch Mark Paid / Push to Settlement were removed.
+  isLockEligibleRow(row) || isReportEligibleRow(row) || isPaidReportEligibleRow(row);
 
 // Current-page derivations. selectedRows intersects the selection with the
 // page's rows, so ids left over from a previous page/filter can never leak
@@ -3133,6 +3186,8 @@ const selectedPaidRows = computed(() => selectedRows.value.filter(isPaidEligible
 // Content" button. Not page-scoped via selectedRows? It IS: selectedRows is
 // already the page ∩ selection, which keeps counts honest across pagination.
 const selectedReportRows = computed(() => selectedRows.value.filter(isReportEligibleRow));
+// Ticked paid-via-settlement rows — drives "Export Batch Paid Report".
+const selectedPaidReportRows = computed(() => selectedRows.value.filter(isPaidReportEligibleRow));
 // Total Net Loc Fee that batch-paid will record across the selected rows
 // (location_fees − external_subsidize, floored at 0 per row).
 const selectedPaidNetTotal = computed(() => selectedPaidRows.value.reduce((sum, r) => {
@@ -3169,7 +3224,6 @@ function clearBatchSelection() {
 function batchCheckboxTooltip(row) {
   const actions = [];
   if (isLockEligibleRow(row)) actions.push('Lock');
-  if (isPaidEligibleRow(row)) actions.push('Mark Paid');
   if (isReportEligibleRow(row)) actions.push('Export Report Content');
   if (actions.length) return 'Select for batch: ' + actions.join(' / ');
   if (row.is_current_month) return 'Current month — cannot lock yet';
@@ -3316,6 +3370,12 @@ const reportContentBillingCompany = computed(() => {
   if (!cust) return '';
   return cust.contact?.company || cust.company_remark || cust.name || '';
 });
+// One-line site/machine identifier shown at the very top of the report
+// (before Term), matching the emailed body. "#<Machine ID / vend code> -
+// <Site ID> - <Site name>". See reportHeaderLine() for the shared builder.
+const reportContentHeaderLine = computed(() =>
+  reportHeaderLine(reportContentRow.value?.customer, reportContentMachineId.value)
+);
 const showMapMarkerModal = ref(false);
 const mapCustomers = ref([]);
 
@@ -3976,6 +4036,8 @@ function buildReportEmailParts() {
   lines.push('');
   lines.push('This is an automatic email. Below is the Vending Machine Location Fees Report');
   lines.push('');
+  const headerLine = reportHeaderLine(cust, reportContentMachineId.value);
+  if (headerLine) { lines.push(headerLine); lines.push(''); }
   if (content?.contract_type_label) lines.push(`Term: ${content.contract_type_label}`);
   lines.push('');
   lines.push(`Period (YYMM): ${periodLabel}`);
@@ -4806,23 +4868,38 @@ function onPaidModalConfirm() {
   paidModalAmount.value = '';
 
   lockingFor.value.add(row.id);
-  // Partial reload — Paid flips paid_at / paid_date / is_waived AND posts a
-  // settlement credit, so refresh both `summaries` (green-check / Waived badge)
-  // and `settlementBalances` (the Payment-History pill) on success.
-  router.post('/customers/summary/' + row.id + '/paid', {
-    paid_date: paidDate,
-    is_waived: isWaived,
-    waived_remarks: isWaived ? remarks : null,
-    comment: comment || null,
-    paid_amount_cents: paidAmountCents,
-  }, {
-    only: ['summaries', 'settlementBalances'],
-    preserveScroll: true,
-    preserveState: true,
-    onSuccess: () => toast.success(isWaived ? 'Period marked Waived.' : 'Period marked Paid.', { timeout: 3000 }),
-    onError: (errors) => toast.error(errors?.paid || errors?.paid_date || errors?.waived_remarks || errors?.paid_amount_cents || 'Failed to mark Paid.', { timeout: 4000 }),
-    onFinish: () => lockingFor.value.delete(row.id),
-  });
+
+  if (isWaived) {
+    // Waived stays a direct action here — flips paid_at / is_waived AND posts a
+    // settlement (ledger) credit. Paid, by contrast, can only be completed via
+    // the Site Settlement, so the non-waived path pushes instead (below).
+    router.post('/customers/summary/' + row.id + '/paid', {
+      paid_date: paidDate,
+      is_waived: true,
+      waived_remarks: remarks,
+      comment: comment || null,
+      paid_amount_cents: paidAmountCents,
+    }, {
+      only: ['summaries', 'settlementBalances'],
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => toast.success('Period marked Waived.', { timeout: 3000 }),
+      onError: (errors) => toast.error(errors?.paid || errors?.paid_date || errors?.waived_remarks || errors?.paid_amount_cents || 'Failed to waive.', { timeout: 4000 }),
+      onFinish: () => lockingFor.value.delete(row.id),
+    });
+  } else {
+    // Send to Settlement — stage this row into its Site Settlement, capturing
+    // the "Amount paid" (used as the settlement payout / ledger amount). The
+    // actual Paid state is set when the settlement is marked done.
+    router.post('/site-settlements/push', { ids: [row.id], amount_cents: paidAmountCents }, {
+      only: ['summaries'],
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => toast.success('Sent to Site Settlement.', { timeout: 3000 }),
+      onError: (errors) => toast.error(errors?.settlement || Object.values(errors || {})[0] || 'Failed to send to settlement.', { timeout: 4000 }),
+      onFinish: () => lockingFor.value.delete(row.id),
+    });
+  }
 }
 
 // Reverse Paid (mirror of onPaidClicked). Superadmin/admin only; server
@@ -4990,6 +5067,8 @@ function formatSingleReportBody(content, cust) {
   lines.push('');
   lines.push('This is an automatic email. Below is the Vending Machine Location Fees Report');
   lines.push('');
+  const headerLine = reportHeaderLine(cust, machine.id);
+  if (headerLine) { lines.push(headerLine); lines.push(''); }
   if (content.contract_type_label) lines.push(`Term: ${content.contract_type_label}`);
   lines.push('');
   lines.push(`Period (YYMM): ${content.period_label}`);
@@ -5116,11 +5195,62 @@ const batchReportText = ref('');
 const batchReportSkipped = ref('');
 const batchReportMachineCount = ref(0);
 
+// ── Export Batch Paid Report — payment-advice emails for paid (settlement) rows ──
+const showPaidReportModal = ref(false);
+const paidReportLoading = ref(false);
+const paidReportText = ref('');
+function onExportBatchPaidReportClicked() {
+  const rows = selectedPaidReportRows.value;
+  if (!rows.length || paidReportLoading.value) return;
+  paidReportLoading.value = true;
+  paidReportText.value = '';
+  showPaidReportModal.value = true;
+  window.axios.post('/customers/summary/batch-paid-report', { ids: rows.map((r) => r.id) })
+    .then((res) => {
+      const blocks = (res?.data?.rows ?? []).map((b) => [
+        'To: ' + (b.to || '(no report email)'),
+        'Subject: ' + b.subject,
+        '',
+        b.body,
+      ].join('\n'));
+      paidReportText.value = blocks.join('\n\n' + '='.repeat(60) + '\n\n');
+      if (!blocks.length) paidReportText.value = 'No paid rows to report.';
+    })
+    .catch(() => { paidReportText.value = ''; toast.error('Failed to build the paid report.', { timeout: 4000 }); })
+    .finally(() => { paidReportLoading.value = false; });
+}
+async function copyPaidReport() {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(paidReportText.value || '');
+      toast.success('Copied to clipboard.', { timeout: 2000 });
+    }
+  } catch (_) { /* ignore */ }
+}
+
 // Billing Company resolution — identical fallback chain to buildReportEmailParts
 // ("Bill From" → company remark → site name) so the batch greeting matches the
 // single-row email greeting.
 function billingCompanyOf(cust) {
   return cust?.contact?.company || cust?.company_remark || cust?.name || '';
+}
+
+// One-line identifier printed at the top of each report block (before Term)
+// and mirrored in the on-screen preview: "#<Machine ID / vend code> -
+// <Site ID> - <Site name>". Site ID uses the same ref_id (id + 20000)
+// convention as the Site ID column; the machine code mirrors the Machine ID
+// line below it. Any missing part is dropped so the line never shows stray
+// separators. Kept here so the single email, the row Copy Content, the batch
+// body and the modal preview all render it identically.
+function reportHeaderLine(cust, machineId) {
+  if (!cust) return '';
+  const parts = [];
+  const vc = (machineId ?? '').toString().trim();
+  if (vc) parts.push(`#${vc}`);
+  const siteId = refIdFor(cust);
+  if (siteId) parts.push(String(siteId));
+  if (cust.name) parts.push(cust.name);
+  return parts.join(' - ');
 }
 
 // Machine ID / Prefix for a row — mirrors onReportContentClicked: join all
@@ -5163,6 +5293,18 @@ function onExportBatchReportClicked() {
 
       const greetingCompany = billingCompanyOf(rows[0]?.customer);
       const lines = [];
+      // To + Subject at the very top — one client per batch, so we take the
+      // FIRST selected site's report email and build the same subject the
+      // single-row email uses (site name + period). Rendered as plain text so
+      // the operator can copy the whole block into their mail client.
+      const firstCust = rows[0]?.customer;
+      const firstContent = byKey[rowKey(rows[0])];
+      const subjectPeriod = firstContent?.period_label
+        || ((rows[0]?.period_start || '') + ' → ' + (rows[0]?.period_end || ''));
+      const subjectName = firstCust?.name || ('#' + (firstCust?.id ?? ''));
+      lines.push(`To: ${firstCust?.report_email || '(no report email on first site)'}`);
+      lines.push(`Subject: Vending Machine Location Fees Report — ${subjectName} (${subjectPeriod})`);
+      lines.push('');
       lines.push(`Dear Valued Partner: "${greetingCompany}"`);
       lines.push('');
       lines.push('This is an automatic email. Below is the Vending Machine Location Fees Report');
@@ -5185,6 +5327,8 @@ function onExportBatchReportClicked() {
         lines.push('');
         lines.push('────────────────────────────');
         lines.push('');
+        const headerLine = reportHeaderLine(cust, machine.id);
+        if (headerLine) { lines.push(headerLine); lines.push(''); }
         if (content.contract_type_label) lines.push(`Term: ${content.contract_type_label}`);
         lines.push('');
         lines.push(`Period (YYMM): ${content.period_label}`);

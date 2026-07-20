@@ -282,6 +282,7 @@ const navigation = computed(() => [
             {name: 'Operators', href: '/operators', permission: 'read operators'},
             {name: 'Operator Group', href: '/operator-groups', permission: 'read operator-groups'},
             {name: 'Users', href: '/users', permission: 'read users'},
+            {name: 'MCP Access', href: '/mcp-tokens', permission: 'read mcp-tokens'},
         ]
     },
     {

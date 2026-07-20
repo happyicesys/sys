@@ -106,6 +106,7 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),
                 'info'    => fn () => $request->session()->get('info'),
+                'mcpNewToken' => fn () => $request->session()->get('mcpNewToken'),
             ],
             // Messenger-style unread-note badges for the sidebar, keyed by menu
             // href. Resolved as a closure so it evaluates AFTER the controller
