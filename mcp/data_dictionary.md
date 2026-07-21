@@ -17,6 +17,7 @@ speed while others are the raw truth.
 | **Ops Performance** | `ops_machine_daily_snapshots` (components/health); `gp_metrics` (financials) | Snapshots are frozen daily, forward-only. |
 | **Sites** (Site mgmt / index) | `customers` (= sites), `vends` (= machines) | One `customers` row = one site/location. |
 | **Site Summary** | `customer_period_summaries` | Monthly per-site financial truth, lock/paid aware. |
+| **Daily sales-analysis report** (8:30am) | `fact_sales_hourly`, `fact_site_daily`, `fact_rainfall_hourly`, `fact_daytype_record`, `dim_calendar`, `dim_site_cohort` | Nightly pre-agg for the morning report — hourly grain, weekday-match, rainfall, records. See section at the bottom. |
 
 **Source-of-truth rule of thumb**
 
@@ -270,3 +271,67 @@ HAVING error_rate > 0.05
 ORDER BY revenue ASC
 LIMIT 25;
 ```
+
+## Daily sales-analysis report facts (pre-aggregated nightly)
+
+New (2026-07) fast tables built nightly by `report:build-daily-facts` for the
+8:30am sales-analysis report — so the report is a few SELECTs, not a re-scrape.
+Populated only when `reporting.daily_facts_enabled` is on; each fact is a
+settled-sale roll-up using the **same "real sale" definition as `gp_metrics`**
+(`settlement_status = 2` + non-zero amount), so **no `settlement_status` filter
+is needed** when reading them. All `*_cents` are minor units → /100. Dates and
+hours are already local (SGT). Every table is backfillable per day and rebuilt
+idempotently.
+
+Two logical dimensions + four fact tables:
+
+### `dim_calendar` — one row per date
+`date` (PK), `dow` (0=Sun .. 6=Sat), `day_type_bucket`
+(`Weekday` | `Fri_or_PH_eve` | `Weekend_or_PH`), `is_public`,
+`is_school` (school HOLIDAY/vacation), `is_school_term` (school IN SESSION,
+from MOE term ranges), `is_madrasah_active` (school-term weekend),
+`holiday_name`. Join any dated fact on `= date`.
+
+### `dim_site_cohort` — one row per site (customer)
+`customer_id` (PK) → `customers.id`, `cohort`
+(`tourist_leisure` | `mosque_madrasah` | `weekday_routine` | `school_linked` |
+`other`), `location_type_id`, `location_type_name`,
+`nearest_weather_station_id` → `weather_stations.id`, `distance_km`,
+`latitude`, `longitude`. Rebuilt nightly from ACTIVE sites; a site deactivated
+since the last rebuild has no row here (so `cohort` reads NULL on the facts).
+
+### `fact_sales_hourly` — grain: date × hour × site
+`date`, `hour` (0-23), `customer_id`, `location_type_id`, `cohort`,
+`txns` (settled), `success_txns`, `success_qty`, `sales_cents` (successful
+amount). **The hourly grain `gp_metrics` never had** — powers every hourly
+chart. Daily `SUM(sales_cents)` ties to `gp_metrics` amount within rounding.
+Unique (date, hour, customer_id). Note: rows with a NULL `transaction_datetime`
+(rare legacy) are not placed in an hour and are excluded.
+
+### `fact_site_daily` — grain: date × site
+`date`, `customer_id`, `location_type_id`, `cohort`, `day_type_bucket`,
+`sales_cents`, `gp_cents`, `txns`, `success_qty`, plus the PRE-COMPUTED
+weekday-over-weekday comparison: `sales_same_dow_prev_wk` (same site 7 days
+earlier), `delta_abs`, `delta_pct` (NULL when prev = 0). Sourced from
+`gp_metrics`, so it reconciles with the dashboards. Anomaly ranking is just a
+filter/sort on `delta_pct` / `delta_abs` — no self-join. Unique (date, customer_id).
+
+### `fact_rainfall_hourly` — grain: date × hour × station
+`date`, `hour`, `weather_station_id` → `weather_stations.id`, `rainfall_mm`
+(sum of the 5-min readings that hour), `reading_count`. Relate to sites via
+`dim_site_cohort.nearest_weather_station_id`. Preserves rainfall history beyond
+the ~12-day `weather_readings` retention. NOTE: only has data from the day this
+feature went live onward — backfilling older dates yields nothing (the 5-min
+source is already pruned).
+
+### `fact_daytype_record` — 3 rows (one per day_type_bucket)
+`day_type_bucket` (PK), `record_sales_cents` (all-time COMPANY daily record —
+all machines, binded + unbinded — since the reporting floor, default
+2026-04-01), `record_date`, `driver_note` (holiday name of the record day, if
+any). Lets the report say "today is a record Weekend" in one lookup. NB: the
+record is the all-machine company total, so compare it against
+`SUM(gp_metrics.amount_cents)` for the day (not `fact_site_daily`, which is
+binded-site only).
+
+**Stays external (not stored):** the NEA next-day rainfall FORECAST is a live
+outlook call at report time — these tables hold observed history only.

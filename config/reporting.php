@@ -44,4 +44,25 @@ return [
 
     'transactions_rollup_enabled' => env('ENABLE_TRANSACTIONS_ROLLUP', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Daily sales-analysis report facts — MASTER kill switch
+    |--------------------------------------------------------------------------
+    |
+    | Gates the nightly `report:build-daily-facts` schedule that populates the
+    | pre-aggregated report tables (dim_calendar, dim_site_cohort,
+    | fact_sales_hourly, fact_site_daily, fact_rainfall_hourly,
+    | fact_daytype_record).
+    |   - OFF (default): nothing auto-runs; the feature is fully dormant and has
+    |     zero effect on existing infra. This is the instant rollback.
+    |   - ON: the schedule builds the facts nightly (03:30) + a weekly deep pass.
+    |
+    | Manual `php artisan report:build-daily-facts` ALWAYS runs (backfill +
+    | verification) regardless of this flag. Keep FALSE until a backfill has been
+    | run and the numbers are verified against the live report.
+    |
+    */
+
+    'daily_facts_enabled' => env('ENABLE_DAILY_REPORT_FACTS', false),
+
 ];

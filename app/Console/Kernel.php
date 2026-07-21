@@ -115,6 +115,23 @@ class Kernel extends ConsoleKernel
         // gp_metrics have fully settled, so it competes with no heavy job.
         $schedule->command('ops:snapshot-daily')->dailyAt('03:00')->withoutOverlapping();
 
+        // Pre-aggregated daily sales-analysis report facts (hourly sales,
+        // site-daily weekday-match, hourly rainfall, day-type records) + the
+        // cohort/calendar dimensions. Runs AFTER gp_metrics (00:40) +
+        // reconcile:sales-rollups (02:15) + ops snapshot (03:00) so
+        // fact_site_daily reads a fully-healed gp_metrics. Self-heals the last 3
+        // completed days nightly; a weekly 14-day pass backstops late
+        // settlements. Gated by reporting.daily_facts_enabled (default false) —
+        // fully dormant until you opt in; manual runs work regardless.
+        $schedule->command('report:build-daily-facts --days=3')
+            ->dailyAt('03:30')
+            ->withoutOverlapping()
+            ->when(fn () => (bool) config('reporting.daily_facts_enabled'));
+        $schedule->command('report:build-daily-facts --days=14 --skip-dims')
+            ->weeklyOn(0, '03:50')
+            ->withoutOverlapping()
+            ->when(fn () => (bool) config('reporting.daily_facts_enabled'));
+
         // Accrue the previous month's Net Loc Fee into each owing site's
         // settlement ledger (Site Summary ▸ Payment History) as a charge.
         // On the 1st, AFTER the 01:00 customer-summary:compute has finalised
