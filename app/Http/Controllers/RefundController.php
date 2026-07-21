@@ -584,6 +584,17 @@ class RefundController extends Controller
             ]);
         }
 
+        // General guard: never approve a $0.00 payout. The effective refund amount
+        // (final override ?? claimed) must be greater than $0 — a $0 ticket would
+        // pay out nothing (e.g. a manual submission whose Final Refund Amount was
+        // never filled in, or an auto-matched claim of $0). Mirrors the front-end
+        // Approve gate and the settlement push guard.
+        if ((int) $ticket->payout_amount_cents <= 0) {
+            return back()->withErrors([
+                'ticket' => 'Cannot approve — the refund amount is $0.00. Set a Final Refund Amount greater than $0 before approving.',
+            ]);
+        }
+
         // A ticket the system already auto-refunded (third validation icon crossed)
         // can never be approved for a manual payout — approving would pay it twice.
         // Ops must Reject (email) or Drop it instead. This mirrors the hidden
@@ -848,6 +859,40 @@ class RefundController extends Controller
         }
 
         return back()->with('success', $tickets->count() . ' refund(s) marked completed.');
+    }
+
+    /**
+     * Batch "Insufficient Info" — PayPal only. PayPal refunds are paid manually
+     * and never enter a Refund Settlement, so this is the ONLY place a PayPal
+     * refund with bad payout details (e.g. a wrong PayPal email) can be parked.
+     * Mirrors the settlement page's insufficient-info flow: no customer email is
+     * sent; the admin fixes the details by hand and then batch-marks the ticket
+     * done. PayNow refunds are excluded here — they are flagged from the
+     * settlement page instead.
+     */
+    public function insufficientInfoBatch(Request $request)
+    {
+        $data = $request->validate([
+            'ticket_ids' => ['required', 'array', 'min:1'],
+            'ticket_ids.*' => ['integer'],
+        ]);
+
+        $tickets = RefundTicket::whereIn('id', $data['ticket_ids'])
+            ->where('refund_method', 'paypal')
+            ->where('status', RefundTicket::STATUS_APPROVED)
+            ->get();
+
+        if ($tickets->isEmpty()) {
+            return back()->withErrors(['batch' => 'None of the selected tickets can be flagged (must be Approved PayPal refunds).']);
+        }
+
+        foreach ($tickets as $ticket) {
+            $from = $ticket->status;
+            $ticket->update(['status' => RefundTicket::STATUS_INSUFFICIENT_INFO]);
+            $this->tickets->log($ticket, 'insufficient_info', $from, $ticket->status, 'Flagged insufficient info (PayPal - bad payout details; handle manually)', auth()->user()?->name ?? 'Admin', auth()->id());
+        }
+
+        return back()->with('success', $tickets->count() . ' PayPal refund(s) flagged as insufficient info.');
     }
 
     public function updateItem(Request $request, RefundTicket $ticket, RefundTicketItem $item)

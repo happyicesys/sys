@@ -56,6 +56,15 @@ class RefundSettlementService
                 throw new \RuntimeException('No eligible tickets to push. They must be Approved PayNow tickets not already in a settlement (PayPal is marked done on the Refund Requests page).');
             }
 
+            // Never push a $0.00 refund into a settlement. The effective payout
+            // (final override ?? claimed) must be > $0; a $0 ticket usually means a
+            // manual submission whose Final Refund Amount was never set. Block the
+            // whole push with a clear message rather than silently dropping them.
+            $zeroAmount = $tickets->filter(fn (RefundTicket $t) => (int) $t->payout_amount_cents <= 0);
+            if ($zeroAmount->isNotEmpty()) {
+                throw new \RuntimeException('Cannot send to settlement — ' . $zeroAmount->count() . ' selected refund(s) have a $0.00 refund amount (' . $zeroAmount->pluck('reference')->implode(', ') . '). Set a Final Refund Amount greater than $0 first.');
+            }
+
             $pushed = 0;
             $refs = [];
 
@@ -138,18 +147,18 @@ class RefundSettlementService
         $this->assertSettlement($settlement);
 
         return DB::transaction(function () use ($settlement, $userId, $actorLabel) {
-            // Export the whole PayNow batch — every member, whatever its stage. This
-            // lets the file be regenerated for the record even after rows have been
-            // marked done or flagged insufficient info (it no longer blocks once
-            // nothing is left in `scheduled`). Only a settlement with zero PayNow
-            // members has genuinely nothing to export.
+            // Export the payable PayNow members: Scheduled (queued for payout) and
+            // Completed (already paid — kept so the file can be regenerated for the
+            // record). Insufficient-Info tickets are DELIBERATELY excluded: they are
+            // not payable until more info is supplied, so they must not appear in the
+            // CIMB bulk file NOR be counted in the header count / total amount. Only a
+            // settlement with zero payable PayNow members has nothing to export.
             $tickets = $this->members($settlement, RefundTicket::METHOD_PAYNOW, [
                 RefundTicket::STATUS_SCHEDULED,
                 RefundTicket::STATUS_COMPLETED,
-                RefundTicket::STATUS_INSUFFICIENT_INFO,
             ]);
             if ($tickets->isEmpty()) {
-                throw new \RuntimeException('No PayNow tickets to export in this settlement.');
+                throw new \RuntimeException('No payable PayNow tickets to export in this settlement (Insufficient-Info tickets are excluded until they are resolved).');
             }
 
             $account = $this->resolveOriginatingAccount($settlement);

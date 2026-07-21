@@ -37,9 +37,14 @@ const selected = ref([]);
 // The checkbox drives "Push to Settlement": only APPROVED tickets (PayNow or
 // PayPal) can be pushed. The backend re-filters and routes each into its day's
 // open settlement per payout group.
-// Selectable for a batch action: only Approved tickets. Insufficient-Info tickets
-// are resolved in the Refund Settlement edit page, not batched here.
-const eligible = (t) => t.status === 'approved';
+// Selectable for a batch action (needs a payout amount > 0):
+//  • any Approved ticket — PayNow → settlement, PayPal → mark done / flag; or
+//  • a PayPal ticket parked as Insufficient Info, so once its payout details are
+//    corrected it can be re-selected here and marked done. PayNow insufficient-info
+//    stays out (it is resolved from the Refund Settlement page).
+const eligible = (t) => toNum(t.final_refund_amount) > 0
+    && (t.status === 'approved'
+        || (t.refund_method === 'paypal' && t.status === 'insufficient_info'));
 const pushing = ref(false);
 const pushMsg = ref('');
 function pushToSettlement() {
@@ -59,7 +64,7 @@ function pushToSettlement() {
 // which completes the ticket and emails the customer (backend re-checks status).
 const marking = ref(false);
 function markDonePaypal() {
-    const ids = paypalSelectedIds.value;
+    const ids = paypalDoneIds.value;
     if (!ids.length) { pushMsg.value = 'Select at least one Approved PayPal ticket.'; return; }
     if (!confirm('Mark ' + ids.length + ' PayPal refund(s) as done? This emails each customer their completion notice.')) return;
     marking.value = true; pushMsg.value = '';
@@ -69,6 +74,23 @@ function markDonePaypal() {
         // Clear only the marked (PayPal) tickets — any PayNow ones stay selected.
         onSuccess: () => { selected.value = selected.value.filter((id) => !ids.includes(id)); },
         onFinish: () => { marking.value = false; },
+    });
+}
+// PayPal-only: park a refund whose payout details are wrong (e.g. a bad PayPal
+// email). PayPal never enters a settlement, so this is the only place to flag it.
+// No customer email is sent — the admin corrects it by hand, then re-selects the
+// row and marks it done. The backend re-checks method + status.
+const flagging = ref(false);
+function markInsufficientInfoPaypal() {
+    const ids = paypalFlagIds.value;
+    if (!ids.length) { pushMsg.value = 'Select at least one Approved PayPal ticket.'; return; }
+    if (!confirm('Flag ' + ids.length + ' PayPal refund(s) as Insufficient Info (e.g. wrong PayPal email)? No email is sent — handle the payout by hand, then mark it done.')) return;
+    flagging.value = true; pushMsg.value = '';
+    router.post('/refunds/batch/insufficient-info', { ticket_ids: ids }, {
+        preserveScroll: true,
+        onError: (errors) => { pushMsg.value = errors.batch || Object.values(errors)[0] || 'Failed to flag.'; },
+        onSuccess: () => { selected.value = selected.value.filter((id) => !ids.includes(id)); },
+        onFinish: () => { flagging.value = false; },
     });
 }
 const eligibleIds = () => props.tickets.data.filter(eligible).map((t) => t.id);
@@ -92,7 +114,11 @@ const mixedMethods = computed(() => selMethods.value.length > 1);
 // Method-specific subsets of the current selection, so a mixed selection can run
 // each action on its own group (PayNow → settlement, PayPal → mark done here).
 const paynowSelectedIds = computed(() => selectedTickets.value.filter((t) => t.status === 'approved' && t.refund_method === 'paynow').map((t) => t.id));
-const paypalSelectedIds = computed(() => selectedTickets.value.filter((t) => t.status === 'approved' && t.refund_method === 'paypal').map((t) => t.id));
+// PayPal actions: "Mark as Done" covers Approved + already-flagged Insufficient-Info
+// (details fixed); "Mark Insufficient Info" applies only to Approved PayPal (can't
+// re-flag one that's already parked).
+const paypalDoneIds = computed(() => selectedTickets.value.filter((t) => t.refund_method === 'paypal' && ['approved', 'insufficient_info'].includes(t.status)).map((t) => t.id));
+const paypalFlagIds = computed(() => selectedTickets.value.filter((t) => t.refund_method === 'paypal' && t.status === 'approved').map((t) => t.id));
 // status options as {id: key, value: label} for the tags MultiSelect
 const statusOptions = ref(Object.entries(props.statuses).map(([id, value]) => ({ id, value })));
 
@@ -507,7 +533,7 @@ const sortedRows = computed(() => {
             <div class="flex items-center gap-3">
                 <span class="text-sm font-semibold text-teal-800">{{ selected.length }} selected</span>
                 <span v-if="allPaynow" class="text-xs text-gray-500">PayNow — push into the Refund Settlement (the CIMB file is exported from there).</span>
-                <span v-else-if="allPaypal" class="text-xs text-gray-500">PayPal — paid manually, so mark them done here. This emails each customer their completion notice. PayPal is not settled via CIMB.</span>
+                <span v-else-if="allPaypal" class="text-xs text-gray-500">PayPal — paid manually. Mark them done here (emails the customer), or flag Insufficient Info if the payout details are wrong. Not settled via CIMB.</span>
                 <span v-else class="text-xs text-gray-500">Mixed selection — PayNow tickets are pushed to a settlement, PayPal tickets are marked done here.</span>
             </div>
             <div class="flex items-center gap-3 mt-3">
@@ -515,9 +541,14 @@ const sortedRows = computed(() => {
                     class="bg-teal-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
                     {{ pushing ? 'Pushing…' : '➡ Send to Settlement (' + paynowSelectedIds.length + ')' }}
                 </button>
-                <button v-if="paypalSelectedIds.length" @click="markDonePaypal" :disabled="marking"
+                <button v-if="paypalDoneIds.length" @click="markDonePaypal" :disabled="marking"
                     class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
-                    {{ marking ? 'Marking…' : '✓ Mark as Done — PayPal (' + paypalSelectedIds.length + ')' }}
+                    {{ marking ? 'Marking…' : '✓ Mark as Done — PayPal (' + paypalDoneIds.length + ')' }}
+                </button>
+                <button v-if="paypalFlagIds.length" @click="markInsufficientInfoPaypal" :disabled="flagging"
+                    class="bg-red-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+                    title="PayPal only: the payout details are wrong (e.g. a bad PayPal email). Parks the ticket as Insufficient Info — no email is sent.">
+                    {{ flagging ? 'Flagging…' : '⚠ Mark Insufficient Info — PayPal (' + paypalFlagIds.length + ')' }}
                 </button>
                 <a href="/refund-settlements" class="text-xs text-teal-700 underline whitespace-nowrap">Open Refund Settlement →</a>
             </div>
@@ -564,7 +595,7 @@ const sortedRows = computed(() => {
                         <td class="px-3 py-3">
                             <input type="checkbox" :disabled="!eligible(t)" :checked="selected.includes(t.id)" @change="toggleRow(t.id)"
                                 :class="eligible(t) ? 'cursor-pointer' : 'cursor-not-allowed opacity-40 grayscale'"
-                                :title="!eligible(t) ? 'Only Approved or Insufficient-Info tickets can be actioned in a batch' : ''" />
+                                :title="!eligible(t) ? (t.status === 'approved' && !(toNum(t.final_refund_amount) > 0) ? 'Refund amount is $0.00 \u2014 set a Final Refund Amount greater than $0 before it can be sent to settlement' : 'Only Approved tickets (or a PayPal refund awaiting corrected info) with a refund amount can be actioned in a batch') : ''" />
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <a :href="'/refunds/' + t.id" target="_blank"

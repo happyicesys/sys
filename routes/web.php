@@ -938,6 +938,10 @@ Route::middleware(['auth', 'cors'])->prefix('refunds')->group(function () {
     // NOTE: /batch/complete must be registered BEFORE the /{ticket}/complete
     // wildcard below, or 'batch' would be captured as a {ticket} binding.
     Route::post('/batch/complete', [RefundController::class, 'completeBatch'])->name('refunds.batch.complete')->middleware('can:update refunds');
+    // PayPal-only: park an Approved PayPal refund whose payout details are wrong
+    // (e.g. bad email). PayPal never enters a settlement, so this is where it's
+    // flagged. Must stay before the /{ticket} wildcard below.
+    Route::post('/batch/insufficient-info', [RefundController::class, 'insufficientInfoBatch'])->name('refunds.batch.insufficient-info')->middleware('can:update refunds');
     Route::get('/{ticket}', [RefundController::class, 'show'])->name('refunds.show')->middleware('can:read refunds');
     // Local-only: render a workflow email's HTML in the browser to preview the
     // design (?template=received|approved|completed|…). 404s outside local env.

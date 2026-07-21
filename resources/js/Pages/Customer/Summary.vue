@@ -2312,7 +2312,7 @@
       <template #header>
         <div class="flex items-center space-x-2">
           <CheckCircleIcon class="w-5 h-5 text-emerald-600" />
-          <span>Send to Settlement / Mark as Waived</span>
+          <span>Send to Settlement / Mark as Paid / Mark as Waived</span>
         </div>
       </template>
       <template #default>
@@ -2467,15 +2467,42 @@
             >
               Cancel
             </Button>
+            <!--
+              Waived  -> single Confirm Waived (posts a waiver via the paid
+              endpoint). Not waived -> two choices: Mark as Paid records the
+              payment directly here (manual pay by an admin), while Send to
+              Settlement stages the row into its Site Settlement to be paid there.
+            -->
             <Button
+              v-if="paidModalWaived"
               type="button"
               class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-800"
               :disabled="paidModalRow && lockingFor.has(paidModalRow.id)"
-              @click="onPaidModalConfirm"
+              @click="onPaidModalConfirm(false)"
             >
               <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{{ paidModalWaived ? 'Confirm Waived' : 'Send to Settlement' }}</span>
+              <span>Confirm Waived</span>
             </Button>
+            <template v-else>
+              <Button
+                type="button"
+                class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                :disabled="paidModalRow && lockingFor.has(paidModalRow.id)"
+                @click="onPaidModalConfirm(true)"
+              >
+                <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Mark as Paid</span>
+              </Button>
+              <Button
+                type="button"
+                class="inline-flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-800"
+                :disabled="paidModalRow && lockingFor.has(paidModalRow.id)"
+                @click="onPaidModalConfirm(false)"
+              >
+                <CheckCircleIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Send to Settlement</span>
+              </Button>
+            </template>
           </div>
         </div>
       </template>
@@ -4837,7 +4864,7 @@ function onPaidModalClose() {
 
 // STEP 2: confirm from the popup. Same permission as Lock; server re-checks.
 // Reuses lockingFor to share the per-row spinner with Lock/Unlock.
-function onPaidModalConfirm() {
+function onPaidModalConfirm(directPaid = false) {
   const row = paidModalRow.value;
   if (!row?.id || !row.is_locked || row.is_paid) return;
   if (lockingFor.value.has(row.id)) return;
@@ -4869,22 +4896,23 @@ function onPaidModalConfirm() {
 
   lockingFor.value.add(row.id);
 
-  if (isWaived) {
-    // Waived stays a direct action here — flips paid_at / is_waived AND posts a
-    // settlement (ledger) credit. Paid, by contrast, can only be completed via
-    // the Site Settlement, so the non-waived path pushes instead (below).
+  if (isWaived || directPaid) {
+    // Direct action against the row — flips paid_at (+ is_waived when waived)
+    // AND posts a settlement (ledger) credit. Waived always lands here; a plain
+    // Paid lands here too when the admin picks "Mark as Paid" (manual pay).
+    // "Send to Settlement" (the else branch) stages the row instead.
     router.post('/customers/summary/' + row.id + '/paid', {
       paid_date: paidDate,
-      is_waived: true,
-      waived_remarks: remarks,
+      is_waived: isWaived,
+      waived_remarks: isWaived ? remarks : null,
       comment: comment || null,
       paid_amount_cents: paidAmountCents,
     }, {
       only: ['summaries', 'settlementBalances'],
       preserveScroll: true,
       preserveState: true,
-      onSuccess: () => toast.success('Period marked Waived.', { timeout: 3000 }),
-      onError: (errors) => toast.error(errors?.paid || errors?.paid_date || errors?.waived_remarks || errors?.paid_amount_cents || 'Failed to waive.', { timeout: 4000 }),
+      onSuccess: () => toast.success(isWaived ? 'Period marked Waived.' : 'Period marked Paid.', { timeout: 3000 }),
+      onError: (errors) => toast.error(errors?.paid || errors?.paid_date || errors?.waived_remarks || errors?.paid_amount_cents || (isWaived ? 'Failed to waive.' : 'Failed to mark paid.'), { timeout: 4000 }),
       onFinish: () => lockingFor.value.delete(row.id),
     });
   } else {

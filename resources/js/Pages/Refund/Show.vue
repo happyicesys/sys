@@ -188,6 +188,10 @@ const canEditFinal = computed(() => canSetFinalAmount.value && !finalAmountLocke
 // approved — mirrors the server guard in RefundController::verify().
 const needsFinalAmount = computed(() =>
     isManualClaim.value && (!t.value.final_refund_amount_set || Number(t.value.final_refund_amount) <= 0));
+// General gate: the effective refund amount we would pay (final override ?? claim)
+// must be greater than $0. Covers non-manual tickets too — a $0.00 payout can never
+// be approved. Mirrors the server guard in RefundController::verify().
+const zeroRefundAmount = computed(() => Number(t.value.final_refund_amount) <= 0);
 function saveFinalAmount() {
     const val = String(finalAmount.value).trim();
     if (val === '' || isNaN(Number(val)) || Number(val) < 0) {
@@ -702,8 +706,9 @@ function actionBadge(l) {
                 <!-- Approve is hidden once the transaction is already auto-refunded
                      (third validation icon crossed): approving would pay it twice.
                      Only Reject / Drop remain for those tickets. -->
-                <button v-if="can('verify refunds') && !alreadyRefunded && ['submitted','pending','pending_transfer_info'].includes(s)" @click="post(base + '/verify')" :disabled="busy || needsFinalAmount" :title="needsFinalAmount ? 'Set a Final Refund Amount (> $0) first' : ''" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-teal-600 text-white disabled:opacity-50 disabled:cursor-not-allowed">✓ Approve</button>
+                <button v-if="can('verify refunds') && !alreadyRefunded && ['submitted','pending','pending_transfer_info'].includes(s)" @click="post(base + '/verify')" :disabled="busy || needsFinalAmount || zeroRefundAmount" :title="(needsFinalAmount || zeroRefundAmount) ? 'Set a Final Refund Amount (> $0) first' : ''" class="w-full text-left text-sm font-semibold px-3 py-2 rounded bg-teal-600 text-white disabled:opacity-50 disabled:cursor-not-allowed">✓ Approve</button>
                 <p v-if="can('verify refunds') && !alreadyRefunded && needsFinalAmount && ['submitted','pending','pending_transfer_info'].includes(s)" class="text-[11px] text-amber-600 -mt-1 mb-1">Set a Final Refund Amount greater than $0 before approving this manual submission.</p>
+                <p v-if="can('verify refunds') && !alreadyRefunded && zeroRefundAmount && !needsFinalAmount && ['submitted','pending','pending_transfer_info'].includes(s)" class="text-[11px] text-amber-600 -mt-1 mb-1">The refund amount is $0.00 — set a Final Refund Amount greater than $0 before approving.</p>
                 <a v-if="can('verify refunds') && !alreadyRefunded && ['submitted','pending','pending_transfer_info'].includes(s)" href="#" @click.prevent="openTemplate('approved')" class="block text-[11px] text-teal-700 underline hover:text-teal-900 -mt-1 mb-1">✉ Preview approval email</a>
 
                 <!-- ✕ No charge / auto-refund: charge already auto-refunded (or never
