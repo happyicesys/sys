@@ -33,6 +33,12 @@
           <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
             Machine ID#
           </SearchInput>
+          <!-- Site search — matches a binded machine's site by Site Name,
+               virtual code/prefix, or the displayed Site ID (customers.id +
+               20000). Same matching rules as the Customer index "Site" box. -->
+          <SearchInput placeholderStr="Site name / Site ID" v-model="filters.site">
+            Site
+          </SearchInput>
           <SearchInput placeholderStr="Product" v-model="filters.product">
             Product
           </SearchInput>
@@ -565,6 +571,7 @@ const filters = ref({
   upcoming_product_mapping: '',
   product: '',
   vend_code: '',
+  site: '',
   vendStatus: '',
   sortKey: '',
   sortBy: true,

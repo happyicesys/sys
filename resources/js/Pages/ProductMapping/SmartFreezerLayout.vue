@@ -291,20 +291,37 @@ const totalSlots = computed(() =>
   localLayout.value.reduce((sum, b) => sum + b.divisions, 0)
 )
 
-function deriveInitialLayout(layout) {
-  if (Array.isArray(layout) && layout.length) {
-    return layout.map(b => ({
-      basket: Number(b.basket),
-      // Clamp to 1..4. Legacy mappings stored divisions=0 (the old "single
-      // slot" shape) migrate up to 1 so every basket renders at least one
-      // numeric slot.
-      divisions: Math.min(MAX_DIVISIONS, Math.max(MIN_DIVISIONS, Number(b.divisions ?? MIN_DIVISIONS))),
-    }))
+// Highest division actually occupied in a basket, read from the bound items'
+// numeric "<basket><division>" codes. Lets the grid always open wide enough to
+// SHOW every bound product, even if the stored basket_layout_json says fewer
+// divisions (e.g. layout=2 but a product sits on "13") — otherwise slot 13 would
+// be hidden until the user manually bumps the stepper.
+function maxDivisionInBasket(basketNum) {
+  let max = 0
+  for (const item of props.productMappingItems || []) {
+    const code = String(item?.channel_code ?? '')
+    if (/^\d{2}$/.test(code) && Number(code[0]) === basketNum) {
+      max = Math.max(max, Number(code[1]))
+    }
   }
-  // Match the server-side seed (ProductMappingController::create) so a fresh
-  // smart mapping renders the same default whether the JSON came from the DB
-  // or is being derived client-side: 6 baskets × 2 divisions (slots 1 & 2).
-  return Array.from({ length: BASKET_COUNT }, (_, i) => ({ basket: i + 1, divisions: 2 }))
+  return max
+}
+
+function deriveInitialLayout(layout) {
+  const base = (Array.isArray(layout) && layout.length)
+    ? layout.map(b => ({ basket: Number(b.basket), divisions: Number(b.divisions ?? MIN_DIVISIONS) }))
+    // Match the server-side seed (ProductMappingController::create): 6 baskets × 2.
+    : Array.from({ length: BASKET_COUNT }, (_, i) => ({ basket: i + 1, divisions: 2 }))
+
+  return base.map(b => {
+    // Clamp to 1..4, and never below the highest occupied division so no bound
+    // product is hidden on load.
+    const divisions = Math.min(
+      MAX_DIVISIONS,
+      Math.max(MIN_DIVISIONS, b.divisions, maxDivisionInBasket(b.basket)),
+    )
+    return { basket: b.basket, divisions }
+  })
 }
 
 // Resolve the currently-selected product for a cell into its full record so

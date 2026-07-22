@@ -7,6 +7,7 @@ use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendPrefixResource;
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Operator;
 use App\Models\ProductMapping;
@@ -74,6 +75,46 @@ class ProductMappingController extends Controller
             ->when($request->vend_code, function ($query, $search) {
                 $query->whereHas('vends', function ($query) use ($search) {
                     $query->where('code', 'LIKE', "{$search}%");
+                });
+            })
+            // Site filter — restrict to mappings whose binded machines sit at a
+            // matching site (customer). Mirrors the "Site" box on the Customer
+            // index (Customer::filterIndex): match the Site Name, the virtual
+            // code/prefix, or the displayed Site ID (ref_id = customers.id +
+            // RUNNING_NUMBER_INIT). A leading numeric token is parsed as the
+            // Site ID and the remainder as a name fragment, so "24310",
+            // "24310 Waterc" and "Waterc" all work.
+            ->when($request->site, function ($query, $search) {
+                $search = trim((string) $search);
+
+                $idPart = null;
+                $namePart = $search;
+                if (preg_match('/^(\d+)\s*(.*)$/', $search, $m)) {
+                    $idPart = (int) $m[1];
+                    $namePart = trim($m[2]);
+                }
+
+                $query->whereHas('vends.customer', function ($query) use ($search, $idPart, $namePart) {
+                    $query->where(function ($query) use ($search, $idPart, $namePart) {
+                        $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
+                            ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                            ->orWhere('customers.name', 'LIKE', "%{$search}%");
+
+                        // Only treat the number as a Site ID when it's in the
+                        // ref_id range (>= RUNNING_NUMBER_INIT); a small number
+                        // like "35" is left to the name match above (e.g. "Blk 35").
+                        if ($idPart !== null && $idPart >= Customer::RUNNING_NUMBER_INIT) {
+                            $realId = $idPart - Customer::RUNNING_NUMBER_INIT;
+                            if ($namePart !== '') {
+                                $query->orWhere(function ($q) use ($realId, $namePart) {
+                                    $q->where('customers.id', $realId)
+                                        ->where('customers.name', 'LIKE', "%{$namePart}%");
+                                });
+                            } else {
+                                $query->orWhere('customers.id', $realId);
+                            }
+                        }
+                    });
                 });
             })
             // DEPRECATED (2026-07): the Machine Prefix filter (whereHas vendPrefixes)
