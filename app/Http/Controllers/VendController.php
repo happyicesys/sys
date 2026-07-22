@@ -628,14 +628,14 @@ class VendController extends Controller
                     // Audit user for the inline Ops Note edit (same Customer
                     // row, same pattern as notesUpdatedBy).
                     'opsNoteUpdatedBy:id,name',
-                    'lastOpsJobItem:id,ops_job_id,status,vend_id,customer_id,stock_action_type,frozen_at,frozen_snapshot',
+                    'lastOpsJobItem:id,ops_job_id,status,vend_id,customer_id,sequence,stock_action_type,frozen_at,frozen_snapshot',
                     'lastOpsJobItem.opsJob:id,code,date,delivered_by',
                     'lastOpsJobItem.opsJob.deliveredBy:id,name,username',
                     'lastOpsJobItem.vend:id,upcoming_product_mapping_id,product_mapping_id',
                     'lastOpsJobItem.vend.productMapping:id,upcoming_product_mapping_id,name',
                     'lastOpsJobItem.vend.upcomingProductMapping:id,name',
                     'lastOpsJobItem.vend.productMapping.upcomingProductMapping:id,name',
-                    'lastSecondOpsJobItem:id,ops_job_id,status,vend_id,customer_id,stock_action_type',
+                    'lastSecondOpsJobItem:id,ops_job_id,status,vend_id,customer_id,sequence,stock_action_type',
                     'lastSecondOpsJobItem.opsJob:id,code,date,delivered_by',
                     'lastSecondOpsJobItem.opsJob.deliveredBy:id,name,username',
                     'lastSecondOpsJobItem.vend:id,upcoming_product_mapping_id,product_mapping_id',

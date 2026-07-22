@@ -633,11 +633,13 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/create', [ProductMappingController::class, 'create']);
         Route::get('/{id}/edit', [ProductMappingController::class, 'edit'])->name('product-mappings.edit');
         Route::post('/{id}/toggle-activate-deactivate', [ProductMappingController::class, 'toggleActivateDeactivate']);
+        Route::post('/{id}/toggle-smart', [ProductMappingController::class, 'toggleSmart']);
         Route::post('/{id}/update', [ProductMappingController::class, 'update']);
         Route::post('/{id}/update/vends', [ProductMappingController::class, 'bindVends']);
         Route::post('/{id}/upload-attachments', [ProductMappingController::class, 'uploadAttachment']);
         Route::delete('/{id}', [ProductMappingController::class, 'delete']);
         Route::post('/{id}/items/create', [ProductMappingController::class, 'createItem']);
+        Route::post('/{id}/baskets/reorder', [ProductMappingController::class, 'reorderBasket']);
         Route::post('/items/{itemID}/update', [ProductMappingController::class, 'updateItem']);
         Route::delete('/items/{itemID}', [ProductMappingController::class, 'deleteItem']);
         Route::post('/replicate', [ProductMappingController::class, 'replicate']);

@@ -22,6 +22,20 @@
         >
           {{ productMapping.data.is_smart ? 'Smart Freezer' : 'Vending Machine' }}
         </span>
+        <!--
+          Convert the mapping type. Vending→Smart seeds the basket grid from the
+          channel codes already bound (see ProductMappingController::toggleSmart),
+          so an existing planogram opens fully shaped. Confirm first — it swaps the
+          whole editor mode.
+        -->
+        <button
+          v-if="productMapping.data && productMapping.data.id"
+          type="button"
+          class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 w-fit"
+          @click="convertMappingType"
+        >
+          {{ productMapping.data.is_smart ? 'Convert to Vending' : 'Convert to Smart Freezer' }}
+        </button>
       </div>
     </template>
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3 overflow-visible">
@@ -620,6 +634,17 @@ function onSequenceChanged(changedItem) {
     preserveState: true,
     preserveScroll: true,
     replace: true,
+  })
+}
+
+function convertMappingType() {
+  const toSmart = !props.productMapping.data.is_smart
+  const msg = toSmart
+    ? 'Convert this mapping to a Smart Freezer? The editor switches to the basket planogram (bound channels keep their codes).'
+    : 'Convert this mapping back to a Vending Machine? The editor switches to the channel table.'
+  if (!window.confirm(msg)) return
+  router.post('/product-mappings/' + props.productMapping.data.id + '/toggle-smart', {}, {
+    preserveScroll: true,
   })
 }
 

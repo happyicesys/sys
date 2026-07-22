@@ -282,6 +282,116 @@ class ProductMappingController extends Controller
     }
 
 
+    /**
+     * Flip a mapping between Vending and Smart Freezer type (the editor mode).
+     *
+     * When converting an existing mapping TO smart, seed basket_layout_json from
+     * the channel codes already bound so the grid opens fully shaped — a code
+     * like "64" means basket 6 needs 4 divisions. Baskets with no items fall
+     * back to 2 divisions (the create-time default). Converting back to vending
+     * leaves the layout untouched (harmless; the vending editor ignores it).
+     */
+    public function toggleSmart($id)
+    {
+        $productMapping = ProductMapping::with('productMappingItems')->findOrFail($id);
+
+        // Converting vending → smart: a planogram can't hold two products on one
+        // slot, so refuse if the existing items already have duplicate channel
+        // codes (e.g. a vending mapping with two "61" rows). The user resolves
+        // them in the vending table first, then converts cleanly.
+        if (! $productMapping->is_smart) {
+            $dupes = $this->duplicateChannelCodes($productMapping->productMappingItems->pluck('channel_code'));
+            if (! empty($dupes)) {
+                throw ValidationException::withMessages([
+                    'is_smart' => 'Cannot convert to Smart Freezer: duplicate channel(s) ' . implode(', ', $dupes) . '. Resolve them in the vending table first — a planogram needs one product per channel.',
+                ]);
+            }
+        }
+
+        $productMapping->is_smart = ! $productMapping->is_smart;
+
+        if ($productMapping->is_smart && empty($productMapping->basket_layout_json)) {
+            $productMapping->basket_layout_json = $this->deriveBasketLayout($productMapping->productMappingItems);
+        }
+
+        $productMapping->save();
+
+        return redirect()->back();
+    }
+
+    /**
+     * Shape a 6-basket layout from bound channel codes. Numeric "<basket><division>"
+     * codes (e.g. "11","64") set that basket's division count to the highest
+     * division seen (clamped 1-4); baskets with no numeric code default to 2.
+     */
+    private function deriveBasketLayout($items)
+    {
+        $maxDivision = [];
+        foreach ($items as $item) {
+            $code = (string) $item->channel_code;
+            if (ctype_digit($code) && strlen($code) === 2) {
+                $basket = (int) $code[0];
+                $division = (int) $code[1];
+                if ($basket >= 1 && $basket <= 6 && $division >= 1 && $division <= 4) {
+                    $maxDivision[$basket] = max($maxDivision[$basket] ?? 0, $division);
+                }
+            }
+        }
+
+        return collect(range(1, 6))
+            ->map(fn ($basket) => [
+                'basket' => $basket,
+                'divisions' => $maxDivision[$basket] ?? 2,
+            ])
+            ->all();
+    }
+
+    /**
+     * PLANOGRAM VALIDATION #1 — channel-code uniqueness.
+     *
+     * A smart-freezer planogram is a physical map: one product per slot, so no
+     * two items may declare the same channel_code within the mapping. This is the
+     * single choke point every write path (create / edit item / bulk save)
+     * routes through, so a duplicate can never enter the planogram regardless of
+     * how the item was submitted. Vending mappings are exempt — their channel
+     * rules differ and legacy data may already hold duplicates.
+     *
+     * @param  int|null  $ignoreItemId  item to exclude (its own row, when editing).
+     * @throws ValidationException  when $channelCode already exists on another item.
+     */
+    private function assertUniqueChannelCode(ProductMapping $mapping, string $channelCode, $ignoreItemId = null): void
+    {
+        if (! $mapping->is_smart) {
+            return;
+        }
+
+        $exists = ProductMappingItem::where('product_mapping_id', $mapping->id)
+            ->where('channel_code', $channelCode)
+            ->when($ignoreItemId, fn ($q) => $q->where('id', '!=', $ignoreItemId))
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'channel_code' => "Channel {$channelCode} is already used in this planogram. Each slot can hold only one product.",
+            ]);
+        }
+    }
+
+    /**
+     * The channel codes that appear more than once in $codes (normalised to
+     * strings). Used to reject a bulk save or a vending→smart conversion that
+     * would put two products on one slot.
+     */
+    private function duplicateChannelCodes($codes): array
+    {
+        return collect($codes)
+            ->map(fn ($c) => (string) $c)
+            ->duplicates()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function createItem(Request $request, $productMappingId)
     {
         $validated = $request->validate([
@@ -291,20 +401,9 @@ class ProductMappingController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated, $productMappingId) {
-            // Smart-freezer channel_code is a physical slot address — one product
-            // per slot. Reject a second binding to a channel_code already used in
-            // this planogram (e.g. two products both on "61"). Vending mappings
-            // are left untouched.
             $mapping = ProductMapping::find($productMappingId);
-            if ($mapping && $mapping->is_smart) {
-                $duplicate = ProductMappingItem::where('product_mapping_id', $productMappingId)
-                    ->where('channel_code', $validated['channel_code'])
-                    ->exists();
-                if ($duplicate) {
-                    throw ValidationException::withMessages([
-                        'channel_code' => "Channel {$validated['channel_code']} is already used in this smart-freezer planogram. Each slot can hold only one product.",
-                    ]);
-                }
+            if ($mapping) {
+                $this->assertUniqueChannelCode($mapping, (string) $validated['channel_code']);
             }
 
             // Normalize seq: ensure null or >=1 int
@@ -472,13 +571,12 @@ class ProductMappingController extends Controller
             // Smart freezers: one product per physical slot. Block a bulk save
             // that carries the same channel_code twice before we wipe + recreate.
             if ($productMapping->is_smart) {
-                $codes = collect($request->productMappingItems)
-                    ->pluck('channel_code')
-                    ->map(fn ($c) => (string) $c);
-                $dupes = $codes->duplicates()->unique()->values();
-                if ($dupes->isNotEmpty()) {
+                $dupes = $this->duplicateChannelCodes(
+                    collect($request->productMappingItems)->pluck('channel_code')
+                );
+                if (! empty($dupes)) {
                     throw ValidationException::withMessages([
-                        'productMappingItems' => 'Duplicate channel(s) ' . $dupes->implode(', ') . ' — each smart-freezer slot can hold only one product.',
+                        'productMappingItems' => 'Duplicate channel(s) ' . implode(', ', $dupes) . ' — each smart-freezer slot can hold only one product.',
                     ]);
                 }
             }
@@ -504,10 +602,71 @@ class ProductMappingController extends Controller
     public function updateItem(Request $request, $productMappingItemID)
     {
         $productMappingItem = ProductMappingItem::findOrFail($productMappingItemID);
+
+        // Same one-product-per-slot rule as create — a channel_code edit must not
+        // collide with another item in a smart planogram (this row excepted).
+        if ($request->filled('channel_code') && $productMappingItem->productMapping) {
+            $this->assertUniqueChannelCode(
+                $productMappingItem->productMapping,
+                (string) $request->channel_code,
+                $productMappingItem->id
+            );
+        }
+
         $productMappingItem->fill($request->all());
         $productMappingItem->save();
 
         return redirect()->route('product-mappings.edit', ['id' => $productMappingItem->productMapping->id]);
+    }
+
+    /**
+     * Drag-and-drop reorder of the products WITHIN one basket of a smart planogram.
+     *
+     * Channel codes are positional and never move — the leftmost division is
+     * always the basket's smallest code ("11"), the rightmost the largest. What
+     * the drag changes is which product sits in each slot. The client sends the
+     * new left→right product order for the basket; we reassign each channel code
+     * ("{basket}1", "{basket}2", …) to the product now in that position (null =
+     * clear the slot). Uniqueness holds for free — each channel code is written
+     * exactly once — so this can never create a duplicate.
+     */
+    public function reorderBasket(Request $request, $productMappingId)
+    {
+        $validated = $request->validate([
+            'basket' => ['required', 'integer', 'min:1', 'max:6'],
+            'product_ids' => ['required', 'array'],
+            'product_ids.*' => ['nullable', 'integer', 'exists:products,id'],
+        ]);
+
+        $mapping = ProductMapping::findOrFail($productMappingId);
+        $basket = (int) $validated['basket'];
+
+        return DB::transaction(function () use ($mapping, $basket, $validated) {
+            foreach (array_values($validated['product_ids']) as $index => $productId) {
+                $code = $basket . ($index + 1); // "11","12","13"… — 1-indexed division.
+                $item = $mapping->productMappingItems()->where('channel_code', $code)->first();
+
+                if ($productId === null) {
+                    // Slot emptied by the reorder.
+                    if ($item) {
+                        $item->delete();
+                    }
+                    continue;
+                }
+
+                if ($item) {
+                    $item->product_id = $productId;
+                    $item->save();
+                } else {
+                    $mapping->productMappingItems()->create([
+                        'channel_code' => $code,
+                        'product_id' => $productId,
+                    ]);
+                }
+            }
+
+            return redirect()->back();
+        });
     }
 
     public function updateItemSequence(Request $request, ProductMappingItem $item)

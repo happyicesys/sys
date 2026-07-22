@@ -53,11 +53,15 @@
       thumb-scrolling a stack reads more naturally on a narrow viewport than
       a side-by-side pair that would force horizontal scroll or cramp inputs.
     -->
-    <div class="grid grid-cols-1 gap-5 md:grid-cols-2 md:grid-rows-3 md:grid-flow-col md:gap-6">
+    <!-- The freezer schematic: one bordered outer box holding six baskets in two
+         columns (1-3 left, 4-6 right), each a bordered basket box with its
+         divisions as sub-boxes in a row — mirrors the APK's on-door FreezerGrid. -->
+    <div class="rounded-xl border-[3px] border-gray-800 bg-slate-50 p-3 md:p-4">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:grid-rows-3 md:grid-flow-col md:gap-4 md:min-h-[560px]">
       <article
         v-for="basket in localLayout"
         :key="basket.basket"
-        class="rounded-lg border border-gray-200 bg-white shadow-sm"
+        class="flex flex-col rounded-lg border-2 border-gray-400 bg-white h-full overflow-hidden"
       >
       <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
         <div class="flex items-center gap-2">
@@ -95,13 +99,18 @@
         </div>
       </header>
 
-      <div class="p-4">
+      <div class="flex-1 p-2.5">
         <div :class="cellGridClasses(basket)">
           <div
-            v-for="cell in cellsFor(basket)"
+            v-for="(cell, cellIndex) in cellsFor(basket)"
             :key="cell.code"
             class="rounded-md p-3 transition"
-            :class="cellWrapperClasses(cell)"
+            :class="[cellWrapperClasses(cell), cell.item ? 'cursor-move' : '', isDragOver(basket, cellIndex) ? 'ring-2 ring-indigo-400' : '']"
+            :draggable="!!cell.item"
+            @dragstart="onCellDragStart(basket, cellIndex, cell, $event)"
+            @dragend="onCellDragEnd"
+            @dragover="onCellDragOver(basket, cellIndex, $event)"
+            @drop.prevent="onCellDrop(basket, cellIndex)"
           >
             <div class="flex items-center justify-between mb-2">
               <span
@@ -134,7 +143,8 @@
               <img
                 v-if="cell.item.product && cell.item.product.thumbnail"
                 :src="cell.item.product.thumbnail.full_url"
-                class="h-14 w-14 rounded-md object-cover ring-1 ring-gray-200 flex-none"
+                class="h-14 w-14 rounded-md object-cover ring-1 ring-gray-200 flex-none pointer-events-none"
+                draggable="false"
                 alt=""
               />
               <div
@@ -226,6 +236,7 @@
         </div>
       </div>
       </article>
+    </div>
     </div>
   </div>
 </template>
@@ -336,13 +347,84 @@ function cellGridClasses(basket) {
     3: 'grid-cols-3',
     4: 'grid-cols-4',
   }
-  return ['grid gap-3', cols[count] || 'grid-cols-4']
+  return ['grid gap-2.5 h-full', cols[count] || 'grid-cols-4']
 }
 
 function cellWrapperClasses(cell) {
+  // Bordered division sub-boxes (schematic look), bound = solid indigo edge,
+  // empty = dashed. h-full so a basket's divisions read as equal-width columns.
   return cell.item
-    ? 'bg-indigo-50/60 ring-1 ring-indigo-100'
-    : 'bg-gray-50 ring-1 ring-gray-200 border border-dashed border-gray-300'
+    ? 'h-full bg-indigo-50 border-2 border-indigo-300'
+    : 'h-full bg-gray-50 border-2 border-dashed border-gray-300'
+}
+
+// --- Drag-and-drop reorder (within a single basket only) --------------------
+// Channel codes are positional and never move — left = smallest ("11"), right =
+// largest. Dragging reorders which PRODUCT sits in each slot; the server then
+// reassigns each channel code to the product now in that position. Constrained
+// to the same basket: dragover only allows a drop when the target basket matches
+// the drag source, so a product can never jump baskets (51 swaps with 52 only).
+const dragSrc = ref(null) // { basket, index }
+const dragOver = ref(null) // { basket, index } — drop-target highlight
+
+function onCellDragStart(basket, index, cell, e) {
+  if (!cell.item) {
+    if (e) e.preventDefault()
+    dragSrc.value = null
+    return
+  }
+  dragSrc.value = { basket: basket.basket, index }
+  // Required or the browser never starts the drag (Chrome & Firefox both need
+  // dataTransfer populated in dragstart). The payload itself is unused; we read
+  // dragSrc for the reorder.
+  if (e && e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    try { e.dataTransfer.setData('text/plain', String(cell.code)) } catch (_) { /* IE guard */ }
+  }
+}
+
+function onCellDragEnd() {
+  dragSrc.value = null
+  dragOver.value = null
+}
+
+function onCellDragOver(basket, index, e) {
+  if (dragSrc.value && dragSrc.value.basket === basket.basket) {
+    e.preventDefault() // permit the drop (same basket only)
+    dragOver.value = { basket: basket.basket, index }
+  }
+}
+
+function isDragOver(basket, index) {
+  return dragOver.value && dragOver.value.basket === basket.basket && dragOver.value.index === index
+}
+
+function onCellDrop(basket, index) {
+  const src = dragSrc.value
+  dragSrc.value = null
+  dragOver.value = null
+  if (!src || src.basket !== basket.basket || src.index === index) return
+
+  // Products in this basket, left→right; move src → target position, rest shift.
+  const ids = cellsFor(basket).map(c => (c.item ? (c.item.product?.id ?? c.item.product_id ?? null) : null))
+  const [moved] = ids.splice(src.index, 1)
+  ids.splice(index, 0, moved)
+
+  router.post(`/product-mappings/${props.productMappingId}/baskets/reorder`, {
+    basket: basket.basket,
+    product_ids: ids,
+  }, {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+    onSuccess: () => {
+      toast.success(`Rearranged basket ${basket.basket}`, { timeout: 2000 })
+      emit('items-changed')
+    },
+    onError: () => {
+      toast.error(`Failed to rearrange basket ${basket.basket}`, { timeout: 3000 })
+    },
+  })
 }
 
 function incDivisions(basket) {
