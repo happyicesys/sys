@@ -3,3 +3,6 @@ PyMySQL>=1.1.0
 # Only needed for hosted HTTP mode (MARK1_MCP_TRANSPORT=http); harmless otherwise.
 uvicorn>=0.30.0
 starlette>=0.37.0
+# OAuth (Passport JWT) validation for the hosted connector.
+PyJWT>=2.8.0
+cryptography>=42.0.0

@@ -33,10 +33,16 @@ class AuthServiceProvider extends ServiceProvider
         Passport::tokensCan([
             'mart.partner_api' => 'Grab Mart Delivery API',
             'food.partner_api' => 'Grab Food Delivery API',
+            'mcp' => 'Query the mark1 database (read-only) through Claude',
         ]);
 
         // Passport::loadKeysFrom(__DIR__.'/../secrets/oauth');
 
         Passport::personalAccessTokensExpireIn(now()->addYears(5));
+
+        // MCP connector (authorization-code) token lifetimes. Personal access
+        // tokens (machines / APK) keep the 5-year expiry above — unaffected.
+        Passport::tokensExpireIn(now()->addDays(30));
+        Passport::refreshTokensExpireIn(now()->addDays(180));
     }
 }

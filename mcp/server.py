@@ -80,6 +80,22 @@ AUDIT_PATH = os.getenv(
     "MARK1_MCP_AUDIT_LOG", os.path.join(os.path.dirname(__file__), "audit.log")
 )
 
+# --------------------------------------------------------------------------- #
+# OAuth (Laravel Passport) — second auth method alongside mk1_ tokens.
+# The mcp/ folder lives inside the Laravel app, so the default public key path
+# is the app's own storage/oauth-public.key.
+# --------------------------------------------------------------------------- #
+MCP_PUBLIC_URL = os.getenv("MARK1_MCP_PUBLIC_URL", "https://mcp.happyice.com.sg/mcp")
+OAUTH_ISSUER = os.getenv("MARK1_OAUTH_ISSUER", "https://sys.happyice.com.sg")
+OAUTH_PUBLIC_KEY_PATH = os.getenv(
+    "MARK1_OAUTH_PUBLIC_KEY_PATH",
+    os.path.join(os.path.dirname(__file__), "..", "storage", "oauth-public.key"),
+)
+
+from urllib.parse import urlsplit as _urlsplit
+_split = _urlsplit(MCP_PUBLIC_URL)
+RESOURCE_METADATA_URL = f"{_split.scheme}://{_split.netloc}/.well-known/oauth-protected-resource"
+
 # Per-request identity in HTTP mode (set by the bearer-auth ASGI middleware).
 _http_identity: contextvars.ContextVar = contextvars.ContextVar(
     "mcp_http_identity", default=None
@@ -298,6 +314,134 @@ def _authenticate(token: str):
     return {"user_id": row.get("user_id"), "name": row.get("name"), "email": row.get("email")}
 
 
+_OAUTH_PUBKEY_CACHE = {"pem": None, "tried": False}
+
+
+def _oauth_public_key():
+    """Read and cache Passport's RS256 public key. Missing key = OAuth path
+    disabled (returns None); mk1_ tokens keep working regardless."""
+    if not _OAUTH_PUBKEY_CACHE["tried"]:
+        _OAUTH_PUBKEY_CACHE["tried"] = True
+        try:
+            with open(OAUTH_PUBLIC_KEY_PATH, "r", encoding="utf-8") as fh:
+                _OAUTH_PUBKEY_CACHE["pem"] = fh.read()
+        except Exception as e:  # noqa: BLE001
+            print(
+                f"MCP OAuth disabled: cannot read public key at "
+                f"{OAUTH_PUBLIC_KEY_PATH}: {e}",
+                file=sys.stderr,
+            )
+    return _OAUTH_PUBKEY_CACHE["pem"]
+
+
+def _authenticate_oauth(bearer: str):
+    """Validate a Laravel Passport access token (RS256 JWT) and map it to an
+    authorised mark1 user. Defense in depth, all read-only:
+      1. Signature + expiry against Passport's public key.
+      2. jti looked up in oauth_access_tokens → not revoked, user active.
+      3. Scope gate: explicit 'mcp' scope, or an unscoped token from a pure
+         authorization-code client. Personal-access / password clients (the
+         machines & APK) are ALWAYS rejected here.
+      4. Grant gate: the user must hold an active row in mcp_access_tokens —
+         the Admin ▸ MCP Access page stays the per-person on/off switch for
+         both auth methods.
+    Returns an identity dict or None. Never writes."""
+    pem = _oauth_public_key()
+    if not pem:
+        return None
+    try:
+        import jwt as pyjwt
+        claims = pyjwt.decode(
+            bearer, key=pem, algorithms=["RS256"],
+            options={"verify_aud": False}, leeway=30,
+        )
+    except Exception:  # invalid signature, expired, malformed
+        return None
+    jti = claims.get("jti")
+    sub = claims.get("sub")
+    scopes = claims.get("scopes") or []
+    if not jti or sub is None:
+        return None
+    try:
+        conn = _connect()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT oat.revoked AS revoked, oat.user_id AS user_id, "
+                    "u.is_active AS is_active, u.name AS name, u.email AS email, "
+                    "c.personal_access_client AS pac, c.password_client AS pwc, "
+                    "(SELECT COUNT(*) FROM mcp_access_tokens t "
+                    " WHERE t.user_id = u.id AND t.revoked_at IS NULL) AS grant_count "
+                    "FROM oauth_access_tokens oat "
+                    "JOIN users u ON u.id = oat.user_id "
+                    "JOIN oauth_clients c ON c.id = oat.client_id "
+                    "WHERE oat.id = %s LIMIT 1",
+                    (jti,),
+                )
+                row = cur.fetchone()
+        finally:
+            conn.close()
+    except Exception:
+        return None
+    if not row or row.get("revoked") or not row.get("is_active"):
+        return None
+    if str(row.get("user_id")) != str(sub):
+        return None
+    if not row.get("grant_count"):
+        return None  # admin has not granted this user MCP access
+    if "mcp" not in scopes and (scopes or row.get("pac") or row.get("pwc")):
+        return None
+    return {
+        "user_id": row.get("user_id"),
+        "name": row.get("name"),
+        "email": row.get("email"),
+        "via": "oauth",
+    }
+
+
+def _resolve_identity(token: str):
+    """Dispatch: mk1_ opaque tokens → mcp_access_tokens table; JWT-shaped
+    tokens (two dots) → Passport OAuth validation."""
+    token = (token or "").strip()
+    if not token:
+        return None
+    if token.count(".") == 2 and not token.startswith("mk1_"):
+        return _authenticate_oauth(token)
+    return _authenticate(token)
+
+
+def _authorization_server_metadata() -> dict:
+    """RFC 8414 Authorization Server Metadata, mirrored on the MCP domain for
+    OLDER MCP clients that probe the resource origin directly (pre-2025-06
+    spec). Newer clients follow WWW-Authenticate → protected-resource metadata
+    → the same endpoints on the Laravel app. Keep in sync with
+    McpOAuthController::authorizationServerMetadata."""
+    base = OAUTH_ISSUER.rstrip("/")
+    return {
+        "issuer": base,
+        "authorization_endpoint": base + "/oauth/authorize",
+        "token_endpoint": base + "/oauth/token",
+        "registration_endpoint": base + "/api/oauth/register",
+        "response_types_supported": ["code"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "code_challenge_methods_supported": ["S256"],
+        "token_endpoint_auth_methods_supported": ["none"],
+        "scopes_supported": ["mcp"],
+    }
+
+
+def _protected_resource_metadata() -> dict:
+    """RFC 9728 Protected Resource Metadata — tells OAuth clients which
+    authorization server protects this resource."""
+    return {
+        "resource": MCP_PUBLIC_URL,
+        "authorization_servers": [OAUTH_ISSUER],
+        "scopes_supported": ["mcp"],
+        "bearer_methods_supported": ["header"],
+        "resource_name": "mark1 read-only MCP",
+    }
+
+
 def _current_identity():
     """Resolve the caller's identity for the active transport.
       - http:  set per-request by the bearer-auth middleware (None if unset).
@@ -454,7 +598,7 @@ def _build_http_app():
     the tools via the _http_identity context var. Pure-ASGI (not
     BaseHTTPMiddleware) so the context var propagates into the request handler."""
     import anyio
-    from starlette.responses import JSONResponse
+    from starlette.responses import JSONResponse, Response
 
     inner = mcp.streamable_http_app()
 
@@ -465,6 +609,30 @@ def _build_http_app():
         async def __call__(self, scope, receive, send):
             if scope.get("type") != "http":
                 return await self.app(scope, receive, send)
+            path = scope.get("path", "")
+            if path.startswith("/.well-known/"):
+                # OAuth discovery documents — public by design so clients can
+                # find the authorization server before they have credentials.
+                # PRM (RFC 9728) is the primary flow; the AS-metadata mirror
+                # covers older MCP clients that probe the resource origin.
+                cors = {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization, mcp-protocol-version",
+                }
+                doc = None
+                if path.startswith("/.well-known/oauth-protected-resource"):
+                    doc = _protected_resource_metadata()
+                elif path.startswith("/.well-known/oauth-authorization-server") or \
+                        path.startswith("/.well-known/openid-configuration"):
+                    doc = _authorization_server_metadata()
+                if doc is not None:
+                    if scope.get("method") == "OPTIONS":
+                        resp = Response(status_code=204, headers=cors)
+                    else:
+                        resp = JSONResponse(doc, headers=cors)
+                    return await resp(scope, receive, send)
+                # unknown well-known path: fall through to normal auth handling
             headers = {
                 k.decode("latin1").lower(): v.decode("latin1")
                 for k, v in scope.get("headers", [])
@@ -485,10 +653,19 @@ def _build_http_app():
                 except Exception:
                     token = ""
             identity = (
-                await anyio.to_thread.run_sync(_authenticate, token) if token else None
+                await anyio.to_thread.run_sync(_resolve_identity, token) if token else None
             )
             if not identity:
-                resp = JSONResponse({"error": "unauthorized"}, status_code=401)
+                resp = JSONResponse(
+                    {"error": "unauthorized"},
+                    status_code=401,
+                    headers={
+                        "WWW-Authenticate": (
+                            'Bearer realm="mark1-mcp", '
+                            f'resource_metadata="{RESOURCE_METADATA_URL}"'
+                        )
+                    },
+                )
                 return await resp(scope, receive, send)
             reset = _http_identity.set(identity)
             try:

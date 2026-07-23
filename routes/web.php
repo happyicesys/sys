@@ -55,6 +55,7 @@ use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\McpTokenController;
+use App\Http\Controllers\McpOAuthController;
 use App\Http\Controllers\OpsPerformanceController;
 use App\Http\Controllers\SiteGroupingController;
 use App\Http\Controllers\VendController;
@@ -108,6 +109,13 @@ Route::post('/SetPara2', [VendDataController::class, 'create']);
 // Device-facing Smart-Freezer APK OTA manifest (unauthenticated for v1, parity with
 // the /menu endpoint; on-device sha256 + signer pinning is the real control). GET only.
 Route::get('/ota/manifest', [OtaController::class, 'manifest'])->middleware('throttle:120,1');
+
+// OAuth 2.0 discovery metadata for the MCP connector (RFC 8414). Public,
+// GET-only, cacheable. See McpOAuthController — additive to Passport.
+Route::get('/.well-known/oauth-authorization-server', [McpOAuthController::class, 'authorizationServerMetadata'])
+    ->middleware('throttle:60,1');
+Route::get('/.well-known/openid-configuration', [McpOAuthController::class, 'authorizationServerMetadata'])
+    ->middleware('throttle:60,1');
 
 Route::get('/client/api-docs', function () {
     return Inertia::render('Client/ApiDocs');

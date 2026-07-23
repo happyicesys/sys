@@ -152,3 +152,36 @@ revoked or deactivated user is rejected on their next request (HTTP 401).
 > Anthropic's docs. The server accepts a static bearer token / `X-MCP-Token`
 > header; if your client only supports OAuth remote MCP, use the stdio-over-SSH
 > option in the section above instead, still with per-user `MARK1_MCP_TOKEN`.
+
+---
+
+## OAuth connector (no per-PC setup) — alongside mk1_ tokens
+
+Both auth methods work simultaneously on the same endpoint:
+
+- **mk1_ token** (`?token=` / bearer / `X-MCP-Token`): unchanged.
+- **OAuth** (Claude "Add custom connector"): user pastes
+  `https://mcp.happyice.com.sg/mcp`, clicks Connect, logs in with their mark1
+  account, approves. No Node, no config file; works on web too.
+
+Pieces (all additive to Passport; machine/APK personal tokens untouched):
+- `/.well-known/oauth-authorization-server` (+ openid-configuration alias) on
+  the app — RFC 8414 metadata (`McpOAuthController`).
+- `POST /api/oauth/register` — RFC 7591 Dynamic Client Registration; PUBLIC
+  clients only (secret-less → PKCE enforced); redirect hosts allow-listed
+  (`MCP_OAUTH_REDIRECT_HOSTS`, default claude.ai/claude.com/anthropic.com +
+  loopback); throttled; rejected URIs logged.
+- `mcp` scope added to `Passport::tokensCan`; auth-code tokens expire in 30d
+  (refresh 180d) — personal access tokens keep their 5-year expiry.
+- server.py validates Passport RS256 JWTs (`storage/oauth-public.key`):
+  signature+expiry → jti not revoked → user active → **active Admin ▸ MCP
+  Access grant required** → scope gate (machine personal/password-client
+  tokens always rejected). 401s carry `WWW-Authenticate` pointing at
+  `/.well-known/oauth-protected-resource` (served by server.py, RFC 9728).
+
+**Access control stays in one place:** a user can OAuth-connect only while they
+hold an active (non-revoked) token row on the Admin ▸ MCP Access page. Revoke
+the row (or deactivate the user) and both auth methods die.
+
+Deploy notes: `php artisan migrate` not needed (no new tables); if config is
+cached run `php artisan config:cache` after deploy; restart the mcp daemon.

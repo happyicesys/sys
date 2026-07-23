@@ -2,6 +2,13 @@
 
 return [
 
+    // Hosts allowed as OAuth redirect targets for MCP Dynamic Client
+    // Registration (subdomains included). Loopback (localhost/127.0.0.1)
+    // is always allowed for mcp-remote. Extend via MCP_OAUTH_REDIRECT_HOSTS.
+    'mcp_oauth' => [
+        'redirect_hosts' => env('MCP_OAUTH_REDIRECT_HOSTS', 'claude.ai,claude.com,anthropic.com'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services

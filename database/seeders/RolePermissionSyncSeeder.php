@@ -66,7 +66,10 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'vends',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
+                // 2026-07-23 sheet sync v2 (struck-through cells = disabled): - driver
+                // (Ops Dashboard Full-Filter Yes struck) and - operator_3pl (limited-filter
+                // cell struck; round-1 addition reverted)
+                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
             ],
 
             [
@@ -90,7 +93,9 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'vend-contracts',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (both Yes
+                // struck; round-1 operator_supervisor addition reverted)
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
@@ -138,7 +143,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'transactions-payment-gateway',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync: - operator_admin, operator_supervisor (HappyIce staff only)
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
@@ -156,7 +162,9 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'operation-job-summaries',
                 ['read', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl']
+                // 2026-07-23 sheet sync v2: HappyIce staff only - operator_admin/
+                // operator_supervisor/operator_driver Yes struck through, operator_3pl blank
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver']
             ],
 
             [
@@ -174,13 +182,16 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'machine-settings',
                 ['read', 'update'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync: - operator_admin, operator_supervisor (Machine Settings = HappyIce staff only).
+                // NOTE: also hides Smart Freezer Settings menu item for operators (shares 'read machine-settings').
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
                 'machine-settings',
                 ['export', 'create', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync: - operator_admin, operator_supervisor
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
@@ -192,7 +203,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'apk-settings',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync: - driver (UI Setting row has no Driver)
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
             ],
 
             [
@@ -210,7 +222,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'cashless-terminals',
                 ['read', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync: - technician; v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
@@ -222,7 +235,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'customers',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync: - operator_admin, operator_supervisor (Site Settlement = staff only)
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
@@ -246,7 +260,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'product-categories',
                 ['read'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
@@ -258,7 +273,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'product-subcategories',
                 ['read'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
@@ -270,73 +286,99 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'product-campaign-labels',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Product
+                // Labels + Machine Campaigns rows struck). Also hides Campaign Management menu.
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
                 'data-settings',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'hid_user']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (whole
+                // Data Management section struck through for the operator roles)
+                ['superadmin', 'admin', 'supervisor', 'technician', 'hid_user']
             ],
 
             [
                 'card-terminals',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
                 'machine-stickers',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (page not in
+                // sheet, but whole Data Management section is disabled for operator roles)
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
                 'location-types',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
                 'banks',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (page not in
+                // sheet, but whole Data Management section is disabled for operator roles)
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
                 'hid-cards',
                 ['read', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'hid_user']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (both Yes
+                // struck; round-1 operator_supervisor addition reverted); hid_user keeps access
+                ['superadmin', 'admin', 'supervisor', 'technician', 'hid_user']
             ],
 
             [
                 'vend-models',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
                 'modem-models',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor']
+            ],
+
+            // 2026-07-23 sheet sync v2: Modem IMEI appears twice in the sheet - the
+            // Machine Mgmt row adds technician read; the Data Mgmt row's operator grants
+            // are struck through (disabled), so operators get nothing here.
+            // Write actions stay superadmin/admin/supervisor.
+            [
+                'modem-imei',
+                ['read'],
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
                 'modem-imei',
-                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['create', 'update', 'delete', 'export', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor']
             ],
 
             [
                 'keys',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
                 'serial-numbers',
                 ['read'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
@@ -348,19 +390,22 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'telcos',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
                 'simcards',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
             [
                 'zones',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck)
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
@@ -396,7 +441,9 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'delivery-platform-product-mappings',
                 ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+                // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck);
+                // Delivery Campaign row is NOT struck so delivery-platform-campaigns keeps them
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
@@ -426,7 +473,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'operators',
                 ['read', 'update'],
-                ['superadmin', 'admin', 'operator_admin']
+                // 2026-07-23 sheet sync: - operator_admin (Admin > Operators = superadmin/admin only)
+                ['superadmin', 'admin']
             ],
 
             [
@@ -480,7 +528,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'tutorials',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee']
+                // 2026-07-23 sheet sync: - technician, driver (staff use "Tutorial (with CMS)" / resource-centers instead)
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee']
             ],
 
             [

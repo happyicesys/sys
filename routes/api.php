@@ -85,3 +85,9 @@ Route::prefix('vends')->group(function () {
     Route::get('/{vendCode}/campaign-image', [VendController::class , 'getVendCampaignImage']);
     Route::get('/operators/{operatorCode}/update-dcvends-countries', [VendController::class , 'updateDCVendsCountries']);
 });
+// RFC 7591 Dynamic Client Registration for the MCP connector (Claude calls
+// this unauthenticated when adding the connector). Public clients only, PKCE
+// enforced, redirect hosts allow-listed — see McpOAuthController::register.
+Route::post('/oauth/register', [\App\Http\Controllers\McpOAuthController::class, 'register'])
+    ->middleware('throttle:10,1');
+Route::options('/oauth/register', [\App\Http\Controllers\McpOAuthController::class, 'preflight']);
