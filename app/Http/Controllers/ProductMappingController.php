@@ -195,7 +195,7 @@ class ProductMappingController extends Controller
                         // eager-loaded on vends.customer below), NOT this vend column.
                         // vend_transaction_totals_json is kept selected for any other
                         // consumer of VendResource but is no longer the L30d source.
-                        $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed', 'binded_at', 'updated_at', 'vend_transaction_totals_json');
+                        $query->select('id', 'code', 'name', 'product_mapping_id', 'upcoming_product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed', 'binded_at', 'updated_at', 'vend_transaction_totals_json');
 
                         if ($request->vendStatus and $request->vendStatus !== 'all') {
                             switch ($request->vendStatus) {
@@ -233,6 +233,10 @@ class ProductMappingController extends Controller
                     'vends.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
                     'vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
                     'vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
+                    // Each binded machine's OWN upcoming product mapping (the vend
+                    // may override this mapping's preset upcoming). Only id+name are
+                    // needed to render the per-vend override badge in Index.vue.
+                    'vends.upcomingProductMapping:id,name',
                     // DEPRECATED (2026-07): 'vendPrefixes' eager-load dropped with
                     // the Binded Prefix column (ProductMappingResource guards with
                     // whenLoaded()).

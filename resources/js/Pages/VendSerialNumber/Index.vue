@@ -186,6 +186,23 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Product Mapping
+            </label>
+            <MultiSelect
+                v-model="filters.productMappings"
+                :options="productMappingOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -258,7 +275,7 @@
                     <TableHeadSort modelName="desc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('desc')" class="max-w-600">
                       Remarks
                     </TableHeadSort>
-                    <TableHead colspan="9">
+                    <TableHead colspan="10">
                       Machine Info
                     </TableHead>
                     <TableHead colspan="4">
@@ -288,6 +305,9 @@
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
                       Setting Chart
+                    </TableHeadSort>
+                    <TableHeadSort modelName="product_mapping_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('product_mapping_name')" class="max-w-[7rem]">
+                      Product Mapping
                     </TableHeadSort>
                     <!-- <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
                       Setting Chart
@@ -363,6 +383,9 @@
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_config_name }}
                       </TableData>
+                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center max-w-[7rem] break-words">
+                        {{ vendSerialNumber.product_mapping_name }}
+                      </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_prefix_name }}
                       </TableData>
@@ -424,6 +447,7 @@ const props = defineProps({
   lcdMonitorOptions: [Array, Object],
   locationTypeOptions: Object,
   operatorOptions: Object,
+  productMappingOptions: Object,
   vendConfigOptions: Object,
   vendContractOptions: Object,
   vendModelOptions: Object,
@@ -438,6 +462,7 @@ const filters = ref({
   lcd_monitor_id: '',
   locationTypes: [],
   operators: [],
+  productMappings: [],
   status: '',
   vend_codes: '',
   vendConfigs: [],
@@ -458,6 +483,7 @@ const type = ref('')
 const locationTypeOptions = ref([])
 const numberPerPageOptions = ref([])
 const operatorOptions = ref([])
+const productMappingOptions = ref([])
 const vendConfigOptions = ref([])
 const vendContractOptions = ref([])
 const vendPrefixOptions = ref([])
@@ -484,6 +510,10 @@ onMounted(() => {
   operatorOptions.value = [
       {id: 'all', full_name: 'All'},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+  ]
+  productMappingOptions.value = [
+      {id: 'all', value: 'All'},
+      ...((props.productMappingOptions && props.productMappingOptions.data) ? props.productMappingOptions.data : []).map((data) => {return {id: data.id, value: data.name}})
   ]
   statusOptions.value = [
 			{id: 'all', value: 'All'},
@@ -555,6 +585,7 @@ function onExportExcelClicked() {
           vendContracts: filters.value.vendContracts.map((contract) => contract.id),
           vendModels: filters.value.vendModels.map((model) => model.id),
           vendPrefixes: filters.value.vendPrefixes.map((prefix) => prefix.id),
+          productMappings: filters.value.productMappings.map((pm) => pm.id),
           status: filters.value.status.id,
           stickers: filters.value.stickers.map((sticker) => sticker.id),
         },
@@ -590,6 +621,7 @@ function onSearchFilterUpdated() {
       vendContracts: filters.value.vendContracts.map((contract) => contract.id),
       vendModels: filters.value.vendModels.map((model) => model.id),
       vendPrefixes: filters.value.vendPrefixes.map((prefix) => prefix.id),
+      productMappings: filters.value.productMappings.map((pm) => pm.id),
       status: filters.value.status.id,
           stickers: filters.value.stickers.map((sticker) => sticker.id),
       numberPerPage: filters.value.numberPerPage.id,

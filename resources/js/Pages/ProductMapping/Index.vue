@@ -420,6 +420,30 @@
                                 <!-- Binded date — moved here from the customer-name line per the latest screenshot arrangement. -->
                                 <span class="text-black" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
                               </div>
+                              <!--
+                                Per-machine "own Upcoming Product Mapping" override badge.
+                                Each vend can now pick its OWN upcoming mapping instead of
+                                inheriting this mapping's preset (upcoming_product_mapping_id).
+                                When the vend's chosen upcoming differs from the preset, show
+                                an orange badge on its OWN sub-row (basis-full, not sharing the
+                                RP/L30d/binded-date row) carrying the vend's chosen upcoming
+                                name — so ops can see at a glance which machines will switch to
+                                a different menu than the group default. Compared on id; both
+                                null => same => no badge. If the vend has NO upcoming selected
+                                (null), no badge — only an explicitly-chosen, differing upcoming
+                                is flagged.
+                              -->
+                              <div
+                                class="basis-full flex items-center pl-6"
+                                v-if="vend.upcoming_product_mapping_id && vend.upcoming_product_mapping_id !== productMapping.upcoming_product_mapping_id"
+                              >
+                                <span
+                                  class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border bg-orange-100 text-orange-800 border-orange-300 w-fit"
+                                  v-tooltip="'This machine has its own Upcoming Product Mapping, different from the preset upcoming'"
+                                >
+                                  Upcoming: {{ vend.upcomingProductMapping ? vend.upcomingProductMapping.name : '' }}
+                                </span>
+                              </div>
                             </li>
                           </ul>
                         </div>

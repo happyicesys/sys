@@ -249,9 +249,10 @@ class PerformanceReportContentService
         // e.g. 9.00 for 9%). Falls back to 0 when the operator is missing
         // or the rate isn't configured, in which case the division is a
         // no-op and the math collapses back to the legacy behaviour.
-        $salesDollarsInclGst = $summary && $summary->sales_cents
-            ? ((int) $summary->sales_cents) / 100.0
-            : 0.0;
+        $salesCents = $summary && $summary->sales_cents
+            ? (int) $summary->sales_cents
+            : 0;
+        $salesDollarsInclGst = $salesCents / 100.0;
 
         $gstRatePct = (float) ($customer->operator->gst_vat_rate ?? 0);
         $gstDivisor = 1 + ($gstRatePct / 100.0);
@@ -273,6 +274,27 @@ class PerformanceReportContentService
         $psTermFormula = $psTermFormulaHasGst
             ? $this->money($salesDollarsInclGst) . ' ÷ ' . $gstDivisorLabel . ' × ' . $this->pct($psTerm)
             : $this->money($salesDollarsInclGst) . ' × ' . $this->pct($psTerm);
+
+        // PS (profit-sharing) dollar amount for the PS-family cases below.
+        //
+        // Computed via CustomerSummaryAggregator::psAmountCents — the SAME
+        // single-rounding helper that produced the stored location_fees_cents
+        // — so the preview / email total is cent-identical to the Summary
+        // page's Net Loc Fee column. Previously this file recomputed it as
+        // round(round(TotalRevenue, 2) × PS%, 2); rounding the intermediate
+        // Total Revenue first can drift 1¢ (e.g. sales $852.70 @ GST 9%,
+        // PS Term 50%, PS 10%: preview said $39.12 / total $59.12 while the
+        // Summary column said $59.11). The displayed "Total Revenue" line
+        // stays rounded to 2dp for presentation only — the PS amount no
+        // longer derives from that rounded figure, so the formula line
+        // "$391.15 × 10% = $39.11" may look 1¢ off from a hand calculation;
+        // that is expected and matches the ledger.
+        $profitSharing = CustomerSummaryAggregator::psAmountCents(
+            $salesCents,
+            $psTerm,
+            $value,
+            $gstRatePct
+        ) / 100.0;
 
         switch ($type) {
             case 'R': {
@@ -315,7 +337,6 @@ class PerformanceReportContentService
             }
             case 'PS': {
                 $totalRevenue   = round($salesDollars * ($psTerm / 100.0), 2);
-                $profitSharing  = round($totalRevenue * ($value / 100.0), 2);
                 $base['lines'][] = [
                     'label'            => 'Total Revenue',
                     'formula'          => $psTermFormula,
@@ -331,7 +352,6 @@ class PerformanceReportContentService
             }
             case 'PS+U': {
                 $totalRevenue   = round($salesDollars * ($psTerm / 100.0), 2);
-                $profitSharing  = round($totalRevenue * ($value / 100.0), 2);
                 $utility        = round($value2 * $dayRatio, 2);
                 $total          = round($profitSharing + $utility, 2);
                 $base['lines'][] = [
@@ -356,7 +376,6 @@ class PerformanceReportContentService
             }
             case 'PSORU': {
                 $totalRevenue   = round($salesDollars * ($psTerm / 100.0), 2);
-                $profitSharing  = round($totalRevenue * ($value / 100.0), 2);
                 $utility        = round($value2 * $dayRatio, 2);
                 $total          = max($profitSharing, $utility);
                 $base['lines'][] = [

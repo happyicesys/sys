@@ -456,7 +456,19 @@ class CustomerSummaryAggregator
         return $segs;
     }
 
-    private static function psAmountCents(
+    /**
+     * PS (profit-sharing) amount in cents, rounded ONCE at the end —
+     * sales(excl-gst) × ps_term% × commission% with NO intermediate rounding.
+     *
+     * PUBLIC because PerformanceReportContentService reuses it for the
+     * "Profit Sharing" line so the Report Content preview / email total is
+     * cent-identical to the stored location_fees_cents (the Summary page's
+     * Net Loc Fee column). Rounding the intermediate "Total Revenue" first
+     * and then the PS% (as the preview once did) can land 1¢ high/low —
+     * e.g. sales 852.70 @ GST 9% / PS Term 50% / 10%: 391.15 × 10% =
+     * 39.115 → 39.12, while this single-round path gives 39.11.
+     */
+    public static function psAmountCents(
         int $salesCents,
         float $psTerm,
         float $commissionPercent,

@@ -36,6 +36,7 @@ class VendSerialNumberResource extends JsonResource
             'vend_model_name' => isset($this->vend_model_name) ? $this->vend_model_name : null,
             'vend_config_name' => isset($this->vend_config_name) ? $this->vend_config_name : null,
             'vend_prefix_name' => isset($this->vend_prefix_name) ? $this->vend_prefix_name : null,
+            'product_mapping_name' => isset($this->product_mapping_name) ? $this->product_mapping_name : null,
             'vend_status' => isset($this->vend_status) ? $this->vend_status : null,
         ];
     }

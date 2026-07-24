@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendModelResource;
@@ -13,6 +14,7 @@ use App\Http\Resources\VendStickerResource;
 use App\Http\Resources\VendResource;
 use App\Models\LocationType;
 use App\Models\Operator;
+use App\Models\ProductMapping;
 use App\Models\VendConfig;
 use App\Models\VendContract;
 use App\Models\VendPrefix;
@@ -45,6 +47,9 @@ class VendSerialNumberController extends Controller
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
+            ),
+            'productMappingOptions' => ProductMappingResource::collection(
+                ProductMapping::orderBy('name')->get()
             ),
             'vendSerialNumbers' => VendSerialNumberResource::collection(
                 $this->getMainQuery()->filterIndex($request)->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)->withQueryString()
@@ -94,6 +99,7 @@ class VendSerialNumberController extends Controller
                     'Status' => $vendSerialNumber->vend_status,
                     'Begin Date' => Carbon::parse($vendSerialNumber->vend_begin_date)->toDateString(),
                     'Prefix' => $vendSerialNumber->vend_prefix_name,
+                    'Product Mapping' => $vendSerialNumber->product_mapping_name,
                     'Contract' => $vendSerialNumber->vend_contract_name,
                     'Customer Name' => $vendSerialNumber->customer_virtual_code . ' (' . $vendSerialNumber->vend_prefix_name . ') ' . $vendSerialNumber->customer_name,
                     'Postcode' => $vendSerialNumber->postcode,
@@ -144,6 +150,7 @@ class VendSerialNumberController extends Controller
             ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
             ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
             ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
@@ -185,7 +192,9 @@ class VendSerialNumberController extends Controller
                 'vend_models.name as vend_model_name',
                 DB::raw('(SELECT vs.name FROM vend_sticker_vend vsv INNER JOIN vend_stickers vs ON vs.id = vsv.vend_sticker_id WHERE vsv.vend_id = vends.id ORDER BY vs.name LIMIT 1) as vend_sticker_name'),
                 'vend_configs.name as vend_config_name',
-                'vend_prefixes.name as vend_prefix_name'
+                'vend_prefixes.name as vend_prefix_name',
+                'vends.product_mapping_id as vend_product_mapping_id',
+                'product_mappings.name as product_mapping_name'
             );
     }
 
