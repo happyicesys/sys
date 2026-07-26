@@ -244,6 +244,35 @@ class ProductMappingController extends Controller
                 ])
 
                     ->select('product_mappings.*')
+                    // "At upcoming stage" count — machines whose OWN
+                    // upcoming_product_mapping_id points at this mapping, i.e.
+                    // queued to switch onto it but not updated yet. Mirrors the
+                    // same vendStatus filter used by the binded `vends`
+                    // eager-load above so both figures in the cell are counted
+                    // on the same population. MUST stay after ->select() —
+                    // select() resets the column list and would drop this
+                    // count subquery.
+                    ->withCount(['upcomingVends' => function ($query) use ($request) {
+                        if ($request->vendStatus and $request->vendStatus !== 'all') {
+                            switch ($request->vendStatus) {
+                                case 'disposed':
+                                    $query->where('is_disposed', true);
+                                    break;
+                                case 'factory':
+                                    $query->where('is_testing', true);
+                                    break;
+                                case 'active':
+                                    $query->where('is_active', true);
+                                    break;
+                                case 'inactive':
+                                    $query->where('is_active', false);
+                                    break;
+                                case 'sold':
+                                    $query->where('is_sold', true);
+                                    break;
+                            }
+                        }
+                    }])
                     ->orderBy($request->sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc')
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()

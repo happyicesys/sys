@@ -454,6 +454,8 @@ class RefundController extends Controller
                 'Machine L24h # of RF' => $r['machine_rf_24h'],
                 'New / Repeat' => $r['repeat_flag'] ? 'Repeat' : 'New',
                 'Repeat Ref' => $r['repeat_ref'],
+                'Multiple / Single' => is_null($r['is_multiple']) ? '' : ($r['is_multiple'] ? 'Multiple' : 'Single'),
+                'Auto Refunded?' => is_null($r['auto_refunded']) ? '' : ($r['auto_refunded'] ? 'Yes' : 'No'),
                 'Prod Exit Sensor' => $sensor,
                 'Error Code' => $r['error_code'],
                 'Error Description' => $r['error_desc'],
@@ -1337,6 +1339,19 @@ class RefundController extends Controller
             // earlier ticket (see selfCheckData). repeat_ref points at the original.
             'repeat_flag' => (bool) ($self['repeat_flag'] ?? false),
             'repeat_ref' => $self['repeat_ref'] ?? null,
+            // Multiple / Single = the matched transaction's is_multiple flag: the
+            // customer bought more than one item in that single payment (same flag
+            // the Sales Transactions page filters on). null = no matched
+            // transaction, so it is unknown.
+            'is_multiple' => (isset($txn) && ! is_null($txn->is_multiple)) ? (bool) $txn->is_multiple : null,
+            // Auto Refunded? = the same rule as the Sales Transactions page's
+            // "Auto-refunded?" badge: the gateway/machine already auto-refunded the
+            // matched transaction (vend_transactions.is_refunded), OR the ticket
+            // itself is an auto one (auto-resolved status / Nayax-auto method).
+            // null = unknown (no matched transaction and not an auto ticket).
+            'auto_refunded' => ($t->status === RefundTicket::STATUS_AUTO_RESOLVED || $t->refund_method === RefundTicket::METHOD_NAYAX_AUTO)
+                ? true
+                : (isset($txn) ? (bool) $txn->is_refunded : null),
             // Prod Exit Sensor = the machine's Product Drop Sensor state FROZEN on
             // the matched transaction at the moment it occurred (true = Enabled,
             // false = Disabled, null = unknown / not captured). A later machine

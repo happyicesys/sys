@@ -55,6 +55,7 @@ use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\McpTokenController;
+use App\Http\Controllers\VisitorHistoryController;
 use App\Http\Controllers\McpOAuthController;
 use App\Http\Controllers\OpsPerformanceController;
 use App\Http\Controllers\SiteGroupingController;
@@ -1015,6 +1016,27 @@ Route::middleware(['auth', 'cors'])->prefix('site-settlements')->group(function 
     Route::post('/{settlement}/mark-done', [CommissionSettlementController::class, 'markDone'])->middleware('can:admin-access customers');
     Route::post('/{settlement}/return-to-pool/{summary}', [CommissionSettlementController::class, 'returnToPool'])->middleware('can:admin-access customers');
     Route::delete('/{settlement}', [CommissionSettlementController::class, 'destroy'])->middleware('can:admin-access customers');
+});
+
+/*
+| Admin > Visitor History — login sessions, IP/device/browser, and the pages
+| each user opened. Read-only; rows are written by LogVisitorActivity and the
+| auth listeners. `ping` is the browser dwell-time beacon, so it is auth-gated
+| but NOT permission-gated (every signed-in user reports their own time).
+*/
+Route::middleware(['auth', 'cors'])->prefix('visitor-history')->group(function () {
+    Route::get('/', [VisitorHistoryController::class, 'index'])
+        ->name('visitor-history')
+        ->middleware('can:read visitor-history');
+    Route::get('/sessions/{visitorSessionId}/page-views', [VisitorHistoryController::class, 'pageViews'])
+        ->name('visitor-history.page-views')
+        ->middleware('can:read visitor-history');
+    // Returns 204 and never renders a page, so it has no business paying for
+    // HandleInertiaRequests::share (which eagerly loads the operator + its logo
+    // on every request). Excluded => the beacon is session + auth + 2 queries.
+    Route::post('/ping', [VisitorHistoryController::class, 'ping'])
+        ->name('visitor-history.ping')
+        ->withoutMiddleware([\App\Http\Middleware\HandleInertiaRequests::class]);
 });
 
 require __DIR__ . '/auth.php';

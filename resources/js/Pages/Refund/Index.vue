@@ -282,6 +282,9 @@ function sortVal(t, key) {
         case 'refund_method': return t.refund_method || '';
         case 'machine_rf_24h': return (t.machine_rf_24h ?? null);
         case 'repeat_flag': return t.repeat_flag ? 1 : 0;
+        // Tri-state like the sensor column: Multiple > Single, unknown ("—") sinks.
+        case 'is_multiple': return t.is_multiple === true ? 2 : (t.is_multiple === false ? 1 : null);
+        case 'auto_refunded': return t.auto_refunded === true ? 2 : (t.auto_refunded === false ? 1 : null);
         case 'product_drop_sensor': return t.product_drop_sensor === true ? 2 : (t.product_drop_sensor === false ? 1 : null);
         case 'error_code': return t.error_code || '';
         case 'status': return t.status || '';
@@ -562,7 +565,7 @@ const sortedRows = computed(() => {
                     <tr>
                         <th class="px-3 py-2 w-8" rowspan="2"><input type="checkbox" :checked="allSelected" @change="toggleAll" class="cursor-pointer" title="Select all Approved tickets on this page" /></th>
                         <th colspan="8" class="text-center px-4 py-2 border-b border-gray-200">Refund Request</th>
-                        <th colspan="4" class="text-center px-4 py-2 border-b border-l border-gray-200 text-indigo-700">System self-checking</th>
+                        <th colspan="6" class="text-center px-4 py-2 border-b border-l border-gray-200 text-indigo-700">System self-checking</th>
                         <th colspan="3" class="text-center px-4 py-2 border-b border-l border-gray-200 text-teal-700">Refund Progress</th>
                     </tr>
                     <tr class="[&>th]:cursor-pointer [&>th]:select-none [&>th]:text-center [&>th]:px-4 [&>th]:py-2 [&>th]:whitespace-nowrap">
@@ -583,6 +586,8 @@ const sortedRows = computed(() => {
                         <th @click="sortTable('refund_method')" class="hover:text-gray-700">Refund<br>Method{{ arrow('refund_method') }}</th>
                         <th @click="sortTable('machine_rf_24h')" class="border-l border-gray-200 hover:text-gray-700">Machine L24h<br># of RF{{ arrow('machine_rf_24h') }}</th>
                         <th @click="sortTable('repeat_flag')" class="hover:text-gray-700">New /<br>Repeat?{{ arrow('repeat_flag') }}</th>
+                        <th @click="sortTable('is_multiple')" class="hover:text-gray-700">Multiple /<br>Single?{{ arrow('is_multiple') }}</th>
+                        <th @click="sortTable('auto_refunded')" class="hover:text-gray-700">Auto<br>Refunded?{{ arrow('auto_refunded') }}</th>
                         <th @click="sortTable('product_drop_sensor')" class="hover:text-gray-700">Prod Exit<br>Sensor{{ arrow('product_drop_sensor') }}</th>
                         <th @click="sortTable('error_code')" class="hover:text-gray-700">Error<br>Code{{ arrow('error_code') }}</th>
                         <th @click="sortTable('status')" class="border-l border-gray-200 hover:text-gray-700">Validation{{ arrow('status') }}</th>
@@ -702,6 +707,22 @@ const sortedRows = computed(() => {
                                 class="block text-[10px] font-semibold text-red-500 mt-0.5"
                                 v-tooltip="'Duplicates ' + t.repeat_ref">↺ {{ t.repeat_ref }}</span>
                         </td>
+                        <!-- Multiple / Single purchase, read from the matched transaction. -->
+                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <span v-if="t.is_multiple === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"
+                                v-tooltip="'Multiple purchase: more than one item was bought in this single transaction — check which item(s) the claim covers.'">Multiple</span>
+                            <span v-else-if="t.is_multiple === false" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"
+                                v-tooltip="'Single purchase: one item was bought in this transaction.'">Single</span>
+                            <span v-else class="text-gray-300" v-tooltip="'No matched transaction, so multiple/single is unknown.'">—</span>
+                        </td>
+                        <!-- Auto Refunded? — same rule as the Sales Transactions page. -->
+                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <span v-if="t.auto_refunded === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"
+                                v-tooltip="'Auto refunded: the machine/gateway already refunded this transaction (or this is an auto-resolved / Nayax-auto ticket). Do NOT pay again.'">Yes</span>
+                            <span v-else-if="t.auto_refunded === false" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-white text-gray-600 border border-gray-300"
+                                v-tooltip="'Not auto refunded — no automatic refund recorded on the matched transaction.'">No</span>
+                            <span v-else class="text-gray-300" v-tooltip="'No matched transaction, so an auto refund cannot be checked.'">—</span>
+                        </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <span v-if="t.product_drop_sensor === true" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"
                                 v-tooltip="'Product Drop Sensor was Enabled on the machine at the time of the transaction.'">Enabled</span>
@@ -769,7 +790,7 @@ const sortedRows = computed(() => {
                             <span v-else class="text-gray-300">—</span>
                         </td>
                     </tr>
-                    <tr v-if="!tickets.data.length"><td colspan="16" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
+                    <tr v-if="!tickets.data.length"><td colspan="18" class="px-4 py-8 text-center text-gray-400">No refund tickets found.</td></tr>
                 </tbody>
             </table>
         </div>

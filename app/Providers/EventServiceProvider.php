@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Listeners\RecordVisitorLogin;
+use App\Listeners\RecordVisitorLogout;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -17,6 +21,14 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         Registered::class => [
             SendEmailVerificationNotification::class,
+        ],
+        // Admin > Visitor History: open a visitor_sessions row on sign-in and
+        // close it on an explicit Log Out (the only exact "session ended" we get).
+        Login::class => [
+            RecordVisitorLogin::class,
+        ],
+        Logout::class => [
+            RecordVisitorLogout::class,
         ],
     ];
 

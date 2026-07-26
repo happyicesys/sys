@@ -102,6 +102,12 @@ class HandleInertiaRequests extends Middleware
             // — e.g. CustomerIndex "Avg Mthly Sales $" month count — must use
             // the same floor as the backend. See config/reporting.php.
             'reportingFloorDate' => config('reporting.floor_date', '2023-01-01'),
+            // Admin > Visitor History: the uuid LogVisitorActivity minted for
+            // THIS page view. Authenticated.vue posts dwell time back against it
+            // via navigator.sendBeacon, which is the only way to know how long
+            // the last page before a tab close was actually open. Null on any
+            // request that isn't a logged page view.
+            'visitorVisit' => $request->attributes->get('visitor_visit_uuid'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),

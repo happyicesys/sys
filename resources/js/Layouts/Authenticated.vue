@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import BreezeDropdown from '@/Components/Dropdown.vue';
 import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
@@ -283,6 +283,7 @@ const navigation = computed(() => [
             {name: 'Operator Group', href: '/operator-groups', permission: 'read operator-groups'},
             {name: 'Users', href: '/users', permission: 'read users'},
             {name: 'MCP Access', href: '/mcp-tokens', permission: 'read mcp-tokens'},
+            {name: 'Visitor History', href: '/visitor-history', permission: 'read visitor-history'},
         ]
     },
     {
@@ -408,6 +409,138 @@ function isItemActive(item) {
 function isSubItemActive(item, subItem) {
     return !!activePath.value && resolvePath(subItem.href) === activePath.value
 }
+
+// --- Visitor History dwell-time beacon ---------------------------------------
+// The server logs WHICH page was opened (LogVisitorActivity); only the browser
+// knows how long it stayed on screen — and for the last page before a tab closes
+// no further request is ever made, so the server can never learn it on its own.
+//
+// The tracked visit id is held in a plain `let`, NOT read from page.props at send
+// time: by the moment this layout unmounts, Inertia has already swapped in the
+// next page's props, so reading the computed would stamp the old page's duration
+// onto the new page's row. Two triggers are needed because Inertia only remounts
+// the layout when the page component changes — a `preserveState` visit to the
+// same component (every filter/pagination request in this app) reuses the
+// instance, and the prop change is then the only signal that one page ended.
+const visitId = computed(() => page.props.visitorVisit)
+
+// Don't spend a request on a page the user bounced straight off, and don't let a
+// tab-switcher fire one ping per switch.
+const MIN_REPORT_MS = 2000
+const MIN_GAP_MS = 10000
+
+let trackedVisitId = null
+let visitStartedAt = 0
+let activeMs = 0
+let activeSince = 0
+let lastSentAt = 0
+
+function accrueActive() {
+    if (activeSince) {
+        activeMs += Date.now() - activeSince
+        activeSince = 0
+    }
+}
+
+function startTracking(id) {
+    trackedVisitId = id || null
+    visitStartedAt = Date.now()
+    activeMs = 0
+    activeSince = document.visibilityState === 'visible' ? Date.now() : 0
+    lastSentAt = 0
+}
+
+// sendBeacon cannot set headers, so the CSRF token travels in the JSON body
+// (VerifyCsrfToken reads _token off the JSON input source). The XSRF-TOKEN
+// cookie is the fallback for the case where the meta tag is missing.
+function csrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+    if (meta) return meta
+
+    const cookie = document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))
+    return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : null
+}
+
+function sendVisitBeacon(reason) {
+    if (!trackedVisitId || !visitStartedAt) return
+
+    const now = Date.now()
+    const total = now - visitStartedAt
+
+    // Under 2s the server's own inferred duration is just as accurate, so the
+    // request buys nothing.
+    if (total < MIN_REPORT_MS) return
+    if (reason === 'hidden' && now - lastSentAt < MIN_GAP_MS) return
+    lastSentAt = now
+
+    // Snapshot without mutating the clocks — a later ping must still be able to
+    // report a larger total (hidden, then visible again, then navigate). Pings
+    // are idempotent: the server simply overwrites the row with the newest read.
+    const active = activeMs + (activeSince ? now - activeSince : 0)
+    const payload = JSON.stringify({
+        visit: trackedVisitId,
+        total_ms: total,
+        active_ms: active,
+        reason,
+        _token: csrfToken(),
+    })
+
+    try {
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon('/visitor-history/ping', new Blob([payload], { type: 'application/json' }))
+        } else {
+            fetch('/visitor-history/ping', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload,
+                keepalive: true,
+                credentials: 'same-origin',
+            }).catch(() => {})
+        }
+    } catch (e) {
+        // A visit log is never worth breaking navigation over.
+    }
+}
+
+function onVisibilityChange() {
+    if (document.visibilityState === 'hidden') {
+        accrueActive()
+        // On mobile Safari/Chrome this is the only reliable "page is going away"
+        // signal — pagehide is not guaranteed to fire.
+        sendVisitBeacon('hidden')
+    } else {
+        activeSince = Date.now()
+    }
+}
+
+function onPageHide() {
+    accrueActive()
+    sendVisitBeacon('unload')
+}
+
+// preserveState visit that reuses this instance: close the old row, start the new.
+watch(visitId, (newId) => {
+    accrueActive()
+    sendVisitBeacon('navigate')
+    startTracking(newId)
+})
+
+onMounted(() => {
+    startTracking(visitId.value)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('pagehide', onPageHide)
+})
+
+onBeforeUnmount(() => {
+    // Layout is being torn down (the page component changed) — report before the
+    // instance goes away, then blank the id so nothing can double-report.
+    accrueActive()
+    sendVisitBeacon('navigate')
+    trackedVisitId = null
+
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+    window.removeEventListener('pagehide', onPageHide)
+})
 
 </script>
 

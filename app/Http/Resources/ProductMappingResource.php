@@ -48,6 +48,9 @@ class ProductMappingResource extends JsonResource
             'basket_layout_json' => $this->basket_layout_json,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
             'vends_count' => isset($this->vends_count) ? $this->vends_count : null,
+            // Machines queued to switch TO this mapping (vends.upcoming_product_mapping_id
+            // = this id) — only present when the caller withCount('upcomingVends').
+            'upcoming_vends_count' => isset($this->upcoming_vends_count) ? $this->upcoming_vends_count : null,
             'vendPrefixes' => VendPrefixResource::collection($this->whenLoaded('vendPrefixes')),
         ];
     }

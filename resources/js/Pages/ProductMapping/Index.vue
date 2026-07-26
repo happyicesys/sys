@@ -211,6 +211,7 @@
                         <span>Binded Vending Machines</span>
                         <span class="text-black font-normal text-xs">RP Tier • L30d Sales</span>
                         <span class="text-black font-normal text-xs">(binded date)</span>
+                        <span class="text-orange-700 font-normal text-xs">+ machines at upcoming stage</span>
                       </div>
                     </TableHead>
                     <TableHead>
@@ -300,6 +301,22 @@
                         <div class="flex flex-col space-y-1">
                           <span class="text-center text-indigo-600 p-2 text-xs">
                             {{ productMapping.vends.length }} Machine(s)
+                          </span>
+                          <!--
+                            "At upcoming stage" count (upcoming_vends_count):
+                            machines that are NOT binded to this mapping yet but
+                            already have THIS mapping set as their own Upcoming
+                            Product Mapping on the vend settings page. Tells ops
+                            how many machines still have to be updated onto this
+                            mapping. Counted with the same vendStatus filter as
+                            the binded list above. Greyed out when zero.
+                          -->
+                          <span
+                            class="text-center px-2 pb-2 text-xs"
+                            :class="(productMapping.upcoming_vends_count || 0) > 0 ? 'text-orange-700 font-semibold' : 'text-gray-400'"
+                            v-tooltip="'Machines binded elsewhere but queued to switch to this mapping (their own Upcoming Product Mapping = this mapping) — i.e. not yet updated to it'"
+                          >
+                            {{ productMapping.upcoming_vends_count || 0 }} Machine(s) at upcoming stage
                           </span>
                           <ul class="divide-y divide-gray-200">
                             <!--

@@ -39,6 +39,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('refund:payment-gateway-every-ten-minutes')->everyTenMinutes();
         $schedule->command('sync:voucher-status-daily')->daily();
         $schedule->command('telescope:prune --hours=48')->dailyAt('01:00');
+        // Admin > Visitor History retention (default 90 days, VISITOR_HISTORY_RETENTION_DAYS).
+        $schedule->command('visitor-history:prune')->dailyAt('01:45')->withoutOverlapping();
         $schedule->command('save:today-stock-count')->dailyAt('23:59');
         $schedule->command('vend-temp:compute-metrics')->dailyAt('00:20');
         $schedule->command('gp:compute-metrics')->dailyAt('00:40');

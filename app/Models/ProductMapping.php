@@ -128,6 +128,22 @@ class ProductMapping extends Model
         return $this->hasMany(Vend::class)->orderBy('code');
     }
 
+    /**
+     * Machines whose OWN upcoming product mapping points at THIS mapping —
+     * i.e. still binded to another menu today but queued to switch onto this
+     * one at their next changeover (vends.upcoming_product_mapping_id = this
+     * mapping's id). Drives the "at upcoming stage" count on the Product
+     * Mapping index so ops can see how many machines have NOT been updated
+     * to this mapping yet. Note vends.upcoming_product_mapping_id is cleared
+     * / rolled forward once the machine actually switches (VendController
+     * changeover), and an upcoming equal to the current mapping is coerced to
+     * null on save — so this count is strictly "pending", never "already on".
+     */
+    public function upcomingVends()
+    {
+        return $this->hasMany(Vend::class, 'upcoming_product_mapping_id');
+    }
+
     public function vendPrefixes()
     {
         return $this->belongsToMany(VendPrefix::class);
