@@ -206,7 +206,13 @@
                       <div class="text-xs text-gray-500 mt-1">{{ session.platform ?? '—' }}</div>
                     </TableData>
                     <TableData :currentIndex="sessionIndex" :totalLength="sessions.data.length" inputClass="text-center">
-                      <span v-tooltip="session.user_agent">{{ session.browser_label }}</span>
+                      <!--
+                        Brand only ("Chrome", not "Chrome 150") — the version number
+                        is noise in a who-was-here log and made the column wide. The
+                        exact version is still one hover away: the tooltip carries the
+                        full raw User-Agent, and browser_version stays on the payload.
+                      -->
+                      <span v-tooltip="session.user_agent">{{ session.browser ?? '—' }}</span>
                     </TableData>
                     <TableData :currentIndex="sessionIndex" :totalLength="sessions.data.length" inputClass="text-center">
                       {{ session.page_view_count }}

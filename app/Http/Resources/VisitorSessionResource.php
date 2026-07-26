@@ -48,7 +48,6 @@ class VisitorSessionResource extends JsonResource
             'platform'         => $this->platform,
             'browser'          => $this->browser,
             'browser_version'  => $this->browser_version,
-            'browser_label'    => trim(($this->browser ?: 'Unknown') . ' ' . ($this->browser_version ?: '')),
             'user_agent'       => $this->user_agent,
             'device_summary'   => UserAgentParser::summary($this->user_agent),
             'login_at'         => optional($this->login_at)->toDateTimeString(),
