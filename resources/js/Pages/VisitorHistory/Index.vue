@@ -32,14 +32,23 @@
         </div>
 
         <!-- Filters -->
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-3">
-          <div class="col-span-6 md:col-span-1">
+        <!--
+          5 columns, matching every other filter bar in the app (Transactions,
+          Site Summary). At 6 columns each cell was only ~265px wide — narrower
+          than a DatePicker actually needs (150px min input + the « / » day-step
+          buttons), so the » button was pushed out of its cell and clipped by the
+          next filter. Device is pulled up into row 1 as well, so it no longer
+          sits orphaned on a row of its own; IP + Page wrap to row 2 together.
+          items-start keeps the cells top-aligned when a MultiSelect grows tags.
+        -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-2 mt-3 items-start">
+          <div class="col-span-5 md:col-span-1">
             <DatePicker v-model="filters.dateFrom">From</DatePicker>
           </div>
-          <div class="col-span-6 md:col-span-1">
+          <div class="col-span-5 md:col-span-1">
             <DatePicker v-model="filters.dateTo" :minDate="filters.dateFrom">To</DatePicker>
           </div>
-          <div class="col-span-6 md:col-span-2">
+          <div class="col-span-5 md:col-span-2">
             <label for="text" class="block text-sm font-medium text-gray-700">
               User
             </label>
@@ -56,17 +65,7 @@
             >
             </MultiSelect>
           </div>
-          <div class="col-span-6 md:col-span-1">
-            <SearchInput placeholderStr="e.g. 175.140" v-model="filters.ip" @keyup.enter="onSearchFilterUpdated()">
-              IP Address
-            </SearchInput>
-          </div>
-          <div class="col-span-6 md:col-span-1">
-            <SearchInput placeholderStr="e.g. /transactions" v-model="filters.path" @keyup.enter="onSearchFilterUpdated()">
-              Page
-            </SearchInput>
-          </div>
-          <div class="col-span-6 md:col-span-1" v-if="view === 'sessions'">
+          <div class="col-span-5 md:col-span-1" v-if="view === 'sessions'">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Device
             </label>
@@ -81,6 +80,16 @@
               class="mt-1"
             >
             </MultiSelect>
+          </div>
+          <div class="col-span-5 md:col-span-1">
+            <SearchInput placeholderStr="e.g. 175.140" v-model="filters.ip" @keyup.enter="onSearchFilterUpdated()">
+              IP Address
+            </SearchInput>
+          </div>
+          <div class="col-span-5 md:col-span-1">
+            <SearchInput placeholderStr="e.g. /transactions" v-model="filters.path" @keyup.enter="onSearchFilterUpdated()">
+              Page
+            </SearchInput>
           </div>
         </div>
 
