@@ -313,8 +313,13 @@ function submit() {
         productMappingItems: productMappingItems.value,
       }))
       .post('/product-mappings/' + form.value.id + '/update', {
-      onSuccess: () => {
-        toast.success("Product mapping updated successfully", { timeout: 3000 })
+      // This modal hits the SAME update route as ProductMapping/Edit.vue, so it must
+      // surface the server's flash rather than its own hardcoded line — otherwise the
+      // smart-freezer menu-push result (including a failure) is silently swallowed here.
+      onSuccess: (page) => {
+        const flash = page?.props?.flash
+        if (flash?.error) toast.error(flash.error, { timeout: 8000 })
+        else toast.success(flash?.success || "Product mapping updated successfully", { timeout: 3000 })
         emit('modalClose')
       },
       onError: () => {

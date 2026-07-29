@@ -662,7 +662,16 @@ function submit() {
       upcoming_product_mapping_id: data.upcoming_product_mapping_id ? data.upcoming_product_mapping_id.id : null,
     }))
     .post('/product-mappings/' + form.value.id + '/update', {
-      onSuccess: () => {
+      // Surface the server's flash here rather than in a watch(): a watcher on
+      // page.props.flash.success would silently skip a second save that produced
+      // the IDENTICAL message (Vue sees no value change), so the operator would
+      // think the smart-freezer push had not fired. onSuccess runs every save.
+      onSuccess: (page) => {
+        // A 2xx here only means the SAVE succeeded — the smart-freezer MQTT nudge
+        // is best-effort and reports itself through flash.error, so surface both.
+        const flash = page?.props?.flash
+        if (flash?.error) toast.error(flash.error, { timeout: 8000 })
+        else if (flash?.success) toast.success(flash.success)
         emit('modalClose')
       },
       preserveState: true,

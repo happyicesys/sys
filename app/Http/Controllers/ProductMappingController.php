@@ -17,6 +17,7 @@ use App\Models\Vend;
 use App\Models\VendPrefix;
 use App\Http\Resources\OperatorResource;
 use App\Services\ProductMappingService;
+use App\Services\SmartFreezerCatalogPush;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -29,10 +30,42 @@ class ProductMappingController extends Controller
 {
     private $productMappingService;
 
+    /**
+     * Pushes a "re-pull your menu" MQTT nudge to bound Smart-Freezer terminals after
+     * ANY planogram write on this controller (Save, bind, unbind, reorder, sequence,
+     * smart toggle, machine re-bind). No-op for vending mappings. See
+     * {@see \App\Services\SmartFreezerCatalogPush} and {@see nudgeSmartFreezers()}.
+     */
+    private $smartFreezerCatalogPush;
+
     public function __construct()
     {
         $this->middleware(['permission:read product-mappings']);
         $this->productMappingService = new ProductMappingService();
+        $this->smartFreezerCatalogPush = new SmartFreezerCatalogPush();
+    }
+
+    /**
+     * Fire-and-forget catalog nudge for the incremental (non-Save) planogram write
+     * paths — bind, unbind, channel edit, sequence edit, basket reorder, smart toggle.
+     *
+     * These endpoints commit immediately and page-level Save is optional, so without
+     * this a freezer stays stale whenever the operator edits the grid and closes the
+     * tab. Result is intentionally ignored: each of these has its own UI toast, the
+     * service logs its own failures, and a nudge must never fail an already-committed
+     * write. Save (update()) is the one path that reports the push outcome.
+     *
+     * MUST be called AFTER any surrounding DB::transaction has committed — the queue
+     * is redis, so a worker can publish before an open transaction commits and the
+     * device would re-pull the OLD menu.
+     */
+    private function nudgeSmartFreezers($productMappingId): void
+    {
+        $mapping = ProductMapping::find($productMappingId);
+
+        if ($mapping) {
+            $this->smartFreezerCatalogPush->pushForMapping($mapping);
+        }
     }
 
     public function index(Request $request)
@@ -390,6 +423,8 @@ class ProductMappingController extends Controller
 
         $productMapping->save();
 
+        $this->nudgeSmartFreezers($productMapping->id);
+
         return redirect()->back();
     }
 
@@ -474,7 +509,7 @@ class ProductMappingController extends Controller
             'sequence' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        return DB::transaction(function () use ($validated, $productMappingId) {
+        $response = DB::transaction(function () use ($validated, $productMappingId) {
             $mapping = ProductMapping::find($productMappingId);
             if ($mapping) {
                 $this->assertUniqueChannelCode($mapping, (string) $validated['channel_code']);
@@ -505,6 +540,10 @@ class ProductMappingController extends Controller
 
             return redirect()->back();
         });
+
+        $this->nudgeSmartFreezers($productMappingId); // after commit — see helper docblock
+
+        return $response;
     }
 
     public function deleteItem($productMappingItemID)
@@ -512,6 +551,8 @@ class ProductMappingController extends Controller
         $item = ProductMappingItem::findOrFail($productMappingItemID);
         $productMappingId = $item->product_mapping_id;
         $item->delete();
+
+        $this->nudgeSmartFreezers($productMappingId);
 
         return redirect()->back();
     }
@@ -670,7 +711,32 @@ class ProductMappingController extends Controller
 
         $this->productMappingService->syncChannels($productMapping->id);
 
-        return redirect()->route('product-mappings.edit', ['id' => $productMapping->id]);
+        // Smart freezers don't poll for menu changes, so tell any bound Smart-Freezer
+        // to re-pull now instead of waiting for its next reboot. Queued + fail-safe:
+        // the planogram is already committed, so a broker hiccup must not fail the save
+        // (the manual "Push Products Info to Machine" button remains the fallback).
+        // Vending mappings resolve to zero targets => zero behaviour change.
+        ['targets' => $targets, 'pushed' => $pushed] = $this->smartFreezerCatalogPush->pushForMapping($productMapping);
+
+        $redirect = redirect()->route('product-mappings.edit', ['id' => $productMapping->id]);
+
+        // No bound smart freezers (the vending case) => stay silent, exactly as before.
+        if ($targets === 0) {
+            return $redirect;
+        }
+
+        // Some or all nudges could not even be queued: say so, and name the fallback.
+        // Reporting this as plain success would leave the operator believing machines
+        // were refreshed when they were not.
+        if ($pushed < $targets) {
+            return $redirect->with(
+                'error',
+                "Saved, but the menu refresh could not be sent to " . ($targets - $pushed) . " of {$targets} smart freezer(s). "
+                . "Use \"Push Products Info to Machine\" on the affected machine(s)."
+            );
+        }
+
+        return $redirect->with('success', "Saved. Menu refresh pushed to {$pushed} smart freezer(s).");
     }
 
     public function updateItem(Request $request, $productMappingItemID)
@@ -689,6 +755,8 @@ class ProductMappingController extends Controller
 
         $productMappingItem->fill($request->all());
         $productMappingItem->save();
+
+        $this->nudgeSmartFreezers($productMappingItem->product_mapping_id);
 
         return redirect()->route('product-mappings.edit', ['id' => $productMappingItem->productMapping->id]);
     }
@@ -715,7 +783,7 @@ class ProductMappingController extends Controller
         $mapping = ProductMapping::findOrFail($productMappingId);
         $basket = (int) $validated['basket'];
 
-        return DB::transaction(function () use ($mapping, $basket, $validated) {
+        $response = DB::transaction(function () use ($mapping, $basket, $validated) {
             foreach (array_values($validated['product_ids']) as $index => $productId) {
                 $code = $basket . ($index + 1); // "11","12","13"… — 1-indexed division.
                 $item = $mapping->productMappingItems()->where('channel_code', $code)->first();
@@ -741,6 +809,10 @@ class ProductMappingController extends Controller
 
             return redirect()->back();
         });
+
+        $this->nudgeSmartFreezers($mapping->id);
+
+        return $response;
     }
 
     public function updateItemSequence(Request $request, ProductMappingItem $item)
@@ -748,7 +820,8 @@ class ProductMappingController extends Controller
         $data = $request->validate([
             'sequence' => ['nullable', 'integer', 'min:1'],
         ]);
-        return DB::transaction(function () use ($item, $data) {
+
+        $response = DB::transaction(function () use ($item, $data) {
             $seq = $data['sequence'] ?? null;
 
             if ($seq !== null) {
@@ -769,6 +842,10 @@ class ProductMappingController extends Controller
 
             return redirect()->back();
         });
+
+        $this->nudgeSmartFreezers($item->product_mapping_id);
+
+        return $response;
     }
 
     public function uploadAttachment(Request $request, $id)
@@ -911,6 +988,12 @@ class ProductMappingController extends Controller
         }
 
         $this->productMappingService->syncChannels($productMapping->id);
+
+        // Both sides need telling: the machines now on this mapping get its menu, and a
+        // machine just unbound is no longer reachable via pushForMapping even though its
+        // menu just went empty.
+        $this->smartFreezerCatalogPush->pushForMapping($productMapping);
+        $this->smartFreezerCatalogPush->pushForVendIds(array_values($vendsToRemoveIds));
 
         return redirect()->route('product-mappings');
     }

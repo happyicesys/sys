@@ -445,9 +445,17 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 'delivery-platform-product-mappings',
-                ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
+                ['read', 'export', 'create', 'update', 'delete'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Yes struck);
                 // Delivery Campaign row is NOT struck so delivery-platform-campaigns keeps them
+                // 2026-07-29: operator_admin re-granted CRUD on /delivery-product-mappings
+                // (requested by brian). admin-access intentionally NOT granted - see block below.
+                ['superadmin', 'admin', 'supervisor', 'operator_admin']
+            ],
+
+            [
+                'delivery-platform-product-mappings',
+                ['admin-access'],
                 ['superadmin', 'admin', 'supervisor']
             ],
 

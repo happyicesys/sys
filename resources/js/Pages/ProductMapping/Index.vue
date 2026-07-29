@@ -211,7 +211,7 @@
                         <span>Binded Vending Machines</span>
                         <span class="text-black font-normal text-xs">RP Tier • L30d Sales</span>
                         <span class="text-black font-normal text-xs">(binded date)</span>
-                        <span class="text-black font-normal text-xs">+ machines at upcoming stage (listed last)</span>
+                        <span class="text-black font-normal text-xs"># machines at upcoming stage</span>
                       </div>
                     </TableHead>
                     <TableHead>
