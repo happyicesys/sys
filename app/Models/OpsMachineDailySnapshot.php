@@ -31,6 +31,8 @@ class OpsMachineDailySnapshot extends Model
         'coin_stat',
         'card_terminal_id',
         'card_terminal_name',
+        'modem_type_id',
+        'modem_type_name',
         'firmware_ver',
         'apk_ver',
         'acb_rev',

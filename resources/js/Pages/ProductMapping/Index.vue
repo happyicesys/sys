@@ -214,6 +214,46 @@
                         <span class="text-black font-normal text-xs"># machines at upcoming stage</span>
                       </div>
                     </TableHead>
+                    <!--
+                      Avg Mthly Sales — GROUP figure for the whole product mapping,
+                      i.e. the sum of the average monthly sales of every site this
+                      mapping is binded to. Same "true average monthly sales" idea as
+                      Vend/CustomerIndex.vue's "Avg Mthly Sales $" column (lifetime
+                      sales ÷ months operating, NOT a 30-day projection), but grouped
+                      per product mapping instead of per machine.
+
+                      The per-site figure is SITE-based (customers.totals_json +
+                      customers.begin_date), deliberately matching the L30d Sales chip
+                      in the Binded Vending Machines column rather than
+                      Vend/CustomerIndex.vue's machine-based figure. Consequence worth
+                      knowing: the figures here will NOT tally with the Machine page's
+                      Avg Mthly Sales $, and a site hosting machines on OTHER mappings
+                      too contributes its whole site average here.
+
+                      SORTABLE, and therefore summed in SQL
+                      (ProductMappingController::index $avgMthlySalesSub → the
+                      avg_mthly_sales_amount alias) rather than in this component the
+                      way CustomerIndex does it: sorting a client-side figure would
+                      only ever reorder the rows on the current page.
+
+                      First click sorts DESC — highest-earning menu at the top, which
+                      is what this column is for. That is what passing inverse=false
+                      does given sortTable()'s toggle (sortBy starts true = asc, the
+                      unconditional flip makes the first click desc); pass true
+                      instead to make the first click ascending.
+                    -->
+                    <TableHeadSort
+                      modelName="avg_mthly_sales_amount"
+                      :sortKey="filters.sortKey"
+                      :sortBy="filters.sortBy"
+                      @sort-table="sortTable('avg_mthly_sales_amount', false)"
+                    >
+                      <div class="flex flex-col space-y-1">
+                        <span>Avg Mthly Sales</span>
+                        <span class="text-black font-normal text-xs">{{ operatorCountry.currency_symbol }} / month</span>
+                        <span class="text-black font-normal text-xs">(all binded sites)</span>
+                      </div>
+                    </TableHeadSort>
                     <TableHead>
                       Menu
                     </TableHead>
@@ -450,10 +490,17 @@
                           <!--
                             "At upcoming stage" count (upcoming_vends_count):
                             machines that are NOT binded to this mapping yet but
-                            already have THIS mapping set as their own Upcoming
-                            Product Mapping on the vend settings page. Tells ops
-                            how many machines still have to be updated onto this
-                            mapping. Counted with the same vendStatus filter as
+                            are queued to switch onto it — i.e. their EFFECTIVE
+                            upcoming mapping is this one: the machine's own
+                            Upcoming Product Mapping (vend settings page) if it
+                            has one, otherwise the preset upcoming inherited from
+                            the mapping it is currently binded to. Same
+                            vend-own-then-mapping-preset resolution the Ops Job
+                            pages use. (Before 2026-07-30 only the machine's own
+                            column was counted, so whole mappings queued to move
+                            onto this one read as "0".) Tells ops how many
+                            machines still have to be updated onto this mapping.
+                            Counted with the same vendStatus filter as
                             the binded list above. Sits BELOW the binded list so
                             it reads as a footnote to it rather than competing
                             with the headline count; kept in grey (not orange/red)
@@ -465,9 +512,37 @@
                           <span
                             class="text-center px-2 pt-2 text-xs"
                             :class="(productMapping.upcoming_vends_count || 0) > 0 ? 'text-gray-700 font-semibold' : 'text-gray-400'"
-                            v-tooltip="'Machines binded elsewhere but queued to switch to this mapping (their own Upcoming Product Mapping = this mapping) — i.e. not yet updated to it'"
+                            v-tooltip="'Machines binded elsewhere but queued to switch to this mapping — their own Upcoming Product Mapping is this mapping, or they inherit it as the preset upcoming of the mapping they are on today. I.e. not yet updated to this mapping.'"
                           >
                             {{ productMapping.upcoming_vends_count || 0 }} Machine(s) at upcoming stage
+                          </span>
+                        </div>
+                      </TableData>
+                      <!--
+                        Avg Mthly Sales (group total) — see the matching TableHead
+                        comment above. One figure per mapping, summed IN SQL so the
+                        header sort covers every row and not just this page; this cell
+                        only formats it. Greyed when zero. The grey footnote is counted
+                        here in the component (it needs the per-machine list, which the
+                        SQL figure doesn't carry) and only appears when some binded
+                        machines could NOT contribute — no site attached, or the site's
+                        totals_json has no lifetime figure yet — so the headline number
+                        is never quietly short without saying so.
+                      -->
+                      <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
+                        <div class="flex flex-col space-y-1">
+                          <span
+                            :class="avgMthlySales(productMapping) > 0 ? 'text-gray-900 font-semibold' : 'text-gray-400'"
+                            v-tooltip="avgMthlySalesTooltip"
+                          >
+                            {{ operatorCountry.currency_symbol }}{{ avgMthlySales(productMapping).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                          </span>
+                          <span
+                            class="text-gray-400 text-xs"
+                            v-if="avgMthlySalesUncounted(productMapping) > 0"
+                            v-tooltip="'These binded machines have no site attached, or their site has no lifetime sales figure yet, so they contribute nothing to the total above.'"
+                          >
+                            {{ avgMthlySalesUncounted(productMapping) }} of {{ productMapping.vends.length }} machine(s) not counted
                           </span>
                         </div>
                       </TableData>
@@ -641,6 +716,80 @@ const permissions = usePage().props.auth.permissions
 const operatorCountry = usePage().props.auth.operatorCountry
 const vendPrefixOptions = ref([])
 const vendStatusOptions = ref([])
+
+// ---------------------------------------------------------------------------
+// Avg Mthly Sales (group column)
+// ---------------------------------------------------------------------------
+// The figure itself is computed IN SQL, not here — see
+// ProductMappingController::index() ($avgMthlySalesSub → the
+// avg_mthly_sales_amount alias, raw minor units). It lives server-side because
+// the header is SORTABLE: a client-side figure could only ever reorder the rows
+// on the current page, never the whole paginated set.
+//
+// What it means: TRUE average monthly sales over the operating lifetime —
+// lifetime sales divided by the COUNT of calendar months operated, inclusive of
+// both the begin month and the current month. NOT a 30-day projection, so it is
+// not expected to match the L30d chips in the neighbouring column.
+//
+// Two deliberate differences from Vend/CustomerIndex.vue's "Avg Mthly Sales $":
+//   1. GROUPING — one figure per product mapping (the sum over its binded
+//      sites), not one per machine.
+//   2. SOURCE — SITE-based (customers.totals_json + customers.begin_date),
+//      matching the L30d chip on this page rather than CustomerIndex's
+//      machine-based vends.vend_transaction_totals_json. The vend total follows
+//      the machine's vend_id and would keep counting sales earned under a
+//      previous site after the machine is moved.
+//      Consequence: figures here will NOT tally with the Machine page, and a
+//      site that also hosts machines on OTHER mappings still contributes its
+//      whole site average to this mapping's total.
+//
+// Sites are summed ONCE even if several of a mapping's binded machines sit at
+// the same site — the site figure already covers all of them. That is inherent
+// to the subquery being driven from customers rather than from vends.
+const avgMthlySalesTooltip = 'Sum of the average monthly sales of every site this mapping is binded to. Per site: lifetime sales / the number of calendar months the site has been operating (counted from its begin date, floored at the app reporting floor, inclusive of the begin month and this month). A lifetime average, not a 30-day projection, so it will not match the L30d figures — and being site-based it is not expected to tally with the Avg Mthly Sales $ on the Machine page. Each site counts once even if it hosts several of this mapping\'s machines. Click the header to sort.'
+
+// Display value: the SQL sum arrives in raw minor units, same convention as
+// totals_json->vend_records_amount_latest.
+function avgMthlySales(productMapping) {
+  const amount = Number(productMapping.avg_mthly_sales_amount || 0)
+  if (!isFinite(amount)) {
+    return 0
+  }
+  return amount / Math.pow(10, operatorCountry.currency_exponent ?? 2)
+}
+
+// Binded machines that contribute NOTHING to the figure above — no site
+// attached, or a site whose totals_json has no lifetime figure yet. Counted here
+// rather than in SQL because it needs the per-machine list, which the summed
+// figure doesn't carry. Machines sharing an already-counted site are NOT flagged:
+// the site's figure covers them. Drives the grey footnote so the headline number
+// is never quietly short without saying so.
+function avgMthlySalesUncounted(productMapping) {
+  const vends = (productMapping && productMapping.vends) ? productMapping.vends : []
+  const countedCustomerIds = new Set()
+  let uncounted = 0
+
+  vends.forEach((vend) => {
+    const customer = vend ? vend.customer : null
+    if (!customer || !customer.id) {
+      uncounted++
+      return
+    }
+    if (countedCustomerIds.has(customer.id)) {
+      return
+    }
+
+    const totals = customer.vendTransactionTotalsJson
+    if (!totals || !('vend_records_amount_latest' in totals)) {
+      uncounted++
+      return
+    }
+
+    countedCustomerIds.add(customer.id)
+  })
+
+  return uncounted
+}
 
 onMounted(() => {
   booleanOptions.value = [

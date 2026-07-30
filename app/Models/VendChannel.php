@@ -285,6 +285,9 @@ class VendChannel extends Model
                 $query->whereHas('vend', function ($query) use ($search, $sortBy) {
                     if (strpos($search, '->')) {
                         $inputSearch = explode("->", $search);
+                        // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
+                        $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
+                        $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
                         $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                             ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     } else {

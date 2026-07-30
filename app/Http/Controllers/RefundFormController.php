@@ -252,7 +252,10 @@ class RefundFormController extends Controller
         // attachments (max 3 images), stored privately on the local disk
         if ($request->hasFile('photos')) {
             foreach (array_slice($request->file('photos'), 0, (int) config('refund.attachments.max_count', 3)) as $photo) {
-                $path = $photo->store('refund-attachments/' . $ticket->id, 'local');
+                // Configured disk (config/refund.php attachments.disk): 'local' or
+                // private DO Spaces. Same relative path either way, so the DB rows
+                // and the authed viewer route are disk-agnostic.
+                $path = $photo->store('refund-attachments/' . $ticket->id, \App\Models\RefundTicketAttachment::storageDisk());
                 \App\Models\RefundTicketAttachment::create([
                     'refund_ticket_id' => $ticket->id,
                     'path' => $path,

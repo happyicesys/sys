@@ -1173,6 +1173,9 @@ class Vend extends Model
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
                     $inputSearch = explode("->", $search);
+                    // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
+                    $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
+                    $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
                     if ($search === 'totals_json->two_days_error_rate' or $search === 'totals_json->seven_days_error_rate') {
                         $query->orderByRaw('(CAST(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     } else {

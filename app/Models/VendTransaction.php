@@ -29,6 +29,20 @@ class VendTransaction extends Model
     const SETTLEMENT_REFUNDED = 1;  // refunded / void — never counts as a sale
     const SETTLEMENT_SETTLED = 2;   // counts as a sale (normal error-code logic still applies)
 
+    // "Odd" transactions swept nightly by RemoveOddTransactions (see
+    // remove:today-odd-transactions, dailyAt 23:59): test-rig amounts, and
+    // anything under the TEST operator. Amounts are in MINOR units
+    // (0, 0.10, 0.20, 200.00 at currency_exponent 2). Rows whose payment method
+    // code is in ODD_TRANSACTION_RETAIN_PAYMENT_METHOD_CODES are always kept.
+    //
+    // Exposed as constants because PaymentGatewayLog::scopeUnreportedDispensed
+    // must exclude the same rows — a swept transaction leaves its gateway log
+    // looking "never reported", which would otherwise re-add the deleted amount
+    // to the Total Sales headline. Keep the two in sync.
+    const ODD_TRANSACTION_AMOUNTS = [0, 10, 20, 20000];
+    const ODD_TRANSACTION_RETAIN_PAYMENT_METHOD_CODES = [10, 11];
+    const ODD_TRANSACTION_OPERATOR_CODE = 'TEST';
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorTransactionFilterScope);
@@ -769,6 +783,9 @@ class VendTransaction extends Model
             $query->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
                     $inputSearch = explode("->", $search);
+                    // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
+                    $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
+                    $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
                     $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                         ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 } else {

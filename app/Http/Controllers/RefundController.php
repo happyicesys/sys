@@ -1048,7 +1048,11 @@ class RefundController extends Controller
     {
         // Permanent clean delete (testing): remove children, attachment files, then the ticket.
         foreach ($ticket->attachments as $a) {
-            \Illuminate\Support\Facades\Storage::disk('local')->delete($a->path);
+            // File may live on the configured disk (Spaces), on local (not yet
+            // migrated), or both mid-migration — delete wherever present.
+            foreach (array_unique([RefundTicketAttachment::storageDisk(), 'local']) as $attachmentDisk) {
+                \Illuminate\Support\Facades\Storage::disk($attachmentDisk)->delete($a->path);
+            }
         }
         $ticket->attachments()->delete();
         $ticket->items()->delete();
@@ -1068,9 +1072,13 @@ class RefundController extends Controller
     public function viewAttachment(RefundTicket $ticket, RefundTicketAttachment $attachment)
     {
         abort_unless($attachment->refund_ticket_id === $ticket->id, 404);
-        abort_unless(\Illuminate\Support\Facades\Storage::disk('local')->exists($attachment->path), 404);
 
-        return \Illuminate\Support\Facades\Storage::disk('local')->response($attachment->path);
+        // Configured disk first (DO Spaces once REFUND_ATTACHMENT_DISK is set),
+        // falling back to 'local' for files not yet migrated.
+        $disk = $attachment->resolveDisk();
+        abort_unless($disk !== null, 404);
+
+        return \Illuminate\Support\Facades\Storage::disk($disk)->response($attachment->path);
     }
 
     /**

@@ -156,6 +156,9 @@ class StockCount extends Model
             // allow JSON path like column->key on parent table
             if (strpos($search, '->') !== false) {
                 [$col, $jsonPath] = explode('->', $search, 2);
+                // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
+                $col = preg_replace('/[^A-Za-z0-9_]/', '', $col ?? '');
+                $jsonPath = preg_replace('/[^A-Za-z0-9_]/', '', $jsonPath ?? '');
                 $query->orderByRaw(
                     'LENGTH(JSON_UNQUOTE(JSON_EXTRACT(`'.$col.'`, "$.'.$jsonPath.'")))' . ' ' . $dir
                 )->orderBy($search, $dir);

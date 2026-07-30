@@ -636,6 +636,7 @@ class OpsPerformanceController extends Controller
         $cardYes = 0;
         $cardNo = 0;
         $cardBreakdown = [];
+        $modem = [];
         $firmware = [];
         $apk = [];
         $acb = [];
@@ -661,6 +662,13 @@ class OpsPerformanceController extends Controller
                 $cardNo++;
             }
 
+            // Data Management > Modem Model (vends.modem_type_id). Unbinded
+            // machines fall into 'N/A', same convention as the LCD group.
+            $modemLabel = $r->modem_type_id === null
+                ? 'N/A'
+                : (($r->modem_type_name === null || $r->modem_type_name === '') ? 'Unknown' : (string) $r->modem_type_name);
+            $modem[$modemLabel] = ($modem[$modemLabel] ?? 0) + 1;
+
             $this->tallyKey($firmware, $r->firmware_ver);
             $this->tallyKey($apk, $r->apk_ver);
             $this->tallyKey($acb, $r->acb_rev);
@@ -668,6 +676,9 @@ class OpsPerformanceController extends Controller
 
         $lcdRows = $this->mapToRows($lcd);
         $lcdTotal = array_sum(array_map(fn ($r) => $r['label'] === 'N/A' ? 0 : $r['count'], $lcdRows));
+
+        $modemRows = $this->mapToRows($modem);
+        $modemTotal = array_sum(array_map(fn ($r) => $r['label'] === 'N/A' ? 0 : $r['count'], $modemRows));
 
         // Ordered, presentation-ready groups. Both the page and the Excel export
         // render from THIS list, so adding a category here flows to both.
@@ -677,6 +688,7 @@ class OpsPerformanceController extends Controller
             ['key' => 'coin', 'label' => 'Coin Acceptor', 'rows' => [['label' => 'Yes', 'count' => $coin['yes']], ['label' => 'No', 'count' => $coin['no']]]],
             ['key' => 'card', 'label' => 'Card Terminal', 'rows' => [['label' => 'Yes', 'count' => $cardYes], ['label' => 'No', 'count' => $cardNo]]],
             ['key' => 'cardType', 'label' => 'Card Terminal (type)', 'rows' => $this->mapToRows($cardBreakdown)],
+            ['key' => 'modemType', 'label' => 'Modem Model', 'lead' => 'Total with Modem', 'leadValue' => $modemTotal, 'rows' => $modemRows],
             ['key' => 'firmware', 'label' => 'VMC Firmware Ver', 'rows' => $this->mapToRows($firmware)],
             ['key' => 'apk', 'label' => 'Android APK Ver', 'rows' => $this->mapToRows($apk)],
             ['key' => 'acb', 'label' => 'ACB Rev', 'rows' => $this->mapToRows($acb)],

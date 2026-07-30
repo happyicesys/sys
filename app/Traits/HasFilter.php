@@ -802,6 +802,9 @@ trait HasFilter
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
                     $inputSearch = explode("->", $search);
+                    // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
+                    $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
+                    $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
                     $direction = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
                     if (
@@ -990,6 +993,9 @@ trait HasFilter
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
                     $inputSearch = explode("->", $search);
+                    // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
+                    $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
+                    $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
                     $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                         ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 } else {

@@ -81,6 +81,14 @@ class PaymentGatewayLog extends Model
      * scope mirrors the filters used by the Total Sales headline so the dashboard
      * and the exported CSV count exactly the same rows.
      *
+     * NOT every missing vend_transaction means the machine failed to report it:
+     * RemoveOddTransactions (remove:today-odd-transactions, dailyAt 23:59) DELETES
+     * transactions under the TEST operator or with a test-rig amount, which leaves
+     * their gateway log looking exactly like an unreported one. Counting those
+     * would re-add revenue that was deliberately swept — a machine under operator
+     * TEST showed 0 rows in the table but a non-zero Total Sales. So the same
+     * exclusion is mirrored here via excludeSweptOddTransactions().
+     *
      * @param  \Illuminate\Http\Request  $request
      * @param  int[]  $testingVendIds   Testing machine vend IDs to exclude.
      * @param  bool   $applyCutoff      Apply the UNREPORTED_GATEWAY_CUTOFF floor.
@@ -91,6 +99,7 @@ class PaymentGatewayLog extends Model
             ->where('payment_gateway_logs.status', self::STATUS_APPROVE)
             ->where('payment_gateway_logs.is_dispensed', true)
             ->whereDoesntHave('vendTransaction')
+            ->excludeSweptOddTransactions()
             ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('payment_gateway_logs.vend_id', $testingVendIds))
             ->when($request->operators, function ($q) use ($request) {
                 $ops = (array) $request->operators;
@@ -122,6 +131,46 @@ class PaymentGatewayLog extends Model
                 }
             })
             ->when($applyCutoff, fn($q) => $q->where('payment_gateway_logs.approved_at', '>=', self::UNREPORTED_GATEWAY_CUTOFF));
+    }
+
+    /**
+     * Exclude gateway logs whose vend_transaction was (or would be) deleted by
+     * RemoveOddTransactions, so swept revenue is never counted as
+     * dispensed-but-unreported.
+     *
+     * Mirrors the job's predicate: operator TEST, or an amount in
+     * VendTransaction::ODD_TRANSACTION_AMOUNTS. Those amounts are stored on
+     * vend_transactions in MINOR units while payment_gateway_logs.amount is in
+     * major units, so the log amount is scaled by the operator's country
+     * currency_exponent before comparing.
+     *
+     * The job's ODD_TRANSACTION_RETAIN_PAYMENT_METHOD_CODES carve-out (Free Vend
+     * / Remote Dispense, codes 10 & 11) is not replicated: gateway-backed
+     * transactions always carry a payment-gateway payment method (code >= 101),
+     * so the carve-out can never apply to these rows.
+     *
+     * Written as a correlated NOT EXISTS rather than a join so callers keep using
+     * this scope with ->sum() / ->get() without column-ambiguity surprises.
+     */
+    public function scopeExcludeSweptOddTransactions($query)
+    {
+        $oddAmounts = VendTransaction::ODD_TRANSACTION_AMOUNTS;
+        $placeholders = implode(', ', array_fill(0, count($oddAmounts), '?'));
+
+        return $query->whereNotExists(function ($sub) use ($oddAmounts, $placeholders) {
+            $sub->selectRaw('1')
+                ->from('vends')
+                ->join('operators', 'operators.id', '=', 'vends.operator_id')
+                ->leftJoin('countries', 'countries.id', '=', 'operators.country_id')
+                ->whereColumn('vends.id', 'payment_gateway_logs.vend_id')
+                ->where(function ($w) use ($oddAmounts, $placeholders) {
+                    $w->where('operators.code', VendTransaction::ODD_TRANSACTION_OPERATOR_CODE)
+                        ->orWhereRaw(
+                            'ROUND(payment_gateway_logs.amount * POW(10, COALESCE(countries.currency_exponent, 2))) IN (' . $placeholders . ')',
+                            $oddAmounts
+                        );
+                });
+        });
     }
 
     // scopes
@@ -250,6 +299,9 @@ class PaymentGatewayLog extends Model
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
                     $inputSearch = explode("->", $search);
+                    // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
+                    $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
+                    $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
                     $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                         ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 } else {

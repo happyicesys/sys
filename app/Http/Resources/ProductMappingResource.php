@@ -48,9 +48,20 @@ class ProductMappingResource extends JsonResource
             'basket_layout_json' => $this->basket_layout_json,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
             'vends_count' => isset($this->vends_count) ? $this->vends_count : null,
-            // Machines queued to switch TO this mapping (vends.upcoming_product_mapping_id
-            // = this id) — only present when the caller withCount('upcomingVends').
+            // Machines queued to switch TO this mapping — their EFFECTIVE upcoming
+            // mapping (own vends.upcoming_product_mapping_id, else the preset upcoming
+            // of the mapping they are binded to today) is this id. Only present when
+            // the caller adds the `upcoming_vends_count` sub-select
+            // (ProductMappingController::index).
             'upcoming_vends_count' => isset($this->upcoming_vends_count) ? $this->upcoming_vends_count : null,
+            // "Avg Mthly Sales" — summed average monthly sales of every SITE this
+            // mapping is binded to, in RAW MINOR UNITS (same convention as
+            // totals_json->vend_records_amount_latest); the frontend divides by the
+            // operator country's currency exponent. Only present when the caller adds
+            // the `avg_mthly_sales_amount` sub-select (ProductMappingController::index),
+            // which is also what makes the column sortable. Cast to float because
+            // MySQL hands DECIMAL back as a string.
+            'avg_mthly_sales_amount' => isset($this->avg_mthly_sales_amount) ? (float) $this->avg_mthly_sales_amount : null,
             'vendPrefixes' => VendPrefixResource::collection($this->whenLoaded('vendPrefixes')),
         ];
     }

@@ -23,3 +23,6 @@ test*
 debug_scripts/
 
 /omise_portfolio
+
+# local scratch area (Claude sessions park junk here; never commit)
+/_to_delete/

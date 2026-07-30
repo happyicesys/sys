@@ -32,6 +32,7 @@ class OpsMachineDailySnapshotBuilder
             ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
             ->leftJoin('card_terminals', 'vends.card_terminal_id', '=', 'card_terminals.id')
+            ->leftJoin('modem_types', 'vends.modem_type_id', '=', 'modem_types.id')
             ->where('vends.is_disposed', 0)
             ->selectRaw(<<<'SQL'
                 vends.id AS vend_id,
@@ -48,6 +49,8 @@ class OpsMachineDailySnapshotBuilder
                 vends.lcd_monitor_id AS lcd_monitor_id,
                 vends.card_terminal_id AS card_terminal_id,
                 card_terminals.name AS card_terminal_name,
+                vends.modem_type_id AS modem_type_id,
+                COALESCE(NULLIF(modem_types.alias, ''), modem_types.name) AS modem_type_name,
                 CAST(JSON_UNQUOTE(JSON_EXTRACT(vends.parameter_json, '$.BILLStat')) AS SIGNED) AS bill_stat,
                 CAST(JSON_UNQUOTE(JSON_EXTRACT(vends.parameter_json, '$.CHGEStat')) AS SIGNED) AS coin_stat,
                 UPPER(CONV(JSON_UNQUOTE(JSON_EXTRACT(vends.parameter_json, '$.Ver')), 10, 16)) AS firmware_ver,
@@ -98,6 +101,8 @@ class OpsMachineDailySnapshotBuilder
                             'coin_stat' => $r->coin_stat === null ? null : (int) $r->coin_stat,
                             'card_terminal_id' => $r->card_terminal_id,
                             'card_terminal_name' => $r->card_terminal_name,
+                            'modem_type_id' => $r->modem_type_id,
+                            'modem_type_name' => $r->modem_type_name,
                             'firmware_ver' => $r->firmware_ver,
                             'apk_ver' => $r->apk_ver,
                             'acb_rev' => $r->acb_rev,

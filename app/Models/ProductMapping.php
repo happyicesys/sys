@@ -132,12 +132,20 @@ class ProductMapping extends Model
      * Machines whose OWN upcoming product mapping points at THIS mapping —
      * i.e. still binded to another menu today but queued to switch onto this
      * one at their next changeover (vends.upcoming_product_mapping_id = this
-     * mapping's id). Drives the "at upcoming stage" count on the Product
-     * Mapping index so ops can see how many machines have NOT been updated
-     * to this mapping yet. Note vends.upcoming_product_mapping_id is cleared
-     * / rolled forward once the machine actually switches (VendController
+     * mapping's id). Note vends.upcoming_product_mapping_id is cleared /
+     * rolled forward once the machine actually switches (VendController
      * changeover), and an upcoming equal to the current mapping is coerced to
-     * null on save — so this count is strictly "pending", never "already on".
+     * null on save — so this is strictly "pending", never "already on".
+     *
+     * NOTE (2026-07-30): this relation is NO LONGER the source of the
+     * "N Machine(s) at upcoming stage" figure on the Product Mapping index.
+     * vends.upcoming_product_mapping_id is only written by the vend-binding
+     * paths, so a machine that simply inherits its changeover from its current
+     * mapping's preset (product_mappings.upcoming_product_mapping_id) has NULL
+     * here and was being missed. ProductMappingController::index() now counts
+     * on the EFFECTIVE upcoming — coalesce(vend's own, current mapping's
+     * preset) — matching OpsJobItem::resolveUpcomingMapping and the Ops Job /
+     * CustomerIndex UIs. Kept because it is still a valid relation.
      */
     public function upcomingVends()
     {

@@ -824,6 +824,9 @@ class Customer extends Model
                 // Check if the sortKey involves a JSON field
                 if (strpos($search, '->')) {
                     $inputSearch = explode("->", $search);
+                    // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
+                    $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
+                    $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
                     if (
                         $search === 'vend_transaction_totals_json->vend_records_amount_latest' or
                         $search === 'vend_transaction_totals_json->vend_records_amount_average_day' or

@@ -204,6 +204,162 @@ class ProductMappingController extends Controller
             })
             ->count('vends.id');
 
+        // Correlated sub-select feeding the SORTABLE "Avg Mthly Sales" column: the
+        // SUM, over every SITE this mapping is binded to, of that site's true
+        // average monthly sales — lifetime sales (customers.totals_json
+        // ->vend_records_amount_latest, raw minor units) divided by the COUNT of
+        // calendar months the site has operated in, inclusive of BOTH its begin
+        // month and the current month. A lifetime average, NOT a 30-day
+        // projection, so it is not expected to tally with the L30d chips in the
+        // neighbouring column. Same idea as Vend/CustomerIndex.vue's "Avg Mthly
+        // Sales $" but grouped per mapping and sourced from the SITE rather than
+        // the machine — see the matching comment block in ProductMapping/Index.vue.
+        //
+        // Computed in SQL rather than client-side like CustomerIndex's per-machine
+        // version because the column has to be SORTABLE across the whole paginated
+        // result set — a figure derived in the Vue component could only ever
+        // reorder the rows already on screen. The month arithmetic was checked
+        // case-for-case against the JS formula it replaces (floored, mid-range,
+        // current-month, future and NULL begin dates all agree).
+        //
+        // Each SITE must contribute exactly ONCE: its lifetime figure already
+        // covers every machine standing there, so summing per machine would
+        // double-count a site hosting two of this mapping's machines. Hence the
+        // whereNotExists — it keeps only the LOWEST-id machine per (mapping, site)
+        // pair. Driving the query from vends rather than from customers is
+        // deliberate: vends is index-seekable by product_mapping_id (a handful of
+        // rows per mapping), whereas a customers-driven `where exists (...)` re-scans
+        // the whole customers table once per row on the page. Both shapes were run
+        // side by side over all 95 active mappings on live and agree to the last
+        // decimal; no site currently hosts two machines on one mapping, so the
+        // de-dupe is a safety net rather than a live correction.
+        //
+        // The begin month is floored at config('reporting.floor_date') — the same
+        // app-wide reporting floor Vend/CustomerIndex.vue uses — so an abnormally
+        // old, NULL or zero begin_date can't inflate the month count and crush the
+        // average. The "current month" anchor is bound from PHP instead of read via
+        // CURDATE() so the figure follows the APP timezone (authoritative on these
+        // per-country deployments) and stays stable for the whole request.
+        //
+        // ->toBase() is required for the same reason as the count subquery below:
+        // Vend carries OperatorVendFilterScope, so handing a raw Eloquent builder to
+        // addSelect() would compile the scope's SQL from a scoped clone while taking
+        // bindings from the unscoped original. The scope also means the figure is
+        // operator-correct for free — a machine always shares its site's operator,
+        // so scoping the machines scopes the sites.
+        //
+        // Both dates go into the raw expression as LITERALS, not `?` bindings, and
+        // both are re-formatted through Carbon first so they can only ever be a bare
+        // Y-m-d. That is deliberate: a `?` inside the SELECT clause of a sub-select
+        // handed to addSelect() is the exact shape that already bit the
+        // upcoming-count subquery (Query\Builder::parseSub taking SQL from one
+        // builder and bindings from another). No bindings in the select clause, no
+        // way for that mismatch to recur. Neither value is user input — one is
+        // config, the other the server clock.
+        $avgMthlySalesFloor = Carbon::parse(config('reporting.floor_date', '2023-01-01'))
+            ->startOfMonth()
+            ->toDateString();
+        $avgMthlySalesMonth = Carbon::now()->startOfMonth()->toDateString();
+
+        // Shared so the sum, the de-dupe and the binded list below all count the
+        // same population of machines.
+        $avgMthlySalesStatusFilter = function ($query, $table) use ($request) {
+            if (!$request->vendStatus || $request->vendStatus === 'all') {
+                return;
+            }
+
+            switch ($request->vendStatus) {
+                case 'disposed':
+                    $query->where($table . '.is_disposed', true);
+                    break;
+                case 'factory':
+                    $query->where($table . '.is_testing', true);
+                    break;
+                case 'active':
+                    $query->where($table . '.is_active', true);
+                    break;
+                case 'inactive':
+                    $query->where($table . '.is_active', false);
+                    break;
+                case 'sold':
+                    $query->where($table . '.is_sold', true);
+                    break;
+            }
+        };
+
+        $avgMthlySalesSub = Vend::query()
+            ->selectRaw(
+                'coalesce(sum('
+                    . 'cast(json_unquote(json_extract(avg_sales_customers.totals_json, \'$.vend_records_amount_latest\')) as decimal(30, 10))'
+                    . ' / greatest(1, timestampdiff(MONTH,'
+                        . ' date_format(greatest(date(coalesce(avg_sales_customers.begin_date, date(\'' . $avgMthlySalesFloor . '\'))), date(\'' . $avgMthlySalesFloor . '\')), \'%Y-%m-01\'),'
+                        . ' date(\'' . $avgMthlySalesMonth . '\')'
+                    . ') + 1)'
+                . '), 0)'
+            )
+            // Inner join, so a machine with no site attached contributes nothing
+            // (matching the "N of M machine(s) not counted" footnote in the cell).
+            ->join('customers as avg_sales_customers', 'avg_sales_customers.id', '=', 'vends.customer_id')
+            ->whereColumn('vends.product_mapping_id', 'product_mappings.id')
+            // Columns are table-qualified throughout — customers carries is_active
+            // too, so an unqualified filter would be ambiguous.
+            ->where(function ($query) use ($avgMthlySalesStatusFilter) {
+                $avgMthlySalesStatusFilter($query, 'vends');
+            })
+            ->whereNotExists(function ($query) use ($avgMthlySalesStatusFilter) {
+                $query->selectRaw('1')
+                    ->from('vends as avg_sales_earlier_vends')
+                    ->whereColumn('avg_sales_earlier_vends.customer_id', 'vends.customer_id')
+                    ->whereColumn('avg_sales_earlier_vends.product_mapping_id', 'vends.product_mapping_id')
+                    ->whereColumn('avg_sales_earlier_vends.id', '<', 'vends.id');
+
+                $avgMthlySalesStatusFilter($query, 'avg_sales_earlier_vends');
+            })
+            ->toBase();
+
+        // Correlated sub-select feeding the "N Machine(s) at upcoming stage"
+        // figure on every row — see the long note at the ->addSelect() below for
+        // why it resolves the EFFECTIVE upcoming mapping instead of reading
+        // vends.upcoming_product_mapping_id alone.
+        //
+        // ->toBase() is deliberate: Vend carries the OperatorVendFilterScope
+        // global scope, and handing a raw Eloquent builder to addSelect() would
+        // compile the scope's SQL from a scoped clone while taking the bindings
+        // from the unscoped original (Query\Builder::parseSub) — the scope's
+        // operator_id placeholder would then have no binding for operator users.
+        // toBase() applies the scopes and returns that same builder, so SQL and
+        // bindings stay in step.
+        $upcomingVendsCountSub = Vend::query()
+            ->selectRaw('count(*)')
+            ->leftJoin(
+                'product_mappings as current_product_mappings',
+                'current_product_mappings.id',
+                '=',
+                'vends.product_mapping_id'
+            )
+            ->whereRaw('coalesce(vends.upcoming_product_mapping_id, current_product_mappings.upcoming_product_mapping_id) = product_mappings.id')
+            ->whereRaw('(vends.product_mapping_id is null or vends.product_mapping_id <> product_mappings.id)')
+            ->when($request->vendStatus && $request->vendStatus !== 'all', function ($query) use ($request) {
+                switch ($request->vendStatus) {
+                    case 'disposed':
+                        $query->where('vends.is_disposed', true);
+                        break;
+                    case 'factory':
+                        $query->where('vends.is_testing', true);
+                        break;
+                    case 'active':
+                        $query->where('vends.is_active', true);
+                        break;
+                    case 'inactive':
+                        $query->where('vends.is_active', false);
+                        break;
+                    case 'sold':
+                        $query->where('vends.is_sold', true);
+                        break;
+                }
+            })
+            ->toBase();
+
         return Inertia::render('ProductMapping/Index', [
             'cmsEndpoint' => env('CMS_URL'),
             'totalBindedVends' => $totalBindedVends,
@@ -260,6 +416,10 @@ class ProductMappingController extends Controller
                     // machine's vend_id and would keep showing sales made under a
                     // PREVIOUS customer after the machine is moved. The customer
                     // total is keyed on customer_id so it only reflects this site.
+                    // NOTE: the "Avg Mthly Sales" column does NOT ride on this
+                    // eager-load — it is summed in SQL by $avgMthlySalesSub below so
+                    // the column can be sorted across the whole result set, not just
+                    // the page on screen. Nothing to add here for it.
                     'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code,selling_price_type,totals_json',
                     'vends.vendPrefix:id,name',
                     'vends.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
@@ -277,35 +437,47 @@ class ProductMappingController extends Controller
                 ])
 
                     ->select('product_mappings.*')
-                    // "At upcoming stage" count — machines whose OWN
-                    // upcoming_product_mapping_id points at this mapping, i.e.
-                    // queued to switch onto it but not updated yet. Mirrors the
-                    // same vendStatus filter used by the binded `vends`
-                    // eager-load above so both figures in the cell are counted
-                    // on the same population. MUST stay after ->select() —
+                    // "At upcoming stage" count — machines queued to switch ONTO
+                    // this mapping but not updated to it yet.
+                    //
+                    // FIX (2026-07-30): this used to count ONLY vends whose own
+                    // `vends.upcoming_product_mapping_id` = this mapping. That
+                    // column is written solely by the vend-binding paths
+                    // (bindVends / Machine Settings), so a machine inherits its
+                    // changeover from its CURRENT mapping's preset
+                    // (`product_mappings.upcoming_product_mapping_id`) and very
+                    // often has NULL of its own — those machines were invisible
+                    // here and the cell read "0 Machine(s) at upcoming stage"
+                    // even when whole mappings were queued to move onto this one.
+                    //
+                    // Now we count on the EFFECTIVE upcoming mapping, the same
+                    // resolution order the rest of the app already uses (see
+                    // OpsJobItem::resolveUpcomingMapping, Vend/CustomerIndex.vue,
+                    // OpsJob/Edit.vue): the vend's own upcoming wins, otherwise
+                    // fall back to its current mapping's preset upcoming.
+                    //   COALESCE(vends.upcoming_product_mapping_id,
+                    //            <current mapping>.upcoming_product_mapping_id)
+                    // A vend already binded to this mapping can never be
+                    // "pending" onto it, so it is excluded outright (belt and
+                    // braces — update() forbids self-referencing upcoming and
+                    // CleanUpcomingProductMapping nulls any stale self-refs).
+                    //
+                    // Mirrors the same vendStatus filter used by the binded
+                    // `vends` eager-load above so both figures in the cell are
+                    // counted on the same population. Columns are table-qualified
+                    // because of the `current_product_mappings` self-join (both
+                    // tables carry is_active). MUST stay after ->select() —
                     // select() resets the column list and would drop this
                     // count subquery.
-                    ->withCount(['upcomingVends' => function ($query) use ($request) {
-                        if ($request->vendStatus and $request->vendStatus !== 'all') {
-                            switch ($request->vendStatus) {
-                                case 'disposed':
-                                    $query->where('is_disposed', true);
-                                    break;
-                                case 'factory':
-                                    $query->where('is_testing', true);
-                                    break;
-                                case 'active':
-                                    $query->where('is_active', true);
-                                    break;
-                                case 'inactive':
-                                    $query->where('is_active', false);
-                                    break;
-                                case 'sold':
-                                    $query->where('is_sold', true);
-                                    break;
-                            }
-                        }
-                    }])
+                    ->addSelect(['upcoming_vends_count' => $upcomingVendsCountSub])
+                    // Sortable "Avg Mthly Sales" group figure (raw minor units) — see
+                    // the long note where $avgMthlySalesSub is built. Same ->select()
+                    // ordering constraint as the count above. The generic orderBy on
+                    // the next line sorts on this alias when sortKey is
+                    // 'avg_mthly_sales_amount'; MySQL resolves ORDER BY against the
+                    // select alias, and paginate()'s count query drops the orderings
+                    // so the alias is never referenced without its select.
+                    ->addSelect(['avg_mthly_sales_amount' => $avgMthlySalesSub])
                     ->orderBy($request->sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc')
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()

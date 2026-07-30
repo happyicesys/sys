@@ -36,17 +36,20 @@ class RemoveOddTransactions implements ShouldQueue
             return;
         }
 
-        $retainPaymentMethod = PaymentMethod::where(function ($query) {
-            $query->where('code', 10)
-                ->orWhere('code', 11);
-        })->pluck('id')->toArray();
+        // Amounts / payment-method codes / operator code live on VendTransaction so
+        // PaymentGatewayLog::scopeUnreportedDispensed can exclude exactly the rows
+        // this job deletes (a swept transaction otherwise leaves its gateway log
+        // looking "never reported" and its amount gets re-added to Total Sales).
+        $retainPaymentMethod = PaymentMethod::whereIn('code', VendTransaction::ODD_TRANSACTION_RETAIN_PAYMENT_METHOD_CODES)
+            ->pluck('id')
+            ->toArray();
 
-        $testOperator = Operator::where('code', 'TEST')->pluck('id')->toArray();
+        $testOperator = Operator::where('code', VendTransaction::ODD_TRANSACTION_OPERATOR_CODE)->pluck('id')->toArray();
 
         VendTransaction::query()
             ->whereNotIn('payment_method_id', $retainPaymentMethod)
             ->where(function ($query) use ($testOperator) {
-                $query->whereIn('amount', [0, 10, 20, 20000])
+                $query->whereIn('amount', VendTransaction::ODD_TRANSACTION_AMOUNTS)
                     ->orWhereIn('operator_id', $testOperator);
             })
             ->where('vend_transactions.created_at', '>=', Carbon::parse($this->from)->startOfDay())

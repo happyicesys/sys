@@ -103,6 +103,14 @@ return [
     'attachments' => [
         'max_count' => env('REFUND_ATTACHMENT_MAX_COUNT', 3),
         'max_kb' => env('REFUND_ATTACHMENT_MAX_KB', 30720), // 30 MB
+        // Storage disk for customer receipt photos/videos. 'local' (default)
+        // keeps them on the droplet; 'digitaloceanspaces' stores them PRIVATELY
+        // on DO Spaces (same disk the transaction exports use, but without
+        // public visibility — they are always served through the authed
+        // /refunds/{ticket}/attachments/{attachment} route, never by URL).
+        // Reads fall back to 'local' so flipping this is deploy-safe; migrate
+        // old files with: php artisan refund:attachments-to-spaces
+        'disk' => env('REFUND_ATTACHMENT_DISK', 'local'),
     ],
 
 ];
