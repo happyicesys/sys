@@ -243,7 +243,13 @@
                       went away with the group total (see ProductMappingController).
                     -->
                     <TableHead>
-                      <div class="flex flex-col space-y-1">
+                      <!--
+                        The full explanation of this column lives HERE, on the header,
+                        not on every figure. It used to hang off each number, where a
+                        paragraph-length tooltip covered most of the screen on hover.
+                        Figures now carry only their own month-on-month change.
+                      -->
+                      <div class="flex flex-col space-y-1 cursor-help" v-tooltip="avgMthlySalesTooltip">
                         <span>Avg Mthly Sales</span>
                         <span class="text-black font-normal text-xs">{{ operatorCountry.currency_symbol }} / month</span>
                         <span class="text-black font-normal text-xs">(per machine, by site)</span>
@@ -562,13 +568,59 @@
                           </span>
                           <ul class="divide-y divide-gray-200">
                             <li class="flex items-center justify-center py-1 px-3" v-for="vend in productMapping.vends">
+                              <!--
+                                The figure and its arrow are wrapped in ONE <template v-if>
+                                so the grey "—" below stays the v-else of *hasAvgMthlySales*.
+                                Do NOT flatten this: Vue pairs v-else with the nearest
+                                preceding ELEMENT (skipping only whitespace and comments), so
+                                putting the arrow span directly between the figure and the
+                                dash silently re-parents the dash onto the ARROW's v-if — and
+                                a machine with a figure but no trend then renders the figure
+                                AND the dash side by side, the dash claiming there is nothing
+                                to average. That shipped briefly; it hit 9 of 400 live rows.
+                              -->
+                              <template v-if="hasAvgMthlySales(vend)">
                               <span
-                                v-if="hasAvgMthlySales(vend)"
+                                class="whitespace-nowrap"
                                 :class="[vend.is_active || vend.is_testing ? 'text-gray-800 font-semibold' : 'text-gray-400']"
-                                v-tooltip="avgMthlySalesTooltip"
+                                v-tooltip="avgMthlySalesFigureTooltip(vend)"
                               >
                                 {{ operatorCountry.currency_symbol }}{{ avgMthlySales(vend).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
                               </span>
+                              <!--
+                                Month-over-month arrow: last COMPLETE month vs the month
+                                before, for this machine's site. Separate from the figure
+                                on its left, which is a lifetime average — see
+                                avgMthlySalesTrend() for why the current month is not used
+                                and why this isn't a 30-day comparison.
+
+                                No arrow at all when there is nothing to compare (older
+                                totals_json shapes have no month buckets, or the site sold
+                                nothing in either month). That is deliberately different
+                                from the flat dot, which means "compared, and it barely
+                                moved".
+
+                                Kept to a single inline glyph, and the figure beside it is
+                                whitespace-nowrap, so the row can never grow to two lines —
+                                alignAvgMthlySalesRows() pins each row to the height of its
+                                twin in the machines cell, so a wrap here would overflow
+                                rather than push the row taller.
+                              -->
+                              <span
+                                v-if="avgMthlySalesTrend(vend)"
+                                class="ml-1 text-[10px] leading-none shrink-0"
+                                :class="{
+                                  'text-green-600': avgMthlySalesTrend(vend).dir === 'up',
+                                  'text-red-600': avgMthlySalesTrend(vend).dir === 'down',
+                                  'text-gray-400': avgMthlySalesTrend(vend).dir === 'flat',
+                                }"
+                                v-tooltip="avgMthlySalesTrend(vend).tooltip"
+                              >
+                                <span v-if="avgMthlySalesTrend(vend).dir === 'up'">&#9650;</span>
+                                <span v-else-if="avgMthlySalesTrend(vend).dir === 'down'">&#9660;</span>
+                                <span v-else>&bull;</span>
+                              </span>
+                              </template>
                               <span
                                 v-else
                                 class="text-gray-400"
@@ -781,7 +833,10 @@ const vendStatusOptions = ref([])
 // from config/reporting.php — same floor CustomerIndex uses) so an abnormally old,
 // zero or missing begin date can't inflate the month count and crush the average.
 // Floor of 1 month guards against a begin date in the future.
-const avgMthlySalesTooltip = 'Average monthly sales of the SITE this machine stands at: lifetime sales / the number of calendar months the site has been operating (from its begin date, floored at the app reporting floor, counting both the begin month and this month). A lifetime average, not a 30-day projection, so it will not match the L30d figure. Same number the Machine page shows for this machine. Two machines at the same site show the same figure — do not add the lines up.'
+// Column-level explanation, shown on the HEADER only. Everything a reader needs
+// to interpret the column lives here, so the per-figure tooltips can stay to one
+// short line. Keep the arrow legend in sync with computeAvgMthlySalesTrend().
+const avgMthlySalesTooltip = 'Average monthly sales of the SITE this machine stands at: lifetime sales / the number of calendar months the site has been operating (from its begin date, floored at the app reporting floor, counting both the begin month and this month). A lifetime average, not a 30-day projection, so it will not match the L30d figure. Same number the Machine page shows for this machine. Two machines at the same site show the same figure — do not add the lines up.   ▲ ▼ • = last COMPLETE month vs the month before it, for that site — two closed months, so it does not drift as the current month fills up. A change within ±1% shows as • (no change). Hover any figure for its exact change.'
 
 // True when this machine has something to average — a site, and a site whose
 // totals_json already carries a lifetime figure. Drives the grey "—" so an empty
@@ -829,6 +884,131 @@ function avgMthlySales(vend) {
   )
 
   return lifetime / months
+}
+
+// ---------------------------------------------------------------------------
+// Month-over-month trend arrow
+// ---------------------------------------------------------------------------
+// The figure to the left is a LIFETIME average, which barely moves — so on its
+// own it never tells ops whether a site is picking up or dying. The arrow adds
+// that: it compares the last COMPLETE calendar month against the month before
+// it, for the same SITE the figure is derived from.
+//
+// WHY LAST-COMPLETE, NOT CURRENT: `current_mth_amount` is the month in progress.
+// On the 1st of a month it holds a few dollars, so an arrow using it would show
+// the entire fleet collapsing every month-start. `last_mth_amount` is always a
+// closed month, so the comparison is like-for-like on any day.
+//
+// WHY NOT 30 DAYS: totals_json carries `thirty_days_amount` (the L30d chip in
+// the neighbouring column) but there is NO previous-30-day twin anywhere in the
+// schema — a rolling comparison would need new SQL over vend_transactions. The
+// month buckets are already in this page's payload, so this costs no extra
+// query.
+//
+// SOURCE / NAMING: verified on live against customer_period_summaries (the
+// authoritative monthly ledger) — `last_mth_amount` equals that site's previous
+// calendar month to the cent, and `last_2_mth_amount` the month before it. They
+// are DISCRETE months, not rolling or cumulative sums, despite the "last_2"
+// name reading like "the last 2 months combined".
+//
+// Raw minor units, same convention as vend_records_amount_latest.
+//
+// Returns null when there is nothing honest to compare — the keys are absent
+// (older totals_json shapes lack them), or both months are zero. Null renders no
+// arrow at all, which is deliberately distinct from a flat arrow: "we don't
+// know" must not look like "no change".
+//
+// MEMOISED per vend object (see avgMthlySalesTrend below) because the template
+// needs the result three times per row — v-if, colour class and tooltip — and
+// this builds a string with two toLocaleString calls. On a "All" page that is
+// thousands of rows; computing it once per machine keeps it off the render path.
+function computeAvgMthlySalesTrend(vend) {
+  const totals = (vend && vend.customer) ? vend.customer.vendTransactionTotalsJson : null
+  if (!totals) {
+    return null
+  }
+  if (!('last_mth_amount' in totals) || !('last_2_mth_amount' in totals)) {
+    return null
+  }
+
+  const last = Number(totals['last_mth_amount'] || 0)
+  const prev = Number(totals['last_2_mth_amount'] || 0)
+  if (!isFinite(last) || !isFinite(prev)) {
+    return null
+  }
+  // A site with no sales in either month has no trend, only absence.
+  if (last === 0 && prev === 0) {
+    return null
+  }
+
+  const exponent = operatorCountry.currency_exponent ?? 2
+  const toMajor = (cents) => (cents / Math.pow(10, exponent)).toLocaleString(undefined, {
+    minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : exponent,
+    maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : exponent,
+  })
+
+  // Percentage is undefined against a zero base — a site that sold nothing last
+  // month and something this month is "up", but not "up N%". Keep pct null and
+  // let the tooltip say so rather than printing Infinity.
+  const pct = prev > 0 ? ((last - prev) / prev) * 100 : null
+
+  // ±1% deadband: without it, ordinary noise paints half the column red and ops
+  // stops trusting the arrows.
+  let dir = 'flat'
+  if (pct === null) {
+    dir = last > 0 ? 'up' : 'flat'
+  } else if (pct >= 1) {
+    dir = 'up'
+  } else if (pct <= -1) {
+    dir = 'down'
+  }
+
+  // SHORT on purpose: the column's full explanation is on the header tooltip, so
+  // hovering a figure only has to answer "which way, and by how much?".
+  // pct is null ONLY when the prior month is zero — both-months-zero already
+  // returned null above — so that branch always means a new or restarted site.
+  const headline = pct === null
+    ? 'New — no sales the month before'
+    : (pct >= 0 ? '+' : '') + pct.toFixed(1) + '% vs the month before'
+
+  return {
+    dir,
+    pct,
+    tooltip: headline
+      + ' (' + operatorCountry.currency_symbol + toMajor(prev)
+      + ' → ' + operatorCountry.currency_symbol + toMajor(last) + ')',
+  }
+}
+
+// Tooltip for the figure itself: its own month-on-month change, or a one-liner
+// saying why there is no arrow. Never the column explanation — that is on the
+// header, so hovering a number can no longer blanket the screen.
+function avgMthlySalesFigureTooltip(vend) {
+  const trend = avgMthlySalesTrend(vend)
+
+  return trend
+    ? trend.tooltip
+    : 'No month-on-month comparison for this site yet.'
+}
+
+// Memo keyed on the vend object itself. Inertia hands us a fresh object graph on
+// every navigation, so entries die with the page and a WeakMap needs no manual
+// clearing. Safe because this page's row data is render-only — nothing mutates a
+// vend's totals in place; if that ever changes, this cache has to go.
+const avgMthlySalesTrendCache = new WeakMap()
+
+function avgMthlySalesTrend(vend) {
+  if (!vend || typeof vend !== 'object') {
+    return null
+  }
+  if (avgMthlySalesTrendCache.has(vend)) {
+    return avgMthlySalesTrendCache.get(vend)
+  }
+
+  const trend = computeAvgMthlySalesTrend(vend)
+  avgMthlySalesTrendCache.set(vend, trend)
+
+  return trend
 }
 
 // ---------------------------------------------------------------------------

@@ -42,7 +42,12 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'visitor-history',
                 ['read'],
-                ['superadmin', 'admin']
+                // 2026-08-01: superadmin ONLY. Login sessions / IP / device / per-page
+                // dwell time for every user is audit data, so it stays off the admin
+                // tier. Keep 'superadmin' listed even though Gate::before already lets
+                // it pass - HandleInertiaRequests shares the ROLE's permission rows, so
+                // dropping it here would hide the sidebar item from superadmin too.
+                ['superadmin']
             ],
             [
                 'dashboard',

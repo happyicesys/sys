@@ -1318,9 +1318,30 @@
 									<span v-else-if="vend.product_mapping_name" :title="vend.product_mapping_name" class="text-xs text-gray-800 min-w-0 break-all">
 										{{ vend.product_mapping_name }}
 									</span>
-									<!-- "New" badge: machine has an upcoming new mapping. Tooltip shows what it's changing to. -->
+									<!-- "New" badge: machine has an upcoming new mapping. Tooltip names it;
+									     clicking opens THAT mapping (not the current one) in a new tab, the
+									     same target the current-mapping link above uses.
+
+									     Rendered as <a> only when the resolved mapping carries an id. Both
+									     upcoming relations are eager-loaded `:id,name` so it always does
+									     today — the <span> branch exists so a future select-trim degrades
+									     to the old non-clickable badge instead of linking to
+									     /product-mappings/undefined/edit.
+
+									     target="_blank" matches the current-mapping link beside it. No
+									     permission gate for the same reason: /product-mappings/{id}/edit is
+									     auth-only, and the current-mapping link next to it is ungated too. -->
+									<a
+										v-if="getUpcomingMappingName(vend.vend) && getUpcomingMapping(vend.vend).id"
+										:href="'/product-mappings/' + getUpcomingMapping(vend.vend).id + '/edit'"
+										target="_blank"
+										class="inline-flex shrink-0 items-center rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-400 leading-none hover:bg-indigo-200 hover:underline cursor-pointer"
+										:title="'Upcoming new mapping: ' + getUpcomingMappingName(vend.vend) + ' — click to open in a new tab'"
+									>
+										New
+									</a>
 									<span
-										v-if="getUpcomingMappingName(vend.vend)"
+										v-else-if="getUpcomingMappingName(vend.vend)"
 										class="inline-flex shrink-0 items-center rounded px-1 py-0.5 text-[10px] font-semibold border w-fit bg-indigo-100 text-indigo-800 border-indigo-400 leading-none"
 										:title="'Upcoming new mapping: ' + getUpcomingMappingName(vend.vend)"
 									>
@@ -2100,9 +2121,22 @@
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.lastSecondOpsJobItem.vend && (vend.lastSecondOpsJobItem.vend.upcomingProductMapping || (vend.lastSecondOpsJobItem.vend.productMapping && vend.lastSecondOpsJobItem.vend.productMapping.upcomingProductMapping))">
 										{{ vend.lastSecondOpsJobItem.vend.productMapping ? vend.lastSecondOpsJobItem.vend.productMapping.name : '' }}
+										<!-- Upcoming mapping name links to that mapping in a new tab, same as
+										     the "New" badge in the machine column. Deliberately NO class: with
+										     Tailwind preflight (a { color: inherit; text-decoration: inherit })
+										     an unstyled <a> looks identical to the purple text around it, so
+										     this adds the link without changing the appearance. The pointer
+										     cursor on hover is the browser default for <a href> and is the only
+										     affordance. <template v-else> keeps the plain text when no id. -->
 										<span v-if="getUpcomingMappingName(vend.lastSecondOpsJobItem.vend)">
 											&RightArrow;
-											{{ getUpcomingMappingName(vend.lastSecondOpsJobItem.vend) }}
+											<a
+												v-if="getUpcomingMapping(vend.lastSecondOpsJobItem.vend)?.id"
+												:href="'/product-mappings/' + getUpcomingMapping(vend.lastSecondOpsJobItem.vend).id + '/edit'"
+												target="_blank"
+												:title="'Open ' + getUpcomingMappingName(vend.lastSecondOpsJobItem.vend) + ' in a new tab'"
+											>{{ getUpcomingMappingName(vend.lastSecondOpsJobItem.vend) }}</a>
+											<template v-else>{{ getUpcomingMappingName(vend.lastSecondOpsJobItem.vend) }}</template>
 										</span>
 									</span>
 								</div>
@@ -2171,9 +2205,17 @@
 									</span>
 									<span class="text-[10px] text-purple-600 font-medium leading-tight text-center" v-if="vend.nextOpsJobItem.vend && (vend.nextOpsJobItem.vend.upcomingProductMapping || (vend.nextOpsJobItem.vend.productMapping && vend.nextOpsJobItem.vend.productMapping.upcomingProductMapping))">
 										{{ vend.nextOpsJobItem.vend.productMapping ? vend.nextOpsJobItem.vend.productMapping.name : '' }}
+										<!-- Same as the Last 2 Job block above: unstyled <a> so the link is
+										     added without altering the look. See that comment for why. -->
 										<span v-if="getUpcomingMappingName(vend.nextOpsJobItem.vend)">
 											&RightArrow;
-											{{ getUpcomingMappingName(vend.nextOpsJobItem.vend) }}
+											<a
+												v-if="getUpcomingMapping(vend.nextOpsJobItem.vend)?.id"
+												:href="'/product-mappings/' + getUpcomingMapping(vend.nextOpsJobItem.vend).id + '/edit'"
+												target="_blank"
+												:title="'Open ' + getUpcomingMappingName(vend.nextOpsJobItem.vend) + ' in a new tab'"
+											>{{ getUpcomingMappingName(vend.nextOpsJobItem.vend) }}</a>
+											<template v-else>{{ getUpcomingMappingName(vend.nextOpsJobItem.vend) }}</template>
 										</span>
 									</span>
 								</div>
@@ -3946,9 +3988,9 @@ function netLocFeeCents(vend) {
 	return Number(vend.location_fees_cents || 0) - extSubCents(vend)
 }
 
-// Returns the name of a machine's upcoming new product mapping, or null when
-// there isn't one. An upcoming mapping can live directly on the vend
-// (vend.upcomingProductMapping) or on its current mapping
+// Returns the RESOLVED upcoming new product mapping object ({id, name, ...}) for
+// a machine, or null when there isn't one. An upcoming mapping can live directly
+// on the vend (vend.upcomingProductMapping) or on its current mapping
 // (productMapping.upcomingProductMapping). 'N/A' is treated as "no upcoming
 // mapping". Drives the "New" badge in the machine column.
 //
@@ -3958,19 +4000,38 @@ function netLocFeeCents(vend) {
 // source of truth — matching the promotion logic (OpsJobController) and
 // OpsJob/Edit.vue. Only fall back to the mapping's preset when the vend has no
 // own upcoming (legacy rows never saved through the new form).
-function getUpcomingMappingName(vendData) {
+//
+// Returns the whole object (not just the name) so the "New" badge can link
+// straight to /product-mappings/{id}/edit. Both relations are eager-loaded as
+// `:id,name` in VendController::customerIndex, so `id` is always present in
+// practice — but the badge still falls back to plain text if it ever isn't,
+// rather than rendering a link to /product-mappings/undefined/edit.
+function getUpcomingMapping(vendData) {
 	if (!vendData) return null
 	const fromVend = vendData.upcomingProductMapping
 		&& vendData.upcomingProductMapping.name !== 'N/A'
-			? vendData.upcomingProductMapping.name
+			? vendData.upcomingProductMapping
 			: null
-	if (fromVend) return fromVend
+	// `&& fromVend.name` keeps EXACT parity with the pre-2026-08 version, which
+	// held the name string here and so fell through to the mapping's preset when
+	// the name was empty. Returning the object made that check vacuously true.
+	// No mapping on live has a blank name (product_mappings.name is NOT NULL and
+	// the controller validates it), so this is parity insurance, not a live fix.
+	if (fromVend && fromVend.name) return fromVend
 	const fromMapping = vendData.productMapping
 		&& vendData.productMapping.upcomingProductMapping
 		&& vendData.productMapping.upcomingProductMapping.name !== 'N/A'
-			? vendData.productMapping.upcomingProductMapping.name
+			? vendData.productMapping.upcomingProductMapping
 			: null
 	return fromMapping
+}
+
+// Name-only wrapper — kept because the Last 2 Job / Upcoming Job columns render
+// the name inline. Delegates so there is ONE resolution path: changing the
+// precedence above can never leave the badge and those columns disagreeing.
+function getUpcomingMappingName(vendData) {
+	const mapping = getUpcomingMapping(vendData)
+	return mapping ? mapping.name : null
 }
 
 // Last Job mapping (the "Last Job" column) — frozen-aware. Once the last-job
