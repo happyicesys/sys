@@ -22,6 +22,18 @@ class CustomerResource extends JsonResource
             'id' => $this->id,
             'ref_id' => $this->id + 20000,
             'begin_date' => Carbon::parse($this->begin_date)->toDateString(),
+            // NULL-SAFE twin of `begin_date` above. `begin_date` is deliberately
+            // left as-is (many screens print it and expect a string), but
+            // Carbon::parse(null) resolves to NOW — so a customer with no
+            // begin_date, or a partial eager-load that didn't select the column,
+            // silently reads as "began today". Any DERIVED figure (e.g. lifetime
+            // sales / months operating) would then divide by 1 month and be
+            // wildly inflated. Consumers doing arithmetic must read THIS key and
+            // apply their own floor when it is null. Timezone-converted like
+            // `begin_date_short` below and like VendResource::begin_date, so the
+            // month it falls in matches what Vend/CustomerIndex derives from the
+            // same column.
+            'begin_date_nullable' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'category_id' => CategoryResource::make($this->whenLoaded('category')),
             'code' => $this->code,

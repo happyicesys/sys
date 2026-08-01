@@ -42,7 +42,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ResourceCenterController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingController;
-use App\Http\Controllers\SmartFreezerSettingController;
+use App\Http\Controllers\ApkReleaseController;
 use App\Http\Controllers\OtaController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SimcardController;
@@ -687,24 +687,31 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('can:update machine-settings');
     });
 
-    Route::prefix('smart-freezer-settings')->group(function () {
-        Route::get('/', [SmartFreezerSettingController::class, 'index'])->name('smart-freezer-settings')
-            ->middleware('can:read machine-settings');
-        Route::post('/releases', [SmartFreezerSettingController::class, 'storeRelease'])
-            ->middleware('can:create machine-settings');
-        Route::post('/releases/{id}/publish', [SmartFreezerSettingController::class, 'publish'])
-            ->middleware('can:update machine-settings');
-        Route::post('/releases/{id}/unpublish', [SmartFreezerSettingController::class, 'unpublish'])
-            ->middleware('can:update machine-settings');
-        Route::post('/releases/{id}/rollout', [SmartFreezerSettingController::class, 'updateRollout'])
-            ->middleware('can:update machine-settings');
-        Route::post('/releases/{id}/mandatory', [SmartFreezerSettingController::class, 'toggleMandatory'])
-            ->middleware('can:update machine-settings');
-        Route::delete('/releases/{id}', [SmartFreezerSettingController::class, 'destroy'])
-            ->middleware('can:update machine-settings');
-        Route::post('/push-ota-check', [SmartFreezerSettingController::class, 'pushOtaCheck'])
-            ->middleware('can:update machine-settings');
+    // APK OTA Updates — one page, one tab per channel (config/ota.php). Uploading a
+    // build and publishing it to the fleet has a far wider blast radius than editing
+    // a machine setting, so it carries its own permission set rather than riding
+    // machine-settings.
+    Route::prefix('apk-releases')->group(function () {
+        Route::get('/', [ApkReleaseController::class, 'index'])->name('apk-releases')
+            ->middleware('can:read apk-releases');
+        Route::post('/releases', [ApkReleaseController::class, 'storeRelease'])
+            ->middleware('can:create apk-releases');
+        Route::post('/releases/{id}/publish', [ApkReleaseController::class, 'publish'])
+            ->middleware('can:update apk-releases');
+        Route::post('/releases/{id}/unpublish', [ApkReleaseController::class, 'unpublish'])
+            ->middleware('can:update apk-releases');
+        Route::post('/releases/{id}/rollout', [ApkReleaseController::class, 'updateRollout'])
+            ->middleware('can:update apk-releases');
+        Route::post('/releases/{id}/mandatory', [ApkReleaseController::class, 'toggleMandatory'])
+            ->middleware('can:update apk-releases');
+        Route::delete('/releases/{id}', [ApkReleaseController::class, 'destroy'])
+            ->middleware('can:delete apk-releases');
+        Route::post('/push-ota-check', [ApkReleaseController::class, 'pushOtaCheck'])
+            ->middleware('can:update apk-releases');
     });
+
+    // Former name of the page above; kept so existing bookmarks do not 404.
+    Route::redirect('/smart-freezer-settings', '/apk-releases?channel=smart_freezer', 301);
 
     Route::prefix('machine-alert-parameters')->group(function () {
         Route::get('/', [VendAlertParameterController::class, 'index'])->name('machine-alert-parameters');

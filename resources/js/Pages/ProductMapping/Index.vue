@@ -215,45 +215,40 @@
                       </div>
                     </TableHead>
                     <!--
-                      Avg Mthly Sales — GROUP figure for the whole product mapping,
-                      i.e. the sum of the average monthly sales of every site this
-                      mapping is binded to. Same "true average monthly sales" idea as
-                      Vend/CustomerIndex.vue's "Avg Mthly Sales $" column (lifetime
-                      sales ÷ months operating, NOT a 30-day projection), but grouped
-                      per product mapping instead of per machine.
+                      Avg Mthly Sales — ONE FIGURE PER BINDED MACHINE, listed in the
+                      same order (and with the same "N. code" prefix) as the Binded
+                      Vending Machines column on its left, so the two lists read
+                      side by side.
 
-                      The per-site figure is SITE-based (customers.totals_json +
-                      customers.begin_date), deliberately matching the L30d Sales chip
-                      in the Binded Vending Machines column rather than
-                      Vend/CustomerIndex.vue's machine-based figure. Consequence worth
-                      knowing: the figures here will NOT tally with the Machine page's
-                      Avg Mthly Sales $, and a site hosting machines on OTHER mappings
-                      too contributes its whole site average here.
+                      CHANGED 2026-07-31 after ops feedback: this used to be a single
+                      GROUP figure (the sum over the mapping's binded sites) and users
+                      read it as a per-machine number. It is now literally the same
+                      value Vend/CustomerIndex.vue prints in its "Avg Mthly Sales $"
+                      column for that machine — same numerator, same denominator,
+                      same reporting floor — so the two pages tally machine for
+                      machine.
 
-                      SORTABLE, and therefore summed in SQL
-                      (ProductMappingController::index $avgMthlySalesSub → the
-                      avg_mthly_sales_amount alias) rather than in this component the
-                      way CustomerIndex does it: sorting a client-side figure would
-                      only ever reorder the rows on the current page.
+                      Both pages are SITE-based: CustomerIndex selects
+                      `customers.totals_json AS vend_transaction_totals_json` and
+                      `customers.begin_date` onto the vend row (VendController::
+                      customerIndex), i.e. its per-machine figure is really the
+                      machine's SITE figure. Here we read the same two columns off
+                      the eager-loaded vend.customer. Consequence worth knowing:
+                      two machines standing at the SAME site show the SAME figure
+                      (that site's average) — on both pages — so the lines must not
+                      be added up.
 
-                      First click sorts DESC — highest-earning menu at the top, which
-                      is what this column is for. That is what passing inverse=false
-                      does given sortTable()'s toggle (sortBy starts true = asc, the
-                      unconditional flip makes the first click desc); pass true
-                      instead to make the first click ascending.
+                      NOT SORTABLE any more. A per-machine list has no single value
+                      to sort rows by; the SQL sum that made the header clickable
+                      went away with the group total (see ProductMappingController).
                     -->
-                    <TableHeadSort
-                      modelName="avg_mthly_sales_amount"
-                      :sortKey="filters.sortKey"
-                      :sortBy="filters.sortBy"
-                      @sort-table="sortTable('avg_mthly_sales_amount', false)"
-                    >
+                    <TableHead>
                       <div class="flex flex-col space-y-1">
                         <span>Avg Mthly Sales</span>
                         <span class="text-black font-normal text-xs">{{ operatorCountry.currency_symbol }} / month</span>
-                        <span class="text-black font-normal text-xs">(all binded sites)</span>
+                        <span class="text-black font-normal text-xs">(per machine, by site)</span>
                       </div>
-                    </TableHeadSort>
+                    </TableHead>
                     <TableHead>
                       Menu
                     </TableHead>
@@ -338,7 +333,17 @@
                         </ul>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
-                        <div class="flex flex-col space-y-1">
+                        <!--
+                          :ref registers this wrapper as the HEIGHT SOURCE for the Avg
+                          Mthly Sales column next door — alignAvgMthlySalesRows() copies
+                          the height of EACH of its three children (heading, machine
+                          list, upcoming-stage footnote) onto the twin in that cell, and
+                          each <li> inside the list onto the matching figure row. The
+                          child ORDER is what the script keys on, so keep it
+                          heading → <ul> → footnote. Nothing else reads this ref;
+                          removing it just makes that column stop lining up.
+                        -->
+                        <div class="flex flex-col space-y-1" :ref="(el) => setBindedVendsCellRef(productMapping.id, el)">
                           <span class="text-center text-indigo-600 p-2 text-xs">
                             {{ productMapping.vends.length }} Machine(s)
                           </span>
@@ -519,30 +524,62 @@
                         </div>
                       </TableData>
                       <!--
-                        Avg Mthly Sales (group total) — see the matching TableHead
-                        comment above. One figure per mapping, summed IN SQL so the
-                        header sort covers every row and not just this page; this cell
-                        only formats it. Greyed when zero. The grey footnote is counted
-                        here in the component (it needs the per-machine list, which the
-                        SQL figure doesn't carry) and only appears when some binded
-                        machines could NOT contribute — no site attached, or the site's
-                        totals_json has no lifetime figure yet — so the headline number
-                        is never quietly short without saying so.
+                        Avg Mthly Sales — one figure per binded machine, on the SAME
+                        LINE as that machine in the Binded Vending Machines cell to
+                        the left. No machine code is repeated here: the row position
+                        IS the identification, which is why the alignment has to hold.
+
+                        This cell is a structural TWIN of the machines cell: same
+                        `flex flex-col space-y-1` wrapper with the same THREE children
+                        in the same order (heading, `divide-y` <ul> over the same
+                        v-for, upcoming-stage footnote), and the same `py-1 px-3` row
+                        box. alignAvgMthlySalesRows() then copies the measured height
+                        of every one of those parts from the machines cell onto its
+                        twin here — the two blocks end up exactly the same height, so
+                        the <td> default vertical-align:middle centres them
+                        identically, and every figure lands on its machine's line.
+
+                        The heading/footnote text is duplicated (invisible) only as a
+                        FALLBACK height for the frame before the script runs. Do NOT
+                        rely on it matching: this column is much narrower, so
+                        "N Machine(s) at upcoming stage" wraps to more lines here than
+                        it does over there — that mismatch is exactly what made the
+                        first attempt sit ~1 line high. Hence `overflow-hidden`, and
+                        hence the script measuring these two spans rather than
+                        trusting the markup to match.
+
+                        Failure mode is cosmetic: no JS = the figures keep the right
+                        values in the right order, just drifting off their line.
+
+                        "—" (grey) means the machine has no site attached, or its
+                        site's totals_json carries no lifetime figure yet, i.e. there
+                        is nothing to average — not that it sold nothing.
                       -->
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
-                        <div class="flex flex-col space-y-1">
-                          <span
-                            :class="avgMthlySales(productMapping) > 0 ? 'text-gray-900 font-semibold' : 'text-gray-400'"
-                            v-tooltip="avgMthlySalesTooltip"
-                          >
-                            {{ operatorCountry.currency_symbol }}{{ avgMthlySales(productMapping).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                        <div class="flex flex-col space-y-1" :ref="(el) => setAvgMthlySalesCellRef(productMapping.id, el)">
+                          <span class="text-center p-2 text-xs invisible overflow-hidden" aria-hidden="true">
+                            {{ productMapping.vends.length }} Machine(s)
                           </span>
-                          <span
-                            class="text-gray-400 text-xs"
-                            v-if="avgMthlySalesUncounted(productMapping) > 0"
-                            v-tooltip="'These binded machines have no site attached, or their site has no lifetime sales figure yet, so they contribute nothing to the total above.'"
-                          >
-                            {{ avgMthlySalesUncounted(productMapping) }} of {{ productMapping.vends.length }} machine(s) not counted
+                          <ul class="divide-y divide-gray-200">
+                            <li class="flex items-center justify-center py-1 px-3" v-for="vend in productMapping.vends">
+                              <span
+                                v-if="hasAvgMthlySales(vend)"
+                                :class="[vend.is_active || vend.is_testing ? 'text-gray-800 font-semibold' : 'text-gray-400']"
+                                v-tooltip="avgMthlySalesTooltip"
+                              >
+                                {{ operatorCountry.currency_symbol }}{{ avgMthlySales(vend).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                              </span>
+                              <span
+                                v-else
+                                class="text-gray-400"
+                                v-tooltip="'No site attached, or this site has no lifetime sales figure yet, so there is nothing to average.'"
+                              >
+                                —
+                              </span>
+                            </li>
+                          </ul>
+                          <span class="text-center px-2 pt-2 text-xs invisible overflow-hidden" aria-hidden="true">
+                            {{ productMapping.upcoming_vends_count || 0 }} Machine(s) at upcoming stage
                           </span>
                         </div>
                       </TableData>
@@ -672,7 +709,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import TableData from '@/Components/TableData.vue';
 import { Head, usePage } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUpdated, onBeforeUnmount, nextTick } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import moment from 'moment';
@@ -718,78 +755,238 @@ const vendPrefixOptions = ref([])
 const vendStatusOptions = ref([])
 
 // ---------------------------------------------------------------------------
-// Avg Mthly Sales (group column)
+// Avg Mthly Sales (per binded machine)
 // ---------------------------------------------------------------------------
-// The figure itself is computed IN SQL, not here — see
-// ProductMappingController::index() ($avgMthlySalesSub → the
-// avg_mthly_sales_amount alias, raw minor units). It lives server-side because
-// the header is SORTABLE: a client-side figure could only ever reorder the rows
-// on the current page, never the whole paginated set.
+// A straight port of Vend/CustomerIndex.vue's avgMthlySales() helper, on purpose:
+// the two pages must print the SAME number for the same machine. Ops compared the
+// old group total against the Machine page and read it as a per-machine figure
+// (2026-07-31 feedback), so the column now lists one figure per binded machine
+// instead of one sum per mapping.
 //
 // What it means: TRUE average monthly sales over the operating lifetime —
 // lifetime sales divided by the COUNT of calendar months operated, inclusive of
-// both the begin month and the current month. NOT a 30-day projection, so it is
-// not expected to match the L30d chips in the neighbouring column.
+// BOTH the begin month and the current month (a machine that began 2026-03-10 and
+// is viewed in May 2026 has operated Mar/Apr/May = 3 months, whatever day it
+// started). NOT a 30-day projection, so it is not expected to match the L30d chip
+// on the same row.
 //
-// Two deliberate differences from Vend/CustomerIndex.vue's "Avg Mthly Sales $":
-//   1. GROUPING — one figure per product mapping (the sum over its binded
-//      sites), not one per machine.
-//   2. SOURCE — SITE-based (customers.totals_json + customers.begin_date),
-//      matching the L30d chip on this page rather than CustomerIndex's
-//      machine-based vends.vend_transaction_totals_json. The vend total follows
-//      the machine's vend_id and would keep counting sales earned under a
-//      previous site after the machine is moved.
-//      Consequence: figures here will NOT tally with the Machine page, and a
-//      site that also hosts machines on OTHER mappings still contributes its
-//      whole site average to this mapping's total.
+// SOURCE — site-based, exactly like CustomerIndex: that page selects
+// `customers.totals_json AS vend_transaction_totals_json` and `customers.begin_date`
+// onto each vend row (VendController::customerIndex), so its "per machine" figure
+// is really the machine's SITE figure. Here the same two columns arrive on the
+// eager-loaded vend.customer. Two machines at the same site therefore show the
+// SAME figure on both pages — the lines are not additive.
 //
-// Sites are summed ONCE even if several of a mapping's binded machines sit at
-// the same site — the site figure already covers all of them. That is inherent
-// to the subquery being driven from customers rather than from vends.
-const avgMthlySalesTooltip = 'Sum of the average monthly sales of every site this mapping is binded to. Per site: lifetime sales / the number of calendar months the site has been operating (counted from its begin date, floored at the app reporting floor, inclusive of the begin month and this month). A lifetime average, not a 30-day projection, so it will not match the L30d figures — and being site-based it is not expected to tally with the Avg Mthly Sales $ on the Machine page. Each site counts once even if it hosts several of this mapping\'s machines. Click the header to sort.'
+// The begin month is floored at the app-wide reporting floor (shared Inertia prop,
+// from config/reporting.php — same floor CustomerIndex uses) so an abnormally old,
+// zero or missing begin date can't inflate the month count and crush the average.
+// Floor of 1 month guards against a begin date in the future.
+const avgMthlySalesTooltip = 'Average monthly sales of the SITE this machine stands at: lifetime sales / the number of calendar months the site has been operating (from its begin date, floored at the app reporting floor, counting both the begin month and this month). A lifetime average, not a 30-day projection, so it will not match the L30d figure. Same number the Machine page shows for this machine. Two machines at the same site show the same figure — do not add the lines up.'
 
-// Display value: the SQL sum arrives in raw minor units, same convention as
-// totals_json->vend_records_amount_latest.
-function avgMthlySales(productMapping) {
-  const amount = Number(productMapping.avg_mthly_sales_amount || 0)
-  if (!isFinite(amount)) {
+// True when this machine has something to average — a site, and a site whose
+// totals_json already carries a lifetime figure. Drives the grey "—" so an empty
+// cell is never mistaken for a zero-selling machine.
+function hasAvgMthlySales(vend) {
+  const customer = vend ? vend.customer : null
+  if (!customer) {
+    return false
+  }
+
+  const totals = customer.vendTransactionTotalsJson
+  return !!totals && ('vend_records_amount_latest' in totals)
+}
+
+// Display value, in major units. Numerator is raw minor units (same convention as
+// totals_json->vend_records_amount_latest), so divide by the currency exponent.
+//
+// begin_date_nullable, NOT begin_date: CustomerResource's `begin_date` runs
+// Carbon::parse() unguarded and a NULL column (or one left out of a partial
+// eager-load) resolves to TODAY — which would make months = 1 and report a whole
+// lifetime of sales as one month's average. The nullable twin keeps null null so
+// the reporting floor below can do its job.
+function avgMthlySales(vend) {
+  if (!hasAvgMthlySales(vend)) {
     return 0
   }
-  return amount / Math.pow(10, operatorCountry.currency_exponent ?? 2)
+
+  const totals = vend.customer.vendTransactionTotalsJson
+  const exponent = operatorCountry.currency_exponent ?? 2
+  const lifetime = (totals['vend_records_amount_latest'] || 0) / Math.pow(10, exponent)
+
+  const floorStr = (usePage().props.reportingFloorDate || '2023-01-01')
+  const FLOOR = new Date(floorStr + 'T00:00:00')
+  const beginStr = vend.customer.begin_date_nullable
+  let begin = beginStr ? new Date(beginStr + 'T00:00:00') : null
+  if (!begin || isNaN(begin.getTime()) || begin < FLOOR) {
+    begin = FLOOR
+  }
+
+  const now = new Date()
+  // Inclusive calendar-month count between the begin month and the current month.
+  const months = Math.max(
+    1,
+    (now.getFullYear() - begin.getFullYear()) * 12 + (now.getMonth() - begin.getMonth()) + 1
+  )
+
+  return lifetime / months
 }
 
-// Binded machines that contribute NOTHING to the figure above — no site
-// attached, or a site whose totals_json has no lifetime figure yet. Counted here
-// rather than in SQL because it needs the per-machine list, which the summed
-// figure doesn't carry. Machines sharing an already-counted site are NOT flagged:
-// the site's figure covers them. Drives the grey footnote so the headline number
-// is never quietly short without saying so.
-function avgMthlySalesUncounted(productMapping) {
-  const vends = (productMapping && productMapping.vends) ? productMapping.vends : []
-  const countedCustomerIds = new Set()
-  let uncounted = 0
+// ---------------------------------------------------------------------------
+// Avg Mthly Sales row alignment
+// ---------------------------------------------------------------------------
+// The Avg Mthly Sales column prints one bare figure per binded machine and no
+// machine code — the reader identifies each figure purely by which line it is
+// on, so it MUST sit level with its machine in the Binded Vending Machines cell.
+//
+// CSS alone can't do it. The two cells have very different widths, so every
+// piece of text wraps to a different number of lines on each side: a machine row
+// is 2-4 lines next to a one-line figure, and even the heading and the
+// "N Machine(s) at upcoming stage" footnote — duplicated invisibly here purely
+// to reserve the same space — wrap differently and end up taller in the narrow
+// column. (That last one is what left the first attempt sitting a line high: the
+// figure block was taller than the machines block, so vertical-align:middle
+// pushed the machines block down relative to it.)
+//
+// So nothing is assumed: every part is MEASURED. Both cells render the same
+// three children in the same order — heading, <ul> of rows, footnote — and each
+// one's height, plus each row's height, is copied across. Equal parts ⇒ equal
+// total height ⇒ the <td> default vertical-align:middle centres both blocks
+// identically ⇒ every figure lands on its machine's line.
+//
+// Purely cosmetic: if this never runs, the figures stay in the right ORDER and
+// the numbers stay correct — they just drift off their machine's line.
+const bindedVendsCellRefs = new Map()   // productMapping.id -> wrapper div in the machines cell
+const avgMthlySalesCellRefs = new Map() // productMapping.id -> wrapper div in this column
+let avgMthlySalesAlignFrame = null
+let avgMthlySalesResizeObserver = null
 
-  vends.forEach((vend) => {
-    const customer = vend ? vend.customer : null
-    if (!customer || !customer.id) {
-      uncounted++
-      return
-    }
-    if (countedCustomerIds.has(customer.id)) {
-      return
-    }
+// Vue calls these with `null` when the element unmounts (pagination, filter
+// change, "All" → 100), which is what keeps the Maps from leaking rows.
+function setBindedVendsCellRef(id, el) {
+  if (el) {
+    bindedVendsCellRefs.set(id, el)
+    observeBindedVendsCell(el)
+  } else {
+    bindedVendsCellRefs.delete(id)
+  }
+}
 
-    const totals = customer.vendTransactionTotalsJson
-    if (!totals || !('vend_records_amount_latest' in totals)) {
-      uncounted++
-      return
-    }
+function setAvgMthlySalesCellRef(id, el) {
+  if (el) {
+    avgMthlySalesCellRefs.set(id, el)
+  } else {
+    avgMthlySalesCellRefs.delete(id)
+  }
+}
 
-    countedCustomerIds.add(customer.id)
+// Re-measure whenever a machines cell changes height on its own — a late web
+// font, the menu thumbnail loading, browser zoom, a column resize. Cheaper and
+// more reliable than trying to enumerate when that can happen.
+function observeBindedVendsCell(el) {
+  if (typeof ResizeObserver === 'undefined') {
+    return
+  }
+  if (!avgMthlySalesResizeObserver) {
+    avgMthlySalesResizeObserver = new ResizeObserver(() => scheduleAvgMthlySalesAlign())
+  }
+  avgMthlySalesResizeObserver.observe(el)
+}
+
+// Coalesce every trigger into one measure/write pass per animation frame.
+function scheduleAvgMthlySalesAlign() {
+  if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+    return
+  }
+  if (avgMthlySalesAlignFrame !== null) {
+    return
+  }
+  avgMthlySalesAlignFrame = window.requestAnimationFrame(() => {
+    avgMthlySalesAlignFrame = null
+    alignAvgMthlySalesRows()
   })
-
-  return uncounted
 }
+
+// Read every height first, then write them — one layout pass per row, no thrash.
+//
+// No feedback loop with the ResizeObserver: the figure block is only ever made
+// to match the machines block, never to exceed it, and the machines block's own
+// height is content-driven (the <td> doesn't stretch it), so writing here can't
+// change what was measured.
+function alignAvgMthlySalesRows() {
+  avgMthlySalesCellRefs.forEach((avgCell, id) => {
+    const bindedCell = bindedVendsCellRefs.get(id)
+    if (!avgCell || !bindedCell) {
+      return
+    }
+
+    // [heading, <ul>, footnote] on both sides — see the template comments. Bail
+    // rather than mis-assign if either cell is ever restructured.
+    const sourceParts = bindedCell.children
+    const targetParts = avgCell.children
+    if (sourceParts.length !== targetParts.length) {
+      return
+    }
+
+    const partHeights = []
+    const rowHeights = []
+
+    for (let i = 0; i < targetParts.length; i++) {
+      const isList = targetParts[i].tagName === 'UL' && sourceParts[i].tagName === 'UL'
+      // The <ul> is left to its own (summed row) height; only the spacers around
+      // it are pinned, otherwise the rows inside would be squeezed.
+      partHeights.push(isList ? null : sourceParts[i].getBoundingClientRect().height)
+
+      if (isList) {
+        const sourceRows = sourceParts[i].children
+        const targetRows = targetParts[i].children
+        for (let r = 0; r < targetRows.length; r++) {
+          rowHeights.push({
+            el: targetRows[r],
+            // null = no machine row to match (shouldn't happen, both lists render
+            // the same v-for) — clear any stale height rather than freeze it.
+            height: sourceRows[r] ? sourceRows[r].getBoundingClientRect().height : null,
+          })
+        }
+      }
+    }
+
+    for (let i = 0; i < targetParts.length; i++) {
+      targetParts[i].style.height = partHeights[i] ? partHeights[i] + 'px' : ''
+    }
+    rowHeights.forEach((row) => {
+      row.el.style.height = row.height ? row.height + 'px' : ''
+    })
+  })
+}
+
+onMounted(() => {
+  scheduleAvgMthlySalesAlign()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', scheduleAvgMthlySalesAlign)
+  }
+})
+
+// Every Inertia navigation on this page (search, filter, sort, paginate) re-renders
+// the table in place, so re-align after the DOM settles.
+onUpdated(() => {
+  nextTick(() => scheduleAvgMthlySalesAlign())
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', scheduleAvgMthlySalesAlign)
+    if (avgMthlySalesAlignFrame !== null) {
+      window.cancelAnimationFrame(avgMthlySalesAlignFrame)
+      avgMthlySalesAlignFrame = null
+    }
+  }
+  if (avgMthlySalesResizeObserver) {
+    avgMthlySalesResizeObserver.disconnect()
+    avgMthlySalesResizeObserver = null
+  }
+  bindedVendsCellRefs.clear()
+  avgMthlySalesCellRefs.clear()
+})
 
 onMounted(() => {
   booleanOptions.value = [

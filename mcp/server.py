@@ -559,6 +559,145 @@ def describe_table(table: str) -> str:
 
 
 @mcp.tool()
+def mcp_usage_log(lines: int = 50) -> str:
+    """Return the most recent MCP audit-log lines — who ran which tool and when
+    (tab-separated: time, user_id, email, action, detail). Governance/oversight
+    for admins; capped at 200 lines. Takes only a line count — no paths, no
+    shell."""
+    _ident, _err = _guard("mcp_usage_log")
+    if _err:
+        return _err
+    try:
+        lines = max(1, min(int(lines), 200))
+    except (TypeError, ValueError):
+        lines = 50
+    try:
+        from collections import deque
+        with open(AUDIT_PATH, "r", encoding="utf-8", errors="replace") as fh:
+            tail = deque(fh, maxlen=lines)
+        return "".join(tail) or "(audit log is empty)"
+    except FileNotFoundError:
+        return "(no audit log yet)"
+    except Exception as e:  # noqa: BLE001
+        return json.dumps({"error": f"{e}"})
+
+
+@mcp.tool()
+def server_stats() -> str:
+    """One read-only snapshot of the mark1 server's health: disk, memory, swap,
+    load average, uptime, MySQL footprint (total + top tables) and local file
+    hotspots. Takes NO arguments and runs NO shell commands — every metric is a
+    fixed /proc / statvfs / information_schema read, so there is nothing to
+    inject into. Ask things like "how is the server doing?" or "is the disk
+    filling up again?"."""
+    _ident, _err = _guard("server_stats")
+    if _err:
+        return _err
+
+    stats = {"collected_at": datetime.datetime.now().isoformat(timespec="seconds")}
+
+    # Disk (the df -h / numbers)
+    try:
+        st = os.statvfs("/")
+        total = st.f_blocks * st.f_frsize
+        free = st.f_bavail * st.f_frsize
+        used = total - (st.f_bfree * st.f_frsize)
+        stats["disk_root"] = {
+            "total_gb": round(total / 1024 ** 3, 1),
+            "used_gb": round(used / 1024 ** 3, 1),
+            "free_gb": round(free / 1024 ** 3, 1),
+            "used_pct": round(used * 100.0 / total, 1) if total else None,
+        }
+    except Exception as e:  # noqa: BLE001
+        stats["disk_root"] = {"error": str(e)}
+
+    # Memory + swap
+    try:
+        mem = {}
+        with open("/proc/meminfo", "r", encoding="utf-8") as fh:
+            for line in fh:
+                key, _, val = line.partition(":")
+                try:
+                    mem[key.strip()] = int(val.strip().split()[0])  # kB
+                except (ValueError, IndexError):
+                    pass
+        mt, ma = mem.get("MemTotal", 0), mem.get("MemAvailable", 0)
+        swt, swf = mem.get("SwapTotal", 0), mem.get("SwapFree", 0)
+        stats["memory"] = {
+            "total_mb": mt // 1024,
+            "available_mb": ma // 1024,
+            "used_pct": round((mt - ma) * 100.0 / mt, 1) if mt else None,
+            "swap_total_mb": swt // 1024,
+            "swap_used_mb": (swt - swf) // 1024,
+            "swap_used_pct": round((swt - swf) * 100.0 / swt, 1) if swt else None,
+        }
+    except Exception as e:  # noqa: BLE001
+        stats["memory"] = {"error": str(e)}
+
+    # Load average + uptime
+    try:
+        with open("/proc/loadavg", "r", encoding="utf-8") as fh:
+            parts = fh.read().split()
+        stats["load_avg"] = {"1m": float(parts[0]), "5m": float(parts[1]), "15m": float(parts[2])}
+    except Exception as e:  # noqa: BLE001
+        stats["load_avg"] = {"error": str(e)}
+    try:
+        with open("/proc/uptime", "r", encoding="utf-8") as fh:
+            stats["uptime_days"] = round(float(fh.read().split()[0]) / 86400, 1)
+    except Exception:  # noqa: BLE001
+        stats["uptime_days"] = None
+
+    # MySQL footprint (same read-only connection as every other tool)
+    try:
+        conn = _connect()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT table_name AS name, "
+                    "ROUND((data_length+index_length)/1048576) AS mb "
+                    "FROM information_schema.tables WHERE table_schema = %s "
+                    "ORDER BY (data_length+index_length) DESC LIMIT 10",
+                    (DB_NAME,),
+                )
+                top = cur.fetchall()
+                cur.execute(
+                    "SELECT ROUND(SUM(data_length+index_length)/1048576) AS mb "
+                    "FROM information_schema.tables WHERE table_schema = %s",
+                    (DB_NAME,),
+                )
+                tot = cur.fetchone()
+        finally:
+            conn.close()
+        stats["mysql"] = {
+            "database": DB_NAME,
+            "total_mb": _jsonable((tot or {}).get("mb")),
+            "top_tables": _rows_json(list(top or [])),
+        }
+    except Exception as e:  # noqa: BLE001
+        stats["mysql"] = {"error": f"{e}"}
+
+    # Local file hotspots we care about (walks are bounded, best-effort)
+    try:
+        base = os.path.join(os.path.dirname(__file__), "..", "storage", "app", "refund-attachments")
+        size = 0
+        for root_dir, _dirs, files in os.walk(base):
+            for name in files:
+                try:
+                    size += os.path.getsize(os.path.join(root_dir, name))
+                except OSError:
+                    pass
+        stats["refund_attachments_local_mb"] = round(size / 1048576, 1)
+    except Exception:  # noqa: BLE001
+        stats["refund_attachments_local_mb"] = None
+    try:
+        stats["mcp_audit_log_mb"] = round(os.path.getsize(AUDIT_PATH) / 1048576, 2)
+    except Exception:  # noqa: BLE001
+        stats["mcp_audit_log_mb"] = 0.0
+
+    return json.dumps(stats, indent=2)
+
+
+@mcp.tool()
 def run_query(sql: str, max_rows: int = DEFAULT_ROW_LIMIT) -> str:
     """Run a single READ-ONLY SQL query (SELECT or WITH ... SELECT) against the
     mark1 database and return the rows as JSON.

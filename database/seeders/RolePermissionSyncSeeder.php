@@ -188,7 +188,6 @@ class RolePermissionSyncSeeder extends Seeder
                 'machine-settings',
                 ['read', 'update'],
                 // 2026-07-23 sheet sync: - operator_admin, operator_supervisor (Machine Settings = HappyIce staff only).
-                // NOTE: also hides Smart Freezer Settings menu item for operators (shares 'read machine-settings').
                 ['superadmin', 'admin', 'supervisor', 'technician']
             ],
 
@@ -203,6 +202,18 @@ class RolePermissionSyncSeeder extends Seeder
                 'machine-alert-parameters',
                 ['read', 'export'],
                 ['superadmin', 'admin', 'supervisor', 'technician']
+            ],
+
+            [
+                // APK OTA Updates (/apk-releases). Deliberately NOT sharing
+                // machine-settings: uploading and publishing a binary pushes code to
+                // every machine on a channel, which is a far wider blast radius than
+                // editing a machine's settings. Kept to staff who own releases.
+                // 2026-07-31 code-side addition — add this row to the Google Sheet so
+                // the next sheet sync does not drop it.
+                'apk-releases',
+                ['read', 'create', 'update', 'delete'],
+                ['superadmin', 'admin']
             ],
 
             [

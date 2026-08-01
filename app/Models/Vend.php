@@ -275,6 +275,13 @@ class Vend extends Model
         'acb_vmc_pa_json' => 'json',
         'acb_status_json' => 'json',
         'apk_ver_json' => 'json',
+        // OTA check-in telemetry. MUST stay cast: OtaController::recordCheckIn()
+        // decides whether to write by strict-comparing this against the
+        // versionCode the device reported (an int). Without the cast PDO hands
+        // the column back as a STRING, every comparison reads as "changed", and
+        // the check-in throttle degrades to one UPDATE per machine per poll.
+        'apk_version_code' => 'integer',
+        'apk_checked_in_at' => 'datetime',
         'begin_date' => 'datetime',
         'binded_at' => 'datetime',
         'customer_movement_history_json' => 'json',

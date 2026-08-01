@@ -335,3 +335,62 @@ binded-site only).
 
 **Stays external (not stored):** the NEA next-day rainfall FORECAST is a live
 outlook call at report time — these tables hold observed history only.
+
+## Canonical metrics cookbook — USE THESE DEFINITIONS so answers tally with the app
+
+The app's headline numbers have business rules baked in. If you improvise SQL,
+your numbers will NOT match the dashboards. Follow these recipes.
+
+**Headline "Total Sales" / monthly money questions → `customer_period_summaries`, NOT raw transactions.**
+The Site Summary cards sum period summaries (which already include every
+adjustment). One row per site per month, money in cents. NOTE: the month column is
+`year_month` — a RESERVED word in MySQL 8, so ALWAYS backtick it in SQL:
+```sql
+SELECT SUM(sales_cents)/100 AS total_sales
+FROM customer_period_summaries
+WHERE `year_month` = '2026-07-01';  -- first-of-month DATE, one row per site per month
+```
+Excl-GST variant (the "(excl GST)" figure; GST is per-operator):
+```sql
+SELECT SUM(sales_cents / (1 + COALESCE((SELECT gst_vat_rate FROM operators
+  WHERE operators.id = customer_period_summaries.operator_id),0)/100))/100
+FROM customer_period_summaries WHERE `year_month` = '2026-07-01';
+```
+Other columns: `gross_earning_cents`, `location_fees_cents`,
+`location_earning_cents` (site's cut), `settlement_amount_cents`. Locked months
+(`is_locked=1`) are FROZEN truth; the CURRENT month is live and flat fees are
+prorated to-date — current-month figures grow daily, that is expected.
+
+**Transaction-level sales (daily/hourly/per-machine) → `vend_transactions` with the full filter:**
+```sql
+SELECT DATE(vt.transaction_datetime) d, SUM(vt.amount)/100 sales
+FROM vend_transactions vt JOIN vends v ON v.id = vt.vend_id
+WHERE vt.is_refunded = 0 AND vt.is_zero_amount = 0 AND vt.settlement_status = 2
+  AND v.is_testing = 0
+GROUP BY d ORDER BY d;
+```
+From 2026-06-01 the dashboards ALSO count dispensed-but-unreported gateway
+payments (PayNow/QR that never produced a vend_transaction):
+`payment_gateway_logs WHERE status = 2 /* approved */ AND is_dispensed = 1
+AND created_at >= '2026-06-01'` and no matching vend_transaction
+(vend_transaction_id IS NULL / no row referencing the log). A small gap vs the dashboard
+is usually this top-up.
+
+**Refunds:** ticket counts group by `refund_tickets.status`; the money actually
+paid out per ticket = `COALESCE(final_refund_amount_cents,
+claimed_amount_cents)`; trend by `created_at`. `vend_transactions.is_refunded`
+is the transaction-side flag (refunded sales are excluded from sales above).
+
+**All money columns are cents — divide by 100 for dollars.**
+
+## Ops pointers (health / workflow questions)
+
+- Machine online now: `vends.is_online` (1/0) among `is_active=1 AND
+  is_testing=0`. Last-seen: `COALESCE(last_updated_at, mqtt_last_updated_at)` —
+  "offline >24h" = that timestamp older than `NOW() - INTERVAL 24 HOUR`.
+- Queue health: `failed_jobs` (recent `failed_at` = something broke),
+  `jobs` row count = queued backlog.
+- Refund workflow backlog: `refund_tickets` grouped by `status`.
+- Server health (disk/memory/load/DB size): call the `server_stats` tool —
+  do not try to SQL it.
+- MCP usage audit (who asked what): call the `mcp_usage_log` tool.

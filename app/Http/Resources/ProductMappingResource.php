@@ -54,14 +54,13 @@ class ProductMappingResource extends JsonResource
             // the caller adds the `upcoming_vends_count` sub-select
             // (ProductMappingController::index).
             'upcoming_vends_count' => isset($this->upcoming_vends_count) ? $this->upcoming_vends_count : null,
-            // "Avg Mthly Sales" — summed average monthly sales of every SITE this
-            // mapping is binded to, in RAW MINOR UNITS (same convention as
-            // totals_json->vend_records_amount_latest); the frontend divides by the
-            // operator country's currency exponent. Only present when the caller adds
-            // the `avg_mthly_sales_amount` sub-select (ProductMappingController::index),
-            // which is also what makes the column sortable. Cast to float because
-            // MySQL hands DECIMAL back as a string.
-            'avg_mthly_sales_amount' => isset($this->avg_mthly_sales_amount) ? (float) $this->avg_mthly_sales_amount : null,
+            // REMOVED (2026-07-31): 'avg_mthly_sales_amount' — the summed
+            // per-mapping "Avg Mthly Sales" figure (and its sortable header). Ops
+            // read the group total as a per-machine number, so the column now
+            // renders ONE LINE PER BINDED MACHINE, computed in
+            // ProductMapping/Index.vue from each vend's site totals
+            // (customer.vendTransactionTotalsJson + customer.begin_date_nullable),
+            // the same way Vend/CustomerIndex.vue does it.
             'vendPrefixes' => VendPrefixResource::collection($this->whenLoaded('vendPrefixes')),
         ];
     }
