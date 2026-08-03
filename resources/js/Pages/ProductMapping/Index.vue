@@ -600,25 +600,45 @@
                                 from the flat dot, which means "compared, and it barely
                                 moved".
 
-                                Kept to a single inline glyph, and the figure beside it is
+                                Kept to a single inline icon, and the figure beside it is
                                 whitespace-nowrap, so the row can never grow to two lines —
                                 alignAvgMthlySalesRows() pins each row to the height of its
                                 twin in the machines cell, so a wrap here would overflow
-                                rather than push the row taller.
+                                rather than push the row taller. The icon is h-4 (16px)
+                                inside a row pinned to a machines row that is never fewer
+                                than two text lines, so it always has room.
+
+                                STYLING IS SHARED WITH CustomerIndex.vue ON PURPOSE — same
+                                ArrowUpIcon / ArrowDownIcon from @heroicons/vue/20/solid,
+                                same h-4 w-4, same text-green-600 / text-red-600, same
+                                stroke / stroke-width / stroke-linejoin, same
+                                inline-flex items-center justify-center wrapper as the
+                                Mthly Sales $ month chips there (CustomerIndex.vue ~L1909).
+                                Change one, change both.
+
+                                The grey bullet has no CustomerIndex twin: that page renders
+                                NOTHING when two months are equal, but here "flat" is a real
+                                third state (compared, and it moved less than ±1%) that has
+                                to stay visually distinct from "no arrow at all" = nothing to
+                                compare. Kept as a small bullet rather than an icon so it
+                                cannot be mistaken for a direction.
                               -->
                               <span
                                 v-if="avgMthlySalesTrend(vend)"
-                                class="ml-1 text-[10px] leading-none shrink-0"
-                                :class="{
-                                  'text-green-600': avgMthlySalesTrend(vend).dir === 'up',
-                                  'text-red-600': avgMthlySalesTrend(vend).dir === 'down',
-                                  'text-gray-400': avgMthlySalesTrend(vend).dir === 'flat',
-                                }"
+                                class="ml-1 inline-flex items-center justify-center shrink-0"
                                 v-tooltip="avgMthlySalesTrend(vend).tooltip"
                               >
-                                <span v-if="avgMthlySalesTrend(vend).dir === 'up'">&#9650;</span>
-                                <span v-else-if="avgMthlySalesTrend(vend).dir === 'down'">&#9660;</span>
-                                <span v-else>&bull;</span>
+                                <ArrowUpIcon
+                                  v-if="avgMthlySalesTrend(vend).dir === 'up'"
+                                  class="h-4 w-4 text-green-600"
+                                  stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"
+                                />
+                                <ArrowDownIcon
+                                  v-else-if="avgMthlySalesTrend(vend).dir === 'down'"
+                                  class="h-4 w-4 text-red-600"
+                                  stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"
+                                />
+                                <span v-else class="text-[10px] leading-none text-gray-400">&bull;</span>
                               </span>
                               </template>
                               <span
@@ -756,7 +776,11 @@ import VendForm from '@/Pages/ProductMapping/VendForm.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, LinkIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+// ArrowUpIcon / ArrowDownIcon: the Avg Mthly Sales trend arrow uses the SAME
+// heroicon + classes + stroke attributes as Vend/CustomerIndex.vue's Mthly Sales $
+// month-over-month chips, so the two pages read as one system. Same icon pack
+// (@heroicons/vue/20/solid) as CustomerIndex — do not switch to 24/outline.
+import { ArrowDownIcon, ArrowUpIcon, BackspaceIcon, LinkIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import TableData from '@/Components/TableData.vue';
