@@ -1171,9 +1171,22 @@
 								AvgDailySales (Last30d)
 							</SingleSortItem>
 							<!-- Section divider — separates the daily-sales pair
-								from the Site Tag chips below. Matching <hr>
-								in the TableData. Gated on indexType so the line
-								only appears when Site Tag is being shown. -->
+								from the VM Binding History block below. Matching
+								<hr> in the TableData. Gated on indexType so the
+								line only appears when the block is shown. -->
+							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-2" />
+							<!-- VM Binding History — the machine on this site now
+								and the one it replaced, from customer_vend_bindings
+								(same log as the Site Edit page's "Machine Binding
+								History" panel). Lets ops spot a model swap without
+								opening the site. Values render at the matching
+								position in this column's TableData. -->
+							<span v-if="indexType === 'customers'">
+								VM Binding History
+							</span>
+							<!-- Section divider — closes the VM Binding History
+								block before the Site Tag chips. Matching <hr>
+								in the TableData. -->
 							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-2" />
 							<!-- Site Tag — chips render at the bottom of this
 								column's TableData, mirroring the Site Summary
@@ -2393,9 +2406,30 @@
 								</template>
 							</span>
 							<!-- Section divider — mirrors the <hr> in the TableHead
-								between AvgDailySales (Last30d) and Site Tag.
-								Gated on indexType so the line only appears when
-								Site Tag chips are being rendered below. -->
+								between AvgDailySales (Last30d) and VM Binding
+								History. Gated on indexType so the line only
+								appears when the block is rendered below. -->
+							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-2" />
+							<!-- VM Binding History — "now" is the machine bound to
+								this site today (dated by its bind record; the bind
+								log starts partway through the fleet's life, so most
+								rows show the machine with no date), "was" is the
+								machine it replaced. Plain dark text on purpose — no
+								colour coding here. Both come pre-formatted from
+								VendController::attachVmBindingHistory. -->
+							<div v-if="indexType === 'customers'" class="flex flex-col gap-0.5 text-[11px] leading-tight text-gray-800 break-words whitespace-normal">
+								<span v-if="vmBindingLabel(vend.vm_binding_now)">
+									now: {{ vmBindingLabel(vend.vm_binding_now) }}
+								</span>
+								<span v-if="vmBindingLabel(vend.vm_binding_was)">
+									was: {{ vmBindingLabel(vend.vm_binding_was) }}
+								</span>
+								<span v-if="!vmBindingLabel(vend.vm_binding_now) && !vmBindingLabel(vend.vm_binding_was)" class="text-gray-400">
+									—
+								</span>
+							</div>
+							<!-- Section divider — mirrors the <hr> in the TableHead
+								between VM Binding History and Site Tag. -->
 							<hr v-if="indexType === 'customers'" class="border-t border-gray-300 my-2" />
 							<!-- Site Tag chips — sit under the column's
 								AvgDailySales (Last30d) value to match the column
@@ -4120,6 +4154,29 @@ function getVendRecordsAmountAverageDayClass(amount) {
 		}else {
 				return 'text-gray-700 bg-red-300 px-1 rounded-sm'
 		}
+}
+
+// VM Binding History cell — renders one entry as
+// "<vend code> (<vend prefix>) <yymmdd>". Built as a single string (rather
+// than adjacent template nodes) because Vue's whitespace condensing eats the
+// separating spaces between interpolations. Every part is optional: the bind
+// log only starts partway through the fleet's life, so an entry can carry a
+// machine with no date, and older machines may have no prefix on record.
+function vmBindingLabel(entry) {
+		if (!entry) {
+				return ''
+		}
+		const parts = []
+		if (entry.vend_code !== null && entry.vend_code !== undefined && entry.vend_code !== '') {
+				parts.push(String(entry.vend_code))
+		}
+		if (entry.vend_prefix_name) {
+				parts.push('(' + entry.vend_prefix_name + ')')
+		}
+		if (entry.bound_at_short) {
+				parts.push(entry.bound_at_short)
+		}
+		return parts.join(' ')
 }
 
 // Avg Mthly Sales $ — true average monthly sales over the machine's operating

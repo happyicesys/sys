@@ -1342,6 +1342,12 @@ class VendController extends Controller
                 'query' => $request->query(),
             ]);
 
+            // "VM Binding History" column (now / was) — one cheap indexed
+            // query over the page's customer ids. Attached OUTSIDE the
+            // deferred-aggregates branch below so both the fast (deferred)
+            // and the full render carry it.
+            $this->attachVmBindingHistory($vends->getCollection());
+
             if ($deferAggregates) {
                 // ── DEFERRED PATH ────────────────────────────────────────────
                 // Skip every heavy aggregate. Seed safe numeric defaults on each
@@ -1819,6 +1825,106 @@ class VendController extends Controller
             'vendPrefixOptions' => ['data' => $vendPrefixOptions],
             'zoneOptions' => ['data' => $zoneOptions],
         ]);
+    }
+
+    /**
+     * Attach the "VM Binding History" pair (now / was) to Customer Index rows.
+     *
+     * Source of truth is customer_vend_bindings — the same log the Customer
+     * (Site) Edit page renders as "Machine Binding History". We only look at
+     * BIND rows (is_binding = 1); an unbind row carries no new machine.
+     *
+     *   now = the machine currently on the row (vends.customer_id), dated by
+     *         its own bind record. The bind log only starts partway through
+     *         the fleet's life, so when the current machine has no record we
+     *         still show the machine, just without a date.
+     *   was = the most recent bind of a machine that is NOT on this site today.
+     *         Skipping every current machine (not just this row's) matters for
+     *         the handful of multi-machine sites: without it, a site running
+     *         four machines would report a sibling that is still on site as the
+     *         predecessor. It also survives a swap whose bind was never logged —
+     *         the newest OTHER machine is still the honest answer, whereas
+     *         "the entry below now" would skip past it.
+     *
+     * Rows with no machine bound today (site closed / machine pulled) get a
+     * null "now" and keep "was" as the last machine that was there.
+     *
+     * Prefix comes from the binding's own vend_prefix_id (a snapshot taken at
+     * bind time), falling back to the machine's CURRENT prefix — 18 live bind
+     * rows point at a prefix that was since deleted or was never stamped, and
+     * the machine itself still knows its prefix.
+     */
+    protected function attachVmBindingHistory($rows)
+    {
+        foreach ($rows as $row) {
+            $row->vm_binding_now = null;
+            $row->vm_binding_was = null;
+        }
+
+        $customerIds = collect($rows)->pluck('id')->filter()->unique()->values()->all();
+        if (empty($customerIds)) {
+            return;
+        }
+
+        // Every machine sitting on these sites TODAY (not just the ones that
+        // made this page — a sibling can be filtered out or on another page).
+        // Drives the "was" exclusion.
+        $currentVendIdsBySite = DB::table('vends')
+            ->whereIn('customer_id', $customerIds)
+            ->select('customer_id', 'id')
+            ->get()
+            ->groupBy('customer_id')
+            ->map(fn ($group) => $group->pluck('id')->map(fn ($v) => (int) $v)->all());
+
+        // Descending (newest first) so "now" is the first hit for the row's own
+        // machine and "was" is the first hit that isn't on site any more.
+        $history = DB::table('customer_vend_bindings')
+            ->leftJoin('vends', 'vends.id', '=', 'customer_vend_bindings.vend_id')
+            ->leftJoin('vend_prefixes AS bind_prefixes', 'bind_prefixes.id', '=', 'customer_vend_bindings.vend_prefix_id')
+            ->leftJoin('vend_prefixes AS vend_current_prefixes', 'vend_current_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->whereIn('customer_vend_bindings.customer_id', $customerIds)
+            ->where('customer_vend_bindings.is_binding', true)
+            ->orderByDesc('customer_vend_bindings.created_at')
+            ->orderByDesc('customer_vend_bindings.id')
+            ->select(
+                'customer_vend_bindings.customer_id',
+                'customer_vend_bindings.vend_id',
+                'customer_vend_bindings.created_at',
+                'vends.code AS vend_code',
+                DB::raw('COALESCE(bind_prefixes.name, vend_current_prefixes.name) AS vend_prefix_name')
+            )
+            ->get()
+            ->groupBy('customer_id');
+
+        foreach ($rows as $row) {
+            $entries = $history->get($row->id, collect())->values();
+            $currentVendId = isset($row->vend_id) && $row->vend_id !== null ? (int) $row->vend_id : null;
+            $siteVendIds = $currentVendIdsBySite->get($row->id, []);
+
+            if ($currentVendId !== null) {
+                $nowEntry = $entries->first(fn ($entry) => (int) $entry->vend_id === $currentVendId);
+                $row->vm_binding_now = [
+                    // Fall back to the row's own joined machine when the bind
+                    // predates the log (most of the fleet today).
+                    'vend_code' => $nowEntry->vend_code ?? ($row->code ?? null),
+                    'vend_prefix_name' => $nowEntry->vend_prefix_name ?? ($row->vend_prefix_name ?? null),
+                    'bound_at_short' => ($nowEntry && $nowEntry->created_at)
+                        ? Carbon::parse($nowEntry->created_at)->format('ymd')
+                        : null,
+                ];
+            }
+
+            $wasEntry = $entries->first(fn ($entry) => !in_array((int) $entry->vend_id, $siteVendIds, true));
+            if ($wasEntry) {
+                $row->vm_binding_was = [
+                    'vend_code' => $wasEntry->vend_code,
+                    'vend_prefix_name' => $wasEntry->vend_prefix_name,
+                    'bound_at_short' => $wasEntry->created_at
+                        ? Carbon::parse($wasEntry->created_at)->format('ymd')
+                        : null,
+                ];
+            }
+        }
     }
 
     /**

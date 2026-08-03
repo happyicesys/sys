@@ -373,6 +373,12 @@ class VendResource extends JsonResource
                     ];
                 });
             }, []),
+            // "VM Binding History" (now / was) on Vend/CustomerIndex.vue —
+            // built in VendController::attachVmBindingHistory from
+            // customer_vend_bindings. Already shaped + date-formatted (ymd)
+            // there; null on routes that don't enrich, which hides the block.
+            'vm_binding_now' => isset($this->vm_binding_now) ? $this->vm_binding_now : null,
+            'vm_binding_was' => isset($this->vm_binding_was) ? $this->vm_binding_was : null,
             'this_month_count' => isset($this->this_month_count) ? $this->this_month_count : 0,
             'this_month_revenue' => isset($this->this_month_revenue) ? $this->this_month_revenue / 100 : 0,
             'this_month_gross_profit' => isset($this->this_month_gross_profit) ? $this->this_month_gross_profit / 100 : 0,
