@@ -194,22 +194,25 @@
                     </TableHead>
                     <TableHead>
                       <!--
-                        Binded Vending Machines header — same column now also
-                        carries two per-machine bits, inline, per ops request:
-                          (1) Ref Price tier chip (RP1..RP5) sourced from
-                              customers.selling_price_type — same source used
-                              by Vend/CustomerIndex.vue's "Ref Price" column.
-                          (2) L30d Sales = customer.vendTransactionTotalsJson
-                              .thirty_days_amount (customers.totals_json) —
-                              site-based, identical formula/colours to
-                              Vend/CustomerIndex.vue's Last30d figure.
-                        Binded date stays as the subtitle / per-row chip; the
-                        header subtitle is expanded so users know what to look
-                        for inside this cell.
+                        Binded Vending Machines header — this column also carries
+                        the per-machine Ref Price tier chip (RP1..RP5), sourced
+                        from customers.selling_price_type, the same source as
+                        Vend/CustomerIndex.vue's "Ref Price" column.
+
+                        L30d Sales USED TO LIVE HERE (2026-08-03: MOVED to the
+                        Avg Mthly Sales column). It moved because the trend arrow
+                        now compares L30d against the lifetime average, and a
+                        comparison is unreadable when its two numbers sit in
+                        different columns — ops was reading the arrow as if it
+                        described the average beside it. The two figures being
+                        compared must share a cell. Do NOT re-add an L30d chip
+                        here; there would then be two of them.
+
+                        Binded date stays as the per-row chip.
                       -->
                       <div class="flex flex-col space-y-1">
                         <span>Binded Vending Machines</span>
-                        <span class="text-black font-normal text-xs">RP Tier • L30d Sales</span>
+                        <span class="text-black font-normal text-xs">RP Tier</span>
                         <span class="text-black font-normal text-xs">(binded date)</span>
                         <span class="text-black font-normal text-xs"># machines at upcoming stage</span>
                       </div>
@@ -238,6 +241,16 @@
                       (that site's average) — on both pages — so the lines must not
                       be added up.
 
+                      2026-08-03: L30d Sales MOVED IN from the Binded Vending
+                      Machines column, and the trend arrow now compares L30d
+                      against the lifetime average instead of last month against
+                      the month before. Ops read the arrow as describing the
+                      number printed beside it, so it now does exactly that:
+                      "is this site's last 30 days running above or below its own
+                      average month?". Both numbers being compared live in this
+                      one cell — that adjacency is the whole point of the move,
+                      so do not split them apart again.
+
                       NOT SORTABLE any more. A per-machine list has no single value
                       to sort rows by; the SQL sum that made the header clickable
                       went away with the group total (see ProductMappingController).
@@ -247,11 +260,12 @@
                         The full explanation of this column lives HERE, on the header,
                         not on every figure. It used to hang off each number, where a
                         paragraph-length tooltip covered most of the screen on hover.
-                        Figures now carry only their own month-on-month change.
+                        Figures carry only their own short line.
                       -->
                       <div class="flex flex-col space-y-1 cursor-help" v-tooltip="avgMthlySalesTooltip">
                         <span>Avg Mthly Sales</span>
                         <span class="text-black font-normal text-xs">{{ operatorCountry.currency_symbol }} / month</span>
+                        <span class="text-black font-normal text-xs">vs L30d Sales ▲▼</span>
                         <span class="text-black font-normal text-xs">(per machine, by site)</span>
                       </div>
                     </TableHead>
@@ -433,13 +447,17 @@
                                   </span>
                               </span>
                               <!--
-                                Per-machine RP chip + L30d Sales sub-row.
+                                Per-machine RP chip + binded-date sub-row.
                                 basis-full forces this onto its own line under
                                 the inline customer info above. Indented to
                                 line up roughly under the customer text.
                                 RP chip styling matches Vend/CustomerIndex.vue
-                                (indigo pill). L30d uses the same currency
-                                exponent/symbol convention via operatorCountry.
+                                (indigo pill).
+
+                                L30d Sales was removed from here on 2026-08-03 and
+                                now renders in the Avg Mthly Sales column, directly
+                                under the average it is compared against. See that
+                                column's header comment for why.
                               -->
                               <div class="basis-full flex items-center space-x-2 pl-6 text-xs">
                                 <span
@@ -447,27 +465,6 @@
                                   class="inline-flex rounded px-0.5 py-0.5 border bg-indigo-100 text-indigo-800 border-indigo-300"
                                 >
                                   RP{{ vend.customer.selling_price_type }}
-                                </span>
-                                <!--
-                                  L30d Sales is read from the CUSTOMER's rolling
-                                  totals (vend.customer.vendTransactionTotalsJson,
-                                  i.e. customers.totals_json), NOT the vend's own
-                                  vend_transaction_totals_json. The vend total is
-                                  keyed on vend_id and follows the machine, so a
-                                  machine moved to a new site would keep showing
-                                  sales earned under the previous customer. The
-                                  customer total is keyed on customer_id — site-based.
-                                -->
-                                <span
-                                  v-if="vend.customer && vend.customer.vendTransactionTotalsJson && 'thirty_days_amount' in vend.customer.vendTransactionTotalsJson"
-                                  :class="[
-                                    vend.is_active || vend.is_testing
-                                      ? ((vend.customer.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)) > 1000 ? 'text-green-700' : 'text-red-700')
-                                      : 'text-gray-400'
-                                  ]"
-                                  v-tooltip="'L30d Sales (site)'"
-                                >
-                                  L30d: {{ operatorCountry.currency_symbol }}{{ (vend.customer.vendTransactionTotalsJson['thirty_days_amount'] / Math.pow(10, operatorCountry.currency_exponent)).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
                                 </span>
                                 <!-- Binded date — moved here from the customer-name line per the latest screenshot arrangement. -->
                                 <span class="text-black" v-if="vend.binded_at">({{ moment(vend.binded_at).format('YYMMDD') }})</span>
@@ -560,6 +557,31 @@
                         "—" (grey) means the machine has no site attached, or its
                         site's totals_json carries no lifetime figure yet, i.e. there
                         is nothing to average — not that it sold nothing.
+
+                        TWO LABELLED LINES PER MACHINE since 2026-08-03:
+
+                            Avg:  S$1,398.64
+                            L30d: S$1,960.60 ▲
+
+                        laid out as a 3-COLUMN GRID (label / figure / arrow gutter),
+                        not as two independently-centred flex rows. That is the whole
+                        reason for the grid: two centred rows each centre on their OWN
+                        width, so "Avg:" and "L30d:" — and worse, the two amounts —
+                        come out ragged and the eye cannot compare them. The grid gives
+                        the labels one right-aligned column (colons line up) and the
+                        amounts another right-aligned column (decimal points line up),
+                        so the pair reads as one comparison.
+
+                        THE ARROW GUTTER IS ALWAYS EMITTED, even on the Avg row and
+                        even when there is no arrow. Grid auto-placement is sequential:
+                        drop the empty third cell from row 1 and the L30d LABEL flows
+                        up into row 1's arrow column, shredding the layout. Any future
+                        row added here must emit exactly three cells.
+
+                        Its height is still pinned by alignAvgMthlySalesRows() to the
+                        machines row opposite, which is always 3+ text lines (code /
+                        site name / RP + binded date, often an upcoming badge too), so
+                        two lines always fit.
                       -->
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
                         <div class="flex flex-col space-y-1" :ref="(el) => setAvgMthlySalesCellRef(productMapping.id, el)">
@@ -567,80 +589,111 @@
                             {{ productMapping.vends.length }} Machine(s)
                           </span>
                           <ul class="divide-y divide-gray-200">
-                            <li class="flex items-center justify-center py-1 px-3" v-for="vend in productMapping.vends">
+                            <li class="flex flex-col items-center justify-center py-1 px-3" v-for="vend in productMapping.vends">
                               <!--
-                                The figure and its arrow are wrapped in ONE <template v-if>
-                                so the grey "—" below stays the v-else of *hasAvgMthlySales*.
-                                Do NOT flatten this: Vue pairs v-else with the nearest
-                                preceding ELEMENT (skipping only whitespace and comments), so
-                                putting the arrow span directly between the figure and the
-                                dash silently re-parents the dash onto the ARROW's v-if — and
-                                a machine with a figure but no trend then renders the figure
-                                AND the dash side by side, the dash claiming there is nothing
-                                to average. That shipped briefly; it hit 9 of 400 live rows.
+                                The whole two-line block is ONE element, so the grey "—"
+                                below is an ordinary v-if/v-else pair on siblings and is
+                                immune to the re-parenting trap that bit this cell on
+                                2026-08-01 (Vue pairs v-else with the nearest preceding
+                                ELEMENT, skipping only whitespace and comments — so a
+                                second element added between the block and the dash would
+                                silently steal the dash, and a machine with a figure would
+                                render the figure AND the dash side by side; that hit 9 of
+                                400 live rows). KEEP IT AS ONE ELEMENT: anything new goes
+                                INSIDE this grid, never between it and the v-else.
                               -->
-                              <template v-if="hasAvgMthlySales(vend)">
-                              <span
-                                class="whitespace-nowrap"
-                                :class="[vend.is_active || vend.is_testing ? 'text-gray-800 font-semibold' : 'text-gray-400']"
-                                v-tooltip="avgMthlySalesFigureTooltip(vend)"
+                              <div
+                                v-if="hasAvgMthlySales(vend)"
+                                class="inline-grid grid-cols-[auto_auto_auto] items-center gap-x-1"
                               >
-                                {{ operatorCountry.currency_symbol }}{{ avgMthlySales(vend).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
-                              </span>
-                              <!--
-                                Month-over-month arrow: last COMPLETE month vs the month
-                                before, for this machine's site. Separate from the figure
-                                on its left, which is a lifetime average — see
-                                avgMthlySalesTrend() for why the current month is not used
-                                and why this isn't a 30-day comparison.
+                                <!-- Row 1 — Avg Mthly Sales. Third cell reserves the arrow column. -->
+                                <span class="text-xs text-gray-500 text-right">Avg:</span>
+                                <span
+                                  class="whitespace-nowrap text-right"
+                                  :class="[vend.is_active || vend.is_testing ? 'text-gray-800 font-semibold' : 'text-gray-400']"
+                                  v-tooltip="avgMthlySalesFigureTooltip(vend)"
+                                >
+                                  {{ operatorCountry.currency_symbol }}{{ avgMthlySales(vend).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                                </span>
+                                <span class="w-4" aria-hidden="true"></span>
+                                <!--
+                                  Row 2 — L30d Sales + trend arrow. MOVED HERE 2026-08-03
+                                  from the Binded Vending Machines cell so the arrow sits
+                                  on the number it is measured against, one line under the
+                                  average it is compared to. Same source as before
+                                  (vend.customer.vendTransactionTotalsJson.thirty_days_amount,
+                                  i.e. customers.totals_json → SITE-based, NOT the vend's own
+                                  vend_transaction_totals_json, which is keyed on vend_id and
+                                  follows the machine, so a relocated machine would keep
+                                  showing sales earned at its previous site), same
+                                  currency/exponent convention.
 
-                                No arrow at all when there is nothing to compare (older
-                                totals_json shapes have no month buckets, or the site sold
-                                nothing in either month). That is deliberately different
-                                from the flat dot, which means "compared, and it barely
-                                moved".
+                                  COLOUR NOW COMES FROM THE ARROW (2026-08-03, second pass).
+                                  It originally kept the >1,000 green/red site-size threshold
+                                  it carried in the other column, which produced a red
+                                  S$784.30 next to a green ↑ — both "correct" (small site,
+                                  but running above its own average) and unreadable as a
+                                  pair. One cell, one meaning: green/red here now says
+                                  above/below this site's own average, exactly like the arrow
+                                  beside it. The >1,000 threshold still lives on
+                                  CustomerIndex's Last30d, which is where ops reads site size.
+                                  Do NOT reintroduce a second colour rule in this cell.
 
-                                Kept to a single inline icon, and the figure beside it is
-                                whitespace-nowrap, so the row can never grow to two lines —
-                                alignAvgMthlySalesRows() pins each row to the height of its
-                                twin in the machines cell, so a wrap here would overflow
-                                rather than push the row taller. The icon is h-4 (16px)
-                                inside a row pinned to a machines row that is never fewer
-                                than two text lines, so it always has room.
+                                  <template> so all three cells appear or vanish together
+                                  and the grid never ends up with a half row.
 
-                                STYLING IS SHARED WITH CustomerIndex.vue ON PURPOSE — same
-                                ArrowUpIcon / ArrowDownIcon from @heroicons/vue/20/solid,
-                                same h-4 w-4, same text-green-600 / text-red-600, same
-                                stroke / stroke-width / stroke-linejoin, same
-                                inline-flex items-center justify-center wrapper as the
-                                Mthly Sales $ month chips there (CustomerIndex.vue ~L1909).
-                                Change one, change both.
+                                  No arrow at all when there is nothing to compare (no
+                                  thirty_days_amount key, or no positive average to measure
+                                  against). Deliberately different from the flat dot, which
+                                  means "compared, and it barely moved". The arrow's own
+                                  v-if lives INSIDE the third cell, so the cell — and the
+                                  column width — is there either way.
 
-                                The grey bullet has no CustomerIndex twin: that page renders
-                                NOTHING when two months are equal, but here "flat" is a real
-                                third state (compared, and it moved less than ±1%) that has
-                                to stay visually distinct from "no arrow at all" = nothing to
-                                compare. Kept as a small bullet rather than an icon so it
-                                cannot be mistaken for a direction.
-                              -->
-                              <span
-                                v-if="avgMthlySalesTrend(vend)"
-                                class="ml-1 inline-flex items-center justify-center shrink-0"
-                                v-tooltip="avgMthlySalesTrend(vend).tooltip"
-                              >
-                                <ArrowUpIcon
-                                  v-if="avgMthlySalesTrend(vend).dir === 'up'"
-                                  class="h-4 w-4 text-green-600"
-                                  stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"
-                                />
-                                <ArrowDownIcon
-                                  v-else-if="avgMthlySalesTrend(vend).dir === 'down'"
-                                  class="h-4 w-4 text-red-600"
-                                  stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"
-                                />
-                                <span v-else class="text-[10px] leading-none text-gray-400">&bull;</span>
-                              </span>
-                              </template>
+                                  STYLING IS SHARED WITH CustomerIndex.vue ON PURPOSE — same
+                                  ArrowUpIcon / ArrowDownIcon from @heroicons/vue/20/solid,
+                                  same h-4 w-4, same text-green-600 / text-red-600, same
+                                  stroke / stroke-width / stroke-linejoin, same
+                                  inline-flex items-center justify-center wrapper as the
+                                  Mthly Sales $ month chips there (CustomerIndex.vue ~L1909).
+                                  Change one, change both.
+
+                                  The grey bullet has no CustomerIndex twin: that page renders
+                                  NOTHING when two months are equal, but here "flat" is a real
+                                  third state (compared, and it moved less than ±1%) that has
+                                  to stay visually distinct from "no arrow at all" = nothing
+                                  to compare. Kept as a small bullet rather than an icon so it
+                                  cannot be mistaken for a direction.
+                                -->
+                                <template v-if="hasL30dSales(vend)">
+                                  <span class="text-xs text-gray-500 text-right">L30d:</span>
+                                  <span
+                                    class="whitespace-nowrap text-right"
+                                    :class="l30dSalesColourClass(vend)"
+                                    v-tooltip="l30dSalesTooltip(vend)"
+                                  >
+                                    {{ operatorCountry.currency_symbol }}{{ l30dSales(vend).toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                                  </span>
+                                  <span class="inline-flex w-4 items-center justify-center">
+                                    <span
+                                      v-if="avgMthlySalesTrend(vend)"
+                                      class="inline-flex items-center justify-center shrink-0"
+                                      v-tooltip="avgMthlySalesTrend(vend).tooltip"
+                                    >
+                                      <ArrowUpIcon
+                                        v-if="avgMthlySalesTrend(vend).dir === 'up'"
+                                        class="h-4 w-4 text-green-600"
+                                        stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"
+                                      />
+                                      <ArrowDownIcon
+                                        v-else-if="avgMthlySalesTrend(vend).dir === 'down'"
+                                        class="h-4 w-4 text-red-600"
+                                        stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"
+                                      />
+                                      <span v-else class="text-[10px] leading-none text-gray-400">&bull;</span>
+                                    </span>
+                                  </span>
+                                </template>
+                              </div>
                               <span
                                 v-else
                                 class="text-gray-400"
@@ -860,7 +913,7 @@ const vendStatusOptions = ref([])
 // Column-level explanation, shown on the HEADER only. Everything a reader needs
 // to interpret the column lives here, so the per-figure tooltips can stay to one
 // short line. Keep the arrow legend in sync with computeAvgMthlySalesTrend().
-const avgMthlySalesTooltip = 'Average monthly sales of the SITE this machine stands at: lifetime sales / the number of calendar months the site has been operating (from its begin date, floored at the app reporting floor, counting both the begin month and this month). A lifetime average, not a 30-day projection, so it will not match the L30d figure. Same number the Machine page shows for this machine. Two machines at the same site show the same figure — do not add the lines up.   ▲ ▼ • = last COMPLETE month vs the month before it, for that site — two closed months, so it does not drift as the current month fills up. A change within ±1% shows as • (no change). Hover any figure for its exact change.'
+const avgMthlySalesTooltip = '"Avg:" — average monthly sales of the SITE this machine stands at: lifetime sales / the number of calendar months the site has been operating (from its begin date, floored at the app reporting floor, counting both the begin month and this month). A lifetime average, so it moves slowly. Same number the Machine page shows for this machine. Two machines at the same site show the same figure — do not add the lines up.   "L30d:" — that same site\'s sales over the last 30 days (rolling, includes today). Moved here from the Binded Vending Machines column so it sits under the average it is measured against. It is coloured to match its arrow, so the figure and the arrow always say the same thing.   ▲ ▼ • = the L30d line vs the Avg line above it: ▲ green = the last 30 days are running ABOVE this site\'s average month, ▼ red = below, • grey = within ±1% of it. No arrow at all means there is nothing to compare. Hover the L30d figure or the arrow for the exact gap.'
 
 // True when this machine has something to average — a site, and a site whose
 // totals_json already carries a lifetime figure. Drives the grey "—" so an empty
@@ -911,77 +964,91 @@ function avgMthlySales(vend) {
 }
 
 // ---------------------------------------------------------------------------
-// Month-over-month trend arrow
+// L30d Sales (site) — the bottom line of each cell
 // ---------------------------------------------------------------------------
-// The figure to the left is a LIFETIME average, which barely moves — so on its
-// own it never tells ops whether a site is picking up or dying. The arrow adds
-// that: it compares the last COMPLETE calendar month against the month before
-// it, for the same SITE the figure is derived from.
+// Rolling last-30-days sales for the SITE, straight out of
+// customers.totals_json->thirty_days_amount. Identical source, formula, currency
+// convention and >1,000 green/red threshold as the chip that used to live in the
+// Binded Vending Machines column, and as Vend/CustomerIndex.vue's Last30d figure.
 //
-// WHY LAST-COMPLETE, NOT CURRENT: `current_mth_amount` is the month in progress.
-// On the 1st of a month it holds a few dollars, so an arrow using it would show
-// the entire fleet collapsing every month-start. `last_mth_amount` is always a
-// closed month, so the comparison is like-for-like on any day.
+// CUSTOMER totals, not the vend's own vend_transaction_totals_json: the vend
+// total is keyed on vend_id and follows the machine, so a machine moved to a new
+// site would keep showing sales earned under its previous customer. The customer
+// total is keyed on customer_id, i.e. site-based — matching the average above it.
+function hasL30dSales(vend) {
+  const totals = (vend && vend.customer) ? vend.customer.vendTransactionTotalsJson : null
+
+  return !!totals && ('thirty_days_amount' in totals)
+}
+
+// Major units, same divide-by-exponent convention as everything else here.
+function l30dSales(vend) {
+  if (!hasL30dSales(vend)) {
+    return 0
+  }
+
+  const exponent = operatorCountry.currency_exponent ?? 2
+
+  return (vend.customer.vendTransactionTotalsJson['thirty_days_amount'] || 0) / Math.pow(10, exponent)
+}
+
+// ---------------------------------------------------------------------------
+// Trend arrow — L30d vs this site's own average month
+// ---------------------------------------------------------------------------
+// REWRITTEN 2026-08-03. It used to compare last complete month vs the month
+// before (last_mth_amount vs last_2_mth_amount). That number was correct — it
+// reconciled to the cent with customer_period_summaries — but it answered a
+// question nobody was asking of this column: ops reads the arrow as describing
+// the figures printed beside it, and a site could be well ABOVE its average and
+// still carry a red ▼ because one closed month dipped against another. Rather
+// than relabel the arrow, the comparison was changed to the one ops actually
+// wanted, and L30d was moved into this cell so both sides of it are visible.
 //
-// WHY NOT 30 DAYS: totals_json carries `thirty_days_amount` (the L30d chip in
-// the neighbouring column) but there is NO previous-30-day twin anywhere in the
-// schema — a rolling comparison would need new SQL over vend_transactions. The
-// month buckets are already in this page's payload, so this costs no extra
-// query.
+// NOW: L30d (rolling last 30 days, site) vs Avg Mthly Sales (lifetime average,
+// same site). "Is this site currently running above or below its own normal
+// month?" Both sides are already in this page's payload — no extra query.
 //
-// SOURCE / NAMING: verified on live against customer_period_summaries (the
-// authoritative monthly ledger) — `last_mth_amount` equals that site's previous
-// calendar month to the cent, and `last_2_mth_amount` the month before it. They
-// are DISCRETE months, not rolling or cumulative sums, despite the "last_2"
-// name reading like "the last 2 months combined".
+// Not a like-for-like calendar comparison and it is not meant to be: 30 rolling
+// days is roughly, not exactly, one month, and the average is a lifetime figure
+// that a long-running site has dragged down or up over years. The ±1% deadband
+// keeps that approximation from painting the column at random.
 //
-// Raw minor units, same convention as vend_records_amount_latest.
-//
-// Returns null when there is nothing honest to compare — the keys are absent
-// (older totals_json shapes lack them), or both months are zero. Null renders no
-// arrow at all, which is deliberately distinct from a flat arrow: "we don't
-// know" must not look like "no change".
+// Returns null when there is nothing honest to compare — no L30d key, no
+// lifetime figure, or a non-positive average (a site with no lifetime sales has
+// no "normal" to be above). Null renders no arrow at all, deliberately distinct
+// from the flat dot: "we don't know" must not look like "no change".
 //
 // MEMOISED per vend object (see avgMthlySalesTrend below) because the template
-// needs the result three times per row — v-if, colour class and tooltip — and
-// this builds a string with two toLocaleString calls. On a "All" page that is
+// needs the result three times per row — v-if, direction and tooltip — and this
+// builds a string with two toLocaleString calls. On an "All" page that is
 // thousands of rows; computing it once per machine keeps it off the render path.
 function computeAvgMthlySalesTrend(vend) {
-  const totals = (vend && vend.customer) ? vend.customer.vendTransactionTotalsJson : null
-  if (!totals) {
-    return null
-  }
-  if (!('last_mth_amount' in totals) || !('last_2_mth_amount' in totals)) {
+  if (!hasL30dSales(vend) || !hasAvgMthlySales(vend)) {
     return null
   }
 
-  const last = Number(totals['last_mth_amount'] || 0)
-  const prev = Number(totals['last_2_mth_amount'] || 0)
-  if (!isFinite(last) || !isFinite(prev)) {
+  const l30d = Number(l30dSales(vend))
+  const avg = Number(avgMthlySales(vend))
+  if (!isFinite(l30d) || !isFinite(avg)) {
     return null
   }
-  // A site with no sales in either month has no trend, only absence.
-  if (last === 0 && prev === 0) {
+  // No average means no baseline to be above or below — absence, not a trend.
+  if (avg <= 0) {
     return null
   }
 
   const exponent = operatorCountry.currency_exponent ?? 2
-  const toMajor = (cents) => (cents / Math.pow(10, exponent)).toLocaleString(undefined, {
+  const fmt = (major) => operatorCountry.currency_symbol + major.toLocaleString(undefined, {
     minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : exponent,
     maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : exponent,
   })
 
-  // Percentage is undefined against a zero base — a site that sold nothing last
-  // month and something this month is "up", but not "up N%". Keep pct null and
-  // let the tooltip say so rather than printing Infinity.
-  const pct = prev > 0 ? ((last - prev) / prev) * 100 : null
+  const pct = ((l30d - avg) / avg) * 100
 
   // ±1% deadband: without it, ordinary noise paints half the column red and ops
   // stops trusting the arrows.
   let dir = 'flat'
-  if (pct === null) {
-    dir = last > 0 ? 'up' : 'flat'
-  } else if (pct >= 1) {
+  if (pct >= 1) {
     dir = 'up'
   } else if (pct <= -1) {
     dir = 'down'
@@ -989,30 +1056,65 @@ function computeAvgMthlySalesTrend(vend) {
 
   // SHORT on purpose: the column's full explanation is on the header tooltip, so
   // hovering a figure only has to answer "which way, and by how much?".
-  // pct is null ONLY when the prior month is zero — both-months-zero already
-  // returned null above — so that branch always means a new or restarted site.
-  const headline = pct === null
-    ? 'New — no sales the month before'
-    : (pct >= 0 ? '+' : '') + pct.toFixed(1) + '% vs the month before'
+  const headline = dir === 'flat'
+    ? 'In line with its average month'
+    : (pct >= 0 ? '+' : '') + pct.toFixed(1) + '% vs its average month'
 
   return {
     dir,
     pct,
-    tooltip: headline
-      + ' (' + operatorCountry.currency_symbol + toMajor(prev)
-      + ' → ' + operatorCountry.currency_symbol + toMajor(last) + ')',
+    tooltip: headline + ' (avg ' + fmt(avg) + ' → L30d ' + fmt(l30d) + ')',
   }
 }
 
-// Tooltip for the figure itself: its own month-on-month change, or a one-liner
-// saying why there is no arrow. Never the column explanation — that is on the
-// header, so hovering a number can no longer blanket the screen.
+// Tooltip for the average figure (top line). Short by design — the column
+// explanation lives on the header so hovering a number can't blanket the screen.
 function avgMthlySalesFigureTooltip(vend) {
   const trend = avgMthlySalesTrend(vend)
 
   return trend
-    ? trend.tooltip
-    : 'No month-on-month comparison for this site yet.'
+    ? 'Avg Mthly Sales (site, lifetime average). L30d is ' + trend.tooltip
+    : 'Avg Mthly Sales (site, lifetime average). No L30d figure to compare against yet.'
+}
+
+// Colour of the L30d figure — TAKEN FROM THE ARROW, not from any threshold.
+//
+// It used to use the absolute ">1,000 = green" site-size rule it inherited from
+// the Binded Vending Machines column. Once the arrow moved in beside it, that
+// produced a red S$784.30 next to a green ▲ — a small site running above its own
+// average. Both signals were correct and the pair was unreadable. One cell, one
+// meaning: green/red here says the same thing the arrow says.
+//
+// Exactly the arrow's own classes (text-green-600 / text-red-600) so the figure
+// and the icon are the same colour, not two shades of nearly-the-same.
+//
+// Inactive/disposed machines stay grey — that greying applies to the whole row
+// and outranks the trend.
+// Flat (within ±1%) and "no comparison possible" both fall through to the same
+// neutral as the Avg figure above: nothing to shout about either way.
+function l30dSalesColourClass(vend) {
+  if (!vend || !(vend.is_active || vend.is_testing)) {
+    return 'text-gray-400'
+  }
+
+  const trend = avgMthlySalesTrend(vend)
+  if (trend && trend.dir === 'up') {
+    return 'text-green-600'
+  }
+  if (trend && trend.dir === 'down') {
+    return 'text-red-600'
+  }
+
+  return 'text-gray-800'
+}
+
+// Tooltip for the L30d figure (bottom line): what it is, then how it compares.
+function l30dSalesTooltip(vend) {
+  const trend = avgMthlySalesTrend(vend)
+
+  return trend
+    ? 'L30d Sales (site, rolling 30 days) — ' + trend.tooltip
+    : 'L30d Sales (site, rolling 30 days). No average to compare against yet.'
 }
 
 // Memo keyed on the vend object itself. Inertia hands us a fresh object graph on
