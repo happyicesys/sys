@@ -26,7 +26,7 @@ class VendSerialNumberResource extends JsonResource
             'postcode' => isset($this->postcode) ? $this->postcode : null,
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'stickers' => $this->vend ? $this->vend->stickers->map(function ($s) {
-                return ['id' => $s->id, 'name' => $s->name];
+                return ['id' => $s->id, 'name' => $s->name, 'color' => $s->color];
             })->values() : [],
             'vend_id' => isset($this->vend_id) ? $this->vend_id : null,
             'vend_code' => isset($this->vend_code) ? $this->vend_code : null,

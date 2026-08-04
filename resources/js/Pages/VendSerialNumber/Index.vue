@@ -366,7 +366,7 @@
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         <div class="flex flex-wrap gap-1 justify-center">
-                          <span v-for="s in vendSerialNumber.stickers" :key="s.id" class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                          <span v-for="s in vendSerialNumber.stickers" :key="s.id" class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :style="stickerBadgeStyle(s.color)">
                             {{ s.name }}
                           </span>
                         </div>
@@ -440,6 +440,7 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
+import { stickerBadgeStyle } from '@/constants/stickerColors';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 

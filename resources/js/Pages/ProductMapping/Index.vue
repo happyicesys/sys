@@ -517,10 +517,32 @@
                             list are the only alerting colour in this cell.
                             Greyed lighter when zero.
                           -->
+                          <!--
+                            Clickable when the count is non-zero: opens a popup
+                            listing exactly WHICH machines are queued onto this
+                            mapping (fetched on click — see onUpcomingVendsClicked).
+                            Zero stays plain grey text, nothing to open.
+
+                            Kept as ONE <span> with the count and the label
+                            inside, rather than a <button> wrapping a separate
+                            text node: this element's height is measured and
+                            copied onto its invisible twin in the Avg Mthly Sales
+                            column (alignAvgMthlySalesRows), so its box must stay
+                            a plain inline-level run of text that wraps the same
+                            way. The underline is the only added ink.
+                          -->
                           <span
                             class="text-center px-2 pt-2 text-xs"
-                            :class="(productMapping.upcoming_vends_count || 0) > 0 ? 'text-gray-700 font-semibold' : 'text-gray-400'"
-                            v-tooltip="'Machines binded elsewhere but queued to switch to this mapping — their own Upcoming Product Mapping is this mapping, or they inherit it as the preset upcoming of the mapping they are on today. I.e. not yet updated to this mapping.'"
+                            :class="[
+                              (productMapping.upcoming_vends_count || 0) > 0 ? 'text-gray-700 font-semibold' : 'text-gray-400',
+                              (productMapping.upcoming_vends_count || 0) > 0 ? 'cursor-pointer underline decoration-dotted underline-offset-2 hover:text-blue-700' : '',
+                            ]"
+                            :role="(productMapping.upcoming_vends_count || 0) > 0 ? 'button' : null"
+                            :tabindex="(productMapping.upcoming_vends_count || 0) > 0 ? 0 : null"
+                            v-tooltip="upcomingStageTooltip(productMapping.upcoming_vends_count)"
+                            @click="onUpcomingVendsClicked(productMapping)"
+                            @keydown.enter="onUpcomingVendsClicked(productMapping)"
+                            @keydown.space.prevent="onUpcomingVendsClicked(productMapping)"
                           >
                             {{ productMapping.upcoming_vends_count || 0 }} Machine(s) at upcoming stage
                           </span>
@@ -817,6 +839,136 @@
 
   </VendForm>
 
+  <!--
+    "N Machine(s) at upcoming stage" popup — the machines behind that figure.
+
+    Teleported to body: this lives inside a wide, horizontally-scrolling table,
+    and a fixed-position dialog rendered in that subtree inherits its scroll
+    offset. Same reason DeliveryPlatform/ChannelOverview teleports.
+
+    Rows are whatever GET /product-mappings/{id}/upcoming-vends returns, which
+    resolves the EFFECTIVE upcoming mapping with the identical WHERE the count
+    sub-select uses — so the list length always equals the number in the link
+    that opened it. The vendStatus filter currently applied to the page is sent
+    along for the same reason.
+  -->
+  <Teleport to="body">
+    <Modal :open="showUpcomingVendsModal" @modalClose="onUpcomingVendsModalClose">
+      <template #header>
+        <div class="flex flex-col">
+          <span class="text-gray-600 text-base">
+            Machines at upcoming stage
+          </span>
+          <span class="text-sm text-gray-500" v-if="upcomingVendsMapping">
+            Queued to switch onto: {{ upcomingVendsMapping.name }}
+          </span>
+        </div>
+      </template>
+      <template #default>
+        <div class="flex flex-col text-sm">
+          <p class="text-xs text-gray-500 pb-3">
+            These machines are binded to another mapping today but are queued to
+            switch onto this one — either because the machine itself was set to it
+            (<span class="font-medium">Own</span>), or because it inherits it as the
+            preset upcoming of the mapping it is on now
+            (<span class="font-medium">Inherited</span>). None of them are on this
+            mapping yet.
+          </p>
+
+          <div v-if="upcomingVendsLoading" class="py-6 text-center text-gray-500">
+            Loading…
+          </div>
+          <div v-else-if="upcomingVendsError" class="py-6 text-center text-red-600">
+            {{ upcomingVendsError }}
+          </div>
+          <div v-else-if="!upcomingVends.length" class="py-6 text-center text-gray-500">
+            No machines at upcoming stage.
+          </div>
+          <div v-else class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">#</th>
+                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">Machine ID</th>
+                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">Site</th>
+                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">Current Mapping</th>
+                  <th class="px-2 py-2 text-left text-xs font-semibold text-gray-700">Changeover</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <tr v-for="(vend, index) in upcomingVends" :key="vend.id">
+                  <td class="px-2 py-2 align-top text-xs text-gray-500">{{ index + 1 }}.</td>
+                  <td class="px-2 py-2 align-top text-xs whitespace-nowrap">
+                    <a :href="'/vends/customers?codes=' + vend.code" target="_blank" class="text-blue-700">
+                      {{ vend.code }}
+                    </a>
+                    <span class="text-gray-500" v-if="vend.vend_prefix_name">
+                      ({{ vend.vend_prefix_name }})
+                    </span>
+                  </td>
+                  <td class="px-2 py-2 align-top text-xs">
+                    <a
+                      v-if="vend.customer_id && permissions.includes('admin-access vends')"
+                      :href="'/customers/' + vend.customer_id + '/edit'"
+                      target="_blank"
+                      :class="vend.customer_is_active ? 'text-blue-700' : 'text-gray-400'"
+                    >
+                      {{ vend.site_id }}<br>{{ vend.customer_name }}
+                    </a>
+                    <span v-else-if="vend.customer_id" :class="vend.customer_is_active ? 'text-gray-800' : 'text-gray-400'">
+                      {{ vend.site_id }}<br>{{ vend.customer_name }}
+                    </span>
+                    <span v-else class="text-gray-400">—</span>
+                  </td>
+                  <td class="px-2 py-2 align-top text-xs">
+                    <a
+                      v-if="vend.current_product_mapping_id"
+                      :href="'/product-mappings/' + vend.current_product_mapping_id + '/edit'"
+                      target="_blank"
+                      class="text-blue-700"
+                    >
+                      {{ vend.current_product_mapping_name }}
+                    </a>
+                    <span v-else class="text-gray-400">Not binded</span>
+                  </td>
+                  <td class="px-2 py-2 align-top text-xs">
+                    <span
+                      class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
+                      :class="vend.source === 'own'
+                        ? 'bg-orange-100 text-orange-800 border-orange-300'
+                        : 'bg-gray-100 text-gray-700 border-gray-300'"
+                      v-tooltip="vend.source === 'own'
+                        ? 'Set on this machine itself (Machine Settings ▸ Upcoming Product Mapping)'
+                        : 'Inherited from the preset upcoming of the mapping this machine is binded to today'"
+                    >
+                      {{ vend.source === 'own' ? 'Own' : 'Inherited' }}
+                    </span>
+                    <!--
+                      Start date comes from the CURRENT mapping's rollout schedule
+                      (upcoming_product_mapping_start_date) — there is no per-vend
+                      one, and that date gates the changeover for Own and Inherited
+                      alike (ProductMapping::isUpcomingMappingEffective).
+                    -->
+                    <div
+                      class="text-indigo-600 pt-0.5"
+                      v-if="vend.start_date"
+                      v-tooltip="'Scheduled changeover date, taken from the mapping this machine is binded to today'"
+                    >
+                      from {{ vend.start_date }}
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="pt-3 text-xs text-gray-500">
+              {{ upcomingVends.length }} machine(s).
+            </p>
+          </div>
+        </div>
+      </template>
+    </Modal>
+  </Teleport>
+
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -825,7 +977,9 @@ import AttachmentOverview from '@/Components/AttachmentOverview.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/ProductMapping/Form.vue';
+import Modal from '@/Components/Modal.vue';
 import VendForm from '@/Pages/ProductMapping/VendForm.vue';
+import axios from 'axios';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -871,6 +1025,16 @@ const booleanOptions = ref([])
 const showAttachmentOverviewModal = ref(false)
 const showModal = ref(false)
 const showVendFormModal = ref(false)
+// "N Machine(s) at upcoming stage" popup — rows are fetched per mapping on
+// click (see onUpcomingVendsClicked), never shipped with the page.
+const showUpcomingVendsModal = ref(false)
+const upcomingVendsMapping = ref(null)
+const upcomingVends = ref([])
+const upcomingVendsLoading = ref(false)
+const upcomingVendsError = ref('')
+// Guards against a slow response for mapping A landing after the user has
+// already opened mapping B — only the newest request may write the list.
+let upcomingVendsRequestId = 0
 const productMapping = ref()
 const type = ref('')
 const toast = useToast()
@@ -1322,6 +1486,87 @@ onMounted(() => {
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.vendStatus = vendStatusOptions.value[2]
 })
+
+// Tooltip for the "N Machine(s) at upcoming stage" line.
+//
+// Returned as a floating-vue options object with html:true rather than a plain
+// string, for one reason: floating-vue ships NO max-width on
+// `.v-popper--theme-tooltip .v-popper__inner`, so a sentence this long renders
+// as a single line stretched across the whole viewport. The width has to be set
+// on the content itself.
+//
+// Two details that look like they could be simplified but can't:
+//  • the width is an INLINE style, not a Tailwind class. floating-vue's own
+//    `.v-popper__inner > div { max-width: inherit }` (specificity 0,1,1) beats a
+//    utility class (0,1,0) and would reset it to none. An inline style outranks
+//    both, and it keeps this independent of Tailwind's class extraction.
+//  • <br> rather than "\n": nothing sets white-space on the tooltip, so a
+//    newline would just collapse back into a space.
+//
+// Content is an app-authored constant — nothing user-supplied ever reaches
+// html:true here.
+const upcomingStageTooltipBody =
+  'Machines binded elsewhere but queued to switch to this mapping.<br>'
+  + 'Either the machine\'s own Upcoming Product Mapping is this mapping, or it inherits this mapping'
+  + ' as the preset upcoming of the mapping it is binded to today.<br>'
+  + 'I.e. not yet updated to this mapping.'
+
+function upcomingStageTooltip(count) {
+  const body = (count || 0) > 0
+    ? upcomingStageTooltipBody + '<br><em>Click to list them.</em>'
+    : upcomingStageTooltipBody
+
+  return {
+    content: '<div style="max-width:20rem;text-align:left;line-height:1.35;">' + body + '</div>',
+    html: true,
+  }
+}
+
+// Opens the "machines at upcoming stage" popup for one mapping and loads its
+// rows. No-op at zero — the text is not clickable there.
+//
+// vendStatus is read from the URL, NOT from filters.value: the count in the link
+// was rendered by the server from the query string, while filters.value can hold
+// a dropdown change the user has not pressed Search on yet. Reading the URL is
+// what keeps the list length equal to the number that was clicked.
+function onUpcomingVendsClicked(mapping) {
+  if (!mapping || !(mapping.upcoming_vends_count || 0)) return
+
+  upcomingVendsMapping.value = { id: mapping.id, name: mapping.name }
+  upcomingVends.value = []
+  upcomingVendsError.value = ''
+  upcomingVendsLoading.value = true
+  showUpcomingVendsModal.value = true
+
+  const requestId = ++upcomingVendsRequestId
+  const vendStatus = new URLSearchParams(window.location.search).get('vendStatus') || ''
+
+  axios
+    .get('/product-mappings/' + mapping.id + '/upcoming-vends', { params: { vendStatus } })
+    .then((response) => {
+      if (requestId !== upcomingVendsRequestId) return
+      upcomingVends.value = response.data?.vends ?? []
+      if (response.data?.productMapping) {
+        upcomingVendsMapping.value = response.data.productMapping
+      }
+    })
+    .catch(() => {
+      if (requestId !== upcomingVendsRequestId) return
+      upcomingVendsError.value = 'Could not load the machines at upcoming stage. Please try again.'
+    })
+    .finally(() => {
+      if (requestId !== upcomingVendsRequestId) return
+      upcomingVendsLoading.value = false
+    })
+}
+
+function onUpcomingVendsModalClose() {
+  showUpcomingVendsModal.value = false
+  // Invalidate any in-flight request so a late response can't repopulate a
+  // closed dialog.
+  upcomingVendsRequestId++
+  upcomingVendsLoading.value = false
+}
 
 function onAttachmentOverviewClicked(model) {
   attachments.value = model.attachments

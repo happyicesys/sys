@@ -1750,6 +1750,49 @@ class VendController extends Controller
             ProductMappingResource::collection(ProductMapping::orderBy('name')->get())->resolve()
         );
 
+        // "Upcoming Mapping" filter list. Active mappings — same rule as the
+        // Setting/Edit upcoming picker, which is what writes
+        // vends.upcoming_product_mapping_id in the first place — PLUS any mapping
+        // that is currently the EFFECTIVE upcoming of some machine even though it
+        // has since been deactivated, so no on-screen "New" badge is unreachable
+        // by the filter. On live that second set is 2 mappings; deriving it from
+        // the same expression the filter matches on is what keeps the two in
+        // step (a raw "referenced anywhere" union pulled in ~43 dead presets that
+        // no machine actually resolves to).
+        //
+        // The 'N/A' sentinel mapping is excluded: it means "no upcoming", which
+        // the dropdown exposes as its own "— None —" entry instead.
+        //
+        // Keyed per operator because ProductMapping carries an operator global
+        // scope (the plain 'product_mapping_options' key above predates that and
+        // is left alone). Busted by OptionCacheBuster on any mapping save.
+        $upcomingProductMappingOptions = Cache::remember(
+            'upcoming_product_mapping_options_' . auth()->user()->operator_id,
+            $ttl,
+            function () {
+                $inUseAsUpcoming = DB::table('vends')
+                    ->selectRaw($this->effectiveUpcomingMappingSql() . ' AS effective_upcoming_id')
+                    ->pluck('effective_upcoming_id')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                return ProductMapping::query()
+                    ->where(function ($query) use ($inUseAsUpcoming) {
+                        $query->where('is_active', 1);
+                        if (!empty($inUseAsUpcoming)) {
+                            $query->orWhereIn('id', $inUseAsUpcoming);
+                        }
+                    })
+                    ->where('name', '<>', 'N/A')
+                    ->orderBy('name')
+                    ->get(['id', 'name'])
+                    ->map(fn ($mapping) => ['id' => $mapping->id, 'name' => $mapping->name])
+                    ->all();
+            }
+        );
+
         // Drivers: cache per-site (not operator-scoped) with a shorter TTL
         $driverOptions = Cache::remember('customer_driver_options', $driverTtl, fn() =>
             UserResource::collection(User::with('roles')->orderBy('name')->get())->resolve()
@@ -1819,6 +1862,8 @@ class VendController extends Controller
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => ['data' => $vendChannelErrors],
             'productMappingOptions' => ['data' => $productMappingOptions],
+            // Options for the "Upcoming Mapping" filter (see above).
+            'upcomingProductMappingOptions' => ['data' => $upcomingProductMappingOptions],
             'vendConfigOptions' => ['data' => $vendConfigOptions],
             'vendContractOptions' => ['data' => $vendContractOptions],
             'vendModelOptions' => ['data' => $vendModelOptions],

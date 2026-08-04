@@ -89,6 +89,14 @@ class OptionCacheBuster
         // part naturally refreshes via TTL (vend status flips constantly).
         self::onChange(VendPrefix::class, fn () => self::forgetPerOperator('vend_prefix_options_active_'));
 
+        // upcoming_product_mapping_options_{operator_id} — the Operation
+        // Dashboard "Upcoming Mapping" filter list (active mappings + any
+        // mapping still bound as an upcoming). Per-operator keyed because the
+        // ProductMapping global scope narrows the list per viewer; busted on any
+        // mapping save so activating/deactivating or renaming one shows up at
+        // once instead of aging out over the 24h TTL.
+        self::onChange(ProductMapping::class, fn () => self::forgetPerOperator('upcoming_product_mapping_options_'));
+
         // categories_{classname} / category_groups_{classname} — bust the
         // changed row's classname plus every classname still in the table
         // (covers the common case; a classname fully renamed away simply

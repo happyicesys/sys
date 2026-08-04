@@ -16,6 +16,7 @@ class VendStickerResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'desc' => $this->desc,
+            'color' => $this->color,
         ];
     }
 }

@@ -421,6 +421,130 @@ class ProductMappingController extends Controller
         ]);
     }
 
+    /**
+     * The machines behind the "N Machine(s) at upcoming stage" figure on the
+     * Product Mapping Index — fetched on demand when ops clicks that line.
+     *
+     * The WHERE here is the row-level twin of index()'s $upcomingVendsCountSub:
+     * same EFFECTIVE-upcoming resolution (the vend's own Upcoming Product
+     * Mapping wins, else the preset inherited from the mapping it is binded to
+     * today), same "already on this mapping can't be pending onto it" guard, and
+     * the same vendStatus filter — which the frontend replays from the page's
+     * current filter. If those two ever drift, the popup would list a different
+     * number of machines than the link that opened it, so they must be changed
+     * together.
+     *
+     * Loaded lazily rather than shipped with the page: this index already sends
+     * every mapping's full binded-machine list, and inlining a second list per
+     * row would grow a payload that has previously hit transport limits (see the
+     * OpsJob edit() note about oversized Inertia pages).
+     *
+     * Read-only. Vend's OperatorVendFilterScope still applies (this goes through
+     * Vend::query(), not a raw builder), so operator users only ever see their
+     * own machines — and the whole controller is behind
+     * `permission:read product-mappings` via the constructor.
+     */
+    public function upcomingVends(Request $request, $id)
+    {
+        $productMapping = ProductMapping::findOrFail($id);
+
+        $vends = Vend::query()
+            ->leftJoin(
+                'product_mappings as current_product_mappings',
+                'current_product_mappings.id',
+                '=',
+                'vends.product_mapping_id'
+            )
+            ->whereRaw(
+                'coalesce(vends.upcoming_product_mapping_id, current_product_mappings.upcoming_product_mapping_id) = ?',
+                [$productMapping->id]
+            )
+            ->whereRaw(
+                '(vends.product_mapping_id is null or vends.product_mapping_id <> ?)',
+                [$productMapping->id]
+            )
+            ->when($request->vendStatus && $request->vendStatus !== 'all', function ($query) use ($request) {
+                switch ($request->vendStatus) {
+                    case 'disposed':
+                        $query->where('vends.is_disposed', true);
+                        break;
+                    case 'factory':
+                        $query->where('vends.is_testing', true);
+                        break;
+                    case 'active':
+                        $query->where('vends.is_active', true);
+                        break;
+                    case 'inactive':
+                        $query->where('vends.is_active', false);
+                        break;
+                    case 'sold':
+                        $query->where('vends.is_sold', true);
+                        break;
+                }
+            })
+            ->with([
+                // Only what the popup renders: Site ID (id + 20000, the display
+                // code that replaced virtual_customer_code), site name and
+                // whether the site is still active (greys the name out).
+                'customer:id,name,is_active',
+                'vendPrefix:id,name',
+            ])
+            ->select(
+                'vends.id',
+                'vends.code',
+                'vends.customer_id',
+                'vends.product_mapping_id',
+                'vends.upcoming_product_mapping_id',
+                'vends.vend_prefix_id',
+                'vends.is_active',
+                // Straight off the join — the mapping the machine is on TODAY,
+                // plus that mapping's rollout start date. The start date lives
+                // ONLY on the mapping (there is no per-vend one), and it gates
+                // the changeover for own and inherited alike
+                // (ProductMapping::isUpcomingMappingEffective), which is why it
+                // is shown for both.
+                'current_product_mappings.name as current_product_mapping_name',
+                'current_product_mappings.upcoming_product_mapping_start_date as current_upcoming_start_date'
+            )
+            ->orderBy('vends.code')
+            ->get();
+
+        return response()->json([
+            'productMapping' => [
+                'id'   => $productMapping->id,
+                'name' => $productMapping->name,
+            ],
+            'vends' => $vends->map(function ($vend) use ($productMapping) {
+                // "own" = this machine was pointed at the mapping directly on its
+                // Machine Settings page; "inherited" = it simply rides the preset
+                // upcoming of the mapping it is binded to. Safe to decide on the
+                // vend column alone: coalesce() only falls through to the preset
+                // when that column is null, so a non-null value that survived the
+                // WHERE can only be this mapping.
+                $isOwn = $vend->upcoming_product_mapping_id !== null;
+
+                return [
+                    'id'                           => $vend->id,
+                    'code'                         => $vend->code,
+                    'is_active'                    => (bool) $vend->is_active,
+                    'vend_prefix_name'             => $vend->vendPrefix?->name,
+                    'customer_id'                  => $vend->customer?->id,
+                    // Site ID = customers.id + 20000 (see the site-id display
+                    // swap); null when the machine sits in no site at all.
+                    'site_id'                      => $vend->customer ? $vend->customer->id + 20000 : null,
+                    'customer_name'                => $vend->customer?->name,
+                    'customer_is_active'           => (bool) ($vend->customer?->is_active),
+                    'current_product_mapping_id'   => $vend->product_mapping_id,
+                    'current_product_mapping_name' => $vend->current_product_mapping_name,
+                    'source'                       => $isOwn ? 'own' : 'inherited',
+                    'start_date'                   => $vend->current_upcoming_start_date
+                        ? \Illuminate\Support\Carbon::parse($vend->current_upcoming_start_date)->format('Y-m-d')
+                        : null,
+                ];
+            })->values(),
+        ]);
+    }
+
     public function create(Request $request)
     {
         $request->validate([

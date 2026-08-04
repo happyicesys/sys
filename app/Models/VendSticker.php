@@ -13,6 +13,7 @@ class VendSticker extends Model
     protected $fillable = [
         'name',
         'desc',
+        'color',
     ];
 
     public function vends(): BelongsToMany

@@ -27,6 +27,11 @@
                 Description
               </FormInput>
             </div>
+            <div class="sm:col-span-6">
+              <ColorPicker v-model="form.color" :error="form.errors.color" :previewText="form.name">
+                Colour
+              </ColorPicker>
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -56,6 +61,7 @@
 
 <script setup>
 import Button from '@/Components/Button.vue';
+import ColorPicker from '@/Components/ColorPicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
@@ -84,6 +90,7 @@ function getDefaultForm() {
   return {
     name: '',
     desc: '',
+    color: null,
   }
 }
 

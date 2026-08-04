@@ -39,6 +39,9 @@ class VendStickerController extends Controller
     {
         $request->validate([
             'name' => 'required',
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ], [
+            'color.regex' => 'The colour must be a hex code like #RRGGBB.',
         ]);
 
         VendSticker::create($request->all());
@@ -50,6 +53,9 @@ class VendStickerController extends Controller
     {
         $request->validate([
             'name' => 'required',
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ], [
+            'color.regex' => 'The colour must be a hex code like #RRGGBB.',
         ]);
 
         $vendSticker = VendSticker::findOrFail($id);

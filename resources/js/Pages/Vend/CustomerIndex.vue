@@ -466,6 +466,27 @@
 						>
 						</MultiSelect>
 				</div>
+				<!-- Upcoming Mapping — matches the mapping the machine is scheduled to
+				     switch to, i.e. the same value the "New" badge / Upcoming Job column
+				     shows: the machine's own upcoming first, else its current mapping's
+				     preset upcoming. "— None —" lists machines with no upcoming at all. -->
+				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
+						<label for="text" class="block text-sm font-medium text-gray-700">
+								Upcoming Mapping
+						</label>
+						<MultiSelect
+								v-model="filters.upcomingProductMappings"
+								:options="upcomingProductMappingOptions"
+								trackBy="id"
+								valueProp="id"
+								label="value"
+								placeholder="Select"
+								open-direction="bottom"
+								mode="tags"
+								class="mt-1"
+						>
+						</MultiSelect>
+				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 					<label class="block text-sm font-medium text-gray-700">
 						Site Grouping
@@ -3169,6 +3190,9 @@ font-size:13px;
 			nextDeliveryDriverOptions: [Array, Object],
 			operatorOptions: Object,
 			productMappingOptions: Object,
+			// Active mappings (+ any still bound as an upcoming) for the
+			// "Upcoming Mapping" filter. See VendController::indexCustomer.
+			upcomingProductMappingOptions: Object,
 			productOptions: Object,
 			sellingPriceTypeOptions: [Array, Object],
 			totals: [Array, Object],
@@ -3444,6 +3468,7 @@ font-size:13px;
 			sortBy: true,
 			numberPerPage: '',
 			productMappings: [],
+			upcomingProductMappings: [],
 			vendConfigs: [],
 			vendContracts: [],
 			visited: true,
@@ -3480,6 +3505,7 @@ font-size:13px;
 	const operatorOptions = ref([])
 	const pickLists = ref([])
 	const productMappingOptions = ref([])
+	const upcomingProductMappingOptions = ref([])
 	const sellingPriceTypeOptions = ref([])
 	const showAllFilters = ref(false)
 	const showChannelOverviewModal = ref(false)
@@ -3652,6 +3678,15 @@ productMappingOptions.value = [
 		...props.productMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
+// "— None —" is a sentinel, not a mapping: the backend reads id 'none' as "this
+// machine has no effective upcoming mapping". Kept next to 'all' so both
+// sentinels sit at the top of the list, ahead of the alphabetical mappings.
+upcomingProductMappingOptions.value = [
+		{id: 'all', value: 'All'},
+		{id: 'none', value: '— None —'},
+		...props.upcomingProductMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
+]
+
 filters.value.cashless_mfg = cardTerminalOptions.value[0]
 filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
 filters.value.is_active = booleanOptions.value[1]
@@ -3753,6 +3788,7 @@ if(urlParams.has('channel_codes')) {
 	hydrateMulti('operators', operatorOptions.value, 'operators');
 	hydrateMulti('preferredDays', dayOptions.value, 'preferredDays');
 	hydrateMulti('productMappings', productMappingOptions.value, 'productMappings');
+	hydrateMulti('upcomingProductMappings', upcomingProductMappingOptions.value, 'upcomingProductMappings');
 	hydrateMulti('vendConfigs', vendConfigOptions.value, 'vendConfigs');
 	hydrateMulti('vendContracts', vendContractOptions.value, 'vendContracts');
 	hydrateMulti('vendModels', vendModelOptions.value, 'vendModels');
@@ -4430,6 +4466,9 @@ function onSearchFilterUpdated() {
 			status: filters.value.status.id,
 			// vend_prefix_id: filters.value.vend_prefix_id.id,
 			productMappings: filters.value.productMappings.map((pm) => { return pm.id }),
+			// Overrides the object array spread by ...filters.value above — the
+			// backend expects bare ids (numeric, or the 'none' sentinel).
+			upcomingProductMappings: filters.value.upcomingProductMappings.map((pm) => { return pm.id }),
 			vendConfigs: filters.value.vendConfigs.map(vc => vc.id),
 			vendContracts: filters.value.vendContracts.map(vc => vc.id),
 			vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),

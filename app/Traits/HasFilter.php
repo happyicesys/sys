@@ -794,6 +794,49 @@ trait HasFilter
                     $query->whereIn('vends.product_mapping_id', $ids);
                 }
             })
+            // "Upcoming Mapping" filter (Operation Dashboard). Matches the
+            // EFFECTIVE upcoming mapping — i.e. exactly what the row renders as
+            // the "New" badge / Upcoming Job mapping name: the machine's OWN
+            // upcoming first, falling back to its current mapping's preset
+            // upcoming. See CustomerIndex.vue getUpcomingMapping() — this SQL is
+            // the server-side mirror of that precedence, including treating the
+            // 'N/A' sentinel mapping as "no upcoming".
+            //
+            // The special value 'none' selects machines with NO effective
+            // upcoming at all. Sites with no bound machine are never "none" —
+            // there is no machine to schedule a mapping change for.
+            ->when($request->upcomingProductMappings, function ($query, $search) {
+                $ids = is_array($search) ? $search : [$search];
+                $ids = array_values(array_filter($ids, fn($value) => $value !== null && $value !== ''));
+
+                if (empty($ids) || in_array('all', $ids, true)) {
+                    return;
+                }
+
+                $wantsNone  = in_array('none', $ids, true);
+                // Cast to int before interpolation — these ids are inlined into
+                // raw SQL (a bound IN list can't be mixed with the raw COALESCE
+                // expression cleanly), so they must not be attacker-shaped.
+                $mappingIds = array_values(array_unique(array_map(
+                    'intval',
+                    array_filter($ids, fn($value) => is_numeric($value))
+                )));
+
+                if (empty($mappingIds) && !$wantsNone) {
+                    return;
+                }
+
+                $expression = $this->effectiveUpcomingMappingSql();
+
+                $query->where(function ($query) use ($expression, $mappingIds, $wantsNone) {
+                    if (!empty($mappingIds)) {
+                        $query->orWhereRaw($expression . ' IN (' . implode(',', $mappingIds) . ')');
+                    }
+                    if ($wantsNone) {
+                        $query->orWhereRaw('vends.id IS NOT NULL AND ' . $expression . ' IS NULL');
+                    }
+                });
+            })
             ->when($request->zones, function ($query, $search) {
                 if (!in_array('all', $search)) {
                     $query->whereIn('zone_id', $search);
@@ -846,6 +889,57 @@ trait HasFilter
             });
 
         return $query;
+    }
+
+    /**
+     * SQL expression yielding a machine's EFFECTIVE upcoming product mapping id
+     * (or NULL when it has none).
+     *
+     * Server-side mirror of CustomerIndex.vue's getUpcomingMapping():
+     *   1. the vend's OWN upcoming (vends.upcoming_product_mapping_id) wins —
+     *      that's the value the Setting/Edit form writes per machine;
+     *   2. otherwise the CURRENT mapping's preset upcoming
+     *      (product_mappings.upcoming_product_mapping_id);
+     *   3. the 'N/A' sentinel mapping means "no upcoming" at either level and is
+     *      collapsed to NULL, same as the `name !== 'N/A'` guards in the Vue.
+     *
+     * Deliberately correlated on `vends.product_mapping_id` rather than reading a
+     * joined `product_mappings` alias: filterVendsDB() also runs on queries that
+     * don't join that table (VendController::index), so the expression has to be
+     * self-contained. Only the `vends` table is assumed — every caller has it.
+     *
+     * The N/A id set is resolved once per request (static memo). Mapping names
+     * are admin-edited master data; a rename mid-request can't happen.
+     */
+    protected function effectiveUpcomingMappingSql(): string
+    {
+        static $expression = null;
+
+        if ($expression !== null) {
+            return $expression;
+        }
+
+        $naIds = \App\Models\ProductMapping::withoutGlobalScopes()
+            ->where('name', 'N/A')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $naList = implode(',', $naIds);
+
+        $ownUpcoming = $naList !== ''
+            ? "(CASE WHEN vends.upcoming_product_mapping_id IN ({$naList}) THEN NULL ELSE vends.upcoming_product_mapping_id END)"
+            : 'vends.upcoming_product_mapping_id';
+
+        // Returns NULL both when the current mapping has no preset upcoming and
+        // when that preset is the N/A sentinel — so COALESCE falls through to
+        // "no upcoming" in exactly the cases the badge does.
+        $presetUpcoming = '(SELECT pm_upcoming.upcoming_product_mapping_id'
+            . ' FROM product_mappings pm_upcoming'
+            . ' WHERE pm_upcoming.id = vends.product_mapping_id'
+            . ($naList !== '' ? " AND pm_upcoming.upcoming_product_mapping_id NOT IN ({$naList})" : '')
+            . ')';
+
+        return $expression = "COALESCE({$ownUpcoming}, {$presetUpcoming})";
     }
 
     public function filterVendChannelsDB($query, $request)

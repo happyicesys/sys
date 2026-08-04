@@ -82,6 +82,9 @@
                     <TableHeadSort modelName="desc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('desc')">
                       Description
                     </TableHeadSort>
+                    <TableHeadSort modelName="color" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('color')">
+                      Colour
+                    </TableHeadSort>
                     <TableHead>
                     </TableHead>
                   </tr>
@@ -96,6 +99,14 @@
                       </TableData>
                       <TableData :currentIndex="vendStickerIndex" :totalLength="vendStickers.length" inputClass="text-left">
                         {{ vendSticker.desc }}
+                      </TableData>
+                      <TableData :currentIndex="vendStickerIndex" :totalLength="vendStickers.length" inputClass="text-center">
+                        <div class="flex justify-center">
+                          <span class="h-6 w-6 rounded-full"
+                            :style="stickerSwatchStyle(vendSticker.color)"
+                            :title="vendSticker.color ?? 'No colour'"
+                          ></span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendStickerIndex" :totalLength="vendStickers.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -154,6 +165,7 @@ import { MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@her
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
+import { stickerSwatchStyle } from '@/constants/stickerColors';
 import { useToast } from "vue-toastification";
 import { Head } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';

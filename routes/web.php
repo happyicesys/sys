@@ -641,6 +641,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/', [ProductMappingController::class, 'index'])->name('product-mappings');
         Route::post('/create', [ProductMappingController::class, 'create']);
         Route::get('/{id}/edit', [ProductMappingController::class, 'edit'])->name('product-mappings.edit');
+        // Machines behind the "N Machine(s) at upcoming stage" figure on the
+        // index — read-only JSON, fetched when that line is clicked.
+        Route::get('/{id}/upcoming-vends', [ProductMappingController::class, 'upcomingVends'])->name('product-mappings.upcoming-vends');
         Route::post('/{id}/toggle-activate-deactivate', [ProductMappingController::class, 'toggleActivateDeactivate']);
         Route::post('/{id}/toggle-smart', [ProductMappingController::class, 'toggleSmart']);
         Route::post('/{id}/update', [ProductMappingController::class, 'update']);
