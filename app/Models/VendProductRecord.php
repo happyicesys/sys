@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Scopes\OperatorVendRecordScope;
+use App\Models\Scopes\ProductAccessProductColumnScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,6 +18,10 @@ class VendProductRecord extends Model
         // Reuse the same operator scoping as vend_records so multi-operator
         // users only see their own data by default.
         static::addGlobalScope(new OperatorVendRecordScope);
+
+        // Product grain IS part of this table's key, so unlike vend_records it
+        // can be filtered honestly by the "Access Product(s)" allow-list.
+        static::addGlobalScope(new ProductAccessProductColumnScope);
     }
 
     protected $fillable = [
@@ -102,7 +107,10 @@ class VendProductRecord extends Model
 
     public function vendPrefix()
     {
-        return $this->belongsTo(VendPrefix::class);
+        // withTrashed(): VendPrefix soft-deletes, and this product record's
+        // vend_prefix_id is a historical snapshot — a retired prefix must still
+        // resolve its name here instead of coming back null.
+        return $this->belongsTo(VendPrefix::class)->withTrashed();
     }
 
     // ── Scopes ────────────────────────────────────────────────────────────────

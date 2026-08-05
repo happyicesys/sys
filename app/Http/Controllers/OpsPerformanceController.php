@@ -253,7 +253,11 @@ class OpsPerformanceController extends Controller
         return [
             'operators' => $opts('operators'),
             'locationTypes' => DB::table('location_types')->select('id', 'name')->orderBy('sequence')->get(),
-            'vendPrefixes' => $opts('vend_prefixes'),
+            // Raw query builder, so SoftDeletingScope does NOT apply here the way it
+            // does to every other (Eloquent) prefix dropdown — filter trashed rows
+            // explicitly or retired prefixes linger in this filter forever.
+            'vendPrefixes' => DB::table('vend_prefixes')->select('id', 'name')
+                ->whereNull('deleted_at')->orderBy('name')->get(),
             'vendModels' => $opts('vend_models'),
             'categories' => $opts('categories'),
             'statuses' => [

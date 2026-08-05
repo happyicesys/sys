@@ -506,16 +506,16 @@
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-900">
                             <div
                                 class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
-                                :class="[voucherItem.is_active ? (voucherItem.is_redeemed ? 'bg-yellow-300' : 'bg-green-300') : 'bg-red-300']"
+                                :class="[voucherItem.status_name === 'redeemed' ? 'bg-yellow-300' : (voucherItem.status_name === 'expired' ? 'bg-red-300' : 'bg-green-300')]"
                             >
-                              <span v-if="voucherItem.is_active && !voucherItem.is_redeemed">
-                                Active
-                              </span>
-                              <span v-else-if="voucherItem.is_active && voucherItem.is_redeemed">
+                              <span v-if="voucherItem.status_name === 'redeemed'">
                                 Redeemed
                               </span>
-                              <span v-else>
+                              <span v-else-if="voucherItem.status_name === 'expired'">
                                 Expired
+                              </span>
+                              <span v-else>
+                                Active
                               </span>
                             </div>
                           </td>

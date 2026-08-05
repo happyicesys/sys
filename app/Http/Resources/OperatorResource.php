@@ -43,6 +43,12 @@ class OperatorResource extends JsonResource
 
             'customers'                => CustomerResource::collection($this->whenLoaded('customers')),
             'vends'                    => VendResource::collection($this->whenLoaded('vends')),
+
+            // "Access Product(s)" allow-list + mode flag. This is the hard
+            // ceiling for every user under this operator - see
+            // App\Support\ProductAccess::forUser().
+            'product_access_mode'      => $this->product_access_mode,
+            'access_products'          => ProductResource::collection($this->whenLoaded('accessProducts')),
             'deliveryPlatformOperators'=> DeliveryPlatformOperatorResource::collection($this->whenLoaded('deliveryPlatformOperators')),
             'operatorPaymentGateways'  => OperatorPaymentGatewayResource::collection($this->whenLoaded('operatorPaymentGateways')),
 

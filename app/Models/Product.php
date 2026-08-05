@@ -2,6 +2,7 @@
 
 namespace App\Models;
 use App\Models\Scopes\OperatorProductFilterScope;
+use App\Models\Scopes\ProductAccessProductScope;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +28,7 @@ class Product extends Model
     protected static function booted()
     {
         static::addGlobalScope(new OperatorProductFilterScope);
+        static::addGlobalScope(new ProductAccessProductScope);
 
         // Blind SKU: stamp WHEN a product became (or stopped being) a housing, so
         // ops jobs created before the flip keep treating it as a normal product.
@@ -211,6 +213,17 @@ class Product extends Model
     public function vendTransactions()
     {
         return $this->hasMany(VendTransaction::class);
+    }
+
+    // "Access Product(s)" inverse sides - who has been granted this SKU.
+    public function accessUsers()
+    {
+        return $this->belongsToMany(User::class);
+    }
+
+    public function accessOperators()
+    {
+        return $this->belongsToMany(Operator::class);
     }
 
     public function opsJobItemChannels()

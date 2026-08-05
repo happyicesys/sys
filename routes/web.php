@@ -202,14 +202,30 @@ Route::middleware(['auth', 'cors'])->group(function () {
 
     Route::prefix('customers')->group(function () {
         Route::get('/', [CustomerController::class, 'index'])->name('customers');
-        Route::get('/summary', [CustomerController::class, 'summary'])->name('customers.summary');
-        Route::get('/summary/excel', [CustomerController::class, 'summaryExportExcel'])->name('customers.summary.excel');
+        // "Access Product(s)": Site Summary money is whole-site and its
+        // location-fee rates are tiered on TOTAL site sales, so there is no
+        // well-defined per-product share. Blocked for restricted viewers rather
+        // than shown unfiltered. See BlockWhenProductRestricted.
+        Route::get('/summary', [CustomerController::class, 'summary'])
+            ->middleware('product.unrestricted')
+            ->name('customers.summary');
+        Route::get('/summary/excel', [CustomerController::class, 'summaryExportExcel'])
+            ->middleware('product.unrestricted')
+            ->name('customers.summary.excel');
         // Site Performance — aggregate matrix report (metrics × period columns).
         // Placed before the {id} routes below so the literal "performance"
         // segment is never swallowed by a wildcard. Read-only; mirrors the
         // Sites / Summary & Comm filters.
-        Route::get('/performance', [CustomerController::class, 'performance'])->name('customers.performance');
-        Route::get('/performance/excel', [CustomerController::class, 'performanceExportExcel'])->name('customers.performance.excel');
+        // "Access Product(s)": buildPerformanceMatrix() reads
+        // customer_period_summaries — whole-SITE money with no product
+        // dimension, exactly like /customers/summary above. Blocked for
+        // restricted viewers rather than shown unfiltered.
+        Route::get('/performance', [CustomerController::class, 'performance'])
+            ->middleware('product.unrestricted')
+            ->name('customers.performance');
+        Route::get('/performance/excel', [CustomerController::class, 'performanceExportExcel'])
+            ->middleware('product.unrestricted')
+            ->name('customers.performance.excel');
         // "Pull from CMS" (Create/Edit ▸ beside CMS Linking ID) — on-demand,
         // one-way CMS → form fetch (read-only JSON; nothing is saved until the
         // user presses Save, and nothing is pushed back to CMS). Literal path,
@@ -302,11 +318,17 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Settlement ledger ("Payment History") for a SITE — drives the
         // Payment-History popup on the Site Summary. Read-only JSON: the full
         // chronological ledger + derived running balance + outstanding total.
-        Route::get('/{id}/settlements', [CustomerController::class, 'getSettlements'])->name('customers.settlements');
+        Route::get('/{id}/settlements', [CustomerController::class, 'getSettlements'])
+            ->middleware('product.unrestricted')
+            ->name('customers.settlements');
         // Settlement ledger exports — Excel (.xlsx) + printable Statement of
         // Account (HTML → browser Save-as-PDF). Both reuse buildSettlementLedger.
-        Route::get('/{id}/settlements/excel', [CustomerController::class, 'settlementsExportExcel'])->name('customers.settlements.excel');
-        Route::get('/{id}/settlements/pdf', [CustomerController::class, 'settlementsPrintView'])->name('customers.settlements.pdf');
+        Route::get('/{id}/settlements/excel', [CustomerController::class, 'settlementsExportExcel'])
+            ->middleware('product.unrestricted')
+            ->name('customers.settlements.excel');
+        Route::get('/{id}/settlements/pdf', [CustomerController::class, 'settlementsPrintView'])
+            ->middleware('product.unrestricted')
+            ->name('customers.settlements.pdf');
         // Add a manual Paid/Waived credit entry straight from the Payment-History
         // popup (admin-only). Standalone ledger credit — does NOT touch any
         // period's Paid/Waived flags.
@@ -327,7 +349,12 @@ Route::middleware(['auth', 'cors'])->group(function () {
 
     Route::prefix('dashboard')->group(function () {
         Route::redirect('/', '/dashboard/performance');
-        Route::get('/performance', [DashboardController::class, 'index'])->name('dashboard');
+        // "Access Product(s)": reads frozen vend_records, whose grain is
+        // date x machine with no product dimension - see
+        // BlockWhenProductRestricted.
+        Route::get('/performance', [DashboardController::class, 'index'])
+            ->middleware('product.unrestricted')
+            ->name('dashboard');
         // Lightweight JSON used by the post-login "This month sales" popup (HIPL group only).
         Route::get('/monthly-sales-popup', [DashboardController::class, 'monthlySalesPopup'])->name('dashboard.monthly-sales-popup');
     });
@@ -523,7 +550,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
 
     Route::prefix('reports')->group(function () {
         Route::get('/sales/{type}/excel', [ReportController::class, 'exportSalesExcel']);
-        Route::get('/sales/{type}', [ReportController::class, 'indexSales']);
+        // "Access Product(s)": the historical leg of this report reads vend_records
+        // directly (grain = date x machine, no product dimension), so it cannot be
+        // honestly filtered - see BlockWhenProductRestricted.
+        Route::get('/sales/{type}', [ReportController::class, 'indexSales'])
+            ->middleware('product.unrestricted');
 
 
         Route::get('/gp/vend', [ReportController::class, 'indexGpVm']);
@@ -798,13 +829,45 @@ Route::middleware(['auth', 'cors'])->group(function () {
     Route::prefix('vends')->group(function () {
         Route::post('/create', [VendController::class, 'create']);
         Route::get('/channels/excel', [VendController::class, 'exportChannelExcel']);
-        Route::get('/customers', [VendController::class, 'indexCustomer'])->name('vends.customer');
+        // "Access Product(s)": this page prints today/yesterday/7d/30d amounts,
+        // "Avg Mthly Sales $" (vend_records_amount_latest) and Stock Cost /
+        // Value — every one of them summed across EVERY product in the machine,
+        // straight out of customers.vend_transaction_totals_json. There is no
+        // per-product share to show, so a restricted viewer is blocked rather
+        // than handed the other party's machine revenue. Product restriction is
+        // per-USER / per-OPERATOR, NOT per-role, so the `read vend-customers`
+        // permission does not stand in for this gate.
+        Route::get('/customers', [VendController::class, 'indexCustomer'])
+            ->middleware('product.unrestricted')
+            ->name('vends.customer');
         // Phase 2 of the Customer Index deferred-load: returns the heavy
         // aggregate columns for the on-screen rows (see indexCustomer
         // $deferAggregates). Same group/middleware as the page above.
-        Route::post('/customers/aggregates', [VendController::class, 'customerIndexAggregates'])->name('vends.customer.aggregates');
-        Route::get('/ops-performance', [OpsPerformanceController::class, 'index'])->name('vends.ops-performance');
-        Route::get('/ops-performance/excel', [OpsPerformanceController::class, 'export'])->name('vends.ops-performance.excel');
+        // Gated too: it returns the same heavy money columns for the on-screen
+        // rows, so leaving it open would hand back exactly what the page above
+        // refuses to render.
+        Route::post('/customers/aggregates', [VendController::class, 'customerIndexAggregates'])
+            ->middleware('product.unrestricted')
+            ->name('vends.customer.aggregates');
+        // Operations > Dashboard (Lite) — glance view of the same Operation
+        // Dashboard rows for retail operators: identity, temperatures,
+        // inventory status and rolling Sales(qty) only. Shares
+        // VendController::indexCustomer (and the /customers/aggregates
+        // Phase-2 endpoint above) so filtering, operator scoping and
+        // permissions can never drift from the full Dashboard.
+        // Same money columns as the full Dashboard above (it shares
+        // indexCustomer), so it carries the same "Access Product(s)" block.
+        Route::get('/customers-lite', [VendController::class, 'indexCustomerLite'])
+            ->middleware('product.unrestricted')
+            ->name('vends.customer-lite');
+        // "Access Product(s)": reads ops_machine_daily_snapshots — per-machine
+        // sales / stock-in value aggregated over every product.
+        Route::get('/ops-performance', [OpsPerformanceController::class, 'index'])
+            ->middleware('product.unrestricted')
+            ->name('vends.ops-performance');
+        Route::get('/ops-performance/excel', [OpsPerformanceController::class, 'export'])
+            ->middleware('product.unrestricted')
+            ->name('vends.ops-performance.excel');
 
         // Operations > Site Grouping — manage co-located Site clusters as objects
         // (create/rename/delete groups, attach/detach member Sites). Membership

@@ -634,6 +634,20 @@
                </div>
 
 
+              <AccessBindingSection
+                v-if="form.id"
+                title="Access Product(s)"
+                addLabel="Product to Bind"
+                itemNoun="product"
+                subjectNoun="operator"
+                optionLabel="full_name"
+                :columns="productColumns"
+                :options="unbindedProductOptions"
+                :canEdit="permissions.includes('update operators')"
+                v-model="form.access_products"
+                v-model:mode="form.product_access_mode"
+              />
+
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -779,6 +793,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchVendCodeWithOperatorInput from '@/Components/SearchVendCodeWithOperatorInput.vue';
+import AccessBindingSection from '@/Components/AccessBindingSection.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlusCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -796,7 +811,14 @@ const props = defineProps({
     operatorPaymentGatewayTypes: [Array, Object],
     permissions: [Array, Object],
     operatorCanOverrideLogo: Boolean,
+    unbindedProducts: [Array, Object],
   })
+
+const unbindedProductOptions = ref([])
+const productColumns = [
+  { key: 'code', label: 'Product Code' },
+  { key: 'name', label: 'Product Name' },
+]
 
   const booleanOptions = ref([
     {id: 'all', value: 'All'},
@@ -891,10 +913,16 @@ onMounted(() => {
           ...getDefaultForm(),
           ...props.operator.data,
           email_recipients: Array.isArray(mixedRecipients) ? mixedRecipients : [],
+          access_products: props.operator.data.access_products
+            ? [...props.operator.data.access_products]
+            : [],
+          product_access_mode: props.operator.data.product_access_mode || 'all',
           logo: null,
           logo_remove: false,
         })
       : useForm(getDefaultForm());
+
+    unbindedProductOptions.value = props.unbindedProducts ? props.unbindedProducts.data : [];
 
     // hydrate new fields
     if (props.operator && props.operator.data.operatorCallbacks) {
@@ -955,6 +983,8 @@ function getDefaultForm() {
     logo_remove: false,
     transaction_callback_url: '',
     alert_callback_url: '',
+    access_products: [],
+    product_access_mode: 'all',
   }
 }
 
@@ -1238,6 +1268,11 @@ function submit() {
           email_customs: customsDeduped,
           logo: data.logo ?? null,
           logo_remove: Boolean(data.logo_remove),
+          // "Access Product(s)": send ids only. The controller drops
+          // access_products from the mass-assign payload (it is a relation, not
+          // a column) and syncs the pivot from access_product_ids.
+          access_product_ids: (Array.isArray(data.access_products) ? data.access_products : []).map(p => p.id),
+          product_access_mode: data.product_access_mode || 'all',
         };
       })
       .post('/operators/' + form.value.id + '/update', {

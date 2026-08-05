@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Client;
 
 use App\Models\Vend;
+use App\Models\Scopes\ProductAccessTransactionScope;
 use App\Models\VendTransaction;
 use App\Http\Controllers\Controller;
 // use App\Http\Requests\ClientVendTransactionRequest;
@@ -42,7 +43,13 @@ class ClientController extends Controller
 
         $perPage = $request->input('per_page', 50);
 
-        $vendTransactions = VendTransaction::with([
+        // "Access Product(s)" is a MARK1-UI restriction, not an API contract
+        // change: partner integrations must keep receiving exactly what they
+        // received before. auth() (web guard) is already false here because
+        // auth:api carries no session, so the scope is inert - this makes that
+        // explicit so a future guard change cannot silently reshape the API.
+        $vendTransactions = VendTransaction::withoutGlobalScope(ProductAccessTransactionScope::class)
+            ->with([
             'paymentMethod',
             'product',
             'vend.customer',

@@ -2,12 +2,22 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\ProductAccessProductColumnScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class GpMetric extends Model
 {
     use HasFactory;
+
+    protected static function booted()
+    {
+        // gp_metrics is the ONE pre-aggregated table a product-restricted user
+        // can trust: GpMetricsAggregator splits multi baskets into per-product
+        // rows and apportions the revenue, so filtering by product_id yields
+        // correctly attributed money.
+        static::addGlobalScope(new ProductAccessProductColumnScope);
+    }
 
     protected $fillable = [
         'txn_date',

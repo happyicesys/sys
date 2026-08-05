@@ -9,6 +9,7 @@ use App\Models\VendTransactionItem;
 use App\Models\ExportJob;
 use App\Models\Tag;
 use App\Models\User;
+use App\Support\ProductAccess;
 use DB;
 use Illuminate\Bus\Queueable;
 use Illuminate\Http\Request;
@@ -30,11 +31,40 @@ class ExportVendTransactionCsv implements ShouldQueue
     protected $requestData;
     protected $userID;
 
-    public function __construct($jobId, array $requestData, $userID = null)
+    /**
+     * "Access Product(s)" allow-list, resolved ONCE in the controller.
+     *
+     * auth() is empty inside a queue worker, so the global scope cannot fire
+     * here - the set has to be handed in. Resolving it in the controller also
+     * means a pivot edit mid-export cannot split a multi-chunk run.
+     *
+     * null = unrestricted. [] = restricted to nothing (export zero rows).
+     *
+     * @var array<int, int>|null
+     */
+    protected $allowedProductIds;
+
+    // $allowedProductIds is deliberately REQUIRED (no default), matching
+    // ExportVendTransactionCsvChunk: a dispatch site that forgets it must fail
+    // loudly rather than silently export every product.
+    public function __construct($jobId, array $requestData, $userID, ?array $allowedProductIds)
     {
         $this->jobId = $jobId;
         $this->requestData = $requestData;
         $this->userID = $userID;
+        $this->allowedProductIds = $allowedProductIds;
+    }
+
+    /**
+     * Blank the Unit Cost cell for a product the viewer may not access.
+     *
+     * Mixed baskets are shown in full on purpose, but a partner must not learn
+     * a competitor's cost price from their own export. Everything else on the
+     * row (code, name, amount) is left intact so the basket still reconciles.
+     */
+    protected function maskedUnitCost($productId, $value)
+    {
+        return ProductAccess::allows($this->allowedProductIds, $productId) ? $value : '';
     }
 
     public function handle()
@@ -127,6 +157,10 @@ class ExportVendTransactionCsv implements ShouldQueue
                 ->when($user->vends()->exists(), function ($query) use ($user) {
                     $query->whereIn('vend_transactions.vend_id', $user->vends->pluck('id'));
                 })
+                // "Access Product(s)": a basket is exported whole when ANY of its
+                // items is allowed. The other party's item rows still print their
+                // code/name/amount - only Unit Cost is blanked, further down.
+                ->tap(fn($query) => ProductAccess::applyToVendTransactions($query, $this->allowedProductIds))
                 ->filterTransactionIndex($request)
                 // Mirror the aggregate-cards query (VendController@transactionIndex):
                 // only settled sales (excludes in-flight PENDING and voided REFUNDED
@@ -151,6 +185,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                     'products.name AS product_name',
                     'payment_methods.name AS payment_method_name',
                     'unit_costs.cost',
+                    'vend_channels.product_id AS vend_channel_product_id',
                     'vend_channels.amount AS vend_channel_amount',
                     'vend_channels.amount2 AS vend_channel_amount2',
                     'vend_channel_errors.code AS vend_channel_error_code',
@@ -261,7 +296,10 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $txn->vend_channel_amount == $txn->amount ? 'P1' : ($txn->vend_channel_amount2 == $txn->amount ? 'P2' : ''),
                             $main_amount,
                             $multipleBreakdown,
-                            $txn->cost ? $txn->cost / 100 : '',
+                            $this->maskedUnitCost(
+                                $txn->product_id ?: $txn->vend_channel_product_id,
+                                $txn->cost ? $txn->cost / 100 : ''
+                            ),
                             $txn->payment_method_name,
                             $txn->cashless_mfg ?? '',
                             $txn->vend_channel_error_code,
@@ -294,7 +332,10 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 'P1',
                                 '',
                                 $item->vendChannel ? $item->vendChannel->amount / 100 : '',
-                                $item->unitCost ? $item->unitCost->cost : '',
+                                $this->maskedUnitCost(
+                                    $item->product_id,
+                                    $item->unitCost ? $item->unitCost->cost : ''
+                                ),
                                 '',
                                 '', // Cashless Mfg empty for item rows
                                 $item->vendChannelError->code ?? '',
@@ -319,7 +360,7 @@ class ExportVendTransactionCsv implements ShouldQueue
 
             // Append dispensed-but-unreported gateway revenue so the CSV total
             // tallies with the dashboard "Total Sales" (from the cutoff onward).
-            $this->appendUnreportedGatewayRows($stream, $request, $user);
+            $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds);
 
             rewind($stream);
 

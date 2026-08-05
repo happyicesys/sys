@@ -295,32 +295,49 @@
                         <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                         <span>Edit</span>
                       </Button>
-                      <Button
-                        type="button"
-                        class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1 w-fit"
-                        :class="[
-                          (vendPrefix.vends && vendPrefix.vends.length > 0) ||
-                          (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)
-                            ? 'opacity-50 cursor-not-allowed'
-                            : ''
-                        ]"
-                        @click="onDeleteClicked(vendPrefix)"
-                        :disabled="(vendPrefix.vends && vendPrefix.vends.length > 0) || (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)"
+                      <!--
+                        Only MACHINES block deletion. A Setting Chart is a soft bind: the
+                        prefix soft-deletes and simply stops appearing under that Setting
+                        Chart, which is itself left untouched (VendPrefixController@delete).
+                        Before 2026-08-04 this read `vendPrefix.vends`, which the resource
+                        never emitted, so the machine half never fired and the label said
+                        "(Binded)" for a prefix that merely had a Setting Chart attached.
+                      -->
+                      <!--
+                        title lives on the WRAPPER, not the Button: a disabled control
+                        receives no pointer events, so a title on it never renders a
+                        tooltip — which is exactly the case that needs explaining.
+                      -->
+                      <span
                         v-if="vendPrefix.operator_id"
+                        class="inline-flex"
+                        :title="
+                          vendPrefix.machines_count > 0
+                            ? vendPrefix.machines_count +
+                              ' machine(s) still use this prefix (disposed ones count too). Re-assign them to another prefix first.'
+                            : 'Deletes this prefix. It stays readable on past transactions and stock counts, and the Setting Chart itself is not changed.'
+                        "
                       >
-                        <span class="flex space-x-1 items-center">
-                          <TrashIcon class="w-4 h-4"></TrashIcon>
-                          <span>Delete</span>
-                        </span>
-                        <span
-                          v-if="
-                            (vendPrefix.vends && vendPrefix.vends.length > 0) ||
-                            (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)
-                          "
+                        <Button
+                          type="button"
+                          class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1 w-fit whitespace-nowrap"
+                          :class="[
+                            vendPrefix.machines_count > 0
+                              ? 'opacity-50 cursor-not-allowed'
+                              : ''
+                          ]"
+                          @click="onDeleteClicked(vendPrefix)"
+                          :disabled="vendPrefix.machines_count > 0"
                         >
-                          (Binded)
-                        </span>
-                      </Button>
+                          <span class="flex space-x-1 items-center">
+                            <TrashIcon class="w-4 h-4"></TrashIcon>
+                            <span>Delete</span>
+                          </span>
+                          <span v-if="vendPrefix.machines_count > 0" class="text-[10px] leading-none"
+                            >({{ vendPrefix.machines_count }} machine{{ vendPrefix.machines_count > 1 ? 's' : '' }})</span
+                          >
+                        </Button>
+                      </span>
                     </div>
                   </TableData>
                 </tr>
@@ -464,7 +481,24 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(vendPrefix) {
-  const approval = confirm('Are you sure to delete ' + vendPrefix.name + '?');
+  // Mirrors the server guard in VendPrefixController@delete.
+  if (vendPrefix.machines_count > 0) {
+    return;
+  }
+
+  // Spell out what actually happens so it is never a surprise.
+  const bindedConfigs = (vendPrefix.vendConfigs || []).map((vendConfig) => vendConfig.name);
+  let message = 'Are you sure to delete ' + vendPrefix.name + '?';
+  if (bindedConfigs.length) {
+    message +=
+      '\n\nIt will no longer appear under Setting Chart: ' +
+      bindedConfigs.join(', ') +
+      '.\nThe Setting Chart itself will not be changed.';
+  }
+  message +=
+    '\n\nPast transactions, stock counts and binding history keep showing this prefix.';
+
+  const approval = confirm(message);
   if (!approval) {
     return;
   }
@@ -472,8 +506,10 @@ function onDeleteClicked(vendPrefix) {
     onSuccess: () => {
       toast.success("Machine prefix deleted successfully", { timeout: 3000 })
     },
-    onError: () => {
-      toast.error("Failed to delete machine prefix", { timeout: 3000 })
+    onError: (errors) => {
+      // Surface the server's reason (machines still bound / global prefix)
+      // instead of the old blanket "Failed to delete".
+      toast.error((errors && errors.delete) || "Failed to delete machine prefix", { timeout: 5000 })
     }
   })
 }

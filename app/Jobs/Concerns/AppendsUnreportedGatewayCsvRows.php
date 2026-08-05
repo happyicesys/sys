@@ -23,9 +23,28 @@ trait AppendsUnreportedGatewayCsvRows
      * Amount is written in major units (e.g. 3.50) to match the `/100` convention
      * used for the regular transaction rows. Column order mirrors the CSV header
      * exactly (31 columns).
+     *
+     * "Access Product(s)": these rows have NO product - payment_gateway_logs has
+     * no product_id, because the machine never told us what came out. There is
+     * nothing to attribute, so a product-restricted export omits them entirely
+     * rather than crediting a partner with revenue that provably is not theirs.
+     * One note row is emitted in their place so the missing amount is visible
+     * instead of being a silent reconciliation gap.
+     *
+     * @param  array<int, int>|null  $allowedProductIds  null = unrestricted
      */
-    protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null): void
+    protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null, ?array $allowedProductIds = null): void
     {
+        if ($allowedProductIds !== null) {
+            fputcsv($stream, array_merge(
+                ['', '', '', '', '', '', '', '', ''],
+                ['Unreported Gateway Revenue (omitted - product-restricted view)'],
+                array_fill(0, 21, '')
+            ));
+
+            return;
+        }
+
         $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
             DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int) $v)->all()
         );

@@ -4,12 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\CountryResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\ProductResource;
 use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
 use App\Models\Country;
 use App\Models\Operator;
+use App\Models\Product;
+use App\Models\Scopes\ProductAccessProductScope;
 use App\Models\User;
+use App\Support\ProductAccess;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -136,7 +140,19 @@ class UserController extends Controller
             'roles',
             'vends:id,code,name,customer_id',
             'vends.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
+            // withoutGlobalScope: Product carries ProductAccessProductScope and
+            // global scopes DO apply to eager loads. Without this, an admin who is
+            // themselves product-restricted loads a TRUNCATED bound list, and the
+            // sync() in update() then deletes every grant they could not see.
+            // Must stay stripped in step with the unbindedProducts prop below.
+            'accessProducts' => fn ($query) => $query
+                ->withoutGlobalScope(ProductAccessProductScope::class)
+                ->select('products.id', 'products.code', 'products.name'),
         ])->findOrFail($id);
+
+        // "Access Product(s)": the subject's OPERATOR list is a hard ceiling -
+        // it caps both the dropdown below and what update() will accept.
+        $productCeiling = ProductAccess::operatorCeiling($user->operator_id);
 
         return Inertia::render('User/Edit', [
             'countries' => CountryResource::collection(
@@ -164,6 +180,27 @@ class UserController extends Controller
                     ->select('id', 'code', 'name', 'customer_id')
                     ->get()
                 ),
+            // Deliberately withoutGlobalScope(ProductAccessProductScope): an
+            // ADMIN who is themselves product-restricted must still be able to
+            // grant the full range to someone else. The operator boundary is
+            // still enforced (OperatorProductFilterScope stays on, plus the
+            // explicit operator_id filter), and update() re-clamps server-side.
+            'unbindedProducts' => fn () =>
+                ProductResource::collection(
+                    Product::withoutGlobalScope(ProductAccessProductScope::class)
+                        ->where('products.operator_id', $user->operator_id)
+                        ->where('is_active', true)
+                        ->when($productCeiling !== null, fn ($query) => $query->whereIn('products.id', $productCeiling))
+                        ->orderBy('code')
+                        ->get(['id', 'code', 'name'])
+                ),
+            'operatorProductCeiling' => $productCeiling === null ? null : [
+                'operatorName' => $user->operator?->name,
+                'products' => Product::withoutGlobalScopes()
+                    ->whereIn('id', $productCeiling)
+                    ->orderBy('code')
+                    ->get(['id', 'code', 'name']),
+            ],
             // 'unbindedCustomers' => fn () =>
             //     CustomerResource::collection(
             //         Customer::with([
@@ -221,6 +258,9 @@ class UserController extends Controller
             'username' => 'nullable|required_without:email|unique:users,username,'.$userId,
             'password' => 'nullable',
             'alias' => 'nullable|string|max:50',
+            'product_access_mode' => 'nullable|in:all,list',
+            'user.data.access_products' => 'nullable|array',
+            'user.data.access_products.*.id' => 'integer',
         ]);
 
         if($request->password) {
@@ -248,6 +288,13 @@ class UserController extends Controller
             return $vend['id'];
         });
 
+        // Clamp to machines that actually belong to this user's operator. The
+        // edit screen already filters the dropdown, but nothing stopped a
+        // hand-rolled POST binding another operator's machine.
+        $editedVends = $editedVends->intersect(
+            Vend::withoutGlobalScopes()->where('operator_id', $user->operator_id)->pluck('id')
+        );
+
         $removeVends = $originalVends->diff($editedVends);
         $addVends = $editedVends->diff($originalVends);
 
@@ -261,6 +308,35 @@ class UserController extends Controller
                 $user->vends()->attach($addVend);
             }
         }
+
+        // "Access Product(s)" sync. sync() rather than the vends' attach/detach
+        // diff because product_user has a UNIQUE key (user_vend does not).
+        $ceiling = ProductAccess::operatorCeiling($user->operator_id);
+
+        $productIds = collect($request->input('user.data.access_products', []))
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        // Clamp server-side: the operator boundary AND the operator's own
+        // allow-list ceiling. Never trust the posted ids.
+        $productIds = $productIds->intersect(
+            Product::withoutGlobalScopes()->where('operator_id', $user->operator_id)->pluck('id')
+        );
+
+        if ($ceiling !== null) {
+            $productIds = $productIds->intersect($ceiling);
+        }
+
+        $user->accessProducts()->sync($productIds->values()->all());
+
+        $user->product_access_mode = $request->input('product_access_mode') === ProductAccess::MODE_LIST
+            ? ProductAccess::MODE_LIST
+            : ProductAccess::MODE_ALL;
+        $user->save();
+
+        ProductAccess::flush($user->id);
 
         // return redirect()->route('users');
         return redirect()->route('users.edit', [$userId]);

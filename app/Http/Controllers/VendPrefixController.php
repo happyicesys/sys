@@ -9,6 +9,8 @@ use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Models\Operator;
 use App\Models\ProductMapping;
+use App\Models\Scopes\OperatorIDFilterScope;
+use App\Models\Vend;
 use App\Models\VendConfig;
 use App\Models\VendPrefix;
 use Carbon\Carbon;
@@ -65,6 +67,15 @@ class VendPrefixController extends Controller
                             }
                         },
                     ])
+                    // Total machines on this prefix, ignoring BOTH the Machine Status
+                    // filter and Vend's OperatorVendFilterScope. This is what gates the
+                    // Delete button, so it must be the true total: the eager-loaded
+                    // `vends` above is narrowed by vendStatus (an all-inactive prefix
+                    // would read as 0), and a licensee must not be able to delete a
+                    // prefix whose machines belong to an operator they cannot see.
+                    ->withCount(['vends as machines_count' => function ($query) {
+                        $query->withoutGlobalScopes();
+                    }])
                     ->when($request->product_mapping_id, function ($query, $search) {
                         if ($search !== 'all') {
                             $query->where('product_mapping_id', $search);
@@ -187,14 +198,63 @@ class VendPrefixController extends Controller
 
     public function delete($id)
     {
-        $model = VendPrefix::withoutGlobalScopes()->findOrFail($id);
+        // Drop ONLY the operator scope, never SoftDeletingScope: a bare
+        // withoutGlobalScopes() would also un-hide already-trashed prefixes, so a
+        // double-submit or a delete from a stale tab would re-run this whole path
+        // on a deleted row and report success. Trashed => 404, which is correct.
+        $model = VendPrefix::withoutGlobalScopes([OperatorIDFilterScope::class])->findOrFail($id);
 
         if (!$model->operator_id) {
-            return redirect()->route('vend-prefixes')->withErrors([
+            // back(), not route(): keep the user on the filtered list they were
+            // looking at so the prefix named in the error toast is still on screen.
+            return back()->withErrors([
                 'delete' => 'Global Machine Prefixes cannot be deleted.',
             ]);
         }
 
+        // Machines are the ONLY hard block. vends.vend_prefix_id has no FK
+        // constraint, so deleting a prefix a machine still carries would leave
+        // that machine pointing at nothing. Counted withoutGlobalScopes() so a
+        // licensee cannot delete a prefix whose machines belong to an operator
+        // they cannot see. This guard did not exist before 2026-08-04 and the
+        // front-end check it mirrored never fired (VendPrefixResource never
+        // emitted a `vends` key), so this endpoint was previously able to orphan
+        // active machines.
+        // Disposed and inactive machines count too, deliberately. Their
+        // vend_prefix_id is still live data: the machine's own Edit form builds its
+        // prefix dropdown from VendPrefix::orderBy('name')->get(), which excludes
+        // trashed prefixes, so a machine left pointing at a trashed prefix would
+        // open with a blank prefix field and could be saved back as null. Retiring
+        // a prefix means clearing its machines first, disposed ones included.
+        $machines = Vend::withoutGlobalScopes()
+            ->where('vend_prefix_id', $model->id)
+            ->selectRaw('COUNT(*) AS total')
+            ->selectRaw('SUM(is_active = 1) AS active')
+            ->selectRaw('SUM(is_disposed = 1) AS disposed')
+            ->first();
+
+        if ($machines && $machines->total > 0) {
+            return back()->withErrors([
+                'delete' => 'Cannot delete "' . $model->name . '": ' . $machines->total
+                    . ' machine(s) still use this prefix ('
+                    . (int) $machines->active . ' active, '
+                    . (int) $machines->disposed . ' disposed). '
+                    . 'Re-assign them to another prefix first — disposed machines included.',
+            ]);
+        }
+
+        // The vend_config_vend_prefix and product_mapping_vend_prefix pivots are
+        // deliberately left INTACT. Soft-deleting already hides this prefix from
+        // VendConfig::vendPrefixes() and every dropdown (belongsToMany applies
+        // SoftDeletingScope), so detaching would buy nothing and would destroy the
+        // only record of what the prefix was bound to — making the soft delete
+        // impossible to round-trip. The Setting Charts themselves are untouched
+        // either way.
+
+        // Soft delete (see the SoftDeletes note on the VendPrefix model): the
+        // prefix disappears from every list and dropdown, while the reports'
+        // raw leftJoin('vend_prefixes', ...) and the withTrashed() historical
+        // relations keep resolving its name on old transactions/stock counts.
         $model->delete();
 
         return redirect()->route('vend-prefixes');

@@ -114,6 +114,25 @@ class RolePermissionSyncSeeder extends Seeder
                 ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor']
             ],
 
+            // Operations > Dashboard (Lite) — /vends/customers-lite. Its OWN
+            // permission, deliberately NOT `read vend-customers`.
+            //
+            // The page renders the SAME rows as the full Operation Dashboard
+            // through the same VendController::indexCustomer, so gating it on
+            // `read vend-customers` would have handed the glance view to all
+            // twelve roles that already have the full page — and still not
+            // reached prod_owner, which the sheet puts on Lite and nowhere near
+            // the full Dashboard. A separate permission is the only way to
+            // express "Lite but not Full".
+            //
+            // prod_owner is created by ProdOwnerRoleSeeder — run that FIRST or
+            // the `if ($role)` guard below silently drops this grant.
+            [
+                'vend-customers-lite',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'prod_owner']
+            ],
+
             [
                 'vend-machines',
                 ['read', 'export'],

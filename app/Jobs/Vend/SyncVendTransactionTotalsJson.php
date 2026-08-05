@@ -203,15 +203,13 @@ class SyncVendTransactionTotalsJson implements ShouldQueue, ShouldBeUnique
             $records29 = $customer->daysVendRecords(29, 0)->get();
             $lifetime = $customer->lifetimeVendRecords;
 
-            // Floor the start at the reporting floor so the per-day average
-            // denominator matches the floored lifetime numerator (lifetimeVendRecords
-            // is floored too). See CustomerController::summaryFloorDate().
-            $avgFloor = Carbon::parse(\App\Http\Controllers\CustomerController::summaryFloorDate())->startOfDay();
-            $avgStart = Carbon::parse($customer->begin_date ?: now())->startOfDay();
-            if ($avgStart->lt($avgFloor)) {
-                $avgStart = $avgFloor->copy();
-            }
-            $daysSinceStart = max((int) $avgStart->diffInDays(Carbon::parse($customer->termination_date ?: now())), 1);
+            // The per-day average reuses the numerator's EXACT window helpers so
+            // the two can never drift apart again. They previously duplicated the
+            // bounds logic inline, which is how the denominator ended up clamped
+            // to a raw termination_date that the numerator's status-aware rule no
+            // longer honours. See Customer::salesWindowStart() / salesWindowEnd().
+            $avgStart = $customer->salesWindowStart();
+            $daysSinceStart = max((int) $avgStart->diffInDays($customer->salesWindowEnd()), 1);
             $daysFor30 = $customer->begin_date && Carbon::parse($customer->begin_date)->diffInDays(now()) < 30
                 ? max(Carbon::parse($customer->begin_date)->diffInDays(now()), 1)
                 : 30;

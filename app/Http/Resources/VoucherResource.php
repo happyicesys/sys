@@ -64,7 +64,10 @@ class VoucherResource extends JsonResource
         $allIds = collect($productIDs)->unique()->values();
 
         if (self::$cachedProducts === null) {
-            self::$cachedProducts = Product::with('thumbnail')
+            // Machine-facing payload: a vending machine must always be handed
+            // the complete product list, never a viewer's filtered subset.
+            self::$cachedProducts = Product::withoutGlobalScope(\App\Models\Scopes\ProductAccessProductScope::class)
+                ->with('thumbnail')
                 ->whereIn('id', $allIds)
                 ->get()
                 ->keyBy('id');

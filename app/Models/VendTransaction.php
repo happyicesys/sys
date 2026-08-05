@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Scopes\OperatorTransactionFilterScope;
 use App\Models\Scopes\OperatorUserTransactionFilterScope;
+use App\Models\Scopes\ProductAccessTransactionScope;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -47,6 +48,7 @@ class VendTransaction extends Model
     {
         static::addGlobalScope(new OperatorTransactionFilterScope);
         static::addGlobalScope(new OperatorUserTransactionFilterScope);
+        static::addGlobalScope(new ProductAccessTransactionScope);
     }
 
     protected $casts = [
@@ -171,7 +173,10 @@ class VendTransaction extends Model
 
     public function vendPrefix()
     {
-        return $this->belongsTo(VendPrefix::class);
+        // withTrashed(): VendPrefix soft-deletes, and this transaction's
+        // vend_prefix_id is a historical snapshot — a retired prefix must still
+        // resolve its name here instead of coming back null.
+        return $this->belongsTo(VendPrefix::class)->withTrashed();
     }
 
     public function vendChannelError()

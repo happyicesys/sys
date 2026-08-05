@@ -526,6 +526,22 @@
                     <div>
                         {{((totals['success_amount'] ? totals['success_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                     </div>
+                    <!--
+                      "Access Product(s)": a mixed basket is listed in full for
+                      anyone who owns one of its items, so the figure above can
+                      include another party's items. State the attributable
+                      amount rather than quietly over-reporting.
+                    -->
+                    <div v-if="totals['product_restricted']" class="mt-1 rounded bg-amber-50 border border-amber-200 px-2 py-1">
+                        <div class="text-xs font-medium text-amber-800">Your products only</div>
+                        <div class="text-base font-semibold text-amber-900">
+                            {{((totals['product_attributed_amount'] || 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                        </div>
+                        <div class="text-xs font-normal text-amber-700 leading-snug">
+                            {{((totals['product_excluded_amount'] || 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                            of the listed baskets belongs to other parties. Mixed-basket rows below show the full basket amount.
+                        </div>
+                    </div>
                     <div class="flex flex-col mt-2 space-y-2">
                         <div class="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0">
                             <span class="text-xs font-medium text-gray-500">Cash:</span>

@@ -167,7 +167,9 @@ class OptionCacheBuster
 
     /**
      * Register the same callback for saved + deleted (covers create, update,
-     * restore and delete; none of the mapped models use SoftDeletes).
+     * restore and delete). VendPrefix soft-deletes: a soft delete fires
+     * `deleted` and restore() calls save(), which fires `saved`, so both are
+     * still covered without a separate `restored` listener.
      */
     protected static function onChange(string $modelClass, callable $callback): void
     {

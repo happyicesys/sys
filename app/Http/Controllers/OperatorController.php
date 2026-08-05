@@ -6,6 +6,7 @@ use App\Http\Resources\CountryResource;
 use App\Http\Resources\DeliveryPlatformResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentGatewayResource;
+use App\Http\Resources\ProductResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
 use App\Models\AlertEmailItem;
@@ -17,11 +18,14 @@ use App\Models\Operator;
 use App\Models\OperatorPaymentGateway;
 use App\Models\OperatorVend;
 use App\Models\PaymentGateway;
+use App\Models\Product;
+use App\Models\Scopes\ProductAccessProductScope;
 use App\Models\Scopes\OperatorActiveScope;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vend;
 use App\Traits\HasFilter;
+use App\Support\ProductAccess;
 use Carbon\Carbon;
 use DateTimeZone;
 use DB;
@@ -179,6 +183,12 @@ class OperatorController extends Controller
 
         $operator = Operator::withoutGlobalScope(OperatorActiveScope::class)
             ->with([
+                // withoutGlobalScope: see UserController@edit. A truncated bound
+                // list here would be sync()ed back and would shrink the CEILING for
+                // every user under this operator.
+                'accessProducts' => fn ($query) => $query
+                    ->withoutGlobalScope(ProductAccessProductScope::class)
+                    ->select('products.id', 'products.code', 'products.name'),
                 'address',
                 'address.country',
                 'country',
@@ -285,6 +295,17 @@ class OperatorController extends Controller
             ),
             'operatorCanOverrideLogo' => $operatorCanOverrideLogo,
             'timezones' => $timezones,
+            // withoutGlobalScope(ProductAccessProductScope): an admin who is
+            // themselves product-restricted must still be able to grant the
+            // full range here. Operator ownership scoping stays on.
+            'unbindedProducts' => fn () =>
+                ProductResource::collection(
+                    Product::withoutGlobalScope(ProductAccessProductScope::class)
+                        ->where('products.operator_id', $id)
+                        ->where('is_active', true)
+                        ->orderBy('code')
+                        ->get(['id', 'code', 'name'])
+                ),
             'type' => 'update',
         ]);
     }
@@ -399,6 +420,9 @@ class OperatorController extends Controller
             'email_customs.*.label' => ['nullable', 'string', 'max:255'],
             'transaction_callback_url' => ['nullable', 'url', 'max:255'],
             'alert_callback_url' => ['nullable', 'url', 'max:255'],
+            'product_access_mode' => ['nullable', 'in:all,list'],
+            'access_product_ids' => ['nullable', 'array'],
+            'access_product_ids.*' => ['integer'],
         ]);
 
         if ($request->hasFile('logo')) {
@@ -446,10 +470,42 @@ class OperatorController extends Controller
         }
 
         // Update the rest of the fields
+        // access_products / access_product_ids are the "Access Product(s)"
+        // relation, NOT columns - leaving them in would make update() try to
+        // mass-assign a non-column. product_access_mode IS a column and is set
+        // explicitly below after validation.
         $payload = collect($request->all())
-            ->except(['email_user_ids', 'email_customs', 'logo', 'logo_remove', 'transaction_callback_url', 'alert_callback_url', 'is_active', 'deactivated_at'])
+            ->except(['email_user_ids', 'email_customs', 'logo', 'logo_remove', 'transaction_callback_url', 'alert_callback_url', 'is_active', 'deactivated_at', 'access_products', 'access_product_ids', 'product_access_mode'])
             ->toArray();
         $operator->update($payload);
+
+        // "Access Product(s)" — the hard ceiling for every user under this
+        // operator. sync() is safe here: operator_product has a UNIQUE key.
+        $accessProductIds = collect($request->input('access_product_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        // Clamp to products this operator actually OWNS. Proving the ids merely
+        // exist is not enough - otherwise a hand-rolled POST could seed operator
+        // X's ceiling with operator Y's product ids, and those ids would then be
+        // handed to every user under X as a live WHERE predicate.
+        $accessProductIds = $accessProductIds->intersect(
+            Product::withoutGlobalScopes()
+                ->where('operator_id', $operator->id)
+                ->pluck('id')
+        );
+
+        $operator->accessProducts()->sync($accessProductIds->values()->all());
+
+        $operator->product_access_mode = $request->input('product_access_mode') === ProductAccess::MODE_LIST
+            ? ProductAccess::MODE_LIST
+            : ProductAccess::MODE_ALL;
+        $operator->save();
+
+        // Every user under this operator inherits the change.
+        ProductAccess::flush();
 
         // Active/inactive status (deactivate instead of delete).
         // Only touch it when the form actually sends the field.

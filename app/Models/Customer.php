@@ -577,27 +577,114 @@ class Customer extends Model
             ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 
-    // vend_records with customer begin date and operational end date. The end
-    // is the Removed Date (when the site stopped operating) if set, else the
-    // auto Inactive Date (termination_date), else today.
-    public function lifetimeVendRecords()
+    // Lower bound of this site's trading window: the EARLIEST lifecycle date
+    // the site carries (begin_date / active_date), floored at the app-wide
+    // reporting floor so lifetime sums never reach back before genesis.
+    // See CustomerController::summaryFloorDate().
+    //
+    // Deliberately the earliest of the two rather than active_date alone: 233
+    // live sites carry an active_date LATER than their begin_date, and 28 of
+    // those recorded real sales in the gap between them. Anchoring on the later
+    // date would silently drop that money - the same class of bug this window
+    // logic is being fixed for.
+    public function salesWindowStart(): Carbon
     {
-        $end = $this->removed_date
-            ?? $this->termination_date
-            ?? Carbon::today();
-
-        // Floor the lower bound at the app-wide reporting floor so lifetime
-        // sums/averages never include pre-genesis data, even if begin_date is
-        // older. See CustomerController::summaryFloorDate().
         $floor = Carbon::parse(\App\Http\Controllers\CustomerController::summaryFloorDate())->startOfDay();
-        $start = Carbon::parse($this->begin_date)->startOfDay();
-        if ($start->lt($floor)) {
-            $start = $floor;
+
+        $start = null;
+        foreach ([$this->begin_date, $this->active_date] as $candidate) {
+            if (!$candidate) {
+                continue;
+            }
+            $parsed = Carbon::parse($candidate)->startOfDay();
+            if ($start === null || $parsed->lt($start)) {
+                $start = $parsed;
+            }
         }
 
+        if ($start === null || $start->lt($floor)) {
+            return $floor;
+        }
+
+        return $start;
+    }
+
+    // Upper bound of this site's trading window - the end of its trading life.
+    //
+    // Driven by the lifecycle STATUS, never by the raw termination_date column:
+    //   Removed  -> removed_date      (the commercial end; commission stops)
+    //   Inactive -> termination_date  (the auto "Inactive Date")
+    //   otherwise (Active / New / Potential) -> today, i.e. never capped
+    //
+    // The previous rule was `removed_date ?? termination_date ?? today`, which
+    // capped the window on termination_date regardless of status - the one
+    // field documented as record-only ("does NOT gate the calc", see
+    // CustomerController::update). Two writers put a termination_date on sites
+    // that were never closed: VendController::unbindCustomer(), which stamps it
+    // on every machine unbind and never clears it on re-bind, and a legacy bulk
+    // import that stamped 2024-02-07 across ~400 rows. Between them 178 sites
+    // had their Lifetime Sales truncated, 29 of them Active and still selling.
+    //
+    // A lifecycle date the sales data contradicts is not a real end, so the
+    // bound is pushed out to the last day the site actually recorded a sale
+    // whenever that is later. Never returns a date past today.
+
+    // Memo for salesWindowEnd(). The method issues a MAX(date) query for every
+    // Removed/Inactive site, and SyncVendTransactionTotalsJson calls it TWICE per
+    // customer (once through lifetimeVendRecords(), once for the per-day average
+    // denominator) - 1039 of 1449 live sites are closed, so that is ~2k avoidable
+    // queries per sync cycle.
+    private ?Carbon $salesWindowEndMemo = null;
+
+    public function salesWindowEnd(): Carbon
+    {
+        // copy() on BOTH sides: Carbon is mutable and lifetimeVendRecords() calls
+        // ->endOfDay() on the return value, which would otherwise rewrite the memo
+        // and hand every later caller 23:59:59 instead of the start of the day.
+        if ($this->salesWindowEndMemo !== null) {
+            return $this->salesWindowEndMemo->copy();
+        }
+
+        $today = Carbon::today();
+
+        $statusEnd = match ((int) $this->status_id) {
+            self::STATUS_REMOVED => $this->removed_date,
+            self::STATUS_INACTIVE => $this->termination_date,
+            default => null,
+        };
+
+        // Active / New / Potential, or a status with no date recorded: the site
+        // is still trading, so the window runs to today. No query needed - this
+        // is the common path.
+        if (!$statusEnd) {
+            return ($this->salesWindowEndMemo = $today)->copy();
+        }
+
+        $end = Carbon::parse($statusEnd)->startOfDay();
+        if ($end->gte($today)) {
+            return ($this->salesWindowEndMemo = $today)->copy();
+        }
+
+        $lastSale = $this->vendRecords()->where('total_amount', '>', 0)->max('date');
+        if ($lastSale) {
+            $lastSale = Carbon::parse($lastSale)->startOfDay();
+            if ($lastSale->gt($end)) {
+                $end = $lastSale->gt($today) ? $today : $lastSale;
+            }
+        }
+
+        return ($this->salesWindowEndMemo = $end)->copy();
+    }
+
+    // vend_records across the site's whole trading life, bounded by
+    // salesWindowStart() / salesWindowEnd(). Feeds totals_json's
+    // vend_records_amount_latest ("Lifetime Sales" on the Ops Dashboard) and,
+    // through the same two helpers, its per-day average denominator.
+    public function lifetimeVendRecords()
+    {
         return $this->vendRecords()
-            ->where('date', '>=', $start)
-            ->where('date', '<=', Carbon::parse($end)->endOfDay());
+            ->where('date', '>=', $this->salesWindowStart())
+            ->where('date', '<=', $this->salesWindowEnd()->endOfDay());
     }
 
     // vend_records with date range

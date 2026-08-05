@@ -35,6 +35,7 @@ class ProductAvailabilityExport implements FromCollection, WithHeadings, WithMap
             'Daily Sold Qty (avg 7d)',
             'Qty in Warehouse (API)',
             'Picked Qty (not yet sync)',
+            'Remaining Qty',
             'To Pick Qty (' . $this->planningDate . ')',
             'Capped Qty per Channel',
             'Remarks',

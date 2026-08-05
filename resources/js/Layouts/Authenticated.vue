@@ -45,10 +45,17 @@ const navigation = computed(() => [
         icon: CommandLineIcon,
         current: false,
         href: 'vends.customer',
-        permission: 'read vends',
+        // Array = "any of these". prod_owner only holds the Lite permission, so
+        // gating the section on 'read vends' alone would hide the one child it
+        // can actually open. See canSee() below.
+        permission: ['read vends', 'read vend-customers-lite'],
         tagline: null,
         children: [
             {name: 'Dashboard', href: '/vends/customers', permission: 'read vends'},
+            // Own permission, matching VendController's gate on
+            // indexCustomerLite — 'read vends' here would show the link to every
+            // role that has the full Dashboard and then 403 prod_owner.
+            {name: 'Dashboard (Lite)', href: '/vends/customers-lite', permission: 'read vend-customers-lite'},
             {name: 'Ops Performance', href: '/vends/ops-performance', permission: 'read vends'},
             {name: 'Site Grouping', href: '/vends/grouping', permission: 'read vends'},
         ]
@@ -324,6 +331,19 @@ const navigation = computed(() => [
 const showingNavigationDropdown = ref(false);
 const logoUrl = computed(() => page.props.logoUrl)
 const permissions = page.props.auth.permissions
+
+// A nav item's `permission` is normally a single string. It may also be an
+// ARRAY, meaning "any one of these is enough" — needed where one section holds
+// children with unrelated permissions (Operations: 'read vends' for Dashboard /
+// Ops Performance / Site Grouping, 'read vend-customers-lite' for Dashboard
+// (Lite)). A plain string behaves exactly as it did before.
+function canSee(item) {
+  if (!item) return false
+  if (!item.permission) return true
+  return Array.isArray(item.permission)
+    ? item.permission.some((p) => permissions.includes(p))
+    : permissions.includes(item.permission)
+}
 const roles = page.props.auth.roles
 const smallLogoUrl = page.props.smallLogoUrl
 
@@ -563,7 +583,7 @@ onBeforeUnmount(() => {
                         <template v-for="item in navigation" :key="item.name">
                             <div v-if="!item.children">
                                 <Link :href="route(item.href)"
-                                    v-if="permissions.includes(item.permission)"
+                                    v-if="canSee(item)"
                                     :class="[isItemActive(item) ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 py-2 text-sm font-medium rounded-md']">
                                 <component :is="item.icon"
                                     :class="[isItemActive(item) ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', 'mr-3 flex-shrink-0 h-6 w-6']"
@@ -580,7 +600,7 @@ onBeforeUnmount(() => {
                             </div>
                             <Disclosure as="div" v-else class="flex flex-col justify-start space-y-1" v-slot="{ open }" :default-open="isItemActive(item)">
                                 <DisclosureButton
-                                    v-if="permissions.includes(item.permission)"
+                                    v-if="canSee(item)"
                                     :class="[isItemActive(item) ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 pr-1 py-2 text-left text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
                                     <component :is="item.icon"
                                         class="mr-3 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-gray-500"
@@ -611,7 +631,7 @@ onBeforeUnmount(() => {
                                             :href="subItem.href">
                                         <DisclosureButton
                                             :class="[isSubItemActive(item, subItem) ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200', 'group w-full flex items-center justify-start text-left pl-4 pr-2 py-2 text-sm font-medium rounded-md']"
-                                            v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
+                                            v-if="canSee(subItem)"
                                             >
                                             <span>{{ subItem.name }}</span>
                                             <span class="ml-auto flex items-center gap-1">
@@ -710,7 +730,7 @@ onBeforeUnmount(() => {
                     <template v-for="item in navigation" :key="item.name">
                         <div v-if="!item.children" class="py-1 space-y-1">
                             <BreezeResponsiveNavLink
-                            v-if="permissions.includes(item.permission)"
+                            v-if="canSee(item)"
                             :href="route(item.href)" :active="isItemActive(item)">
                                 <span class="flex flex-col">
                                     <span>
@@ -723,7 +743,7 @@ onBeforeUnmount(() => {
                             </BreezeResponsiveNavLink>
                         </div>
                         <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }" :default-open="isItemActive(item)">
-                            <DisclosureButton :class="[isItemActive(item) ? 'text-gray-900 font-bold' : '', 'pt-2 pb-2 mb-1 pl-4 space-y-1 flex w-full justify-start text-left']" v-if="permissions.includes(item.permission)">
+                            <DisclosureButton :class="[isItemActive(item) ? 'text-gray-900 font-bold' : '', 'pt-2 pb-2 mb-1 pl-4 space-y-1 flex w-full justify-start text-left']" v-if="canSee(item)">
                                 <span class="flex flex-col">
                                     <span>
                                         {{ item.name }}
@@ -750,7 +770,7 @@ onBeforeUnmount(() => {
                                         :href="subItem.href"
                                 >
                                     <DisclosureButton
-                                        v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
+                                        v-if="canSee(subItem)"
                                         :class="[isSubItemActive(item, subItem) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50', 'group w-full flex items-center justify-start text-left pl-14 pr-2 py-3 text-sm font-medium rounded-md']">
                                         <span>{{ subItem.name }}</span>
                                         <span class="ml-auto flex items-center gap-1">

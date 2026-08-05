@@ -6,10 +6,17 @@ use App\Models\Scopes\OperatorIDFilterScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VendPrefix extends Model
 {
-    use HasFactory;
+    // SoftDeletes, NOT a hard delete: `vend_prefix_id` is a denormalised snapshot
+    // on vend_transactions / vend_records / stock_counts / customer_vend_bindings /
+    // vend_product_records / gp_metrics / ops_machine_daily_snapshots and there is
+    // no FK constraint, so a hard DELETE would blank the prefix column on every one
+    // of those historical rows. The historical models' vendPrefix() relations are
+    // withTrashed() so a retired prefix still resolves its name in reports.
+    use HasFactory, SoftDeletes;
 
     protected static function booted()
     {

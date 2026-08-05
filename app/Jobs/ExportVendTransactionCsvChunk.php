@@ -11,6 +11,7 @@ use App\Models\ExportJob;
 use App\Models\ExportJobChunk;
 use App\Models\Tag;
 use App\Models\User;
+use App\Support\ProductAccess;
 use DB;
 use App\Jobs\ZipVendTransactionCsvExport;
 use Illuminate\Bus\Queueable;
@@ -38,8 +39,23 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
     protected $minId; // keyset lower bound (inclusive)
     protected $maxId; // keyset upper bound (inclusive)
 
-    public function __construct($jobId, array $requestData, $userID = null, $chunkIndex, $chunkSize, $minId = null, $maxId = null)
+    /**
+     * "Access Product(s)" allow-list, resolved ONCE in the controller.
+     *
+     * DELIBERATELY has no default value: auth() is empty in a queue worker, so
+     * a dispatch site that forgets this argument would silently export every
+     * product. Making it required turns that mistake into an ArgumentCountError
+     * at dispatch time instead of a data leak.
+     *
+     * null = unrestricted. [] = restricted to nothing.
+     *
+     * @var array<int, int>|null
+     */
+    protected $allowedProductIds;
+
+    public function __construct($jobId, array $requestData, $userID, $chunkIndex, $chunkSize, $minId, $maxId, ?array $allowedProductIds)
     {
+        $this->allowedProductIds = $allowedProductIds;
         $this->chunkIndex = $chunkIndex;
         $this->chunkSize = $chunkSize;
         $this->jobId = $jobId;
@@ -47,6 +63,15 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
         $this->userID = $userID;
         $this->minId = $minId;
         $this->maxId = $maxId;
+    }
+
+    /**
+     * Blank the Unit Cost cell for a product the viewer may not access.
+     * See ExportVendTransactionCsv::maskedUnitCost().
+     */
+    protected function maskedUnitCost($productId, $value)
+    {
+        return ProductAccess::allows($this->allowedProductIds, $productId) ? $value : '';
     }
 
     public function handle()
@@ -154,6 +179,10 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 ->when($user->vends()->exists(), function ($query) use ($user) {
                     $query->whereIn('vend_transactions.vend_id', $user->vends->pluck('id'));
                 })
+                // "Access Product(s)" - MUST stay identical to the id-boundary query
+                // in VendController@exportTransactionCsv, or the chunk boundaries
+                // stop lining up with the rows each chunk actually emits.
+                ->tap(fn($query) => ProductAccess::applyToVendTransactions($query, $this->allowedProductIds))
                 ->filterTransactionIndex($request)
                 // Mirror the aggregate-cards query (VendController@transactionIndex):
                 // only settled sales (excludes in-flight PENDING and voided REFUNDED
@@ -180,6 +209,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                     'products.name AS product_name',
                     'payment_methods.name AS payment_method_name',
                     'unit_costs.cost',
+                    'vend_channels.product_id AS vend_channel_product_id',
                     'vend_channels.amount AS vend_channel_amount',
                     'vend_channels.amount2 AS vend_channel_amount2',
                     'vend_channel_errors.code AS vend_channel_error_code',
@@ -361,7 +391,10 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             $txn->vend_channel_amount == $txn->amount ? 'P1' : ($txn->vend_channel_amount2 == $txn->amount ? 'P2' : ''),
                             $main_amount,
                             $multipleBreakdown,
-                            $txn->cost ? $txn->cost / 100 : '',
+                            $this->maskedUnitCost(
+                                $txn->product_id ?: $txn->vend_channel_product_id,
+                                $txn->cost ? $txn->cost / 100 : ''
+                            ),
                             $txn->payment_method_name,
                             $txn->cashless_mfg ?? '',
                             $txn->vend_channel_error_code,
@@ -404,7 +437,10 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 'P1',
                                 '',
                                 $item->vendChannel ? $item->vendChannel->amount / 100 : '',
-                                $item->unitCost ? $item->unitCost->cost : '',
+                                $this->maskedUnitCost(
+                                    $item->product_id,
+                                    $item->unitCost ? $item->unitCost->cost : ''
+                                ),
                                 '',
                                 '', // Cashless Mfg empty for item rows
                                 $item->vendChannelError->code ?? '',
@@ -433,7 +469,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
             // Append dispensed-but-unreported gateway revenue once (first part
             // only) so the combined zip tallies with the dashboard "Total Sales".
             if ((int) $this->chunkIndex === 0) {
-                $this->appendUnreportedGatewayRows($stream, $request, $user);
+                $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds);
             }
 
             rewind($stream);

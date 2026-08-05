@@ -4231,10 +4231,13 @@ class CustomerController extends Controller
                     // Note: relationLoaded() returns false in cursor() context
                     // (see Location Type comment above), so we read through
                     // optional() directly — the relations ARE eager-loaded.
-                    // Explicit boolean state columns (mirror locked_at /
-                    // paid_at; backfilled by BackfillSummaryLockedPaidFlagsSeeder).
-                    'Locked?' => $row->is_locked ? 'Yes' : 'No',
-                    'Paid?' => $row->is_paid ? 'Yes' : 'No',
+                    // Explicit boolean state columns. Derived from the
+                    // TIMESTAMPS, not from the is_locked / is_paid mirror cols:
+                    // the screen (CustomerPeriodSummaryResource) and the page's
+                    // own "Locked?" filter both key off locked_at / paid_at, and
+                    // the mirrors are not maintained on every lock/pay path.
+                    'Locked?' => $row->locked_at !== null ? 'Yes' : 'No',
+                    'Paid?' => $row->paid_at !== null ? 'Yes' : 'No',
                     'Locked At' => $fmtAuditDate($row->locked_at),
                     'Locked By' => optional($row->lockedBy)->name,
                     'Last Unlocked At' => $fmtAuditDate($row->last_unlocked_at),

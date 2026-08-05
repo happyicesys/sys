@@ -13,6 +13,23 @@ class VendChannel extends Model
 {
     use HasFactory;
 
+    /*
+     * ==================================================================
+     * DO NOT add a global "Access Product(s)" scope to this model.
+     * ==================================================================
+     * VendChannel is read on machine-facing and PUBLIC paths, notably
+     * RefundFormController::machineProducts() (unauthenticated, throttle only)
+     * - see the comment at RefundFormController:114-124, which already had to
+     * strip Product's scope for exactly this reason but does NOT strip anything
+     * from its VendChannel::query(). A global scope here would break the
+     * customer-facing refund form for any request made while an admin session
+     * cookie happens to be present, and risks handing a vending machine a
+     * partial planogram.
+     *
+     * Use the opt-in scopeVisibleToProductAccess() below on UI read surfaces
+     * instead, so every filtered call site stays explicit and greppable.
+     */
+
     protected $fillable = [
         'amount',
         'amount2',
@@ -36,6 +53,23 @@ class VendChannel extends Model
         'qty_restocked_at' => 'datetime',
         'qty_sold_at' => 'datetime',
     ];
+
+    /**
+     * Opt-in "Access Product(s)" narrowing for UI surfaces that list channels.
+     *
+     * Channels with a NULL product_id (empty / unmapped slots) are excluded:
+     * an unmapped slot's stock is not the restricted viewer's to see.
+     *
+     * @param  array<int, int>|null  $ids  omit to resolve from the session
+     */
+    public function scopeVisibleToProductAccess($query, ?array $ids = null)
+    {
+        return \App\Support\ProductAccess::applyToColumn(
+            $query,
+            $this->getTable() . '.product_id',
+            func_num_args() > 1 ? $ids : \App\Support\ProductAccess::current()
+        );
+    }
 
     // relationships
     public function deliveryProductMappingVendChannels()

@@ -86,6 +86,7 @@ use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
 use App\Models\Zone;
 use App\Services\CmsService;
+use App\Support\ProductAccess;
 use App\Services\CustomerSummaryAggregator;
 use App\Services\HistoryService;
 use App\Services\MapService;
@@ -143,6 +144,13 @@ class VendController extends Controller
         VendJobService $vendJobService
     ) {
         $this->middleware(['permission:read vend-customers'])->only('indexCustomer');
+        // Dashboard (Lite) is a SEPARATE method, so it needs its own entry —
+        // `only('indexCustomer')` above does NOT cover indexCustomerLite, and
+        // without this line the route is reachable by any authenticated user
+        // even though it renders the whole Operation Dashboard dataset.
+        // Gated on its own permission rather than `read vend-customers` so
+        // "Lite but not Full" is expressible (see RolePermissionSyncSeeder).
+        $this->middleware(['permission:read vend-customers-lite'])->only('indexCustomerLite');
         $this->middleware(['permission:read machine-view'])->only('index');
         $this->middleware(['permission:read machine-view|read vend-customers'])->only('logs');
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
@@ -478,7 +486,27 @@ class VendController extends Controller
         ]);
     }
 
-    public function indexCustomer(Request $request)
+    /**
+     * Operations ▸ Dashboard (Lite).
+     *
+     * Same data + same filters as the full Operation Dashboard — only the
+     * Inertia page component differs (Vend/CustomerIndexLite renders the
+     * glance-view subset of columns for retail operators). Kept as a thin
+     * wrapper so the two pages can never drift apart on query semantics,
+     * scoping or permissions.
+     */
+    public function indexCustomerLite(Request $request)
+    {
+        return $this->indexCustomer($request, true);
+    }
+
+    /**
+     * @param bool $lite Render the Dashboard (Lite) page instead of the full
+     *                   Dashboard. The Lite page has no pre-Search aggregate
+     *                   cards, so the (expensive) all-rows card query is
+     *                   skipped for it. Everything else is identical.
+     */
+    public function indexCustomer(Request $request, bool $lite = false)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
 
@@ -1693,10 +1721,14 @@ class VendController extends Controller
             // pre-Search cards equal what the first Search returns. Skipped
             // for codes/channel_codes deep-links: the frontend resets Status
             // to All for those and auto-triggers a Search immediately.
-            if (!$request->filled('status') && !$request->filled('codes') && !$request->filled('channel_codes')) {
-                $request->merge(['status' => 'active']);
+            // Dashboard (Lite) doesn't render the cards, so skip the whole
+            // all-rows aggregate query (and the status default it needs).
+            if (!$lite) {
+                if (!$request->filled('status') && !$request->filled('codes') && !$request->filled('channel_codes')) {
+                    $request->merge(['status' => 'active']);
+                }
+                $initialStats = $this->computeCustomerIndexCardStats($request);
             }
-            $initialStats = $this->computeCustomerIndexCardStats($request);
         }
 
         // Cache static dropdown options — same pattern as transactionIndex (line ~2034).
@@ -1806,9 +1838,16 @@ class VendController extends Controller
         sort($operatorIds);
         $productCacheKey = 'customer_product_options_v' . \App\Support\OptionCacheBuster::productOptionsVersion()
             . '_' . implode('_', $operatorIds);
+        //
+        // "Access Product(s)": the cache is SHARED across viewers, so the
+        // restriction must NOT go inside the cached query - the first
+        // restricted user to warm the key would poison it for everyone. Strip
+        // the scope here and filter the resolved array below instead. That also
+        // avoids exploding the key cardinality (one entry per distinct
+        // allow-list) and keeps OptionCacheBuster's invalidation map unchanged.
         $productOptions = Cache::remember($productCacheKey, $productTtl, function () use ($request) {
             return ProductResource::collection(
-                Product::query()
+                Product::withoutGlobalScope(\App\Models\Scopes\ProductAccessProductScope::class)
                     ->with(['thumbnail', 'isAvailableUpdatedBy'])
                     ->when($request->operators, fn($q, $ops) => $q->whereIn('operator_id', $ops))
                     ->select('id', 'code', 'desc', 'name', 'is_available', 'is_available_updated_at', 'is_available_updated_by')
@@ -1819,7 +1858,17 @@ class VendController extends Controller
             )->resolve();
         });
 
-        return Inertia::render('Vend/CustomerIndex', [
+        // Post-cache, per-viewer narrowing (see the note on the cache above).
+        $allowedProductIds = ProductAccess::current();
+        if ($allowedProductIds !== null) {
+            $allowedProductLookup = array_flip($allowedProductIds);
+            $productOptions = array_values(array_filter(
+                $productOptions,
+                fn ($option) => isset($allowedProductLookup[$option['id']])
+            ));
+        }
+
+        return Inertia::render($lite ? 'Vend/CustomerIndexLite' : 'Vend/CustomerIndex', [
             // Card terminal options (Nayax / Nets / Nets-Auresys / PAX / MLS). Drives the
             // "Card Terminal" filter dropdown. Sourced from the static const
             // so the dropdown stays consistent even if a vend hasn't been
@@ -2590,6 +2639,9 @@ class VendController extends Controller
     public function getChannelsErrorRate($id)
     {
         $vendChannels = VendChannel::query()
+            // "Access Product(s)": opt-in, never a global scope on VendChannel
+            // (see the banner comment on the model).
+            ->visibleToProductAccess()
             ->with([
                 'vendTransactions' => function ($query) {
                     $query
@@ -3658,6 +3710,71 @@ class VendController extends Controller
         $totals->success_amount    = (float) $totals->success_amount + $unreportedGatewayMinor;
         // ────────────────────────────────────────────────────────────────────
 
+        // ── "Access Product(s)": attributed sales ────────────────────────────
+        // A mixed basket is shown in FULL to anyone who owns one of its items,
+        // so vend_transactions.amount above counts the other party's items too.
+        // Compute the amount that actually belongs to the viewer's products and
+        // ship both, so the card can state the difference instead of quietly
+        // over-reporting. Unrestricted viewers get nulls and see no change.
+        $totals->product_restricted = false;
+        $totals->product_attributed_amount = null;
+        $totals->product_excluded_amount = null;
+
+        $cardAllowedProductIds = ProductAccess::current();
+
+        if ($cardAllowedProductIds !== null) {
+            $totals->product_restricted = true;
+
+            $attributedFilters = function ($query) use ($request, $testingVendIds) {
+                return $query
+                    ->filterTransactionIndex($request, true)
+                    ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+                    ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
+                    // Mirror the success condition behind $totals->success_amount
+                    // (the figure this card actually prints), or the two numbers
+                    // are drawn from different populations.
+                    ->leftJoin('vend_channel_errors as vce_card', 'vce_card.id', '=', 'vend_transactions.vend_channel_error_id')
+                    ->where(function ($query) {
+                        $query->whereIn('vce_card.code', [0, 6])
+                            ->orWhereNull('vce_card.code')
+                            ->orWhere('vend_transactions.is_multiple', true);
+                    });
+            };
+
+            // Singles: the whole row is the viewer's product by construction -
+            // the access predicate only lets a single through when its own
+            // (or its channel's) product is allowed.
+            // is_multiple is nullable on older rows (ReportController guards the
+            // same way). A NULL must count as a single, or it falls through BOTH
+            // legs and the attributed total silently under-reports.
+            $singleAttributed = (float) $attributedFilters(VendTransaction::query())
+                ->where(function ($query) {
+                    $query->where('vend_transactions.is_multiple', false)
+                        ->orWhereNull('vend_transactions.is_multiple');
+                })
+                ->sum('vend_transactions.amount');
+
+            // Multi: sum only the viewer's own items. unit_price_amount is the
+            // per-item price captured at sale; fall back to the channel's list
+            // price for older rows that predate that column being populated.
+            $multiAttributed = (float) $attributedFilters(VendTransaction::query())
+                ->where('vend_transactions.is_multiple', true)
+                ->join('vend_transaction_items as vti_card', 'vti_card.vend_transaction_id', '=', 'vend_transactions.id')
+                ->leftJoin('vend_channels as vc_card', 'vc_card.id', '=', 'vti_card.vend_channel_id')
+                ->whereIn(DB::raw('COALESCE(vti_card.product_id, vc_card.product_id)'), $cardAllowedProductIds)
+                ->sum(DB::raw('COALESCE(NULLIF(vti_card.unit_price_amount, 0), vc_card.amount, 0)'));
+
+            $totals->product_attributed_amount = round($singleAttributed + $multiAttributed, 2);
+            // success_amount, NOT total_amount: this method's aggregate row has no
+            // total_amount column (that exists only on the daily-summary queries),
+            // so reading it returned null and the banner always claimed 0 excluded.
+            $totals->product_excluded_amount = round(
+                max(0, (float) $totals->success_amount - $totals->product_attributed_amount),
+                2
+            );
+        }
+        // ────────────────────────────────────────────────────────────────────
+
 
         $latestExports = ExportJob::with('attachment')
             ->where('user_id', auth()->id())
@@ -3847,6 +3964,15 @@ class VendController extends Controller
         // slow transaction_datetime sort on a large range.
         $userVendIds = $user->vends()->exists() ? $user->vends->pluck('id') : null;
 
+        // "Access Product(s)": resolve ONCE here and hand the set to the jobs.
+        // auth() is empty inside a queue worker so the global scope cannot fire
+        // there, and resolving once means a pivot edit mid-export cannot make
+        // two chunks disagree. $idQuery below runs under auth, so it already
+        // picks the same predicate up from ProductAccessTransactionScope - do
+        // NOT also apply it by hand here, or the chunk ID boundaries would be
+        // computed with the predicate applied twice.
+        $allowedProductIds = ProductAccess::current();
+
         // Align with the aggregate cards (transactionIndex totals): only settled
         // sales and no testing machines. Must match the filters inside the
         // export jobs so row counts / chunk ID boundaries stay consistent.
@@ -3882,7 +4008,7 @@ class VendController extends Controller
 
         if ($totalRows <= $chunkSize) {
             // ✅ Small export — dispatch single job (already uses cursor-safe chunk())
-            ExportVendTransactionCsv::dispatch($job->id, $request->all(), $user->id);
+            ExportVendTransactionCsv::dispatch($job->id, $request->all(), $user->id, $allowedProductIds);
         } else {
             // ✅ Large export — split by ID boundaries so each job uses whereBetween,
             //    never OFFSET. This avoids the MySQL scan-and-discard problem AND the
@@ -3904,6 +4030,7 @@ class VendController extends Controller
                     $chunkSize,
                     $chunkIds->first(), // minId — keyset lower bound
                     $chunkIds->last(),  // maxId — keyset upper bound
+                    $allowedProductIds, // product allow-list (null = unrestricted)
                 );
             }
         }
@@ -3914,6 +4041,33 @@ class VendController extends Controller
 
     public function exportTransactionExcel(Request $request)
     {
+        // "Access Product(s)": row selection is already handled by
+        // ProductAccessTransactionScope (this runs under auth, unlike the queued
+        // CSV jobs). This set is only used to blank Unit Cost cells for products
+        // the viewer may not access, and to drop the product-less unreported
+        // gateway rows. null = unrestricted.
+        $excelAllowedProductIds = ProductAccess::current();
+
+        // Mirror transactionIndex()'s operator scoping. scopeFilterTransactionIndex
+        // only scopes inside when($request->operators), so a missing param means
+        // NO operator filter at all -- without this the export returns every
+        // operator's transactions regardless of who asked for it.
+        if (!$request->has('operators')) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge([
+                    'operators' => [
+                        auth()->user()->operator_id,
+                        Operator::where('code', 'HIMD')->first()?->id,
+                        Operator::where('code', 'LEA')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'UL-ST')->first()?->id,
+                    ]
+                ]);
+            } else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+
         $request->merge(['sortKey' => $request->sortKey ?? 'transaction_datetime']);
         $request->merge(['sortBy' => $request->sortBy ?? false]);
 
@@ -3938,7 +4092,13 @@ class VendController extends Controller
         VendTransaction::query()
             ->with([
                 'vendTransactionItems.vendChannel:id,code,amount',
-                'vendTransactionItems.product:id,code,name',
+                // withoutGlobalScope: this export runs synchronously UNDER AUTH
+                // (unlike the queued CSV job), so the Product scope would blank the
+                // other party's product code/name. The agreed design shows a mixed
+                // basket whole and redacts only Unit Cost - see the unit_cost cells.
+                'vendTransactionItems.product' => fn ($query) => $query
+                    ->withoutGlobalScope(\App\Models\Scopes\ProductAccessProductScope::class)
+                    ->select('id', 'code', 'name'),
                 'vendTransactionItems.unitCost:id,cost',
                 'vendTransactionItems.vendChannelError:id,code,desc',
                 // For "Dispense Attempted?" — mirrors the Payment Gateway
@@ -3974,13 +4134,14 @@ class VendController extends Controller
                 'products.name AS product_name',
                 'payment_methods.name AS payment_method_name',
                 'unit_costs.cost',
+                'vend_channels.product_id AS vend_channel_product_id',
                 'vend_channels.amount AS vend_channel_amount',
                 'vend_channels.amount2 AS vend_channel_amount2',
                 'vend_channel_errors.desc AS vend_channel_error_desc',
                 'vend_channel_errors.code AS vend_channel_error_code',
                 DB::raw('vend_transactions.label_json AS label_ids_json'),
             ])
-            ->chunk(500, function ($transactions) use (&$data) {
+            ->chunk(500, function ($transactions) use (&$data, $excelAllowedProductIds) {
                 // 1) Collect all tag IDs used in this chunk
                 $tagIds = $transactions->pluck('label_ids_json')
                     ->filter()
@@ -4032,7 +4193,9 @@ class VendController extends Controller
                         'price_type' => $txn->vend_channel_amount == $txn->amount ? 'P1' : ($txn->vend_channel_amount2 == $txn->amount ? 'P2' : ''),
                         'amount' => $main_amount,
                         'amount_breakdown' => $multipleBreakdown,
-                        'unit_cost' => $txn->cost ? $txn->cost / 100 : '',
+                        'unit_cost' => ProductAccess::allows($excelAllowedProductIds, $txn->product_id ?: $txn->vend_channel_product_id)
+                            ? ($txn->cost ? $txn->cost / 100 : '')
+                            : '',
                         'payment_method' => $txn->payment_method_name,
                         'error_code' => $txn->vend_channel_error_code,
                         'location_type' => $txn->location_type_name,
@@ -4068,7 +4231,11 @@ class VendController extends Controller
                             'price_type' => 'P1',
                             'amount' => '',
                             'amount_breakdown' => $item->vendChannel ? $item->vendChannel->amount / 100 : '',
-                            'unit_cost' => $item->unitCost ? $item->unitCost->cost : '',
+                            // "Access Product(s)": a mixed basket is shown whole, but a
+                            // partner must not read a competitor's cost price off it.
+                            'unit_cost' => ProductAccess::allows($excelAllowedProductIds, $item->product_id)
+                                ? ($item->unitCost ? $item->unitCost->cost : '')
+                                : '',
                             'payment_method' => $txn->payment_method_name,
                             'error_code' => $item->vendChannelError->code ?? '',
                             'location_type' => $txn->location_type_name,
@@ -4100,7 +4267,13 @@ class VendController extends Controller
         // Append dispensed-but-unreported gateway revenue so the Excel total
         // tallies with the dashboard "Total Sales" from the cutoff onward —
         // same rows the CSV export appends via AppendsUnreportedGatewayCsvRows.
+        //
+        // "Access Product(s)": these rows carry no product (payment_gateway_logs
+        // has no product_id), so a restricted export omits them rather than
+        // crediting a partner with revenue that is provably not theirs. Mirrors
+        // AppendsUnreportedGatewayCsvRows.
         PaymentGatewayLog::query()
+            ->when($excelAllowedProductIds !== null, fn($q) => $q->whereRaw('1 = 0'))
             ->with(['vend:id,code', 'operatorPaymentGateway.operator:id,code'])
             ->unreportedDispensed($request, $testingVendIds)
             ->orderBy('payment_gateway_logs.approved_at')
@@ -4636,6 +4809,7 @@ class VendController extends Controller
         $dataArr = [];
         $input = collect($request->all());
         $items = VendChannel::query()
+            ->visibleToProductAccess()
             ->with([
                 'product:id,code,name,desc,is_available',
                 'product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
@@ -5022,6 +5196,9 @@ class VendController extends Controller
     public function exportChannelExcel(Request $request)
     {
         $vendChannels = DB::table('vend_channels')
+            // Raw query builder - no Eloquent scope reaches this, so the
+            // "Access Product(s)" narrowing has to be applied by hand.
+            ->tap(fn($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
             ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
             ->leftJoin('vends', 'vends.id', '=', 'vend_channels.vend_id')
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
@@ -5220,10 +5397,27 @@ class VendController extends Controller
         $vend = Vend::findOrFail($vendId);
         $channels = $request->channels;
 
+        // "Access Product(s)": a restricted user must not be able to remap a
+        // slot they cannot see, nor claim someone else's slot for one of their
+        // own SKUs. Both the current AND the target product have to be allowed.
+        $allowedProductIds = ProductAccess::current();
+
         foreach ($channels as $channel) {
             if ($channel['product_id'] === $channel['edited_product_id']) {
                 continue;
             } else {
+                // Only a NON-NULL product on either side has to be allowed. NULL
+                // means "empty slot", so clearing your own product and filling a
+                // vacant slot with it both stay possible.
+                $blockedChange = $allowedProductIds !== null
+                    && collect([$channel['product_id'], $channel['edited_product_id']])
+                        ->filter(fn ($productId) => $productId !== null)
+                        ->contains(fn ($productId) => ! ProductAccess::allows($allowedProductIds, $productId));
+
+                if ($blockedChange) {
+                    abort(403, 'You do not have access to one of the products in this channel change.');
+                }
+
                 $vendChannel = VendChannel::findOrFail($channel['id']);
                 $vendChannel->update([
                     'product_id' => $channel['edited_product_id'],

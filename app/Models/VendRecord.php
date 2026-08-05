@@ -65,7 +65,10 @@ class VendRecord extends Model
 
     public function vendPrefix()
     {
-        return $this->belongsTo(VendPrefix::class);
+        // withTrashed(): VendPrefix soft-deletes, and this vend record's
+        // vend_prefix_id is a historical snapshot — a retired prefix must still
+        // resolve its name here instead of coming back null.
+        return $this->belongsTo(VendPrefix::class)->withTrashed();
     }
 
     public function vendModel()

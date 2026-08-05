@@ -163,7 +163,7 @@ class VoucherController extends Controller
                 function ($voucherItem) {
                     return [
                         'Code' => $voucherItem->code,
-                        'Status' => Voucher::STATUS_MAPPINGS[$voucherItem->status],
+                        'Status' => ucfirst(Voucher::STATUS_MAPPINGS[$voucherItem->status] ?? ''),
                         'Redeemed At' => $voucherItem->redeemed_at ? Carbon::parse($voucherItem->redeemed_at)->toDateTimeString() : '',
                     ];
                 }

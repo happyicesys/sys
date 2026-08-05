@@ -32,6 +32,7 @@ class Operator extends Model
         'name',
         'is_active',
         'is_dcvend',
+        'product_access_mode',
         'profile_id',
         'remarks',
         'timezone',
@@ -114,6 +115,18 @@ class Operator extends Model
     public function vends()
     {
         return $this->hasMany(Vend::class)->orderBy('code');
+    }
+
+    /**
+     * "Access Product(s)" allow-list - the hard ceiling for every user under
+     * this operator. NOT ownership (that is products.operator_id).
+     *
+     * Only meaningful when product_access_mode === 'list'. See the warning on
+     * User::accessProducts() about the viewer-scoped global scope.
+     */
+    public function accessProducts()
+    {
+        return $this->belongsToMany(Product::class)->orderBy('code');
     }
 
     public function operatorCallbacks()

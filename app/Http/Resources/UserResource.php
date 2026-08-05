@@ -33,6 +33,11 @@ class UserResource extends JsonResource
             }),
             'role_name' => isset($this->role_name) ? $this->role_name : '',
             'vends' => VendResource::collection($this->whenLoaded('vends')),
+            // "Access Product(s)" allow-list + its mode flag. 'all' = every
+            // product; 'list' = exactly access_products, empty list included
+            // (which means none). See App\Support\ProductAccess.
+            'product_access_mode' => $this->product_access_mode,
+            'access_products' => ProductResource::collection($this->whenLoaded('accessProducts')),
         ];
     }
 }

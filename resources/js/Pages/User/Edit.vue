@@ -116,112 +116,34 @@
                 </div>
               </div>
 
-              <div class="col-span-12 sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
-                <div class="relative">
-                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                    <div class="w-full border-t border-gray-300"></div>
-                  </div>
-                  <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Access Vending Machine(s) </span>
-                  </div>
-                </div>
-              </div>
+              <AccessBindingSection
+                v-if="form.id && user"
+                title="Access Vending Machine(s)"
+                addLabel="Vending Machine to Bind"
+                :showMode="false"
+                itemNoun="machine"
+                subjectNoun="user"
+                optionLabel="full_name"
+                :columns="vendColumns"
+                :options="unbindedVendOptions"
+                :canEdit="permissions.includes('update users')"
+                v-model="user.vends"
+              />
 
-              <div class="col-span-12 sm:col-span-5" v-if="form.id">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Vending Machine to Bind
-                </label>
-                <MultiSelect
-                  v-model="form.vend_id"
-                  :options="unbindedVendOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="full_name"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                  ref="multiselect"
-                >
-                </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors.vend_id">
-                  {{ form.errors.vend_id }}
-                </div>
-              </div>
-
-              <div class=" col-span-12 sm:col-span-1" v-if="form.id">
-                <Button
-                type="button"
-                @click="bindOperatorVend()"
-                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
-                :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
-                :disabled="!form.vend_id && !permissions.includes('update operators')"
-                >
-                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
-                  <span>
-                    Add
-                  </span>
-                </Button>
-              </div>
-
-              <div class="col-span-12 sm:col-span-6 flex flex-col mt-3" v-if="form.id">
-              <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
-                <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
-                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                    <table class="min-w-full divide-y divide-gray-300">
-                      <thead class="bg-gray-50">
-                        <tr>
-                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            #
-                          </th>
-                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Machine ID
-                          </th>
-                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Name
-                          </th>
-                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody class="bg-white">
-                        <tr v-for="(vend, vendIndex) in user.vends" :key="vend.id" :class="vendIndex % 2 === 0 ? undefined : 'bg-gray-50'">
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            {{ vendIndex + 1 }}
-                          </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ vend.code }}
-                          </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            <span v-if="vend.customer && vend.customer.person_id">
-                              {{ vend.customer.id + 20000 }} <br>
-                              {{ vend.customer.name }}
-                            </span>
-                            <span v-if="vend.customer">
-                              {{ vend.customer.name }}
-                            </span>
-                          </td>
-                          <td class="whitespace-nowrap py-4 text-sm text-center">
-                            <Button
-                              class="bg-red-400 hover:bg-red-500 text-white"
-                              @click="unbindOperatorVend(vend)"
-                              v-if="permissions.includes('update operators')"
-                            >
-                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
-                            </Button>
-                          </td>
-                        </tr>
-                        <tr v-if="!user.vends.length">
-                          <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-red-600 text-center">
-                            No Binding = Access to All
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-              </div>
+              <AccessBindingSection
+                v-if="form.id && user"
+                title="Access Product(s)"
+                addLabel="Product to Bind"
+                itemNoun="product"
+                subjectNoun="user"
+                optionLabel="full_name"
+                :columns="productColumns"
+                :options="unbindedProductOptions"
+                :canEdit="permissions.includes('update users')"
+                :ceiling="operatorProductCeiling"
+                v-model="user.access_products"
+                v-model:mode="form.product_access_mode"
+              />
             </div>
             <div class="col-span-12 sm:col-span-6">
               <div class="flex justify-between mt-5">
@@ -276,6 +198,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import AccessBindingSection from '@/Components/AccessBindingSection.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, FolderPlusIcon, FolderMinusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
@@ -289,6 +212,10 @@ const props = defineProps({
   type: String,
   showModal: Boolean,
   unbindedVends: [Array, Object],
+  unbindedProducts: [Array, Object],
+  // null, or { operatorName, products: [{id, code, name}] } - the operator's
+  // own "Access Product(s)" list, which caps whatever is chosen here.
+  operatorProductCeiling: { type: Object, default: null },
 })
 
 const emit = defineEmits(['modalClose'])
@@ -302,7 +229,18 @@ const roleOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
 const permissions = usePage().props.auth.permissions
 const unbindedVendOptions = ref([])
+const unbindedProductOptions = ref([])
 const user = ref()
+
+const vendColumns = [
+  { key: 'code', label: 'Machine ID' },
+  { key: 'customer.name', label: 'Site' },
+]
+const productColumns = [
+  { key: 'code', label: 'Product Code' },
+  { key: 'name', label: 'Product Name' },
+]
+
 
 onMounted(() => {
   countryOptions.value = props.countries.data
@@ -313,7 +251,8 @@ onMounted(() => {
   }))
   roleOptions.value = JSON.parse(JSON.stringify(props.roles.data))
   unbindedVendOptions.value = props.unbindedVends.data
-  console.log(unbindedVendOptions.value)
+  unbindedProductOptions.value = props.unbindedProducts ? props.unbindedProducts.data : []
+  if (!user.value.access_products) user.value.access_products = []
   form.value = props.user ? useForm({
     ...getDefaultForm(),
     phone_country_id: props.user ? countryOptions.value.find(country => country.id == user.value.phone_country_id) : '',
@@ -327,15 +266,6 @@ onMounted(() => {
   }
 })
 
-function bindOperatorVend() {
-  if(user.value.vends.indexOf(form.value.vend_id) < 0) {
-    user.value.vends.push(form.value.vend_id)
-    user.value.vends.sort((a, b) => a.code - b.code)
-    unbindedVendOptions.value.splice(unbindedVendOptions.value.indexOf(form.value.vend_id), 1)
-    unbindedVendOptions.value.sort((a, b) => a.code - b.code)
-  }
-}
-
 function toggleActivateDeactivate() {
   form.value.post('/users/' + form.value.id + '/toggle-activate-deactivate', {
     onSuccess: () => {
@@ -344,12 +274,6 @@ function toggleActivateDeactivate() {
     preserveState: true,
     replace: true,
   });
-}
-
-function unbindOperatorVend(vend) {
-  user.value.vends.splice(user.value.vends.indexOf(vend), 1)
-  unbindedVendOptions.value.push(vend)
-  unbindedVendOptions.value.sort((a, b) => a.code - b.code)
 }
 
 function getDefaultForm() {
@@ -364,6 +288,7 @@ function getDefaultForm() {
     phone_number: '',
     operator_id: '',
     role_id: '',
+    product_access_mode: 'all',
   }
 }
 

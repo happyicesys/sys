@@ -33,6 +33,7 @@ class User extends Authenticatable
         'password',
         'password_confirmation',
         'phone_country_id',
+        'product_access_mode',
         'phone_number',
         'profile_id',
         'username',
@@ -136,6 +137,23 @@ class User extends Authenticatable
     public function vends()
     {
         return $this->belongsToMany(Vend::class);
+    }
+
+    /**
+     * "Access Product(s)" allow-list. NOT ownership - it is the set of SKUs
+     * this user is permitted to see, capped by their operator's own list.
+     *
+     * Only meaningful when product_access_mode === 'list'.
+     *
+     * WARNING: Product carries OperatorProductFilterScope, so reading this
+     * relation returns rows filtered by the VIEWER's operator, not the
+     * subject's. App\Support\ProductAccess therefore reads the pivot table
+     * directly and never goes through here. Use this relation for UI display
+     * and eager-loading only.
+     */
+    public function accessProducts()
+    {
+        return $this->belongsToMany(Product::class)->orderBy('code');
     }
 
 }

@@ -95,9 +95,15 @@ class VendSerialNumberController extends Controller
                     'Remarks' => $vendSerialNumber->desc,
                     'Machine ID' => $vendSerialNumber->vend_code,
                     'Machine Model' => $vendSerialNumber->vend_model_name,
+                    'Machine Sticker' => $vendSerialNumber->vend_sticker_names,
                     'LCD Monitor' => $vendSerialNumber->vend_lcd_monitor,
                     'Status' => $vendSerialNumber->vend_status,
-                    'Begin Date' => Carbon::parse($vendSerialNumber->vend_begin_date)->toDateString(),
+                    // Guarded: Carbon::parse(null) returns NOW, which stamped
+                    // today's date on every serial number with no bound machine.
+                    'Begin Date' => $vendSerialNumber->vend_begin_date
+                        ? Carbon::parse($vendSerialNumber->vend_begin_date)->toDateString()
+                        : null,
+                    'Setting Chart' => $vendSerialNumber->vend_config_name,
                     'Prefix' => $vendSerialNumber->vend_prefix_name,
                     'Product Mapping' => $vendSerialNumber->product_mapping_name,
                     'Contract' => $vendSerialNumber->vend_contract_name,
@@ -191,6 +197,11 @@ class VendSerialNumberController extends Controller
                 'vend_contracts.name as vend_contract_name',
                 'vend_models.name as vend_model_name',
                 DB::raw('(SELECT vs.name FROM vend_sticker_vend vsv INNER JOIN vend_stickers vs ON vs.id = vsv.vend_sticker_id WHERE vsv.vend_id = vends.id ORDER BY vs.name LIMIT 1) as vend_sticker_name'),
+                // Full sticker list for the export. The table renders ALL of
+                // vend.stickers, but exportWithCursor() uses cursor(), which does
+                // not apply eager loads -- so read them in SQL instead of
+                // lazy-loading the relation once per exported row.
+                DB::raw('(SELECT GROUP_CONCAT(vs.name ORDER BY vs.name SEPARATOR ", ") FROM vend_sticker_vend vsv INNER JOIN vend_stickers vs ON vs.id = vsv.vend_sticker_id WHERE vsv.vend_id = vends.id) as vend_sticker_names'),
                 'vend_configs.name as vend_config_name',
                 'vend_prefixes.name as vend_prefix_name',
                 'vends.product_mapping_id as vend_product_mapping_id',

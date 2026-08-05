@@ -38,6 +38,7 @@ use App\Models\UnitCost;
 use App\Models\Vend;
 use App\Models\VendContract;
 use App\Models\VendModel;
+use App\Support\ProductAccess;
 use App\Models\VendChannelStockEvent;
 use App\Models\VendPrefix;
 use App\Models\VendTransaction;
@@ -2007,7 +2008,13 @@ class ReportController extends Controller
     {
         $rawQuery = GpMetricsAggregator::buildRawQuery($from, $to);
 
-        return DB::query()->fromSub($rawQuery, 'gm')
+        // "Access Product(s)": filter on the gm subquery rather than inside
+        // GpMetricsAggregator, so the GP money maths (and the auth-less nightly
+        // persistDay that shares buildRawQuery) stay untouched. Every gm row is
+        // already per-product, so dropping rows here is exact, not approximate.
+        $dataset = ProductAccess::applyToColumn(DB::query()->fromSub($rawQuery, 'gm'), 'gm.product_id');
+
+        return $dataset
             ->groupBy('date', 'vend_id', 'customer_id')
             ->select(
                 'vend_id',
@@ -2055,7 +2062,9 @@ class ReportController extends Controller
         ]);
         // ─────────────────────────────────────────────────────────────────────
 
-        $dataset = DB::query()->fromSub($rawQuery, 'gm');
+        // "Access Product(s)" — see getLiveVendRecordsQuery() for why this is
+        // applied on the gm subquery and not inside GpMetricsAggregator.
+        $dataset = ProductAccess::applyToColumn(DB::query()->fromSub($rawQuery, 'gm'), 'gm.product_id');
 
         $query = $dataset
             ->leftJoin('vends', 'gm.vend_id', '=', 'vends.id')
@@ -2503,7 +2512,8 @@ class ReportController extends Controller
             $base = $base->unionAll($query);
         }
 
-        return DB::query()->fromSub($base, 'gm');
+        // "Access Product(s)" — see getLiveVendRecordsQuery() for the rationale.
+        return ProductAccess::applyToColumn(DB::query()->fromSub($base, 'gm'), 'gm.product_id');
     }
 
     private function baseGpMetricsQuery($request, Carbon $start, Carbon $end, ?string $locationTypeColumn = null): Builder
@@ -2650,6 +2660,14 @@ class ReportController extends Controller
                 'two_months_ago' => ['available_seconds' => 0, 'total_seconds' => 0, 'channel_count_sum' => 0, 'availability' => null],
             ],
         ];
+
+        // "Access Product(s)": clamp once here so every downstream leg of this
+        // method (stock events, single-purchase channel usage, multi-basket
+        // channel usage) is restricted from a single place. null = unrestricted.
+        $allowedProductIds = ProductAccess::current();
+        if ($allowedProductIds !== null) {
+            $productIds = array_values(array_intersect($productIds, $allowedProductIds));
+        }
 
         if (empty($productIds)) {
             return $result;

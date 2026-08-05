@@ -24,7 +24,11 @@ class OperatorProductFilterScope implements Scope
           $operatorId = null;
         }
         if($operatorId) {
-          $builder->where('operator_id', $operatorId);
+          // Qualified with the table name on purpose: this scope is registered on
+          // Product, and any Product:: query that joins another table carrying an
+          // operator_id column (vends, customers, operators, ...) would otherwise
+          // die with "Column 'operator_id' in where clause is ambiguous".
+          $builder->where($model->getTable() . '.operator_id', $operatorId);
         }
       }
     }
