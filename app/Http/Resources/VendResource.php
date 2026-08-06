@@ -12,12 +12,22 @@ use App\Traits\GetUserTimezone;
 class VendResource extends JsonResource
 {
     use GetUserTimezone;
+
     /**
-     * Transform the resource into an array.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return array|\Illuminate\Contracts\Support\Arrayable|\JsonSerializable
+     * Both delegate to App\Support\ProductAccess so VendResource, VendDBResource
+     * and VendSnapshotDBResource cannot drift apart - they all render the same
+     * denormalised blobs off the vends row.
      */
+    protected function filterChannelsJsonForProductAccess($channels)
+    {
+        return \App\Support\ProductAccess::filterChannelsJson($channels);
+    }
+
+    protected function maskWholeMachineMoneyForProductAccess($totals)
+    {
+        return \App\Support\ProductAccess::maskWholeMachineJson($totals);
+    }
+
     public function toArray($request)
     {
         // $timezone = auth()->user()->has('operator') ? auth()->user()->operator->timezone : 'Asia/Singapore';
@@ -305,8 +315,23 @@ class VendResource extends JsonResource
             }, []),
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),
-            'vendChannelsJson' => isset($this->vend_channels_json) ? $this->vend_channels_json : null,
+            // "Access Product(s)": these three are DENORMALISED JSON blobs on the
+            // vends row (written by SaveVendChannelsJson), not queries - no SQL
+            // filter anywhere can reach inside them, so they have to be narrowed
+            // here or the Ops Dashboard channel grid and its popup show every
+            // party's planogram. See filterChannelsJsonForProductAccess().
+            'vendChannelsJson' => $this->filterChannelsJsonForProductAccess(
+                isset($this->vend_channels_json) ? $this->vend_channels_json : null
+            ),
             'vendChannelErrorLogsJson' => isset($this->vend_channel_error_logs_json) ? $this->vend_channel_error_logs_json : null,
+            // "Access Product(s)": deliberately NOT masked. Unlike
+            // vend_transaction_totals_json this blob carries no money at all -
+            // it is qty / capacity / balancePercent / outOfStock /
+            // activeErrorLogs / count (see Jobs\Vend\SaveVendChannelsJson).
+            // Blanking it took out the Qty-Bal% and SKU-Bal% tiles on the Ops
+            // Dashboard (Lite), which gate on its presence, while protecting no
+            // revenue - and its own sibling columns vends.balance_percent /
+            // vends.out_of_stock_sku_percent ship unmasked anyway.
             'vendChannelTotalsJson' => isset($this->vend_channel_totals_json) ? $this->vend_channel_totals_json : null,
             'vendConfig' => VendConfigResource::make($this->whenLoaded('vendConfig')),
             'vendContract' => VendContractResource::make($this->whenLoaded('vendContract')),
@@ -321,7 +346,20 @@ class VendResource extends JsonResource
             'vend_serial_number_code' => isset($this->vend_serial_number_code) ? $this->vend_serial_number_code : null,
             'vend_vend_config_version' => $this->vend_vend_config_version,
             'vendTwoDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendTwoDaysErrorTransactions')),
-            'vendTransactionTotalsJson' => isset($this->vend_transaction_totals_json) ? $this->vend_transaction_totals_json : null,
+            // Whole-machine sales rollup (today / 7d / 30d, summed across every
+            // product). Masked HERE rather than only in VendController::indexCustomer,
+            // because /vends renders this same resource.
+            // "Access Product(s)": prefer the money-free shadow that
+            // VendController::stripWholeMachineMoney() leaves behind - it nulls
+            // the real blob so the controller's own $totals maths reads it as
+            // "no data", and this is the only surviving copy of the error
+            // rates. Falls through to masking the blob directly on every page
+            // that does not go through that helper.
+            'vendTransactionTotalsJson' => isset($this->vend_transaction_health_json)
+                ? $this->vend_transaction_health_json
+                : $this->maskWholeMachineMoneyForProductAccess(
+                    isset($this->vend_transaction_totals_json) ? $this->vend_transaction_totals_json : null
+                ),
             // PWRON 1d / 2d / 3d counts sourced from vend_daily_stats — drives
             // the trend block at the bottom of the Error column on
             // Vend/CustomerIndex (populated in VendController@indexCustomer).

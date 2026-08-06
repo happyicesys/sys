@@ -13,6 +13,22 @@
 
         <div class="p-3">
             <div class="max-w-7xl mx-auto sm:px-3 lg:px-2">
+                <!--
+                  These figures come from vend_records, whose grain is date x
+                  machine - there is no product dimension to filter on, so a
+                  product-restricted viewer is seeing the whole machine's takings,
+                  not just their own SKUs'. Say so plainly rather than let the
+                  numbers be read as theirs.
+                -->
+                <div
+                    v-if="productRestricted"
+                    class="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+                >
+                    <span class="font-semibold">Whole-machine figures.</span>
+                    This page reports every product in a machine, including ones you do not have access to.
+                    For sales limited to your products, use
+                    <a href="/vends/transactions" class="underline font-medium">Transactions</a>.
+                </div>
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-4">
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-4 py-3 md:px-4 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -540,6 +556,7 @@
     import moment from 'moment';
 
     const props = defineProps({
+        productRestricted: Boolean,
         activeMachineGraphData: Object,
         autoLoad: Boolean,
         dayGraphData: Object,

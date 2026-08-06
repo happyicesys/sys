@@ -275,7 +275,7 @@ class VendController extends Controller
                     SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
                     WHERE is_active = true
-                    AND capacity > 0
+                    AND capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
                     GROUP BY vend_id
                 ) AS vc
             '), 'vc.vend_id', '=', 'vends.id');
@@ -298,7 +298,7 @@ class VendController extends Controller
                     -- multiple current blended costs cannot multiply this sum.
                     AND unit_costs.product_mapping_id IS NULL
                     AND vend_channels.is_active = true
-                    AND vend_channels.capacity > 0
+                    AND vend_channels.capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
                     GROUP BY
                         vend_channels.vend_id
                 ) AS vc_cost
@@ -410,6 +410,12 @@ class VendController extends Controller
             $this->loadAggregates($vends->getCollection(), $types);
         }
 
+        // "Access Product(s)": /vends carries no product.unrestricted guard, so
+        // a restricted viewer reaches it. Its channel sub-selects are already
+        // product-filtered, but the two cards below are whole-machine
+        // vend_records money - strip before they are summed.
+        $this->stripWholeMachineMoney($vends->getCollection());
+
         $totals = [
             // 'thirtyDays' => collect((clone $vends)
             //                 ->items())
@@ -426,7 +432,9 @@ class VendController extends Controller
                 ->sum(function ($vend) {
                     return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
                 }) / 100,
-            'thirthyDaysAvg' => collect((clone $vends)
+            // customers_totals_json is a raw SELECT alias, not one of the row
+            // fields stripWholeMachineMoney() blanks - guard it explicitly.
+            'thirthyDaysAvg' => ProductAccess::isRestricted() ? 0 : collect((clone $vends)
                 ->items())
                 ->sum(function ($vend) {
                     $customerTotals = is_string($vend->customers_totals_json)
@@ -561,10 +569,20 @@ class VendController extends Controller
             }
         }
 
+        // "Access Product(s)": every money column below is blanked for a
+        // restricted viewer, but ORDER BY still runs on the real value - sorting
+        // by "L30d Sales" would hand back other parties' machines ranked by
+        // revenue with the figures merely hidden. Fall back to the page's own
+        // default sort instead of honouring the request.
+        $requestedSortKey = isset($request->sortKey) ? $request->sortKey : 'balance_percent';
+        if (ProductAccess::isRestricted() && $this->isProductRestrictedSortKey($requestedSortKey)) {
+            $requestedSortKey = 'balance_percent';
+        }
+
         $request->merge([
             'indexType' => 'customers',
             'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
-            'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
+            'sortKey' => $requestedSortKey,
             'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
             'productAvailableDate' => isset($request->productFilters['productAvailableDate']) ? Carbon::parse($request->productFilters['productAvailableDate'])->toDateString() : Carbon::today()->addDay()->toDateString()
         ]);
@@ -788,7 +806,7 @@ class VendController extends Controller
                     SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
                     WHERE is_active = true
-                    AND capacity > 0
+                    AND capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
                     GROUP BY vend_id
                 ) AS vc
             '), 'vc.vend_id', '=', 'vends.id');
@@ -811,7 +829,7 @@ class VendController extends Controller
                     -- multiple current blended costs cannot multiply this sum.
                     AND unit_costs.product_mapping_id IS NULL
                     AND vend_channels.is_active = true
-                    AND vend_channels.capacity > 0
+                    AND vend_channels.capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
                     GROUP BY
                         vend_channels.vend_id
                 ) AS vc_cost
@@ -865,7 +883,7 @@ class VendController extends Controller
                     WHERE
                         products.is_available = true
                     AND vend_channels.is_active = true
-                    AND vend_channels.capacity > 0
+                    AND vend_channels.capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
                     GROUP BY
                         vend_channels.vend_id
                 ) AS vc_stock
@@ -1376,6 +1394,14 @@ class VendController extends Controller
             // and the full render carry it.
             $this->attachVmBindingHistory($vends->getCollection());
 
+            // "Access Product(s)": blank the whole-machine money NOW, before
+            // anything reads it. $totals, the per-row location-fee loop and
+            // loadAggregates' derived-fields loop all consume
+            // vend_transaction_totals_json further down; nulling it only at the
+            // end of the method (as the render-time backstop below does) leaves
+            // every one of those derived scalars carrying the real figure.
+            $this->stripWholeMachineMoney($vends->getCollection());
+
             if ($deferAggregates) {
                 // ── DEFERRED PATH ────────────────────────────────────────────
                 // Skip every heavy aggregate. Seed safe numeric defaults on each
@@ -1616,6 +1642,12 @@ class VendController extends Controller
                 $vend->nofound_txn_2d_count = (int) ($nofoundByVend[$vid][$pwronDate2d] ?? 0);
                 $vend->nofound_txn_3d_count = (int) ($nofoundByVend[$vid][$pwronDate3d] ?? 0);
             }
+
+            // Second pass: loadAggregates() and the accumulate-earning loop
+            // above stamp ops-job / stock-in / settlement money straight from
+            // raw SQL that never touched the blob, so the first pass could not
+            // have caught them. Must run BEFORE $totals sums them up.
+            $this->stripWholeMachineMoney($vends->getCollection());
 
             $totals = [
                 'mapApiKey' => $mapApiKey,
@@ -1867,6 +1899,22 @@ class VendController extends Controller
                 fn ($option) => isset($allowedProductLookup[$option['id']])
             ));
         }
+
+        // "Access Product(s)": the Sales(qty) column and the fleet-average cards
+        // read vends.vend_transaction_totals_json / vend_records, whose grain is
+        // date x MACHINE - the money in them is summed over every product in the
+        // machine, including other parties'. Unlike the stock columns (whose
+        // vend_channels sub-selects ARE product-filtered above) there is no way
+        // to derive a per-product share, so blank them rather than show a
+        // restricted viewer someone else's revenue. Stripped server-side, not
+        // just hidden in the template, so the numbers never reach the payload.
+        //
+        // Render-time BACKSTOP only. The real blanking happens in
+        // stripWholeMachineMoney(), called twice much further up - by the time
+        // control reaches here every consumer has already run, so this alone
+        // would be far too late. Kept because it also covers the early-return
+        // "no search yet" branch, which builds its own empty paginator.
+        $this->stripWholeMachineMoney($vends->getCollection());
 
         return Inertia::render($lite ? 'Vend/CustomerIndexLite' : 'Vend/CustomerIndex', [
             // Card terminal options (Nayax / Nets / Nets-Auresys / PAX / MLS). Drives the
@@ -2123,6 +2171,15 @@ class VendController extends Controller
             return response()->json(['rows' => [], 'totals' => []]);
         }
 
+        // "Access Product(s)": same two-pass blanking as indexCustomer - once
+        // before anything reads customers.totals_json off the pseudo-rows, once
+        // after the raw-SQL aggregates below have stamped their own money.
+        // This endpoint is deliberately NOT behind product.unrestricted: it is
+        // Phase 2 of the deferred load for Operations > Dashboard (Lite), which
+        // IS open to restricted viewers. Blocking it made every Lite search
+        // 403 and fall back to a second full-page query.
+        $this->stripWholeMachineMoney($items);
+
         // ── Heavy aggregates (same shared method as indexCustomer) ───────────
         $this->loadAggregates($items, ['vc', 'vc_cost', 'vc_stock', 'last_ops_jobs', 'last_second_ops_jobs', 'next_ops_jobs', 'last_thirty_days_stock_in']);
 
@@ -2236,6 +2293,10 @@ class VendController extends Controller
                 }
             }
         }
+
+        // Second pass - loadAggregates() and the settlement loop above stamp
+        // ops-job / stock-in / location-fee money straight from raw SQL.
+        $this->stripWholeMachineMoney($items);
 
         // ── Build the response map (VendResource-identical transforms) ───────
         $map = [];
@@ -3697,9 +3758,21 @@ class VendController extends Controller
         // (default true) so periods before that date stay aligned with prior
         // accounting exports. Filters mirrored inside the scope so this headline
         // and the CSV export count exactly the same rows.
-        $unreportedGatewayAmount = PaymentGatewayLog::query()
-            ->unreportedDispensed($request, $testingVendIds)
-            ->sum('payment_gateway_logs.amount');
+        //
+        // "Access Product(s)": payment_gateway_logs has NO product_id - the
+        // machine never told us what came out - so there is nothing to attribute
+        // and nothing to filter on. Adding this to a restricted viewer's headline
+        // credits them with revenue that is provably not theirs, and it shows up
+        // as a Total Sales figure with ZERO matching rows in the grid below.
+        // Omit it and report the omission, exactly as the CSV export does
+        // (AppendsUnreportedGatewayCsvRows).
+        $cardAllowedProductIds = ProductAccess::current();
+
+        $unreportedGatewayAmount = $cardAllowedProductIds !== null
+            ? 0
+            : PaymentGatewayLog::query()
+                ->unreportedDispensed($request, $testingVendIds)
+                ->sum('payment_gateway_logs.amount');
 
         // vend_transactions.amount is in minor units (cents); gateway log
         // amounts are in major units — scale up before merging.
@@ -3719,8 +3792,7 @@ class VendController extends Controller
         $totals->product_restricted = false;
         $totals->product_attributed_amount = null;
         $totals->product_excluded_amount = null;
-
-        $cardAllowedProductIds = ProductAccess::current();
+        $totals->product_unreported_gateway_omitted = null;
 
         if ($cardAllowedProductIds !== null) {
             $totals->product_restricted = true;
@@ -3770,6 +3842,15 @@ class VendController extends Controller
             // so reading it returned null and the banner always claimed 0 excluded.
             $totals->product_excluded_amount = round(
                 max(0, (float) $totals->success_amount - $totals->product_attributed_amount),
+                2
+            );
+
+            // Surface what was dropped above rather than leaving a silent gap
+            // between this card and an unrestricted user's.
+            $totals->product_unreported_gateway_omitted = round(
+                ((float) PaymentGatewayLog::query()
+                    ->unreportedDispensed($request, $testingVendIds)
+                    ->sum('payment_gateway_logs.amount')) * pow(10, $currencyExponent),
                 2
             );
         }
@@ -5912,6 +5993,125 @@ class VendController extends Controller
         ];
     }
 
+    /**
+     * "Access Product(s)": strip whole-machine money off a page of index rows.
+     *
+     * Every figure below is summed over EVERY product in the machine (or the
+     * whole site), so for a restricted viewer it describes other parties'
+     * revenue as much as their own, and there is no per-product share to
+     * derive - vend_records' grain is date x machine, the ops-job money is
+     * ops_job_item_channels x vend_channels.amount over the full planogram,
+     * and the location-fee rates are tiered on TOTAL site sales.
+     *
+     * Called in TWO passes wherever a page of rows is built (indexCustomer,
+     * customerIndexAggregates): once the moment the rows are materialised
+     * (kills the blob before any consumer reads it) and once after
+     * loadAggregates() / the settlement loop (kills the figures those stamp
+     * from raw SQL that never touched the blob). Blanking only at the end is
+     * not enough - $totals, the location-fee loop and loadAggregates'
+     * derived-fields loop all read the blob before that point.
+     *
+     * Stock QUANTITIES and error rates are deliberately left alone: they carry
+     * no money, and the stock VALUE columns (total_stock_amount /
+     * total_stock_cost / actual_stock_in_value) are already product-filtered
+     * at source by ProductAccess::applyToColumn() in loadAggregates().
+     */
+    /**
+     * Every row field stripWholeMachineMoney() blanks. Also the blacklist the
+     * sort guard in indexCustomer() uses - ordering by a column whose value is
+     * hidden still ranks the page by that hidden money.
+     *
+     * NOTE what is deliberately absent: total_stock_amount,
+     * total_full_load_amount, total_stock_cost and actual_stock_in_value are
+     * money too, but loadAggregates() computes them from vend_channels through
+     * ProductAccess::applyToColumn(), so they are already the viewer's OWN
+     * share and must stay both visible and sortable.
+     */
+    private const PRODUCT_RESTRICTED_MONEY_FIELDS = [
+        // Denormalised vend_records rollups.
+        'vend_transaction_totals_json',
+        // GENERATED column: json_extract(vend_transaction_totals_json,
+        // '$.vend_records_amount_average_day') - mysql-schema.sql:3510.
+        // Blanking the blob alone leaves this carrying the same figure.
+        'amount_average_day',
+        'virtual_vend_records_thirty_days_amount_average',
+        // Whole-site settlement money (customer_period_summaries).
+        'location_fees_cents',
+        'thirty_days_vending_earning_cents',
+        'accumulate_vending_earning_cents',
+        'net_loc_fee',
+        // ops_job_item_channels x vend_channels.amount, unfiltered.
+        'last_thirty_days_stock_in_amount',
+        'last_ops_job_amount',
+        'last_ops_job_cash_amount',
+        'last_ops_job_acc_total_amount',
+        'last_second_ops_job_amount',
+        'last_second_ops_job_cash_amount',
+        'last_second_ops_job_acc_total_amount',
+        'next_ops_job_amount',
+        'next_ops_job_cash_amount',
+        // Derived from the two above - would otherwise survive as a scalar even
+        // though both of its inputs are blanked.
+        'thirty_days_over_full_load_ratio',
+        'thirty_days_stock_in_delta_amount',
+        'thirty_days_stock_in_delta_percent',
+    ];
+
+    /**
+     * Would ordering by this key rank the page by money the viewer cannot see?
+     */
+    private function isProductRestrictedSortKey(?string $sortKey): bool
+    {
+        if ($sortKey === null || $sortKey === '') {
+            return false;
+        }
+
+        if (in_array($sortKey, self::PRODUCT_RESTRICTED_MONEY_FIELDS, true)) {
+            return true;
+        }
+
+        // JSON paths, e.g. totals_json->thirty_days_gross_profit. The health
+        // half of the same blob (totals_json->two_days_error_rate and friends)
+        // stays sortable - it is not money and is not blanked.
+        $arrow = strpos($sortKey, '->');
+        if ($arrow !== false) {
+            return ProductAccess::isMoneyKey(substr($sortKey, $arrow + 2));
+        }
+
+        return false;
+    }
+
+    private function stripWholeMachineMoney($items): void
+    {
+        if (! ProductAccess::isRestricted()) {
+            return;
+        }
+
+        foreach ($items as $item) {
+            // Keep the money-free half of the rollup (transaction counts and
+            // error rates - machine health, which a restricted viewer IS
+            // allowed to see) on a shadow field. The blob itself is nulled
+            // below so every PHP consumer in this file keeps reading it as
+            // "no data"; VendResource picks the shadow up and emits it as
+            // vendTransactionTotalsJson, so the Error % column survives.
+            // Guarded: this helper runs more than once per page, and by the
+            // second pass the blob is already null - recomputing would wipe the
+            // shadow the first pass captured.
+            if (! isset($item->vend_transaction_health_json)) {
+                $item->vend_transaction_health_json = ProductAccess::maskWholeMachineJson(
+                    $item->vend_transaction_totals_json ?? null
+                );
+            }
+
+            foreach (self::PRODUCT_RESTRICTED_MONEY_FIELDS as $field) {
+                // net_loc_fee is a SELECT alias, not always present on the row -
+                // assigning it is harmless, and it belongs in the list for the
+                // sort guard.
+                $item->{$field} = null;
+            }
+        }
+    }
+
     private function loadAggregates($items, $types = ['vc', 'vc_cost'])
     {
         $vendIds = $items->map(function ($item) {
@@ -5928,6 +6128,12 @@ class VendController extends Controller
 
         if (in_array('vc', $types) && !empty($vendIds)) {
             $vcData = DB::table('vend_channels')
+                // "Access Product(s)": loadAggregates is the DEFAULT render path -
+                // the product-filtered DB::raw sub-selects further up are only
+                // joined when the user SORTS by one of these columns. Without this
+                // the same figure would be whole-machine on load and per-product
+                // after a sort click.
+                ->tap(fn($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
                 ->select('vend_id', DB::raw('SUM(amount * qty) as total_stock_amount'), DB::raw('SUM(amount * capacity) as total_full_load_amount'))
                 ->whereIn('vend_id', $vendIds)
                 ->where('is_active', true)
@@ -5972,6 +6178,7 @@ class VendController extends Controller
             // unit_costs.product_id with no filtering on products itself, so the
             // intermediate join was pure overhead (an extra PK lookup per row).
             $vcCostData = DB::table('vend_channels')
+                ->tap(fn($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
                 ->join('unit_costs', 'vend_channels.product_id', '=', 'unit_costs.product_id')
                 ->select('vend_channels.vend_id', DB::raw('SUM(vend_channels.qty * unit_costs.cost) as total_stock_cost'))
                 ->where('unit_costs.is_current', true)
@@ -5996,6 +6203,7 @@ class VendController extends Controller
 
         if (in_array('vc_stock', $types) && !empty($vendIds)) {
             $vcStockData = DB::table('vend_channels')
+                ->tap(fn($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
                 ->join('products', 'vend_channels.product_id', '=', 'products.id')
                 ->leftJoinSub(function ($query) {
                     // Replace ROW_NUMBER() window function with a MAX(id) GROUP BY approach.

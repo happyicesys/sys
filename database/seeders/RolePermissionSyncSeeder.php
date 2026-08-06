@@ -52,7 +52,11 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'dashboard',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'observer', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
+                // 2026-08-05 sheet sync: + prod_owner (Dashboard > Performance).
+                // Deliberately NOT on the 'dashboard' admin-access tuple below, and
+                // NOT on dashboard-machine-health - the sheet gives prod_owner the
+                // Performance page only.
+                ['superadmin', 'admin', 'supervisor', 'observer', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user', 'prod_owner']
             ],
 
             [
@@ -64,7 +68,32 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'dashboard-performance',
                 ['read', 'export'],
+                // 2026-08-05 sheet sync: + prod_owner
+                // 2026-08-06: - prod_owner again. The product owner now gets
+                // Performance (LITE) instead — same page, but sourced from
+                // vend_product_records so the figures are narrowed to their own
+                // products. The full Performance page reads vend_records, which
+                // has no product dimension, so it can only ever show them
+                // whole-machine money. Granting both would defeat the split.
                 ['superadmin', 'admin', 'supervisor', 'observer', 'observer_transactions', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
+            ],
+
+            // Dashboard > Performance (Lite) — /dashboard/performance-lite.
+            //
+            // Its OWN permission, deliberately NOT `read dashboard-performance`.
+            // The Lite page renders the SAME charts through the SAME
+            // DashboardController methods, so gating it on the existing
+            // permission would have handed it to all nine roles that already
+            // have the full page — and still not expressed "Lite but not Full",
+            // which is exactly what prod_owner needs. Same reasoning as
+            // vend-customers-lite above.
+            //
+            // prod_owner is created by ProdOwnerRoleSeeder — run that FIRST or
+            // the `if ($role)` guard below silently drops this grant.
+            [
+                'dashboard-performance-lite',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'prod_owner']
             ],
 
             [
@@ -148,7 +177,11 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'transactions',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user']
+                // 2026-08-05 sheet sync: + prod_owner (All Transaction, LIMITED
+                // filter). "Limited" == read without admin-access: Transaction.vue
+                // gates ~10 filter controls on 'admin-access transactions', so
+                // prod_owner must NOT appear on the admin-access tuple below.
+                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user', 'prod_owner']
             ],
 
             [
@@ -159,6 +192,20 @@ class RolePermissionSyncSeeder extends Seeder
 
             [
                 'transactions-sales',
+                ['read', 'export'],
+                // 2026-08-05 sheet sync: + prod_owner
+                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user', 'prod_owner']
+
+            ],
+
+            [
+                // NEW 2026-08-05. Daily Summary used to share 'read
+                // transactions-sales' with All Transactions, so the two could not
+                // be granted separately - but the sheet gives prod_owner All
+                // Transactions and NOT Daily Summary. Role list is exactly whoever
+                // holds read transactions-sales today MINUS prod_owner, so this is
+                // behaviour-preserving for every existing role.
+                'transactions-daily-summary',
                 ['read', 'export'],
                 ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user']
             ],
@@ -577,12 +624,22 @@ class RolePermissionSyncSeeder extends Seeder
                 'tutorials',
                 ['read', 'export'],
                 // 2026-07-23 sheet sync: - technician, driver (staff use "Tutorial (with CMS)" / resource-centers instead)
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee']
+                // 2026-08-05 sheet sync: + prod_owner (Tutorial > Management to know)
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee', 'prod_owner']
+            ],
+
+            [
+                // Split read/export from admin-access so prod_owner can be given the
+                // "Management to know" section (Tutorial/Index.vue gates it on
+                // 'read tutorials-operators') without the admin bits.
+                'tutorials-operators',
+                ['read', 'export'],
+                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor', 'prod_owner']
             ],
 
             [
                 'tutorials-operators',
-                ['read', 'export', 'admin-access'],
+                ['admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
             ],
 

@@ -475,37 +475,73 @@ class OperatorController extends Controller
         // mass-assign a non-column. product_access_mode IS a column and is set
         // explicitly below after validation.
         $payload = collect($request->all())
-            ->except(['email_user_ids', 'email_customs', 'logo', 'logo_remove', 'transaction_callback_url', 'alert_callback_url', 'is_active', 'deactivated_at', 'access_products', 'access_product_ids', 'product_access_mode'])
+            ->except(['email_user_ids', 'email_customs', 'logo', 'logo_remove', 'transaction_callback_url', 'alert_callback_url', 'is_active', 'deactivated_at', 'access_products', 'access_product_ids', 'product_access_mode', 'manage_product_access'])
             ->toArray();
         $operator->update($payload);
 
         // "Access Product(s)" — the hard ceiling for every user under this
-        // operator. sync() is safe here: operator_product has a UNIQUE key.
-        $accessProductIds = collect($request->input('access_product_ids', []))
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->unique()
-            ->values();
+        // operator.
+        //
+        // GUARDED on an explicit marker that ONLY Operator/Edit.vue sends.
+        //
+        // /operators/{id}/update is shared with Operator/Form.vue (the modal on the
+        // operators list, which does useForm(props.operator) - spreading the whole
+        // OperatorResource row) and DeliveryPlatformOrder/Edit.vue. Because the
+        // resource now emits product_access_mode, no resource-derived field can
+        // tell the screens apart. An unguarded sync([]) here destroys the CEILING
+        // for every user under the operator.
+        if ($request->boolean('manage_product_access')) {
+            $postedProductIds = collect($request->input('access_product_ids', []))
+                ->map(fn ($id) => (int) $id)
+                ->filter()
+                ->unique();
 
-        // Clamp to products this operator actually OWNS. Proving the ids merely
-        // exist is not enough - otherwise a hand-rolled POST could seed operator
-        // X's ceiling with operator Y's product ids, and those ids would then be
-        // handed to every user under X as a live WHERE predicate.
-        $accessProductIds = $accessProductIds->intersect(
-            Product::withoutGlobalScopes()
+            // Rows already bound are kept; only NEW ids are clamped to products
+            // this operator actually OWNS. Proving a posted id merely exists is
+            // not enough - otherwise a hand-rolled POST could seed operator X's
+            // ceiling with operator Y's product ids, and those ids are handed to
+            // every user under X as a live WHERE predicate. Clamping additions
+            // only means a grant that predates a product changing operator is not
+            // silently dropped just because someone opened the page.
+            $existingProductIds = DB::table('operator_product')
+                ->where('operator_id', $operator->id)
+                ->pluck('product_id')
+                ->map(fn ($id) => (int) $id);
+
+            $grantableProductIds = Product::withoutGlobalScopes()
                 ->where('operator_id', $operator->id)
                 ->pluck('id')
-        );
+                ->map(fn ($id) => (int) $id);
 
-        $operator->accessProducts()->sync($accessProductIds->values()->all());
+            $accessProductIds = $postedProductIds->filter(
+                fn ($id) => $existingProductIds->contains($id) || $grantableProductIds->contains($id)
+            );
 
-        $operator->product_access_mode = $request->input('product_access_mode') === ProductAccess::MODE_LIST
-            ? ProductAccess::MODE_LIST
-            : ProductAccess::MODE_ALL;
-        $operator->save();
+            // See UserController@update: sync() deletes anything not posted, and
+            // edit() loads the bound list through OperatorProductFilterScope, so
+            // a row the screen could not show must be re-added or it is silently
+            // dropped. Losing one here SHRINKS the ceiling for every user under
+            // this operator.
+            $visibleToEditor = $operator->accessProducts()
+                ->withoutGlobalScope(ProductAccessProductScope::class)
+                ->pluck('products.id')
+                ->map(fn ($id) => (int) $id);
 
-        // Every user under this operator inherits the change.
-        ProductAccess::flush();
+            $operator->accessProducts()->sync(
+                $accessProductIds->merge($existingProductIds->diff($visibleToEditor))
+                    ->unique()
+                    ->values()
+                    ->all()
+            );
+
+            $operator->product_access_mode = $request->input('product_access_mode') === ProductAccess::MODE_LIST
+                ? ProductAccess::MODE_LIST
+                : ProductAccess::MODE_ALL;
+            $operator->save();
+
+            // Every user under this operator inherits the change.
+            ProductAccess::flush();
+        }
 
         // Active/inactive status (deactivate instead of delete).
         // Only touch it when the form actually sends the field.

@@ -18,8 +18,11 @@ use App\Models\Product;
 use App\Models\Vend;
 use App\Models\VendModel;
 use App\Models\VendPrefix;
+use App\Models\VendProductRecord;
 use App\Models\VendRecord;
 use App\Models\VendTransaction;
+use App\Support\IndexHint;
+use App\Support\ProductAccess;
 use App\Services\VendTransactionSalesAggregator;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
@@ -51,11 +54,101 @@ class DashboardController extends Controller
 
     protected $weatherService;
 
+    /**
+     * Which pre-aggregated rollup this request reads.
+     *
+     * false => vend_records          (Dashboard > Performance)
+     *          grain: date x machine. NO product dimension, so a
+     *          product-restricted viewer sees whole-machine takings.
+     *
+     * true  => vend_product_records  (Dashboard > Performance (Lite))
+     *          grain: date x machine x PRODUCT. VendProductRecord carries
+     *          ProductAccessProductColumnScope, so every Eloquent read below is
+     *          automatically narrowed to the viewer's "Access Product(s)"
+     *          allow-list. This is what makes the page safe for prod_owner.
+     *
+     * Set once by index()/indexLite() and read by the shared private chart
+     * methods, so BOTH pages are driven by ONE set of queries. Do not fork these
+     * methods into a second controller: hand-copied read paths are exactly how
+     * the Excel exports drifted out of sync with their pages.
+     */
+    protected bool $lite = false;
+
     public function __construct(\App\Services\WeatherService $weatherService)
     {
         $this->weatherService = $weatherService;
-        // $this->middleware(['permission:read dashboard'])->only('index');
+        // Server-side gates. The sidebar already hides both links, but a hidden
+        // link is not a control — prod_owner must not be able to reach the
+        // whole-machine page by typing the URL, which is the entire point of the
+        // Lite split. Every role that can currently SEE the Performance link
+        // already holds `read dashboard-performance` on live, so this closes a
+        // hole without taking access away from anyone. superadmin passes via
+        // Gate::before. monthlySalesPopup is deliberately NOT gated (it carries
+        // its own operator-group check).
+        $this->middleware(['permission:read dashboard-performance'])->only('index');
+        $this->middleware(['permission:read dashboard-performance-lite'])->only('indexLite');
     }
+
+    /**
+     * Dashboard > Performance (Lite) — the product-grained twin of index().
+     *
+     * Same page, same filters, same charts; every figure is read from
+     * vend_product_records instead of vend_records so it can be honestly
+     * narrowed to the viewer's products.
+     */
+    public function indexLite(Request $request)
+    {
+        $this->lite = true;
+
+        return $this->index($request);
+    }
+
+    /**
+     * Eloquent query against whichever rollup this request reads.
+     *
+     * $indexes is the preferred index list PER SOURCE — passed through
+     * IndexHint::useFrom, which silently drops the hint when the index is absent
+     * instead of hard-failing with SQLSTATE 1176 on a DB whose migrations are
+     * behind. On live every index below exists, so the emitted SQL for the
+     * vend_records path is byte-identical to what it was before.
+     */
+    private function recordQuery(array $indexes = [])
+    {
+        $table = $this->recordTable();
+        $query = $this->lite ? VendProductRecord::query() : VendRecord::query();
+
+        $hint = $indexes[$table] ?? null;
+
+        return $hint ? $query->from(IndexHint::useFrom($table, $hint)) : $query;
+    }
+
+    /** Physical table behind the current request, for column qualification. */
+    private function recordTable(): string
+    {
+        return $this->lite ? 'vend_product_records' : 'vend_records';
+    }
+
+    /**
+     * A transient, never-persisted model used only to carry a zero/today row into
+     * the day-graph collection. Matched to the active source so the collection
+     * handed to VendTransactionGraphResource is homogeneous.
+     */
+    private function newRecordStub()
+    {
+        return $this->lite ? new VendProductRecord() : new VendRecord();
+    }
+
+    /** Date-range charts: day graph, sales comparison, performers, vend count. */
+    private const IDX_BY_DATE = [
+        'vend_records' => ['idx_operator_date_vend'],
+        'vend_product_records' => ['idx_vpr_operator_date_product'],
+    ];
+
+    /** Monthly analytics: the wide covering indexes. */
+    private const IDX_BY_MONTH = [
+        'vend_records' => ['idx_vr_monthly_sales_covering', 'idx_operator_date_vend'],
+        'vend_product_records' => ['idx_vpr_monthly_summary', 'idx_vpr_operator_date_product'],
+    ];
 
     public function index(Request $request)
     {
@@ -139,7 +232,19 @@ class DashboardController extends Controller
             $salesComparisonGraphData = [];
         }
 
-        return Inertia::render('Dashboard', [
+        return Inertia::render($this->lite ? 'DashboardLite' : 'Dashboard', array_merge([
+            // "Access Product(s)".
+            //
+            // Dashboard.vue uses this to raise the amber "whole-machine figures"
+            // warning: every figure there comes from vend_records, which has no
+            // product dimension, so a restricted viewer is seeing whole-machine
+            // money. We show it anyway (see routes/web.php) but the page must say
+            // so rather than let it read as "their" sales.
+            //
+            // DashboardLite.vue reads the SAME flag to say the opposite — its
+            // figures ARE narrowed to the viewer's products — because it is
+            // backed by vend_product_records.
+            'productRestricted' => ProductAccess::isRestricted(),
             'activeMachineGraphData' => $activeMachineGraphData,
             'autoLoad' => $shouldAutoload,
             'dayGraphData' => VendTransactionGraphResource::collection($dayGraph),
@@ -165,7 +270,51 @@ class DashboardController extends Controller
                 VendPrefix::orderBy('name')->get()
             ),
             'salesComparisonGraphData' => $salesComparisonGraphData,
-        ]);
+            // Only the Lite page gets the product filter dropdowns — the full
+            // Performance page has no product dimension to filter on, and this
+            // would be dead payload on every one of its requests.
+        ], $this->lite ? $this->productFilterOptions() : []));
+    }
+
+    /**
+     * Dropdown options for the Lite page's product filter row.
+     *
+     * Built from the Product MASTER, not from a DISTINCT over the 622k-row
+     * vend_product_records — 893 products / 27 categories / 6 groups is three
+     * trivial queries, where the DISTINCT would be a full scan on every load.
+     *
+     * No manual product-access filtering here on purpose: Product already
+     * carries ProductAccessProductScope (plus OperatorProductFilterScope), so a
+     * restricted viewer's dropdown lists only their own SKUs, and the categories
+     * below are derived from that already-narrowed set rather than from the full
+     * category table — otherwise the filter bar would advertise categories the
+     * viewer can never return a row for.
+     *
+     * Shape is {id, name} to match locationTypeOptions (MultiSelect label="name"),
+     * deliberately NOT ProductResource — that ships ~25 fields plus relations per
+     * row and would put ~900 of them in the Inertia payload.
+     */
+    private function productFilterOptions(): array
+    {
+        $products = Product::query()
+            ->orderBy('name')
+            ->orderBy('code')
+            ->get(['id', 'code', 'name', 'category_id', 'category_group_id']);
+
+        return [
+            'productOptions' => $products->map(fn ($product) => [
+                'id' => $product->id,
+                'name' => trim($product->code . ' - ' . $product->name, ' -'),
+            ])->values(),
+            'productCategoryOptions' => Category::whereIn(
+                'id',
+                $products->pluck('category_id')->filter()->unique()->values()
+            )->orderBy('name')->get(['id', 'name']),
+            'productCategoryGroupOptions' => CategoryGroup::whereIn(
+                'id',
+                $products->pluck('category_group_id')->filter()->unique()->values()
+            )->orderBy('name')->get(['id', 'name']),
+        ];
     }
 
     /**
@@ -353,8 +502,7 @@ class DashboardController extends Controller
 
         $cacheKey = $this->makeCacheKey('sales_comparison_graph', $request);
         $results = Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds, $periods) {
-            $query = VendRecord::query()
-                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
+            $query = $this->recordQuery(self::IDX_BY_DATE)
                 ->filterIndex($request)
                 ->whereNotIn('vend_id', $testingVendIds)
                 ->select(
@@ -466,8 +614,7 @@ class DashboardController extends Controller
             $day_date_to = $request->day_date_to ? Carbon::parse($request->day_date_to)->setTimezone($this->getUserTimezone()) : Carbon::today()->endOfMonth()->setTimezone($this->getUserTimezone());
         }
 
-        $dayGraph = VendRecord::query()
-            ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
+        $dayGraph = $this->recordQuery(self::IDX_BY_DATE)
             ->whereBetween('date', [$day_date_from->copy()->subMonth()->startOfDay(), $day_date_to->copy()->endOfDay()])
             ->filterIndex($request)
             ->whereNotIn('vend_id', $testingVendIds);
@@ -491,6 +638,10 @@ class DashboardController extends Controller
             $startOfTodayUTC = $today->copy()->setTimezone(config('app.timezone'))->startOfDay();
             $endOfTodayUTC = $today->copy()->setTimezone(config('app.timezone'))->endOfDay();
 
+            // Today is not in either rollup yet (both are T-1), so it is topped up
+            // live from vend_transactions. No lite branch needed: VendTransaction
+            // already carries ProductAccessTransactionScope, so this leg is
+            // narrowed to the viewer's products on BOTH pages.
             $todayTransactions = VendTransaction::query()
                 ->filterTransactionIndex($request)
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
@@ -522,7 +673,7 @@ class DashboardController extends Controller
                     $dayGraph[$existingTodayIndex]->amount = $todayTransactions->amount ?? 0;
                     $dayGraph[$existingTodayIndex]->count = $todayTransactions->count ?? 0;
                 } else {
-                    $newEntry = new VendRecord();
+                    $newEntry = $this->newRecordStub();
                     $newEntry->month = $today->month;
                     $newEntry->month_name = $today->format('F Y'); // "January 2026"
                     $newEntry->date = $today->copy(); // Keep as Carbon object or string matching others
@@ -558,7 +709,7 @@ class DashboardController extends Controller
         while ($currentDate->lte($endDate)) {
             $key = $currentDate->month . '-' . $currentDate->day;
             if (!isset($existingKeys[$key])) {
-                $newModel = new VendRecord();
+                $newModel = $this->newRecordStub();
                 $newModel->amount = 0;
                 $newModel->count = 0;
                 $newModel->date = $currentDate->copy()->startOfDay();
@@ -575,6 +726,16 @@ class DashboardController extends Controller
         return $dayGraph->sortBy('date');
     }
 
+    /**
+     * Top-10 products, last 7 days.
+     *
+     * Deliberately NOT switched to vend_product_records on the Lite page. This
+     * is the one chart whose grain is ALREADY the product, it reads live
+     * vend_transactions so it includes today (both rollups are T-1), and
+     * VendTransaction's ProductAccessTransactionScope already narrows it to the
+     * viewer's products. Pointing it at the rollup would lose today and gain
+     * nothing.
+     */
     private function getProductGraph(Request $request)
     {
         $seven_days_date_from = Carbon::today()->subDays(6)->setTimezone($this->getUserTimezone());
@@ -623,20 +784,7 @@ class DashboardController extends Controller
 
     private function getBestPerformer(Request $request, int $limit, array $testingVendIds)
     {
-        return VendRecord::query()
-            ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
-            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name,customer_id,vend_prefix_id', 'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend.vendPrefix:id,name'])
-            ->filterIndex($request)
-            ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
-            ->whereNotIn('vend_id', $testingVendIds)
-            ->groupBy('vend_records.vend_id')
-            ->select(
-                'vend_records.id',
-                'vend_records.customer_id',
-                'vend_records.vend_id',
-                DB::raw('SUM(vend_records.total_amount) as amount'),
-                DB::raw('SUM(vend_records.total_count) as count')
-            )
+        return $this->performerQuery($request, $testingVendIds)
             ->orderBy('amount', 'desc')
             ->limit($limit)
             ->get();
@@ -644,37 +792,61 @@ class DashboardController extends Controller
 
     private function getWorstPerformer(Request $request, int $limit, array $testingVendIds)
     {
-        return VendRecord::query()
-            ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
-            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name,customer_id,vend_prefix_id', 'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend.vendPrefix:id,name'])
-            ->filterIndex($request)
-            ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
-            ->whereNotIn('vend_id', $testingVendIds)
-            ->groupBy('vend_records.vend_id')
-            ->select(
-                'vend_records.id',
-                'vend_records.customer_id',
-                'vend_records.vend_id',
-                DB::raw('SUM(vend_records.total_amount) as amount'),
-                DB::raw('SUM(vend_records.total_count) as count')
-            )
+        return $this->performerQuery($request, $testingVendIds)
             ->orderBy('amount', 'asc')
             ->limit($limit)
             ->get();
     }
 
+    /**
+     * Shared best/worst performer query — the two differed only in sort
+     * direction, so they are one builder now and cannot drift apart.
+     *
+     * On the Lite page the grouping is still per MACHINE; the product scope is
+     * applied by VendProductRecord's global scope before the SUM, so the ranking
+     * answers "which machines sell MY products best", not "which machines sell
+     * most overall".
+     */
+    private function performerQuery(Request $request, array $testingVendIds)
+    {
+        $table = $this->recordTable();
+
+        return $this->recordQuery(self::IDX_BY_DATE)
+            ->with(['customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend:id,code,name,customer_id,vend_prefix_id', 'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code', 'vend.vendPrefix:id,name'])
+            ->filterIndex($request)
+            ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
+            ->whereNotIn('vend_id', $testingVendIds)
+            ->groupBy($table . '.vend_id')
+            ->select(
+                $table . '.id',
+                $table . '.customer_id',
+                $table . '.vend_id',
+                DB::raw("SUM({$table}.total_amount) as amount"),
+                DB::raw("SUM({$table}.total_count) as count")
+            );
+    }
+
     private function getVendCount(Request $request, array $testingVendIds)
     {
         $cacheKey = $this->makeCacheKey('vend_count', $request);
-        return Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds) {
+        $lite = $this->lite;
+        $table = $this->recordTable();
+
+        return Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds, $lite, $table) {
             // whereBetween instead of whereDate() — whereDate() wraps the column in DATE()
             // which disables index seeks. whereBetween generates a plain range MySQL can index.
-            return VendRecord::query()
-                ->from(DB::raw('`vend_records` USE INDEX (idx_operator_date_vend)'))
+            $query = $this->recordQuery(self::IDX_BY_DATE)
                 ->filterIndex($request)
                 ->whereBetween('date', [Carbon::yesterday()->startOfDay(), Carbon::yesterday()->endOfDay()])
-                ->whereNotIn('vend_id', $testingVendIds)
-                ->count();
+                ->whereNotIn('vend_id', $testingVendIds);
+
+            // vend_records holds ~one row per machine per day, so a plain count()
+            // IS the machine count. vend_product_records holds one row per machine
+            // PER PRODUCT, so the same count() would report ~4x too many machines —
+            // it must count distinct machines instead.
+            return $lite
+                ? $query->distinct()->count($table . '.vend_id')
+                : $query->count();
         });
     }
 
@@ -703,7 +875,10 @@ class DashboardController extends Controller
             // No USE INDEX hint needed: MySQL's optimizer prefers the covering index
             // automatically, and falls back to idx_operator_year_month safely before
             // the migration runs (avoids full-table-scan from a missing-index hint).
-            return VendRecord::query()
+            // Lite reads the same shape off vend_product_records, whose
+            // idx_vpr_monthly_summary (operator_id, year, month, product_id,
+            // vend_id, total_amount, total_count) covers it the same way.
+            return $this->recordQuery()
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->filterIndex($request)
                 ->whereNotIn('vend_id', $testingVendIds)
@@ -790,7 +965,9 @@ class DashboardController extends Controller
         $excludeVendIds = $testingVendIds;
 
         $cacheKey = $this->makeCacheKey('active_machine_graph', $request);
-        $activeMachineGraph = Cache::remember($cacheKey, 300, function () use ($request, $excludeVendIds, $lastYear, $thisYear) {
+        $lite = $this->lite;
+        $table = $this->recordTable();
+        $activeMachineGraph = Cache::remember($cacheKey, 300, function () use ($request, $excludeVendIds, $lastYear, $thisYear, $lite, $table) {
             // Chart is "... Vending Machines (Site) in operation" — a SITE count.
             // Count DISTINCT customer_id, NOT vend_id: a physical machine that is
             // re-provisioned when moved to another site gets a new vends.id, so
@@ -801,8 +978,19 @@ class DashboardController extends Controller
             // Note: idx_vr_monthly_summary covers vend_id, not customer_id, so this
             // COUNT DISTINCT may fall back to idx_operator_year_month — flag to brian
             // if an idx on (year, month, customer_id) is wanted for scan cost.
-            return DB::table('vend_records')
+            //
+            // DANGER: this is a raw DB::table() builder, so NO Eloquent global
+            // scope runs on it — including ProductAccessProductColumnScope. On the
+            // Lite page the restriction therefore has to be applied by hand below,
+            // or the "machines in operation" line would count the WHOLE fleet for a
+            // viewer who is only allowed to see their own SKUs. Every other query
+            // on this page goes through Eloquent and is scoped automatically; this
+            // one is the exception. Keep the ProductAccess call attached if you
+            // ever touch this query.
+            //
+            return DB::table($table)
                 ->selectRaw('year, month, COUNT(DISTINCT customer_id) as count')
+                ->when($lite, fn($q) => ProductAccess::applyToColumn($q, $table . '.product_id'))
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->whereNotIn('vend_id', $excludeVendIds)
                 ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))
@@ -829,13 +1017,14 @@ class DashboardController extends Controller
                         $catQ->select('id')->from('categories')->whereIn('category_group_id', $request->categoryGroups);
                     });
                 }))
-                ->when($request->is_binded_customer && $request->is_binded_customer !== 'all', function ($q) use ($request) {
-                    // Frozen historical binding (vend_records.customer_id), not the
-                    // live vends.customer_id — see scopeFilterIndex for rationale.
+                ->when($request->is_binded_customer && $request->is_binded_customer !== 'all', function ($q) use ($request, $table) {
+                    // Frozen historical binding (the rollup row's own customer_id),
+                    // not the live vends.customer_id — see scopeFilterIndex for
+                    // rationale.
                     if ($request->is_binded_customer === 'true') {
-                        $q->whereNotNull('vend_records.customer_id');
+                        $q->whereNotNull($table . '.customer_id');
                     } else {
-                        $q->whereNull('vend_records.customer_id');
+                        $q->whereNull($table . '.customer_id');
                     }
                 })
                 ->groupBy('year', 'month')
@@ -873,7 +1062,11 @@ class DashboardController extends Controller
 
         // Cache the expensive full-year double-join query for 5 minutes.
         // Use ->format() on the Carbon dates so microseconds don't break the key.
-        $cacheKey = 'monthly_analytics_' . auth()->id() . '_' . md5(json_encode([
+        // $this->lite is part of the key: Performance and Performance (Lite) run
+        // the SAME method for the SAME user with the SAME filters but read
+        // different tables, so without it the two pages would serve each other's
+        // cached figures.
+        $cacheKey = 'monthly_analytics_' . ($this->lite ? 'lite_' : '') . auth()->id() . '_' . md5(json_encode([
             $monthlyDateFrom->format('Y-m-d'),
             $monthlyDateTo->format('Y-m-d'),
             $request->monthlyTypeName,
@@ -922,7 +1115,11 @@ class DashboardController extends Controller
      */
     private function makeCacheKey(string $name, Request $request, array $extra = []): string
     {
-        return $name . '_' . auth()->id() . '_' . md5(json_encode(array_merge([
+        // $this->lite MUST be in the key. Performance and Performance (Lite)
+        // share these private methods, so the same user with the same filters
+        // produces the same key on both pages — and would be served the other
+        // page's (differently-sourced) numbers out of cache.
+        return $name . '_' . ($this->lite ? 'lite_' : '') . auth()->id() . '_' . md5(json_encode(array_merge([
             $request->operators,
             $request->customer,
             $request->codes,
@@ -1024,65 +1221,78 @@ class DashboardController extends Controller
         $dateFrom = Carbon::parse($request->monthlyDateFrom);
         $dateTo = Carbon::parse($request->monthlyDateTo);
 
+        $table = $this->recordTable();
+
         // Subquery: daily active vend count per id (location_type_id/operator) & date
-        $dailyActive = VendRecord::query()
+        $dailyActive = $this->recordQuery(self::IDX_BY_MONTH)
             // Dedicated covering index for monthly-sales (see migration
             // 2026_07_01_020000). Other dashboard queries keep idx_operator_date_vend.
-            ->from(\App\Support\IndexHint::useFrom('vend_records', ['idx_vr_monthly_sales_covering', 'idx_operator_date_vend']))
-            ->selectRaw('vend_records.location_type_id as location_type_id')
-            ->selectRaw('vend_records.operator_id as operator_id')
-            ->selectRaw('vend_records.date as date')
-            ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as daily_active_count')
-            ->leftJoin('vends as v2', function ($join) {
-                $join->on('vend_records.vend_id', '=', 'v2.id')
+            ->selectRaw("{$table}.location_type_id as location_type_id")
+            ->selectRaw("{$table}.operator_id as operator_id")
+            ->selectRaw("{$table}.date as date")
+            ->selectRaw("COUNT(DISTINCT {$table}.vend_id) as daily_active_count")
+            ->leftJoin('vends as v2', function ($join) use ($table) {
+                $join->on($table . '.vend_id', '=', 'v2.id')
                     ->where('v2.is_testing', true);
             })
-            ->whereBetween('vend_records.date', [$dateFrom, $dateTo])
+            ->whereBetween($table . '.date', [$dateFrom, $dateTo])
             ->whereNull('v2.id') // replaces NOT IN for efficiency
-            ->when($request->operators, fn($q) => $q->whereIn('vend_records.operator_id', $request->operators))
-            ->groupBy('vend_records.date');
+            ->when($request->operators, fn($q) => $q->whereIn($table . '.operator_id', $request->operators))
+            ->groupBy($table . '.date');
 
         if ($className === 'location_types') {
-            $dailyActive->groupBy('vend_records.location_type_id');
+            $dailyActive->groupBy($table . '.location_type_id');
         } elseif ($className === 'operators') {
-            $dailyActive->groupBy('vend_records.operator_id');
+            $dailyActive->groupBy($table . '.operator_id');
         }
 
-        $query = VendRecord::query()
+        $query = $this->recordQuery(self::IDX_BY_MONTH)
             // Dedicated covering index for monthly-sales (see migration
             // 2026_07_01_020000). Other dashboard queries keep idx_operator_date_vend.
-            ->from(\App\Support\IndexHint::useFrom('vend_records', ['idx_vr_monthly_sales_covering', 'idx_operator_date_vend']))
-            ->selectRaw('vend_records.month')
-            ->selectRaw('SUM(vend_records.total_amount) as amount')
-            ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as vend_count')
-            ->selectRaw('AVG(vend_records.total_amount) as average')
-            ->leftJoin('vends as v2', function ($join) {
-                $join->on('vend_records.vend_id', '=', 'v2.id')
+            ->selectRaw("{$table}.month")
+            ->selectRaw("SUM({$table}.total_amount) as amount")
+            ->selectRaw("COUNT(DISTINCT {$table}.vend_id) as vend_count")
+            ->leftJoin('vends as v2', function ($join) use ($table) {
+                $join->on($table . '.vend_id', '=', 'v2.id')
                     ->where('v2.is_testing', true);
             })
-            ->leftJoinSub($dailyActive, 'daily_active', function ($join) use ($className) {
-                $join->on('vend_records.date', '=', 'daily_active.date');
+            ->leftJoinSub($dailyActive, 'daily_active', function ($join) use ($className, $table) {
+                $join->on($table . '.date', '=', 'daily_active.date');
                 if ($className === 'location_types') {
-                    $join->on('vend_records.location_type_id', '=', 'daily_active.location_type_id');
+                    $join->on($table . '.location_type_id', '=', 'daily_active.location_type_id');
                 } elseif ($className === 'operators') {
-                    $join->on('vend_records.operator_id', '=', 'daily_active.operator_id');
+                    $join->on($table . '.operator_id', '=', 'daily_active.operator_id');
                 }
             })
-            ->whereBetween('vend_records.date', [$dateFrom, $dateTo])
+            ->whereBetween($table . '.date', [$dateFrom, $dateTo])
             ->whereNull('v2.id') // replaces NOT IN
-            ->when($request->operators, fn($q) => $q->whereIn('vend_records.operator_id', $request->operators));
+            ->when($request->operators, fn($q) => $q->whereIn($table . '.operator_id', $request->operators));
+
+        // "Average" must mean the same thing on both pages, or the Lite figure is
+        // not comparable to the one prod_owner sees quoted elsewhere.
+        //
+        // On vend_records a row IS a machine-day, so AVG(total_amount) is already
+        // "average takings per machine per day". On vend_product_records a row is
+        // a machine-day-PRODUCT, so the same AVG() would silently switch the
+        // denominator to product-rows and report a much smaller number that looks
+        // like a drop rather than a different metric. Dividing by
+        // COUNT(DISTINCT vend_id, date) restores the machine-day denominator, so
+        // Lite reads "average takings per machine per day, for my products".
+        $query->selectRaw($this->lite
+            ? "SUM({$table}.total_amount) / NULLIF(COUNT(DISTINCT {$table}.vend_id, {$table}.date), 0) as average"
+            : "AVG({$table}.total_amount) as average");
 
         if ($className === 'location_types') {
-            $query->leftJoin('location_types', 'vend_records.location_type_id', '=', 'location_types.id')
+            $query->leftJoin('location_types', $table . '.location_type_id', '=', 'location_types.id')
                 ->selectRaw('location_types.id as id')
                 ->selectRaw('location_types.name as name')
-                ->groupBy('location_types.id', 'vend_records.month')
+                ->groupBy('location_types.id', $table . '.month')
                 ->orderBy('location_types.name', 'asc');
         } elseif ($className === 'operators') {
-            $query->leftJoin('operators', 'vend_records.operator_id', '=', 'operators.id')
+            $query->leftJoin('operators', $table . '.operator_id', '=', 'operators.id')
                 ->selectRaw('operators.id as id')
                 ->selectRaw('operators.name as name')
-                ->groupBy('operators.id', 'vend_records.month')
+                ->groupBy('operators.id', $table . '.month')
                 ->orderBy('operators.name', 'asc');
         }
 

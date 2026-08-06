@@ -2229,6 +2229,11 @@ function extSubCents(vend) {
 
 // Net Loc Fee = Location Fees − External Subsidize (both in cents).
 function netLocFeeCents(vend) {
+	// "Access Product(s)": location_fees_cents is blanked server-side for a
+	// product-restricted viewer. Return null rather than 0 so the cell renders
+	// empty - subtracting the (still-visible) external subsidy from 0 would
+	// print a negative figure that looks like a real net fee.
+	if (vend.location_fees_cents == null) return null
 	return Number(vend.location_fees_cents || 0) - extSubCents(vend)
 }
 

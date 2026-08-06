@@ -24,7 +24,10 @@ class VendSnapshotDBResource extends JsonResource
             'month_number' => isset($this->month_number) ? $this->month_number : null,
             'parameterJson' => isset($this->parameter_json) ? json_decode($this->parameter_json) : null,
             'product_mapping_name' => isset($this->product_mapping_name) ? $this->product_mapping_name : null,
-            'vendChannelsJson' => isset($this->vend_channels_json) ? json_decode($this->vend_channels_json) : null,
+            // "Access Product(s)": historical planogram - same filter as the live one.
+            'vendChannelsJson' => \App\Support\ProductAccess::filterChannelsJson(
+                isset($this->vend_channels_json) ? json_decode($this->vend_channels_json) : null
+            ),
             'vend_code' => isset($this->vend_code) ? $this->vend_code : null,
             'vend_name' => isset($this->vend_name) ? $this->vend_name : null,
             'virtual_customer_code' => isset($this->virtual_customer_code) ? $this->virtual_customer_code : null,

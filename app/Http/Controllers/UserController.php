@@ -17,6 +17,7 @@ use App\Support\ProductAccess;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
@@ -271,6 +272,13 @@ class UserController extends Controller
 
         $user = User::findOrFail($userId);
 
+        // Capture BEFORE update(): $validated can contain a new operator_id, and
+        // every clamp below must validate the posted ids against the operator the
+        // bindings were CHOSEN under, not the one being moved to. Clamping against
+        // the new operator would silently detach every machine and product in the
+        // same save that moves a user between operators.
+        $originalOperatorId = $user->operator_id;
+
         $user->update($validated);
 
         // role update
@@ -281,22 +289,46 @@ class UserController extends Controller
         }
 
         // vend list sync
-        $originalVends = collect($request->vends)->transform(function($vend) {
-            return $vend['id'];
-        });
-        $editedVends = collect($request->user['data']['vends'])->transform(function($vend) {
-            return $vend['id'];
-        });
+        //
+        // The BEFORE state is read from the pivot, NOT from $request->vends.
+        // User/Edit.vue posts `vends` out of useForm(), which deep-clones
+        // props.user.data at mount; the page then saves with preserveState and
+        // redirects back to itself, so onMounted never re-runs and that clone
+        // stays frozen at the first-load value. A second save without a manual
+        // reload would therefore diff against a stale baseline: re-attaching an
+        // already-bound machine (user_vend has NO unique key, so it duplicates)
+        // and silently swallowing the removal of anything added since mount.
+        // Global scopes deliberately LEFT ON: edit() eager-loads `vends` with
+        // them applied, so an operator-scoped admin is shown a TRUNCATED list.
+        // Reading the raw pivot here would put machines they cannot even see
+        // into $originalVends, and the diff below would then detach every one
+        // of them on the next save. live user_vend already holds cross-operator
+        // rows, so this is not hypothetical. Same scope in, same scope out.
+        //
+        // Guarded on the list actually being posted. Now that $originalVends is
+        // the LIVE pivot rather than an echo of the request, a POST that omits
+        // user.data.vends would diff the real bindings against an empty list and
+        // detach every one of them. Only User/Edit.vue sends this shape.
+        $postsVendList = is_array($request->input('user.data.vends'));
 
-        // Clamp to machines that actually belong to this user's operator. The
-        // edit screen already filters the dropdown, but nothing stopped a
-        // hand-rolled POST binding another operator's machine.
-        $editedVends = $editedVends->intersect(
-            Vend::withoutGlobalScopes()->where('operator_id', $user->operator_id)->pluck('id')
-        );
+        $originalVends = $postsVendList ? $user->vends()->pluck('vends.id') : collect();
+        $editedVends = collect($request->input('user.data.vends', []))->map(function ($vend) {
+            return is_array($vend) ? ($vend['id'] ?? null) : $vend;
+        })->filter();
 
         $removeVends = $originalVends->diff($editedVends);
-        $addVends = $editedVends->diff($originalVends);
+
+        // Clamp NEW bindings to machines belonging to this user's operator - the
+        // edit screen filters the dropdown, but nothing stopped a hand-rolled POST
+        // binding another operator's machine.
+        //
+        // Deliberately applied to ADDITIONS ONLY. user_vend legitimately contains
+        // cross-operator rows today (5 of 10 on live), and clamping the whole
+        // edited list would silently detach them on any save - even a name change.
+        // Removals stay driven purely by what the admin actually took off the list.
+        $addVends = $editedVends->diff($originalVends)->intersect(
+            Vend::withoutGlobalScopes()->where('operator_id', $originalOperatorId)->pluck('id')
+        );
 
         if($removeVends) {
             foreach($removeVends as $removeVend) {
@@ -309,34 +341,78 @@ class UserController extends Controller
             }
         }
 
-        // "Access Product(s)" sync. sync() rather than the vends' attach/detach
-        // diff because product_user has a UNIQUE key (user_vend does not).
-        $ceiling = ProductAccess::operatorCeiling($user->operator_id);
+        // "Access Product(s)" sync.
+        //
+        // GUARDED on an explicit marker that ONLY User/Edit.vue sends.
+        //
+        // /users/{id}/update is shared with User/Form.vue (the modal on the users
+        // list), which builds its form as {...getDefaultForm(), ...props.user} -
+        // i.e. it spreads the whole UserResource row. So every field the resource
+        // emits, product_access_mode included, is posted from there too, and no
+        // resource-derived field can distinguish the two screens. That modal also
+        // posts `user` FLAT (no data wrapper), so user.data.access_products reads
+        // as [] there - an unguarded sync() would wipe the user's whole allow-list
+        // because someone edited a phone number.
+        if ($request->boolean('manage_product_access')) {
+            $ceiling = ProductAccess::operatorCeiling($originalOperatorId);
 
-        $productIds = collect($request->input('user.data.access_products', []))
-            ->pluck('id')
-            ->filter()
-            ->map(fn ($id) => (int) $id)
-            ->unique();
+            $postedProductIds = collect($request->input('user.data.access_products', []))
+                ->pluck('id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->unique();
 
-        // Clamp server-side: the operator boundary AND the operator's own
-        // allow-list ceiling. Never trust the posted ids.
-        $productIds = $productIds->intersect(
-            Product::withoutGlobalScopes()->where('operator_id', $user->operator_id)->pluck('id')
-        );
+            // Rows already bound are kept as-is; only NEW ids are clamped. Same
+            // reasoning as the machine list above - a grant that predates a
+            // product moving operator (or an operator's ceiling shrinking) must
+            // not vanish because someone opened the page. It cannot grant
+            // anything either way: ProductAccess::forUser() re-intersects with
+            // the live operator ceiling on every read, so a stale pivot row is
+            // inert until it becomes valid again.
+            $existingProductIds = DB::table('product_user')
+                ->where('user_id', $user->id)
+                ->pluck('product_id')
+                ->map(fn ($id) => (int) $id);
 
-        if ($ceiling !== null) {
-            $productIds = $productIds->intersect($ceiling);
+            $grantableProductIds = Product::withoutGlobalScopes()
+                ->where('operator_id', $originalOperatorId)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id);
+
+            $productIds = $postedProductIds->filter(
+                fn ($id) => $existingProductIds->contains($id)
+                    || (
+                        $grantableProductIds->contains($id)
+                        && ($ceiling === null || in_array($id, $ceiling, true))
+                    )
+            );
+
+            // sync() DELETES every pivot row not in the posted list, and
+            // edit() loads the bound list through OperatorProductFilterScope -
+            // so a product that has since moved to another operator is invisible
+            // on the screen, is therefore not posted back, and would be dropped
+            // by an admin who only came in to change a phone number. Re-add
+            // exactly the rows the screen could not have shown. Same
+            // additions-only philosophy as the machine list above.
+            $visibleToEditor = $user->accessProducts()
+                ->withoutGlobalScope(ProductAccessProductScope::class)
+                ->pluck('products.id')
+                ->map(fn ($id) => (int) $id);
+
+            $user->accessProducts()->sync(
+                $productIds->merge($existingProductIds->diff($visibleToEditor))
+                    ->unique()
+                    ->values()
+                    ->all()
+            );
+
+            $user->product_access_mode = $request->input('product_access_mode') === ProductAccess::MODE_LIST
+                ? ProductAccess::MODE_LIST
+                : ProductAccess::MODE_ALL;
+            $user->save();
+
+            ProductAccess::flush($user->id);
         }
-
-        $user->accessProducts()->sync($productIds->values()->all());
-
-        $user->product_access_mode = $request->input('product_access_mode') === ProductAccess::MODE_LIST
-            ? ProductAccess::MODE_LIST
-            : ProductAccess::MODE_ALL;
-        $user->save();
-
-        ProductAccess::flush($user->id);
 
         // return redirect()->route('users');
         return redirect()->route('users.edit', [$userId]);

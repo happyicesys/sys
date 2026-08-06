@@ -223,16 +223,22 @@ class VendProductRecord extends Model
             })
 
             // ── Product ID filter ─────────────────────────────────────────────
+            // Array OR scalar. The Dashboard > Performance (Lite) filter bar
+            // posts these as arrays (MultiSelect, same as vendModels), while a
+            // hand-built link may pass a single id — accept both rather than
+            // TypeError on whichever the caller happens to send.
             ->when($request->product_id, function ($query, $search) {
-                $query->where('vend_product_records.product_id', $search);
+                $this->whereProductColumn($query, 'vend_product_records.product_id', $search);
             })
 
-            // ── Product code search (supports comma-separated list) ────────────
+            // ── Product code search (array, or comma-separated string) ─────────
             ->when($request->product_codes, function ($query, $search) {
-                $codes = strpos($search, ',') !== false
-                    ? array_map('trim', explode(',', $search))
-                    : [$search];
-                $query->whereIn('vend_product_records.product_code', $codes);
+                if (! is_array($search)) {
+                    $search = strpos($search, ',') !== false
+                        ? array_map('trim', explode(',', $search))
+                        : [$search];
+                }
+                $query->whereIn('vend_product_records.product_code', $search);
             })
 
             // ── Product name search (partial) ─────────────────────────────────
@@ -242,17 +248,40 @@ class VendProductRecord extends Model
 
             // ── Product category filter ───────────────────────────────────────
             ->when($request->product_category_id, function ($query, $search) {
-                $query->where('vend_product_records.category_id', $search);
+                $this->whereProductColumn($query, 'vend_product_records.category_id', $search);
             })
 
             // ── Product category-group filter ─────────────────────────────────
             ->when($request->product_category_group_id, function ($query, $search) {
-                $query->where('vend_product_records.category_group_id', $search);
+                $this->whereProductColumn($query, 'vend_product_records.category_group_id', $search);
             })
 
             // ── Product sub-category filter ───────────────────────────────────
             ->when($request->product_sub_category_id, function ($query, $search) {
-                $query->where('vend_product_records.product_sub_category_id', $search);
+                $this->whereProductColumn($query, 'vend_product_records.product_sub_category_id', $search);
             });
+    }
+
+    /**
+     * whereIn for an array, where(=) for a scalar.
+     *
+     * `->when()` already skipped us for null/false/'' /[], so the only cases left
+     * are a real scalar or a non-empty array. An array that arrives containing
+     * the 'all' sentinel (the shape the other multi-select filters use) means
+     * "no restriction", so add no predicate at all.
+     */
+    private function whereProductColumn($query, string $column, $search): void
+    {
+        if (is_array($search)) {
+            if (in_array('all', $search, true)) {
+                return;
+            }
+
+            $query->whereIn($column, $search);
+
+            return;
+        }
+
+        $query->where($column, $search);
     }
 }

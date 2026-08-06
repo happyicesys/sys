@@ -84,7 +84,30 @@ class User extends Authenticatable
         // return '/vends/customers';
         // Query the first role ONCE (was queried twice — once for the unused
         // $currentRole and once for the match). Same value, same null behavior.
-        $currentRole = (int) $this->roles()->first()->id;
+        $role = $this->roles()->first();
+
+        // No role at all would fatal on ->id below. Land them somewhere rather
+        // than 500.
+        if (! $role) {
+            return '/vends/customers';
+        }
+
+        // Name-based first. The id match below is a hard-coded list, so ANY role
+        // created after it was written silently falls through to
+        // /vends/customers - and a role without `read vend-customers` then gets
+        // a bare 403 straight after logging in, with no way back. That is
+        // exactly how prod_owner (role 25, which only holds
+        // read/export vend-customers-lite) ended up dead on arrival.
+        // Match on name, not id: ids differ between local, staging and live.
+        $routeByRoleName = [
+            'prod_owner' => '/vends/customers-lite',
+        ];
+
+        if (isset($routeByRoleName[$role->name])) {
+            return $routeByRoleName[$role->name];
+        }
+
+        $currentRole = (int) $role->id;
 
         // if($currentRole == 19 or $currentRole == 21) {
         //     return '/dashboard';

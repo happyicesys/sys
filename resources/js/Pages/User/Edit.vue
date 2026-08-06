@@ -303,6 +303,13 @@ function submit() {
         operator_id: data.operator_id.id,
         role_id: data.role_id.id,
         user: props.user,
+        // Explicit marker: /users/{id}/update is shared with User/Form.vue (the
+        // modal on the users list), which spreads the whole UserResource row into
+        // its form - so ANY field the resource emits, product_access_mode
+        // included, is posted from there too and cannot be used to tell the two
+        // screens apart. Only this page manages the allow-list, so only this page
+        // sends this.
+        manage_product_access: true,
       }))
       .post('/users/' + form.value.id + '/update', {
       onSuccess: () => {

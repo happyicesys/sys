@@ -20,6 +20,11 @@ const navigation = computed(() => [
         tagline: null,
         children: [
             {name: 'Performance', href: '/dashboard/performance', permission: 'read dashboard-performance'},
+            // Own permission, matching DashboardController's gate on indexLite —
+            // 'read dashboard-performance' here would show the link to every role
+            // that has the full Performance page and then 403 prod_owner, which
+            // holds ONLY the Lite one. Same pattern as Dashboard (Lite) below.
+            {name: 'Performance (Lite)', href: '/dashboard/performance-lite', permission: 'read dashboard-performance-lite'},
             {name: 'Machine Health', href: '/reports/machine-health', permission: 'read dashboard-machine-health'},
         ]
     },
@@ -69,7 +74,10 @@ const navigation = computed(() => [
         tagline: null,
         children: [
             {name: 'All Transactions', href: '/vends/transactions', permission: 'read transactions-sales'},
-            {name: 'Daily Summary', href: '/vends/transactions-daily-summary', permission: 'read transactions-sales'},
+            // Its own permission (NOT transactions-sales) so All Transactions and
+            // Daily Summary can be granted separately - the sheet gives prod_owner
+            // the former and not the latter. Every other role holds both.
+            {name: 'Daily Summary', href: '/vends/transactions-daily-summary', permission: 'read transactions-daily-summary'},
             {name: 'Payment Gateway Txn', href: '/vends/payment-gateway-transactions', permission: 'read transactions-payment-gateway'},
             {name: 'Refund Requests', href: '/refunds', permission: 'read refunds'},
             {name: 'Refund Settlement', href: '/refund-settlements', permission: 'read refunds'},

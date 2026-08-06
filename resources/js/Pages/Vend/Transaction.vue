@@ -537,9 +537,20 @@
                         <div class="text-base font-semibold text-amber-900">
                             {{((totals['product_attributed_amount'] || 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                         </div>
-                        <div class="text-xs font-normal text-amber-700 leading-snug">
+                        <!-- Only when a mixed basket actually contributed, or the line reads "0.00 belongs to other parties", which is noise. -->
+                        <div class="text-xs font-normal text-amber-700 leading-snug" v-if="totals['product_excluded_amount'] > 0">
                             {{((totals['product_excluded_amount'] || 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                             of the listed baskets belongs to other parties. Mixed-basket rows below show the full basket amount.
+                        </div>
+                        <!--
+                          Unreported gateway revenue has no product on it at all, so it is
+                          left out of the figures above. Without this line the card would
+                          silently differ from an unrestricted user's by that amount.
+                        -->
+                        <div class="text-xs font-normal text-amber-700 leading-snug mt-1" v-if="totals['product_unreported_gateway_omitted'] > 0">
+                            Excludes
+                            {{((totals['product_unreported_gateway_omitted'] || 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                            of unreported gateway revenue, which carries no product and cannot be attributed.
                         </div>
                     </div>
                     <div class="flex flex-col mt-2 space-y-2">

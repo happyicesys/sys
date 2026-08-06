@@ -197,6 +197,38 @@ class ProductAccess
     }
 
     /**
+     * A ready-to-interpolate SQL fragment restricting a vend_channels read.
+     *
+     * For the raw DB::raw() derived tables that back the Ops Dashboard's stock
+     * columns - no Eloquent scope can reach inside those, so the restriction has
+     * to be spliced into the SQL text.
+     *
+     * Returns '' when unrestricted (so the SQL is byte-identical to today for
+     * every normal user), ' AND 1 = 0' when restricted to nothing.
+     *
+     * Channels with a NULL product_id are excluded along with everyone else's:
+     * an unmapped slot's stock is not the restricted viewer's.
+     *
+     * @param  array<int, int>|null  $ids  omit to resolve from the session
+     */
+    public static function channelSqlFilter(string $table = 'vend_channels', ?array $ids = null): string
+    {
+        if (func_num_args() < 2) {
+            $ids = self::current();
+        }
+
+        if ($ids === null) {
+            return '';
+        }
+
+        if ($ids === []) {
+            return ' AND 1 = 0';
+        }
+
+        return ' AND ' . $table . '.product_id IN (' . self::idList($ids) . ')';
+    }
+
+    /**
      * The self-contained WHERE fragment for vend_transactions.
      *
      * Correlated EXISTS only, no JOINs, so it is safe inside a global scope,
@@ -254,6 +286,125 @@ class ProductAccess
                   )
             )
         )";
+    }
+
+    /**
+     * Drop channels the viewer's allow-list excludes, from a DENORMALISED
+     * vends.vend_channels_json blob.
+     *
+     * Handles every shape the app hands us: an already-cast array (VendResource,
+     * where the model casts the column to 'json'), a stdClass array from a bare
+     * json_decode (VendDBResource / VendSnapshotDBResource, which read the raw
+     * string off a DB::table() row), or null.
+     *
+     * Returns the blob untouched when the viewer is unrestricted, so this is a
+     * no-op for everyone without an allow-list.
+     *
+     * @param  mixed  $channels
+     * @return mixed
+     */
+    public static function filterChannelsJson($channels)
+    {
+        $allowed = self::current();
+
+        if ($allowed === null || ! is_array($channels)) {
+            return $channels;
+        }
+
+        $filtered = array_filter($channels, function ($channel) use ($allowed) {
+            // Array shape (cast) vs object shape (json_decode without assoc).
+            if (is_array($channel)) {
+                $productId = $channel['product']['id'] ?? null;
+            } elseif (is_object($channel)) {
+                $productId = $channel->product->id ?? null;
+            } else {
+                return false;
+            }
+
+            return self::allows($allowed, $productId);
+        });
+
+        return array_values($filtered);
+    }
+
+    /**
+     * Strip the MONEY out of a whole-machine / whole-site rollup blob.
+     *
+     * vend_transaction_totals_json (and its site twin customers.totals_json)
+     * mix two very different things:
+     *
+     *   money  - *_amount, *_revenue, *_gross_profit, *_average       -> removed
+     *   health - *_count, *_all_count, *_error_count, *_error_rate    -> kept
+     *
+     * The money is summed over EVERY product in the machine, so it describes
+     * other parties' revenue as much as the viewer's and there is no
+     * per-product share to derive. The error rates and transaction counts are
+     * machine health, which a restricted viewer is explicitly allowed to see -
+     * nulling the whole blob (the first cut of this) took out the "Today
+     * Error %" tile on Operations > Dashboard (Lite) along with the revenue.
+     *
+     * Note this returns an EMPTY blob rather than null when every key is
+     * money, so callers that gate on `if (json)` keep working; the individual
+     * `'key' in json` guards the frontend already uses then fail per key,
+     * which is exactly the desired per-figure blanking.
+     *
+     * Handles both shapes: array (Eloquent 'json' cast) and stdClass
+     * (json_decode without assoc, as the *DBResource twins do).
+     *
+     * @param  mixed  $totals
+     * @return mixed
+     */
+    public static function maskWholeMachineJson($totals)
+    {
+        if (self::current() === null || $totals === null) {
+            return $totals;
+        }
+
+        if (is_object($totals)) {
+            $clone = new \stdClass;
+            foreach (get_object_vars($totals) as $key => $value) {
+                if (! self::isMoneyKey($key)) {
+                    $clone->{$key} = $value;
+                }
+            }
+
+            return $clone;
+        }
+
+        if (! is_array($totals)) {
+            return null;
+        }
+
+        $kept = [];
+        foreach ($totals as $key => $value) {
+            if (! self::isMoneyKey((string) $key)) {
+                $kept[$key] = $value;
+            }
+        }
+
+        return $kept;
+    }
+
+    /**
+     * Does this rollup key hold currency?
+     *
+     * Substring match, deliberately: every money key written by
+     * Jobs\Vend\SyncVendTransactionTotalsJson contains one of these words
+     * (today_amount, thirty_days_revenue, thirty_days_gross_profit,
+     * vend_records_amount_average_day, last_2_mth_amount, ...) and every
+     * non-money key contains none (today_count, one_day_error_rate,
+     * seven_days_all_count, ...). A new money key added later is masked by
+     * default, which is the safe direction to fail.
+     */
+    public static function isMoneyKey(string $key): bool
+    {
+        foreach (['amount', 'revenue', 'profit', 'earning', 'cost', 'fee'] as $needle) {
+            if (str_contains($key, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

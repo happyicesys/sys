@@ -69,10 +69,24 @@ class VendDBResource extends JsonResource
             'product_mapping_name' => isset($this->product_mapping_name) ? $this->product_mapping_name : null,
             'product_mapping_remarks' => isset($this->product_mapping_remarks) ? $this->product_mapping_remarks : null,
             'private_key' => isset($this->private_key) ? $this->private_key : null,
-            'vendChannelsJson' => isset($this->vend_channels_json) ? json_decode($this->vend_channels_json) : null,
+            // "Access Product(s)": same denormalised blobs as VendResource; this twin
+            // renders them for /vend-criteria-bindings and must filter identically.
+            'vendChannelsJson' => \App\Support\ProductAccess::filterChannelsJson(
+                isset($this->vend_channels_json) ? json_decode($this->vend_channels_json) : null
+            ),
             'vendChannelErrorLogsJson' => isset($this->vend_channel_error_logs_json) ? json_decode($this->vend_channel_error_logs_json) : null,
+            // "Access Product(s)": deliberately NOT masked. Unlike
+            // vend_transaction_totals_json this blob carries no money at all -
+            // it is qty / capacity / balancePercent / outOfStock /
+            // activeErrorLogs / count (see Jobs\Vend\SaveVendChannelsJson).
+            // Blanking it took out the Qty-Bal% and SKU-Bal% tiles on the Ops
+            // Dashboard (Lite), which gate on its presence, while protecting no
+            // revenue - and its own sibling columns vends.balance_percent /
+            // vends.out_of_stock_sku_percent ship unmasked anyway.
             'vendChannelTotalsJson' => isset($this->vend_channel_totals_json) ? json_decode($this->vend_channel_totals_json) : null,
-            'vendTransactionTotalsJson' => isset($this->vend_transaction_totals_json) ? json_decode($this->vend_transaction_totals_json) : null,
+            'vendTransactionTotalsJson' => \App\Support\ProductAccess::maskWholeMachineJson(
+                isset($this->vend_transaction_totals_json) ? json_decode($this->vend_transaction_totals_json) : null
+            ),
             'virtual_customer_code' => isset($this->virtual_customer_code) ? $this->virtual_customer_code : null,
             'virtual_customer_prefix' => isset($this->virtual_customer_prefix) ? $this->virtual_customer_prefix : null,
             'virtual_vend_records_thirty_days_amount_average' => isset($this->virtual_vend_records_thirty_days_amount_average) ? $this->virtual_vend_records_thirty_days_amount_average / 100 : 0,

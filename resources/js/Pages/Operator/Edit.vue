@@ -1273,6 +1273,10 @@ function submit() {
           // a column) and syncs the pivot from access_product_ids.
           access_product_ids: (Array.isArray(data.access_products) ? data.access_products : []).map(p => p.id),
           product_access_mode: data.product_access_mode || 'all',
+          // See User/Edit.vue - Operator/Form.vue and DeliveryPlatformOrder/Edit.vue
+          // post to this same endpoint and spread the whole OperatorResource row,
+          // so only an explicit marker distinguishes the screen that owns the list.
+          manage_product_access: true,
         };
       })
       .post('/operators/' + form.value.id + '/update', {

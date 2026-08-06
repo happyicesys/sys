@@ -300,7 +300,19 @@ class RefundTicketService
 
         // Look up the transaction the same way the auto-match does — tied to the
         // ticket's machine so an Order ID from another machine can't be attached.
-        $txn = VendTransaction::withoutGlobalScopes()
+        //
+        // "Access Product(s)": shed the OPERATOR scopes only (an admin refund
+        // context must reach any operator's transaction) but KEEP
+        // ProductAccessTransactionScope - otherwise a product-restricted admin
+        // pulls a whole basket containing none of their products into the
+        // ticket. Same narrowing as RefundController. The customer-facing
+        // createFromCustomerInput() above deliberately keeps the blanket
+        // withoutGlobalScopes(): that path is public and unauthenticated, where
+        // every one of these scopes is inert anyway.
+        $txn = VendTransaction::withoutGlobalScopes([
+                \App\Models\Scopes\OperatorTransactionFilterScope::class,
+                \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
+            ])
             ->with([
                 'vendTransactionItems.product',
                 'vendTransactionItems.vendChannel.product',

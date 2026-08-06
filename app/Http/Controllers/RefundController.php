@@ -269,7 +269,14 @@ class RefundController extends Controller
         // Source transaction / gateway log / export batch, all withoutGlobalScopes
         // because Vend/VendTransaction/Customer carry operator scopes that would
         // drop rows in an admin/public context.
-        $txns = \App\Models\VendTransaction::withoutGlobalScopes()->with(['paymentMethod', 'vendPrefix'])
+        $txns = \App\Models\VendTransaction::withoutGlobalScopes([
+                // Shed the OPERATOR scopes only (an admin/public refund context
+                // must see any operator's transaction) - but keep
+                // ProductAccessTransactionScope, or a product-restricted user
+                // reads every party's basket through the refund screens.
+                \App\Models\Scopes\OperatorTransactionFilterScope::class,
+                \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
+            ])->with(['paymentMethod', 'vendPrefix'])
             ->whereIn('id', $rows->pluck('vend_transaction_id')->filter()->unique())
             ->get()->keyBy('id');
         $logIds = $rows->pluck('payment_gateway_log_id')->filter()
@@ -1505,7 +1512,14 @@ class RefundController extends Controller
     protected function toDetail(RefundTicket $t): array
     {
         $txn = $t->vend_transaction_id
-            ? \App\Models\VendTransaction::withoutGlobalScopes()
+            ? \App\Models\VendTransaction::withoutGlobalScopes([
+                // Shed the OPERATOR scopes only (an admin/public refund context
+                // must see any operator's transaction) - but keep
+                // ProductAccessTransactionScope, or a product-restricted user
+                // reads every party's basket through the refund screens.
+                \App\Models\Scopes\OperatorTransactionFilterScope::class,
+                \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
+            ])
                 ->with(['paymentMethod', 'vend', 'vendTransactionItems.product', 'vendTransactionItems.vendChannel'])
                 ->find($t->vend_transaction_id)
             : null;
@@ -1682,7 +1696,14 @@ class RefundController extends Controller
      */
     protected function relatedTransactions(RefundTicket $ticket): array
     {
-        $q = \App\Models\VendTransaction::withoutGlobalScopes()
+        $q = \App\Models\VendTransaction::withoutGlobalScopes([
+                // Shed the OPERATOR scopes only (an admin/public refund context
+                // must see any operator's transaction) - but keep
+                // ProductAccessTransactionScope, or a product-restricted user
+                // reads every party's basket through the refund screens.
+                \App\Models\Scopes\OperatorTransactionFilterScope::class,
+                \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
+            ])
             ->with(['paymentMethod', 'operator', 'customer', 'vendPrefix', 'vendChannel', 'vendChannelError',
                 'vendTransactionItems.product', 'vendTransactionItems.vendChannel']);
 

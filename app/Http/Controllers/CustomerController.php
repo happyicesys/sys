@@ -124,12 +124,16 @@ class CustomerController extends Controller
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+            // "Access Product(s)": no Eloquent scope can reach inside a DB::raw
+            // derived table, so the product predicate is spliced into the SQL
+            // text. Emits '' when unrestricted, so the statement is
+            // byte-identical for every normal user.
             ->leftJoin(DB::raw('
                 (
                     SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
                     WHERE is_active = true
-                    AND capacity > 0
+                    AND capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
                     GROUP BY vend_id
                 ) AS vc
             '), 'vc.vend_id', '=', 'vends.id')
@@ -6376,12 +6380,13 @@ class CustomerController extends Controller
             ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+            // "Access Product(s)": see the identical splice in index().
             ->leftJoin(DB::raw('
                 (
                     SELECT vend_id, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
                     WHERE is_active = true
-                    AND capacity > 0
+                    AND capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
                     GROUP BY vend_id
                 ) AS vc
             '), 'vc.vend_id', '=', 'vends.id')
@@ -6420,7 +6425,15 @@ class CustomerController extends Controller
         return (new FastExcel($this->exportWithCursor($query)))->download(
             $this->formatExportFilename('Customers', 'xlsx'),
             function ($customer) use ($divisor, $commissionTypeLabels) {
-                $totals = $customer->totals_json ?? [];
+                // "Access Product(s)": customers.totals_json is whole-SITE
+                // vend_records money with no product dimension. /customers/excel
+                // carries no permission middleware, so a restricted viewer can
+                // hit it - hand the formatter an empty rollup so every money
+                // column below resolves to null rather than someone else's
+                // revenue. Mirrors CustomerResource's mask on the screen.
+                $totals = \App\Support\ProductAccess::isRestricted()
+                    ? []
+                    : ($customer->totals_json ?? []);
 
                 $lifetimeSales      = isset($totals['vend_records_amount_latest'])
                     ? round($totals['vend_records_amount_latest'] / $divisor, 2) : null;
@@ -6434,7 +6447,9 @@ class CustomerController extends Controller
                     ? round($totals['thirty_days_gross_profit'] / $divisor, 2) : null;
                 $fullLoadValue      = isset($customer->total_full_load_amount)
                     ? round($customer->total_full_load_amount / 100, 2) : null;
-                $ratio30dOverFullLoad = isset($customer->thirty_days_over_full_load_ratio)
+                // Computed in SQL straight off customers.totals_json, so the
+                // $totals blanking above cannot reach it.
+                $ratio30dOverFullLoad = (! \App\Support\ProductAccess::isRestricted() && isset($customer->thirty_days_over_full_load_ratio))
                     ? round($customer->thirty_days_over_full_load_ratio, 4) : null;
 
                 $contractType = $customer->contract_commission_type;

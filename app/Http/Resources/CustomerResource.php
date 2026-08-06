@@ -79,7 +79,11 @@ class CustomerResource extends JsonResource
             'selling_price_type' => $this->selling_price_type,
             'status_id' => $this->status_id,
             'status_name' => $this->status_id ? (Customer::STATUSES_MAPPING[$this->status_id] ?? null) : null,
-            'thirty_days_over_full_load_ratio' => isset($this->thirty_days_over_full_load_ratio) ? $this->thirty_days_over_full_load_ratio : 0,
+            // "Access Product(s)": derived in SQL from customers.totals_json
+            // (whole-site vend_records money) over the full-load value, so it
+            // leaks the same figure the masked blob above hides. The full-load
+            // denominator itself IS product-filtered at source.
+            'thirty_days_over_full_load_ratio' => (! \App\Support\ProductAccess::isRestricted() && isset($this->thirty_days_over_full_load_ratio)) ? $this->thirty_days_over_full_load_ratio : 0,
             'total_full_load_amount' => isset($this->total_full_load_amount) ? $this->total_full_load_amount/100 : 0,
             'updated_at' => Carbon::parse($this->updated_at)->toDateString(),
             'virtual_customer_code' => $this->virtual_customer_code,
@@ -99,7 +103,13 @@ class CustomerResource extends JsonResource
             'tags' => TagResource::collection($this->whenLoaded('tagBindings')),
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vends' => VendResource::collection($this->whenLoaded('vends')),
-            'vendTransactionTotalsJson' => $this->totals_json,
+            // "Access Product(s)": customers.totals_json is the SITE rollup of
+            // vend_records - today/7d/30d amount, gross profit, lifetime average
+            // - summed over every product on the site. /customers and
+            // /customers/excel carry no permission middleware at all, so a
+            // product-restricted viewer reaches them; mask here rather than at
+            // each of the ~8 call sites that render this resource.
+            'vendTransactionTotalsJson' => \App\Support\ProductAccess::maskWholeMachineJson($this->totals_json),
             'contract_commission_type' => $this->contract_commission_type,
             'contract_commission_value' => $this->contract_commission_value,
             'contract_commission_value2' => $this->contract_commission_value2,

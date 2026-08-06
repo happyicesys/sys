@@ -349,12 +349,26 @@ Route::middleware(['auth', 'cors'])->group(function () {
 
     Route::prefix('dashboard')->group(function () {
         Route::redirect('/', '/dashboard/performance');
-        // "Access Product(s)": reads frozen vend_records, whose grain is
-        // date x machine with no product dimension - see
-        // BlockWhenProductRestricted.
+        // "Access Product(s)": deliberately NOT product.unrestricted, unlike the
+        // other vend_records-backed surfaces. This page reads frozen vend_records
+        // (grain date x machine, no product dimension) so its figures cover EVERY
+        // product in a machine - but the decision (2026-08-05) is to keep showing
+        // them to product-restricted viewers until vend_records gains a product
+        // dimension. The page carries a banner saying so; see Dashboard.vue.
         Route::get('/performance', [DashboardController::class, 'index'])
-            ->middleware('product.unrestricted')
             ->name('dashboard');
+        // Dashboard > Performance (Lite) - the SAME page, the SAME charts, read
+        // from vend_product_records instead of vend_records.
+        //
+        // Its own permission, deliberately NOT `read dashboard-performance`:
+        // "Lite but not Full" is the whole point. prod_owner holds the Lite one
+        // and not the Full one, so the product owner gets figures narrowed to
+        // their own SKUs (VendProductRecord carries
+        // ProductAccessProductColumnScope) and cannot reach the whole-machine
+        // page. Both routes are gated in DashboardController's constructor -
+        // hiding the sidebar link is not a control on its own.
+        Route::get('/performance-lite', [DashboardController::class, 'indexLite'])
+            ->name('dashboard.performance-lite');
         // Lightweight JSON used by the post-login "This month sales" popup (HIPL group only).
         Route::get('/monthly-sales-popup', [DashboardController::class, 'monthlySalesPopup'])->name('dashboard.monthly-sales-popup');
     });
@@ -843,11 +857,13 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // Phase 2 of the Customer Index deferred-load: returns the heavy
         // aggregate columns for the on-screen rows (see indexCustomer
         // $deferAggregates). Same group/middleware as the page above.
-        // Gated too: it returns the same heavy money columns for the on-screen
-        // rows, so leaving it open would hand back exactly what the page above
-        // refuses to render.
+        // NOT given product.unrestricted, unlike the page above: Operations >
+        // Dashboard (Lite) is open to restricted viewers and uses this same
+        // endpoint for its Phase 2, so blocking it made every Lite search 403
+        // and silently fall back to a second full-page query. The money it
+        // returns is blanked inside customerIndexAggregates() by the same
+        // stripWholeMachineMoney() the page itself uses.
         Route::post('/customers/aggregates', [VendController::class, 'customerIndexAggregates'])
-            ->middleware('product.unrestricted')
             ->name('vends.customer.aggregates');
         // Operations > Dashboard (Lite) — glance view of the same Operation
         // Dashboard rows for retail operators: identity, temperatures,
@@ -855,10 +871,14 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // VendController::indexCustomer (and the /customers/aggregates
         // Phase-2 endpoint above) so filtering, operator scoping and
         // permissions can never drift from the full Dashboard.
-        // Same money columns as the full Dashboard above (it shares
-        // indexCustomer), so it carries the same "Access Product(s)" block.
+        // Shares indexCustomer with the full Dashboard above, but is NOT given
+        // the product.unrestricted guard: Lite is the
+        // landing page for prod_owner, who is exactly the product-restricted
+        // persona. Its vend_channels sub-selects (Stock Value / Full Load /
+        // Refillable) are product-filtered in indexCustomer, and the
+        // vend_records-derived Sales(qty) figures are blanked there for
+        // restricted viewers - so the page is safe without the blanket block.
         Route::get('/customers-lite', [VendController::class, 'indexCustomerLite'])
-            ->middleware('product.unrestricted')
             ->name('vends.customer-lite');
         // "Access Product(s)": reads ops_machine_daily_snapshots — per-machine
         // sales / stock-in value aggregated over every product.
