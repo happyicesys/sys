@@ -87,6 +87,7 @@ use App\Models\PaymentGateways\Omise;
 use App\Models\Zone;
 use App\Services\CmsService;
 use App\Support\ProductAccess;
+use App\Support\ProductScopedSales;
 use App\Support\TransactionAccess;
 use App\Services\CustomerSummaryAggregator;
 use App\Services\HistoryService;
@@ -6124,6 +6125,17 @@ class VendController extends Controller
             return;
         }
 
+        // Sales(qty) for THIS viewer's products, warmed for the whole page in one
+        // pair of queries before the per-item loop. Masking alone left the column
+        // blank: totals_json is a whole-machine rollup, so every money key gets
+        // stripped and the Vue cells (gated on `'today_amount' in ...`) render
+        // nothing. See App\Support\ProductScopedSales.
+        // Pass the ROWS, not ids: only ProductScopedSales::vendIdOf() knows that
+        // `id` means the vend on /vends but the CUSTOMER on /vends/customers,
+        // where an unbound site has vend_id = null and falling back to `id`
+        // would attribute another machine's sales to it.
+        ProductScopedSales::warmFor($items);
+
         foreach ($items as $item) {
             // Keep the money-free half of the rollup (transaction counts and
             // error rates - machine health, which a restricted viewer IS
@@ -6139,6 +6151,14 @@ class VendController extends Controller
                     $item->vend_transaction_totals_json ?? null
                 );
             }
+
+            // Put the viewer's OWN product sales back on top of the masked blob.
+            // Idempotent: this helper runs more than once per page and the second
+            // pass simply rewrites the same values.
+            $item->vend_transaction_health_json = ProductScopedSales::mergeInto(
+                $item->vend_transaction_health_json,
+                $item
+            );
 
             foreach (self::PRODUCT_RESTRICTED_MONEY_FIELDS as $field) {
                 // net_loc_fee is a SELECT alias, not always present on the row -
