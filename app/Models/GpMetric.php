@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Scopes\ProductAccessProductColumnScope;
+use App\Models\Scopes\TransactionAccessScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,6 +18,11 @@ class GpMetric extends Model
         // rows and apportions the revenue, so filtering by product_id yields
         // correctly attributed money.
         static::addGlobalScope(new ProductAccessProductColumnScope);
+
+        // "Transaction Access From". NOTE the column is txn_date here, not
+        // `date` - gp_metrics is the odd one out. Getting this wrong fails loud
+        // (unknown column) rather than silently, which is the good direction.
+        static::addGlobalScope(new TransactionAccessScope('txn_date'));
     }
 
     protected $fillable = [

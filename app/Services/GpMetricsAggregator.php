@@ -50,6 +50,11 @@ class GpMetricsAggregator
             ->where(function ($query) use ($applyDateRange) {
                 $applyDateRange($query);
             })
+            // "Transaction Access From". This aggregator is BOTH the nightly
+            // gp_metrics builder and the live read behind the Sales Report, so
+            // the predicate must never fire for the builder - applyToColumn()
+            // resolves from auth(), which is empty in the console, so it does not.
+            ->tap(fn ($query) => \App\Support\TransactionAccess::applyToColumn($query, 'vend_transactions.transaction_datetime'))
             ->where('vend_transactions.amount', '>', 0)
             // Unified transactions: only SETTLED rows count (no-op for legacy/
             // non-gateway rows, which default to SETTLED).
@@ -148,6 +153,11 @@ class GpMetricsAggregator
             ->where(function ($query) use ($applyDateRange) {
                 $applyDateRange($query);
             })
+            // "Transaction Access From". This aggregator is BOTH the nightly
+            // gp_metrics builder and the live read behind the Sales Report, so
+            // the predicate must never fire for the builder - applyToColumn()
+            // resolves from auth(), which is empty in the console, so it does not.
+            ->tap(fn ($query) => \App\Support\TransactionAccess::applyToColumn($query, 'vend_transactions.transaction_datetime'))
             ->where('vend_transactions.amount', '>', 0)
             ->where('vend_transactions.is_multiple', true)
             // Unified transactions: only SETTLED rows count (no-op for legacy).

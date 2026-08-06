@@ -38,6 +38,11 @@ class UserResource extends JsonResource
             // (which means none). See App\Support\ProductAccess.
             'product_access_mode' => $this->product_access_mode,
             'access_products' => ProductResource::collection($this->whenLoaded('accessProducts')),
+            // "Transaction Access From". Normalised rather than passed raw: the
+            // column is DATE and uncast, but an <input type="date"> silently
+            // renders blank for anything that is not exactly YYYY-MM-DD, which
+            // would look like "no restriction" on a user who has one.
+            'transaction_access_from' => \App\Support\TransactionAccess::normalise($this->transaction_access_from),
         ];
     }
 }

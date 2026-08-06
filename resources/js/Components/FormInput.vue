@@ -15,6 +15,7 @@
             :disabled="disabled"
             :autocomplete="autocomplete"
             :max="inputType === 'number' ? maxValue : null"
+            :min="minValue"
           />
           <div class="text-sm text-red-600" v-if="error">
             {{ error }}
@@ -34,6 +35,16 @@ defineProps({
     type: [Array, String]
   },
   maxValue: {
+    type: [String, Number],
+    default: null,
+  },
+  // Optional lower bound. Null by default and bound unconditionally, so every
+  // existing caller renders byte-identical markup (Vue omits a null attribute).
+  // Added for the "Transaction Access From" date field, where the operator's
+  // date is a floor the user's may not go below - letting the browser's own
+  // date picker grey out the invalid range is far clearer than a form error
+  // after the fact. Server still validates; this is only the nicety.
+  minValue: {
     type: [String, Number],
     default: null,
   },

@@ -48,6 +48,9 @@ class OperatorResource extends JsonResource
             // ceiling for every user under this operator - see
             // App\Support\ProductAccess::forUser().
             'product_access_mode'      => $this->product_access_mode,
+            // "Transaction Access From" - the floor for every user in this
+            // operator. Same normalise-for-the-date-input reason as UserResource.
+            'transaction_access_from'  => \App\Support\TransactionAccess::normalise($this->transaction_access_from),
             'access_products'          => ProductResource::collection($this->whenLoaded('accessProducts')),
             'deliveryPlatformOperators'=> DeliveryPlatformOperatorResource::collection($this->whenLoaded('deliveryPlatformOperators')),
             'operatorPaymentGateways'  => OperatorPaymentGatewayResource::collection($this->whenLoaded('operatorPaymentGateways')),

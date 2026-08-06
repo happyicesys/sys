@@ -33,6 +33,7 @@ class Operator extends Model
         'is_active',
         'is_dcvend',
         'product_access_mode',
+        'transaction_access_from',
         'profile_id',
         'remarks',
         'timezone',

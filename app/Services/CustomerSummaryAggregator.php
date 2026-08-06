@@ -581,6 +581,11 @@ class CustomerSummaryAggregator
 
         $salesByCustomer = DB::table('vend_transactions')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            // "Transaction Access From". This class is BOTH the nightly
+            // customer_period_summaries builder and a live read path, so the
+            // predicate must never fire for the builder - applyToColumn()
+            // resolves from auth(), which is empty in the console, so it cannot.
+            ->tap(fn ($q) => \App\Support\TransactionAccess::applyToColumn($q, 'vend_transactions.transaction_datetime'))
             ->whereNotNull('vend_transactions.customer_id')
             ->where(function ($q) use ($windowStart, $windowEnd) {
                 $q->whereBetween('vend_transactions.transaction_datetime', [$windowStart, $windowEnd])
@@ -1336,6 +1341,8 @@ class CustomerSummaryAggregator
             $gp = DB::table('gp_metrics')
                 ->where('customer_id', $customerId)
                 ->whereBetween('txn_date', [$segStart->toDateString(), $segEnd->toDateString()])
+                // Same, on gp_metrics' own column name.
+                ->tap(fn ($q) => \App\Support\TransactionAccess::applyToColumn($q, 'txn_date'))
                 ->selectRaw('COALESCE(SUM(gross_profit_cents), 0) AS gross_earning_cents')
                 ->selectRaw('COALESCE(SUM(transaction_count), 0) AS transaction_count')
                 ->selectRaw('COUNT(DISTINCT vend_id) AS vend_count')
@@ -1347,6 +1354,7 @@ class CustomerSummaryAggregator
             // Sales ← vend_transactions, same filter as the whole-month query.
             $salesCents = (int) round((float) DB::table('vend_transactions')
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+                ->tap(fn ($q) => \App\Support\TransactionAccess::applyToColumn($q, 'vend_transactions.transaction_datetime'))
                 ->where('vend_transactions.customer_id', $customerId)
                 ->where(function ($q) use ($wStart, $wEnd) {
                     $q->whereBetween('vend_transactions.transaction_datetime', [$wStart, $wEnd])

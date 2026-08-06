@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Scopes\OperatorTransactionFilterScope;
 use App\Models\Scopes\OperatorUserTransactionFilterScope;
 use App\Models\Scopes\ProductAccessTransactionScope;
+use App\Models\Scopes\TransactionAccessScope;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -49,6 +50,11 @@ class VendTransaction extends Model
         static::addGlobalScope(new OperatorTransactionFilterScope);
         static::addGlobalScope(new OperatorUserTransactionFilterScope);
         static::addGlobalScope(new ProductAccessTransactionScope);
+        // "Transaction Access From": hides sales before the viewer's cut-off.
+        // Plain `>=` on the bare column so the transaction_datetime indexes
+        // still apply - 0 of 4,923,345 live rows have a NULL transaction_datetime
+        // (checked 2026-08-06), so no COALESCE to created_at is needed.
+        static::addGlobalScope(new TransactionAccessScope('transaction_datetime'));
     }
 
     protected $casts = [

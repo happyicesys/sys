@@ -34,6 +34,7 @@ class User extends Authenticatable
         'password_confirmation',
         'phone_country_id',
         'product_access_mode',
+        'transaction_access_from',
         'phone_number',
         'profile_id',
         'username',

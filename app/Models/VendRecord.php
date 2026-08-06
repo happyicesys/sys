@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Scopes\OperatorVendRecordScope;
+use App\Models\Scopes\TransactionAccessScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -13,6 +14,12 @@ class VendRecord extends Model
     protected static function booted()
     {
         static::addGlobalScope(new OperatorVendRecordScope);
+
+        // "Transaction Access From". The cut-off has to reach the ROLLUPS too,
+        // not just vend_transactions - otherwise a restricted user sees no old
+        // rows on the Transactions page but still reads the same money back off
+        // the Performance dashboard, which is worse than not filtering at all.
+        static::addGlobalScope(new TransactionAccessScope('date'));
     }
 
     protected $fillable = [

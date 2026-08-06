@@ -423,6 +423,9 @@ class OperatorController extends Controller
             'product_access_mode' => ['nullable', 'in:all,list'],
             'access_product_ids' => ['nullable', 'array'],
             'access_product_ids.*' => ['integer'],
+            // "Transaction Access From": blank = all history. No min/max bound -
+            // an operator's date is the ceiling, answerable to nobody above it.
+            'transaction_access_from' => ['nullable', 'date'],
         ]);
 
         if ($request->hasFile('logo')) {
@@ -475,7 +478,7 @@ class OperatorController extends Controller
         // mass-assign a non-column. product_access_mode IS a column and is set
         // explicitly below after validation.
         $payload = collect($request->all())
-            ->except(['email_user_ids', 'email_customs', 'logo', 'logo_remove', 'transaction_callback_url', 'alert_callback_url', 'is_active', 'deactivated_at', 'access_products', 'access_product_ids', 'product_access_mode', 'manage_product_access'])
+            ->except(['email_user_ids', 'email_customs', 'logo', 'logo_remove', 'transaction_callback_url', 'alert_callback_url', 'is_active', 'deactivated_at', 'access_products', 'access_product_ids', 'product_access_mode', 'manage_product_access', 'transaction_access_from'])
             ->toArray();
         $operator->update($payload);
 
@@ -537,10 +540,22 @@ class OperatorController extends Controller
             $operator->product_access_mode = $request->input('product_access_mode') === ProductAccess::MODE_LIST
                 ? ProductAccess::MODE_LIST
                 : ProductAccess::MODE_ALL;
+
+            // "Transaction Access From". Guarded by the SAME manage_product_access
+            // marker on purpose: both live in the access block of this one screen,
+            // and every other caller of this endpoint omits the marker entirely.
+            // normalise() turns the '' an untouched date input posts back into
+            // null, i.e. "no restriction" - without it every save would write
+            // 1970-01-01 and hide all history from the whole operator.
+            $operator->transaction_access_from = \App\Support\TransactionAccess::normalise(
+                $request->input('transaction_access_from')
+            );
+
             $operator->save();
 
             // Every user under this operator inherits the change.
             ProductAccess::flush();
+            \App\Support\TransactionAccess::flush();
         }
 
         // Active/inactive status (deactivate instead of delete).

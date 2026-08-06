@@ -648,6 +648,33 @@
                 v-model:mode="form.product_access_mode"
               />
 
+              <!--
+                "Transaction Access From" - the operator-level FLOOR. Every user
+                in this operator is capped by it: App\Support\TransactionAccess
+                takes the LATER of this and the user's own date, so setting it
+                here restricts everyone at once and no user can opt out downward.
+                Blank = no floor, which is every operator today.
+              -->
+              <div v-if="form.id" class="mt-6 border-t border-gray-200 pt-5">
+                <div class="sm:w-1/2">
+                  <FormInput
+                    v-model="form.transaction_access_from"
+                    :error="form.errors.transaction_access_from"
+                    inputType="date"
+                    :disabled="!permissions.includes('update operators')"
+                  >
+                    Transaction Access From
+                  </FormInput>
+                  <p class="mt-1 text-sm text-gray-500">
+                    Sales before this date are hidden from
+                    <span class="font-medium">every user in this operator</span> &mdash;
+                    Transactions, dashboards, reports and exports. A user may be
+                    restricted further to a later date, never an earlier one.
+                    <span class="font-medium">Leave blank for no floor.</span>
+                  </p>
+                </div>
+              </div>
+
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -917,6 +944,7 @@ onMounted(() => {
             ? [...props.operator.data.access_products]
             : [],
           product_access_mode: props.operator.data.product_access_mode || 'all',
+          transaction_access_from: props.operator.data.transaction_access_from || '',
           logo: null,
           logo_remove: false,
         })
@@ -985,6 +1013,7 @@ function getDefaultForm() {
     alert_callback_url: '',
     access_products: [],
     product_access_mode: 'all',
+    transaction_access_from: '',
   }
 }
 
@@ -1277,6 +1306,9 @@ function submit() {
           // post to this same endpoint and spread the whole OperatorResource row,
           // so only an explicit marker distinguishes the screen that owns the list.
           manage_product_access: true,
+          // '' (untouched date input) must reach the controller as '' so
+          // TransactionAccess::normalise() turns it into null = no floor.
+          transaction_access_from: data.transaction_access_from || '',
         };
       })
       .post('/operators/' + form.value.id + '/update', {

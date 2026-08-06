@@ -1511,6 +1511,11 @@ class CustomerController extends Controller
             })
             ->when(!empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->where('vend_transactions.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
+            // "Transaction Access From": a raw DB::table() query, so no Eloquent
+            // global scope can reach it. applyToColumn() is a no-op when the
+            // viewer is unrestricted AND whenever auth() is empty, so the
+            // nightly/cron callers of this same code path are untouched.
+            ->tap(fn ($q) => \App\Support\TransactionAccess::applyToColumn($q, 'vend_transactions.transaction_datetime'))
             ->groupBy('vend_transactions.customer_id')
             ->selectRaw('vend_transactions.customer_id AS customer_id, SUM(vend_transactions.amount) AS sales_cents')
             ->pluck('sales_cents', 'customer_id');
@@ -1519,6 +1524,8 @@ class CustomerController extends Controller
         $gpByCust = DB::table('gp_metrics')
             ->whereIn('customer_id', $customerIds)
             ->whereBetween('txn_date', [$windowStart->toDateString(), $windowEnd->toDateString()])
+            // Same for the gp_metrics twin - note the column is txn_date here.
+            ->tap(fn ($q) => \App\Support\TransactionAccess::applyToColumn($q, 'txn_date'))
             ->groupBy('customer_id')
             ->selectRaw('customer_id, COALESCE(SUM(gross_profit_cents),0) AS gross_cents, COUNT(DISTINCT vend_id) AS vc')
             ->get()->keyBy('customer_id');

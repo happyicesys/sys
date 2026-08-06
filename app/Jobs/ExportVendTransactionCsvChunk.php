@@ -12,6 +12,7 @@ use App\Models\ExportJobChunk;
 use App\Models\Tag;
 use App\Models\User;
 use App\Support\ProductAccess;
+use App\Support\TransactionAccess;
 use DB;
 use App\Jobs\ZipVendTransactionCsvExport;
 use Illuminate\Bus\Queueable;
@@ -53,9 +54,22 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
      */
     protected $allowedProductIds;
 
-    public function __construct($jobId, array $requestData, $userID, $chunkIndex, $chunkSize, $minId, $maxId, ?array $allowedProductIds)
+    /**
+     * "Transaction Access From" - earliest sales date this viewer may export.
+     *
+     * Resolved ONCE in the controller for exactly the reasons the product
+     * allow-list above is: auth() is empty in a worker so the global scope
+     * cannot fire, and resolving once stops an edit mid-export from splitting a
+     * multi-chunk run. null = unrestricted.
+     *
+     * @var string|null
+     */
+    protected $transactionAccessFrom;
+
+    public function __construct($jobId, array $requestData, $userID, $chunkIndex, $chunkSize, $minId, $maxId, ?array $allowedProductIds, ?string $transactionAccessFrom)
     {
         $this->allowedProductIds = $allowedProductIds;
+        $this->transactionAccessFrom = $transactionAccessFrom;
         $this->chunkIndex = $chunkIndex;
         $this->chunkSize = $chunkSize;
         $this->jobId = $jobId;
@@ -183,6 +197,10 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 // in VendController@exportTransactionCsv, or the chunk boundaries
                 // stop lining up with the rows each chunk actually emits.
                 ->tap(fn($query) => ProductAccess::applyToVendTransactions($query, $this->allowedProductIds))
+                // "Transaction Access From": same hand-in reason as the product
+                // allow-list directly above - TransactionAccessScope cannot fire
+                // in a worker, so the resolved date has to travel with the job.
+                ->tap(fn($query) => TransactionAccess::applyToColumn($query, 'vend_transactions.transaction_datetime', $this->transactionAccessFrom))
                 ->filterTransactionIndex($request)
                 // Mirror the aggregate-cards query (VendController@transactionIndex):
                 // only settled sales (excludes in-flight PENDING and voided REFUNDED
@@ -469,7 +487,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
             // Append dispensed-but-unreported gateway revenue once (first part
             // only) so the combined zip tallies with the dashboard "Total Sales".
             if ((int) $this->chunkIndex === 0) {
-                $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds);
+                $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds, $this->transactionAccessFrom);
             }
 
             rewind($stream);

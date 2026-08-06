@@ -32,8 +32,9 @@ trait AppendsUnreportedGatewayCsvRows
      * instead of being a silent reconciliation gap.
      *
      * @param  array<int, int>|null  $allowedProductIds  null = unrestricted
+     * @param  string|null  $transactionAccessFrom  'Y-m-d' cut-off, null = unrestricted
      */
-    protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null, ?array $allowedProductIds = null): void
+    protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null, ?array $allowedProductIds = null, ?string $transactionAccessFrom = null): void
     {
         if ($allowedProductIds !== null) {
             fputcsv($stream, array_merge(
@@ -59,6 +60,11 @@ trait AppendsUnreportedGatewayCsvRows
             ->with(['vend:id,code', 'operatorPaymentGateway.operator:id,code'])
             ->unreportedDispensed($request, $testingVendIds)
             ->when($userVendIds !== null, fn($q) => $q->whereIn('payment_gateway_logs.vend_id', $userVendIds))
+            // "Transaction Access From". These rows are gateway money with no
+            // vend_transaction behind them, so they carry their own timestamp -
+            // approved_at, not transaction_datetime. Without this a restricted
+            // viewer's CSV ends with a block of pre-cut-off revenue.
+            ->when($transactionAccessFrom !== null, fn($q) => $q->where('payment_gateway_logs.approved_at', '>=', $transactionAccessFrom))
             ->orderBy('payment_gateway_logs.approved_at')
             ->chunk(500, function ($logs) use ($stream) {
                 foreach ($logs as $log) {

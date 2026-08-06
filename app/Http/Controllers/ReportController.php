@@ -39,6 +39,7 @@ use App\Models\Vend;
 use App\Models\VendContract;
 use App\Models\VendModel;
 use App\Support\ProductAccess;
+use App\Support\TransactionAccess;
 use App\Models\VendChannelStockEvent;
 use App\Models\VendPrefix;
 use App\Models\VendTransaction;
@@ -2854,6 +2855,11 @@ class ReportController extends Controller
 
         $single = $this->filterVendTransactionReport($single, $request);
         $single = $this->filterOperatorVendTransactionDB($single);
+            // "Transaction Access From": a raw DB::table() query, so no Eloquent
+            // global scope can reach it. applyToColumn() is a no-op when the
+            // viewer is unrestricted AND whenever auth() is empty, so the
+            // nightly/cron callers of this same code path are untouched.
+            $single = TransactionAccess::applyToColumn($single, 'vend_transactions.transaction_datetime');
 
         $multi = DB::table('vend_transaction_items')
             ->join('vend_transactions', 'vend_transaction_items.vend_transaction_id', '=', 'vend_transactions.id')
@@ -2882,6 +2888,11 @@ class ReportController extends Controller
 
         $multi = $this->filterVendTransactionReport($multi, $request);
         $multi = $this->filterOperatorVendTransactionDB($multi);
+            // "Transaction Access From": a raw DB::table() query, so no Eloquent
+            // global scope can reach it. applyToColumn() is a no-op when the
+            // viewer is unrestricted AND whenever auth() is empty, so the
+            // nightly/cron callers of this same code path are untouched.
+            $multi = TransactionAccess::applyToColumn($multi, 'vend_transactions.transaction_datetime');
 
         return $single->get()->concat($multi->get());
     }

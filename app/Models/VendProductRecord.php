@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Scopes\OperatorVendRecordScope;
 use App\Models\Scopes\ProductAccessProductColumnScope;
+use App\Models\Scopes\TransactionAccessScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -22,6 +23,11 @@ class VendProductRecord extends Model
         // Product grain IS part of this table's key, so unlike vend_records it
         // can be filtered honestly by the "Access Product(s)" allow-list.
         static::addGlobalScope(new ProductAccessProductColumnScope);
+
+        // "Transaction Access From" - same reasoning as vend_records. This is
+        // what Dashboard > Performance (Lite) reads, so without it the Lite page
+        // would happily show a date-restricted viewer their pre-cut-off history.
+        static::addGlobalScope(new TransactionAccessScope('date'));
     }
 
     protected $fillable = [

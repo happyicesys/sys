@@ -144,6 +144,50 @@
                 v-model="user.access_products"
                 v-model:mode="form.product_access_mode"
               />
+
+              <!--
+                "Transaction Access From" - the time-dimension twin of Access
+                Product(s) above. Blank = all history, which is every user today.
+                The operator's own date is a FLOOR: App\Support\TransactionAccess
+                resolves the effective cut-off as the LATER of the two, so a date
+                earlier than the operator's would be silently ignored. Say so on
+                the screen and stop it at the input rather than let someone set a
+                value that quietly does nothing.
+              -->
+              <div v-if="form.id" class="mt-6 border-t border-gray-200 pt-5">
+                <div class="sm:w-1/2">
+                  <FormInput
+                    v-model="form.transaction_access_from"
+                    :error="form.errors.transaction_access_from"
+                    inputType="date"
+                    :minValue="operatorTransactionFloor ? operatorTransactionFloor.from : null"
+                    :disabled="!permissions.includes('update users')"
+                  >
+                    Transaction Access From
+                  </FormInput>
+                  <p class="mt-1 text-sm text-gray-500">
+                    Sales before this date are hidden from this user everywhere &mdash;
+                    Transactions, dashboards, reports and exports.
+                    <span class="font-medium">Leave blank to show all history.</span>
+                  </p>
+                  <p
+                    v-if="operatorTransactionFloor"
+                    class="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+                  >
+                    <span class="font-semibold">Capped by operator.</span>
+                    {{ operatorTransactionFloor.operatorName }} is set to
+                    <span class="font-semibold">{{ operatorTransactionFloor.from }}</span>,
+                    so this user cannot see anything earlier &mdash; whatever is set here.
+                    Pick a later date to restrict them further.
+                  </p>
+                  <p
+                    v-if="form.transaction_access_from"
+                    class="mt-2 text-sm text-gray-600"
+                  >
+                    Clear the field to give this user full history again.
+                  </p>
+                </div>
+              </div>
             </div>
             <div class="col-span-12 sm:col-span-6">
               <div class="flex justify-between mt-5">
@@ -216,6 +260,9 @@ const props = defineProps({
   // null, or { operatorName, products: [{id, code, name}] } - the operator's
   // own "Access Product(s)" list, which caps whatever is chosen here.
   operatorProductCeiling: { type: Object, default: null },
+  // null, or { operatorName, from: 'YYYY-MM-DD' } - the operator's own
+  // "Transaction Access From", which this user's date may not go below.
+  operatorTransactionFloor: { type: Object, default: null },
 })
 
 const emit = defineEmits(['modalClose'])
@@ -289,6 +336,7 @@ function getDefaultForm() {
     operator_id: '',
     role_id: '',
     product_access_mode: 'all',
+    transaction_access_from: '',
   }
 }
 
@@ -310,6 +358,11 @@ function submit() {
         // screens apart. Only this page manages the allow-list, so only this page
         // sends this.
         manage_product_access: true,
+        // Same guard, same reason, separate flag: this page owns the date field,
+        // the users-list modal does not. Without its own marker an admin editing
+        // a phone number in that modal would post a blank date and clear the
+        // restriction. See UserController::update().
+        manage_transaction_access: true,
       }))
       .post('/users/' + form.value.id + '/update', {
       onSuccess: () => {

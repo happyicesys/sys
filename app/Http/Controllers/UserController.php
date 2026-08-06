@@ -14,6 +14,7 @@ use App\Models\Product;
 use App\Models\Scopes\ProductAccessProductScope;
 use App\Models\User;
 use App\Support\ProductAccess;
+use App\Support\TransactionAccess;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -155,6 +156,12 @@ class UserController extends Controller
         // it caps both the dropdown below and what update() will accept.
         $productCeiling = ProductAccess::operatorCeiling($user->operator_id);
 
+        // "Transaction Access From": the subject's OPERATOR date is a hard floor -
+        // TransactionAccess resolves the effective cut-off as the LATER of the
+        // two, so anything earlier chosen here would be silently inert. Passed to
+        // the screen so it can say so and clamp the date input's min.
+        $transactionFloor = TransactionAccess::operatorFloor($user->operator_id);
+
         return Inertia::render('User/Edit', [
             'countries' => CountryResource::collection(
                 Country::query()
@@ -168,6 +175,10 @@ class UserController extends Controller
             ),
             'roles' => RoleResource::collection(Role::orderBy('name')->get()),  // Ensure roles are correctly retrieved
             'type' => 'update',
+            'operatorTransactionFloor' => $transactionFloor === null ? null : [
+                'operatorName' => optional($user->operator)->name ?? 'Operator',
+                'from' => $transactionFloor,
+            ],
             'unbindedVends' => fn () =>
                 VendResource::collection(
                     Vend::with([
@@ -262,6 +273,7 @@ class UserController extends Controller
             'product_access_mode' => 'nullable|in:all,list',
             'user.data.access_products' => 'nullable|array',
             'user.data.access_products.*.id' => 'integer',
+            'transaction_access_from' => 'nullable|date',
         ]);
 
         if($request->password) {
@@ -412,6 +424,39 @@ class UserController extends Controller
             $user->save();
 
             ProductAccess::flush($user->id);
+        }
+
+        // "Transaction Access From".
+        //
+        // Its OWN marker, not manage_product_access: the two fields sit on the
+        // same screen but a future edit to either block must not silently start
+        // writing the other. Same defensive reason the product block has one -
+        // /users/{id}/update is shared with the users-list modal, which spreads
+        // the whole UserResource into its form and would otherwise post this
+        // field (blank) on every phone-number edit and clear the restriction.
+        if ($request->boolean('manage_transaction_access')) {
+            $chosen = TransactionAccess::normalise($request->input('transaction_access_from'));
+
+            // Clamp UP to the operator floor rather than reject.
+            //
+            // The date input already carries min=, and the screen says the
+            // operator caps it, so an earlier date only arrives here from a
+            // hand-rolled POST or a stale tab. Storing it verbatim would be
+            // harmless at read time - forUser() re-takes the later of the two on
+            // every read, exactly as ProductAccess re-intersects - but it would
+            // leave the edit screen showing a date that is not the one in force,
+            // which is how people lose trust in an access screen. Store what is
+            // actually effective.
+            $floor = TransactionAccess::operatorFloor($originalOperatorId);
+
+            if ($chosen !== null && $floor !== null && $chosen < $floor) {
+                $chosen = $floor;
+            }
+
+            $user->transaction_access_from = $chosen;
+            $user->save();
+
+            TransactionAccess::flush($user->id);
         }
 
         // return redirect()->route('users');

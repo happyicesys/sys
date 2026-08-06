@@ -87,6 +87,7 @@ use App\Models\PaymentGateways\Omise;
 use App\Models\Zone;
 use App\Services\CmsService;
 use App\Support\ProductAccess;
+use App\Support\TransactionAccess;
 use App\Services\CustomerSummaryAggregator;
 use App\Services\HistoryService;
 use App\Services\MapService;
@@ -4054,6 +4055,12 @@ class VendController extends Controller
         // computed with the predicate applied twice.
         $allowedProductIds = ProductAccess::current();
 
+        // "Transaction Access From", resolved here for the same reason: the two
+        // export jobs run in a worker where auth() is empty. $idQuery below runs
+        // under auth so TransactionAccessScope already narrowed the chunk
+        // boundaries - do NOT apply it to $idQuery by hand as well.
+        $transactionAccessFrom = TransactionAccess::current();
+
         // Align with the aggregate cards (transactionIndex totals): only settled
         // sales and no testing machines. Must match the filters inside the
         // export jobs so row counts / chunk ID boundaries stay consistent.
@@ -4089,7 +4096,7 @@ class VendController extends Controller
 
         if ($totalRows <= $chunkSize) {
             // ✅ Small export — dispatch single job (already uses cursor-safe chunk())
-            ExportVendTransactionCsv::dispatch($job->id, $request->all(), $user->id, $allowedProductIds);
+            ExportVendTransactionCsv::dispatch($job->id, $request->all(), $user->id, $allowedProductIds, $transactionAccessFrom);
         } else {
             // ✅ Large export — split by ID boundaries so each job uses whereBetween,
             //    never OFFSET. This avoids the MySQL scan-and-discard problem AND the
@@ -4112,6 +4119,7 @@ class VendController extends Controller
                     $chunkIds->first(), // minId — keyset lower bound
                     $chunkIds->last(),  // maxId — keyset upper bound
                     $allowedProductIds, // product allow-list (null = unrestricted)
+                    $transactionAccessFrom, // earliest visible date (null = unrestricted)
                 );
             }
         }

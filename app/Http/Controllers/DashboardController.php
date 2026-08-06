@@ -991,6 +991,12 @@ class DashboardController extends Controller
             return DB::table($table)
                 ->selectRaw('year, month, COUNT(DISTINCT customer_id) as count')
                 ->when($lite, fn($q) => ProductAccess::applyToColumn($q, $table . '.product_id'))
+                // Same DANGER applies to "Transaction Access From": no Eloquent
+                // scope reaches this builder, so TransactionAccessScope on
+                // VendRecord/VendProductRecord does nothing here. Applied to BOTH
+                // sources (not just lite) because both carry the date column and
+                // both back this line. Keep this call attached too.
+                ->tap(fn($q) => \App\Support\TransactionAccess::applyToColumn($q, $table . '.date'))
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->whereNotIn('vend_id', $excludeVendIds)
                 ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))
