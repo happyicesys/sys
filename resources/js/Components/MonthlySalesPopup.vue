@@ -171,6 +171,7 @@
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue'
 import { ArrowDownRightIcon, ArrowPathIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, InformationCircleIcon, MinusSmallIcon, XMarkIcon } from '@heroicons/vue/20/solid'
 import { computed, onMounted, ref } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 
 const open = ref(false)
 const loading = ref(true)
@@ -315,10 +316,26 @@ function countUp(target) {
     requestAnimationFrame(step)
 }
 
+// Mirror of DashboardController::MONTHLY_SALES_POPUP_ROLES. The server gate is
+// the real one — this copy only avoids firing a request that can only ever come
+// back {show:false}, and the Authenticated layout remounts on EVERY navigation,
+// so that request would otherwise repeat all day for every ineligible user.
+const POPUP_ROLES = ['superadmin', 'admin', 'supervisor', 'technician', 'driver']
+
+function maySeePopup() {
+    const roles = usePage().props?.auth?.roles
+    return Array.isArray(roles) && roles.some((r) => POPUP_ROLES.includes(r))
+}
+
 onMounted(async () => {
     // "Show once per login session" is enforced server-side (Laravel session
     // flag), so it re-shows after a logout→login and won't repeat on in-session
     // navigation.
+    if (!maySeePopup()) {
+        loading.value = false
+        return
+    }
+
     try {
         const { data } = await window.axios.get(route('dashboard.monthly-sales-popup'))
         if (!data || !data.show) {

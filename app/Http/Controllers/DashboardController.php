@@ -46,6 +46,22 @@ class DashboardController extends Controller
      * response and never applied on the front end. Tiers are evaluated highest
      * first (gold → silver → bronze), so keep thresholds in ascending order.
      */
+    /**
+     * Roles allowed to see the post-login "This month sales" popup.
+     *
+     * Single source of truth: the backend gate reads this, and
+     * MonthlySalesPopup.vue mirrors the same list to skip a pointless request
+     * on every layout remount. The BACKEND is authoritative — the Vue copy is
+     * only there to save the round trip, never to enforce.
+     */
+    public const MONTHLY_SALES_POPUP_ROLES = [
+        'superadmin',
+        'admin',
+        'supervisor',
+        'technician',
+        'driver',
+    ];
+
     public const MONTHLY_SALES_TIERS = [
         'bronze' => 260000,
         'silver' => 300000,
@@ -344,6 +360,20 @@ class DashboardController extends Controller
             : null;
 
         if ($operatorCode !== 'HIPL') {
+            return response()->json(['show' => false]);
+        }
+
+        // ── SECOND GATE: role ───────────────────────────────────────────
+        // Operator alone was not enough. Every role in the HIPL group saw this,
+        // including prod_owner — a product owner bound to a single machine was
+        // being shown GROUP-WIDE monthly sales plus the last three months'
+        // totals. The figure is company performance and is only meant for the
+        // roles below.
+        //
+        // Checked server-side off the user's own role rows, same as the operator
+        // check above, and returns the identical data-free {show:false} so a
+        // caller cannot tell which gate rejected them.
+        if (! $user->hasAnyRole(self::MONTHLY_SALES_POPUP_ROLES)) {
             return response()->json(['show' => false]);
         }
 
@@ -922,6 +952,90 @@ class DashboardController extends Controller
         return collect($monthsArrInit);
     }
 
+    /**
+     * Hand-applied twin of OperatorVendRecordScope, for the ONE raw DB::table()
+     * builder on this page.
+     *
+     * Kept deliberately faithful to that scope, leg for leg, so the two cannot
+     * drift:
+     *   - operator_id, skipped for the HappyIce operator (id 1) exactly as the
+     *     scope skips it;
+     *   - the user's bound machines (user_vend), when they have any;
+     *   - and the customer_ids of those machines, which the scope also adds so a
+     *     site-grained count cannot spill past the bound machines' sites.
+     *
+     * Inert when nobody is logged in (queue/cron) and inert for a user with no
+     * bound machines — which is every unrestricted user, so the emitted SQL is
+     * unchanged for them.
+     */
+    private function applyVendAccessToRawQuery($query, string $table)
+    {
+        if (! auth()->check()) {
+            return $query;
+        }
+
+        $user = auth()->user();
+
+        $operatorId = $user->operator_id;
+
+        if ($operatorId && (int) $operatorId !== 1) {
+            $query->where($table . '.operator_id', $operatorId);
+        }
+
+        $vendIds = $user->vends ? $user->vends->pluck('id')->all() : [];
+
+        if (empty($vendIds)) {
+            return $query;
+        }
+
+        $query->whereIn($table . '.vend_id', $vendIds);
+
+        $customerIds = Vend::whereIn('id', $vendIds)->get()->pluck('customer_id')->filter()->all();
+
+        if (! empty($customerIds)) {
+            $query->whereIn($table . '.customer_id', $customerIds);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Earliest month ('YYYY-MM') this viewer can have data for, or null.
+     *
+     * Two independent floors, whichever is later:
+     *   1. the first row that exists in the active rollup at all — vend_records
+     *      reaches back to 2022, vend_product_records only to 2025-05-27;
+     *   2. the viewer's own "Transaction Access From" cut-off.
+     *
+     * Cached for a day: MIN(date) is an index seek, but this runs on every
+     * dashboard load and the answer only moves when the rollup is backfilled.
+     * Keyed by table so the two pages cannot serve each other's floor.
+     */
+    private function rollupDataFloor(): ?string
+    {
+        $table = $this->recordTable();
+
+        $sourceMin = Cache::remember(
+            'rollup_min_date_' . $table,
+            86400,
+            fn () => DB::table($table)->min('date')
+        );
+
+        $sourceMonth = $sourceMin ? substr((string) $sourceMin, 0, 7) : null;
+        $viewerFrom = \App\Support\TransactionAccess::current();
+        $viewerMonth = $viewerFrom ? substr($viewerFrom, 0, 7) : null;
+
+        if ($sourceMonth === null) {
+            return $viewerMonth;
+        }
+
+        if ($viewerMonth === null) {
+            return $sourceMonth;
+        }
+
+        return $sourceMonth >= $viewerMonth ? $sourceMonth : $viewerMonth;
+    }
+
     private function getActiveMachineGraphData(Request $request, array $testingVendIds)
     {
         $yearsBack = max(2, min(3, (int) ($request->years_back ?? 2)));
@@ -939,6 +1053,24 @@ class DashboardController extends Controller
             $compareMonth = Carbon::today()->month;
         }
 
+        // "No data" and "zero machines" are NOT the same thing, and seeding every
+        // month with 0 conflated them.
+        //
+        // vend_product_records starts 2025-05-27, so on the Lite page Jan-Apr 2025
+        // have no rows at all — and the chart drew them as a line crashing to
+        // zero, which reads as "the business operated no machines". vend_records
+        // says those months actually had 413-437 sites. The same lie appears for
+        // any month before a viewer's "Transaction Access From" cut-off.
+        //
+        // Emitting null instead makes Chart.js break the line (spanGaps defaults
+        // to false), which is the honest rendering: we have nothing to say about
+        // those months. sumData() in the Vue coerces null to 0, so the legend
+        // total is unaffected either way.
+        //
+        // Months AFTER the floor keep their 0 — that is a real "nothing matched
+        // your filters", which the user SHOULD see.
+        $dataFloor = $this->rollupDataFloor();
+
         $activeMonths = [];
         foreach (range($lastYear->year, $thisYear->year) as $year) {
             for ($i = 1; $i <= 12; $i++) {
@@ -949,7 +1081,9 @@ class DashboardController extends Controller
                     'month' => $i,
                     'month_name' => Carbon::createFromDate($year, $i, 1)->format('F'),
                     'year' => $year,
-                    'count' => 0,
+                    'count' => ($dataFloor !== null && sprintf('%04d-%02d', $year, $i) < $dataFloor)
+                        ? null
+                        : 0,
                 ];
             }
         }
@@ -997,6 +1131,13 @@ class DashboardController extends Controller
                 // sources (not just lite) because both carry the date column and
                 // both back this line. Keep this call attached too.
                 ->tap(fn($q) => \App\Support\TransactionAccess::applyToColumn($q, $table . '.date'))
+                // ...and the SAME is true of the machine allow-list. This was the
+                // real leak: a user bound to a single machine saw the whole
+                // fleet's site count on this line (350-385 instead of 1), because
+                // OperatorVendRecordScope is an ELOQUENT scope and this is a raw
+                // builder. Every other query on this page goes through
+                // recordQuery() and is scoped automatically; this one is not.
+                ->tap(fn($q) => $this->applyVendAccessToRawQuery($q, $table))
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->whereNotIn('vend_id', $excludeVendIds)
                 ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))

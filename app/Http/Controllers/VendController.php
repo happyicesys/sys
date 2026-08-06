@@ -3368,6 +3368,29 @@ class VendController extends Controller
         return [null, null];
     }
 
+    /**
+     * The viewer's bound machines, or null when they have none (= unrestricted).
+     *
+     * payment_gateway_logs carries NO global scope and scopeUnreportedDispensed
+     * only applies the REQUEST filters — never the user's own allow-list. So
+     * every unreportedDispensed() read has to be narrowed by hand or a
+     * machine-restricted user is handed a fleet-wide number.
+     * AppendsUnreportedGatewayCsvRows already does exactly this; the Transactions
+     * card and the Excel export did not.
+     */
+    private function viewerVendIds()
+    {
+        if (! auth()->check()) {
+            return null;
+        }
+
+        $user = auth()->user();
+
+        return ($user->vends && $user->vends()->exists())
+            ? $user->vends->pluck('id')
+            : null;
+    }
+
     public function transactionIndex(Request $request)
     {
         if (!$request->has('operators')) {
@@ -3769,10 +3792,16 @@ class VendController extends Controller
         // (AppendsUnreportedGatewayCsvRows).
         $cardAllowedProductIds = ProductAccess::current();
 
+        // The viewer's machines. Without this a machine-restricted user's Total
+        // Sales is inflated by the WHOLE FLEET's unreported gateway revenue,
+        // because scopeUnreportedDispensed applies request filters only.
+        $viewerVendIds = $this->viewerVendIds();
+
         $unreportedGatewayAmount = $cardAllowedProductIds !== null
             ? 0
             : PaymentGatewayLog::query()
                 ->unreportedDispensed($request, $testingVendIds)
+                ->when($viewerVendIds !== null, fn($q) => $q->whereIn('payment_gateway_logs.vend_id', $viewerVendIds))
                 ->sum('payment_gateway_logs.amount');
 
         // vend_transactions.amount is in minor units (cents); gateway log
@@ -3793,7 +3822,6 @@ class VendController extends Controller
         $totals->product_restricted = false;
         $totals->product_attributed_amount = null;
         $totals->product_excluded_amount = null;
-        $totals->product_unreported_gateway_omitted = null;
 
         if ($cardAllowedProductIds !== null) {
             $totals->product_restricted = true;
@@ -3846,14 +3874,12 @@ class VendController extends Controller
                 2
             );
 
-            // Surface what was dropped above rather than leaving a silent gap
-            // between this card and an unrestricted user's.
-            $totals->product_unreported_gateway_omitted = round(
-                ((float) PaymentGatewayLog::query()
-                    ->unreportedDispensed($request, $testingVendIds)
-                    ->sum('payment_gateway_logs.amount')) * pow(10, $currencyExponent),
-                2
-            );
+            // NOTE: the card used to carry an "Excludes X of unreported gateway
+            // revenue" line here, fed by a second PaymentGatewayLog sum. Removed
+            // 2026-08-06 at brian's request — the figure is still correctly LEFT
+            // OUT of the totals above (see $unreportedGatewayAmount, which stays 0
+            // for a product-restricted viewer); only the explanatory line and its
+            // extra query are gone.
         }
         // ────────────────────────────────────────────────────────────────────
 
@@ -4361,8 +4387,11 @@ class VendController extends Controller
         // has no product_id), so a restricted export omits them rather than
         // crediting a partner with revenue that is provably not theirs. Mirrors
         // AppendsUnreportedGatewayCsvRows.
+        $excelViewerVendIds = $this->viewerVendIds();
+
         PaymentGatewayLog::query()
             ->when($excelAllowedProductIds !== null, fn($q) => $q->whereRaw('1 = 0'))
+            ->when($excelViewerVendIds !== null, fn($q) => $q->whereIn('payment_gateway_logs.vend_id', $excelViewerVendIds))
             ->with(['vend:id,code', 'operatorPaymentGateway.operator:id,code'])
             ->unreportedDispensed($request, $testingVendIds)
             ->orderBy('payment_gateway_logs.approved_at')
