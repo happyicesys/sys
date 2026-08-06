@@ -655,8 +655,8 @@
                 here restricts everyone at once and no user can opt out downward.
                 Blank = no floor, which is every operator today.
               -->
-              <div v-if="form.id" class="mt-6 border-t border-gray-200 pt-5">
-                <div class="sm:w-1/2">
+              <div v-if="form.id" class="sm:col-span-6 mt-6 border-t border-gray-200 pt-5">
+                <div class="max-w-md">
                   <FormInput
                     v-model="form.transaction_access_from"
                     :error="form.errors.transaction_access_from"
