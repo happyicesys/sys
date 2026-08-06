@@ -16,7 +16,16 @@ const navigation = computed(() => [
         icon: ClipboardDocumentListIcon,
         current: false,
         href: 'dashboard',
-        permission: 'read dashboard',
+        // Array = "any of these" (see canSee() below). prod_owner holds ONLY
+        // 'read dashboard-performance-lite' and NOT 'read dashboard', so gating
+        // the section on 'read dashboard' alone hid the one child it can open —
+        // the child link was correct, the parent swallowed it. Exactly the trap
+        // the Operations group below already documents.
+        //
+        // Checked on live 2026-08-06: prod_owner is the ONLY role holding any
+        // Dashboards child permission without 'read dashboard', so widening this
+        // changes nothing for the other ten roles.
+        permission: ['read dashboard', 'read dashboard-performance-lite'],
         tagline: null,
         children: [
             {name: 'Performance', href: '/dashboard/performance', permission: 'read dashboard-performance'},
