@@ -5,9 +5,54 @@ namespace Database\Seeders;
 use DB;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/**
+ * THE SINGLE SOURCE OF TRUTH FOR ROLES AND PERMISSIONS.
+ * =====================================================
+ * Every permission the app checks, and every role that holds it, is declared in
+ * the $permissionsData table below. To change access, amend that table - do not
+ * write a new one-off seeder and do not seed permissions from a migration. Both
+ * of those get silently undone the next time this runs, because this rebuilds
+ * the whole set from scratch.
+ *
+ *     php artisan db:seed --class=RolePermissionSyncSeeder
+ *
+ * HOW TO AMEND
+ *   - new permission : add a tuple  ['thing', ['read','export'], ['role', ...]]
+ *   - grant to a role: add the role name to that tuple's third array
+ *   - new role       : just name it - roles are created automatically (below)
+ *   - revoke         : remove the role from the tuple. Removing a tuple deletes
+ *                      the permission itself, so anything still checking it
+ *                      starts 403ing. Grep first.
+ *
+ * SAFETY PROPERTIES (relied on - keep them true)
+ *   - ATOMIC, in the DB *and* in Spatie's cache. The unbind / delete / rebuild
+ *     all happen in ONE transaction (delete(), not truncate(): TRUNCATE is DDL,
+ *     implicitly commits, and would dissolve the transaction around it) AND the
+ *     registrar is pointed at a process-local 'array' store for the duration.
+ *     Both halves are needed: the cache is what actually decides access, it is
+ *     not transactional, and Permission::create() publishes the map it reads.
+ *     Restoring the real store and flushing it happens in a finally block, so a
+ *     failed run cannot leave a half-built map cached for 24h.
+ *   - ROLES ARE CREATED, not skipped. The old code looked a role up and skipped
+ *     it when absent, which is exactly how prod_owner's grants vanished - the
+ *     tuples named a role nothing had created and every grant was dropped in
+ *     silence. A role that had to be created is reported on the console; if you
+ *     see one you did not expect, it is a typo in a tuple.
+ *   - Direct per-user grants (model_has_permissions) are DESTROYED, not skipped:
+ *     that FK is ON DELETE CASCADE, and a query-builder mass delete fires no
+ *     model events, so they vanish with no error and no console line. There are
+ *     none today and there should stay none - grant through a role.
+ *
+ * Changes apply on the next page load - no logout needed. HandleInertiaRequests
+ * shares permissions from a plain closure in share(), which Inertia evaluates on
+ * every response. The real caveat is different: that closure reads
+ * roles->first()->permissions, so a user with TWO roles only ever sees the
+ * first role's permissions in the Vue sidebar.
+ */
 class RolePermissionSyncSeeder extends Seeder
 {
     /**
@@ -15,23 +60,10 @@ class RolePermissionSyncSeeder extends Seeder
      */
     public function run(): void
     {
-        // unbind all the permissions first
-        $roles = Role::all();
-
-        foreach ($roles as $role) {
-            $role->syncPermissions([]);
-        }
-
-        // Disable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-
-
-
-        // Delete all permissions
-        Permission::truncate();
-
-        // Re-enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        // Nothing is unbound or deleted here any more - the whole rebuild is one
+        // transaction at the bottom of this method, so there is no window where a
+        // live user holds zero permissions. See the class docblock.
+        //
         // Define permissions and link them to roles based on the data from the file
         $permissionsData = [
             [
@@ -52,11 +84,24 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'dashboard',
                 ['read', 'export'],
-                // 2026-08-05 sheet sync: + prod_owner (Dashboard > Performance).
-                // Deliberately NOT on the 'dashboard' admin-access tuple below, and
-                // NOT on dashboard-machine-health - the sheet gives prod_owner the
-                // Performance page only.
-                ['superadmin', 'admin', 'supervisor', 'observer', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user', 'prod_owner']
+                // prod_owner deliberately NOT listed, though the 2026-08-05 sheet's
+                // Prod Owner column does tick "Dashboard > Performance".
+                //
+                // That tick is honoured by 'dashboard-performance-lite', not by this
+                // permission. The whole point of the Lite split is that prod_owner
+                // reads vend_product_records (product-grained) instead of
+                // vend_records (whole-machine), so it gets the Lite page and not the
+                // full one - DashboardController::__construct gates index() on
+                // 'read dashboard-performance', which prod_owner does not hold.
+                //
+                // The parent section permission is not needed to reach it either:
+                // Authenticated.vue:15-28 gates the Dashboards group on
+                // ['read dashboard', 'read dashboard-performance-lite'] ("any of
+                // these") precisely so prod_owner sees the group WITHOUT this row.
+                // Granting it here would contradict that comment and put this
+                // seeder out of step with ProdOwnerPermissionsSeeder, which is the
+                // production-safe seeder for this role and grants 12, not 14.
+                ['superadmin', 'admin', 'supervisor', 'observer', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
             ],
 
             [
@@ -670,7 +715,15 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'refunds',
                 ['read'],
-                ['superadmin', 'admin', 'supervisor', 'operator']
+                // 'operator' removed 2026-08-06. No such role exists (live has
+                // operator_admin / operator_supervisor / operator_driver /
+                // operator_3pl) and the old lookup-and-skip hid that. Now that
+                // roles are auto-created, leaving it here would MANUFACTURE a role
+                // named exactly 'operator' - which HasFilter.php:951 and
+                // VendChannel.php:178 treat as a customer-binding BYPASS
+                // (hasRole('operator') ? 'all' : $isBindedCustomer). One mis-click
+                // in user admin would then hand someone every customer.
+                ['superadmin', 'admin', 'supervisor']
             ],
             [
                 'refunds',
@@ -680,7 +733,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'refunds',
                 ['verify'],
-                ['superadmin', 'admin', 'supervisor', 'operator']
+                // 'operator' removed - see the read tuple above.
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             // Operator Groups (payout groups) module. Source of truth = migration
@@ -696,19 +750,121 @@ class RolePermissionSyncSeeder extends Seeder
             ],
         ];
 
-        // Create permissions and assign to roles
-        foreach ($permissionsData as $data) {
-            foreach ($data[1] as $action) {
-                $permissionName = "{$action} {$data[0]}";
-                $permission = Permission::create(['name' => $permissionName, 'guard_name' => 'web']);
+        // ---- roles -------------------------------------------------------
+        // Created if absent, so naming a role in a tuple is genuinely all it
+        // takes. Done BEFORE the transaction: a created role is worth keeping
+        // even if the rebuild below is rolled back, and it keeps the transaction
+        // to just the swap.
+        $namedRoles = collect($permissionsData)
+            ->flatMap(fn ($data) => $data[2])
+            ->unique()
+            ->values();
 
-                foreach ($data[2] as $roleName) {
-                    $role = Role::where('name', $roleName)->first();
-                    if ($role) {
-                        $role->givePermissionTo($permission);
+        $createdRoles = [];
+        $roleModels = [];
+
+        foreach ($namedRoles as $roleName) {
+            $role = Role::where('name', $roleName)->where('guard_name', 'web')->first();
+
+            if (! $role) {
+                $role = Role::create(['name' => $roleName, 'guard_name' => 'web']);
+                $createdRoles[] = $roleName;
+            }
+
+            $roleModels[$roleName] = $role;
+        }
+
+        // ---- the atomic swap ---------------------------------------------
+        // Spatie's permission cache is NOT transactional, and by default it is the
+        // SHARED file store. Permission::create() calls getPermission() BEFORE
+        // inserting, so each of the 287 creates would publish a half-rebuilt,
+        // uncommitted map to the store every live web request authorises against -
+        // i.e. the DB would be atomic while the thing that actually decides access
+        // was not, and concurrent users would intermittently 403 for the seconds
+        // the transaction is open. Worse, a rollback would leave that garbage map
+        // cached for the full 24h TTL against a database that never changed.
+        //
+        // So: point the registrar at a process-local 'array' store for the
+        // duration. Web traffic keeps reading the OLD committed map from the file
+        // store - consistent with the DB, which is also still old until commit -
+        // and the restore + flush in the finally block is what publishes the new
+        // state, exactly once, whether we committed or rolled back.
+        $originalCacheStore = config('permission.cache.store');
+        config(['permission.cache.store' => 'array']);
+        app(PermissionRegistrar::class)->initializeCache();
+
+        try {
+            DB::transaction(function () use ($permissionsData, $roleModels) {
+            foreach (Role::all() as $role) {
+                $role->syncPermissions([]);
+            }
+
+            // delete(), not truncate() - see the class docblock. role_has_permissions
+            // is already empty at this point, so no FK juggling is needed. Both that
+            // FK and model_has_permissions' are ON DELETE CASCADE.
+            Permission::query()->delete();
+
+            // Load-bearing, not decorative: a query-builder mass delete fires no
+            // model events, so it does NOT flush the registrar. Without this the
+            // first Permission::create() below finds the just-deleted name still in
+            // the cached map and throws PermissionAlreadyExists.
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+            $grants = [];
+
+            foreach ($permissionsData as $data) {
+                foreach ($data[1] as $action) {
+                    $permissionName = "{$action} {$data[0]}";
+
+                    Permission::create(['name' => $permissionName, 'guard_name' => 'web']);
+
+                    foreach ($data[2] as $roleName) {
+                        $grants[$roleName][] = $permissionName;
                     }
                 }
             }
+
+            // Spatie resolves permission NAMES against its cached map; the rows
+            // above were written inside this transaction, so the map has to be
+            // dropped or syncPermissions throws PermissionDoesNotExist.
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+            // One sync per role rather than a givePermissionTo() per link: ~16
+            // statements instead of ~1350, each of which would otherwise flush
+            // the permission cache on its own.
+            foreach ($grants as $roleName => $permissionNames) {
+                $roleModels[$roleName]->syncPermissions(array_unique($permissionNames));
+            }
+            });
+        } finally {
+            // finally, not just after the try: DB::transaction() re-throws after
+            // rolling back, so on any failure - lock wait, dropped connection - this
+            // is the only thing that stops the shared cache being left stale.
+            config(['permission.cache.store' => $originalCacheStore]);
+            app(PermissionRegistrar::class)->initializeCache();
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
         }
+
+        // ---- report -------------------------------------------------------
+        foreach ($createdRoles as $roleName) {
+            $this->command?->warn("  + created role '{$roleName}' - it did not exist. If you did not expect this, it is a typo in a tuple.");
+        }
+
+        // Every role is unbound above but only the named ones are re-granted, so a
+        // role this table does not mention ends on zero. That is the intended
+        // meaning of "single source of truth" - but it must never be silent.
+        $orphanRoles = Role::query()
+            ->whereNotIn('name', $namedRoles->all())
+            ->pluck('name');
+
+        foreach ($orphanRoles as $roleName) {
+            $this->command?->warn("  ! role '{$roleName}' is not named in \$permissionsData - it now has ZERO permissions. Add it to a tuple or delete the role.");
+        }
+
+        $this->command?->info(sprintf(
+            'Rebuilt %d permissions across %d roles. Changes apply on the next page load.',
+            collect($permissionsData)->sum(fn ($data) => count($data[1])),
+            $namedRoles->count()
+        ));
     }
 }

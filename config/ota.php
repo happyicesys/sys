@@ -23,7 +23,17 @@ use App\Models\VendModel;
  *                   the version-spread panel, "push OTA check", and as the fallback
  *                   when a device does not send its package name. NULL means
  *                   "everything not claimed by another channel" — i.e. the default
- *                   fleet. Exactly one channel should have NULL.
+ *                   fleet. Exactly one channel should have NULL *without also
+ *                   setting device_types* (that one is the catch-all).
+ *   device_types    Optional. apk_ver_json deviceType values (PWRON telemetry)
+ *                   identifying this channel's fleet, for fleets that vend_model
+ *                   cannot tell apart (e.g. vending_small: the same E/F/DDVM models
+ *                   run both touchscreen and no-touch boards). Used ONLY for the
+ *                   fleet panel and push-OTA-check — never for serving; a channel
+ *                   with device_types set is routed by package_name alone and is
+ *                   NOT the catch-all. NOTE: these machines still also appear in
+ *                   the catch-all channel's panel (deliberate — zero behaviour
+ *                   change for the existing vending tab).
  *   storage_folder  Disk-relative folder the uploaded APK is stored under.
  *
  * NOTE: channel keys are persisted in apk_releases.channel. Renaming a key requires
@@ -57,6 +67,27 @@ return [
             'package_name' => env('OTA_PACKAGE_VENDING', 'com.venderroute'),
             'vend_model' => null, // default fleet: every model not claimed below
             'storage_folder' => 'sys/vends/apk/vending',
+        ],
+
+        'vending_small' => [
+            'label' => 'Vending APK (Small / No-Touch)',
+            // LOGICAL identifier, not a real applicationId. mark1-apk-small shares
+            // applicationId "com.venderroute" with the touchscreen build (so installs
+            // upgrade in place), which makes the real package USELESS for routing:
+            // package-first resolution would hand these no-touchscreen boards the
+            // touchscreen APK, and same-package + same-signer means every on-device
+            // gate would pass. The small OTA client therefore reports this constant
+            // (OtaCoordinator.OTA_CHANNEL_PACKAGE) in ?package= instead. The two
+            // versionCode streams (13x here, 30x on vending) must never be merged.
+            'package_name' => env('OTA_PACKAGE_VENDING_SMALL', 'com.venderroute.small'),
+            // No vend_model claim: E/F/DDVM/eDVM models span BOTH board families, so
+            // vend model cannot identify this fleet (verified live 2026-08-06). Fleet
+            // panel + push-OTA-check scope by the board family the APK itself reports
+            // in PWRON telemetry instead. Serving NEVER depends on this — routing is
+            // package-only for this channel.
+            'device_types' => ['ZC-83A'],
+            'vend_model' => null,
+            'storage_folder' => 'sys/vends/apk/vending-small',
         ],
 
         'smart_freezer' => [

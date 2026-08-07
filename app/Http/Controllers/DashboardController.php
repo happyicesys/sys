@@ -499,7 +499,11 @@ class DashboardController extends Controller
     private function getSalesComparisonGraph(Request $request, array $testingVendIds)
     {
         if ($request->month_year) {
-            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year)->setTimezone($this->getUserTimezone())->startOfMonth();
+            // Parse directly IN the user's timezone (3rd arg) - parsing in app tz
+            // and then setTimezone() could shift day 1 into the previous month for
+            // operators behind app tz (e.g. Bangkok). '-01' pins the day so short
+            // months can't overflow when today is the 29th-31st.
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01', $this->getUserTimezone())->startOfMonth();
         } else {
             $baseDate = Carbon::today()->setTimezone($this->getUserTimezone())->startOfMonth();
         }
@@ -636,7 +640,8 @@ class DashboardController extends Controller
     private function getDayGraph(Request $request, array $testingVendIds)
     {
         if ($request->month_year) {
-            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year)->setTimezone($this->getUserTimezone());
+            // In the user's tz from the start (see getSalesComparisonGraph note).
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01', $this->getUserTimezone());
             $day_date_from = $baseDate->copy()->startOfMonth();
             $day_date_to = $baseDate->copy()->endOfMonth();
         } else {
@@ -885,7 +890,7 @@ class DashboardController extends Controller
         $yearsBack = max(2, min(3, (int) ($request->years_back ?? 2)));
 
         if ($request->month_year) {
-            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year);
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01');
             $thisYear = $baseDate->copy()->endOfYear();
             $lastYear = $baseDate->copy()->subYears($yearsBack - 1)->startOfYear();
             $compareYear = $baseDate->year;
@@ -1041,7 +1046,7 @@ class DashboardController extends Controller
         $yearsBack = max(2, min(3, (int) ($request->years_back ?? 2)));
 
         if ($request->month_year) {
-            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year);
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01');
             $thisYear = $baseDate->copy()->endOfYear();
             $lastYear = $baseDate->copy()->subYears($yearsBack - 1)->startOfYear();
             $compareYear = $baseDate->year;
@@ -1191,7 +1196,7 @@ class DashboardController extends Controller
     private function getMonthlyAnalytics(Request $request, $allMonths = null)
     {
         if ($request->month_year) {
-            $baseDate = Carbon::createFromFormat('Y-m', $request->month_year);
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01');
             $monthlyDateFrom = $baseDate->copy()->startOfYear()->startOfDay();
             $monthlyDateTo = $baseDate->copy()->endOfYear()->endOfDay();
             $currentMonthNumber = $baseDate->month;
@@ -1275,6 +1280,13 @@ class DashboardController extends Controller
             $request->locationType,
             $request->month_year,
             $request->years_back,
+            // Every filter the underlying queries honour must be in the key -
+            // omitting one serves another filter-combination's numbers from
+            // cache for up to 5 minutes.
+            $request->categories,
+            $request->categoryGroups,
+            $request->is_binded_customer,
+            $request->visited,
         ], $extra)));
     }
 

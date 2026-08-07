@@ -7,6 +7,18 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 /**
+ * SUPERSEDED - DO NOT RUN. Kept only as a record of what was granted and why.
+ *
+ * RolePermissionSyncSeeder is the single source of truth for roles and
+ * permissions. It rebuilds the entire set from its own table, so anything this
+ * seeder grants is silently undone the next time that one runs. To change
+ * access, amend RolePermissionSyncSeeder's $permissionsData instead.
+ *
+ * The role itself no longer needs a seeder either: RolePermissionSyncSeeder
+ * now creates any role its tuples name, so 'prod_owner' is created on the spot.
+ */
+
+/**
  * "Prod Owner" — the role the permission sheet's Prod Owner column describes.
  *
  * It had no counterpart in the app: the sheet grants that column Dashboard

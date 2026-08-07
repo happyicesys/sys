@@ -820,7 +820,8 @@ function deleteCustomer(customerID) {
   form.value
     .delete('/customers/' + customerID, {
     onSuccess: () => {
-      router.push('/customers')
+      // Inertia's router has no push() - visit() is the correct API.
+      router.visit('/customers')
     },
     preserveState: true,
     replace: true,
@@ -902,16 +903,10 @@ function saveVend(vendID) {
 }
 
 function submit() {
-  form.value.clearErrors()
-
-  form.value
-    .post('/customers/' + form.value.id + '/update', {
-    onSuccess: () => {
-      emit('modalClose')
-    },
-    preserveState: true,
-    replace: true,
-  })
+  // Implicit form submissions (Enter key / a submit-typed button) used to
+  // post the raw form to '/customers//update' (form.id is '' on Create) and
+  // then crash on an undefined `emit`. Route them through the real create.
+  saveCustomer()
 }
 
 // ── "Pull from CMS" — on-demand, ONE-WAY CMS → form fill ──────────────────

@@ -1429,6 +1429,9 @@ function getCancelledCount() {
 
 // reload opsJob when modal opened
 function onChannelClicked(obj) {
+  // Select the item and open the modal from the FRESH data inside onSuccess -
+  // doing it synchronously (as before) picked the item off the pre-reload
+  // opsJob, so the modal showed stale quantities until closed and reopened.
   router.reload({
     only: ['opsJob'],
     data: {
@@ -1438,11 +1441,22 @@ function onChannelClicked(obj) {
     preserveState: true,
     onSuccess: page => {
       opsJob.value = props.opsJob ? props.opsJob.data : null
+      const fresh = opsJob.value ? opsJob.value.opsJobItems.find(item => item.id === obj.id) : null
+      if (!fresh) {
+        // Item vanished between click and reload (cancelled/deleted elsewhere)
+        // - the refreshed table no longer shows it, so don't open an empty modal.
+        return
+      }
+      opsJobItemModel.value = fresh
+      showChannelModal.value = true
+    },
+    onError: () => {
+      // Reload failed (network blip, expired session): fall back to the
+      // pre-reload data rather than silently swallowing the click.
+      opsJobItemModel.value = opsJob.value ? opsJob.value.opsJobItems.find(item => item.id === obj.id) : null
+      showChannelModal.value = true
     }
   })
-  // get the opsJobItem where obj is the opsJobItem
-    opsJobItemModel.value = opsJob.value.opsJobItems.find(item => item.id === obj.id)
-    showChannelModal.value = true
 }
 
 function onChannelClosed() {
@@ -1672,7 +1686,10 @@ function rowMappingRemarks(row) {
     return row.frozen_mapping_remarks
   }
   if (row.vend && (row.vend.upcomingProductMapping || (row.vend.productMapping && row.vend.productMapping.upcomingProductMapping))) {
-    return (row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping).remarks
+    const obj = row.vend.upcomingProductMapping || row.vend.productMapping.upcomingProductMapping
+    // 'N/A' is the placeholder mapping = "no upcoming" (same guard as
+    // CustomerIndex's getUpcomingMapping) - don't surface its remarks.
+    return obj.name !== 'N/A' ? obj.remarks : null
   }
   return null
 }
@@ -1685,10 +1702,18 @@ function rowMappingCurrent(row) {
   return row.vend && row.vend.productMapping ? row.vend.productMapping.name : ''
 }
 function rowMappingUpcoming(row) {
-  if (row.frozen_at) return row.frozen_mapping_upcoming_direct || row.frozen_mapping_upcoming_via_current || ''
+  // 'N/A' is the placeholder mapping = "no upcoming" (same guard as
+  // CustomerIndex's getUpcomingMapping / lastJobMappingUpcoming).
+  if (row.frozen_at) {
+    const direct = row.frozen_mapping_upcoming_direct
+    const via = row.frozen_mapping_upcoming_via_current
+    if (direct && direct !== 'N/A') return direct
+    if (via && via !== 'N/A') return via
+    return ''
+  }
   if (!row.vend) return ''
   const obj = row.vend.upcomingProductMapping || (row.vend.productMapping && row.vend.productMapping.upcomingProductMapping)
-  return obj ? obj.name : ''
+  return (obj && obj.name !== 'N/A') ? obj.name : ''
 }
 
 // Machine channel-error logs for a row — frozen rows read the snapshot copy

@@ -986,6 +986,15 @@ trait HasFilter
             ->when($request->categoryGroups, function ($query, $search) {
                 $query->whereIn('category_groups.id', $search);
             })
+            // "#Refill per Week" - the Ops Dashboard sends this on search AND on
+            // the channels excel export; without this clause the export silently
+            // ignored the filter. Accepts scalar or array, mirroring
+            // Customer::scopeFilterIndex's whereIn.
+            ->when($request->frequency_per_week_status, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereIn('customers.frequency_per_week_status', is_array($search) ? $search : [$search]);
+                }
+            })
             ->when($request->fan_rpm !== null && $request->fan_rpm !== '' && $request->fan_rpm !== 'all', function ($query) use ($request) {
                 $search = $request->fan_rpm;
                 if ($search == '0') {

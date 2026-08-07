@@ -1,133 +1,67 @@
 <?php
 
 namespace App\Services;
-use Carbon\Carbon;
 
+use App\ValueObjects\ApkSettingParameters;
+
+/**
+ * Thin facade kept for the existing call sites (ApkSettingController,
+ * SettingController::updateParameter). The schema itself — keys, defaults,
+ * legacy null rules, canonical order — now lives in ONE place:
+ * App\ValueObjects\ApkSettingParameters. Add new settings there, not here.
+ */
 class VendParameterService
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function getDefaultParameter()
     {
-        // enableHeaderTextRunning
-        // enablePromoRunningText
-        // runningTextStartDate
-        // runningTextEndDate
-        $parameters = [
-            'enablePromoHeaderText' => false,
-            'promoHeaderText' => null,
-            'promoBannerKind' => 'video',
-            'headerTextStartDate' => null,
-            'headerTextEndDate' => null,
-
-            'promoRunningText' => null,
-
-            'enableP2Price' => false,
-            'disableP1P2CrossGrp' => false,
-
-            'enableBuy1Free1' => false,
-            'buy1free1X' => 0,
-            'buy1free1Y' => 0,
-            'buy1free1StartDate' => null,
-            'buy1free1EndDate' => null,
-
-            'enableBuy2Free1' => false,
-            'buy2free1X' => 1,
-            'buy2free1Y' => 0,
-            'buy2free1StartDate' => null,
-            'buy2free1EndDate' => null,
-
-            'enableBundleDiscount' => false,
-            'bundleStartDate' => null,
-            'bundleEndDate' => null,
-            'enableDiscount01' => true,
-            'discountPercent01' => 1,
-            'enableDiscount02' => false,
-            'discountPercent02' => 1,
-            'enableDiscount03' => false,
-            'discountPercent03' => 1,
-
-            'enableLabelPromo' => false,
-            'labelPromoStartDate' => null,
-            'labelPromoEndDate' => null,
-
-            'bannerKind' => 'picture',
-            'supportContactNum' => '87188597',
-            'poweredBy' => 'Powered By Happy Ice',
-
-            'selectedPricingSource' => 'machine',
-
-            'enableDebugMode' => false,
-
-            "dcvendFreePlanPromoValue" => 15,
-            "dcvendGoldPlanPromoValue" => 30,
-            "dcvendPlatinumPlanPromoValue" => 30,
-
-            'company_url' => null,
-            'company_address' => null,
-            'refund_url' => null,
-            'companyName' => null,
-        ];
-
-        return $parameters;
+        return ApkSettingParameters::defaults()->toArray();
     }
 
+    /**
+     * Normalize an arbitrary input array (request payload, legacy row) into
+     * the full canonical parameter set. Unlike the old hand-written mapping,
+     * a missing key no longer throws "Undefined array key" — it falls back
+     * to the schema default.
+     *
+     * @param array<string, mixed>|null $parameters
+     * @return array<string, mixed>
+     */
     public function getCampaignParameter($parameters)
     {
-        $settings = [
-            'enablePromoHeaderText' => $parameters['enablePromoHeaderText'],
-            'promoHeaderText' => $parameters['promoHeaderText'],
-            'promoBannerKind' => $parameters['promoBannerKind'],
-            'headerTextStartDate' => $parameters['headerTextStartDate'],
-            'headerTextEndDate' => $parameters['headerTextEndDate'],
+        return ApkSettingParameters::fromArray($parameters)->toArray();
+    }
 
-            'promoRunningText' => $parameters['promoRunningText'],
-
-            'enableP2Price' => $parameters['enableP2Price'],
-            'disableP1P2CrossGrp' => $parameters['disableP1P2CrossGrp'],
-
-            'enableBuy1Free1' => $parameters['enableBuy1Free1'],
-            'buy1free1X' => $parameters['buy1free1X'] ?? -1,
-            'buy1free1Y' => $parameters['buy1free1Y'] ?? -1,
-            'buy1free1StartDate' => $parameters['buy1free1StartDate'],
-            'buy1free1EndDate' => $parameters['buy1free1EndDate'],
-
-            'enableBuy2Free1' => $parameters['enableBuy2Free1'],
-            'buy2free1X' => $parameters['buy2free1X'] ?? -1,
-            'buy2free1Y' => $parameters['buy2free1Y'] ?? -1,
-            'buy2free1StartDate' => $parameters['buy2free1StartDate'],
-            'buy2free1EndDate' => $parameters['buy2free1EndDate'],
-
-            'enableBundleDiscount' => $parameters['enableBundleDiscount'],
-            'bundleStartDate' => $parameters['bundleStartDate'],
-            'bundleEndDate' => $parameters['bundleEndDate'],
-            'enableDiscount01' => $parameters['enableDiscount01'],
-            'discountPercent01' => $parameters['discountPercent01'],
-            'enableDiscount02' => $parameters['enableDiscount02'],
-            'discountPercent02' => $parameters['discountPercent02'],
-            'enableDiscount03' => $parameters['enableDiscount03'],
-            'discountPercent03' => $parameters['discountPercent03'],
-
-            'enableLabelPromo' => $parameters['enableLabelPromo'],
-            'labelPromoStartDate' => $parameters['labelPromoStartDate'],
-            'labelPromoEndDate' => $parameters['labelPromoEndDate'],
-
-            'bannerKind' => $parameters['bannerKind'],
-            'supportContactNum' => $parameters['supportContactNum'],
-            'poweredBy' => $parameters['poweredBy'],
-
-            'selectedPricingSource' => $parameters['selectedPricingSource'],
-
-            'enableDebugMode' => $parameters['enableDebugMode'],
-
-            "dcvendFreePlanPromoValue" => $parameters['dcvendFreePlanPromoValue'],
-            "dcvendGoldPlanPromoValue" => $parameters['dcvendGoldPlanPromoValue'],
-            "dcvendPlatinumPlanPromoValue" => $parameters['dcvendPlatinumPlanPromoValue'],
-
-            'company_url' => $parameters['company_url'] ?? null,
-            'company_address' => $parameters['company_address'] ?? null,
-            'refund_url' => $parameters['refund_url'] ?? null,
-            'companyName' => $parameters['companyName'] ?? null,
-        ];
-
-        return $settings;
+    /**
+     * Normalize an UPDATE payload against the row it is updating.
+     *
+     * Use this, not getCampaignParameter(), whenever an existing record is
+     * being saved. A key absent from the payload keeps its CURRENT stored
+     * value instead of snapping back to the schema default.
+     *
+     * Why it matters: vends.settings_parameter_json carries 30 of the 42
+     * canonical keys on all 1115 live rows - 16 are simply not there, and no
+     * form posts them. Normalizing against DEFAULTS alone therefore rewrites
+     * them on every save, including selectedPricingSource, which would flip a
+     * server-priced machine to 'machine' the moment somebody edited a banner
+     * and then publish TYPESYNCSETTINGSPARAM to it. (Before the value object
+     * this path threw "Undefined array key" and wrote nothing, which is why
+     * the hazard is new rather than long-standing.)
+     *
+     * Defaults still apply to any key present in NEITHER the payload nor the
+     * stored row, so a genuinely new setting self-heals exactly as before.
+     *
+     * @param array<string, mixed>|null $existing  the row's current value
+     * @param array<string, mixed>|null $parameters  the incoming payload
+     * @return array<string, mixed>
+     */
+    public function mergeCampaignParameter($existing, $parameters)
+    {
+        return ApkSettingParameters::fromArray(array_merge(
+            is_array($existing) ? $existing : [],
+            is_array($parameters) ? $parameters : []
+        ))->toArray();
     }
 }

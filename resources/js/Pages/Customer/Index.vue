@@ -1135,6 +1135,9 @@ function onExportExcelClicked() {
       vendConfigs: filters.value.vendConfigs.map((vc) => vc.id),
       vendPrefixes: filters.value.vendPrefixes.map((vp) => vp.id),
       zones: filters.value.zones.map((z) => z.id),
+      // Ship bare tag ids like the search does - the spread above would send
+      // the raw {id, name} objects, which the backend's whereIn can't bind.
+      tags: (filters.value.tags ?? []).map((tag) => tag.id),
     },
     responseType: 'blob',
   }).then(response => {

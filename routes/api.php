@@ -39,6 +39,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/binded-vends', [VendDataController::class , 'getBindedVends']);
         Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class , 'getPaymentMerchantsApi']);
         Route::post('/vends/{id}/upload-log', [VendDataController::class , 'uploadLog']);
+        // Device -> mark1 screen capture upload. Unauthenticated like every other
+        // endpoint in this group (the APK holds no credential); the single-use
+        // token minted by VendScreenshotController::request() is the control.
+        Route::post('/vends/{code}/screenshot', [\App\Http\Controllers\VendScreenshotController::class, 'upload']);
         Route::post('/content/vends/{code}', [VendDataController::class , 'getVendMediaContent']);
 
     });

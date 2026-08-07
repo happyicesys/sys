@@ -88,6 +88,12 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
         return ProductAccess::allows($this->allowedProductIds, $productId) ? $value : '';
     }
 
+    /** See ExportVendTransactionCsv::allowsItem(). */
+    protected function allowsItem($item): bool
+    {
+        return ProductAccess::allowsItem($this->allowedProductIds, $item);
+    }
+
     public function handle()
     {
         $job = ExportJob::find($this->jobId);
@@ -106,8 +112,8 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
         try {
             $request = new Request($this->requestData);
             $request->merge([
-                'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone(env('APP_TIMEZONE'))->startOfDay() : Carbon::today()->setTimezone(env('APP_TIMEZONE'))->startOfDay(),
-                'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone(env('APP_TIMEZONE'))->endOfDay() : Carbon::today()->setTimezone(env('APP_TIMEZONE'))->endOfDay(),
+                'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone(config('app.timezone'))->startOfDay() : Carbon::today()->setTimezone(config('app.timezone'))->startOfDay(),
+                'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone(config('app.timezone'))->endOfDay() : Carbon::today()->setTimezone(config('app.timezone'))->endOfDay(),
                 'sortKey' => $request->sortKey ?? 'transaction_datetime',
                 'sortBy' => $request->sortBy ?? false
             ]);
@@ -250,7 +256,8 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
 
                     // Pull items for this chunk (unchanged)
                     $items = VendTransactionItem::with([
-                        'vendChannel:id,code,amount',
+                        // product_id: fallback for ProductAccess::itemProductId().
+                        'vendChannel:id,code,amount,product_id',
                         'product:id,code,name',
                         'unitCost:id,cost',
                         'vendChannelError:id,code,desc',
@@ -441,6 +448,11 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 || (filled($item->vend_channel_code)
                                     && in_array((string) $item->vend_channel_code, $refundTargetChannelCodes, true))
                             );
+
+                            // "Access Product(s)": see allowsItem(). The row is still
+                            // written - only its product identity and money are dropped.
+                            $itemAllowed = $this->allowsItem($item);
+
                             fputcsv($stream, [
                                 $orderIdCell,
                                 \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
@@ -449,16 +461,17 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 $txn->customer_id + 20000,
                                 $txn->customer_id + 20000,
                                 $txn->customer_name,
+                                // Channel stays: it is the machine slot, not a product.
                                 (int) $item->vend_channel_code,
-                                $item->product->code ?? '',
-                                $item->product->name ?? '',
-                                'P1',
+                                $itemAllowed ? ($item->product->code ?? '') : '',
+                                $itemAllowed ? ($item->product->name ?? '') : '',
+                                $itemAllowed ? 'P1' : '',
                                 '',
-                                $item->vendChannel ? $item->vendChannel->amount / 100 : '',
-                                $this->maskedUnitCost(
-                                    $item->product_id,
-                                    $item->unitCost ? $item->unitCost->cost : ''
-                                ),
+                                $itemAllowed
+                                    ? ($item->vendChannel ? $item->vendChannel->amount / 100 : '')
+                                    : '',
+                                // Same predicate as every other cell on this row.
+                                $itemAllowed ? ($item->unitCost ? $item->unitCost->cost : '') : '',
                                 '',
                                 '', // Cashless Mfg empty for item rows
                                 $item->vendChannelError->code ?? '',

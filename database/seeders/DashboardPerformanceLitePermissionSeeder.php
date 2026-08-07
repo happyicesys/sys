@@ -8,6 +8,15 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
+ * SUPERSEDED - DO NOT RUN. Kept only as a record of what was granted and why.
+ *
+ * RolePermissionSyncSeeder is the single source of truth for roles and
+ * permissions. read/export dashboard-performance-lite and its role grants are
+ * declared there; this file's grants are silently undone the next time that
+ * seeder runs. Amend RolePermissionSyncSeeder's $permissionsData instead.
+ */
+
+/**
  * Dashboard > Performance (Lite) — production-safe permission rollout.
  *
  * WHY THIS EXISTS RATHER THAN JUST RUNNING RolePermissionSyncSeeder

@@ -68,6 +68,24 @@
                   disabled
                 />
               </div>
+              <!--
+                Remote screen capture. ONE frame per click - no streaming, and the
+                machine shows nothing at all while it is taken. Nothing is stored:
+                the image is held in the server cache for 10 minutes and served
+                back through a permission-checked endpoint, never a public URL.
+              -->
+              <div class="mt-2" v-if="vend && vend.code && permissions.includes('update machine-settings')">
+                <Button
+                  type="button"
+                  class="!text-xs"
+                  :disabled="screenshotBusy"
+                  @click="openScreenshot()"
+                  v-tooltip="'Ask this machine for one screenshot of what it is showing right now. The machine shows nothing while it is taken.'"
+                >
+                  <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
+                  {{ screenshotBusy ? 'Waiting for machine...' : 'View Screen' }}
+                </Button>
+              </div>
             </div>
             <div class="sm:col-span-4">
               <FormInput v-model="form.label_name" :error="form.errors.label_name">
@@ -1354,6 +1372,49 @@
       </div>
     </div>
   </div>
+
+  <!-- Remote screen capture result. The <img> src points at a permission-checked
+       endpoint, not a public URL, and the server sends no-store so it never lands
+       in a shared cache. -->
+  <Modal :open="screenshotModalOpen" @modalClose="closeScreenshot()">
+    <template #header>
+      Machine Screen - #{{ vend ? vend.code : '' }}
+    </template>
+
+    <div class="flex flex-col items-center">
+      <div v-if="screenshotState === 'pending'" class="py-16 flex flex-col items-center text-gray-600">
+        <ArrowPathIcon class="w-10 h-10 animate-spin text-sky-500" />
+        <p class="mt-4 text-base">Asking the machine...</p>
+        <p class="mt-1 text-sm text-gray-400">Nothing appears on the machine's own screen.</p>
+      </div>
+
+      <div v-else-if="screenshotState === 'timeout'" class="py-16 flex flex-col items-center text-gray-600">
+        <ExclamationCircleIcon class="w-10 h-10 text-amber-500" />
+        <p class="mt-4 text-base">The machine did not answer.</p>
+        <p class="mt-1 text-sm text-gray-400 text-center max-w-md">
+          It may be offline, or on a build that does not support screen capture yet.
+        </p>
+      </div>
+
+      <div v-else-if="screenshotState === 'ready'" class="w-full flex flex-col items-center">
+        <img
+          :src="screenshotUrl"
+          alt="Machine screen"
+          class="max-h-[70vh] w-auto rounded border border-gray-300 shadow-sm"
+        />
+        <p class="mt-3 text-xs text-gray-500">
+          Captured {{ screenshotCapturedAt }} - held for 10 minutes, then discarded. Not stored.
+        </p>
+      </div>
+
+      <div class="mt-5 flex justify-end w-full">
+        <Button type="button" :disabled="screenshotBusy" @click="openScreenshot()">
+          <ArrowPathIcon v-if="screenshotBusy" class="w-4 h-4 mr-1 animate-spin" />
+          Capture again
+        </Button>
+      </div>
+    </div>
+  </Modal>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -1365,10 +1426,11 @@ import DatePicker from '@/Components/DatePicker.vue';
 
 import FormInput from '@/Components/FormInput.vue';
 import FieldAudit from '@/Components/FieldAudit.vue';
+import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon, XMarkIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted, computed, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
 import { useToast } from "vue-toastification";
@@ -1447,6 +1509,111 @@ const serverPriceTypeOptions = ref([])
 const simcardOptions = ref([])
 const upcomingProductMappingOptions = ref([])
 const toast = useToast()
+
+// ── Remote screen capture ────────────────────────────────────────────────────
+// One frame per click. The server publishes a SCREENSHOT frame on the machine's
+// MQTT command topic with a single-use token, the machine captures silently and
+// POSTs the image back, and we poll until it lands. Nothing is persisted: the
+// server holds the bytes in cache for 10 minutes and serves them through a
+// permission-checked endpoint.
+const screenshotModalOpen = ref(false)
+const screenshotBusy = ref(false)
+const screenshotState = ref('idle')   // idle | pending | ready | timeout
+const screenshotUrl = ref(null)
+const screenshotCapturedAt = ref(null)
+let screenshotPoll = null
+let screenshotDeadline = 0
+
+function stopScreenshotPoll() {
+  if (screenshotPoll) {
+    clearInterval(screenshotPoll)
+    screenshotPoll = null
+  }
+}
+
+function closeScreenshot() {
+  screenshotModalOpen.value = false
+  stopScreenshotPoll()
+  screenshotBusy.value = false
+  // Drop the reference so the browser stops holding the image once the operator
+  // is done looking at it.
+  screenshotUrl.value = null
+  screenshotState.value = 'idle'
+}
+
+function openScreenshot() {
+  if (!props.vend || !props.vend.id || screenshotBusy.value) {
+    return
+  }
+
+  screenshotModalOpen.value = true
+  screenshotState.value = 'pending'
+  screenshotUrl.value = null
+  screenshotBusy.value = true
+
+  axios.post(`/vends/${props.vend.id}/screenshot`)
+    .then(() => {
+      // Give the machine two minutes: the MQTT round trip plus a capture and an
+      // upload over cellular. The server's token expires on the same schedule.
+      screenshotDeadline = Date.now() + 120000
+      stopScreenshotPoll()
+      screenshotPoll = setInterval(pollScreenshot, 2000)
+    })
+    .catch((e) => {
+      screenshotBusy.value = false
+      const msg = e?.response?.data?.message
+      if (e?.response?.status === 429) {
+        // Server-side cooldown. The machine is fine - we simply asked too soon,
+        // so don't tell the operator it failed to answer.
+        screenshotState.value = 'idle'
+        screenshotModalOpen.value = false
+        toast.info(msg || 'Give the machine a few seconds before asking again.')
+        return
+      }
+      screenshotState.value = 'timeout'
+      toast.error(msg || 'Could not ask the machine for a screenshot.')
+    })
+}
+
+// A modal left open while the operator navigates away would otherwise leave
+// setInterval running against a dead component.
+onUnmounted(() => {
+  stopScreenshotPoll()
+})
+
+function pollScreenshot() {
+  if (!props.vend || !props.vend.id) {
+    return
+  }
+
+  if (Date.now() > screenshotDeadline) {
+    stopScreenshotPoll()
+    screenshotBusy.value = false
+    screenshotState.value = 'timeout'
+    return
+  }
+
+  axios.get(`/vends/${props.vend.id}/screenshot`)
+    .then(({ data }) => {
+      if (data.status === 'ready') {
+        stopScreenshotPoll()
+        screenshotBusy.value = false
+        screenshotUrl.value = data.image_url
+        screenshotCapturedAt.value = data.captured_at
+        screenshotState.value = 'ready'
+      } else if (data.status === 'timeout') {
+        stopScreenshotPoll()
+        screenshotBusy.value = false
+        screenshotState.value = 'timeout'
+      }
+      // 'pending' -> keep waiting
+    })
+    .catch(() => {
+      stopScreenshotPoll()
+      screenshotBusy.value = false
+      screenshotState.value = 'timeout'
+    })
+}
 const vendChannels = ref([]);
 const originalVendChannels = ref([]);
 const selectedProductMapping = ref(props.selectedProductMapping ?? null);

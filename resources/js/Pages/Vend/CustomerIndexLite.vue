@@ -2843,7 +2843,7 @@ axios({
 				delivery_platform_id: filters.value.delivery_platform_id.id,
 				deviceType: filters.value.deviceType.id,
 				errors: filters.value.errors.map((error) => { return error.id }),
-				frequency_per_week_status: filters.value.frequency_per_week_status.id,
+				frequency_per_week_status: filters.value.frequency_per_week_status.map((frequency) => { return frequency.id }),
 				location_type_id: filters.value.locationType.id,
 				operators: filters.value.operators.map((operator) => { return operator.id }),
 				preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),

@@ -1100,7 +1100,6 @@ const showAllFilters = ref(false)
 let intervalId = null;
 
 onMounted(() => {
-    console.log(props.vendTransactions)
     // intervalId = setInterval(fetchLatestExports, 15000);
     filters.value.visited = true
     vendChannelErrorOptions.value = [

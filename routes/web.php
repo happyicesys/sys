@@ -60,6 +60,7 @@ use App\Http\Controllers\McpOAuthController;
 use App\Http\Controllers\OpsPerformanceController;
 use App\Http\Controllers\SiteGroupingController;
 use App\Http\Controllers\VendController;
+use App\Http\Controllers\VendScreenshotController;
 use App\Http\Controllers\VendConfigController;
 use App\Http\Controllers\VendContractController;
 use App\Http\Controllers\VendChannelErrorController;
@@ -563,10 +564,13 @@ Route::middleware(['auth', 'cors'])->group(function () {
     });
 
     Route::prefix('reports')->group(function () {
-        Route::get('/sales/{type}/excel', [ReportController::class, 'exportSalesExcel']);
         // "Access Product(s)": the historical leg of this report reads vend_records
         // directly (grain = date x machine, no product dimension), so it cannot be
-        // honestly filtered - see BlockWhenProductRestricted.
+        // honestly filtered - see BlockWhenProductRestricted. The excel export runs
+        // the SAME query (getSalesQuery), so it carries the same guard - without it
+        // a restricted viewer could pull whole-machine revenue via the direct URL.
+        Route::get('/sales/{type}/excel', [ReportController::class, 'exportSalesExcel'])
+            ->middleware('product.unrestricted');
         Route::get('/sales/{type}', [ReportController::class, 'indexSales'])
             ->middleware('product.unrestricted');
 
@@ -865,6 +869,23 @@ Route::middleware(['auth', 'cors'])->group(function () {
         // stripWholeMachineMoney() the page itself uses.
         Route::post('/customers/aggregates', [VendController::class, 'customerIndexAggregates'])
             ->name('vends.customer.aggregates');
+
+        // Remote screen capture — Setting > Edit > "View Screen". ONE frame per
+        // deliberate click; nothing is stored (see VendScreenshotController).
+        // Permission is enforced in the controller, and re-checked on every
+        // image() fetch, because a machine screen can show a customer's QR
+        // payment or member details.
+        Route::post('/{vend}/screenshot', [VendScreenshotController::class, 'request'])
+            ->name('vends.screenshot.request')
+            ->middleware('can:update machine-settings');
+        Route::get('/{vend}/screenshot', [VendScreenshotController::class, 'latest'])
+            ->name('vends.screenshot.latest')
+            ->middleware('can:update machine-settings');
+        // Gated on every fetch, not just once - this is why the image is served
+        // here instead of from a public Spaces URL.
+        Route::get('/{vend}/screenshot/image', [VendScreenshotController::class, 'image'])
+            ->name('vends.screenshot.image')
+            ->middleware('can:update machine-settings');
         // Operations > Dashboard (Lite) — glance view of the same Operation
         // Dashboard rows for retail operators: identity, temperatures,
         // inventory status and rolling Sales(qty) only. Shares

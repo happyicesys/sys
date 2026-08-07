@@ -132,11 +132,43 @@ class OtaChannelResolver
     /**
      * The channel that owns every vend model no other channel claims, or null when
      * every channel is explicitly scoped.
+     *
+     * A channel scoped by device_types (e.g. vending_small) also has vend_model null
+     * — because no vend model can identify its fleet — but it is explicitly scoped,
+     * not a catch-all, so it is skipped here regardless of config order.
      */
     public function catchAllChannel(): ?string
     {
         foreach ($this->all() as $key => $cfg) {
-            if (($cfg['vend_model'] ?? null) === null) {
+            // array_filter, matching scopeFleet() and forDeviceType(): a typo'd
+            // ['device_types' => ['']] must not read as "scoped" here while
+            // reading as "unscoped" there.
+            $types = array_values(array_filter((array) ($cfg['device_types'] ?? [])));
+
+            if (($cfg['vend_model'] ?? null) === null && $types === []) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Channel that claims this board family (apk_ver_json.deviceType), or null.
+     *
+     * Uses the same array_filter form as scopeFleet() so a typo'd config like
+     * ['device_types' => ['']] is treated identically by both.
+     */
+    public function forDeviceType(?string $deviceType): ?string
+    {
+        if ($deviceType === null || $deviceType === '') {
+            return null;
+        }
+
+        foreach ($this->all() as $key => $cfg) {
+            $types = array_values(array_filter((array) ($cfg['device_types'] ?? [])));
+
+            if ($types !== [] && in_array($deviceType, $types, true)) {
                 return $key;
             }
         }
@@ -146,13 +178,44 @@ class OtaChannelResolver
 
     /**
      * Full resolution for a polling device: reported package first, then the vend's
-     * model, then the configured default.
+     * model, then the configured default — with a board-family BACKSTOP.
+     *
+     * The backstop exists because the vending / vending_small split rests entirely
+     * on one string constant inside the APK (OtaCoordinator.OTA_CHANNEL_PACKAGE).
+     * Both builds ship the real applicationId "com.venderroute", so if a no-touch
+     * board polls WITHOUT that constant — an older build, a build predating the
+     * constant, a hand-sideloaded one — package routing cannot see it, forVend()
+     * finds no vend_model claim, and it lands on the catch-all and is offered the
+     * TOUCHSCREEN build. Same applicationId and same signer means every on-device
+     * gate passes and it installs in place.
+     *
+     * Live as of 2026-08-06: 222 active ZC-83A boards, `vending` publishes v308 at
+     * rollout 1000, `vending_small` has no release yet. None of those 222 has ever
+     * checked in, so this is latent rather than live — it arms the day the first
+     * small build carrying an OTA client is installed.
+     *
+     * Deliberately narrow, and it can only ever WITHHOLD a build, never offer a new
+     * one: it applies solely when the device's own reported board family is claimed
+     * by a channel, and only redirects AWAY from a channel that does not claim it.
+     * A device reporting the small package still routes by package exactly as
+     * before; a board family no channel claims (ZC-328, INPAD3101, or a vend with
+     * no apk_ver_json) is untouched.
      */
     public function resolve(?string $package, ?Vend $vend = null): string
     {
-        return $this->forPackage($package)
+        $channel = $this->forPackage($package)
             ?? $this->forVend($vend)
             ?? $this->default();
+
+        $claimedByBoard = $this->forDeviceType(
+            $vend?->apk_ver_json['deviceType'] ?? null
+        );
+
+        if ($claimedByBoard !== null && $claimedByBoard !== $channel) {
+            return $claimedByBoard;
+        }
+
+        return $channel;
     }
 
     /**
@@ -170,13 +233,27 @@ class OtaChannelResolver
     /**
      * Constrain a Vend query to the fleet belonging to one channel.
      *
-     * An explicitly-scoped channel matches its vend model by name; the catch-all
-     * channel matches everything the others do not claim (including vends with no
-     * model row at all).
+     * A device_types channel matches on the board family the APK itself reports
+     * (apk_ver_json.deviceType, from PWRON telemetry) — used where vend models span
+     * more than one fleet. An explicitly-scoped channel matches its vend model by
+     * name; the catch-all channel matches everything the others do not claim by
+     * VEND MODEL (including vends with no model row at all). Deliberately, the
+     * catch-all does NOT subtract device_types fleets: those machines stay visible
+     * on the existing vending tab exactly as before — the device_types channel is
+     * an additional, sharper view, and push-OTA-check overlap is harmless because a
+     * device only ever polls (and is served from) its own package-routed channel.
      */
     public function scopeFleet(Builder $query, string $channel): Builder
     {
-        $modelName = $this->config($channel)['vend_model'] ?? null;
+        $cfg = $this->config($channel);
+
+        $deviceTypes = array_values(array_filter((array) ($cfg['device_types'] ?? [])));
+
+        if ($deviceTypes !== []) {
+            return $query->whereIn('apk_ver_json->deviceType', $deviceTypes);
+        }
+
+        $modelName = $cfg['vend_model'] ?? null;
 
         if ($modelName !== null) {
             return $query->whereHas('vendModel', fn ($q) => $q->where('name', $modelName));

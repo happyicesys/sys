@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\AsApkSettingParameters;
 use App\Models\Scopes\OperatorApkSettingScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,7 +28,11 @@ class ApkSetting extends Model
     ];
 
     protected $casts = [
-        'settings_parameter_json' => 'json',
+        // Read-heals rows saved before newer settings existed (missing keys
+        // get schema defaults) and whitelists on write. See
+        // App\ValueObjects\ApkSettingParameters — the single place to add a
+        // new setting key.
+        'settings_parameter_json' => AsApkSettingParameters::class,
     ];
 
     public function campaignImages()

@@ -2550,7 +2550,9 @@ function deleteCustomer(customerID) {
 
   form.value.delete('/customers/' + customerID, {
     onSuccess: () => {
-      router.push('/customers');
+      // Inertia's router has no push() - visit() is the correct API. push()
+      // threw a TypeError in the success callback on every delete.
+      router.visit('/customers');
     },
     preserveState: true,
     replace: true,
@@ -2691,7 +2693,10 @@ function saveCustomer(customerID) {
         preserveState: true,
         onSuccess: () => {
           customer.value = props.customer;
-          vendChannels.value = props.customer.vend.vend_channels;
+          // Null-safe: a site with no machine bound has vend = null (same
+          // guard as onMounted) - without it this callback threw and the
+          // "Successfully Saved" toast never appeared.
+          vendChannels.value = props.customer?.vend?.vend_channels ?? [];
           vendChannels.value = [...vendChannels.value];
           toast.success("Successfully Saved", {
             timeout: 3000
@@ -2727,15 +2732,10 @@ function saveVend(vendID) {
 }
 
 function submit() {
-  form.value.clearErrors();
-
-  form.value.post('/customers/' + form.value.id + '/update', {
-    onSuccess: () => {
-      emit('modalClose');
-    },
-    preserveState: true,
-    replace: true,
-  });
+  // Implicit form submissions (Enter key / a submit-typed button) used to
+  // post the RAW untransformed form (option objects, no {customer} wrapper)
+  // and then crash on an undefined `emit`. Route them through the real save.
+  saveCustomer(form.value.id);
 }
 
 // ── "Pull from CMS" — on-demand, ONE-WAY CMS → form fill ──────────────────

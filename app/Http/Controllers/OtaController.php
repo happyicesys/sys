@@ -53,7 +53,9 @@ class OtaController extends Controller
         $package = $request->query('package', $request->query('packageName'));
 
         $vend = ($vendCode !== null && $vendCode !== '')
-            ? Vend::query()->select(['id', 'code', 'vend_model_id', 'apk_version_code', 'apk_checked_in_at'])->where('code', $vendCode)->first()
+            // apk_ver_json: OtaChannelResolver::resolve()'s board-family backstop
+            // reads deviceType off it. Omit it and the backstop silently never fires.
+            ? Vend::query()->select(['id', 'code', 'vend_model_id', 'apk_version_code', 'apk_checked_in_at', 'apk_ver_json'])->where('code', $vendCode)->first()
             : null;
 
         if ($vend) {

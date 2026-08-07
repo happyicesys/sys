@@ -427,6 +427,54 @@ class ProductAccess
         return in_array((int) $productId, $ids, true);
     }
 
+    /**
+     * The product a basket ITEM row actually represents.
+     *
+     * Mirrors leg 3 of the SQL predicate: the item's own product_id, falling
+     * back to its channel's product when the item row carries none. Without the
+     * fallback an item whose product_id was never populated reads as "not
+     * yours" even when the channel it came out of is.
+     *
+     * The caller must have loaded vendChannel WITH product_id for the fallback
+     * to fire; the export jobs select it explicitly.
+     *
+     * @param  mixed  $item  a VendTransactionItem
+     */
+    public static function itemProductId($item): ?int
+    {
+        $productId = $item->product_id ?? null;
+
+        if ($productId !== null) {
+            return (int) $productId;
+        }
+
+        $channelProductId = $item->vendChannel->product_id ?? null;
+
+        return $channelProductId !== null ? (int) $channelProductId : null;
+    }
+
+    /**
+     * May the viewer see this basket item's own detail?
+     *
+     * The BASKET stays whole either way - a mixed purchase is still listed in
+     * full, header amount included, so the discount on a future basket-level
+     * campaign stays explicable. This governs the per-item detail only: which
+     * product it was, what it sold for and what it cost. A restricted viewer
+     * therefore sees the true basket total but only their own share itemised.
+     *
+     * Single source of truth for all four renderers of a basket item -
+     * VendTransactionItemResource (the on-screen table), both CSV export jobs
+     * and the Excel export. They drifted apart once already: the screen blanked
+     * a foreign item while the CSV named it. Add a fifth renderer, call this.
+     *
+     * @param  array<int, int>|null  $ids
+     * @param  mixed  $item
+     */
+    public static function allowsItem(?array $ids, $item): bool
+    {
+        return self::allows($ids, self::itemProductId($item));
+    }
+
     /** Drop a memoised user (call after writing either pivot). */
     public static function flush(?int $userId = null): void
     {

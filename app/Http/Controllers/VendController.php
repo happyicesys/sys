@@ -3463,6 +3463,15 @@ class VendController extends Controller
             $records = VendTransaction::query()
                 ->with([
                     'vendTransactionItems.product',
+                    // vendChannel deliberately NOT eager-loaded here.
+                    // VendTransactionItemResource resolves the item's product via
+                    // ProductAccess::itemProductId(), which only falls back to the
+                    // channel when the item's OWN product_id is null - 0.56% of
+                    // vend_transaction_items (83 rows in the last 90 days), so the
+                    // lazy load is rare. Loading it would be worse: the resource
+                    // emits whenLoaded('vendChannel'), so every item row would
+                    // suddenly grow a VendChannelResource stub in the payload that
+                    // no consumer reads.
                     'vendTransactionItems.vendChannelError',
                 ])
                 ->whereIn('vend_transactions.id', $pageIds)
@@ -4207,14 +4216,15 @@ class VendController extends Controller
 
         VendTransaction::query()
             ->with([
-                'vendTransactionItems.vendChannel:id,code,amount',
-                // withoutGlobalScope: this export runs synchronously UNDER AUTH
-                // (unlike the queued CSV job), so the Product scope would blank the
-                // other party's product code/name. The agreed design shows a mixed
-                // basket whole and redacts only Unit Cost - see the unit_cost cells.
-                'vendTransactionItems.product' => fn ($query) => $query
-                    ->withoutGlobalScope(\App\Models\Scopes\ProductAccessProductScope::class)
-                    ->select('id', 'code', 'name'),
+                // product_id: fallback for ProductAccess::itemProductId().
+                'vendTransactionItems.vendChannel:id,code,amount,product_id',
+                // Product scope deliberately LEFT ON. This export runs
+                // synchronously under auth (unlike the queued CSV jobs, where the
+                // scope is inert), so it nulls a foreign product's relation for
+                // free - which is now the SAME outcome the $itemAllowed guard
+                // below produces. Two independent masks, not one: if the guard
+                // were ever wrong, the scope still blanks the cells.
+                'vendTransactionItems.product:id,code,name',
                 'vendTransactionItems.unitCost:id,cost',
                 'vendTransactionItems.vendChannelError:id,code,desc',
                 // For "Dispense Attempted?" — mirrors the Payment Gateway
@@ -4333,6 +4343,11 @@ class VendController extends Controller
                     ];
 
                     foreach ($txn->vendTransactionItems as $item) {
+                        // "Access Product(s)": mirrors the two CSV jobs and the
+                        // on-screen table - the item row stays so the basket still
+                        // reconciles, but a foreign product's identity and money go.
+                        $itemAllowed = ProductAccess::allowsItem($excelAllowedProductIds, $item);
+
                         $data[] = [
                             'order_id' => $txn->order_id,
                             'transaction_datetime' => \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
@@ -4341,15 +4356,16 @@ class VendController extends Controller
                             'customer_id' => $txn->customer_id + 20000,
                             'customer_code' => $txn->customer_id + 20000,
                             'customer_name' => $txn->customer_name,
+                            // Channel stays: it is the machine slot, not a product.
                             'channel' => (int) $item->vend_channel_code,
-                            'product_code' => $item->product->code ?? '',
-                            'product_name' => $item->product->name ?? '',
-                            'price_type' => 'P1',
+                            'product_code' => $itemAllowed ? ($item->product->code ?? '') : '',
+                            'product_name' => $itemAllowed ? ($item->product->name ?? '') : '',
+                            'price_type' => $itemAllowed ? 'P1' : '',
                             'amount' => '',
-                            'amount_breakdown' => $item->vendChannel ? $item->vendChannel->amount / 100 : '',
-                            // "Access Product(s)": a mixed basket is shown whole, but a
-                            // partner must not read a competitor's cost price off it.
-                            'unit_cost' => ProductAccess::allows($excelAllowedProductIds, $item->product_id)
+                            'amount_breakdown' => $itemAllowed
+                                ? ($item->vendChannel ? $item->vendChannel->amount / 100 : '')
+                                : '',
+                            'unit_cost' => $itemAllowed
                                 ? ($item->unitCost ? $item->unitCost->cost : '')
                                 : '',
                             'payment_method' => $txn->payment_method_name,
@@ -6171,8 +6187,12 @@ class VendController extends Controller
 
     private function loadAggregates($items, $types = ['vc', 'vc_cost'])
     {
+        // vendIdOf, NOT `vend_id ?? id`: on /vends/customers the rows are
+        // Customers (`vends.id AS vend_id`, null for an unbound site) and `id`
+        // is the CUSTOMER id - the old fallback stamped whichever unrelated
+        // machine has vends.id == that customer id onto the site's row.
         $vendIds = $items->map(function ($item) {
-            return $item->vend_id ?? $item->id;
+            return ProductScopedSales::vendIdOf($item);
         })->filter()->unique()->toArray();
 
         $customerIds = $items->map(function ($item) {
@@ -6200,8 +6220,8 @@ class VendController extends Controller
                 ->keyBy('vend_id');
 
             foreach ($items as $item) {
-                $vid = $item->vend_id ?? $item->id;
-                if (isset($vcData[$vid])) {
+                $vid = ProductScopedSales::vendIdOf($item);
+                if ($vid !== null && isset($vcData[$vid])) {
                     $item->total_stock_amount = $vcData[$vid]->total_stock_amount;
                     $item->total_full_load_amount = $vcData[$vid]->total_full_load_amount;
                 } else {
@@ -6223,8 +6243,8 @@ class VendController extends Controller
                 ->keyBy('vend_id');
 
             foreach ($items as $item) {
-                $vid = $item->vend_id ?? $item->id;
-                $item->t1_lowest_48h = isset($t1LowestData[$vid])
+                $vid = ProductScopedSales::vendIdOf($item);
+                $item->t1_lowest_48h = ($vid !== null && isset($t1LowestData[$vid]))
                     ? $t1LowestData[$vid]->t1_lowest_48h
                     : null;
             }
@@ -6249,8 +6269,8 @@ class VendController extends Controller
                 ->keyBy('vend_id');
 
             foreach ($items as $item) {
-                $vid = $item->vend_id ?? $item->id;
-                if (isset($vcCostData[$vid])) {
+                $vid = ProductScopedSales::vendIdOf($item);
+                if ($vid !== null && isset($vcCostData[$vid])) {
                     $item->total_stock_cost = $vcCostData[$vid]->total_stock_cost;
                 } else {
                     $item->total_stock_cost = 0;
@@ -6291,8 +6311,8 @@ class VendController extends Controller
                 ->keyBy('vend_id');
 
             foreach ($items as $item) {
-                $vid = $item->vend_id ?? $item->id;
-                if (isset($vcStockData[$vid])) {
+                $vid = ProductScopedSales::vendIdOf($item);
+                if ($vid !== null && isset($vcStockData[$vid])) {
                     $item->actual_stock_in_value = $vcStockData[$vid]->actual_stock_in_value;
                     $item->actual_stock_in_qty = $vcStockData[$vid]->actual_stock_in_qty;
                 } else {

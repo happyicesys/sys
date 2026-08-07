@@ -237,7 +237,11 @@ class ApkSettingController extends Controller
 
         // dd($request->all());
         $request->merge([
-            'settings_parameter_json' => $this->vendParameterService->getCampaignParameter($request->all())
+            // merge, NOT getCampaignParameter - see SettingController::updateParameter.
+            'settings_parameter_json' => $this->vendParameterService->mergeCampaignParameter(
+                $apkSetting->settings_parameter_json,
+                $request->all()
+            )
         ]);
 
         $apkSetting->fill($request->all());

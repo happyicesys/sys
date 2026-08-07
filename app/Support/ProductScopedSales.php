@@ -147,12 +147,16 @@ class ProductScopedSales
         $todayStart = $today->toDateTimeString();
         $todayDate = $today->toDateString();
         $yesterday = $today->copy()->subDay()->toDateString();
-        $sevenStart = $today->copy()->subDays(6)->toDateString();
+        // subDays(7): the job's window is daysVendRecords(7, 0) = SEVEN completed
+        // days (D-7 .. D-1) + live today. subDays(6) would be one day short and
+        // could never reconcile with the unrestricted column.
+        $sevenStart = $today->copy()->subDays(7)->toDateString();
         $thirtyStart = $today->copy()->subDays(29)->toDateString();
 
         try {
             $rolled = self::rolledUp($vendIds, $products, $todayDate, $yesterday, $sevenStart, $thirtyStart);
             $todayRows = self::today($vendIds, $products, $todayStart);
+            $todaySingleRows = self::todaySingles($vendIds, $products, $todayStart);
         } catch (\Throwable $e) {
             // Fail quiet: this runs on a normal page render, and a broken query
             // must not take the page down. The column stays blank, which is
@@ -167,9 +171,14 @@ class ProductScopedSales
         foreach ($vendIds as $id) {
             $r = $rolled[$id] ?? null;
             $t = $todayRows[$id] ?? null;
+            $ts = $todaySingleRows[$id] ?? null;
 
-            $todayAmount = (int) ($t->amount ?? 0);
-            $todayCount = (int) ($t->qty ?? 0);
+            // Items (multi baskets) + single transactions. Item rows only exist
+            // for is_multiple baskets (verified live: 6,436 singles vs 205 multis
+            // today, ZERO item rows for singles), so without the singles leg the
+            // Today column missed ~97% of sales.
+            $todayAmount = (int) ($t->amount ?? 0) + (int) ($ts->amount ?? 0);
+            $todayCount = (int) ($t->qty ?? 0) + (int) ($ts->qty ?? 0);
 
             self::$memo[$id] = [
                 'today_amount' => $todayAmount,
@@ -246,8 +255,9 @@ class ProductScopedSales
     /**
      * Completed days from the product-level rollup. One query, all vends.
      *
-     * Windows match the job: yesterday = D-1; 7d = last 6 completed days;
-     * 30d = last 29 completed days. Today is added by the caller, because
+     * Windows match the job: yesterday = D-1; 7d = last 7 completed days
+     * (daysVendRecords(7, 0)); 30d = last 29 completed days
+     * (daysVendRecords(29, 0)). Today is added by the caller, because
      * vend_product_records has no row for it.
      */
     private static function rolledUp(array $vendIds, array $products, string $todayDate, string $yesterday, string $sevenStart, string $thirtyStart)
@@ -286,10 +296,54 @@ class ProductScopedSales
             ->selectRaw('COUNT(*) AS qty')
             ->whereIn('vt.vend_id', $vendIds)
             ->whereIn('vti.product_id', $products)
+            // Bucket strictly by the flag, like the rollup job: a rare
+            // single-flagged transaction that ALSO has item rows (seen live)
+            // must not be counted here AND in todaySingles().
+            ->where('vt.is_multiple', true)
             ->where('vt.transaction_datetime', '>=', $todayStart)
             ->where('vt.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
-            ->where('vti.vend_channel_error_code', 0)
+            // Success = code 0/6 or NULL, matching StoreVendProductRecords'
+            // item-level CASE exactly - `= 0` alone silently dropped code-6 and
+            // NULL items that the completed-day rollup counts as sold.
+            ->where(function ($q) {
+                $q->whereIn('vti.vend_channel_error_code', [0, 6])
+                    ->orWhereNull('vti.vend_channel_error_code');
+            })
             ->where('vti.is_refunded', 0)
+            ->groupBy('vt.vend_id')
+            ->get()
+            ->keyBy('vend_id');
+    }
+
+    /**
+     * Today's SINGLE transactions, live. vend_transaction_items rows are only
+     * created for is_multiple baskets (see VendTransactionService /
+     * GatewayVendTransactionService), so singles - the overwhelming majority of
+     * sales - must come from vend_transactions itself, exactly as
+     * StoreVendProductRecords' single leg does: same product resolution
+     * (COALESCE(vt.product_id, vc.product_id)), same amount > 0 gate, same
+     * success rule (no error, or vend_channel_errors.code 0/6).
+     */
+    private static function todaySingles(array $vendIds, array $products, string $todayStart)
+    {
+        return DB::table('vend_transactions as vt')
+            ->leftJoin('vend_channels as vc', 'vt.vend_channel_id', '=', 'vc.id')
+            ->leftJoin('vend_channel_errors as vce', 'vt.vend_channel_error_id', '=', 'vce.id')
+            ->selectRaw('vt.vend_id')
+            ->selectRaw('SUM(vt.amount) AS amount')
+            ->selectRaw('SUM(COALESCE(vt.qty, 1)) AS qty')
+            ->whereIn('vt.vend_id', $vendIds)
+            ->where(function ($q) {
+                $q->where('vt.is_multiple', false)->orWhereNull('vt.is_multiple');
+            })
+            ->whereIn(DB::raw('COALESCE(vt.product_id, vc.product_id)'), $products)
+            ->where('vt.amount', '>', 0)
+            ->where('vt.transaction_datetime', '>=', $todayStart)
+            ->where('vt.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
+            ->where(function ($q) {
+                $q->whereNull('vt.vend_channel_error_id')->orWhereIn('vce.code', [0, 6]);
+            })
+            ->where('vt.is_refunded', 0)
             ->groupBy('vt.vend_id')
             ->get()
             ->keyBy('vend_id');

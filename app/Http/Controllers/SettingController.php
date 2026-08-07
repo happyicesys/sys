@@ -654,7 +654,12 @@ class SettingController extends Controller
     public function updateParameter(Request $request, $vendID)
     {
         $vend = Vend::findOrFail($vendID);
-        $parameters = $this->vendParameterService->getCampaignParameter($request->all());
+        // merge, NOT getCampaignParameter: this is an update to an existing row
+        // and the form does not post all 42 keys. See mergeCampaignParameter().
+        $parameters = $this->vendParameterService->mergeCampaignParameter(
+            $vend->settings_parameter_json,
+            $request->all()
+        );
 
         $vend->settings_parameter_json = $parameters;
         $vend->save();

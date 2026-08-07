@@ -16,12 +16,22 @@ class VendTransactionItemResource extends JsonResource
      * May the current viewer see this item's cost price?
      *
      * Unrestricted viewers always can (ProductAccess::current() returns null).
+     *
+     * Deliberately allowsItem() and NOT allows(..., $this->product_id): the
+     * item's own product_id is NULL on ~1.7k live rows, and for most of those
+     * the channel it came out of does carry one. Deciding on the raw column
+     * alone called those items "not yours" even when the channel was, which is
+     * the exact screen-vs-export split this helper exists to close - the two
+     * CSV jobs and the Excel export all resolve through the same call.
+     *
+     * Needs vendChannel eager-loaded for the fallback; VendController's
+     * transactionIndex loads it. A caller that forgets simply lazy-loads.
      */
     protected function productAccessAllowsThisItem(): bool
     {
-        return \App\Support\ProductAccess::allows(
+        return \App\Support\ProductAccess::allowsItem(
             \App\Support\ProductAccess::current(),
-            $this->product_id
+            $this->resource
         );
     }
 

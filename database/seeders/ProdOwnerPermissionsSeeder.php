@@ -8,6 +8,18 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
+ * SUPERSEDED - DO NOT RUN. Kept only as a record of what was granted and why.
+ *
+ * RolePermissionSyncSeeder is the single source of truth for roles and
+ * permissions. It rebuilds the entire set from its own table, so anything this
+ * seeder grants is silently undone the next time that one runs. To change
+ * access, amend RolePermissionSyncSeeder's $permissionsData instead.
+ *
+ * Everything below is already represented there (verified 2026-08-06:
+ * prod_owner resolves to the identical 12 permissions from either file).
+ */
+
+/**
  * Finish prod_owner's 2026-08-05 sheet-sync grants — production-safe.
  *
  * WHY THIS IS NEEDED

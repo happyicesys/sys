@@ -1666,16 +1666,11 @@ const upcomingMapping = computed(() => {
 
 // Channels in product mapping that are NOT already in the job (capacity=0, driver activated them)
 const availableChannels = computed(() => {
-  console.log('[availableChannels] vend:', vend.value)
-  console.log('[availableChannels] productMapping:', vend.value?.productMapping)
-  console.log('[availableChannels] productMappingItems:', vend.value?.productMapping?.productMappingItems)
-  console.log('[availableChannels] channels codes:', channels.value.map(c => String(c.code)))
   if (!vend.value?.productMapping?.productMappingItems) return []
   const existingCodes = new Set(channels.value.map(c => String(c.code)))
   const result = vend.value.productMapping.productMappingItems.filter(
     item => !existingCodes.has(String(item.channel_code))
   )
-  console.log('[availableChannels] result:', result)
   return result
 })
 

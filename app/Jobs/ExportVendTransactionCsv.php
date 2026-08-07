@@ -71,14 +71,40 @@ class ExportVendTransactionCsv implements ShouldQueue
 
     /**
      * Blank the Unit Cost cell for a product the viewer may not access.
-     *
-     * Mixed baskets are shown in full on purpose, but a partner must not learn
-     * a competitor's cost price from their own export. Everything else on the
-     * row (code, name, amount) is left intact so the basket still reconciles.
      */
     protected function maskedUnitCost($productId, $value)
     {
         return ProductAccess::allows($this->allowedProductIds, $productId) ? $value : '';
+    }
+
+    /**
+     * May the viewer see this basket item's own detail?
+     *
+     * The basket itself is still exported WHOLE - the item row stays, carrying
+     * its channel number. What a foreign item loses is everything identifying:
+     * product code, product name, price type, amount breakdown and unit cost.
+     *
+     * CONSEQUENCE, deliberate: for a restricted viewer the Amount Breakdown
+     * column no longer sums to the parent Amount on a mixed basket. Verified on
+     * live txn 5902087 - header $10.90 = 3.90 (theirs) + 3.50 + 3.50 (not);
+     * a viewer restricted to the first product now sees 3.90 and two blanks.
+     * What is removed is the per-item ATTRIBUTION - which foreign product cost
+     * what. The 7.00 aggregate is still derivable from the parent row, and
+     * deliberately so: the header Amount is what makes a future basket-level
+     * discount explicable, which is the whole reason mixed baskets are shown.
+     * So the column-sums-to-parent property holds only for UNRESTRICTED
+     * exports; those are byte-identical to before.
+     *
+     * This is what the transaction table already does on screen. It gets there
+     * a different way - Product carries ProductAccessProductScope, so the
+     * eager-loaded relation simply comes back null for a foreign product - but
+     * that mechanism is INERT here: a queued job has no auth()->user(), which
+     * is exactly why this class is handed $allowedProductIds explicitly. Hence
+     * the same decision has to be made by hand on this side.
+     */
+    protected function allowsItem($item): bool
+    {
+        return ProductAccess::allowsItem($this->allowedProductIds, $item);
     }
 
     public function handle()
@@ -172,8 +198,9 @@ class ExportVendTransactionCsv implements ShouldQueue
                     $query->whereIn('vend_transactions.vend_id', $user->vends->pluck('id'));
                 })
                 // "Access Product(s)": a basket is exported whole when ANY of its
-                // items is allowed. The other party's item rows still print their
-                // code/name/amount - only Unit Cost is blanked, further down.
+                // items is allowed. The other party's item rows survive carrying
+                // only their channel number - product code, name, price type,
+                // amount breakdown and unit cost are all blanked further down.
                 ->tap(fn($query) => ProductAccess::applyToVendTransactions($query, $this->allowedProductIds))
                 // "Transaction Access From": same hand-in reason as the product
                 // allow-list directly above - TransactionAccessScope cannot fire
@@ -215,7 +242,9 @@ class ExportVendTransactionCsv implements ShouldQueue
 
                     // Pull items for this chunk (unchanged)
                     $items = VendTransactionItem::with([
-                        'vendChannel:id,code,amount',
+                        // product_id: needed by ProductAccess::itemProductId() as the
+                        // fallback when the item row carries no product of its own.
+                        'vendChannel:id,code,amount,product_id',
                         'product:id,code,name',
                         'unitCost:id,cost',
                         'vendChannelError:id,code,desc',
@@ -336,6 +365,10 @@ class ExportVendTransactionCsv implements ShouldQueue
 
                         // ✏️ Child item rows — keep Labels empty (or repeat $labelStr if you prefer)
                         foreach ($txnItems as $item) {
+                            // "Access Product(s)": see allowsItem(). The row is still
+                            // written - only its product identity and money are dropped.
+                            $itemAllowed = $this->allowsItem($item);
+
                             fputcsv($stream, [
                                 $orderIdCell,
                                 \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
@@ -344,16 +377,20 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 $txn->customer_id + 20000,
                                 $txn->customer_id + 20000,
                                 $txn->customer_name,
+                                // Channel stays: the table shows it too, and it is the
+                                // machine's slot number, not a product.
                                 (int) $item->vend_channel_code,
-                                $item->product->code ?? '',
-                                $item->product->name ?? '',
-                                'P1',
+                                $itemAllowed ? ($item->product->code ?? '') : '',
+                                $itemAllowed ? ($item->product->name ?? '') : '',
+                                $itemAllowed ? 'P1' : '',
                                 '',
-                                $item->vendChannel ? $item->vendChannel->amount / 100 : '',
-                                $this->maskedUnitCost(
-                                    $item->product_id,
-                                    $item->unitCost ? $item->unitCost->cost : ''
-                                ),
+                                $itemAllowed
+                                    ? ($item->vendChannel ? $item->vendChannel->amount / 100 : '')
+                                    : '',
+                                // Same predicate as every other cell on this row.
+                                // maskedUnitCost() stays for the PARENT row, which
+                                // resolves its product differently.
+                                $itemAllowed ? ($item->unitCost ? $item->unitCost->cost : '') : '',
                                 '',
                                 '', // Cashless Mfg empty for item rows
                                 $item->vendChannelError->code ?? '',
