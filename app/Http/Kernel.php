@@ -72,5 +72,8 @@ class Kernel extends HttpKernel
         // Pages whose money is aggregated across products - see the class docblock.
         'product.unrestricted' => \App\Http\Middleware\BlockWhenProductRestricted::class,
         'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+        // Observe-only probe on the Grab-facing delivery routes: records whether
+        // the caller presented a bearer token, never rejects. Remove once settled.
+        'delivery.authprobe' => \App\Http\Middleware\LogDeliveryPlatformAuth::class,
     ];
 }

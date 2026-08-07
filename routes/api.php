@@ -48,7 +48,7 @@ Route::prefix('v1')->group(function () {
     });
 
 Route::prefix('delivery')->group(function () {
-    Route::prefix('grab')->group(function () {
+    Route::prefix('grab')->middleware('delivery.authprobe')->group(function () {
             Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class , 'getCategories']);
             Route::get('/merchant/menu', [DeliveryPlatformController::class , 'getGrabMenu']);
             Route::get('/oauth/{deliveryPlatformOperatorId}', [DeliveryPlatformController::class , 'getOauth']);
