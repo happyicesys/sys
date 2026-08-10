@@ -36,8 +36,13 @@ class FreezerStatusService
      */
     public function syncStatus(Vend $vend, array $input): void
     {
+        $status = $this->normaliseStatus($input);
+
         $this->mergeJson($vend, [
-            'status' => $this->normaliseStatus($input),
+            // (object) cast matters when every key was absent: PHP json_encode([]) is "[]", and a
+            // JSON_MERGE_PATCH of `"status": []` REPLACES the stored status object with an empty
+            // array. An empty object "{}"` merges as a no-op, which is the intended semantics.
+            'status' => $status === [] ? (object) [] : $status,
             'status_at' => $this->now()->toDateTimeString(),
         ]);
     }
@@ -166,14 +171,31 @@ class FreezerStatusService
             ];
         }
 
-        return [
-            // PowerState arrives as the host's Java enum constant name — 已连接 / 已断开 / 未知.
-            'powerState' => $this->str($input['powerState'] ?? null),
-            'comprState' => isset($input['comprState']) ? (bool) $input['comprState'] : null,
-            'comprDuty2h' => isset($input['comprDuty2h']) ? (int) $input['comprDuty2h'] : null,
-            'locks' => $locks,
-            'cameras' => $cameras,
-        ];
+        // ABSENT keys are omitted from the patch entirely, not emitted as null/[]:
+        // JSON_MERGE_PATCH deletes a key on null and replaces arrays wholesale, so a packet built
+        // from one failed device read would otherwise ERASE last-known state (powerState gone,
+        // cameras wiped to []) instead of leaving it stale — and stale-with-timestamp is strictly
+        // more useful to ops than deleted. `status_at` always moves, so staleness is measurable.
+        $status = [];
+
+        if (isset($input['powerState'])) {
+            // The host's Java enum constant name — 已连接 / 已断开 / 未知 (supplier-owned strings).
+            $status['powerState'] = $this->str($input['powerState']);
+        }
+        if (isset($input['comprState'])) {
+            $status['comprState'] = (bool) $input['comprState'];
+        }
+        if (isset($input['comprDuty2h'])) {
+            $status['comprDuty2h'] = (int) $input['comprDuty2h'];
+        }
+        if (array_key_exists('locks', $input)) {
+            $status['locks'] = $locks;
+        }
+        if (array_key_exists('cameras', $input)) {
+            $status['cameras'] = $cameras;
+        }
+
+        return $status;
     }
 
     /**
@@ -222,7 +244,12 @@ class FreezerStatusService
                     $epoch = intdiv($epoch, 1000);
                 }
 
-                $ts = Carbon::createFromTimestamp($epoch);
+                // Carbon 3: with no tz argument this returns a UTC instance, which Laravel's
+                // grammar renders as UTC wall clock — 8 h behind every other datetime we store
+                // (app tz Asia/Singapore). Mixed UTC/SGT values in last_power_cut_at /
+                // last_power_restored_at make the ordering guards above compare across zones and
+                // silently drop genuine events for up to 8 h. Always pin the app timezone.
+                $ts = Carbon::createFromTimestamp($epoch, config('app.timezone'));
             } else {
                 $ts = Carbon::parse((string) $raw);
             }
