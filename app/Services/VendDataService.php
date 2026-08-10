@@ -25,6 +25,8 @@ use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
 use App\Jobs\Vend\IncrementVendDailyStat;
 use App\Jobs\Vend\SyncVendChannels;
+use App\Jobs\Vend\SyncFreezerPowerEvent;
+use App\Jobs\Vend\SyncFreezerStatus;
 use App\Jobs\Vend\SyncVendParameter;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Jobs\Vend\UpdateApkVersion;
@@ -403,6 +405,22 @@ class VendDataService
               SyncP::dispatch($processedInput, $vend)->onQueue('default');
             }
             $saveVendData = false;
+            break;
+          case 'FREEZERSTATUS':
+          case 'SELFCHK':
+            // Smart freezer serviceability snapshot / daily diagnostic. Merged into
+            // vends.freezer_status_json in one statement (see FreezerStatusService).
+            SyncFreezerStatus::dispatch($processedInput, $vend, $processedInput['Type'])->onQueue('default');
+            break;
+          case 'POWERCUT':
+          case 'POWERRESTORED':
+            // Mains lost / restored on the freezer's reserve battery. 'high' because POWERCUT is a
+            // last gasp sent on battery and must be applied ahead of the reconnect flood behind it.
+            SyncFreezerPowerEvent::dispatch(
+              $processedInput,
+              $vend,
+              $processedInput['Type'] === 'POWERRESTORED'
+            )->onQueue('high');
             break;
           default:
             $saveVendData = true;

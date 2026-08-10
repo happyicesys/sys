@@ -177,7 +177,7 @@ class SyncVendParameter implements ShouldQueue
                 $vend->temp = $temp;
                 $vend->is_temp_error = false;
 
-                if (isset($input['t2'])) {
+                if (isset($input['t2']) && $input['t2'] !== '' && is_numeric($input['t2'])) {
                     $alert = $vendTempService->runVendTempAlert($temp, $input['t2']);
 
                     if ($alert) {

@@ -1941,6 +1941,10 @@ const commissionTypeOptions = [
 ];
 
 const PS_TYPES   = ['PS', 'PS+U', 'PSORU'];
+// Default PS Term (%) pre-filled when a PS-family contract type is first
+// selected and no term has been entered yet. Single source of truth for both
+// the live contract form and the scheduled-contract form.
+const DEFAULT_PS_TERM = 50;
 // Types that render a second value field (Utility Amount). R+U is a flat
 // Fix-Rental + Utility combo (no PS Term), so it joins the PS+U / PSORU
 // two-value layout but stays out of PS_TYPES so its first field renders as a
@@ -1995,8 +1999,8 @@ function onCommissionTypeChange() {
   if (!PS_TYPES.includes(form.value.contract_commission_type)) {
     form.value.contract_ps_term = null;
   } else if (form.value.contract_ps_term === null || form.value.contract_ps_term === '') {
-    // default PS Term to 70 when first selecting a PS-type option
-    form.value.contract_ps_term = 70;
+    // default PS Term when first selecting a PS-type option
+    form.value.contract_ps_term = DEFAULT_PS_TERM;
   }
 }
 
@@ -2154,7 +2158,7 @@ function onSfCommissionTypeChange() {
   if (!PS_TYPES.includes(sf.value.contract_commission_type)) {
     sf.value.contract_ps_term = null;
   } else if (sf.value.contract_ps_term === null || sf.value.contract_ps_term === '') {
-    sf.value.contract_ps_term = 70;
+    sf.value.contract_ps_term = DEFAULT_PS_TERM;
   }
 }
 

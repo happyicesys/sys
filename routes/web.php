@@ -168,14 +168,24 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::delete('/{id}', [CashlessTerminalController::class, 'delete']);
     });
 
+    // 2026-08-09: this group had NO authorisation at all - CampaignController does not
+    // authorize() and the group sits in the bare ['auth','cors'] middleware, so the
+    // permission was nav-cosmetic and /campaigns was reachable by typing the URL.
     Route::prefix('campaigns')->group(function () {
-        Route::get('/', [CampaignController::class, 'index'])->name('campaigns');
-        Route::get('/create', [CampaignController::class, 'createView'])->name('campaigns.create');
-        Route::post('/create', [CampaignController::class, 'create']);
-        Route::get('/{campaign}/edit', [CampaignController::class, 'edit'])->name('campaigns.edit');
-        Route::delete('/{campaign}', [CampaignController::class, 'destroy'])->name('campaigns.destroy');
-        Route::post('/{campaign}/update', [CampaignController::class, 'update']);
-        Route::delete('/{id}', [CampaignController::class, 'delete']);
+        Route::get('/', [CampaignController::class, 'index'])->name('campaigns')
+            ->middleware('can:read campaigns');
+        Route::get('/create', [CampaignController::class, 'createView'])->name('campaigns.create')
+            ->middleware('can:create campaigns');
+        Route::post('/create', [CampaignController::class, 'create'])
+            ->middleware('can:create campaigns');
+        Route::get('/{campaign}/edit', [CampaignController::class, 'edit'])->name('campaigns.edit')
+            ->middleware('can:update campaigns');
+        Route::delete('/{campaign}', [CampaignController::class, 'destroy'])->name('campaigns.destroy')
+            ->middleware('can:delete campaigns');
+        Route::post('/{campaign}/update', [CampaignController::class, 'update'])
+            ->middleware('can:update campaigns');
+        Route::delete('/{id}', [CampaignController::class, 'delete'])
+            ->middleware('can:delete campaigns');
     });
 
     Route::prefix('categories')->group(function () {
@@ -575,18 +585,32 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('product.unrestricted');
 
 
-        Route::get('/gp/vend', [ReportController::class, 'indexGpVm']);
-        Route::get('/gp/product', [ReportController::class, 'indexGpProduct']);
-        Route::get('/sales-performance/product', [ReportController::class, 'indexSalesPerformanceProduct']);
-        Route::get('/gp/category', [ReportController::class, 'indexGpCategory']);
-        Route::get('/gp/location-type', [ReportController::class, 'indexGpLocationType']);
-        Route::get('/gp/vend/excel', [ReportController::class, 'exportUnitCostVendExcel']);
-        Route::get('/gp/product/excel', [ReportController::class, 'exportUnitCostProductExcel']);
-        Route::get('/gp/category/excel', [ReportController::class, 'exportUnitCostCategoryExcel']);
-        Route::get('/gp/location-type/excel', [ReportController::class, 'exportUnitCostLocationTypeExcel']);
+        // 2026-08-09: margin reports moved off 'reports' onto 'reports-gp'
+        // (superadmin/admin/supervisor). These had no gate, so hiding the nav links
+        // alone would have left them reachable by URL.
+        Route::get('/gp/vend', [ReportController::class, 'indexGpVm'])
+            ->middleware('can:read reports-gp');
+        Route::get('/gp/product', [ReportController::class, 'indexGpProduct'])
+            ->middleware('can:read reports-gp');
+        Route::get('/sales-performance/product', [ReportController::class, 'indexSalesPerformanceProduct'])
+            ->middleware('can:read reports-gp');
+        Route::get('/gp/category', [ReportController::class, 'indexGpCategory'])
+            ->middleware('can:read reports-gp');
+        Route::get('/gp/location-type', [ReportController::class, 'indexGpLocationType'])
+            ->middleware('can:read reports-gp');
+        Route::get('/gp/vend/excel', [ReportController::class, 'exportUnitCostVendExcel'])
+            ->middleware('can:export reports-gp');
+        Route::get('/gp/product/excel', [ReportController::class, 'exportUnitCostProductExcel'])
+            ->middleware('can:export reports-gp');
+        Route::get('/gp/category/excel', [ReportController::class, 'exportUnitCostCategoryExcel'])
+            ->middleware('can:export reports-gp');
+        Route::get('/gp/location-type/excel', [ReportController::class, 'exportUnitCostLocationTypeExcel'])
+            ->middleware('can:export reports-gp');
 
-        Route::get('/snapshot', [ReportController::class, 'indexSnapshot']);
-        Route::get('/snapshot/excel', [ReportController::class, 'exportSnapshotChannelExcel']);
+        Route::get('/snapshot', [ReportController::class, 'indexSnapshot'])
+            ->middleware('can:read reports-gp');
+        Route::get('/snapshot/excel', [ReportController::class, 'exportSnapshotChannelExcel'])
+            ->middleware('can:export reports-gp');
 
         Route::get('/stock-count', [ReportController::class, 'indexStockCount']);
         Route::get('/stock-count/excel', [ReportController::class, 'exportStockCountExcel']);
@@ -903,24 +927,34 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->name('vends.customer-lite');
         // "Access Product(s)": reads ops_machine_daily_snapshots — per-machine
         // sales / stock-in value aggregated over every product.
+        // 2026-08-10: gated to match the nav (Authenticated.vue moved both links to
+        // 'admin-access vends' per the sheet — superadmin/admin/supervisor). Hiding the
+        // link alone would leave the page reachable by URL for every 'read vends' role,
+        // the same trap the campaigns/vouchers/gp-reports groups closed on 08-09.
         Route::get('/ops-performance', [OpsPerformanceController::class, 'index'])
-            ->middleware('product.unrestricted')
+            ->middleware(['product.unrestricted', 'can:admin-access vends'])
             ->name('vends.ops-performance');
         Route::get('/ops-performance/excel', [OpsPerformanceController::class, 'export'])
-            ->middleware('product.unrestricted')
+            ->middleware(['product.unrestricted', 'can:admin-access vends'])
             ->name('vends.ops-performance.excel');
 
         // Operations > Site Grouping — manage co-located Site clusters as objects
         // (create/rename/delete groups, attach/detach member Sites). Membership
         // still lives on customers.customer_group_id, so the "Grouped?" toggle
         // and Customer::siblings() are unaffected. See SiteGroupingController.
-        Route::get('/grouping', [SiteGroupingController::class, 'index'])->name('vends.grouping');
-        Route::get('/grouping/site-search', [SiteGroupingController::class, 'searchSites'])->name('vends.grouping.site-search');
-        Route::post('/grouping', [SiteGroupingController::class, 'store'])->name('vends.grouping.store');
-        Route::put('/grouping/{group}', [SiteGroupingController::class, 'update'])->name('vends.grouping.update');
-        Route::delete('/grouping/{group}', [SiteGroupingController::class, 'destroy'])->name('vends.grouping.destroy');
-        Route::post('/grouping/{group}/members', [SiteGroupingController::class, 'addMembers'])->name('vends.grouping.members.add');
-        Route::delete('/grouping/{group}/members/{customer}', [SiteGroupingController::class, 'removeMember'])->name('vends.grouping.members.remove');
+        // 2026-08-10: this block had NO authorisation at all — the vends prefix group
+        // carries no gate and SiteGroupingController does not authorize(), so the
+        // mutating routes (store/update/destroy/members) were open to any signed-in
+        // user. Gated to 'admin-access vends' to match the nav and the sheet.
+        Route::middleware('can:admin-access vends')->group(function () {
+            Route::get('/grouping', [SiteGroupingController::class, 'index'])->name('vends.grouping');
+            Route::get('/grouping/site-search', [SiteGroupingController::class, 'searchSites'])->name('vends.grouping.site-search');
+            Route::post('/grouping', [SiteGroupingController::class, 'store'])->name('vends.grouping.store');
+            Route::put('/grouping/{group}', [SiteGroupingController::class, 'update'])->name('vends.grouping.update');
+            Route::delete('/grouping/{group}', [SiteGroupingController::class, 'destroy'])->name('vends.grouping.destroy');
+            Route::post('/grouping/{group}/members', [SiteGroupingController::class, 'addMembers'])->name('vends.grouping.members.add');
+            Route::delete('/grouping/{group}/members/{customer}', [SiteGroupingController::class, 'removeMember'])->name('vends.grouping.members.remove');
+        });
         Route::get('/', [VendController::class, 'index'])->name('vends');
         Route::get('/{id}/edit', [VendController::class, 'edit'])->name('vends.edit');
         Route::get('/{vend}/logs', [VendController::class, 'logs']);
@@ -1022,14 +1056,23 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('can:export serial-numbers');
     });
 
+    // 2026-08-09: as with /campaigns above, this group had no authorisation - the
+    // 'read vouchers' permission only ever hid the sidebar link.
     Route::prefix('vouchers')->group(function () {
-        Route::get('/', [VoucherController::class, 'index'])->name('vouchers');
-        Route::get('/create/{batchType}', [VoucherController::class, 'create']);
-        Route::get('/edit/{id}', [VoucherController::class, 'edit'])->name('vouchers.edit');
-        Route::get('/excel/codes', [VoucherController::class, 'exportExcelVoucherCodes']);
-        Route::post('/store', [VoucherController::class, 'store']);
-        Route::post('/{id}/update', [VoucherController::class, 'update']);
-        Route::delete('/{id}', [VoucherController::class, 'delete']);
+        Route::get('/', [VoucherController::class, 'index'])->name('vouchers')
+            ->middleware('can:read vouchers');
+        Route::get('/create/{batchType}', [VoucherController::class, 'create'])
+            ->middleware('can:create vouchers');
+        Route::get('/edit/{id}', [VoucherController::class, 'edit'])->name('vouchers.edit')
+            ->middleware('can:update vouchers');
+        Route::get('/excel/codes', [VoucherController::class, 'exportExcelVoucherCodes'])
+            ->middleware('can:export vouchers');
+        Route::post('/store', [VoucherController::class, 'store'])
+            ->middleware('can:create vouchers');
+        Route::post('/{id}/update', [VoucherController::class, 'update'])
+            ->middleware('can:update vouchers');
+        Route::delete('/{id}', [VoucherController::class, 'delete'])
+            ->middleware('can:delete vouchers');
     });
 
     Route::prefix('zones')->group(function () {

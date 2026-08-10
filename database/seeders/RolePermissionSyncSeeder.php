@@ -18,6 +18,13 @@ use Illuminate\Database\Seeder;
  * of those get silently undone the next time this runs, because this rebuilds
  * the whole set from scratch.
  *
+ * 2026-08-10: the historical one-off seeders are RETIRED as no-ops for exactly
+ * that reason — ProdOwnerPermissionsSeeder (would strip prod_owner back to its
+ * old 12 grants) and DashboardPerformanceLitePermissionSeeder (would revoke
+ * 'read/export dashboard-performance' the 2026-08-09 sheet sync grants). The
+ * older PermissionSeeder / ExportPermissionSeeder / CustomerPermissionSeeder /
+ * ObserverRoleSeeder era predates this seeder and is equally superseded.
+ *
  *     php artisan db:seed --class=RolePermissionSyncSeeder
  *
  * HOW TO AMEND
@@ -84,24 +91,21 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'dashboard',
                 ['read', 'export'],
-                // prod_owner deliberately NOT listed, though the 2026-08-05 sheet's
-                // Prod Owner column does tick "Dashboard > Performance".
+                // 2026-08-09 sheet sync: + prod_owner, together with the full
+                // "Dashboard > Performance" grant on the tuple below (see the
+                // warning there — this is a deliberate widening; the role also
+                // keeps dashboard-performance-lite, so both links render).
+                // Before 2026-08-09 prod_owner was deliberately NOT listed here:
+                // the sheet's tick was honoured by 'dashboard-performance-lite'
+                // alone and the section rendered via Authenticated.vue's
+                // ['read dashboard', 'read dashboard-performance-lite'] "any of
+                // these" gate. That history matters if the widening is reverted:
+                // removing prod_owner here does NOT hide the section for it.
                 //
-                // That tick is honoured by 'dashboard-performance-lite', not by this
-                // permission. The whole point of the Lite split is that prod_owner
-                // reads vend_product_records (product-grained) instead of
-                // vend_records (whole-machine), so it gets the Lite page and not the
-                // full one - DashboardController::__construct gates index() on
-                // 'read dashboard-performance', which prod_owner does not hold.
-                //
-                // The parent section permission is not needed to reach it either:
-                // Authenticated.vue:15-28 gates the Dashboards group on
-                // ['read dashboard', 'read dashboard-performance-lite'] ("any of
-                // these") precisely so prod_owner sees the group WITHOUT this row.
-                // Granting it here would contradict that comment and put this
-                // seeder out of step with ProdOwnerPermissionsSeeder, which is the
-                // production-safe seeder for this role and grants 12, not 14.
-                ['superadmin', 'admin', 'supervisor', 'observer', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
+                // 2026-08-10: this seeder is the ONLY place prod_owner (or any
+                // role) is granted anything. ProdOwnerPermissionsSeeder and
+                // DashboardPerformanceLitePermissionSeeder are retired no-ops.
+                ['superadmin', 'admin', 'supervisor', 'observer', 'prod_owner', 'technician', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
             ],
 
             [
@@ -114,13 +118,17 @@ class RolePermissionSyncSeeder extends Seeder
                 'dashboard-performance',
                 ['read', 'export'],
                 // 2026-08-05 sheet sync: + prod_owner
-                // 2026-08-06: - prod_owner again. The product owner now gets
-                // Performance (LITE) instead — same page, but sourced from
-                // vend_product_records so the figures are narrowed to their own
-                // products. The full Performance page reads vend_records, which
-                // has no product dimension, so it can only ever show them
-                // whole-machine money. Granting both would defeat the split.
-                ['superadmin', 'admin', 'supervisor', 'observer', 'observer_transactions', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
+                // 2026-08-06: - prod_owner. Performance (LITE) instead, sourced from
+                // vend_product_records so figures are narrowed to their own products.
+                // 2026-08-09 sheet sync: + prod_owner AGAIN, per the sheet's
+                // "Dashboard > Performance" row, which ticks Prod Owner.
+                // READ THIS BEFORE COPYING THE PATTERN: the full Performance page reads
+                // vend_records, which has NO product dimension, so prod_owner now sees
+                // WHOLE-MACHINE revenue, not just their own products. That is a widening
+                // of what 2 live users can see. dashboard-performance-lite is still
+                // granted, so both links appear. If the sheet meant "Performance (Lite)",
+                // remove prod_owner here and add a Performance (Lite) row to the sheet.
+                ['superadmin', 'admin', 'supervisor', 'observer', 'prod_owner', 'operator_admin', 'operator_supervisor', 'licensee', 'hid_user']
             ],
 
             // Dashboard > Performance (Lite) — /dashboard/performance-lite.
@@ -133,8 +141,9 @@ class RolePermissionSyncSeeder extends Seeder
             // which is exactly what prod_owner needs. Same reasoning as
             // vend-customers-lite above.
             //
-            // prod_owner is created by ProdOwnerRoleSeeder — run that FIRST or
-            // the `if ($role)` guard below silently drops this grant.
+            // prod_owner is auto-created by this seeder like any other role
+            // named in a tuple (see the Role::create block below) — no
+            // prerequisite seeder needed.
             [
                 'dashboard-performance-lite',
                 ['read', 'export'],
@@ -153,7 +162,7 @@ class RolePermissionSyncSeeder extends Seeder
                 // 2026-07-23 sheet sync v2 (struck-through cells = disabled): - driver
                 // (Ops Dashboard Full-Filter Yes struck) and - operator_3pl (limited-filter
                 // cell struck; round-1 addition reverted)
-                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
             ],
 
             [
@@ -171,7 +180,12 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'vend-customers',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl', 'franchisee', 'licensee']
+                // 2026-08-09 sheet sync: - driver (Ops Dashboard Full-Filter cell struck) and
+                // - operator_3pl (Limited-filter cell struck). `read vends` already
+                // excluded both, so the nav link was hidden - but this permission
+                // gates the ROUTE, so /vends/customers stayed reachable by URL.
+                // - observer_transactions: no column in the sheet (see below).
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
             ],
 
             [
@@ -185,7 +199,10 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'vend-customers',
                 ['admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor']
+                // 2026-08-09 sheet sync: - driver. This is the "Full filter" gate
+                // (CustomerIndex.vue), and the sheet's Driver cell on Ops Dashboard
+                // (Full Filter) is struck through.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
             ],
 
             // Operations > Dashboard (Lite) — /vends/customers-lite. Its OWN
@@ -199,8 +216,9 @@ class RolePermissionSyncSeeder extends Seeder
             // the full Dashboard. A separate permission is the only way to
             // express "Lite but not Full".
             //
-            // prod_owner is created by ProdOwnerRoleSeeder — run that FIRST or
-            // the `if ($role)` guard below silently drops this grant.
+            // prod_owner is auto-created by this seeder like any other role
+            // named in a tuple (see the Role::create block below) — no
+            // prerequisite seeder needed.
             [
                 'vend-customers-lite',
                 ['read', 'export'],
@@ -226,7 +244,7 @@ class RolePermissionSyncSeeder extends Seeder
                 // filter). "Limited" == read without admin-access: Transaction.vue
                 // gates ~10 filter controls on 'admin-access transactions', so
                 // prod_owner must NOT appear on the admin-access tuple below.
-                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user', 'prod_owner']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user', 'prod_owner']
             ],
 
             [
@@ -239,7 +257,7 @@ class RolePermissionSyncSeeder extends Seeder
                 'transactions-sales',
                 ['read', 'export'],
                 // 2026-08-05 sheet sync: + prod_owner
-                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user', 'prod_owner']
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user', 'prod_owner']
 
             ],
 
@@ -252,7 +270,12 @@ class RolePermissionSyncSeeder extends Seeder
                 // behaviour-preserving for every existing role.
                 'transactions-daily-summary',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'observer_transactions', 'technician', 'operator_admin', 'operator_supervisor', 'franchisee', 'licensee', 'hid_user']
+                // 2026-08-09 sheet sync: the sheet's Daily Summary row is superadmin/admin/supervisor
+                // ONLY. The 2026-08-05 split copied `read transactions-sales`
+                // wholesale to stay behaviour-preserving and was never reconciled to
+                // that row. Removed: technician, operator_admin, operator_supervisor,
+                // franchisee, licensee, hid_user, observer_transactions.
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
@@ -315,9 +338,18 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                // 2026-08-09 sheet sync: the sheet lists this page and ticks NO role, so
+                // the permission is created and granted to nobody. Deliberately an empty
+                // list rather than a deleted tuple: dropping the tuple would delete the
+                // permission itself and 403 anything still checking it.
+                // Consequence: the sidebar item disappears for EVERYONE including
+                // superadmin - HandleInertiaRequests shares the role's permission rows, so
+                // Gate::before does not put it back. Superadmin can still reach the page by
+                // URL wherever route middleware defers to Gate::before. To restore, put the
+                // roles back here.
                 'machine-alert-parameters',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician']
+                []
             ],
 
             [
@@ -419,8 +451,42 @@ class RolePermissionSyncSeeder extends Seeder
                 'product-campaign-labels',
                 ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: - operator_admin, operator_supervisor (Product
-                // Labels + Machine Campaigns rows struck). Also hides Campaign Management menu.
+                // Labels row struck).
+                // 2026-08-09: this permission NO LONGER gates Campaign Management - see
+                // the 'campaigns' tuple below. It now means exactly one thing: Product
+                // Management > Product Labels (/tags?classname=Product). The old comment
+                // here said the operator removal "also hides Campaign Management menu";
+                // that side effect was the bug, not the intent.
                 ['superadmin', 'admin', 'supervisor']
+            ],
+
+            // Campaign Management (/campaigns) - its OWN permission, split out of
+            // 'product-campaign-labels' on 2026-08-09.
+            //
+            // One permission cannot serve both: the sheet puts Product Labels at
+            // superadmin/admin/supervisor but Campaign Management > Settings at
+            // superadmin/admin/supervisor/technician/operator_admin/operator_supervisor.
+            // Granting the shared permission wide would have handed Product Labels to the
+            // operator roles; leaving it narrow kept the whole Campaign Management SECTION
+            // hidden from the three roles that already held every 'vouchers' permission -
+            // 33 live users holding grants that rendered nothing.
+            //
+            // NOTE the sheet lists this page twice: 'Machine Campaigns' under Product
+            // Management (superadmin/admin/supervisor) and 'Settings' under Campaign
+            // Management (+technician/operator_admin/operator_supervisor). There is only
+            // one campaign page (CampaignController -> Pages/Campaign), so the two rows
+            // contradict. Taking the Campaign Management block as authoritative: it is the
+            // newer entry, and it is the one the section is named after. If that is wrong,
+            // narrow the list here and delete the Campaign Management rows from the sheet.
+            [
+                // Every action goes to exactly the roles ticked on the sheet's
+                // "Campaign Management > Settings" row. admin-access is included rather
+                // than held back at the staff tier because nothing in the codebase checks
+                // 'admin-access campaigns' - splitting it would encode a distinction the
+                // sheet does not make and no code enforces.
+                'campaigns',
+                ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
             ],
 
             [
@@ -593,9 +659,29 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                // Section gate + the three report pages the sheet gives the operator
+                // roles: Stock Count Dashboard, Daily Stock Count, Sales Report.
                 'reports',
                 ['read', 'export', 'admin-access'],
                 ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
+            ],
+
+            [
+                // Margin reports - split off 'reports' on 2026-08-09. The sheet grades the
+                // eight Report rows differently: Stock Count Dashboard / Daily Stock Count /
+                // Sales Report tick operator_admin + operator_supervisor, while Machine
+                // Monthly Snapshot and the four GP reports are superadmin/admin/supervisor.
+                // The nav children carried NO permission field at all, so all eight
+                // inherited 'read reports' and 30 operator-side users could read
+                // gross-profit figures.
+                //
+                // Covers: /reports/snapshot, /reports/gp/vend, /reports/gp/product,
+                // /reports/gp/category, /reports/gp/location-type, and
+                // /reports/sales-performance/product. That last one has no sheet row; it is
+                // product-grained margin data, so it is grouped here rather than left open.
+                'reports-gp',
+                ['read', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor']
             ],
 
             [
@@ -630,15 +716,21 @@ class RolePermissionSyncSeeder extends Seeder
             ],
 
             [
+                // 2026-08-09 sheet sync: every action goes to exactly the roles ticked on
+                // the sheet's "Campaign Management > Voucher" row (+ technician).
+                //
+                // Reachable as of the same date: the Campaign Management section gate was
+                // split off 'read product-campaign-labels' onto ['read campaigns',
+                // 'read vouchers'], so holding this permission now actually renders the link.
+                //
+                // admin-access was previously a separate tuple granted to
+                // superadmin/admin/operator_admin - i.e. a customer-side role held it while
+                // supervisor, who has full CRUD, did not. Nothing checks
+                // 'admin-access vouchers' anywhere in the codebase, so that inversion was
+                // invisible rather than intentional. Folded in.
                 'vouchers',
-                ['read', 'create', 'update', 'delete', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_supervisor']
-            ],
-
-            [
-                'vouchers',
-                ['admin-access'],
-                ['superadmin', 'admin', 'operator_admin']
+                ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
+                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
             ],
 
             [

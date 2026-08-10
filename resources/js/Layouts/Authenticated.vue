@@ -70,8 +70,11 @@ const navigation = computed(() => [
             // indexCustomerLite — 'read vends' here would show the link to every
             // role that has the full Dashboard and then 403 prod_owner.
             {name: 'Dashboard (Lite)', href: '/vends/customers-lite', permission: 'read vend-customers-lite'},
-            {name: 'Ops Performance', href: '/vends/ops-performance', permission: 'read vends'},
-            {name: 'Site Grouping', href: '/vends/grouping', permission: 'read vends'},
+            // Sheet puts Ops Performance and Site Grouping at superadmin/admin/supervisor,
+            // but 'read vends' is the Ops Dashboard permission held by nine roles.
+            // 'admin-access vends' is already exactly superadmin/admin/supervisor.
+            {name: 'Ops Performance', href: '/vends/ops-performance', permission: 'admin-access vends'},
+            {name: 'Site Grouping', href: '/vends/grouping', permission: 'admin-access vends'},
         ]
     },
     {
@@ -155,11 +158,16 @@ const navigation = computed(() => [
         permission: 'read customers',
         tagline: null,
         children: [
+            // Sheet: Sites is superadmin/admin/supervisor/technician/operator_admin/
+            // operator_supervisor, but Summary & Comm / Performance / Tags are staff-only
+            // (superadmin/admin/supervisor/technician). All four were on 'read customers',
+            // so the operator roles saw all four. 'admin-access customers' already holds
+            // exactly the staff four, so no new permission is needed.
             {name: 'Sites', href: '/customers', permission: 'read customers'},
-            {name: 'Summary & Comm', href: '/customers/summary', permission: 'read customers'},
+            {name: 'Summary & Comm', href: '/customers/summary', permission: 'admin-access customers'},
             {name: 'Site Settlement', href: '/site-settlements', permission: 'admin-access customers'},
-            {name: 'Performance', href: '/customers/performance', permission: 'read customers'},
-            {name: 'Tags', href: '/tags?classname=App\\Models\\Customer', permission: 'read customers'},
+            {name: 'Performance', href: '/customers/performance', permission: 'admin-access customers'},
+            {name: 'Tags', href: '/tags?classname=App\\Models\\Customer', permission: 'admin-access customers'},
         ]
     },
     {
@@ -184,10 +192,17 @@ const navigation = computed(() => [
         icon: TicketIcon,
         current: false,
         href: 'campaigns',
-        permission: 'read product-campaign-labels',
+        // Array = "any of these" (see canSee()). Was the plain string
+        // 'read product-campaign-labels', which is Product Management > Product Labels -
+        // a permission technician / operator_admin / operator_supervisor do not hold. They
+        // DID hold every 'vouchers' permission, so the parent was swallowing a child they
+        // could open: the same trap Dashboards and Operations above already document.
+        // Listing both children's permissions is what stops it recurring if the two lists
+        // ever diverge again.
+        permission: ['read campaigns', 'read vouchers'],
         tagline: null,
         children: [
-            {name: 'Settings', href: '/campaigns', permission: 'read product-campaign-labels'},
+            {name: 'Settings', href: '/campaigns', permission: 'read campaigns'},
             {name: 'Voucher', href: '/vouchers', permission: 'read vouchers'},
         ]
     },
@@ -253,15 +268,18 @@ const navigation = computed(() => [
         permission: 'read reports',
         tagline: null,
         children: [
-            {name: 'Stock Count Dashboard', href: '/reports/stock-count-dashboard'},
-            {name: 'Daily Stock Count', href: '/reports/stock-count'},
-            {name: 'Machine Monthly Snapshot', href: '/reports/snapshot'},
-            {name: 'Sales Report', href: '/reports/sales/operator'},
-            {name: 'GP by VM', href: '/reports/gp/vend'},
-            {name: 'GP by Product', href: '/reports/gp/product'},
-            {name: 'Sales Performance by Product', href: '/reports/sales-performance/product'},
+            // These carried no `permission` at all, so canSee() returned true for
+            // anyone who passed the section gate - i.e. the margin reports were visible
+            // to operator_admin / operator_supervisor. Gated explicitly per the sheet.
+            {name: 'Stock Count Dashboard', href: '/reports/stock-count-dashboard', permission: 'read reports'},
+            {name: 'Daily Stock Count', href: '/reports/stock-count', permission: 'read reports'},
+            {name: 'Machine Monthly Snapshot', href: '/reports/snapshot', permission: 'read reports-gp'},
+            {name: 'Sales Report', href: '/reports/sales/operator', permission: 'read reports'},
+            {name: 'GP by VM', href: '/reports/gp/vend', permission: 'read reports-gp'},
+            {name: 'GP by Product', href: '/reports/gp/product', permission: 'read reports-gp'},
+            {name: 'Sales Performance by Product', href: '/reports/sales-performance/product', permission: 'read reports-gp'},
             // {name: 'GP by Category', href: '/reports/gp/category'},
-            {name: 'GP by Location Type', href: '/reports/gp/location-type'},
+            {name: 'GP by Location Type', href: '/reports/gp/location-type', permission: 'read reports-gp'},
         ]
     },
     // {
