@@ -341,6 +341,10 @@ class VendResource extends JsonResource
             'vend_prefix_id' => isset($this->vend_prefix_id) ? $this->vend_prefix_id : null,
             'vend_prefix_name' => isset($this->vend_prefix_name) ? $this->vend_prefix_name : null,
             'vend_config_name' => isset($this->vend_config_name) ? $this->vend_config_name : null,
+            // vend_configs.version — the Setting Chart's "Latest Version".
+            // Only selected on pages that need it (Vend/CustomerIndex), hence
+            // the isset() guard rather than a bare property read.
+            'vend_config_version' => isset($this->vend_config_version) ? $this->vend_config_version : null,
             'vendSerialNumber' => VendSerialNumberResource::make($this->whenLoaded('vendSerialNumber')),
             'vend_serial_number_id' => isset($this->vend_serial_number_id) ? $this->vend_serial_number_id : null,
             'vend_serial_number_code' => isset($this->vend_serial_number_code) ? $this->vend_serial_number_code : null,

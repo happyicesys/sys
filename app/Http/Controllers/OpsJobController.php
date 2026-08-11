@@ -35,6 +35,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Illuminate\Validation\ValidationException;
+use App\Support\SiteSearch;
 
 class OpsJobController extends Controller
 {
@@ -1144,12 +1145,7 @@ class OpsJobController extends Controller
                         });
                     });
                     $query->when($request->customer, function ($query, $search) {
-                        $query->where(function ($query) use ($search) {
-                            $query->whereHas('vend.customer', function ($query) use ($search) {
-                                $query->where('name', 'LIKE', "%{$search}%")
-                                    ->orWhere('virtual_customer_code', 'LIKE', "{$search}%");
-                            });
-                        });
+                        $query->whereHas('vend.customer', fn($customer) => SiteSearch::for($search)->applyTo($customer));
                     });
 
                     // Select necessary columns

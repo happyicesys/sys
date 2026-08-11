@@ -36,7 +36,7 @@
           <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
             Cust Name
           </SearchInput> -->
-          <SearchInput placeholderStr="Site" v-model="filters.customer" v-if="permissions.includes('admin-access machine-settings')" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" v-if="permissions.includes('admin-access machine-settings')" @keyup.enter="onSearchFilterUpdated()">
             Site
           </SearchInput>
           <div v-if="permissions.includes('admin-access machine-settings')">

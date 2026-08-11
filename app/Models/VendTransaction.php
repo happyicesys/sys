@@ -11,6 +11,7 @@ use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\GetUserTimezone;
+use App\Support\SiteSearch;
 
 class VendTransaction extends Model
 {
@@ -93,6 +94,8 @@ class VendTransaction extends Model
         'payment_gateway_log_id',
         'payment_method_id',
         'product_id',
+        'product_mapping_id',
+        'product_mapping_item_id',
         'qty',
         'revenue',
         'success_qty',
@@ -160,6 +163,26 @@ class VendTransaction extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * The planogram this sale was made under, snapshotted at transaction time.
+     * Null on rows written before the snapshot existed and on synthetic
+     * back-date rows — never fall back to $transaction->vend->product_mapping_id
+     * for history, that is current state and will misattribute re-mapped vends.
+     */
+    public function productMapping()
+    {
+        return $this->belongsTo(ProductMapping::class);
+    }
+
+    /**
+     * The exact channel_code -> product -> selling_price row that resolved this
+     * sale. Null for multi-channel transactions (see vendTransactionItems).
+     */
+    public function productMappingItem()
+    {
+        return $this->belongsTo(ProductMappingItem::class);
     }
 
     public function unitCost()
@@ -651,22 +674,9 @@ class VendTransaction extends Model
                 });
             })
             ->when($request->customer, function ($query, $search) {
-                if (strpos($search, "-")) {
-                    $searchArray = explode("-", $search);
-                    $query->whereIn('vend_transactions.customer_id', function ($query) use ($searchArray) {
-                        $query->select('id')->from('customers')
-                            ->where('virtual_customer_prefix', $searchArray[0])
-                            ->where('virtual_customer_code', $searchArray[1]);
-                    });
-                } else {
-                    $query->whereIn('vend_transactions.customer_id', function ($query) use ($search) {
-                        $query->select('id')->from('customers')->where(function ($query) use ($search) {
-                            $query->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                                ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
-                                ->orWhere(DB::raw("lower(name)"), 'LIKE', '%' . strtolower($search) . '%');
-                        });
-                    });
-                }
+                $query->whereIn('vend_transactions.customer_id', function ($query) use ($search) {
+                    SiteSearch::for($search)->applyTo($query->select('id')->from('customers'));
+                });
             })
             ->when($request->location_type_id, function ($query, $search) {
                 if ($search != 'all') {

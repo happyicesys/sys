@@ -36,6 +36,7 @@ use Illuminate\Support\Str;
 use Intervention\Image\Encoders\AutoEncoder;
 use Intervention\Image\Laravel\Facades\Image;
 use Inertia\Inertia;
+use App\Support\SiteSearch;
 
 class OperatorController extends Controller
 {
@@ -213,7 +214,7 @@ class OperatorController extends Controller
                             });
                         })
                         ->when($request->name, function ($query, $search) {
-                            $query->where('name', 'LIKE', '%' . $search . '%');
+                            SiteSearch::for($search)->applyTo($query);
                         });
                     $query->select('id', 'code', 'name', 'virtual_customer_code', 'virtual_customer_prefix', 'operator_id', 'person_id', 'is_active');
                 },

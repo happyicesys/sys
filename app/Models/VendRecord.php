@@ -6,6 +6,7 @@ use App\Models\Scopes\OperatorVendRecordScope;
 use App\Models\Scopes\TransactionAccessScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\SiteSearch;
 
 class VendRecord extends Model
 {
@@ -145,11 +146,7 @@ class VendRecord extends Model
             })
             ->when($request->customer, function ($query, $search) {
                 $query->whereIn('vend_records.customer_id', function ($query) use ($search) {
-                    $query->select('id')
-                        ->from('customers')
-                        ->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
-                        ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
+                    SiteSearch::for($search)->applyTo($query->select('id')->from('customers'));
                 });
             })
             ->when($request->location_type_id, function ($query, $search) {

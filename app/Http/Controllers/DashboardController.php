@@ -30,6 +30,7 @@ use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
+use App\Support\SiteSearch;
 
 class DashboardController extends Controller
 {
@@ -1155,11 +1156,7 @@ class DashboardController extends Controller
                 ->when($request->locationType && $request->locationType !== 'all',
                     fn($q) => $q->where('location_type_id', $request->locationType))
                 ->when($request->customer, fn($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
-                    $subQ->select('id')
-                        ->from('customers')
-                        ->where('virtual_customer_prefix', 'LIKE', "{$request->customer}%")
-                        ->orWhere('virtual_customer_code', 'LIKE', "{$request->customer}%")
-                        ->orWhere('name', 'LIKE', "%{$request->customer}%");
+                    SiteSearch::for($request->customer)->applyTo($subQ->select('id')->from('customers'));
                 }))
                 ->when($request->categories, fn($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
                     $subQ->select('id')->from('customers')->whereIn('category_id', $request->categories);

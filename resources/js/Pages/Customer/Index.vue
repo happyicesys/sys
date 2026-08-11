@@ -25,7 +25,7 @@
           <SearchInput placeholderStr="ID" v-model="filters.vend_code">
             Machine ID
           </SearchInput>
-          <SearchInput placeholderStr="Site" v-model="filters.customer">
+          <SearchInput placeholderStr="Site name / ID" v-model="filters.customer">
             Site
           </SearchInput>
           <div v-if="permissions.includes('admin-access customers')">

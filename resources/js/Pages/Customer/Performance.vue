@@ -20,7 +20,7 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
           <SearchInput placeholderStr="ID" v-model="filters.vend_code">Machine ID</SearchInput>
-          <SearchInput placeholderStr="Site" v-model="filters.customer">Site</SearchInput>
+          <SearchInput placeholderStr="Site name / ID" v-model="filters.customer">Site</SearchInput>
 
           <div>
             <label class="block text-sm font-medium text-gray-700">Site Status</label>

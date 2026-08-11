@@ -12,6 +12,7 @@ class VendTransactionItem extends Model
     protected $fillable = [
         'is_refunded',
         'product_id',
+        'product_mapping_item_id',
         'unit_cost',
         'unit_cost_id',
         'unit_price_amount',
@@ -26,6 +27,15 @@ class VendTransactionItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * The exact planogram row (channel_code -> product -> selling_price) that
+     * resolved this line of a multi-purchase transaction.
+     */
+    public function productMappingItem()
+    {
+        return $this->belongsTo(ProductMappingItem::class);
     }
 
     public function unitCost()

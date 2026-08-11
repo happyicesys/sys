@@ -52,6 +52,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Rap2hpoutre\FastExcel\FastExcel;
+use App\Support\SiteSearch;
 
 class CustomerController extends Controller
 {
@@ -5624,12 +5625,11 @@ class CustomerController extends Controller
             ])
             ->has('vend')
             ->where(function ($query) use ($search) {
-                $query->where('name', 'LIKE', '%' . $search . '%')
-                    ->orWhere('virtual_customer_code', 'LIKE', '%' . $search . '%')
-                    ->orWhere('virtual_customer_prefix', 'LIKE', '%' . $search . '%')
-                    ->orWhereHas('vend', function ($query) use ($search) {
-                        $query->where('code', 'LIKE', '%' . $search . '%');
-                    });
+                SiteSearch::for($search)->applyTo($query);
+
+                $query->orWhereHas('vend', function ($query) use ($search) {
+                    $query->where('code', 'LIKE', '%' . $search . '%');
+                });
             })
             ->whereNull('operator_id')
             ->get();

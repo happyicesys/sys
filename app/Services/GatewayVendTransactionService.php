@@ -102,7 +102,11 @@ class GatewayVendTransactionService
         // (per-item detail lives on vend_transaction_items, matching the TRADE path).
         $parentMap = (! $isMultiple && isset($channels[0]))
             ? $this->mapChannel($vend, $channels[0], $productMappingItems)
-            : ['product' => null, 'vendChannel' => null, 'unitCostId' => null, 'unitCostValue' => 0, 'gstVatRate' => 0];
+            : ['product' => null, 'mappingItem' => null, 'vendChannel' => null, 'unitCostId' => null, 'unitCostValue' => 0, 'gstVatRate' => 0];
+
+        // Planogram in force at paid-time. Taken from the vend (not the resolved
+        // item) so it is captured even for a multi-channel or unmapped purchase.
+        $productMappingId = $vend->product_mapping_id ?: null;
 
         $gstVatRate = $parentMap['gstVatRate'];
         $revenue = $amountCents / (1.00 + ($gstVatRate / 100));
@@ -116,7 +120,8 @@ class GatewayVendTransactionService
             return DB::transaction(function () use (
                 $vend, $orderId, $approvedAt, $amountCents, $isMultiple, $paymentMethod,
                 $channels, $parentMap, $gstVatRate, $revenue, $unitCostValue, $grossProfit,
-                $vendChannelCode, $vendChannelId, $customer, $vendPrefix, $log, $productMappingItems
+                $vendChannelCode, $vendChannelId, $customer, $vendPrefix, $log, $productMappingItems,
+                $productMappingId
             ) {
                 $transaction = VendTransaction::create([
                     'transaction_datetime' => $approvedAt,
@@ -144,6 +149,8 @@ class GatewayVendTransactionService
                     'vend_prefix_id' => $vendPrefix?->id,
                     'vend_transaction_json' => null, // filled by TRADE
                     'product_id' => $parentMap['product']?->id,
+                    'product_mapping_id' => $productMappingId,
+                    'product_mapping_item_id' => $parentMap['mappingItem']?->id,
                     'customer_id' => $customer?->id,
                     'location_type_id' => $customer?->locationType?->id,
                     'operator_id' => $customer?->operator?->id ?? $vend->operator_id ?? 1,
@@ -174,6 +181,7 @@ class GatewayVendTransactionService
                         VendTransactionItem::create([
                             'is_refunded' => false,
                             'product_id' => $map['product']?->id,
+                            'product_mapping_item_id' => $map['mappingItem']?->id,
                             'unit_cost_id' => $map['unitCostId'],
                             'unit_cost' => $map['unitCostValue'],
                             'unit_price_amount' => $map['vendChannel']?->amount ?? 0,
@@ -299,6 +307,10 @@ class GatewayVendTransactionService
 
         return [
             'product' => $product,
+            // Returned whenever the channel resolves to a planogram row, even if
+            // that row has no product — the mapping row itself is still the
+            // correct provenance for the sale.
+            'mappingItem' => $mappingItem,
             'vendChannel' => $vendChannel,
             'unitCostId' => $unitCostId,
             'unitCostValue' => $unitCostValue,

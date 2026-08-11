@@ -20,7 +20,7 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput v-if="showAllFilters" placeholderStr="ID" v-model="filters.ref_id">Site ID</SearchInput>
           <SearchInput placeholderStr="ID" v-model="filters.vend_code">Machine ID</SearchInput>
-          <SearchInput placeholderStr="Site" v-model="filters.customer">Site</SearchInput>
+          <SearchInput placeholderStr="Site name / ID" v-model="filters.customer">Site</SearchInput>
           <!-- Billing Company — moved behind "Show All Filters" (no longer a
                default filter); Site Status takes its place in the default row. -->
           <SearchInput v-if="showAllFilters" placeholderStr="Company" v-model="filters.billing_company">Billing Company</SearchInput>

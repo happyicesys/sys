@@ -7,6 +7,7 @@ use App\Models\Scopes\ProductAccessProductColumnScope;
 use App\Models\Scopes\TransactionAccessScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\SiteSearch;
 
 class VendProductRecord extends Model
 {
@@ -185,11 +186,7 @@ class VendProductRecord extends Model
             // ── Customer name / code search ───────────────────────────────────
             ->when($request->customer, function ($query, $search) {
                 $query->whereIn('vend_product_records.customer_id', function ($q) use ($search) {
-                    $q->select('id')
-                        ->from('customers')
-                        ->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                        ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere('name', 'LIKE', "%{$search}%");
+                    SiteSearch::for($search)->applyTo($q->select('id')->from('customers'));
                 });
             })
 

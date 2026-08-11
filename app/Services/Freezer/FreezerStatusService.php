@@ -179,7 +179,10 @@ class FreezerStatusService
         $status = [];
 
         if (isset($input['powerState'])) {
-            // The host's Java enum constant name — 已连接 / 已断开 / 未知 (supplier-owned strings).
+            // Stable English vocab minted by the APK's powerWire(): connected / cut / unknown.
+            // NOT the host's Chinese enum constants (已连接/已断开/未知) — the APK maps them before
+            // upload so a supplier enum rename cannot silently change this column's values.
+            // Same vocabulary as the sibling `power.state` key written by recordPowerCut().
             $status['powerState'] = $this->str($input['powerState']);
         }
         if (isset($input['comprState'])) {

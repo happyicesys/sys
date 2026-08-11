@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\SiteSearch;
 
 class Vend extends Model
 {
@@ -897,19 +898,7 @@ class Vend extends Model
                 $query->where('serial_num', 'LIKE', "%{$search}%");
             })
             ->when($request->customer, function ($query, $search) {
-                if (strpos($search, "-")) {
-                    $searchArray = explode("-", $search);
-                    $query->whereHas('customer', function ($query) use ($searchArray) {
-                        $query->where('virtual_customer_prefix', $searchArray[0])
-                            ->where('virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
-                    });
-                } else {
-                    $query->whereHas('customer', function ($query) use ($search) {
-                        $query->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
-                            ->orWhere('name', 'LIKE', "%{$search}%");
-                    });
-                }
+                $query->whereHas('customer', fn($customer) => SiteSearch::for($search)->applyTo($customer));
             })
             ->when($request->preferredDays, function ($query, $search) {
                 $query->where(function ($subQuery) use ($search) {

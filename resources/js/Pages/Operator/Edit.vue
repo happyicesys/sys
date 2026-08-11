@@ -722,7 +722,7 @@
                               <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
                                   Machine ID
                               </SearchInput>
-                              <SearchInput placeholderStr="Cust Name" v-model="filters.name" @input="onSearchFilterUpdated()">
+                              <SearchInput placeholderStr="Site name / ID" v-model="filters.name" @input="onSearchFilterUpdated()">
                                   Cust Name
                               </SearchInput>
                               <SearchInput placeholderStr="Prefix Code" v-model="filters.prefix_code" @input="onSearchFilterUpdated()">

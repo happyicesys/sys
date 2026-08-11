@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Support\SiteSearch;
 
 /**
  * Operations > Ops Performance — Phase 1 only (Key KPI + Machines' Status &
@@ -236,12 +237,8 @@ class OpsPerformanceController extends Controller
         if ($search === '') {
             return [];
         }
-        $ids = DB::table('customers')
-            ->where(function ($q) use ($search) {
-                $q->where('virtual_customer_code', 'LIKE', "{$search}%")
-                    ->orWhere('code', 'LIKE', "{$search}%")
-                    ->orWhere('name', 'LIKE', "%{$search}%");
-            })
+        $ids = SiteSearch::for($search)
+            ->applyTo(DB::table('customers'))
             ->pluck('id')->all();
         return empty($ids) ? [-1] : $ids;
     }

@@ -133,7 +133,7 @@
 						>
 						</MultiSelect>
 					</div>
-          <SearchInput placeholderStr="Site" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
             Site
           </SearchInput>
           <div>

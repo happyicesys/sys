@@ -21,7 +21,7 @@
             Machine ID
           </SearchInput>
 
-          <SearchInput placeholderStr="Site name or code" v-model="f.customer" @keyup.enter="applyFilters()">
+          <SearchInput placeholderStr="Site name / ID" v-model="f.customer" @keyup.enter="applyFilters()">
             Site
           </SearchInput>
 

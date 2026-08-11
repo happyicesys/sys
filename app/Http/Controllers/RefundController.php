@@ -11,6 +11,7 @@ use App\Services\Refund\RefundPayoutCsvService;
 use App\Services\Refund\RefundTicketService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Support\SiteSearch;
 
 /**
  * Admin/back-office refund management (Ops -> Admin -> Manager).
@@ -178,13 +179,15 @@ class RefundController extends Controller
                     }
                 });
             })
-            // --- Site name: match the ticket's machine's site (vend -> customer.name).
+            // --- Site: match the ticket's machine's site (vend -> customer) by
+            // name, virtual code/prefix, CMS code or the displayed Site ID.
             // Raw builder subquery so operator global scopes don't drop rows here.
             ->when($request->site_name, function ($q, $s) {
                 $q->whereIn('vend_id', function ($sub) use ($s) {
-                    $sub->select('vends.id')->from('vends')
-                        ->join('customers', 'customers.id', '=', 'vends.customer_id')
-                        ->where('customers.name', 'like', "%{$s}%");
+                    SiteSearch::for($s)->applyTo(
+                        $sub->select('vends.id')->from('vends')
+                            ->join('customers', 'customers.id', '=', 'vends.customer_id')
+                    );
                 });
             })
             // --- Channel / Product: claimed refund line items on the ticket.

@@ -7,6 +7,7 @@ use App\Models\CustomerGroup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Support\SiteSearch;
 
 /**
  * Operations > Site Grouping — object-oriented management of Site clusters.
@@ -132,17 +133,14 @@ class SiteGroupingController extends Controller
 
         if ($q !== '') {
             $query->where(function ($w) use ($q) {
-                $w->where('name', 'like', "%{$q}%")
-                    ->orWhere('code', 'like', "%{$q}%")
-                    ->orWhere('virtual_customer_code', 'like', "%{$q}%")
-                    // Machines whose vend code matches, so admins can find a site
-                    // by the Machine ID they recognise (vends.code).
-                    ->orWhereIn('customers.id', function ($sub) use ($q) {
-                        $sub->select('customer_id')->from('vends')->where('code', 'like', "%{$q}%");
-                    });
-                if (ctype_digit($q)) {
-                    $w->orWhere('id', ((int) $q) - 20000);
-                }
+                // Site Name / virtual code / prefix / CMS code / Site ID.
+                SiteSearch::for($q)->applyTo($w);
+
+                // Machines whose vend code matches, so admins can find a site
+                // by the Machine ID they recognise (vends.code).
+                $w->orWhereIn('customers.id', function ($sub) use ($q) {
+                    $sub->select('customer_id')->from('vends')->where('code', 'like', "%{$q}%");
+                });
             });
         }
 

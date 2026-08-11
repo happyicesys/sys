@@ -68,7 +68,7 @@
                 </MultiSelect>
             </div> -->
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Site" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
                     Site
                 </SearchInput>
             </div>

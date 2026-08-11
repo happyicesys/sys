@@ -1139,6 +1139,14 @@ class VendController extends Controller
                 'operators.name AS operator_name',
                 'addresses.postcode AS postcode',
                 'vend_configs.name AS vend_config_name',
+                // Setting Chart version pair rendered on Vend/CustomerIndex:
+                // vends.vend_vend_config_version is the version flashed onto
+                // THIS machine ("Current Version" on Setting/Edit), while
+                // vend_configs.version is the chart's own "Latest Version".
+                // Both come off joins already in the query, so this costs no
+                // extra round trip.
+                'vends.vend_vend_config_version',
+                'vend_configs.version AS vend_config_version',
                 'vend_prefixes.name AS vend_prefix_name',
                 'zones.name AS zone_name',
                 // Card terminal (user-defined) — drives the "Card Terminal"

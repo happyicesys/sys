@@ -60,6 +60,7 @@ use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Log;
 use Rap2hpoutre\FastExcel\FastExcel;
+use App\Support\SiteSearch;
 
 class ReportController extends Controller
 {
@@ -1839,12 +1840,7 @@ class ReportController extends Controller
 
         // ----- Customer (free-text) -----
         if ($request->filled('customer')) {
-            $search = $request->customer;
-            $sub->where(function ($q) use ($search) {
-                $q->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                    ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
-                    ->orWhere('customers.name', 'LIKE', "%{$search}%");
-            });
+            SiteSearch::for($request->customer)->alsoMatching('vend_prefixes.name')->applyTo($sub);
         }
 
         if ($request->filled('customer_code')) {
@@ -2131,12 +2127,9 @@ class ReportController extends Controller
             ->when($request->customer, function ($q, $search) {
                 $q->where(function ($query) use ($search) {
                     $query->whereExists(function ($sq) use ($search) {
-                        $sq->from('customers as c')
-                            ->whereColumn('c.id', 'sc.customer_id')
-                            ->where(function ($sub) use ($search) {
-                                $sub->where('c.virtual_customer_code', 'LIKE', "{$search}%")
-                                    ->orWhere('c.name', 'LIKE', "%{$search}%");
-                            });
+                        SiteSearch::for($search)->on('c')->applyTo(
+                            $sq->from('customers as c')->whereColumn('c.id', 'sc.customer_id')
+                        );
                     })
                         ->orWhereExists(function ($sq) use ($search) {
                             $sq->from('vend_prefixes as vp')
@@ -2291,12 +2284,9 @@ class ReportController extends Controller
             ->when($request->customer, function ($q, $search) {
                 $q->where(function ($query) use ($search) {
                     $query->whereExists(function ($sq) use ($search) {
-                        $sq->from('customers as c')
-                            ->whereColumn('c.id', 'sc.customer_id')
-                            ->where(function ($sub) use ($search) {
-                                $sub->where('c.virtual_customer_code', 'LIKE', "{$search}%")
-                                    ->orWhere('c.name', 'LIKE', "%{$search}%");
-                            });
+                        SiteSearch::for($search)->on('c')->applyTo(
+                            $sq->from('customers as c')->whereColumn('c.id', 'sc.customer_id')
+                        );
                     })
                         ->orWhereExists(function ($sq) use ($search) {
                             $sq->from('vend_prefixes as vp')
@@ -2370,12 +2360,9 @@ class ReportController extends Controller
             ->when($request->customer, function ($q, $search) {
                 $q->where(function ($query) use ($search) {
                     $query->whereExists(function ($sq) use ($search) {
-                        $sq->from('customers as c2')
-                            ->whereColumn('c2.id', 'sc2.customer_id')
-                            ->where(function ($sub) use ($search) {
-                                $sub->where('c2.virtual_customer_code', 'LIKE', "{$search}%")
-                                    ->orWhere('c2.name', 'LIKE', "%{$search}%");
-                            });
+                        SiteSearch::for($search)->on('c2')->applyTo(
+                            $sq->from('customers as c2')->whereColumn('c2.id', 'sc2.customer_id')
+                        );
                     })
                         ->orWhereExists(function ($sq) use ($search) {
                             $sq->from('vend_prefixes as vp2')
@@ -2926,11 +2913,7 @@ class ReportController extends Controller
                 });
             })
             ->when($request->customer, function ($query, $search) {
-                $query->where(function ($sub) use ($search) {
-                    $sub->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
-                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
-                });
+                SiteSearch::for($search)->alsoMatching('vend_prefixes.name')->applyTo($query);
             })
             ->when($request->is_binded_customer, function ($query, $search) {
                 if ($search != 'all') {
@@ -3429,12 +3412,9 @@ class ReportController extends Controller
             ->when($request->customer, function ($q, $search) {
                 $q->where(function ($query) use ($search) {
                     $query->whereExists(function ($sq) use ($search) {
-                        $sq->from('customers as c')
-                            ->whereColumn('c.id', 'sc.customer_id')
-                            ->where(function ($sub) use ($search) {
-                                $sub->where('c.virtual_customer_code', 'LIKE', "{$search}%")
-                                    ->orWhere('c.name', 'LIKE', "%{$search}%");
-                            });
+                        SiteSearch::for($search)->on('c')->applyTo(
+                            $sq->from('customers as c')->whereColumn('c.id', 'sc.customer_id')
+                        );
                     })
                         ->orWhereExists(function ($sq) use ($search) {
                             $sq->from('vend_prefixes as vp')
@@ -3594,12 +3574,9 @@ class ReportController extends Controller
             ->when($request->customer, function ($q, $search) {
                 $q->where(function ($query) use ($search) {
                     $query->whereExists(function ($sq) use ($search) {
-                        $sq->from('customers as c')
-                            ->whereColumn('c.id', 'sc.customer_id')
-                            ->where(function ($sub) use ($search) {
-                                $sub->where('c.virtual_customer_code', 'LIKE', "{$search}%")
-                                    ->orWhere('c.name', 'LIKE', "%{$search}%");
-                            });
+                        SiteSearch::for($search)->on('c')->applyTo(
+                            $sq->from('customers as c')->whereColumn('c.id', 'sc.customer_id')
+                        );
                     })
                         ->orWhereExists(function ($sq) use ($search) {
                             $sq->from('vend_prefixes as vp')

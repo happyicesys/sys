@@ -353,6 +353,11 @@ class VendTransactionService
             'vend_prefix_id' => $vendPrefix?->id ?? null,
             'vend_transaction_json' => $input['originalJson'],
             'product_id' => $input['productID'],
+            // Freeze the planogram in force at TRADE time — vends.product_mapping_id
+            // is rewritten on every changeover, so without this the historical
+            // product/price attribution is unrecoverable after a re-map.
+            'product_mapping_id' => $input['productMappingID'] ?? null,
+            'product_mapping_item_id' => $input['productMappingItemID'] ?? null,
             'customer_id' => $customer?->id ?? null,
             'location_type_id' => $customer?->locationType?->id ?? null,
             'operator_id' => $customer?->operator?->id ?? $vend->operator_id ?? 1,
@@ -444,6 +449,11 @@ class VendTransactionService
             'vend_channel_error_id' => $input['vendChannelErrorID'],
             'vend_transaction_json' => $input['originalJson'],
             'product_id' => $input['productID'],
+            // The TRADE is the authoritative moment, so its planogram snapshot
+            // wins — but never downgrade a value the paid-time pre-create already
+            // captured to null (e.g. a TRADE whose channel no longer resolves).
+            'product_mapping_id' => $input['productMappingID'] ?? $transaction->product_mapping_id,
+            'product_mapping_item_id' => $input['productMappingItemID'] ?? $transaction->product_mapping_item_id,
             'unit_cost_id' => $input['unitCostID'],
             'unit_cost' => $unitCostValue,
             'gst_vat_rate' => $gstVatRate,
@@ -531,6 +541,9 @@ class VendTransactionService
         VendTransactionItem::create([
             'is_refunded' => false,
             'product_id' => $input['productID'],
+            // Per-channel planogram row; this is where multi-purchase attribution
+            // lives, since the parent carries no single mapping item.
+            'product_mapping_item_id' => $input['productMappingItemID'] ?? null,
             'unit_cost_id' => $input['unitCostID'],
             'unit_cost' => $input['unitCostValue'] ?? 0,
             'unit_price_amount' => $input['unit_price_amount'] ?? 0,
@@ -730,6 +743,13 @@ class VendTransactionService
             'paymentClassification' => $paymentClassification,
             'planItemID' => isset($input['planItemID']) ? $input['planItemID'] : null,
             'productID' => $product ? $product->id : null,
+            // Planogram snapshot. productMappingID comes from the vend (not the
+            // resolved item) so it is captured even when the channel is unmapped
+            // or the code is 0 — "which planogram was live" is knowable in every
+            // case. productMappingItemID pins the exact channel_code -> product
+            // -> selling_price row and is null when nothing resolved.
+            'productMappingID' => $vend->product_mapping_id ?: null,
+            'productMappingItemID' => $productMappingItem?->id,
             'qty' => isset($input['qty']) ? $input['qty'] : 1,
             'success_qty' => isset($input['success_qty']) ? $input['success_qty'] : 0,
             'dispensed_qty' => isset($input['dispensed_qty']) ? $input['dispensed_qty'] : 0,

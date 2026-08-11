@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
+use App\Support\SiteSearch;
 
 class PaymentGatewayLog extends Model
 {
@@ -118,17 +118,7 @@ class PaymentGatewayLog extends Model
                 }
             })
             ->when($request->customer, function ($q, $search) {
-                if (strpos($search, '-')) {
-                    $parts = explode('-', $search, 2);
-                    $q->whereHas('vend.customer', fn($sub) => $sub
-                        ->where('virtual_customer_prefix', $parts[0])
-                        ->where('virtual_customer_code', $parts[1]));
-                } else {
-                    $q->whereHas('vend.customer', fn($sub) => $sub
-                        ->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                        ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere(DB::raw('lower(name)'), 'LIKE', '%' . strtolower($search) . '%'));
-                }
+                $q->whereHas('vend.customer', fn($sub) => SiteSearch::for($search)->applyTo($sub));
             })
             ->when($applyCutoff, fn($q) => $q->where('payment_gateway_logs.approved_at', '>=', self::UNREPORTED_GATEWAY_CUTOFF));
     }
@@ -243,19 +233,7 @@ class PaymentGatewayLog extends Model
                 $query->where('payment_method_id', $search);
             })
             ->when($request->customer, function ($query, $search) {
-                if (strpos($search, "-")) {
-                    $searchArray = explode("-", $search);
-                    $query->whereHas('vend.customer', function ($query) use ($searchArray) {
-                        $query->where('virtual_customer_prefix', $searchArray[0])
-                            ->where('virtual_customer_code', $searchArray[1]);
-                    });
-                } else {
-                    $query->whereHas('vend.customer', function ($query) use ($search) {
-                        $query->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
-                            ->orWhere(DB::raw("lower(name)"), 'LIKE', '%' . strtolower($search) . '%');
-                    });
-                }
+                $query->whereHas('vend.customer', fn($customer) => SiteSearch::for($search)->applyTo($customer));
             })
             ->when($request->operators, function ($query, $search) {
                 if (!in_array('all', $search)) {

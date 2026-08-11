@@ -55,7 +55,7 @@
 				<!-- <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 						Cust ID
 				</SearchInput> -->
-				<SearchInput placeholderStr="Site" v-model="filters.customer" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
+				<SearchInput placeholderStr="Site name / ID" v-model="filters.customer" v-if="permissions.includes('admin-access vend-customers')" @keyup.enter="onSearchFilterUpdated()">
 					Site
 				</SearchInput>
 				<div v-if="showAllFilters">
@@ -1338,8 +1338,13 @@
 							<span v-if="!(permissions.includes('admin-access vend-customers') || permissions.includes('update machine-settings'))">
 								{{ vend.code }}
 							</span>
-							<div class="text-left text-gray-800" v-if="vend.vend_config_name">
-								{{ vend.vend_config_name }}
+							<div
+								class="text-left"
+								:class="settingChartHasLatestVersion(vend) ? 'text-red-600' : 'text-gray-800'"
+								v-if="vend.vend_config_name"
+								v-tooltip="settingChartVersionTooltip(vend)"
+							>
+								{{ settingChartLabel(vend) }}
 							</div>
 							<div class="text-left text-blue-700 cursor-default select-none">
 								{{ vend.vend_prefix_name }}
@@ -4094,6 +4099,43 @@ function getUpcomingMapping(vendData) {
 			? vendData.productMapping.upcomingProductMapping
 			: null
 	return fromMapping
+}
+
+// Setting Chart line ("E014-BEC h") — the chart name with the machine's OWN
+// Setting Chart version appended.
+//
+// Two distinct fields are in play and they are easy to confuse:
+//   vend_vend_config_version  = "Current Version" on Setting/Edit — the version
+//                               actually flashed onto THIS machine.
+//   vend_config_version       = vend_configs.version, i.e. the chart's "Latest
+//                               Version" — a property of the chart, not the
+//                               machine.
+// Only the current version is appended here. When the chart carries a Latest
+// Version we deliberately do NOT concatenate it a second time; the whole line
+// turns red instead, and the tooltip spells out both values.
+//
+// Both columns store "-" for "not set" (see vend_configs on live), so "-" and
+// blank are normalised to absent rather than rendered.
+function settingChartVersion(value) {
+	if (value === null || value === undefined) return ''
+	const trimmed = String(value).trim()
+	return (trimmed === '' || trimmed === '-') ? '' : trimmed
+}
+
+function settingChartLabel(vend) {
+	const current = settingChartVersion(vend.vend_vend_config_version)
+	return current ? vend.vend_config_name + ' ' + current : vend.vend_config_name
+}
+
+function settingChartHasLatestVersion(vend) {
+	return settingChartVersion(vend.vend_config_version) !== ''
+}
+
+function settingChartVersionTooltip(vend) {
+	const latest = settingChartVersion(vend.vend_config_version)
+	if (!latest) return ''
+	const current = settingChartVersion(vend.vend_vend_config_version)
+	return 'Current Version: ' + (current || '-') + ' | Latest Version: ' + latest
 }
 
 // Name-only wrapper — kept because the Last 2 Job / Upcoming Job columns render

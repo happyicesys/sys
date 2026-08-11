@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
+use App\Support\SiteSearch;
 
 trait HasFilter
 {
@@ -126,11 +127,7 @@ trait HasFilter
                 });
             })
             ->when($request->customer, function ($query, $search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
-                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
-                });
+                SiteSearch::for($search)->alsoMatching('vend_prefixes.name')->applyTo($query);
             })
             ->when($request->is_binded_customer, function ($query, $search) {
                 if ($search != 'all') {
@@ -215,11 +212,7 @@ trait HasFilter
                 });
             })
             ->when($request->customer, function ($query, $search) {
-                $query->where(function ($subQuery) use ($search) {
-                    $subQuery->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
-                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
-                });
+                SiteSearch::for($search)->alsoMatching('vend_prefixes.name')->applyTo($query);
             })
             ->when($request->is_binded_customer, function ($query, $search) {
                 if ($search != 'all') {
@@ -323,11 +316,7 @@ trait HasFilter
                 });
             })
             ->when($request->customer, function ($query, $search) {
-                $query->where(function ($subQuery) use ($search) {
-                    $subQuery->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
-                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
-                });
+                SiteSearch::for($search)->alsoMatching('vend_prefixes.name')->applyTo($query);
             })
             ->when($request->is_binded_customer, function ($query, $search) {
                 if ($search === 'all') {
@@ -490,18 +479,7 @@ trait HasFilter
                 }
             })
             ->when($request->customer, function ($query, $search) {
-                // if(strpos($search, "-")) {
-                //     $searchArray = explode("-", $search);
-                //     $query->where('customers.virtual_customer_prefix', $searchArray[0])
-                //         ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
-                // }else {
-                $query->where(function ($query) use ($search) {
-                    // $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
-                    $query->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
-                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
-                });
-                // }
+                SiteSearch::for($search)->alsoMatching('vend_prefixes.name')->applyTo($query);
             })
             ->when($request->has_customer, function ($query, $search) {
                 if ($search != 'all') {

@@ -78,7 +78,7 @@
           >
           </MultiSelect>
         </div>
-        <SearchInput placeholderStr="Site" v-model="filters.customer" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput placeholderStr="Site name / ID" v-model="filters.customer" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
           Site
         </SearchInput>
         <div>
