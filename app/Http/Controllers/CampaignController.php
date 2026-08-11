@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Campaign;
 use App\Models\Operator;
+use App\Models\Scopes\OperatorFilterScope;
 use App\Http\Resources\CampaignResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\TagResource;
+use App\Support\OperatorScope;
 use App\Traits\GetUserTimezone;
 use App\Models\Tag;
 use Carbon\Carbon;
@@ -32,10 +34,18 @@ class CampaignController extends Controller
      */
     public function index(Request $request)
     {
+        // The Operator dropdown is an admin-only affordance (it is rendered
+        // behind `admin-access vend-customers`, same as Vend/CustomerIndex).
+        // Everyone else is pinned to their own operator scope regardless of
+        // what arrives in the query string; Campaign::visibleTo() below is the
+        // hard ceiling either way, so this only decides the default view.
         $request->merge([
             'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
             'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
+            'operators' => auth()->user()->can('admin-access vend-customers')
+                ? OperatorScope::narrow($request->operators)
+                : OperatorScope::current(),
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : '100',
             'status' => $request->status ? $request->status : 'all',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
@@ -53,6 +63,7 @@ class CampaignController extends Controller
                             ->selectRaw('COUNT(DISTINCT apk_setting_vend.vend_id)');
                     }, 'bound_machines_count')
                     ->with(['operator', 'labelsX', 'labelsY'])
+                    ->visibleTo()
                     ->filterIndex($request)
                     ->when($request->sortKey, function ($query, $search) use ($request) {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
@@ -61,7 +72,7 @@ class CampaignController extends Controller
                     ->withQueryString()
             ),
             'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
+                $this->scopedOperators()
             ),
         ]);
     }
@@ -73,7 +84,7 @@ class CampaignController extends Controller
     {
         return Inertia::render('Campaign/Create', [
             'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
+                $this->scopedOperators()
             ),
             'tagOptions' => TagResource::collection(
                 // Campaign labels are stored as Product-scoped Tag rows (see
@@ -113,6 +124,11 @@ class CampaignController extends Controller
             'labels_y' => 'nullable|array',
             'labels_y.*' => 'integer|exists:tags,id',
         ]);
+
+        // A valid operator id is not enough - it must be one this user may
+        // act for. Without this, `exists:operators,id` happily accepts any
+        // operator in the table and a campaign lands in someone else's tenancy.
+        $this->authorizeOperator((int) $validated['operator_id']);
 
         $promoType = Campaign::normalizePromoType($validated['promo_type']);
 
@@ -168,12 +184,14 @@ class CampaignController extends Controller
      */
     public function edit(Campaign $campaign)
     {
+        $this->authorizeCampaign($campaign);
+
         $campaign->load(['operator', 'labelsX', 'labelsY']);
 
         return Inertia::render('Campaign/Edit', [
             'campaign' => CampaignResource::make($campaign),
             'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
+                $this->scopedOperators()
             ),
             'tagOptions' => TagResource::collection(
                 // Same Product-scoped filter as createView() — keep the edit
@@ -191,6 +209,8 @@ class CampaignController extends Controller
      */
     public function update(Request $request, Campaign $campaign)
     {
+        $this->authorizeCampaign($campaign);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'operator_id' => 'required|integer|exists:operators,id',
@@ -210,6 +230,10 @@ class CampaignController extends Controller
             'labels_y' => 'nullable|array',
             'labels_y.*' => 'integer|exists:tags,id',
         ]);
+
+        // Guard the destination as well as the source, so an in-scope
+        // campaign cannot be pushed out to another operator.
+        $this->authorizeOperator((int) $validated['operator_id']);
 
         $promoType = Campaign::normalizePromoType($validated['promo_type']);
 
@@ -254,6 +278,8 @@ class CampaignController extends Controller
      */
     public function destroy(Campaign $campaign)
     {
+        $this->authorizeCampaign($campaign);
+
         if ($campaign->apkSettings()->exists()) {
             return back()->with('error', 'Campaign is currently in use and cannot be deleted.');
         }
@@ -263,6 +289,41 @@ class CampaignController extends Controller
         $campaign->delete();
 
         return redirect()->route('campaigns');
+    }
+
+    /**
+     * Operators the current user may pick from - drives every Operator
+     * dropdown on this page. Mirrors Campaign::visibleTo(), so the form can
+     * never offer a value the write guards would then reject.
+     */
+    private function scopedOperators()
+    {
+        // Drop OperatorFilterScope for the same reason OperatorScope does: it
+        // keys off operator id 1, while the ceiling keys off the code 'HIPL'.
+        // Leaving it on would collapse a HIPL user's dropdown to a single row
+        // the moment those two ever stop agreeing.
+        return Operator::withoutGlobalScope(OperatorFilterScope::class)
+            ->whereIn('id', OperatorScope::current())
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * 403 unless the campaign belongs to an operator in the viewer's scope.
+     * Route model binding resolves {campaign} by id alone, so without this a
+     * user could reach another operator's campaign by typing the URL.
+     */
+    private function authorizeCampaign(Campaign $campaign): void
+    {
+        abort_unless(OperatorScope::allows((int) $campaign->operator_id), 403);
+    }
+
+    /**
+     * 403 unless the given operator is one the viewer may write for.
+     */
+    private function authorizeOperator(int $operatorId): void
+    {
+        abort_unless(OperatorScope::allows($operatorId), 403);
     }
 
     private function promoTypeOptions()

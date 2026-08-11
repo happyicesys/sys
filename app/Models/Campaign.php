@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Str;
 use App\Models\Operator;
 use App\Models\Tag;
+use App\Models\User;
+use App\Support\OperatorScope;
 use App\Traits\GetUserTimezone;
 
 class Campaign extends Model
@@ -60,24 +62,45 @@ class Campaign extends Model
     }
 
     // scopes
+
+    /**
+     * Constrain the query to the campaigns the viewer's operator may see -
+     * the same rule Vend/CustomerIndex enforces (HIPL staff see the HIPL
+     * sibling group, everyone else sees only their own operator).
+     *
+     * This is the authorization gate and is applied BEFORE the user's own
+     * Operator filter, so a hand-crafted `operators[]` in the query string can
+     * only narrow the result set, never widen it. The predicate is applied
+     * unconditionally: an empty ceiling must yield zero rows, not every row.
+     */
+    public function scopeVisibleTo($query, ?User $user = null)
+    {
+        return $query->whereIn(
+            $query->getModel()->qualifyColumn('operator_id'),
+            OperatorScope::forUser($user ?: auth()->user())
+        );
+    }
+
     public function scopeFilterIndex($query, $request)
     {
+        $query->when($request->name, function ($query, $search) {
+            $query->where('name', 'LIKE', "%{$search}%");
+        });
 
-        $query = $query
-            ->when($request->name, function ($query, $search) {
-                $query->where('name', 'LIKE', "%{$search}%");
-            })
-            ->when($request->operators, function ($query, $search) {
-                if ($search != 'all') {
-                    // Keep compatibility; if a single operator_id is passed
-                    // use it directly, else assume an array of IDs
-                    $query->when(is_array($search), function ($q) use ($search) {
-                        $q->whereIn('operator_id', $search);
-                    }, function ($q) use ($search) {
-                        $q->where('operator_id', $search);
-                    });
-                }
-            });
+        // Operator narrowing. CampaignController::index always merges a
+        // RESOLVED array of ids here, so the array branch is the live path and
+        // must be applied UNCONDITIONALLY: an empty array means "sees nothing"
+        // and has to produce zero rows. The old `when($request->operators, ...)`
+        // treated [] as falsy and dropped the predicate entirely, which turned
+        // "sees nothing" into "sees everything".
+        $operators = $request->operators;
+
+        if (is_array($operators)) {
+            $query->whereIn('campaigns.operator_id', $operators);
+        } elseif ($operators !== null && $operators !== '' && $operators !== 'all') {
+            // Back-compat: a single operator_id passed as a scalar.
+            $query->where('campaigns.operator_id', $operators);
+        }
 
         return $query;
     }

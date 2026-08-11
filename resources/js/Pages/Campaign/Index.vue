@@ -255,6 +255,7 @@ const filters = ref({
 const operatorOptions = ref([])
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const authOperator = usePage().props.auth.operator
 const discountBasisLabels = {
   qty: 'By Qty',
   amount: 'By Amount',
@@ -271,10 +272,21 @@ onMounted(() => {
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   operatorOptions.value = [
     {id: 'all', full_name: 'All'},
-    ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+    ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
-  // Default selection to 'All' for tags mode (expects array)
-  filters.value.operators = [operatorOptions.value[0]]
+  // Default the Operator filter the same way Vend/CustomerIndex.vue does:
+  // your own operator, plus the HIPL sibling operators when you are HIPL
+  // staff. The server applies this ceiling regardless (Campaign::visibleTo),
+  // so this only keeps the widget honest about what is actually being shown.
+  filters.value.operators = authOperator ? [
+    operatorOptions.value.find(operator => operator.id === authOperator.id),
+    ...authOperator.code == 'HIPL' ? [
+      operatorOptions.value.find(operator => operator.code == 'HIMD'),
+      operatorOptions.value.find(operator => operator.code == 'LEA'),
+      operatorOptions.value.find(operator => operator.code == 'HIESG'),
+      operatorOptions.value.find(operator => operator.code == 'UL-ST'),
+    ] : [],
+  ].filter(operator => operator !== undefined) : [operatorOptions.value[0]]
 })
 
 function onSearchFilterUpdated() {

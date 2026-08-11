@@ -942,7 +942,7 @@
                               <div
                                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                                   :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['Sensor'] % 2 == 0 ? 'bg-red-200' : 'bg-green-200') : 'bg-gray-200 text-gray-400']"
-                                  v-if="vend.parameterJson"
+                                  v-if="vend.parameterJson && 'Sensor' in vend.parameterJson"
                               >
                                   <div class="flex flex-col">
                                       <span class="font-bold">
@@ -1312,6 +1312,13 @@
       @modalClose="onChannelOverviewClosed"
   >
   </ChannelOverview>
+  <SmartFreezerChannelOverview
+      v-if="showSmartChannelOverviewModal"
+      :vend="vend"
+      :showModal="showSmartChannelOverviewModal"
+      @modalClose="onSmartChannelOverviewClosed"
+  >
+  </SmartFreezerChannelOverview>
   <Create
       v-if="showCreateModal"
       :showModal="showCreateModal"
@@ -1375,6 +1382,7 @@
 <script setup>
 import Button from '@/Components/Button.vue';
 import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
+import SmartFreezerChannelOverview from '@/Pages/Vend/SmartFreezerChannelOverview.vue';
 import Create from '@/Pages/Vend/Create.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Form from '@/Pages/Vend/Form.vue';
@@ -1475,6 +1483,7 @@ const pickLists = ref([])
 const sellingPriceTypeOptions = ref([])
 const showAllFilters = ref(false)
 const showChannelOverviewModal = ref(false)
+const showSmartChannelOverviewModal = ref(false)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showPickListModal = ref(false)
@@ -1617,11 +1626,21 @@ function getVendsField() {
 
   function onChannelOverviewClicked(vendData) {
       vend.value = vendData
-      showChannelOverviewModal.value = true
+      // Same branch as Index.vue / CustomerIndex.vue: a smart freezer reports no vend_channels
+      // telemetry, so the vending grid renders empty. Its planogram is the source of truth.
+      if (vendData.product_mapping_is_smart) {
+          showSmartChannelOverviewModal.value = true
+      } else {
+          showChannelOverviewModal.value = true
+      }
   }
 
   function onChannelOverviewClosed() {
       showChannelOverviewModal.value = false
+  }
+
+  function onSmartChannelOverviewClosed() {
+      showSmartChannelOverviewModal.value = false
   }
 
   function onCreateClicked() {

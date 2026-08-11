@@ -1340,7 +1340,7 @@
 							</span>
 							<div
 								class="text-left"
-								:class="settingChartHasLatestVersion(vend) ? 'text-red-600' : 'text-gray-800'"
+								:class="settingChartIsOutdated(vend) ? 'text-red-600' : 'text-gray-800'"
 								v-if="vend.vend_config_name"
 								v-tooltip="settingChartVersionTooltip(vend)"
 							>
@@ -2650,7 +2650,7 @@
 							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 									:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['Sensor'] % 2 == 0 ? 'bg-red-200' : 'bg-green-200') : 'bg-gray-200 text-gray-400']"
-									v-if="vend.parameterJson"
+									v-if="vend.parameterJson && 'Sensor' in vend.parameterJson"
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
@@ -4110,12 +4110,14 @@ function getUpcomingMapping(vendData) {
 //   vend_config_version       = vend_configs.version, i.e. the chart's "Latest
 //                               Version" — a property of the chart, not the
 //                               machine.
-// Only the current version is appended here. When the chart carries a Latest
-// Version we deliberately do NOT concatenate it a second time; the whole line
-// turns red instead, and the tooltip spells out both values.
+// Only the current version is appended here. When the machine is NOT on the
+// chart's Latest Version we deliberately do NOT concatenate the latest a second
+// time; the whole line turns red instead, and the tooltip spells out both
+// values. Current == latest (the normal case) stays grey.
 //
 // Both columns store "-" for "not set" (see vend_configs on live), so "-" and
-// blank are normalised to absent rather than rendered.
+// blank are normalised to absent rather than rendered. A chart with no Latest
+// Version set can never be "out of date", so it never reds.
 function settingChartVersion(value) {
 	if (value === null || value === undefined) return ''
 	const trimmed = String(value).trim()
@@ -4127,15 +4129,19 @@ function settingChartLabel(vend) {
 	return current ? vend.vend_config_name + ' ' + current : vend.vend_config_name
 }
 
-function settingChartHasLatestVersion(vend) {
-	return settingChartVersion(vend.vend_config_version) !== ''
+function settingChartIsOutdated(vend) {
+	const latest = settingChartVersion(vend.vend_config_version)
+	if (!latest) return false
+	// Case-insensitive so a stray "H" vs "h" doesn't red the whole fleet; the
+	// versions are single letters entered by hand on Setting/Edit.
+	return settingChartVersion(vend.vend_vend_config_version).toLowerCase() !== latest.toLowerCase()
 }
 
 function settingChartVersionTooltip(vend) {
-	const latest = settingChartVersion(vend.vend_config_version)
-	if (!latest) return ''
+	if (!settingChartIsOutdated(vend)) return ''
 	const current = settingChartVersion(vend.vend_vend_config_version)
-	return 'Current Version: ' + (current || '-') + ' | Latest Version: ' + latest
+	return 'Current Version: ' + (current || '-')
+		+ ' | Latest Version: ' + settingChartVersion(vend.vend_config_version)
 }
 
 // Name-only wrapper — kept because the Last 2 Job / Upcoming Job columns render
