@@ -2,22 +2,19 @@
 
 namespace App\Models;
 
-use App\Models\OpsJob;
-use App\Models\VendAlertSetting;
-use App\Models\VendLog;
-use App\Models\VendTemp;
 use App\Models\Scopes\OperatorVendFilterScope;
+use App\Support\SiteSearch;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Support\SiteSearch;
 
 class Vend extends Model
 {
     use HasFactory;
 
     const ATTACHMENT_TYPE_LOG = 1;
+
     const ATTACHMENT_TYPE_MEDIA_CONTENT = 2;
 
     /**
@@ -44,8 +41,11 @@ class Vend extends Model
     ];
 
     const DEVICE_TYPE_ANDROID = 'ANDROID';
+
     const DEVICE_TYPE_ZC83A = 'ZC-83A';
+
     const DEVICE_TYPE_ZC328 = 'ZC-328';
+
     const DEVICE_TYPE_INPAD3101 = 'INPAD3101';
 
     const DEVICE_TYPE_MAPPINGS = [
@@ -76,6 +76,70 @@ class Vend extends Model
         2 => 'Soft',
     ];
 
+    // Machine identity (2026-08-12): what KIND of machine this vend code drives — the vend's own
+    // fact, not inferred from the bound mapping (the old inference let a mis-bound mapping
+    // redefine the machine). Drives the Setting/Edit dropdown and the mapping-compatibility
+    // guard in VendController::update. China-project machines (freezer/chiller) stay bound for
+    // life — active/inactive, never unbind/rebind.
+    const MACHINE_TYPE_VENDING_MACHINE = 'vending_machine';
+
+    const MACHINE_TYPE_SMART_FREEZER = 'smart_freezer';
+
+    const MACHINE_TYPE_SMART_CHILLER = 'smart_chiller';
+
+    const MACHINE_TYPE_MAPPINGS = [
+        self::MACHINE_TYPE_VENDING_MACHINE => 'Vending Machine',
+        self::MACHINE_TYPE_SMART_FREEZER => 'Smart Freezer',
+        self::MACHINE_TYPE_SMART_CHILLER => 'Smart Chiller',
+    ];
+
+    /**
+     * Whether a mapping may be bound to a machine of the given type. NULL mapping (unbinding)
+     * and the machine-agnostic "N/A" placeholder are always allowed; otherwise the mapping's
+     * machine_type must equal the vend's (both sides defaulting legacy NULL to vending_machine).
+     */
+    public static function mappingMatchesMachineType(?ProductMapping $mapping, ?string $machineType): bool
+    {
+        if (! $mapping || $mapping->name === 'N/A') {
+            return true;
+        }
+
+        return ($mapping->machine_type ?: self::MACHINE_TYPE_VENDING_MACHINE)
+            === ($machineType ?: self::MACHINE_TYPE_VENDING_MACHINE);
+    }
+
+    /**
+     * Throwing form of [mappingMatchesMachineType] — the single server-side gate every path that
+     * writes vends.product_mapping_id / vends.upcoming_product_mapping_id must pass (Setting
+     * create + edit, promote/replace changeovers). Ops-job changeover deliberately does NOT
+     * throw (a driver mid-route cannot fix a binding) — it checks the boolean and skips instead.
+     *
+     * @throws \Illuminate\Validation\ValidationException keyed on $field for Inertia forms
+     */
+    public static function assertMappingMatchesMachineType(
+        ?ProductMapping $mapping,
+        ?string $machineType,
+        string $field,
+        string $label
+    ): void {
+        if (self::mappingMatchesMachineType($mapping, $machineType)) {
+            return;
+        }
+
+        $machineType = $machineType ?: self::MACHINE_TYPE_VENDING_MACHINE;
+        $mappingType = $mapping->machine_type ?: self::MACHINE_TYPE_VENDING_MACHINE;
+
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            $field => sprintf(
+                '%s "%s" is a %s mapping, but this machine is set to %s. Pick a matching mapping, or change the Machine Type first.',
+                $label,
+                $mapping->name,
+                self::MACHINE_TYPE_MAPPINGS[$mappingType] ?? $mappingType,
+                self::MACHINE_TYPE_MAPPINGS[$machineType] ?? $machineType
+            ),
+        ]);
+    }
+
     const MENU_FRAME_MAPPINGS = [
         99 => 'N/A',
         1 => 'Square (A) 方',
@@ -98,6 +162,7 @@ class Vend extends Model
     ];
 
     const PICK_TYPE_PICK_LIST = 1;
+
     const PICK_TYPE_DELIVERED = 2;
 
     const PICK_TYPE_MAPPINGS = [
@@ -106,7 +171,9 @@ class Vend extends Model
     ];
 
     public const DEFAULT_OFFLINE_ALERT_MINUTES = 50;
+
     public const DEFAULT_POWER_RESTORED_ALERT_MINUTES = 50;
+
     public const DEFAULT_NO_SALES_ALERT_HOURS = 72;
 
     const CAMPAIGN_PARAMETER_SETTINGS = [
@@ -116,11 +183,11 @@ class Vend extends Model
             'options' => [
                 'true' => 'Yes',
                 'false' => 'No',
-            ]
+            ],
         ],
         'promoHeaderText' => [
             'sequence' => 2,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'enableHeaderTextRunning' => [
             'sequence' => 3,
@@ -128,7 +195,7 @@ class Vend extends Model
             'options' => [
                 'true' => 'Yes',
                 'false' => 'No',
-            ]
+            ],
         ],
         'promoBannerKind' => [
             'sequence' => 4,
@@ -136,15 +203,15 @@ class Vend extends Model
             'options' => [
                 'video' => 'Video',
                 'picture' => 'Picture',
-            ]
+            ],
         ],
         'headerTextStartDate' => [
             'sequence' => 5,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'headerTextEndDate' => [
             'sequence' => 6,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'enablePromoRunningText' => [
             'sequence' => 7,
@@ -152,19 +219,19 @@ class Vend extends Model
             'options' => [
                 'true' => 'Yes',
                 'false' => 'No',
-            ]
+            ],
         ],
         'promoRunningText' => [
             'sequence' => 8,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'runningTextStartDate' => [
             'sequence' => 9,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'runningTextEndDate' => [
             'sequence' => 10,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'disableP1P2CrossGrp' => [
             'sequence' => 11,
@@ -172,7 +239,7 @@ class Vend extends Model
             'options' => [
                 'true' => 'Yes',
                 'false' => 'No',
-            ]
+            ],
         ],
         'enableBuy1Free1' => [
             'sequence' => 12,
@@ -180,23 +247,23 @@ class Vend extends Model
             'options' => [
                 'true' => 'Yes',
                 'false' => 'No',
-            ]
+            ],
         ],
         'buy1free1X1' => [
             'sequence' => 13,
-            'type' => 'int'
+            'type' => 'int',
         ],
         'buy1free1Y' => [
             'sequence' => 14,
-            'type' => 'int'
+            'type' => 'int',
         ],
         'buy1free1StartDate' => [
             'sequence' => 15,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'buy1free1EndDate' => [
             'sequence' => 16,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'enableBuy2Free1' => [
             'sequence' => 17,
@@ -204,23 +271,23 @@ class Vend extends Model
             'options' => [
                 'true' => 'Yes',
                 'false' => 'No',
-            ]
+            ],
         ],
         'buy2free1X1' => [
             'sequence' => 18,
-            'type' => 'int'
+            'type' => 'int',
         ],
         'buy2free1Y' => [
             'sequence' => 19,
-            'type' => 'int'
+            'type' => 'int',
         ],
         'buy2free1StartDate' => [
             'sequence' => 20,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'buy2free1EndDate' => [
             'sequence' => 21,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'enableBundleDiscount' => [
             'sequence' => 22,
@@ -228,15 +295,15 @@ class Vend extends Model
             'options' => [
                 'true' => 'Yes',
                 'false' => 'No',
-            ]
+            ],
         ],
         'bundleStartDate' => [
             'sequence' => 23,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'bundleEndDate' => [
             'sequence' => 24,
-            'type' => 'string'
+            'type' => 'string',
         ],
         'enableDiscount01' => [
             'sequence' => 25,
@@ -244,12 +311,12 @@ class Vend extends Model
             'options' => [
                 'true' => 'Yes',
                 'false' => 'No',
-            ]
+            ],
         ],
         'discountPercent01' => [
             'sequence' => 26,
             'type' => 'int',
-            'default' => 10
+            'default' => 10,
         ],
         'enableDiscount02' => [
             'sequence' => 27,
@@ -257,15 +324,14 @@ class Vend extends Model
             'options' => [
                 'true' => 'Yes',
                 'false' => 'No',
-            ]
+            ],
         ],
         'discountPercent02' => [
             'sequence' => 28,
             'type' => 'int',
-            'default' => 10
-        ]
+            'default' => 10,
+        ],
     ];
-
 
     protected static function booted()
     {
@@ -276,6 +342,8 @@ class Vend extends Model
         'acb_vmc_pa_json' => 'json',
         'acb_status_json' => 'json',
         'apk_ver_json' => 'json',
+        'citybox_status_json' => 'json',
+        'citybox_synced_at' => 'datetime',
         // OTA check-in telemetry. MUST stay cast: OtaController::recordCheckIn()
         // decides whether to write by strict-comparing this against the
         // versionCode the device reported (an int). Without the cast PDO hands
@@ -307,6 +375,12 @@ class Vend extends Model
         'last_txn_src_at' => 'datetime',
         'last_coin_cnt' => 'integer',
         'last_coin_cnt_at' => 'datetime',
+        // Link telemetry promoted out of parameter_json by SyncVendParameter.
+        // internet_signal is cast so a "0 bars" reading stays an int and does
+        // not get confused with NULL ("never reported") by === comparisons.
+        'internet_signal' => 'integer',
+        'internet_signal_max' => 'integer',
+        'internet_updated_at' => 'datetime',
         'mqtt_last_updated_at' => 'datetime',
         'offline_restart_count_datetime' => 'datetime',
         'original_vend_channels_json' => 'json',
@@ -337,6 +411,9 @@ class Vend extends Model
         'cashless_terminal_id',
         'claw_machine_body_id',
         'claw_machine_board_id',
+        'citybox_equipment_id',
+        'citybox_status_json',
+        'citybox_synced_at',
         'code',
         'customer_id',
         'customer_movement_history_json',
@@ -346,6 +423,7 @@ class Vend extends Model
         'modem_type_id',
         'modem_unit_id',
         'menu_frame_id',
+        'machine_type',
         'name',
         'offline_restart_count',
         'offline_restart_count_datetime',
@@ -369,6 +447,12 @@ class Vend extends Model
         'is_temp_active',
         'is_temp_error',
         'is_testing',
+        'internet_source',
+        'internet_provider',
+        'internet_signal',
+        'internet_signal_max',
+        'internet_network',
+        'internet_updated_at',
         'is_txn_src',
         'is_using_server_price',
         'is_fan_enabled',
@@ -667,7 +751,6 @@ class Vend extends Model
             ->take(1);    // Take the second-to-last entry
     }
 
-
     public function nextOpsJobItem()
     {
         return $this->hasOne(OpsJobItem::class)
@@ -822,11 +905,13 @@ class Vend extends Model
 
         $count = $this->vendChannels->map(function ($vendChannel) {
             $vendChannel->activeErrorCount = $vendChannel->vendChannelErrorLogs->reduce(function ($carry, $vendChannelErrorLog) {
-                if (!$vendChannelErrorLog->is_error_cleared and $vendChannelErrorLog->vendChannelError->code != 4 and $vendChannelErrorLog->vendChannelError->code != 5 and $vendChannelErrorLog->vendChannelError->code != 7) {
+                if (! $vendChannelErrorLog->is_error_cleared and $vendChannelErrorLog->vendChannelError->code != 4 and $vendChannelErrorLog->vendChannelError->code != 5 and $vendChannelErrorLog->vendChannelError->code != 7) {
                     $carry += 1;
                 }
+
                 return $carry;
             });
+
             return $vendChannel;
         })->sum('activeErrorCount');
 
@@ -898,7 +983,7 @@ class Vend extends Model
                 $query->where('serial_num', 'LIKE', "%{$search}%");
             })
             ->when($request->customer, function ($query, $search) {
-                $query->whereHas('customer', fn($customer) => SiteSearch::for($search)->applyTo($customer));
+                $query->whereHas('customer', fn ($customer) => SiteSearch::for($search)->applyTo($customer));
             })
             ->when($request->preferredDays, function ($query, $search) {
                 $query->where(function ($subQuery) use ($search) {
@@ -923,18 +1008,18 @@ class Vend extends Model
                 $search = $request->fan_rpm;
                 if ($search == '0') {
                     $query->where('vends.is_fan_enabled', true)->where('vends.parameter_json->fan', 0);
-                } else if ($search == '>0') {
+                } elseif ($search == '>0') {
                     $query->where('vends.is_fan_enabled', true)->where('vends.parameter_json->fan', '>', 0);
-                } else if ($search == 'N/A') {
+                } elseif ($search == 'N/A') {
                     $query->where('vends.is_fan_enabled', false);
-                } else if ($search == '--') {
+                } elseif ($search == '--') {
                     $query->where('vends.is_fan_enabled', true)->where(function ($q) {
                         $q->whereNull('vends.parameter_json->fan');
                     });
                 }
             })
             ->when($request->is_active, function ($query, $search) use ($request) {
-                $columnName = $request->indexType ? $request->indexType . '.is_active' : 'vends.is_active';
+                $columnName = $request->indexType ? $request->indexType.'.is_active' : 'vends.is_active';
                 if ($search != 'all') {
                     $query->where($columnName, filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 }
@@ -944,7 +1029,7 @@ class Vend extends Model
                     $query->where('vends.is_testing', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 }
             })
-            ->when($request->status, function ($query, $search) use ($request) {
+            ->when($request->status, function ($query, $search) {
                 // dd('here', $search, $request->all(), $query->toSql());
                 if ($search != 'all') {
                     switch ($search) {
@@ -1070,7 +1155,7 @@ class Vend extends Model
                 }
             })
             ->when($request->locationTypes, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('location_type_id', $search);
                 }
             })
@@ -1080,7 +1165,7 @@ class Vend extends Model
                 }
             })
             ->when($request->operators, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vends.operator_id', $search);
                 }
             })
@@ -1140,22 +1225,22 @@ class Vend extends Model
                 }
             })
             ->when($request->vendConfigs, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vends.vend_config_id', $search);
                 }
             })
             ->when($request->vendContracts, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vend_contract_id', $search);
                 }
             })
             ->when($request->vendModels, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vends.vend_model_id', $search);
                 }
             })
             ->when($request->vendPrefixes, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     if (in_array('single-ud', $search)) {
                         $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
                         unset($search[array_search('single-ud', $search)]);
@@ -1171,20 +1256,20 @@ class Vend extends Model
             })
             ->when($request->sortKey, function ($query, $search) use ($request) {
                 if (strpos($search, '->')) {
-                    $inputSearch = explode("->", $search);
+                    $inputSearch = explode('->', $search);
                     // C3: whitelist identifier chars before raw interpolation (no-op for valid sort keys)
                     $inputSearch[0] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[0] ?? '');
                     $inputSearch[1] = preg_replace('/[^A-Za-z0-9_]/', '', $inputSearch[1] ?? '');
                     if ($search === 'totals_json->two_days_error_rate' or $search === 'totals_json->seven_days_error_rate') {
-                        $query->orderByRaw('(CAST(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                        $query->orderByRaw('(CAST(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")) AS DECIMAL(10,2))) '.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     } else {
-                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`' . $inputSearch[0] . '`, "$.' . $inputSearch[1] . '")))' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                        $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     }
 
                     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                 } else {
                     if ($search == 'balance_percent' or $search == 'out_of_stock_sku_percent') {
-                        $query->orderByRaw('ISNULL(' . $search . '), ' . $search . ' ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                        $query->orderByRaw('ISNULL('.$search.'), '.$search.' '.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                     } else {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                     }

@@ -4,10 +4,9 @@ namespace App\Http\Resources;
 
 use App\Models\Customer;
 use App\Models\Vend;
+use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\Http\Resources\VendChannelResource;
-use App\Traits\GetUserTimezone;
 
 class VendResource extends JsonResource
 {
@@ -117,20 +116,20 @@ class VendResource extends JsonResource
             'frequency_per_week_status_name' => isset($this->frequency_per_week_status) ? Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING[$this->frequency_per_week_status] : null,
             'full_name' => $this->when($this->relationLoaded('customer'), function () {
                 if ($this->customer && $this->customer->person_id) {
-                    return '(' . $this->code . ') ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
-                } else if ($this->customer && !$this->customer->person_id) {
-                    return '(' . $this->code . ') ' . $this->customer->id + 20000 . ' - ' . $this->customer->name;
+                    return '('.$this->code.') '.$this->customer->virtual_customer_code.' - '.$this->customer->name;
+                } elseif ($this->customer && ! $this->customer->person_id) {
+                    return '('.$this->code.') '.$this->customer->id + 20000 .' - '.$this->customer->name;
                 } else {
                     return $this->code;
                 }
             }),
             'cust_full_name' => $this->when($this->relationLoaded('customer'), function () {
                 if ($this->customer && $this->customer->person_id) {
-                    return '(' . $this->code . ')  - ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
-                } else if ($this->customer && !$this->customer->person_id) {
-                    return '(' . $this->code . ') ' . $this->customer->code . ' - ' . $this->customer->name;
+                    return '('.$this->code.')  - '.$this->customer->virtual_customer_code.' - '.$this->customer->name;
+                } elseif ($this->customer && ! $this->customer->person_id) {
+                    return '('.$this->code.') '.$this->customer->code.' - '.$this->customer->name;
                 } else {
-                    return '(' . $this->code . ')' . ' - ' . $this->label_name;
+                    return '('.$this->code.')'.' - '.$this->label_name;
                 }
             }),
             'key' => KeyResource::make($this->whenLoaded('key')),
@@ -183,6 +182,16 @@ class VendResource extends JsonResource
             'has_display_screen' => $this->has_display_screen,
             'coin_amount' => isset($this->coin_amount) ? $this->coin_amount / 100 : null,
             'firmware_ver' => isset($this->firmware_ver) && $this->firmware_ver ? dechex($this->firmware_ver) : null,
+            // Link telemetry, APK v302+. Every key is isset()-guarded like the
+            // rest of this resource because several selects omit these columns,
+            // and null here means "the machine has not reported it" - which is
+            // also what an older APK produces, so the UI needs one branch, not two.
+            'internet_source' => $this->internet_source ?? null,
+            'internet_provider' => $this->internet_provider ?? null,
+            'internet_signal' => isset($this->internet_signal) ? (int) $this->internet_signal : null,
+            'internet_signal_max' => isset($this->internet_signal_max) ? (int) $this->internet_signal_max : null,
+            'internet_network' => $this->internet_network ?? null,
+            'internet_updated_at' => isset($this->internet_updated_at) ? Carbon::parse($this->internet_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'is_active' => isset($this->is_active) && $this->is_active ? true : false,
             'vend_is_active' => isset($this->vend_is_active) && $this->vend_is_active ? true : false,
             'customer_is_active' => isset($this->customer_is_active) && $this->customer_is_active ? true : false,
@@ -217,7 +226,7 @@ class VendResource extends JsonResource
                             && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 0
                         )
                         ? 'tomorrow'
-                        : (Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next ' . ceil(abs(Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days') : ((Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() > 1 && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 2) ? 'yesterday' : ('Last ' . ceil(abs(Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays())) - 1 . ' days')))
+                        : (Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next '.ceil(abs(Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays())).' days') : ((Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() > 1 && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 2) ? 'yesterday' : ('Last '.ceil(abs(Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays())) - 1 .' days')))
                     )
                 )
                 : null,

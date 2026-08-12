@@ -3,14 +3,12 @@
 namespace App\Http\Controllers;
 
 // use App\Exports\VendTempExport;
-use App\Exports\VendTransactionExport;
-use App\Jobs\PublishMqtt;
-use App\Http\Resources\DCVend\VendResource as DCVendResource;
-use App\Http\Resources\DCVend\CustomerResource as DCVendCustomerResource;
-use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
+use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CountryResource;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\DCVend\CustomerResource as DCVendCustomerResource;
+use App\Http\Resources\DCVend\VendResource as DCVendResource;
 use App\Http\Resources\DeliveryPlatformResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\ModemTypeResource;
@@ -23,27 +21,28 @@ use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\TagResource;
 use App\Http\Resources\UserResource;
-use App\Http\Resources\VendDBResource;
-use App\Http\Resources\VendResource;
-use App\Http\Resources\VendChannelResource;
 use App\Http\Resources\VendChannelErrorResource;
+use App\Http\Resources\VendChannelResource;
 use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendContractResource;
+use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendFanResource;
 use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
-use App\Http\Resources\VendTransactionResource;
-use App\Http\Resources\VendTransactionItemResource;
+use App\Http\Resources\VendResource;
 use App\Http\Resources\VendTempResource;
+use App\Http\Resources\VendTransactionItemResource;
+use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\ZoneResource;
 use App\Jobs\ExportVendTransactionCsv;
 use App\Jobs\ExportVendTransactionCsvChunk;
+use App\Jobs\PublishMqtt;
 use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Mail\VendChannelErrorLogsMail;
 use App\Models\Campaign;
-use App\Models\CardTerminal;
 use App\Models\CampaignItem;
+use App\Models\CardTerminal;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
@@ -56,14 +55,14 @@ use App\Models\ModemType;
 use App\Models\ModemUnit;
 use App\Models\Operator;
 use App\Models\OpsJob;
-use App\Models\PaymentMethod;
-use App\Models\RefundTicket;
-use App\Models\RefundTicketItem;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
+use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
+use App\Models\RefundTicket;
+use App\Models\RefundTicketItem;
 use App\Models\SellingPrice;
 use App\Models\Tag;
 use App\Models\User;
@@ -73,22 +72,14 @@ use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendConfig;
 use App\Models\VendContract;
-use App\Models\VendData;
+use App\Models\VendLog;
 use App\Models\VendModel;
 use App\Models\VendPrefix;
-use App\Models\VendRecord;
 use App\Models\VendSnapshot;
-use App\Models\VendLog;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
-use App\Models\VendTransactionItem;
-use App\Models\PaymentGateways\Midtrans;
-use App\Models\PaymentGateways\Omise;
 use App\Models\Zone;
 use App\Services\CmsService;
-use App\Support\ProductAccess;
-use App\Support\ProductScopedSales;
-use App\Support\TransactionAccess;
 use App\Services\CustomerSummaryAggregator;
 use App\Services\HistoryService;
 use App\Services\MapService;
@@ -99,41 +90,57 @@ use App\Services\RunningNumberService;
 use App\Services\VendDataService;
 use App\Services\VendDispenseService;
 use App\Services\VendJobService;
+use App\Support\ProductAccess;
+use App\Support\ProductScopedSales;
+use App\Support\TransactionAccess;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DB;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Cache;
-use Intervention\Image\Laravel\Facades\Image;
 use Inertia\Inertia;
+use Intervention\Image\Laravel\Facades\Image;
 use Maatwebsite\Excel\Facades\Excel;
 use Rap2hpoutre\FastExcel\FastExcel;
-use Spatie\Permission\Models\Role;
-
 
 class VendController extends Controller
 {
     use GetUserTimezone, HasFilter;
 
-    protected $cmsService;
-    protected $historyService;
-    protected $mapService;
-    protected $mqttService;
-    protected $paymentGatewayService;
-    protected $productMappingService;
-    protected $runningNumberService;
-    protected $vendDataService;
-    protected $vendDispenseService;
-    protected $vendJobService;
+    /**
+     * Physical baskets on a smart-freezer door — fixed hardware (left column
+     * 1-3 top→bottom, right column 4-6), mirrored by the APK's FreezerGrid and
+     * the ProductMapping SmartFreezerLayout editor.
+     */
+    private const SMART_FREEZER_BASKETS = 6;
 
+    protected $cmsService;
+
+    protected $historyService;
+
+    protected $mapService;
+
+    protected $mqttService;
+
+    protected $paymentGatewayService;
+
+    protected $productMappingService;
+
+    protected $runningNumberService;
+
+    protected $vendDataService;
+
+    protected $vendDispenseService;
+
+    protected $vendJobService;
 
     public function __construct(
         CmsService $cmsService,
@@ -158,10 +165,10 @@ class VendController extends Controller
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
         $this->cmsService = $cmsService;
         $this->historyService = $historyService;
-        $this->mapService = new MapService();
+        $this->mapService = new MapService;
         $this->mqttService = $mqttService;
         $this->paymentGatewayService = $paymentGatewayService;
-        $this->productMappingService = new ProductMappingService();
+        $this->productMappingService = new ProductMappingService;
         $this->runningNumberService = $runningNumberService;
         $this->vendDataService = $vendDataService;
         $this->vendDispenseService = $vendDispenseService;
@@ -171,7 +178,7 @@ class VendController extends Controller
     public function index(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        if (!isset($request->is_active)) {
+        if (! isset($request->is_active)) {
             if (
                 auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
@@ -187,16 +194,15 @@ class VendController extends Controller
 
         if (auth()->user()->is_production_status_only) {
             $request->merge([
-                'status' => 'factory'
+                'status' => 'factory',
             ]);
         } else {
             $request->merge([
-                'status' => $request->status != null ? $request->status : 'active'
+                'status' => $request->status != null ? $request->status : 'active',
             ]);
         }
 
-
-        if (!$request->operators) {
+        if (! $request->operators) {
             $userOperator = auth()->user()->operator;
 
             if ($userOperator && $userOperator->code === 'HIPL') {
@@ -220,13 +226,11 @@ class VendController extends Controller
             'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
             'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
         ]);
-        $className = get_class(new Customer());
+        $className = get_class(new Customer);
 
         $sortKey = $request->sortKey;
         $needsVc = in_array($sortKey, ['thirty_days_over_full_load_ratio', 'total_stock_amount', 'total_full_load_amount']);
         $needsVcCost = in_array($sortKey, ['total_stock_cost']);
-
-
 
         $vends = Vend::query()
             ->with([
@@ -236,7 +240,7 @@ class VendController extends Controller
                 'modemType',
                 'modemUnit',
                 'productMapping:id,name',
-                'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name'
+                'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
             ]);
 
         $vends->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
@@ -277,7 +281,7 @@ class VendController extends Controller
                     SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
                     WHERE is_active = true
-                    AND capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
+                    AND capacity > 0'.\App\Support\ProductAccess::channelSqlFilter().'
                     GROUP BY vend_id
                 ) AS vc
             '), 'vc.vend_id', '=', 'vends.id');
@@ -300,7 +304,7 @@ class VendController extends Controller
                     -- multiple current blended costs cannot multiply this sum.
                     AND unit_costs.product_mapping_id IS NULL
                     AND vend_channels.is_active = true
-                    AND vend_channels.capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
+                    AND vend_channels.capacity > 0'.\App\Support\ProductAccess::channelSqlFilter().'
                     GROUP BY
                         vend_channels.vend_id
                 ) AS vc_cost
@@ -324,6 +328,12 @@ class VendController extends Controller
             'vends.termination_date',
             'vends.coin_amount',
             'vends.firmware_ver',
+            'vends.internet_source',
+            'vends.internet_provider',
+            'vends.internet_signal',
+            'vends.internet_signal_max',
+            'vends.internet_network',
+            'vends.internet_updated_at',
             'vends.is_active AS vend_is_active',
             'vends.is_door_open',
             'vends.is_disposed',
@@ -403,12 +413,14 @@ class VendController extends Controller
             'query' => $request->query(),
         ]);
 
-        if (!$needsVc || !$needsVcCost) {
+        if (! $needsVc || ! $needsVcCost) {
             $types = [];
-            if (!$needsVc)
+            if (! $needsVc) {
                 $types[] = 'vc';
-            if (!$needsVcCost)
+            }
+            if (! $needsVcCost) {
                 $types[] = 'vc_cost';
+            }
             $this->loadAggregates($vends->getCollection(), $types);
         }
 
@@ -442,6 +454,7 @@ class VendController extends Controller
                     $customerTotals = is_string($vend->customers_totals_json)
                         ? json_decode($vend->customers_totals_json, true)
                         : $vend->customers_totals_json;
+
                     return $customerTotals ? ($customerTotals['vend_records_thirty_days_amount_average'] ?? 0) : 0;
                 }) / 100,
         ];
@@ -511,10 +524,10 @@ class VendController extends Controller
     }
 
     /**
-     * @param bool $lite Render the Dashboard (Lite) page instead of the full
-     *                   Dashboard. The Lite page has no pre-Search aggregate
-     *                   cards, so the (expensive) all-rows card query is
-     *                   skipped for it. Everything else is identical.
+     * @param  bool  $lite  Render the Dashboard (Lite) page instead of the full
+     *                      Dashboard. The Lite page has no pre-Search aggregate
+     *                      cards, so the (expensive) all-rows card query is
+     *                      skipped for it. Everything else is identical.
      */
     public function indexCustomer(Request $request, bool $lite = false)
     {
@@ -544,7 +557,7 @@ class VendController extends Controller
                 'status' => $request->customer_status,
                 'is_active' => 'all',
             ]);
-        } else if (!isset($request->is_active)) {
+        } elseif (! isset($request->is_active)) {
             // Vends list — keep the existing binary is_active default.
             if ($isAdminish) {
                 $request->merge(['is_active' => 'true']);
@@ -553,7 +566,7 @@ class VendController extends Controller
             }
         }
 
-        if (!$request->operators) {
+        if (! $request->operators) {
             $userOperator = auth()->user()->operator;
 
             if ($userOperator && $userOperator->code === 'HIPL') {
@@ -586,10 +599,10 @@ class VendController extends Controller
             'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
             'sortKey' => $requestedSortKey,
             'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
-            'productAvailableDate' => isset($request->productFilters['productAvailableDate']) ? Carbon::parse($request->productFilters['productAvailableDate'])->toDateString() : Carbon::today()->addDay()->toDateString()
+            'productAvailableDate' => isset($request->productFilters['productAvailableDate']) ? Carbon::parse($request->productFilters['productAvailableDate'])->toDateString() : Carbon::today()->addDay()->toDateString(),
         ]);
 
-        $className = get_class(new Customer());
+        $className = get_class(new Customer);
 
         $sortKey = $request->sortKey;
         $needsVc = in_array($sortKey, ['thirty_days_over_full_load_ratio', 'total_stock_amount', 'total_full_load_amount']);
@@ -649,11 +662,11 @@ class VendController extends Controller
         // ORDER depends on those values, so they must be computed inline. In
         // that case we silently ignore the flag and behave exactly as before.
         $deferAggregates = $request->boolean('defer_aggregates')
-            && !$needsVc && !$needsVcCost && !$needsVcStock
-            && !$needsLastOpsJobs && !$needsLastSecondOpsJobs && !$needsNextOpsJobs
-            && !$needsLastThirtyDaysStockIn && !$needsAccumulatedVendingEarning
-            && !$needsThirtyDaysVendingEarning && !$needsExternalSubsidize
-            && !$needsNetLocFee && !$needsPwron && !$needsNofoundTxn;
+            && ! $needsVc && ! $needsVcCost && ! $needsVcStock
+            && ! $needsLastOpsJobs && ! $needsLastSecondOpsJobs && ! $needsNextOpsJobs
+            && ! $needsLastThirtyDaysStockIn && ! $needsAccumulatedVendingEarning
+            && ! $needsThirtyDaysVendingEarning && ! $needsExternalSubsidize
+            && ! $needsNetLocFee && ! $needsPwron && ! $needsNofoundTxn;
 
         // Pre-Search aggregate cards ("Last 30 days" + "Current") — computed
         // across ALL rows matching the current filters (NOT capped by
@@ -724,83 +737,83 @@ class VendController extends Controller
                     // Vend/CustomerIndex. Only active campaigns are surfaced
                     // (filtered in VendResource).
                     'vend.apkSettings:id,name',
-                    'vend.apkSettings.campaigns:id,name,is_active,start_at,end_at'
+                    'vend.apkSettings.campaigns:id,name,is_active,start_at,end_at',
                 ]);
 
-        // Conditional Joins for performance
-        // Restore unconditional joins for required select columns
-        $vends->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
-            ->leftJoin('addresses', function ($query) {
-                $query->on('addresses.modelable_id', '=', 'customers.id')
-                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                    ->where('addresses.type', '=', 2);
-            })
-            ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
-            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-            // Card terminal type (Nayax / Nets / Nets-Auresys / PAX / MLS). Joined so we
-            // can SELECT card_terminals.name AS card_terminal_name and expose
-            // it on the Customer Index "Card Terminal" badge / filter without
-            // an N+1 lazy load.
-            ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
+            // Conditional Joins for performance
+            // Restore unconditional joins for required select columns
+            $vends->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+                ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+                ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+                ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+                ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+                ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+                ->leftJoin('addresses', function ($query) {
+                    $query->on('addresses.modelable_id', '=', 'customers.id')
+                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                        ->where('addresses.type', '=', 2);
+                })
+                ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
+                ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+                // Card terminal type (Nayax / Nets / Nets-Auresys / PAX / MLS). Joined so we
+                // can SELECT card_terminals.name AS card_terminal_name and expose
+                // it on the Customer Index "Card Terminal" badge / filter without
+                // an N+1 lazy load.
+                ->leftJoin('card_terminals', 'card_terminals.id', '=', 'vends.card_terminal_id');
 
-        // ── Grouped "travel together" (Operation Dashboard) ─────────────────
-        // When the "Grouped?" toggle is on, a co-located cluster must appear as
-        // a unit: if ANY member matches the current filters, ALL members show —
-        // even siblings that fail those filters (strong override) — and cluster
-        // members are ordered adjacent. We pre-compute the whole-cluster id set
-        // (matched sites ∪ their group-mates), restrict the query to it, and add
-        // the user sort via a slim request so filterVendsDB contributes ORDER BY
-        // only (its row-narrowing would otherwise re-exclude the siblings).
-        // When the toggle is off, nothing changes — the normal path runs.
-        $groupOn = $request->boolean('group_siblings');
-        if ($groupOn) {
-            // Restrict to whole matched clusters (matched sites ∪ their
-            // group-mates), then order by the USER's sort only — no top-pinning.
-            // The "travel together" clustering (pull a cluster's members up to
-            // the rank of its best member) is applied in PHP once the rows are
-            // fetched (see the $groupOn pagination branch below). Doing it there
-            // keeps clusters contiguous even when they'd straddle a page break,
-            // and lets a cluster sit at its ranked position instead of the top.
-            $expandedGroupIds = $this->groupedExpandedCustomerIds($request);
-            $vends->whereIn('customers.id', $expandedGroupIds ?: [-1]);
-            $sortReq = new Request([
-                'indexType' => 'customers',
-                'visited' => true,
-                'sortKey' => $request->sortKey,
-                'sortBy' => $request->sortBy,
-            ]);
-            $vends = $this->filterVendsDB($vends, $sortReq);
-        } else {
-            $vends = $this->filterVendsDB($vends, $request);
-        }
-        $vends = $this->filterOperatorDB($vends, 'customers');
-
-        $countQuery = clone $vends;
-        $total = $countQuery->count();
-
-        // Pre-fetch operator customer IDs once (~1 ms, indexed) so the ROW_NUMBER
-        // sort subqueries can drive into ops_job_items with an explicit IN list.
-        // An INNER JOIN to customers lets MySQL pick the wrong join order (full
-        // ops_job_items scan → join → filter) — an IN list forces BKA probes via
-        // idx_oji_cust_created (customer_id, created_at) and eliminates the ambiguity.
-        $sortOperatorIds = collect((array)$request->operators)->filter()->map(fn($v) => (int)$v)->all();
-        $sortCustomerIn = '0'; // safe default — matches nothing
-        if (($needsLastOpsJobs || $needsLastSecondOpsJobs || $needsLastThirtyDaysStockIn) && $sortOperatorIds) {
-            $scopedIds = DB::table('customers')
-                ->whereIn('operator_id', $sortOperatorIds)
-                ->pluck('id')
-                ->map(fn($v) => (int)$v)
-                ->all();
-            if ($scopedIds) {
-                $sortCustomerIn = implode(',', $scopedIds);
+            // ── Grouped "travel together" (Operation Dashboard) ─────────────────
+            // When the "Grouped?" toggle is on, a co-located cluster must appear as
+            // a unit: if ANY member matches the current filters, ALL members show —
+            // even siblings that fail those filters (strong override) — and cluster
+            // members are ordered adjacent. We pre-compute the whole-cluster id set
+            // (matched sites ∪ their group-mates), restrict the query to it, and add
+            // the user sort via a slim request so filterVendsDB contributes ORDER BY
+            // only (its row-narrowing would otherwise re-exclude the siblings).
+            // When the toggle is off, nothing changes — the normal path runs.
+            $groupOn = $request->boolean('group_siblings');
+            if ($groupOn) {
+                // Restrict to whole matched clusters (matched sites ∪ their
+                // group-mates), then order by the USER's sort only — no top-pinning.
+                // The "travel together" clustering (pull a cluster's members up to
+                // the rank of its best member) is applied in PHP once the rows are
+                // fetched (see the $groupOn pagination branch below). Doing it there
+                // keeps clusters contiguous even when they'd straddle a page break,
+                // and lets a cluster sit at its ranked position instead of the top.
+                $expandedGroupIds = $this->groupedExpandedCustomerIds($request);
+                $vends->whereIn('customers.id', $expandedGroupIds ?: [-1]);
+                $sortReq = new Request([
+                    'indexType' => 'customers',
+                    'visited' => true,
+                    'sortKey' => $request->sortKey,
+                    'sortBy' => $request->sortBy,
+                ]);
+                $vends = $this->filterVendsDB($vends, $sortReq);
+            } else {
+                $vends = $this->filterVendsDB($vends, $request);
             }
-        }
+            $vends = $this->filterOperatorDB($vends, 'customers');
+
+            $countQuery = clone $vends;
+            $total = $countQuery->count();
+
+            // Pre-fetch operator customer IDs once (~1 ms, indexed) so the ROW_NUMBER
+            // sort subqueries can drive into ops_job_items with an explicit IN list.
+            // An INNER JOIN to customers lets MySQL pick the wrong join order (full
+            // ops_job_items scan → join → filter) — an IN list forces BKA probes via
+            // idx_oji_cust_created (customer_id, created_at) and eliminates the ambiguity.
+            $sortOperatorIds = collect((array) $request->operators)->filter()->map(fn ($v) => (int) $v)->all();
+            $sortCustomerIn = '0'; // safe default — matches nothing
+            if (($needsLastOpsJobs || $needsLastSecondOpsJobs || $needsLastThirtyDaysStockIn) && $sortOperatorIds) {
+                $scopedIds = DB::table('customers')
+                    ->whereIn('operator_id', $sortOperatorIds)
+                    ->pluck('id')
+                    ->map(fn ($v) => (int) $v)
+                    ->all();
+                if ($scopedIds) {
+                    $sortCustomerIn = implode(',', $scopedIds);
+                }
+            }
 
             $vends->when($needsVc, function ($query) {
                 $query->leftJoin(DB::raw('
@@ -808,7 +821,7 @@ class VendController extends Controller
                     SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
                     WHERE is_active = true
-                    AND capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
+                    AND capacity > 0'.\App\Support\ProductAccess::channelSqlFilter().'
                     GROUP BY vend_id
                 ) AS vc
             '), 'vc.vend_id', '=', 'vends.id');
@@ -831,7 +844,7 @@ class VendController extends Controller
                     -- multiple current blended costs cannot multiply this sum.
                     AND unit_costs.product_mapping_id IS NULL
                     AND vend_channels.is_active = true
-                    AND vend_channels.capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
+                    AND vend_channels.capacity > 0'.\App\Support\ProductAccess::channelSqlFilter().'
                     GROUP BY
                         vend_channels.vend_id
                 ) AS vc_cost
@@ -878,14 +891,14 @@ class VendController extends Controller
                             INNER JOIN (
                                 SELECT product_id, MAX(id) AS max_id
                                 FROM product_limits
-                                WHERE `date` = "' . $request->productAvailableDate . '"
+                                WHERE `date` = "'.$request->productAvailableDate.'"
                                 GROUP BY product_id
                             ) AS latest_pl ON pl.id = latest_pl.max_id
                         ) AS product_limits ON products.id = product_limits.product_id
                     WHERE
                         products.is_available = true
                     AND vend_channels.is_active = true
-                    AND vend_channels.capacity > 0' . \App\Support\ProductAccess::channelSqlFilter() . '
+                    AND vend_channels.capacity > 0'.\App\Support\ProductAccess::channelSqlFilter().'
                     GROUP BY
                         vend_channels.vend_id
                 ) AS vc_stock
@@ -1301,7 +1314,7 @@ class VendController extends Controller
                         ELSE 0 END)';
 
                 if ($needsExternalSubsidize) {
-                    $selectColumns[] = DB::raw($extSubCaseSql . ' AS external_subsidize');
+                    $selectColumns[] = DB::raw($extSubCaseSql.' AS external_subsidize');
                 }
 
                 if ($needsNetLocFee) {
@@ -1345,7 +1358,7 @@ class VendController extends Controller
                             )
                             ELSE 0
                         END)';
-                    $selectColumns[] = DB::raw('(' . $locationFeeCaseSql . ' - ' . $extSubCaseSql . ') AS net_loc_fee');
+                    $selectColumns[] = DB::raw('('.$locationFeeCaseSql.' - '.$extSubCaseSql.') AS net_loc_fee');
                 }
             }
 
@@ -1451,291 +1464,300 @@ class VendController extends Controller
                     'deferred' => true,
                 ];
             } else {
-            if (!$needsVc || !$needsVcCost || !$needsVcStock || !$needsLastOpsJobs || !$needsLastSecondOpsJobs || !$needsNextOpsJobs || !$needsLastThirtyDaysStockIn) {
-                $types = [];
-                if (!$needsVc)
-                    $types[] = 'vc';
-                if (!$needsVcCost)
-                    $types[] = 'vc_cost';
-                if (!$needsVcStock)
-                    $types[] = 'vc_stock';
-                if (!$needsLastOpsJobs)
-                    $types[] = 'last_ops_jobs';
-                if (!$needsLastSecondOpsJobs)
-                    $types[] = 'last_second_ops_jobs';
-                if (!$needsNextOpsJobs)
-                    $types[] = 'next_ops_jobs';
-                if (!$needsLastThirtyDaysStockIn)
-                    $types[] = 'last_thirty_days_stock_in';
+                if (! $needsVc || ! $needsVcCost || ! $needsVcStock || ! $needsLastOpsJobs || ! $needsLastSecondOpsJobs || ! $needsNextOpsJobs || ! $needsLastThirtyDaysStockIn) {
+                    $types = [];
+                    if (! $needsVc) {
+                        $types[] = 'vc';
+                    }
+                    if (! $needsVcCost) {
+                        $types[] = 'vc_cost';
+                    }
+                    if (! $needsVcStock) {
+                        $types[] = 'vc_stock';
+                    }
+                    if (! $needsLastOpsJobs) {
+                        $types[] = 'last_ops_jobs';
+                    }
+                    if (! $needsLastSecondOpsJobs) {
+                        $types[] = 'last_second_ops_jobs';
+                    }
+                    if (! $needsNextOpsJobs) {
+                        $types[] = 'next_ops_jobs';
+                    }
+                    if (! $needsLastThirtyDaysStockIn) {
+                        $types[] = 'last_thirty_days_stock_in';
+                    }
 
-                $this->loadAggregates($vends->getCollection(), $types);
-            }
-
-            // Per-vend Location Fees + L30d Vending Earning.
-            // Reuses CustomerSummaryAggregator::computeLocationFeeCents so the
-            // math matches the Customer Summary page and the totals row above.
-            // Pure in-PHP O(per_page) loop — no extra SQL.
-            //
-            // PS-family math also needs the operator GST rate to de-gross the
-            // INCL-GST sales basis before applying PS Term (mirrors the
-            // Performance Report Preview popup). Pre-loaded once as a small
-            // {operator_id => gst_vat_rate%} lookup so the closures below
-            // can resolve it in O(1) without N+1 queries.
-            $vendOperatorGstRates = DB::table('operators')
-                ->pluck('gst_vat_rate', 'id')
-                ->map(fn ($v) => (float) $v)
-                ->all();
-            foreach ($vends->items() as $vend) {
-                $totalsJson = $vend->vend_transaction_totals_json;
-                if (!$totalsJson) {
-                    $vend->location_fees_cents = null;
-                    $vend->thirty_days_vending_earning_cents = null;
-                    continue;
+                    $this->loadAggregates($vends->getCollection(), $types);
                 }
-                $salesCents = (int) ($totalsJson['thirty_days_amount'] ?? 0);
-                $grossEarningCents = (int) ($totalsJson['thirty_days_gross_profit'] ?? 0);
-                $gstRatePct = (float) ($vendOperatorGstRates[$vend->operator_id] ?? 0);
-                $locationFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
-                    $vend->contract_commission_type,
-                    $vend->contract_commission_value !== null ? (float) $vend->contract_commission_value : null,
-                    $vend->contract_commission_value2 !== null ? (float) $vend->contract_commission_value2 : null,
-                    $vend->contract_ps_term !== null ? (float) $vend->contract_ps_term : null,
-                    $salesCents,
-                    $grossEarningCents,
-                    $gstRatePct
-                );
-                // External Subsidize (flat monthly amount, cents) reduces the
-                // operator's effective location cost, so Vend Earning is NET of
-                // it: Vend Earning = Gross − (Location Fees − External Subsidize).
-                $extSubCents = ($vend->is_external_subsidize && $vend->external_subsidize_amount !== null)
-                    ? (int) round(((float) $vend->external_subsidize_amount) * 100)
-                    : 0;
-                $vend->location_fees_cents = $locationFeeCents;
-                $vend->thirty_days_vending_earning_cents = $grossEarningCents - ($locationFeeCents - $extSubCents);
-            }
 
-            // Accumulated (lifetime-to-date) Vending Earning per customer.
-            // EFFECTIVE sum of vend earning from customer_period_summaries up to
-            // and including the current month: locked months (and segment rows)
-            // keep their frozen stored location_earning_cents; UNLOCKED whole-
-            // month rows are re-derived LIVE from the customer's current
-            // contract. This mirrors CustomerController::attachAccumulatedVendingEarning
-            // EXACTLY, so the Ops Dashboard matches the Customer Summary page the
-            // moment a contract is edited — a plain SUM(location_earning_cents)
-            // lagged behind until the unlocked months were re-snapshotted.
-            $customerIds = collect($vends->items())
-                ->pluck('customer_id')
-                ->filter()
-                ->unique()
-                ->values()
-                ->all();
-            if (!empty($customerIds)) {
-                $through = Carbon::now()->startOfMonth()->toDateString();
-                // Floor — sourced from CustomerController::summaryFloorDate()
-                // so the displayed Accumulated VendEarning matches the Customer
-                // Summary page (and the sort subquery above).
-                $floor = \App\Http\Controllers\CustomerController::summaryFloorDate();
+                // Per-vend Location Fees + L30d Vending Earning.
+                // Reuses CustomerSummaryAggregator::computeLocationFeeCents so the
+                // math matches the Customer Summary page and the totals row above.
+                // Pure in-PHP O(per_page) loop — no extra SQL.
+                //
+                // PS-family math also needs the operator GST rate to de-gross the
+                // INCL-GST sales basis before applying PS Term (mirrors the
+                // Performance Report Preview popup). Pre-loaded once as a small
+                // {operator_id => gst_vat_rate%} lookup so the closures below
+                // can resolve it in O(1) without N+1 queries.
+                $vendOperatorGstRates = DB::table('operators')
+                    ->pluck('gst_vat_rate', 'id')
+                    ->map(fn ($v) => (float) $v)
+                    ->all();
+                foreach ($vends->items() as $vend) {
+                    $totalsJson = $vend->vend_transaction_totals_json;
+                    if (! $totalsJson) {
+                        $vend->location_fees_cents = null;
+                        $vend->thirty_days_vending_earning_cents = null;
 
-                // Every monthly row for these customers up to the current month.
-                $monthlyRows = DB::table('customer_period_summaries')
-                    ->select('customer_id', 'contract_log_id', 'locked_at', 'location_earning_cents', 'sales_cents', 'gross_earning_cents')
-                    ->whereIn('customer_id', $customerIds)
-                    ->where('year_month', '>=', $floor)
-                    ->where('year_month', '<=', $through)
-                    ->get();
+                        continue;
+                    }
+                    $salesCents = (int) ($totalsJson['thirty_days_amount'] ?? 0);
+                    $grossEarningCents = (int) ($totalsJson['thirty_days_gross_profit'] ?? 0);
+                    $gstRatePct = (float) ($vendOperatorGstRates[$vend->operator_id] ?? 0);
+                    $locationFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
+                        $vend->contract_commission_type,
+                        $vend->contract_commission_value !== null ? (float) $vend->contract_commission_value : null,
+                        $vend->contract_commission_value2 !== null ? (float) $vend->contract_commission_value2 : null,
+                        $vend->contract_ps_term !== null ? (float) $vend->contract_ps_term : null,
+                        $salesCents,
+                        $grossEarningCents,
+                        $gstRatePct
+                    );
+                    // External Subsidize (flat monthly amount, cents) reduces the
+                    // operator's effective location cost, so Vend Earning is NET of
+                    // it: Vend Earning = Gross − (Location Fees − External Subsidize).
+                    $extSubCents = ($vend->is_external_subsidize && $vend->external_subsidize_amount !== null)
+                        ? (int) round(((float) $vend->external_subsidize_amount) * 100)
+                        : 0;
+                    $vend->location_fees_cents = $locationFeeCents;
+                    $vend->thirty_days_vending_earning_cents = $grossEarningCents - ($locationFeeCents - $extSubCents);
+                }
 
-                // Per-customer current contract + operator GST — used to
-                // re-derive the LIVE vend earning for unlocked whole-month rows.
-                $contractMap = DB::table('customers')
-                    ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-                    ->whereIn('customers.id', $customerIds)
-                    ->select(
-                        'customers.id',
-                        'customers.contract_commission_type',
-                        'customers.contract_commission_value',
-                        'customers.contract_commission_value2',
-                        'customers.contract_ps_term',
-                        'customers.is_external_subsidize',
-                        'customers.external_subsidize_amount',
-                        'operators.gst_vat_rate'
-                    )
-                    ->get()
-                    ->keyBy('id');
+                // Accumulated (lifetime-to-date) Vending Earning per customer.
+                // EFFECTIVE sum of vend earning from customer_period_summaries up to
+                // and including the current month: locked months (and segment rows)
+                // keep their frozen stored location_earning_cents; UNLOCKED whole-
+                // month rows are re-derived LIVE from the customer's current
+                // contract. This mirrors CustomerController::attachAccumulatedVendingEarning
+                // EXACTLY, so the Ops Dashboard matches the Customer Summary page the
+                // moment a contract is edited — a plain SUM(location_earning_cents)
+                // lagged behind until the unlocked months were re-snapshotted.
+                $customerIds = collect($vends->items())
+                    ->pluck('customer_id')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+                if (! empty($customerIds)) {
+                    $through = Carbon::now()->startOfMonth()->toDateString();
+                    // Floor — sourced from CustomerController::summaryFloorDate()
+                    // so the displayed Accumulated VendEarning matches the Customer
+                    // Summary page (and the sort subquery above).
+                    $floor = \App\Http\Controllers\CustomerController::summaryFloorDate();
 
-                $accumSums = [];
-                foreach ($monthlyRows as $r) {
-                    $cid = $r->customer_id;
-                    $effectiveEarning = (int) $r->location_earning_cents; // locked / segment / fallback
-                    // Segment rows (contract_log_id set) keep their stored
-                    // per-segment earning; only unlocked WHOLE-month rows
-                    // re-derive live from the customer's current contract.
-                    if ($r->locked_at === null && $r->contract_log_id === null) {
-                        $c = $contractMap->get($cid);
-                        if ($c) {
-                            $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
-                            $liveLocFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
-                                $c->contract_commission_type,
-                                $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
-                                $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
-                                $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
-                                (int) $r->sales_cents,
-                                (int) $r->gross_earning_cents,
+                    // Every monthly row for these customers up to the current month.
+                    $monthlyRows = DB::table('customer_period_summaries')
+                        ->select('customer_id', 'contract_log_id', 'locked_at', 'location_earning_cents', 'sales_cents', 'gross_earning_cents')
+                        ->whereIn('customer_id', $customerIds)
+                        ->where('year_month', '>=', $floor)
+                        ->where('year_month', '<=', $through)
+                        ->get();
+
+                    // Per-customer current contract + operator GST — used to
+                    // re-derive the LIVE vend earning for unlocked whole-month rows.
+                    $contractMap = DB::table('customers')
+                        ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+                        ->whereIn('customers.id', $customerIds)
+                        ->select(
+                            'customers.id',
+                            'customers.contract_commission_type',
+                            'customers.contract_commission_value',
+                            'customers.contract_commission_value2',
+                            'customers.contract_ps_term',
+                            'customers.is_external_subsidize',
+                            'customers.external_subsidize_amount',
+                            'operators.gst_vat_rate'
+                        )
+                        ->get()
+                        ->keyBy('id');
+
+                    $accumSums = [];
+                    foreach ($monthlyRows as $r) {
+                        $cid = $r->customer_id;
+                        $effectiveEarning = (int) $r->location_earning_cents; // locked / segment / fallback
+                        // Segment rows (contract_log_id set) keep their stored
+                        // per-segment earning; only unlocked WHOLE-month rows
+                        // re-derive live from the customer's current contract.
+                        if ($r->locked_at === null && $r->contract_log_id === null) {
+                            $c = $contractMap->get($cid);
+                            if ($c) {
+                                $gstRatePct = (float) ($c->gst_vat_rate ?? 0);
+                                $liveLocFeeCents = \App\Services\CustomerSummaryAggregator::computeLocationFeeCents(
+                                    $c->contract_commission_type,
+                                    $c->contract_commission_value !== null ? (float) $c->contract_commission_value : null,
+                                    $c->contract_commission_value2 !== null ? (float) $c->contract_commission_value2 : null,
+                                    $c->contract_ps_term !== null ? (float) $c->contract_ps_term : null,
+                                    (int) $r->sales_cents,
+                                    (int) $r->gross_earning_cents,
+                                    $gstRatePct
+                                );
+                                $liveExtCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
+                                    ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                                    : 0;
+                                $effectiveEarning = (int) $r->gross_earning_cents - ($liveLocFeeCents - $liveExtCents);
+                            }
+                        }
+                        $accumSums[$cid] = ($accumSums[$cid] ?? 0) + $effectiveEarning;
+                    }
+
+                    foreach ($vends->items() as $vend) {
+                        $vend->accumulate_vending_earning_cents = (int) ($accumSums[$vend->customer_id] ?? 0);
+                    }
+                } else {
+                    foreach ($vends->items() as $vend) {
+                        $vend->accumulate_vending_earning_cents = 0;
+                    }
+                }
+
+                // PWRON 1d / 2d / 3d + No-Found-in-Txn 1d / 2d / 3d counts per vend —
+                // drives the two stacked blocks at the bottom of the Error column on
+                // Vend/CustomerIndex.
+                //
+                // 1d = today, 2d = yesterday, 3d = day before yesterday (3d is the
+                // baseline; 1d/2d are colored relative to the next-longer window —
+                // see CustomerIndex.vue). Date strings are taken in the app
+                // timezone, which matches how IncrementVendDailyStat buckets writes
+                // (see VendDataService::processVendData PWRON branch — also uses
+                // Carbon::now()->toDateString()), so 1d-aligned data lines up.
+                //
+                // Single batched query against vend_daily_stats keyed on
+                // (vend_id, date, metric) — hits the unique index. We pull BOTH
+                // metrics in one round-trip and bucket by metric in PHP, instead
+                // of issuing two separate queries.
+                $vendIds = collect($vends->items())
+                    ->pluck('vend_id')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+                // $pwronDate1d/2d/3d are computed earlier in this method so the
+                // sort-leftJoin and this enrichment share the exact same dates.
+                $pwronByVend = [];
+                $nofoundByVend = [];
+                if (! empty($vendIds)) {
+                    $statsRows = DB::table('vend_daily_stats')
+                        ->whereIn('vend_id', $vendIds)
+                        ->whereIn('metric', ['pwron', 'nofound_txn'])
+                        ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
+                        ->get(['vend_id', 'date', 'metric', 'count']);
+                    foreach ($statsRows as $row) {
+                        $vid = (int) $row->vend_id;
+                        // DB date may come back as 'Y-m-d' or 'Y-m-d 00:00:00'
+                        // depending on driver — normalize to a 'Y-m-d' key.
+                        $dateKey = substr((string) $row->date, 0, 10);
+                        if ($row->metric === 'pwron') {
+                            $pwronByVend[$vid][$dateKey] = (int) $row->count;
+                        } elseif ($row->metric === 'nofound_txn') {
+                            $nofoundByVend[$vid][$dateKey] = (int) $row->count;
+                        }
+                    }
+                }
+                foreach ($vends->items() as $vend) {
+                    $vid = (int) ($vend->vend_id ?? 0);
+                    $vend->pwron_1d_count = (int) ($pwronByVend[$vid][$pwronDate1d] ?? 0);
+                    $vend->pwron_2d_count = (int) ($pwronByVend[$vid][$pwronDate2d] ?? 0);
+                    $vend->pwron_3d_count = (int) ($pwronByVend[$vid][$pwronDate3d] ?? 0);
+                    $vend->nofound_txn_1d_count = (int) ($nofoundByVend[$vid][$pwronDate1d] ?? 0);
+                    $vend->nofound_txn_2d_count = (int) ($nofoundByVend[$vid][$pwronDate2d] ?? 0);
+                    $vend->nofound_txn_3d_count = (int) ($nofoundByVend[$vid][$pwronDate3d] ?? 0);
+                }
+
+                // Second pass: loadAggregates() and the accumulate-earning loop
+                // above stamp ops-job / stock-in / settlement money straight from
+                // raw SQL that never touched the blob, so the first pass could not
+                // have caught them. Must run BEFORE $totals sums them up.
+                $this->stripWholeMachineMoney($vends->getCollection());
+
+                $totals = [
+                    'mapApiKey' => $mapApiKey,
+                    'thirtyDays' => collect($vends->items())
+                        ->sum(function ($vend) {
+                            return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
+                        }) / 100,
+                    'thirthyDaysAvg' => collect($vends->items())
+                        ->sum(function ($vend) {
+                            return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] : 0;
+                        }) / 100,
+                    'thirthyDaysStockIn' => collect($vends->items())
+                        ->sum(function ($vend) {
+                            return $vend->last_thirty_days_stock_in_amount ? $vend->last_thirty_days_stock_in_amount : 0;
+                        }) / 100,
+                    // Last 30d Gross Earning (excl GST) — sum of per-customer
+                    // thirty_days_gross_profit (mirrors Customer Summary's
+                    // `gross_earning_cents`, which is also revenue - unit_cost).
+                    'thirtyDaysGrossEarning' => collect($vends->items())
+                        ->sum(function ($vend) {
+                            return $vend->vend_transaction_totals_json
+                                ? ($vend->vend_transaction_totals_json['thirty_days_gross_profit'] ?? 0)
+                                : 0;
+                        }) / 100,
+                    // Last 30d Vending Earning — Gross Earning - Location Fees per
+                    // customer, then summed. Reuses the same Location Fee formula
+                    // the Customer Summary page uses (CustomerSummaryAggregator).
+                    'thirtyDaysVendingEarning' => collect($vends->items())
+                        ->sum(function ($vend) use ($vendOperatorGstRates) {
+                            $totalsJson = $vend->vend_transaction_totals_json;
+                            if (! $totalsJson) {
+                                return 0;
+                            }
+                            // Use thirty_days_amount (INCL-GST, sums vend_records.total_amount),
+                            // NOT thirty_days_revenue (excl-GST). This matches the Customer
+                            // Summary page's sales_cents which now sources from
+                            // gp_metrics.amount_cents (also incl-GST), so the PS-family
+                            // location fee math agrees on both screens.
+                            // gross_earning_cents stays excl-GST because gross_profit is
+                            // revenue − unit_cost by definition (the column label even
+                            // says "Gross Earning (excl GST)"); only the sales basis
+                            // for the fee formula needs to be incl-GST.
+                            $salesCents = (int) ($totalsJson['thirty_days_amount'] ?? 0);
+                            $grossEarningCents = (int) ($totalsJson['thirty_days_gross_profit'] ?? 0);
+                            $gstRatePct = (float) ($vendOperatorGstRates[$vend->operator_id] ?? 0);
+                            $locationFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
+                                $vend->contract_commission_type,
+                                $vend->contract_commission_value !== null ? (float) $vend->contract_commission_value : null,
+                                $vend->contract_commission_value2 !== null ? (float) $vend->contract_commission_value2 : null,
+                                $vend->contract_ps_term !== null ? (float) $vend->contract_ps_term : null,
+                                $salesCents,
+                                $grossEarningCents,
                                 $gstRatePct
                             );
-                            $liveExtCents = ($c->is_external_subsidize && $c->external_subsidize_amount !== null)
-                                ? (int) round(((float) $c->external_subsidize_amount) * 100)
+                            // NET of External Subsidize (flat monthly amount), same
+                            // as the per-row L30d Vend Earning above.
+                            $extSubCents = ($vend->is_external_subsidize && $vend->external_subsidize_amount !== null)
+                                ? (int) round(((float) $vend->external_subsidize_amount) * 100)
                                 : 0;
-                            $effectiveEarning = (int) $r->gross_earning_cents - ($liveLocFeeCents - $liveExtCents);
-                        }
-                    }
-                    $accumSums[$cid] = ($accumSums[$cid] ?? 0) + $effectiveEarning;
-                }
 
-                foreach ($vends->items() as $vend) {
-                    $vend->accumulate_vending_earning_cents = (int) ($accumSums[$vend->customer_id] ?? 0);
-                }
-            } else {
-                foreach ($vends->items() as $vend) {
-                    $vend->accumulate_vending_earning_cents = 0;
-                }
-            }
-
-            // PWRON 1d / 2d / 3d + No-Found-in-Txn 1d / 2d / 3d counts per vend —
-            // drives the two stacked blocks at the bottom of the Error column on
-            // Vend/CustomerIndex.
-            //
-            // 1d = today, 2d = yesterday, 3d = day before yesterday (3d is the
-            // baseline; 1d/2d are colored relative to the next-longer window —
-            // see CustomerIndex.vue). Date strings are taken in the app
-            // timezone, which matches how IncrementVendDailyStat buckets writes
-            // (see VendDataService::processVendData PWRON branch — also uses
-            // Carbon::now()->toDateString()), so 1d-aligned data lines up.
-            //
-            // Single batched query against vend_daily_stats keyed on
-            // (vend_id, date, metric) — hits the unique index. We pull BOTH
-            // metrics in one round-trip and bucket by metric in PHP, instead
-            // of issuing two separate queries.
-            $vendIds = collect($vends->items())
-                ->pluck('vend_id')
-                ->filter()
-                ->unique()
-                ->values()
-                ->all();
-            // $pwronDate1d/2d/3d are computed earlier in this method so the
-            // sort-leftJoin and this enrichment share the exact same dates.
-            $pwronByVend = [];
-            $nofoundByVend = [];
-            if (!empty($vendIds)) {
-                $statsRows = DB::table('vend_daily_stats')
-                    ->whereIn('vend_id', $vendIds)
-                    ->whereIn('metric', ['pwron', 'nofound_txn'])
-                    ->whereIn('date', [$pwronDate1d, $pwronDate2d, $pwronDate3d])
-                    ->get(['vend_id', 'date', 'metric', 'count']);
-                foreach ($statsRows as $row) {
-                    $vid = (int) $row->vend_id;
-                    // DB date may come back as 'Y-m-d' or 'Y-m-d 00:00:00'
-                    // depending on driver — normalize to a 'Y-m-d' key.
-                    $dateKey = substr((string) $row->date, 0, 10);
-                    if ($row->metric === 'pwron') {
-                        $pwronByVend[$vid][$dateKey] = (int) $row->count;
-                    } elseif ($row->metric === 'nofound_txn') {
-                        $nofoundByVend[$vid][$dateKey] = (int) $row->count;
-                    }
-                }
-            }
-            foreach ($vends->items() as $vend) {
-                $vid = (int) ($vend->vend_id ?? 0);
-                $vend->pwron_1d_count = (int) ($pwronByVend[$vid][$pwronDate1d] ?? 0);
-                $vend->pwron_2d_count = (int) ($pwronByVend[$vid][$pwronDate2d] ?? 0);
-                $vend->pwron_3d_count = (int) ($pwronByVend[$vid][$pwronDate3d] ?? 0);
-                $vend->nofound_txn_1d_count = (int) ($nofoundByVend[$vid][$pwronDate1d] ?? 0);
-                $vend->nofound_txn_2d_count = (int) ($nofoundByVend[$vid][$pwronDate2d] ?? 0);
-                $vend->nofound_txn_3d_count = (int) ($nofoundByVend[$vid][$pwronDate3d] ?? 0);
-            }
-
-            // Second pass: loadAggregates() and the accumulate-earning loop
-            // above stamp ops-job / stock-in / settlement money straight from
-            // raw SQL that never touched the blob, so the first pass could not
-            // have caught them. Must run BEFORE $totals sums them up.
-            $this->stripWholeMachineMoney($vends->getCollection());
-
-            $totals = [
-                'mapApiKey' => $mapApiKey,
-                'thirtyDays' => collect($vends->items())
-                    ->sum(function ($vend) {
-                        return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
-                    }) / 100,
-                'thirthyDaysAvg' => collect($vends->items())
-                    ->sum(function ($vend) {
-                        return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] : 0;
-                    }) / 100,
-                'thirthyDaysStockIn' => collect($vends->items())
-                    ->sum(function ($vend) {
-                        return $vend->last_thirty_days_stock_in_amount ? $vend->last_thirty_days_stock_in_amount : 0;
-                    }) / 100,
-                // Last 30d Gross Earning (excl GST) — sum of per-customer
-                // thirty_days_gross_profit (mirrors Customer Summary's
-                // `gross_earning_cents`, which is also revenue - unit_cost).
-                'thirtyDaysGrossEarning' => collect($vends->items())
-                    ->sum(function ($vend) {
-                        return $vend->vend_transaction_totals_json
-                            ? ($vend->vend_transaction_totals_json['thirty_days_gross_profit'] ?? 0)
-                            : 0;
-                    }) / 100,
-                // Last 30d Vending Earning — Gross Earning - Location Fees per
-                // customer, then summed. Reuses the same Location Fee formula
-                // the Customer Summary page uses (CustomerSummaryAggregator).
-                'thirtyDaysVendingEarning' => collect($vends->items())
-                    ->sum(function ($vend) use ($vendOperatorGstRates) {
-                        $totalsJson = $vend->vend_transaction_totals_json;
-                        if (!$totalsJson) {
-                            return 0;
-                        }
-                        // Use thirty_days_amount (INCL-GST, sums vend_records.total_amount),
-                        // NOT thirty_days_revenue (excl-GST). This matches the Customer
-                        // Summary page's sales_cents which now sources from
-                        // gp_metrics.amount_cents (also incl-GST), so the PS-family
-                        // location fee math agrees on both screens.
-                        // gross_earning_cents stays excl-GST because gross_profit is
-                        // revenue − unit_cost by definition (the column label even
-                        // says "Gross Earning (excl GST)"); only the sales basis
-                        // for the fee formula needs to be incl-GST.
-                        $salesCents = (int) ($totalsJson['thirty_days_amount'] ?? 0);
-                        $grossEarningCents = (int) ($totalsJson['thirty_days_gross_profit'] ?? 0);
-                        $gstRatePct = (float) ($vendOperatorGstRates[$vend->operator_id] ?? 0);
-                        $locationFeeCents = CustomerSummaryAggregator::computeLocationFeeCents(
-                            $vend->contract_commission_type,
-                            $vend->contract_commission_value !== null ? (float) $vend->contract_commission_value : null,
-                            $vend->contract_commission_value2 !== null ? (float) $vend->contract_commission_value2 : null,
-                            $vend->contract_ps_term !== null ? (float) $vend->contract_ps_term : null,
-                            $salesCents,
-                            $grossEarningCents,
-                            $gstRatePct
-                        );
-                        // NET of External Subsidize (flat monthly amount), same
-                        // as the per-row L30d Vend Earning above.
-                        $extSubCents = ($vend->is_external_subsidize && $vend->external_subsidize_amount !== null)
-                            ? (int) round(((float) $vend->external_subsidize_amount) * 100)
-                            : 0;
-                        return $grossEarningCents - ($locationFeeCents - $extSubCents);
-                    }) / 100,
-                // Last 30d Location Fees (LocEarning) — sum of per-customer
-                // location_fees_cents already computed in the per-vend loop
-                // above. Mirrors the Customer/Site Summary "Total Location
-                // Fees" card (gross location fee, before External Subsidize).
-                'thirtyDaysLocationFees' => collect($vends->items())
-                    ->sum(function ($vend) {
-                        return $vend->location_fees_cents ?? 0;
-                    }) / 100,
-                // Last 30d # of Job Done — sum of completed ops_job_items per
-                // customer (last_thirty_days_jobs_done_count), attached for
-                // every row via the stock-in join/loadAggregates path. Integer
-                // count, not currency.
-                'thirtyDaysJobsDone' => collect($vends->items())
-                    ->sum(function ($vend) {
-                        return (int) ($vend->last_thirty_days_jobs_done_count ?? 0);
-                    }),
-            ];
+                            return $grossEarningCents - ($locationFeeCents - $extSubCents);
+                        }) / 100,
+                    // Last 30d Location Fees (LocEarning) — sum of per-customer
+                    // location_fees_cents already computed in the per-vend loop
+                    // above. Mirrors the Customer/Site Summary "Total Location
+                    // Fees" card (gross location fee, before External Subsidize).
+                    'thirtyDaysLocationFees' => collect($vends->items())
+                        ->sum(function ($vend) {
+                            return $vend->location_fees_cents ?? 0;
+                        }) / 100,
+                    // Last 30d # of Job Done — sum of completed ops_job_items per
+                    // customer (last_thirty_days_jobs_done_count), attached for
+                    // every row via the stock-in join/loadAggregates path. Integer
+                    // count, not currency.
+                    'thirtyDaysJobsDone' => collect($vends->items())
+                        ->sum(function ($vend) {
+                            return (int) ($vend->last_thirty_days_jobs_done_count ?? 0);
+                        }),
+                ];
             } // end else (non-deferred enrichment)
         } else {
             $vends = new LengthAwarePaginator([], 0, $perPage, 1, [
@@ -1765,8 +1787,8 @@ class VendController extends Controller
             // to All for those and auto-triggers a Search immediately.
             // Dashboard (Lite) doesn't render the cards, so skip the whole
             // all-rows aggregate query (and the status default it needs).
-            if (!$lite) {
-                if (!$request->filled('status') && !$request->filled('codes') && !$request->filled('channel_codes')) {
+            if (! $lite) {
+                if (! $request->filled('status') && ! $request->filled('codes') && ! $request->filled('channel_codes')) {
                     $request->merge(['status' => 'active']);
                 }
                 $initialStats = $this->computeCustomerIndexCardStats($request);
@@ -1775,53 +1797,43 @@ class VendController extends Controller
 
         // Cache static dropdown options — same pattern as transactionIndex (line ~2034).
         // These rarely change; cache for 24h. Products and drivers get shorter TTLs.
-        $ttl        = 86400; // 24 h — truly static lookups
-        $driverTtl  = 1800;  // 30 min — users can be added/modified
+        $ttl = 86400; // 24 h — truly static lookups
+        $driverTtl = 1800;  // 30 min — users can be added/modified
         $productTtl = 300;   // 5 min  — is_available toggles more often
 
-        $deliveryPlatformOptions = Cache::remember('delivery_platform_options', $ttl, fn() =>
-            DeliveryPlatformResource::collection(DeliveryPlatform::orderBy('name')->get())->resolve()
+        $deliveryPlatformOptions = Cache::remember('delivery_platform_options', $ttl, fn () => DeliveryPlatformResource::collection(DeliveryPlatform::orderBy('name')->get())->resolve()
         );
 
-        $locationTypeOptions = Cache::remember('location_type_options', $ttl, fn() =>
-            LocationTypeResource::collection(LocationType::orderBy('sequence')->get())->resolve()
+        $locationTypeOptions = Cache::remember('location_type_options', $ttl, fn () => LocationTypeResource::collection(LocationType::orderBy('sequence')->get())->resolve()
         );
 
-        $operatorOptions = Cache::remember('operator_options_' . auth()->user()->operator_id, $ttl, fn() =>
-            OperatorResource::collection(Operator::orderBy('name')->get())->resolve()
+        $operatorOptions = Cache::remember('operator_options_'.auth()->user()->operator_id, $ttl, fn () => OperatorResource::collection(Operator::orderBy('name')->get())->resolve()
         );
 
-        $vendChannelErrors = Cache::remember('vend_channel_errors', $ttl, fn() =>
-            VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get())->resolve()
+        $vendChannelErrors = Cache::remember('vend_channel_errors', $ttl, fn () => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get())->resolve()
         );
 
-        $vendConfigOptions = Cache::remember('vend_config_options', $ttl, fn() =>
-            VendConfigResource::collection(VendConfig::orderBy('name')->get())->resolve()
+        $vendConfigOptions = Cache::remember('vend_config_options', $ttl, fn () => VendConfigResource::collection(VendConfig::orderBy('name')->get())->resolve()
         );
 
-        $vendContractOptions = Cache::remember('vend_contract_options', $ttl, fn() =>
-            VendContractResource::collection(VendContract::orderBy('name')->get())->resolve()
+        $vendContractOptions = Cache::remember('vend_contract_options', $ttl, fn () => VendContractResource::collection(VendContract::orderBy('name')->get())->resolve()
         );
 
-        $vendModelOptions = Cache::remember('vend_model_options', $ttl, fn() =>
-            VendModelResource::collection(VendModel::orderBy('name')->get())->resolve()
+        $vendModelOptions = Cache::remember('vend_model_options', $ttl, fn () => VendModelResource::collection(VendModel::orderBy('name')->get())->resolve()
         );
 
         // Customer View filter: only list prefixes that still have at least
         // one Active machine — prefixes whose machines are all
         // inactive/testing should not clutter the dropdown.
-        $vendPrefixOptions = Cache::remember('vend_prefix_options_active_' . auth()->user()->operator_id, $ttl, fn() =>
-            VendPrefixResource::collection(
-                VendPrefix::hasActiveVends()->orderBy('name')->get()
-            )->resolve()
+        $vendPrefixOptions = Cache::remember('vend_prefix_options_active_'.auth()->user()->operator_id, $ttl, fn () => VendPrefixResource::collection(
+            VendPrefix::hasActiveVends()->orderBy('name')->get()
+        )->resolve()
         );
 
-        $zoneOptions = Cache::remember('zone_options', $ttl, fn() =>
-            ZoneResource::collection(Zone::orderBy('name')->get())->resolve()
+        $zoneOptions = Cache::remember('zone_options', $ttl, fn () => ZoneResource::collection(Zone::orderBy('name')->get())->resolve()
         );
 
-        $productMappingOptions = Cache::remember('product_mapping_options', $ttl, fn() =>
-            ProductMappingResource::collection(ProductMapping::orderBy('name')->get())->resolve()
+        $productMappingOptions = Cache::remember('product_mapping_options', $ttl, fn () => ProductMappingResource::collection(ProductMapping::orderBy('name')->get())->resolve()
         );
 
         // "Upcoming Mapping" filter list. Active mappings — same rule as the
@@ -1841,11 +1853,11 @@ class VendController extends Controller
         // scope (the plain 'product_mapping_options' key above predates that and
         // is left alone). Busted by OptionCacheBuster on any mapping save.
         $upcomingProductMappingOptions = Cache::remember(
-            'upcoming_product_mapping_options_' . auth()->user()->operator_id,
+            'upcoming_product_mapping_options_'.auth()->user()->operator_id,
             $ttl,
             function () {
                 $inUseAsUpcoming = DB::table('vends')
-                    ->selectRaw($this->effectiveUpcomingMappingSql() . ' AS effective_upcoming_id')
+                    ->selectRaw($this->effectiveUpcomingMappingSql().' AS effective_upcoming_id')
                     ->pluck('effective_upcoming_id')
                     ->filter()
                     ->unique()
@@ -1855,7 +1867,7 @@ class VendController extends Controller
                 return ProductMapping::query()
                     ->where(function ($query) use ($inUseAsUpcoming) {
                         $query->where('is_active', 1);
-                        if (!empty($inUseAsUpcoming)) {
+                        if (! empty($inUseAsUpcoming)) {
                             $query->orWhereIn('id', $inUseAsUpcoming);
                         }
                     })
@@ -1868,8 +1880,7 @@ class VendController extends Controller
         );
 
         // Drivers: cache per-site (not operator-scoped) with a shorter TTL
-        $driverOptions = Cache::remember('customer_driver_options', $driverTtl, fn() =>
-            UserResource::collection(User::with('roles')->orderBy('name')->get())->resolve()
+        $driverOptions = Cache::remember('customer_driver_options', $driverTtl, fn () => UserResource::collection(User::with('roles')->orderBy('name')->get())->resolve()
         );
 
         // Products: operator-scoped (is_available can toggle), short TTL.
@@ -1878,8 +1889,8 @@ class VendController extends Controller
         // goes stale at once — the combos themselves can't be enumerated.
         $operatorIds = array_values(array_filter((array) $request->operators));
         sort($operatorIds);
-        $productCacheKey = 'customer_product_options_v' . \App\Support\OptionCacheBuster::productOptionsVersion()
-            . '_' . implode('_', $operatorIds);
+        $productCacheKey = 'customer_product_options_v'.\App\Support\OptionCacheBuster::productOptionsVersion()
+            .'_'.implode('_', $operatorIds);
         //
         // "Access Product(s)": the cache is SHARED across viewers, so the
         // restriction must NOT go inside the cached query - the first
@@ -1891,7 +1902,7 @@ class VendController extends Controller
             return ProductResource::collection(
                 Product::withoutGlobalScope(\App\Models\Scopes\ProductAccessProductScope::class)
                     ->with(['thumbnail', 'isAvailableUpdatedBy'])
-                    ->when($request->operators, fn($q, $ops) => $q->whereIn('operator_id', $ops))
+                    ->when($request->operators, fn ($q, $ops) => $q->whereIn('operator_id', $ops))
                     ->select('id', 'code', 'desc', 'name', 'is_available', 'is_available_updated_at', 'is_available_updated_by')
                     ->where('is_active', true)
                     ->where('is_inventory', true)
@@ -2066,7 +2077,7 @@ class VendController extends Controller
                 ];
             }
 
-            $wasEntry = $entries->first(fn ($entry) => !in_array((int) $entry->vend_id, $siteVendIds, true));
+            $wasEntry = $entries->first(fn ($entry) => ! in_array((int) $entry->vend_id, $siteVendIds, true));
             if ($wasEntry) {
                 $row->vm_binding_was = [
                     'vend_code' => $wasEntry->vend_code,
@@ -2100,7 +2111,7 @@ class VendController extends Controller
     public function customerIndexAggregates(Request $request)
     {
         $rows = $request->input('rows', []);
-        if (empty($rows) || !is_array($rows)) {
+        if (empty($rows) || ! is_array($rows)) {
             return response()->json(['rows' => [], 'totals' => []]);
         }
 
@@ -2157,11 +2168,11 @@ class VendController extends Controller
         $items = collect();
         foreach ($rows as $r) {
             $cid = isset($r['customer_id']) ? (int) $r['customer_id'] : null;
-            if ($cid === null || !$customerData->has($cid)) {
+            if ($cid === null || ! $customerData->has($cid)) {
                 continue; // unknown / out-of-scope rows are dropped
             }
             $c = $customerData->get($cid);
-            $item = new \stdClass();
+            $item = new \stdClass;
             $item->vend_id = isset($r['vend_id']) && $r['vend_id'] !== null && $r['vend_id'] !== '' ? (int) $r['vend_id'] : null;
             $item->id = $item->vend_id; // loadAggregates fallback key
             $item->customer_id = $cid;
@@ -2197,9 +2208,10 @@ class VendController extends Controller
         $vendOperatorGstRates = DB::table('operators')->pluck('gst_vat_rate', 'id')->map(fn ($v) => (float) $v)->all();
         foreach ($items as $item) {
             $totalsJson = $item->vend_transaction_totals_json;
-            if (!$totalsJson) {
+            if (! $totalsJson) {
                 $item->location_fees_cents = null;
                 $item->thirty_days_vending_earning_cents = null;
+
                 continue;
             }
             $salesCents = (int) ($totalsJson['thirty_days_amount'] ?? 0);
@@ -2224,7 +2236,7 @@ class VendController extends Controller
         // ── Accumulated Vending Earning per customer (mirrors indexCustomer) ─
         $accCustomerIds = $items->pluck('customer_id')->filter()->unique()->values()->all();
         $accumSums = [];
-        if (!empty($accCustomerIds)) {
+        if (! empty($accCustomerIds)) {
             $through = Carbon::now()->startOfMonth()->toDateString();
             $floor = \App\Http\Controllers\CustomerController::summaryFloorDate();
 
@@ -2287,7 +2299,7 @@ class VendController extends Controller
         $aggVendIds = $items->pluck('vend_id')->filter()->unique()->values()->all();
         $pwronByVend = [];
         $nofoundByVend = [];
-        if (!empty($aggVendIds)) {
+        if (! empty($aggVendIds)) {
             $statsRows = DB::table('vend_daily_stats')
                 ->whereIn('vend_id', $aggVendIds)
                 ->whereIn('metric', ['pwron', 'nofound_txn'])
@@ -2312,7 +2324,7 @@ class VendController extends Controller
         $map = [];
         foreach ($items as $item) {
             $vid = $item->vend_id;
-            $key = $vid !== null ? (string) $vid : ('cust-' . $item->customer_id);
+            $key = $vid !== null ? (string) $vid : ('cust-'.$item->customer_id);
             $pw = $vid !== null ? ($pwronByVend[$vid] ?? null) : null;
             $nf = $vid !== null ? ($nofoundByVend[$vid] ?? null) : null;
 
@@ -2403,9 +2415,9 @@ class VendController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
         // $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
         return redirect()->back();
@@ -2423,9 +2435,9 @@ class VendController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
         // $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
         return redirect()->back();
@@ -2447,9 +2459,9 @@ class VendController extends Controller
             $content = base64_encode(json_encode($payload));
             $contentLength = strlen($content);
             $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-            $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+            $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-            return $fid . ',' . $contentLength . ',' . $content . ',' . $md5;
+            return $fid.','.$contentLength.','.$content.','.$md5;
         });
 
         return redirect()->back();
@@ -2467,9 +2479,9 @@ class VendController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
 
         return redirect()->back();
     }
@@ -2491,9 +2503,9 @@ class VendController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
         // $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
         return redirect()->back();
@@ -2507,7 +2519,7 @@ class VendController extends Controller
             $duration = $request->duration;
         }
 
-        $startDate = $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
+        $startDate = $request->durationType == 'day' || ! $request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
         $endDate = Carbon::now()->setTimezone($this->getUserTimezone());
         if ($request->datetime_from) {
             $startDate = Carbon::parse($request->datetime_from)->setTimezone($this->getUserTimezone());
@@ -2520,7 +2532,7 @@ class VendController extends Controller
         // $request->types = empty($request->types) ? [1, 2] : $request->types;
 
         // dd($request->types);
-        $typeName = 'Temp ' . $type;
+        $typeName = 'Temp '.$type;
 
         $vend = DB::table('vends')
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
@@ -2612,7 +2624,7 @@ class VendController extends Controller
                     'customers.name as customer_name',
                     'customers.virtual_customer_prefix',
                     'customers.virtual_customer_code',
-                    DB::raw('CASE WHEN customers.id IS NOT NULL THEN customers.id + ' . Customer::RUNNING_NUMBER_INIT . ' END AS customer_ref_id')
+                    DB::raw('CASE WHEN customers.id IS NOT NULL THEN customers.id + '.Customer::RUNNING_NUMBER_INIT.' END AS customer_ref_id')
                 )
                 ->orderBy('vends.code')
                 ->get()
@@ -2670,7 +2682,7 @@ class VendController extends Controller
             )
             ->first();
 
-        $startDate = $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
+        $startDate = $request->durationType == 'day' || ! $request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
         $endDate = Carbon::now()->setTimezone($this->getUserTimezone());
         if ($request->datetime_from) {
             $startDate = Carbon::parse($request->datetime_from)->setTimezone($this->getUserTimezone());
@@ -2680,7 +2692,7 @@ class VendController extends Controller
         }
         $request->types = empty($request->types) ? [1] : $request->types;
 
-        $typeName = 'Temp ' . $type;
+        $typeName = 'Temp '.$type;
 
         $vendTemps = DB::table('vend_temps')
             ->leftJoin('vends', 'vends.id', '=', 'vend_temps.vend_id')
@@ -2697,12 +2709,12 @@ class VendController extends Controller
             )
             ->get();
 
-        return (new FastExcel($vendTemps))->download('Vend_Temps_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($vendTemp) {
+        return (new FastExcel($vendTemps))->download('Vend_Temps_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTemp) {
             return [
                 'Machine ID' => $vendTemp->vend_code,
                 'Date Time' => Carbon::parse($vendTemp->created_at)->toDateTimeString(),
                 'Temp' => $vendTemp->value / 10,
-                'Type' => 'T' . $vendTemp->type,
+                'Type' => 'T'.$vendTemp->type,
             ];
         });
     }
@@ -2744,13 +2756,13 @@ class VendController extends Controller
                 'id'
             )
             ->get();
+
         return $vendChannels;
     }
 
-
     public function getAllDCVends(Request $request)
     {
-        if (!$request->operatorCode) {
+        if (! $request->operatorCode) {
             throw new \Exception('Operator code is required');
         }
 
@@ -2759,7 +2771,7 @@ class VendController extends Controller
             ->with([
                 'deliveryAddress',
                 'photos',
-                'vend' => function ($query) use ($request) {
+                'vend' => function ($query) {
                     $query
                         ->with([
                             'vendChannels',
@@ -2773,7 +2785,7 @@ class VendController extends Controller
                     ->where('is_dcvend', true);
             })
             ->where('customers.is_active', true)
-            ->orderByRaw("CASE WHEN vends.id IS NOT NULL THEN 0 ELSE 1 END") // Sort by customers with vends first
+            ->orderByRaw('CASE WHEN vends.id IS NOT NULL THEN 0 ELSE 1 END') // Sort by customers with vends first
             ->orderBy('vends.code') // Sort by vend code
             ->select('customers.id', 'customers.name', 'is_restricted_access') // Ensure only customer columns are selected
             ->distinct()
@@ -2853,13 +2865,13 @@ class VendController extends Controller
             'productMapping.productMappingItems',
         ])->where('code', $vendCode)->first();
 
-        if (!$vend || $vend->vendChannels->isEmpty()) {
+        if (! $vend || $vend->vendChannels->isEmpty()) {
             return response()->json([], 200);
         }
 
         $productMappingItems = $vend->productMapping?->productMappingItems->keyBy('channel_code');
 
-        if (!$productMappingItems) {
+        if (! $productMappingItems) {
             return response()->json([], 200);
         }
 
@@ -2885,13 +2897,16 @@ class VendController extends Controller
             $hasSeqA = $seqA !== null;
             $hasSeqB = $seqB !== null;
 
-            if ($hasSeqA && !$hasSeqB)
+            if ($hasSeqA && ! $hasSeqB) {
                 return -1;
-            if (!$hasSeqA && $hasSeqB)
+            }
+            if (! $hasSeqA && $hasSeqB) {
                 return 1;
+            }
 
-            if ($seqA !== $seqB)
+            if ($seqA !== $seqB) {
                 return $seqA <=> $seqB;
+            }
 
             return (int) $a->code <=> (int) $b->code;
         })->values();
@@ -2918,15 +2933,15 @@ class VendController extends Controller
                 'sequence' => $productMappingItem?->sequence,
                 'thumbnail' => $product?->thumbnail?->full_url,
                 'server_price' => $serverPrice,
-                'labels' => $product?->tagBindings->map(fn($tb) => [
+                'labels' => $product?->tagBindings->map(fn ($tb) => [
                     'id' => $tb->tag?->id,
-                    'name' => $tb->tag?->name
+                    'name' => $tb->tag?->name,
                 ])->toArray() ?? [],
             ];
 
             if ($product?->translated_names_json) {
                 foreach ($product->translated_names_json as $lang => $value) {
-                    $data['product_name_' . $value['id']] = $value['name'];
+                    $data['product_name_'.$value['id']] = $value['name'];
                 }
             }
 
@@ -2952,13 +2967,13 @@ class VendController extends Controller
             'productMapping.productMappingItems.product.tagBindings.tag',
         ])->where('code', $vendCode)->first();
 
-        if (!$vend) {
+        if (! $vend) {
             return response()->json([], 200);
         }
 
         $productMappingItems = $vend->productMapping?->productMappingItems;
 
-        if (!$productMappingItems || $productMappingItems->isEmpty()) {
+        if (! $productMappingItems || $productMappingItems->isEmpty()) {
             return response()->json([], 200);
         }
 
@@ -2981,13 +2996,16 @@ class VendController extends Controller
             $hasSeqA = $a->sequence !== null;
             $hasSeqB = $b->sequence !== null;
 
-            if ($hasSeqA && !$hasSeqB)
+            if ($hasSeqA && ! $hasSeqB) {
                 return -1;
-            if (!$hasSeqA && $hasSeqB)
+            }
+            if (! $hasSeqA && $hasSeqB) {
                 return 1;
+            }
 
-            if ($a->sequence !== $b->sequence)
+            if ($a->sequence !== $b->sequence) {
                 return $a->sequence <=> $b->sequence;
+            }
 
             return (int) $a->channel_code <=> (int) $b->channel_code;
         })->values();
@@ -3007,8 +3025,8 @@ class VendController extends Controller
             $thumbnailUrl = $product?->thumbnail?->full_url;
             if ($isSmart && $thumbnailUrl) {
                 $ver = (optional($product->updated_at)->timestamp ?? 0)
-                    . '-' . (optional($product->thumbnail->updated_at)->timestamp ?? 0);
-                $thumbnailUrl .= (str_contains($thumbnailUrl, '?') ? '&' : '?') . 'v=' . $ver;
+                    .'-'.(optional($product->thumbnail->updated_at)->timestamp ?? 0);
+                $thumbnailUrl .= (str_contains($thumbnailUrl, '?') ? '&' : '?').'v='.$ver;
             }
 
             $data = [
@@ -3026,15 +3044,15 @@ class VendController extends Controller
                 'sequence' => $item->sequence,
                 'thumbnail' => $thumbnailUrl,
                 'server_price' => $serverPrice,
-                'labels' => $product?->tagBindings->map(fn($tb) => [
+                'labels' => $product?->tagBindings->map(fn ($tb) => [
                     'id' => $tb->tag?->id,
-                    'name' => $tb->tag?->name
+                    'name' => $tb->tag?->name,
                 ])->toArray() ?? [],
             ];
 
             if ($product?->translated_names_json) {
                 foreach ($product->translated_names_json as $lang => $value) {
-                    $data['product_name_' . $value['id']] = $value['name'];
+                    $data['product_name_'.$value['id']] = $value['name'];
                 }
             }
 
@@ -3053,8 +3071,13 @@ class VendController extends Controller
      * every mapped SKU with thumbnail/name so the UI can draw the six-basket
      * grid straight from the planogram, whether or not channel data ever lands.
      *
-     * qty is best-effort: if a vend_channels row happens to exist for the same
-     * numeric channel_code we surface it, otherwise null (rendered as "—").
+     * qty is best-effort. The smart-freezer APK never sends a CHANNEL frame
+     * (it treats CHANNEL purely as a "re-pull your menu" nudge), so until mark1
+     * itself writes vend_channels for smart vends — topup baseline from the ops
+     * job item, decremented per vend_transaction — there is no stock feed and
+     * every slot reports null. `has_stock_feed` says which of those two worlds
+     * the UI is in, so it can label "no stock feed yet" instead of an ambiguous
+     * dash on every cell.
      */
     public function smartPlanogram($id)
     {
@@ -3062,69 +3085,136 @@ class VendController extends Controller
             'productMapping.productMappingItems.product.thumbnail',
         ])->find($id, ['id', 'code', 'product_mapping_id']);
 
-        if (!$vend || !$vend->productMapping) {
-            return response()->json(['is_smart' => false, 'basket_layout' => [], 'items' => []], 200);
+        if (! $vend || ! $vend->productMapping) {
+            return response()->json([
+                'is_smart' => false,
+                'has_stock_feed' => false,
+                'basket_layout' => [],
+                'items' => [],
+            ], 200);
         }
 
         $mapping = $vend->productMapping;
 
-        // Best-effort qty lookup by numeric channel_code (may be empty for a
-        // freezer that never syncs vend_channels — that's expected).
-        $vend->loadMissing('vendChannels:id,vend_id,code,qty');
-        $qtyByCode = $vend->vendChannels->keyBy(fn ($c) => (int) $c->code);
+        $qtyByCode = $this->smartStockByChannelCode($vend->id);
 
-        // Basket layout: prefer the persisted shape; fall back to the same
-        // 6-basket × 2-division default the editor seeds.
-        $basketLayout = collect($mapping->basket_layout_json ?? [])
-            ->map(fn ($b) => [
-                'basket' => (int) ($b['basket'] ?? 0),
-                'divisions' => (int) ($b['divisions'] ?? 0),
-            ])
-            ->filter(fn ($b) => $b['basket'] > 0)
+        $items = ($mapping->productMappingItems ?? collect())
+            ->map(fn ($item) => $this->smartPlanogramItem($item, $qtyByCode))
+            ->sortBy('channel_code', SORT_NATURAL)
             ->values();
-
-        if ($basketLayout->isEmpty()) {
-            $basketLayout = collect(range(1, 6))
-                ->map(fn ($basket) => ['basket' => $basket, 'divisions' => 2])
-                ->values();
-        }
-
-        $items = ($mapping->productMappingItems ?? collect())->map(function ($item) use ($qtyByCode) {
-            $code = (string) $item->channel_code;
-            $product = $item->product;
-
-            // Numeric code "<basket><division>": first digit = basket, second =
-            // division (1-indexed). Single-digit legacy codes map to basket only.
-            $basket = null;
-            $division = null;
-            if (ctype_digit($code) && strlen($code) >= 2) {
-                $basket = (int) substr($code, 0, 1);
-                $division = (int) substr($code, 1);
-            } elseif (ctype_digit($code)) {
-                $basket = (int) $code;
-                $division = 1;
-            }
-
-            return [
-                'channel_code' => $code,
-                'basket' => $basket,
-                'division' => $division,
-                'product_id' => $product?->id,
-                'product_code' => $product?->code,
-                'product_name' => $product?->name,
-                'thumbnail' => $product?->thumbnail?->full_url,
-                'qty' => $qtyByCode[(int) $code]->qty ?? null,
-            ];
-        })->values();
 
         return response()->json([
             'vend_code' => $vend->code,
             'is_smart' => (bool) $mapping->is_smart,
             'product_mapping_id' => $mapping->id,
             'product_mapping_name' => $mapping->name,
-            'basket_layout' => $basketLayout,
+            'has_stock_feed' => $qtyByCode->isNotEmpty(),
+            'stock_updated_at' => $qtyByCode->max('updated_at'),
+            'basket_layout' => $this->smartBasketLayout($mapping, $items),
             'items' => $items,
         ], 200);
+    }
+
+    /**
+     * Live stock per numeric channel code for a smart vend.
+     *
+     * Deliberately NOT the `vendChannels` relation: that scopes to
+     * `capacity > 0`, and a smart freezer's channels carry capacity 0 (no
+     * physical spiral to size), so the relation returns nothing for exactly the
+     * machines this endpoint serves. Duplicate rows per code exist on the pilot
+     * units, so the most recently touched row wins.
+     */
+    private function smartStockByChannelCode(int $vendId): Collection
+    {
+        return VendChannel::query()
+            ->where('vend_id', $vendId)
+            ->orderBy('updated_at')
+            ->get(['code', 'qty', 'capacity', 'updated_at'])
+            ->keyBy(fn ($channel) => (int) $channel->code);
+    }
+
+    /**
+     * One planogram slot: the mapping row plus whatever stock we know about it.
+     */
+    private function smartPlanogramItem(ProductMappingItem $item, Collection $qtyByCode): array
+    {
+        $code = (string) $item->channel_code;
+        $product = $item->product;
+        $channel = $qtyByCode->get((int) $code);
+
+        [$basket, $division] = $this->smartChannelPosition($code);
+
+        return [
+            'channel_code' => $code,
+            'basket' => $basket,
+            'division' => $division,
+            'product_id' => $product?->id,
+            'product_code' => $product?->code,
+            'product_name' => $product?->name,
+            'thumbnail' => $product?->thumbnail?->full_url,
+            // Integer cents on the wire (estate rule: divide by 100 only at display).
+            // getRawOriginal bypasses the model's dollars get-accessor.
+            'price_cents' => $item->getRawOriginal('server_amount'),
+            'qty' => $channel?->qty,
+            'capacity' => $channel?->capacity ?: null,
+        ];
+    }
+
+    /**
+     * Numeric code "<basket><division>": first digit = basket, remainder =
+     * division (1-indexed). Single-digit legacy codes map to basket only.
+     * Non-numeric codes have no place on the grid and return nulls.
+     */
+    private function smartChannelPosition(string $code): array
+    {
+        if (! ctype_digit($code)) {
+            return [null, null];
+        }
+
+        return strlen($code) >= 2
+            ? [(int) substr($code, 0, 1), (int) substr($code, 1)]
+            : [(int) $code, 1];
+    }
+
+    /**
+     * Basket/division shape to draw.
+     *
+     * The persisted `basket_layout_json` is the operator's intent, but it is
+     * null on mappings created before the column landed — and the old 6×2
+     * fallback then HID any slot in division 3+ (mapping 511's channel 13 was
+     * invisible on vend 2009). So the layout is the union of the persisted
+     * shape and the divisions actually occupied by mapped items: a bound slot
+     * can never be dropped from the picture, whatever the stored layout says.
+     * All six baskets are always emitted — the freezer face is fixed hardware.
+     */
+    private function smartBasketLayout(ProductMapping $mapping, Collection $items): array
+    {
+        $divisions = [];
+        foreach (range(1, self::SMART_FREEZER_BASKETS) as $basket) {
+            $divisions[$basket] = 1;
+        }
+
+        foreach (($mapping->basket_layout_json ?? []) as $entry) {
+            $basket = (int) ($entry['basket'] ?? 0);
+            if ($basket < 1) {
+                continue;
+            }
+            $divisions[$basket] = max($divisions[$basket] ?? 1, (int) ($entry['divisions'] ?? 1));
+        }
+
+        foreach ($items as $item) {
+            if (! $item['basket'] || ! $item['division']) {
+                continue;
+            }
+            $divisions[$item['basket']] = max($divisions[$item['basket']] ?? 1, $item['division']);
+        }
+
+        ksort($divisions);
+
+        return collect($divisions)
+            ->map(fn ($count, $basket) => ['basket' => (int) $basket, 'divisions' => (int) $count])
+            ->values()
+            ->all();
     }
 
     public function getVendBannerImage($vendCode)
@@ -3141,7 +3231,7 @@ class VendController extends Controller
         if ($vend && $vend->apkSettings->isNotEmpty()) { // Ensure vend exists and apkSettings is not empty
             $apkSetting = $vend->apkSettings->first(); // Use first() to avoid undefined index error
 
-            if (!empty($apkSetting->images)) {
+            if (! empty($apkSetting->images)) {
                 foreach ($apkSetting->images as $image) {
                     $imageArray[] = [
                         'name' => $image->name,
@@ -3168,7 +3258,7 @@ class VendController extends Controller
         if ($vend && $vend->apkSettings->isNotEmpty()) {
             $apkSetting = $vend->apkSettings->first();
 
-            if (!empty($apkSetting->videos)) {
+            if (! empty($apkSetting->videos)) {
                 foreach ($apkSetting->videos as $video) {
                     $videoArray[] = [
                         'name' => $video->name,
@@ -3195,7 +3285,7 @@ class VendController extends Controller
         if ($vend && $vend->apkSettings->isNotEmpty()) {
             $apkSetting = $vend->apkSettings->first();
 
-            if (!empty($apkSetting->campaignImages)) {
+            if (! empty($apkSetting->campaignImages)) {
                 foreach ($apkSetting->campaignImages as $image) {
                     $imageArray[] = [
                         'name' => $image->name,
@@ -3222,7 +3312,7 @@ class VendController extends Controller
         if ($vend && $vend->apkSettings->isNotEmpty()) {
             $apkSetting = $vend->apkSettings->first();
 
-            if (!empty($apkSetting->campaignVideos)) {
+            if (! empty($apkSetting->campaignVideos)) {
                 foreach ($apkSetting->campaignVideos as $video) {
                     $videoArray[] = [
                         'name' => $video->name,
@@ -3237,7 +3327,6 @@ class VendController extends Controller
             'videos' => $videoArray,
         ], 200);
     }
-
 
     public function getVendChannelThumnail($vendCode, $vendChannelCode)
     {
@@ -3254,6 +3343,7 @@ class VendController extends Controller
 
                 $thumbnail = Image::read(file_get_contents($vendChannel->product->thumbnail->full_url));
                 $thumbnail->resize(300, 300);
+
                 return response($thumbnail->toJpeg(), 200)
                     ->header('Content-Type', 'image/jpeg');
             }
@@ -3278,7 +3368,7 @@ class VendController extends Controller
             ])
             ->first();
 
-        if (!$apkSetting) {
+        if (! $apkSetting) {
             abort(response([
                 'error_code' => 400,
                 'error_message' => 'Parameters not found',
@@ -3296,13 +3386,13 @@ class VendController extends Controller
         });
 
         $settingsParams = $apkSetting->settings_parameter_json ?? [];
-        if (!is_array($settingsParams)) {
+        if (! is_array($settingsParams)) {
             $settingsParams = (array) $settingsParams;
         }
 
         $data = [
             ...$settingsParams,
-            'isGrabEnabled' => $isGrabEnabled ? "true" : "false",
+            'isGrabEnabled' => $isGrabEnabled ? 'true' : 'false',
             'companyUrl' => $settingsParams['company_url'] ?? null,
             'companyAddress' => $settingsParams['company_address'] ?? null,
             'companyName' => $settingsParams['companyName'] ?? null,
@@ -3334,7 +3424,7 @@ class VendController extends Controller
             })->values(),
         ];
 
-        if (!$apkVer && $vend->apk_ver_json && isset($vend->apk_ver_json['apkver'])) {
+        if (! $apkVer && $vend->apk_ver_json && isset($vend->apk_ver_json['apkver'])) {
             $apkVer = $vend->apk_ver_json['apkver'];
         }
 
@@ -3365,7 +3455,7 @@ class VendController extends Controller
         );
 
         // Manual (ticket-driven) refund actually paying out — show the reference.
-        if ($ticket && !$isAutoTicket) {
+        if ($ticket && ! $isAutoTicket) {
             return ['manual', $ticket->reference];
         }
 
@@ -3402,7 +3492,7 @@ class VendController extends Controller
 
     public function transactionIndex(Request $request)
     {
-        if (!$request->has('operators')) {
+        if (! $request->has('operators')) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -3411,7 +3501,7 @@ class VendController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -3424,7 +3514,7 @@ class VendController extends Controller
         $request->date_from = $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
         $request->date_to = $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        $className = get_class(new Customer());
+        $className = get_class(new Customer);
 
         // dd($request->all());
 
@@ -3464,7 +3554,7 @@ class VendController extends Controller
             // Map bare column names to their qualified form to avoid ambiguity.
             $qualifiedSortKey = match (true) {
                 str_contains($sortKey, '.') || str_contains($sortKey, '->') => $sortKey,
-                default => 'vend_transactions.' . $sortKey,
+                default => 'vend_transactions.'.$sortKey,
             };
             $sortDir = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
@@ -3541,6 +3631,7 @@ class VendController extends Controller
             $record->raw_label_json = $record->label_json;
             $record->label_json = collect($record->label_json)->map(function ($t) use ($tagMap) {
                 $tag = $tagMap->get($t) ?? $tagMap->firstWhere('name', $t);
+
                 return $tag ? ['id' => $tag->id, 'slug' => $tag->slug, 'name' => $tag->name] : $t;
             })->toArray();
         }
@@ -3560,14 +3651,14 @@ class VendController extends Controller
         $recordIds = $records->pluck('id')->filter()->unique()->all();
         $recordOrderIds = $records->pluck('order_id')->filter()->unique()->all();
         $refundTickets = collect();
-        if (!empty($recordIds) || !empty($recordOrderIds)) {
+        if (! empty($recordIds) || ! empty($recordOrderIds)) {
             $refundTickets = RefundTicket::query()
                 ->whereIn('status', RefundTicket::ACTIVE_REFUND_STATUSES)
                 ->where(function ($q) use ($recordIds, $recordOrderIds) {
-                    if (!empty($recordIds)) {
+                    if (! empty($recordIds)) {
                         $q->orWhereIn('vend_transaction_id', $recordIds);
                     }
-                    if (!empty($recordOrderIds)) {
+                    if (! empty($recordOrderIds)) {
                         $q->orWhereIn('order_id', $recordOrderIds);
                     }
                 })
@@ -3601,7 +3692,7 @@ class VendController extends Controller
             ->all();
 
         $ticketItemsByTicket = collect();
-        if (!empty($refundTicketIds)) {
+        if (! empty($refundTicketIds)) {
             $ticketItemsByTicket = RefundTicketItem::query()
                 ->whereIn('refund_ticket_id', $refundTicketIds)
                 ->get(['refund_ticket_id', 'vend_transaction_item_id', 'vend_channel_code'])
@@ -3611,12 +3702,12 @@ class VendController extends Controller
         foreach ($records as $record) {
             $record->refund_request_on_items = false;
 
-            if (!$record->is_multiple || blank($record->refund_request_id)) {
+            if (! $record->is_multiple || blank($record->refund_request_id)) {
                 continue;
             }
 
             $ticketItems = $ticketItemsByTicket->get($record->refund_request_id);
-            if (!$ticketItems || $ticketItems->isEmpty()) {
+            if (! $ticketItems || $ticketItems->isEmpty()) {
                 continue; // no specific SKU selected -> leave badge on header
             }
 
@@ -3658,8 +3749,7 @@ class VendController extends Controller
         // Pre-fetch testing vend IDs once (cached 1h) so the totals + item-totals
         // queries can filter with a cheap whereNotIn instead of an INNER JOIN on vends.
         // The JOIN forced MySQL to scan vends for every matching transaction row (~21k ops).
-        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
-            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int)$v)->all()
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
         );
 
         // Optimize: Split totals calculation into two queries to avoid expensive subquery join
@@ -3668,7 +3758,7 @@ class VendController extends Controller
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
             ->filterTransactionIndex($request, true)
-            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             // Unified transactions: exclude in-flight (PENDING) and voided
             // (REFUNDED) gateway rows from the sales card. Legacy + all non-gateway
             // rows are SETTLED (column default), so this is a no-op for them.
@@ -3759,7 +3849,7 @@ class VendController extends Controller
 
                 DB::raw('CAST(SUM(CASE
                     WHEN is_multiple = 1 AND delivery_platform_orders.id IS NULL
-                    THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_machine')
+                    THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_machine'),
 
             ])
             ->first();
@@ -3768,12 +3858,12 @@ class VendController extends Controller
         $itemTotals = VendTransaction::query()
             ->filterTransactionIndex($request, true)
             ->where('is_multiple', true)
-            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->leftJoin('vend_transaction_items', 'vend_transactions.id', '=', 'vend_transaction_items.vend_transaction_id')
             ->select([
                 DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IS NULL OR vend_transaction_items.vend_channel_error_code NOT IN (4, 5)) THEN 1 END) as total_items'),
-                DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IN (0,6) OR vend_transaction_items.vend_channel_error_code IS NULL) THEN 1 END) as success_items')
+                DB::raw('COUNT(CASE WHEN vend_transaction_items.id IS NOT NULL AND (vend_transaction_items.vend_channel_error_code IN (0,6) OR vend_transaction_items.vend_channel_error_code IS NULL) THEN 1 END) as success_items'),
             ])
             ->first();
 
@@ -3819,7 +3909,7 @@ class VendController extends Controller
             ? 0
             : PaymentGatewayLog::query()
                 ->unreportedDispensed($request, $testingVendIds)
-                ->when($viewerVendIds !== null, fn($q) => $q->whereIn('payment_gateway_logs.vend_id', $viewerVendIds))
+                ->when($viewerVendIds !== null, fn ($q) => $q->whereIn('payment_gateway_logs.vend_id', $viewerVendIds))
                 ->sum('payment_gateway_logs.amount');
 
         // vend_transactions.amount is in minor units (cents); gateway log
@@ -3828,7 +3918,7 @@ class VendController extends Controller
         $unreportedGatewayMinor = (int) round(((float) $unreportedGatewayAmount) * pow(10, $currencyExponent));
 
         $totals->qr_payment_amount = (float) $totals->qr_payment_amount + $unreportedGatewayMinor;
-        $totals->success_amount    = (float) $totals->success_amount + $unreportedGatewayMinor;
+        $totals->success_amount = (float) $totals->success_amount + $unreportedGatewayMinor;
         // ────────────────────────────────────────────────────────────────────
 
         // ── "Access Product(s)": attributed sales ────────────────────────────
@@ -3847,7 +3937,7 @@ class VendController extends Controller
             $attributedFilters = function ($query) use ($request, $testingVendIds) {
                 return $query
                     ->filterTransactionIndex($request, true)
-                    ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+                    ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
                     ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
                     // Mirror the success condition behind $totals->success_amount
                     // (the figure this card actually prints), or the two numbers
@@ -3901,7 +3991,6 @@ class VendController extends Controller
         }
         // ────────────────────────────────────────────────────────────────────
 
-
         $latestExports = ExportJob::with('attachment')
             ->where('user_id', auth()->id())
             ->where('type', 'vend_transaction')
@@ -3911,23 +4000,23 @@ class VendController extends Controller
 
         // Cache metadata queries to reduce database load
         $ttl = 86400; // 24 hours
-        $categories = Cache::remember('categories_' . $className, $ttl, fn() => CategoryResource::collection(
+        $categories = Cache::remember('categories_'.$className, $ttl, fn () => CategoryResource::collection(
             Category::where('classname', $className)->orderBy('name')->get()
         )->resolve());
 
-        $categoryGroups = Cache::remember('category_groups_' . $className, $ttl, fn() => CategoryGroupResource::collection(
+        $categoryGroups = Cache::remember('category_groups_'.$className, $ttl, fn () => CategoryGroupResource::collection(
             CategoryGroup::where('classname', $className)->orderBy('name')->get()
         )->resolve());
 
-        $locationTypeOptions = Cache::remember('location_type_options', $ttl, fn() => LocationTypeResource::collection(
+        $locationTypeOptions = Cache::remember('location_type_options', $ttl, fn () => LocationTypeResource::collection(
             LocationType::orderBy('sequence')->get()
         )->resolve());
 
-        $operatorOptions = Cache::remember('operator_options_' . auth()->user()->operator_id, $ttl, fn() => OperatorResource::collection(
+        $operatorOptions = Cache::remember('operator_options_'.auth()->user()->operator_id, $ttl, fn () => OperatorResource::collection(
             Operator::orderBy('name')->get()
         )->resolve());
 
-        $paymentMethods = Cache::remember('payment_methods', $ttl, fn() => PaymentMethodResource::collection(
+        $paymentMethods = Cache::remember('payment_methods', $ttl, fn () => PaymentMethodResource::collection(
             PaymentMethod::orderBy('name')->get()
         )->resolve());
 
@@ -3936,26 +4025,26 @@ class VendController extends Controller
         // label IDs/names/slugs. Scope to App\Models\Product so Customer/Site
         // tags don't leak into this dropdown. Cache key bumped (…_product) so
         // any previously-cached all-tags payload is not reused.
-        $tagOptions = Cache::remember('tag_options_product', $ttl, fn() => TagResource::collection(
+        $tagOptions = Cache::remember('tag_options_product', $ttl, fn () => TagResource::collection(
             Tag::where('classname', \App\Models\Product::class)->orderBy('name')->get()
         )->resolve());
 
-        $vendChannelErrors = Cache::remember('vend_channel_errors', $ttl, fn() => VendChannelErrorResource::collection(
+        $vendChannelErrors = Cache::remember('vend_channel_errors', $ttl, fn () => VendChannelErrorResource::collection(
             VendChannelError::orderBy('code')->get()
         )->resolve());
 
-        $vendContractOptions = Cache::remember('vend_contract_options', $ttl, fn() => VendContractResource::collection(
+        $vendContractOptions = Cache::remember('vend_contract_options', $ttl, fn () => VendContractResource::collection(
             VendContract::orderBy('name')->get()
         )->resolve());
 
-        $vendModelOptions = Cache::remember('vend_model_options', $ttl, fn() => VendModelResource::collection(
+        $vendModelOptions = Cache::remember('vend_model_options', $ttl, fn () => VendModelResource::collection(
             VendModel::orderBy('name')->get()
         )->resolve());
 
         // Transaction filter: only list prefixes that still have at least
         // one Active machine — prefixes whose machines are all
         // inactive/testing should not clutter the dropdown.
-        $vendPrefixOptions = Cache::remember('vend_prefix_options_active_' . auth()->user()->operator_id, $ttl, fn() => VendPrefixResource::collection(
+        $vendPrefixOptions = Cache::remember('vend_prefix_options_active_'.auth()->user()->operator_id, $ttl, fn () => VendPrefixResource::collection(
             VendPrefix::hasActiveVends()->orderBy('name')->get()
         )->resolve());
 
@@ -3963,8 +4052,7 @@ class VendController extends Controller
         // MLS). The frontend uses these to synthesize per-terminal
         // "Credit Card (<name>)" entries inside the Payment Method dropdown
         // — the standalone Card Terminal filter was retired on 2026-05-16.
-        $cardTerminalOptions = Cache::remember('card_terminal_options', $ttl, fn() =>
-            CardTerminal::orderBy('name')->pluck('name')->values()
+        $cardTerminalOptions = Cache::remember('card_terminal_options', $ttl, fn () => CardTerminal::orderBy('name')->pluck('name')->values()
         );
 
         return Inertia::render('Vend/Transaction', [
@@ -3994,7 +4082,7 @@ class VendController extends Controller
         $vendChannelErrorLogs = VendChannelErrorLog::with([
             'vendChannel',
             'vendChannel.vend',
-            'vendChannelError'
+            'vendChannelError',
         ])
             ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_channel_error_logs.vend_channel_id')
             ->leftJoin('vends', 'vends.id', '=', 'vend_channels.vend_id')
@@ -4016,7 +4104,7 @@ class VendController extends Controller
 
     public function exportPaymentGatewayTransactionExcel(Request $request)
     {
-        if (!$request->operators) {
+        if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -4025,7 +4113,7 @@ class VendController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -4050,8 +4138,7 @@ class VendController extends Controller
             ->where('status', '>=', PaymentGatewayLog::STATUS_APPROVE)
             ->get();
 
-
-        return (new FastExcel($this->yieldOneByOne($paymentGatewayLogs)))->download('Payment_Gateway_Transactions_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($paymentGatewayLog) {
+        return (new FastExcel($this->yieldOneByOne($paymentGatewayLogs)))->download('Payment_Gateway_Transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($paymentGatewayLog) {
             return [
                 'Ref ID' => $paymentGatewayLog->ref_id,
                 'Paid At' => Carbon::parse($paymentGatewayLog->approved_at)->toDateTimeString(),
@@ -4074,7 +4161,7 @@ class VendController extends Controller
 
     public function exportTransactionCsv(Request $request)
     {
-        $filenameBase = 'vend_transactions_' . now()->format('Ymd_His');
+        $filenameBase = 'vend_transactions_'.now()->format('Ymd_His');
         $user = auth()->user();
 
         $job = ExportJob::create([
@@ -4108,8 +4195,7 @@ class VendController extends Controller
         // Align with the aggregate cards (transactionIndex totals): only settled
         // sales and no testing machines. Must match the filters inside the
         // export jobs so row counts / chunk ID boundaries stay consistent.
-        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
-            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int) $v)->all()
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
         );
 
         $idQuery = VendTransaction::query()
@@ -4129,7 +4215,7 @@ class VendController extends Controller
             })
             ->filterTransactionIndex($request, true) // skip sort — we impose our own
             ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
-            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->orderBy('vend_transactions.id');
 
         // Collect IDs in order to determine per-chunk keyset boundaries.
@@ -4171,7 +4257,6 @@ class VendController extends Controller
         return back()->with('message', 'Export started! You can check it later in the export list.');
     }
 
-
     public function exportTransactionExcel(Request $request)
     {
         // "Access Product(s)": row selection is already handled by
@@ -4185,7 +4270,7 @@ class VendController extends Controller
         // only scopes inside when($request->operators), so a missing param means
         // NO operator filter at all -- without this the export returns every
         // operator's transactions regardless of who asked for it.
-        if (!$request->has('operators')) {
+        if (! $request->has('operators')) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -4194,7 +4279,7 @@ class VendController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -4218,8 +4303,7 @@ class VendController extends Controller
         // Align with the aggregate cards (transactionIndex totals): only settled
         // sales and no testing machines, so the exported Amount total tallies
         // with the dashboard "Total Sales".
-        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
-            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int) $v)->all()
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
         );
 
         VendTransaction::query()
@@ -4251,7 +4335,7 @@ class VendController extends Controller
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->filterTransactionIndex($request)
             ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
-            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->select([
                 'vend_transactions.*',
                 'vends.code AS vend_code',
@@ -4280,11 +4364,13 @@ class VendController extends Controller
                 $tagIds = $transactions->pluck('label_ids_json')
                     ->filter()
                     ->flatMap(function ($val) {
-                    if (is_array($val))
-                        return $val;
-                    $arr = json_decode($val, true);
-                    return is_array($arr) ? $arr : [];
-                })
+                        if (is_array($val)) {
+                            return $val;
+                        }
+                        $arr = json_decode($val, true);
+
+                        return is_array($arr) ? $arr : [];
+                    })
                     ->unique()
                     ->values();
 
@@ -4302,6 +4388,7 @@ class VendController extends Controller
                     // 3) Build label string (use name -> slug -> id)
                     $labelStr = collect($ids)->map(function ($id) use ($tagMap) {
                         $t = $tagMap->get($id);
+
                         return $t->name ?? $t->slug ?? (string) $id;
                     })->implode(', ');
 
@@ -4309,7 +4396,7 @@ class VendController extends Controller
                     $main_amount = $txn->amount / 100;
 
                     $multipleBreakdown = $txn->is_multiple
-                        ? ($txn->amount - $txn->vendTransactionItems->sum(fn($item) => $item->vendChannel?->amount ?? 0)) / 100
+                        ? ($txn->amount - $txn->vendTransactionItems->sum(fn ($item) => $item->vendChannel?->amount ?? 0)) / 100
                         : $main_amount;
 
                     // 4) Put labels into the main row (keep item rows empty or repeat, your choice)
@@ -4415,8 +4502,8 @@ class VendController extends Controller
         $excelViewerVendIds = $this->viewerVendIds();
 
         PaymentGatewayLog::query()
-            ->when($excelAllowedProductIds !== null, fn($q) => $q->whereRaw('1 = 0'))
-            ->when($excelViewerVendIds !== null, fn($q) => $q->whereIn('payment_gateway_logs.vend_id', $excelViewerVendIds))
+            ->when($excelAllowedProductIds !== null, fn ($q) => $q->whereRaw('1 = 0'))
+            ->when($excelViewerVendIds !== null, fn ($q) => $q->whereIn('payment_gateway_logs.vend_id', $excelViewerVendIds))
             ->with(['vend:id,code', 'operatorPaymentGateway.operator:id,code'])
             ->unreportedDispensed($request, $testingVendIds)
             ->orderBy('payment_gateway_logs.approved_at')
@@ -4460,16 +4547,15 @@ class VendController extends Controller
             });
 
         return (new FastExcel(collect($data)))
-            ->download('Vend_transactions_' . now()->format('Ymd_His') . '.xlsx');
+            ->download('Vend_transactions_'.now()->format('Ymd_His').'.xlsx');
     }
-
 
     public function exportVendSnapshotExcel($vendSnapshotId)
     {
         $vendSnapshot = VendSnapshot::findOrFail($vendSnapshotId);
         $vendTransactions = $vendSnapshot->vendTransactions;
 
-        return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($vendTransaction) {
+        return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [
                 'Order ID' => $vendTransaction->order_id,
                 'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
@@ -4507,7 +4593,6 @@ class VendController extends Controller
             ->get();
     }
 
-
     private function yieldOneByOne($items)
     {
         foreach ($items as $item) {
@@ -4527,40 +4612,40 @@ class VendController extends Controller
             'name' => $request->name,
             'private_key' => $request->private_key,
             'settings_parameter_json' => [
-                "buy1free1X" => 0,
-                "buy1free1Y" => 0,
-                "buy2free1X" => 1,
-                "buy2free1Y" => 0,
-                "bundleEndDate" => null,
-                "bundleStartDate" => null,
-                "dcvendFreePlanPromoValue" => 15,
-                "dcvendGoldPlanPromoValue" => 30,
-                "dcvendPlatinumPlanPromoValue" => 30,
-                "enableBuy1Free1" => "false",
-                "enableBuy2Free1" => "false",
-                "promoBannerKind" => "video",
-                "promoHeaderText" => null,
-                "buy1free1EndDate" => null,
-                "buy2free1EndDate" => null,
-                "enableDiscount01" => "true",
-                "enableDiscount02" => "false",
-                "enableDiscount03" => "false",
-                "promoRunningText" => null,
-                "discountPercent01" => 1,
-                "discountPercent02" => 1,
-                "discountPercent03" => 1,
-                "headerTextEndDate" => null,
-                "buy1free1StartDate" => null,
-                "buy2free1StartDate" => null,
-                "runningTextEndDate" => null,
-                "disableP1P2CrossGrp" => "false",
-                "headerTextStartDate" => null,
-                "enableBundleDiscount" => "false",
-                "runningTextStartDate" => null,
-                "enablePromoHeaderText" => "false",
-                "enablePromoRunningText" => "false",
-                "enableHeaderTextRunning" => "false"
-            ]
+                'buy1free1X' => 0,
+                'buy1free1Y' => 0,
+                'buy2free1X' => 1,
+                'buy2free1Y' => 0,
+                'bundleEndDate' => null,
+                'bundleStartDate' => null,
+                'dcvendFreePlanPromoValue' => 15,
+                'dcvendGoldPlanPromoValue' => 30,
+                'dcvendPlatinumPlanPromoValue' => 30,
+                'enableBuy1Free1' => 'false',
+                'enableBuy2Free1' => 'false',
+                'promoBannerKind' => 'video',
+                'promoHeaderText' => null,
+                'buy1free1EndDate' => null,
+                'buy2free1EndDate' => null,
+                'enableDiscount01' => 'true',
+                'enableDiscount02' => 'false',
+                'enableDiscount03' => 'false',
+                'promoRunningText' => null,
+                'discountPercent01' => 1,
+                'discountPercent02' => 1,
+                'discountPercent03' => 1,
+                'headerTextEndDate' => null,
+                'buy1free1StartDate' => null,
+                'buy2free1StartDate' => null,
+                'runningTextEndDate' => null,
+                'disableP1P2CrossGrp' => 'false',
+                'headerTextStartDate' => null,
+                'enableBundleDiscount' => 'false',
+                'runningTextStartDate' => null,
+                'enablePromoHeaderText' => 'false',
+                'enablePromoRunningText' => 'false',
+                'enableHeaderTextRunning' => 'false',
+            ],
         ]);
 
         // if($request->customer_id) {
@@ -4579,7 +4664,7 @@ class VendController extends Controller
 
     public function paymentGatewayTransactionIndex(Request $request)
     {
-        if (!$request->operators) {
+        if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -4588,7 +4673,7 @@ class VendController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -4686,7 +4771,7 @@ class VendController extends Controller
      */
     public function dailySummaryIndex(Request $request)
     {
-        if (!$request->has('operators')) {
+        if (! $request->has('operators')) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -4695,7 +4780,7 @@ class VendController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -4720,7 +4805,7 @@ class VendController extends Controller
             'total_amount',
             'success_amount',
         ];
-        if (!in_array($sortKey, $allowedSortKeys, true)) {
+        if (! in_array($sortKey, $allowedSortKeys, true)) {
             $sortKey = 'transaction_date';
         }
         $sortDir = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
@@ -4728,8 +4813,7 @@ class VendController extends Controller
         // Pre-fetch testing vend IDs once (cached 1h) so the aggregates exclude
         // testing machines — same source as the Sales Transactions totals query,
         // keeping the two pages' figures in sync.
-        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
-            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int)$v)->all()
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
         );
 
         // Base query (shared between paginated rows + totals + count).
@@ -4740,7 +4824,7 @@ class VendController extends Controller
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
                 ->filterTransactionIndex($request, true)
                 // Exclude testing machines so totals match the Sales Transactions page.
-                ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+                ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
                 // Unified transactions: exclude PENDING/REFUNDED gateway rows from
                 // the daily summary aggregates (no-op for legacy/non-gateway rows).
                 ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED);
@@ -4837,18 +4921,17 @@ class VendController extends Controller
             ->first();
 
         $ttl = 86400;
-        $paymentMethods = Cache::remember('payment_methods', $ttl, fn() => PaymentMethodResource::collection(
+        $paymentMethods = Cache::remember('payment_methods', $ttl, fn () => PaymentMethodResource::collection(
             PaymentMethod::orderBy('name')->get()
         )->resolve());
 
-        $operatorOptions = Cache::remember('operator_options_' . auth()->user()->operator_id, $ttl, fn() => OperatorResource::collection(
+        $operatorOptions = Cache::remember('operator_options_'.auth()->user()->operator_id, $ttl, fn () => OperatorResource::collection(
             Operator::orderBy('name')->get()
         )->resolve());
 
         // Canonical card-terminal names — see indexTransaction() above for
         // why this powers the merged Payment Method dropdown.
-        $cardTerminalOptions = Cache::remember('card_terminal_options', $ttl, fn() =>
-            CardTerminal::orderBy('name')->pluck('name')->values()
+        $cardTerminalOptions = Cache::remember('card_terminal_options', $ttl, fn () => CardTerminal::orderBy('name')->pluck('name')->values()
         );
 
         return Inertia::render('Vend/DailySummary', [
@@ -4866,7 +4949,7 @@ class VendController extends Controller
      */
     public function exportDailySummaryCsv(Request $request)
     {
-        if (!$request->has('operators')) {
+        if (! $request->has('operators')) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -4875,7 +4958,7 @@ class VendController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -4888,15 +4971,14 @@ class VendController extends Controller
         // Keep the export in sync with the on-screen table (and the Sales
         // Transactions page): exclude testing machines and PENDING/REFUNDED
         // gateway rows.
-        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
-            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int)$v)->all()
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
         );
 
         $rows = VendTransaction::query()
             ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->filterTransactionIndex($request, true)
-            ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+            ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
             ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
             ->select([
                 DB::raw('DATE(vend_transactions.transaction_datetime) AS transaction_date'),
@@ -4926,12 +5008,13 @@ class VendController extends Controller
         $currencyExponent = $country?->currency_exponent ?? 2;
         $divisor = pow(10, $currencyExponent);
 
-        $filename = 'Daily_Summary_' . now()->format('Ymd_His') . '.csv';
+        $filename = 'Daily_Summary_'.now()->format('Ymd_His').'.csv';
 
         return (new FastExcel($this->yieldOneByOne($rows)))->download($filename, function ($row) use ($divisor, $currencyExponent) {
             $total = (int) $row->total_transaction_count;
             $success = (int) $row->success_count;
             $rate = $total > 0 ? round(($success / $total) * 100, 2) : 0.0;
+
             return [
                 'Date' => $row->transaction_date,
                 'Payment Method' => $row->payment_method_name ?? '—',
@@ -5081,6 +5164,7 @@ class VendController extends Controller
 
         $request->validate([
             'lcd_monitor_id' => 'required',
+            'machine_type' => 'sometimes|nullable|in:vending_machine,smart_freezer,smart_chiller',
             'menu_frame_id' => 'required',
             'operator_id' => 'required',
             'product_mapping_id' => $isNA ? 'nullable' : 'required',
@@ -5088,6 +5172,37 @@ class VendController extends Controller
             'vend_model_id' => 'required',
             'vend_prefix_id' => $isNA ? 'nullable' : 'required',
         ]);
+
+        // --- Machine-type ↔ mapping compatibility (2026-08-12) ---------------------------------
+        // The vend's machine_type (Vending Machine / Smart Freezer / Smart Chiller) is the
+        // identity; a mapping must be built FOR that machine kind. Enforced server-side so a stale
+        // client or API caller cannot bind, say, a vending planogram to a smart freezer — the
+        // freezer APK would then sell a channel layout that machine does not have. The
+        // already-persisted pair is grandfathered: a legacy mismatch never blocks an unrelated
+        // edit, only CHANGING either side into a fresh mismatch. Placeholder "N/A" mappings are
+        // machine-agnostic and always allowed.
+        $machineType = $request->has('machine_type')
+            ? ($request->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE)
+            : ($vend->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE);
+        $machineTypeChanged = $machineType !== ($vend->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE);
+        foreach ([
+            'product_mapping_id' => 'Product Mapping',
+            'upcoming_product_mapping_id' => 'Upcoming Product Mapping',
+        ] as $mappingField => $mappingLabel) {
+            $requestedMappingId = $request->$mappingField;
+            if (! $requestedMappingId) {
+                continue;
+            }
+            if (! $machineTypeChanged && $requestedMappingId == $vend->$mappingField) {
+                continue; // unchanged pair — grandfathered
+            }
+            Vend::assertMappingMatchesMachineType(
+                ProductMapping::withoutGlobalScopes()->find($requestedMappingId),
+                $machineType,
+                $mappingField,
+                $mappingLabel
+            );
+        }
 
         $vend->update([
             'name' => $request->name,
@@ -5109,6 +5224,7 @@ class VendController extends Controller
             'is_testing' => $request->is_testing,
             'is_fan_enabled' => $request->is_fan_enabled === 'true' || $request->is_fan_enabled === true,
             // 'is_using_server_price' => $request->is_using_server_price,
+            'machine_type' => $machineType,
             'product_mapping_id' => $request->product_mapping_id,
             'serial_num' => $request->serial_num,
             'server_price_type' => $request->server_price_type,
@@ -5140,7 +5256,7 @@ class VendController extends Controller
             $vend->binded_at = Carbon::now();
             $vend->save();
             $this->productMappingService->syncChannels($vend->product_mapping_id);
-        } else if ($isProductMappingChanged and !$vend->product_mapping_id) {
+        } elseif ($isProductMappingChanged and ! $vend->product_mapping_id) {
             $vend->binded_at = null;
             $vend->save();
         }
@@ -5197,6 +5313,7 @@ class VendController extends Controller
             if (is_numeric($na) && is_numeric($nb)) {
                 return (float) $na === (float) $nb;
             }
+
             return $na === $nb;
         };
 
@@ -5215,7 +5332,7 @@ class VendController extends Controller
                 if (! isset($audit[$key])) {
                     $audit[$key] = [
                         'who' => $row->user_name ?: 'Unknown',
-                        'at'  => optional($row->created_at)->toIso8601String(),
+                        'at' => optional($row->created_at)->toIso8601String(),
                     ];
                 }
             }
@@ -5256,14 +5373,14 @@ class VendController extends Controller
                 'apk_ver_build_time' => $vend->apk_ver_json && isset($vend->apk_ver_json['buildtime']) ? $vend->apk_ver_json['buildtime'] : null,
                 'location_type_name' => $vend->customer && $vend->customer->locationType ? $vend->customer->locationType->name : null,
                 'account_manager_name' => $vend->customer->account_manager_json && isset($vend->customer->account_manager_json['name']) ? $vend->customer->account_manager_json['name'] : null,
-            ]
+            ],
         ]);
 
         $this->historyService->syncVendCustomerMovement($vend, $vend->customer, false);
 
         // callback to cms to unbind vendcode
         if ($vend->customer && $vend->customer->person_id) {
-            Http::get(env('CMS_URL') . '/api/person/' . $vend->customer->person_id . '/detach-vendcode');
+            Http::get(env('CMS_URL').'/api/person/'.$vend->customer->person_id.'/detach-vendcode');
         }
 
         $vend->customer_id = null;
@@ -5271,9 +5388,9 @@ class VendController extends Controller
 
         if ($returnUrl == 'vends') {
             return redirect()->route('vends.edit', [$vendID]);
-        } else if ($returnUrl == 'settings') {
+        } elseif ($returnUrl == 'settings') {
             return redirect()->route('settings.edit', [$vendID]);
-        } else if ($returnUrl == 'customers') {
+        } elseif ($returnUrl == 'customers') {
             return redirect()->route('customers.edit', [$customerID]);
         } else {
             return redirect()->back();
@@ -5312,14 +5429,14 @@ class VendController extends Controller
                 'apk_ver_build_time' => $vend->apk_ver_json && isset($vend->apk_ver_json['buildtime']) ? $vend->apk_ver_json['buildtime'] : null,
                 'location_type_name' => $vend->customer && $vend->customer->locationType ? $vend->customer->locationType->name : null,
                 'account_manager_name' => $vend->customer->account_manager_json && isset($vend->customer->account_manager_json['name']) ? $vend->customer->account_manager_json['name'] : null,
-            ]
+            ],
         ]);
 
         $this->historyService->syncVendCustomerMovement($vend, $vend->customer, false);
 
         // callback to cms to unbind vendcode
         if ($vend->customer && $vend->customer->person_id) {
-            Http::get(env('CMS_URL') . '/api/person/' . $vend->customer->person_id . '/detach-vendcode');
+            Http::get(env('CMS_URL').'/api/person/'.$vend->customer->person_id.'/detach-vendcode');
         }
 
         $vend->customer_id = null;
@@ -5327,9 +5444,9 @@ class VendController extends Controller
 
         if ($returnUrl == 'vends') {
             return redirect()->route('vends.edit', [$vendID]);
-        } else if ($returnUrl == 'settings') {
+        } elseif ($returnUrl == 'settings') {
             return redirect()->route('settings.edit', [$vendID]);
-        } else if ($returnUrl == 'customers') {
+        } elseif ($returnUrl == 'customers') {
             return redirect()->route('customers.edit', [$customerID]);
         } else {
             return redirect()->back();
@@ -5341,7 +5458,7 @@ class VendController extends Controller
         $vendChannels = DB::table('vend_channels')
             // Raw query builder - no Eloquent scope reaches this, so the
             // "Access Product(s)" narrowing has to be applied by hand.
-            ->tap(fn($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
+            ->tap(fn ($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
             ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
             ->leftJoin('vends', 'vends.id', '=', 'vend_channels.vend_id')
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
@@ -5368,18 +5485,18 @@ class VendController extends Controller
         if ($request->operators) {
             $operators = is_array($request->operators) ? $request->operators : [$request->operators];
             $operators = array_filter($operators);
-            if (!empty($operators) && !in_array('all', $operators)) {
+            if (! empty($operators) && ! in_array('all', $operators)) {
                 $vendChannels = $vendChannels->whereIn('vends.operator_id', $operators);
             }
         }
         $vendChannels = $vendChannels->get();
 
         // dd($vendChannels);
-        return (new FastExcel($this->yieldOneByOne($vendChannels)))->download('Vend_channels_' . Carbon::now()->toDateTimeString() . '.xlsx', function ($vendChannel) {
+        return (new FastExcel($this->yieldOneByOne($vendChannels)))->download('Vend_channels_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendChannel) {
             return [
                 'Machine ID' => isset($vendChannel->vend_code) ? $vendChannel->vend_code : '',
                 'Customer Name' => $vendChannel->customer_name
-                    ? (($vendChannel->customer_code ? $vendChannel->customer_code . ' ' : '') . $vendChannel->customer_name)
+                    ? (($vendChannel->customer_code ? $vendChannel->customer_code.' ' : '').$vendChannel->customer_name)
                     : ($vendChannel->vend_name ?? ''),
                 'Channel' => isset($vendChannel->channel_code) ? $vendChannel->channel_code : '',
                 'Product Code' => isset($vendChannel->product_code) ?
@@ -5395,7 +5512,6 @@ class VendController extends Controller
             ];
         });
     }
-
 
     public function edit(Request $request, $id)
     {
@@ -5471,7 +5587,7 @@ class VendController extends Controller
 
         // Ensure real-time connectivity/temp mathematical alerts are forcefully written
         // to the database log before fetching the response so the UI and history align
-        if ($vend->is_active && !$vend->is_testing) {
+        if ($vend->is_active && ! $vend->is_testing) {
             (new \App\Jobs\DetectTempTrends($vend->id, true))->handle();
         }
 
@@ -5603,7 +5719,7 @@ class VendController extends Controller
             'key' => $vendChannel->vend && $vendChannel->vend->private_key ? $vendChannel->vend->private_key : '123456789110138A',
         ];
 
-        $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM' . $vendChannel->vend->code, $dataArr);
+        $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $dataArr);
 
         return true;
     }
@@ -5613,17 +5729,44 @@ class VendController extends Controller
         $vend = Vend::findOrFail($id);
 
         $newMappingId = $vend->upcoming_product_mapping_id;
+        // withoutGlobalScopes, like every other guard call site: the operator scope would hide a
+        // cross-operator mapping, the guard would see null ("unbind — allowed") and fail open
+        // while the raw id below still gets bound.
+        $newProductMapping = ProductMapping::withoutGlobalScopes()->find($newMappingId);
+
+        // Machine-type ↔ mapping guard: the stored upcoming normally passed the bind-time check,
+        // but presets and pre-guard legacy rows can still queue a wrong-kind mapping.
+        Vend::assertMappingMatchesMachineType(
+            $newProductMapping,
+            $vend->machine_type,
+            'upcoming_product_mapping_id',
+            'Upcoming Product Mapping'
+        );
+
         $vend->product_mapping_id = $newMappingId;
 
-        $newProductMapping = ProductMapping::find($newMappingId);
         $newUpcomingId = $newProductMapping ? $newProductMapping->upcoming_product_mapping_id : null;
         // Guard: upcoming must never equal the newly-set product_mapping_id (Gap 3 fix)
         if ($newUpcomingId == $newMappingId) {
             $newUpcomingId = null;
         }
+        // A preset upcoming of the wrong machine kind must not be queued onto this vend —
+        // drop it silently (the mapping's preset is the mapping author's problem, not a
+        // reason to fail THIS changeover, which is already type-checked above).
+        if ($newUpcomingId && ! Vend::mappingMatchesMachineType(
+            ProductMapping::withoutGlobalScopes()->find($newUpcomingId),
+            $vend->machine_type
+        )) {
+            \Illuminate\Support\Facades\Log::warning('replaceProductMapping: dropped preset upcoming mapping (machine-type mismatch)', [
+                'vend_id' => $vend->id,
+                'preset_upcoming_product_mapping_id' => $newUpcomingId,
+                'vend_machine_type' => $vend->machine_type,
+            ]);
+            $newUpcomingId = null;
+        }
         $vend->upcoming_product_mapping_id = $newUpcomingId;
         $vend->binded_at = Carbon::now();
-        
+
         $vend->save();
 
         return redirect()->back();
@@ -5636,6 +5779,16 @@ class VendController extends Controller
         ]);
 
         $vend = Vend::findOrFail($id);
+
+        // Machine-type ↔ mapping guard — this endpoint takes a raw mapping id, so it must
+        // pass the same gate as the Setting/Edit bind.
+        Vend::assertMappingMatchesMachineType(
+            ProductMapping::withoutGlobalScopes()->find($validated['upcoming_product_mapping_id']),
+            $vend->machine_type,
+            'upcoming_product_mapping_id',
+            'Upcoming Product Mapping'
+        );
+
         $vend->product_mapping_id = $validated['upcoming_product_mapping_id'];
         $vend->upcoming_product_mapping_id = null;
         $vend->binded_at = Carbon::now();
@@ -5666,11 +5819,11 @@ class VendController extends Controller
             ]));
             $contentLength = strlen($content);
             $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-            $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+            $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
             // dd('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
-            PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
+            PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
         }
     }
 
@@ -5687,9 +5840,10 @@ class VendController extends Controller
             $vend->attachments()->create([
                 'type' => 1,
                 'full_url' => $url,
-                'local_url' => $dir . '/' . $fileName,
+                'local_url' => $dir.'/'.$fileName,
             ]);
         }
+
         return true;
     }
 
@@ -5708,7 +5862,7 @@ class VendController extends Controller
                         while ($temCurrent->diffInMinutes($current) >= 10) {
                             $vendTemps->push([
                                 'value' => 'NaN',
-                                'created_at' => $temCurrent->copy()->jsonSerialize()
+                                'created_at' => $temCurrent->copy()->jsonSerialize(),
                             ]);
                             $temPast = $temCurrent;
                             $temCurrent = $temCurrent->copy()->addMinutes(10);
@@ -5719,7 +5873,7 @@ class VendController extends Controller
                         while ($temCurrent->diffInMinutes(Carbon::now()) >= 10) {
                             $vendTemps->push([
                                 'value' => 'NaN',
-                                'created_at' => $temCurrent->copy()->jsonSerialize()
+                                'created_at' => $temCurrent->copy()->jsonSerialize(),
                             ]);
                             $temCurrent = $temCurrent->copy()->addMinutes(10);
                         }
@@ -5728,6 +5882,7 @@ class VendController extends Controller
             }
         }
     }
+
     /**
      * Pre-Search aggregate cards for Vend/CustomerIndex ("Last 30 days" +
      * "Current"), computed across ALL rows matching the current filters —
@@ -5865,7 +6020,7 @@ class VendController extends Controller
         $tomorrow = Carbon::tomorrow()->toDateString();
         $customerIds = $rows->pluck('customer_id')->filter()->unique()->values()->all();
         $nextDayCustomerIds = [];
-        if (!empty($customerIds)) {
+        if (! empty($customerIds)) {
             $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
             $nextDayRows = DB::select("
                 SELECT t.customer_id FROM (
@@ -5910,18 +6065,35 @@ class VendController extends Controller
         $sumVendEarning = 0;         // cents
         $sumLocationFees = 0;        // cents
         $sumJobsDone = 0;
-        $stockTotal = 0; $sumQtyBal = 0.0; $sumSkuBal = 0.0;
-        $errTotal = 0; $sumErr = 0.0;
-        $greenTotal = 0; $greenCount = 0;
-        $salesUpTotal = 0; $salesUpCount = 0;
-        $refill120 = 0; $refill150 = 0; $refill200 = 0; $refill250 = 0;
-        $refill300 = 0; $refill350 = 0; $refill400 = 0; $refill450 = 0;
+        $stockTotal = 0;
+        $sumQtyBal = 0.0;
+        $sumSkuBal = 0.0;
+        $errTotal = 0;
+        $sumErr = 0.0;
+        $greenTotal = 0;
+        $greenCount = 0;
+        $salesUpTotal = 0;
+        $salesUpCount = 0;
+        $refill120 = 0;
+        $refill150 = 0;
+        $refill200 = 0;
+        $refill250 = 0;
+        $refill300 = 0;
+        $refill350 = 0;
+        $refill400 = 0;
+        $refill450 = 0;
         $nextDayJobCount = 0;
         // Next-day-job subset of each Refillable threshold count — the
         // "Current" Refillable tiles render "total (next-day subset)" per
         // threshold, so both counter families cover all eight thresholds.
-        $nextRefill120 = 0; $nextRefill150 = 0; $nextRefill200 = 0; $nextRefill250 = 0;
-        $nextRefill300 = 0; $nextRefill350 = 0; $nextRefill400 = 0; $nextRefill450 = 0;
+        $nextRefill120 = 0;
+        $nextRefill150 = 0;
+        $nextRefill200 = 0;
+        $nextRefill250 = 0;
+        $nextRefill300 = 0;
+        $nextRefill350 = 0;
+        $nextRefill400 = 0;
+        $nextRefill450 = 0;
 
         foreach ($rows as $row) {
             $json = $row->vend_transaction_totals_json;
@@ -5983,26 +6155,58 @@ class VendController extends Controller
             // Refillable Value thresholds — /100 to currency units, matching
             // VendResource's serialisation the frontend compares against.
             $refillVal = ((float) ($row->actual_stock_in_value ?? 0)) / 100;
-            if ($refillVal > 120) $refill120++;
-            if ($refillVal > 150) $refill150++;
-            if ($refillVal > 200) $refill200++;
-            if ($refillVal > 250) $refill250++;
-            if ($refillVal > 300) $refill300++;
-            if ($refillVal > 350) $refill350++;
-            if ($refillVal > 400) $refill400++;
-            if ($refillVal > 450) $refill450++;
+            if ($refillVal > 120) {
+                $refill120++;
+            }
+            if ($refillVal > 150) {
+                $refill150++;
+            }
+            if ($refillVal > 200) {
+                $refill200++;
+            }
+            if ($refillVal > 250) {
+                $refill250++;
+            }
+            if ($refillVal > 300) {
+                $refill300++;
+            }
+            if ($refillVal > 350) {
+                $refill350++;
+            }
+            if ($refillVal > 400) {
+                $refill400++;
+            }
+            if ($refillVal > 450) {
+                $refill450++;
+            }
 
             if (isset($nextDayCustomerIds[(int) $row->customer_id])) {
                 $nextDayJobCount++;
                 // Refillable thresholds restricted to this next-day machine.
-                if ($refillVal > 120) $nextRefill120++;
-                if ($refillVal > 150) $nextRefill150++;
-                if ($refillVal > 200) $nextRefill200++;
-                if ($refillVal > 250) $nextRefill250++;
-                if ($refillVal > 300) $nextRefill300++;
-                if ($refillVal > 350) $nextRefill350++;
-                if ($refillVal > 400) $nextRefill400++;
-                if ($refillVal > 450) $nextRefill450++;
+                if ($refillVal > 120) {
+                    $nextRefill120++;
+                }
+                if ($refillVal > 150) {
+                    $nextRefill150++;
+                }
+                if ($refillVal > 200) {
+                    $nextRefill200++;
+                }
+                if ($refillVal > 250) {
+                    $nextRefill250++;
+                }
+                if ($refillVal > 300) {
+                    $nextRefill300++;
+                }
+                if ($refillVal > 350) {
+                    $nextRefill350++;
+                }
+                if ($refillVal > 400) {
+                    $nextRefill400++;
+                }
+                if ($refillVal > 450) {
+                    $nextRefill450++;
+                }
             }
         }
 
@@ -6211,14 +6415,14 @@ class VendController extends Controller
             return $items;
         }
 
-        if (in_array('vc', $types) && !empty($vendIds)) {
+        if (in_array('vc', $types) && ! empty($vendIds)) {
             $vcData = DB::table('vend_channels')
                 // "Access Product(s)": loadAggregates is the DEFAULT render path -
                 // the product-filtered DB::raw sub-selects further up are only
                 // joined when the user SORTS by one of these columns. Without this
                 // the same figure would be whole-machine on load and per-product
                 // after a sort click.
-                ->tap(fn($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
+                ->tap(fn ($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
                 ->select('vend_id', DB::raw('SUM(amount * qty) as total_stock_amount'), DB::raw('SUM(amount * capacity) as total_full_load_amount'))
                 ->whereIn('vend_id', $vendIds)
                 ->where('is_active', true)
@@ -6239,7 +6443,7 @@ class VendController extends Controller
             }
         }
 
-        if (in_array('t1_lowest', $types) && !empty($vendIds)) {
+        if (in_array('t1_lowest', $types) && ! empty($vendIds)) {
             $t1LowestData = DB::table('vend_temps')
                 ->select('vend_id', DB::raw('MIN(value) as t1_lowest_48h'))
                 ->whereIn('vend_id', $vendIds)
@@ -6258,12 +6462,12 @@ class VendController extends Controller
             }
         }
 
-        if (in_array('vc_cost', $types) && !empty($vendIds)) {
+        if (in_array('vc_cost', $types) && ! empty($vendIds)) {
             // products join removed — vend_channels.product_id links directly to
             // unit_costs.product_id with no filtering on products itself, so the
             // intermediate join was pure overhead (an extra PK lookup per row).
             $vcCostData = DB::table('vend_channels')
-                ->tap(fn($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
+                ->tap(fn ($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
                 ->join('unit_costs', 'vend_channels.product_id', '=', 'unit_costs.product_id')
                 ->select('vend_channels.vend_id', DB::raw('SUM(vend_channels.qty * unit_costs.cost) as total_stock_cost'))
                 ->where('unit_costs.is_current', true)
@@ -6286,9 +6490,9 @@ class VendController extends Controller
             }
         }
 
-        if (in_array('vc_stock', $types) && !empty($vendIds)) {
+        if (in_array('vc_stock', $types) && ! empty($vendIds)) {
             $vcStockData = DB::table('vend_channels')
-                ->tap(fn($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
+                ->tap(fn ($query) => ProductAccess::applyToColumn($query, 'vend_channels.product_id'))
                 ->join('products', 'vend_channels.product_id', '=', 'products.id')
                 ->leftJoinSub(function ($query) {
                     // Replace ROW_NUMBER() window function with a MAX(id) GROUP BY approach.
@@ -6330,7 +6534,7 @@ class VendController extends Controller
             }
         }
 
-        if ((in_array('last_ops_jobs', $types) || in_array('last_second_ops_jobs', $types)) && !empty($customerIds)) {
+        if ((in_array('last_ops_jobs', $types) || in_array('last_second_ops_jobs', $types)) && ! empty($customerIds)) {
             $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
             // ROW_NUMBER() on a pre-filtered customer set replaces the CROSS JOIN LATERAL approach.
             //
@@ -6415,8 +6619,7 @@ class VendController extends Controller
             }
         }
 
-
-        if (in_array('next_ops_jobs', $types) && !empty($customerIds)) {
+        if (in_array('next_ops_jobs', $types) && ! empty($customerIds)) {
             $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
             $data = DB::select("
                 SELECT oji.customer_id, oji.cash_amount,
@@ -6456,7 +6659,7 @@ class VendController extends Controller
             }
         }
 
-        if (in_array('last_thirty_days_stock_in', $types) && !empty($customerIds)) {
+        if (in_array('last_thirty_days_stock_in', $types) && ! empty($customerIds)) {
             // Drive the join from ops_jobs (idx_oj_date narrows to the 30-day window first),
             // then join outward to ops_job_items → channels. Previously the query started from
             // ops_job_item_channels and the date filter couldn't reduce rows until late in the
@@ -6506,7 +6709,7 @@ class VendController extends Controller
                     : $item->vend_transaction_totals_json;
 
                 // thirty_days_over_full_load_ratio
-                if (!isset($item->thirty_days_over_full_load_ratio)) {
+                if (! isset($item->thirty_days_over_full_load_ratio)) {
                     if (isset($item->total_full_load_amount) && $item->total_full_load_amount > 0) {
                         $avg = $totals['vend_records_thirty_days_amount_average'] ?? 0;
                         $item->thirty_days_over_full_load_ratio = ($avg * 30 / 100) / ($item->total_full_load_amount / 100);
@@ -6516,7 +6719,7 @@ class VendController extends Controller
                 }
 
                 // thirty_days_stock_in_delta_amount and percent
-                if (!isset($item->thirty_days_stock_in_delta_amount) && isset($item->last_thirty_days_stock_in_amount)) {
+                if (! isset($item->thirty_days_stock_in_delta_amount) && isset($item->last_thirty_days_stock_in_amount)) {
                     $thirtyDaysAmount = $totals['thirty_days_amount'] ?? 0;
                     $stockInAmount = $item->last_thirty_days_stock_in_amount;
 

@@ -2,24 +2,23 @@
 
 namespace App\Jobs\Vend;
 
-use App\Jobs\Vend\AnalyzeVendTempWithAi;
 use App\Models\Vend;
 use App\Models\VendFan;
 use App\Models\VendTemp;
-use App\Services\VendTempService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Schema;
 
 class SyncVendParameter implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $input;
+
     protected $vend;
 
     /**
@@ -35,8 +34,6 @@ class SyncVendParameter implements ShouldQueue
 
     /**
      * Execute the job.
-     *
-     * @return void
      */
     public function handle(): void
     {
@@ -48,10 +45,180 @@ class SyncVendParameter implements ShouldQueue
         $this->createVendTemp($input, $vend, $vendTempService);
         $this->saveParameter($input, $vend);
         $this->logCoinFloatChange($input, $vend);
+        $this->syncInternetStatus($input, $vend);
 
         if ($vend->isDirty()) {
             $vend->save();
         }
+    }
+
+    /**
+     * Memoized "do the internet_* columns exist yet?".
+     *
+     * Static so it survives per queued job and is answered once per worker
+     * process, not once per packet.
+     */
+    private static $internetColumnsExist = null;
+
+    /**
+     * Promote the APK-reported internet link out of the packet onto the vend.
+     *
+     * Shape, present only from APK v302 / small-board v134:
+     *
+     *   "Internet":{"Source":"telco","Provider":"Digi","Signal":4,"SignalMax":5,"Network":"4G"}
+     *
+     * The APK omits any field it could not read rather than sending null or "".
+     *
+     * ABSENT OBJECT IS A NO-OP, NOT A CLEAR. Every machine on an older APK sends
+     * a VENDER packet every ~5 minutes with no Internet key at all; treating
+     * that as "link unknown" would blank the columns of any machine that later
+     * downgrades, and would write on every packet from the whole legacy fleet.
+     *
+     * ABSENT FIELD INSIDE A PRESENT OBJECT means "could not read it THIS time",
+     * which is not the same as "it is gone". While Source is unchanged, an
+     * omitted field keeps its previous value - otherwise a Wi-Fi machine whose
+     * SSID the platform withholds on one poll would flap between the SSID and
+     * blank every five minutes, and one malformed Signal would destroy a good
+     * bar count. When Source CHANGES the link is a different thing entirely, so
+     * the whole row is replaced with exactly what the packet says (which is how
+     * the leftover Network clears on a telco -> wifi move).
+     *
+     * Values are written on the in-memory model only - the existing
+     * $vend->save() in handle() persists them, so this costs no extra query, and
+     * the legacy fleet gains no write it was not already making (createVendTemp
+     * already dirties temp_updated_at on every packet).
+     *
+     * Fully fault-isolated, and gated on the columns actually existing: the
+     * save() in handle() is NOT inside a try, so writing to a column that has
+     * not been migrated yet would fail the whole job and take parameter_json and
+     * the temperature down with it. That makes deploy order not matter.
+     */
+    private function syncInternetStatus($input, Vend $vend): void
+    {
+        try {
+            if (! is_array($input) || ! isset($input['Internet']) || ! is_array($input['Internet'])) {
+                return;
+            }
+            if (! $this->internetColumnsExist()) {
+                return;
+            }
+
+            $net = $input['Internet'];
+
+            // Source is the one required member. Without it the object is
+            // malformed and nothing in it can be trusted.
+            $source = $this->trimmedString($net['Source'] ?? null, 16);
+            if ($source === null) {
+                return;
+            }
+
+            $signalMax = $this->boundedInt($net['SignalMax'] ?? null, 1, 255);
+            $signal = $this->boundedInt($net['Signal'] ?? null, 0, 255);
+
+            // A bar count above its own scale means the device reported on a
+            // different scale than it declared (a ROM handing back raw ASU 0..31
+            // instead of bars). Neither number can be trusted together, so drop
+            // the reading rather than store "31/5".
+            if ($signal !== null && $signalMax !== null && $signal > $signalMax) {
+                $signal = null;
+                $signalMax = null;
+            }
+            if ($signal === null) {
+                $signalMax = null;
+            }
+
+            $provider = $this->trimmedString($net['Provider'] ?? null, 64);
+            $network = $this->trimmedString($net['Network'] ?? null, 16);
+
+            if ($vend->internet_source !== $source) {
+                // Different kind of link - replace wholesale.
+                $vend->internet_source = $source;
+                $vend->internet_provider = $provider;
+                $vend->internet_signal = $signal;
+                $vend->internet_signal_max = $signalMax;
+                $vend->internet_network = $network;
+            } else {
+                // Same link - a field the packet did not carry keeps its value.
+                if ($provider !== null) {
+                    $vend->internet_provider = $provider;
+                }
+                if ($signal !== null) {
+                    if ($signalMax !== null) {
+                        $vend->internet_signal = $signal;
+                        $vend->internet_signal_max = $signalMax;
+                    } elseif ($vend->internet_signal_max === null || $signal <= $vend->internet_signal_max) {
+                        // SignalMax unreadable this poll: the scale keeps its value like any
+                        // other omitted field — writing null here destroyed a 10-bar scale and
+                        // the UI's "|| 5" fallback then graded 3/10 as 3/5.
+                        $vend->internet_signal = $signal;
+                    }
+                    // else: bars exceed the stored scale with no new scale to trust —
+                    // incoherent pair, drop the reading (same rule as the in-packet check).
+                }
+                if ($network !== null) {
+                    $vend->internet_network = $network;
+                }
+            }
+
+            $vend->internet_updated_at = Carbon::now();
+        } catch (\Throwable $e) {
+            \Log::warning('syncInternetStatus failed', [
+                'vend_id' => $vend->id ?? null,
+                'vend_code' => $vend->code ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * True once the internet_* columns have been migrated.
+     *
+     * Answered once per worker process and then memoized, so this is one extra
+     * query per worker lifetime rather than one per packet. Fails CLOSED: if the
+     * check itself errors we simply do not write the columns.
+     */
+    private function internetColumnsExist(): bool
+    {
+        if (self::$internetColumnsExist === null) {
+            try {
+                self::$internetColumnsExist = Schema::hasColumn('vends', 'internet_source');
+            } catch (\Throwable $e) {
+                self::$internetColumnsExist = false;
+            }
+        }
+
+        return self::$internetColumnsExist;
+    }
+
+    /**
+     * A scalar reduced to a bounded, non-empty string, or null.
+     *
+     * Bounds every value against its column width so a long or hostile field
+     * truncates instead of throwing a "Data too long" and failing the whole
+     * $vend->save() - which would take the temperature write down with it.
+     */
+    private function trimmedString($value, int $max): ?string
+    {
+        if ($value === null || is_array($value) || is_object($value)) {
+            return null;
+        }
+        $string = trim((string) $value);
+        if ($string === '') {
+            return null;
+        }
+
+        return mb_substr($string, 0, $max);
+    }
+
+    /** An integer inside [$min, $max], or null when absent or out of range. */
+    private function boundedInt($value, int $min, int $max): ?int
+    {
+        if ($value === null || ! is_numeric($value)) {
+            return null;
+        }
+        $int = (int) $value;
+
+        return ($int < $min || $int > $max) ? null : $int;
     }
 
     /**
@@ -72,11 +239,11 @@ class SyncVendParameter implements ShouldQueue
         try {
             // Coin acceptor must be active (1 = inactive-but-present, 3 = active
             // per the UI). Anything else means no meaningful coin float.
-            if (!is_array($input) || !array_key_exists('CHGEStat', $input) || !array_key_exists('CoinCnt', $input)) {
+            if (! is_array($input) || ! array_key_exists('CHGEStat', $input) || ! array_key_exists('CoinCnt', $input)) {
                 return;
             }
             $coinStat = (int) $input['CHGEStat'];
-            if (!in_array($coinStat, [1, 3], true)) {
+            if (! in_array($coinStat, [1, 3], true)) {
                 return;
             }
 
@@ -126,7 +293,7 @@ class SyncVendParameter implements ShouldQueue
             // writes parameter_json from this same $input, so `fan > 1000` here is
             // equivalent to the batch's `parameter_json->fan > 1000`. One-way latch;
             // it rides the existing isDirty()->save() in handle() — no extra query.
-            if (!$vend->is_fan_enabled && (float) $input['fan'] > 1000) {
+            if (! $vend->is_fan_enabled && (float) $input['fan'] > 1000) {
                 $vend->is_fan_enabled = true;
             }
         }
@@ -201,7 +368,7 @@ class SyncVendParameter implements ShouldQueue
     {
         $aiService = app(\App\Services\VendTempAiService::class);
 
-        if (!$aiService->isEnabled()) {
+        if (! $aiService->isEnabled()) {
             return;
         }
 

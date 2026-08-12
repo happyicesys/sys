@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\CardTerminalResource;
 use App\Http\Resources\CashlessTerminalResource;
-use App\Http\Resources\CountryResource;
-use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
+use App\Http\Resources\CategoryResource;
+use App\Http\Resources\CountryResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DeliveryPlatformResource;
 use App\Http\Resources\KeyResource;
@@ -15,24 +15,21 @@ use App\Http\Resources\ModemTypeResource;
 use App\Http\Resources\ModemUnitResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductMappingResource;
-use App\Http\Resources\SellingPriceResource;
 use App\Http\Resources\SimcardResource;
 use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
+use App\Http\Resources\VendResource;
 use App\Http\Resources\VendSerialNumberResource;
 use App\Http\Resources\VendStickerResource;
-use App\Http\Resources\VendResource;
-use App\Http\Resources\VendDBResource;
 use App\Jobs\PublishMqtt;
-use App\Services\VendParameterService;
 use App\Models\CardTerminal;
 use App\Models\CashlessTerminal;
 use App\Models\Category;
+use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
-use App\Models\CategoryGroup;
 use App\Models\DeliveryPlatform;
 use App\Models\Key;
 use App\Models\LocationType;
@@ -49,11 +46,11 @@ use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\VendSerialNumber;
 use App\Models\VendSticker;
+use App\Services\VendParameterService;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 
 class SettingController extends Controller
@@ -65,13 +62,13 @@ class SettingController extends Controller
     public function __construct()
     {
         $this->middleware(['permission:read machine-settings']);
-        $this->vendParameterService = new VendParameterService();
+        $this->vendParameterService = new VendParameterService;
     }
 
     public function index(Request $request)
     {
         $request->merge(['numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100]);
-        if (!$request->operators) {
+        if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -80,7 +77,7 @@ class SettingController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -88,8 +85,8 @@ class SettingController extends Controller
         }
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'code']);
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
-        $className = get_class(new Customer());
-        if (!isset($request->status)) {
+        $className = get_class(new Customer);
+        if (! isset($request->status)) {
             if (
                 auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
@@ -103,7 +100,7 @@ class SettingController extends Controller
 
             } else {
                 $request->merge([
-                    'status' => 'all'
+                    'status' => 'all',
                 ]);
             }
         }
@@ -261,14 +258,13 @@ class SettingController extends Controller
 
     public function create()
     {
-        $vend = new Vend();
+        $vend = new Vend;
 
         return Inertia::render('Setting/Create', [
             'vend' => $vend,
             'type' => 'create',
         ]);
     }
-
 
     public function edit(Request $request, $id)
     {
@@ -351,6 +347,7 @@ class SettingController extends Controller
                 'vends.operator_id',
                 'vends.product_mapping_id',
                 'vends.server_price_type',
+                'vends.machine_type',
                 // 'vends.serial_num',
                 'vends.key_id',
                 'vends.upcoming_product_mapping_id',
@@ -489,6 +486,7 @@ class SettingController extends Controller
                     ->orderBy('imei')
                     ->get()
             ),
+            'machineTypeOptions' => Vend::MACHINE_TYPE_MAPPINGS,
             'menuFrameOptions' => Vend::MENU_FRAME_MAPPINGS,
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
@@ -496,13 +494,13 @@ class SettingController extends Controller
             'productMappingOptions' => ProductMappingResource::collection(
                 ProductMapping::withoutGlobalScopes()
                     ->with(['upcomingProductMapping', 'productMappingItems.product.thumbnail'])
-                    ->where(function($query) use ($vend) {
+                    ->where(function ($query) use ($vend) {
                         // Normal selectable options: match operator + active.
                         // DEPRECATED (2026-07): the prefix→mapping gate was removed —
                         // ALL active mappings (own operator + global) are selectable,
                         // ordered by name; the vend prefix no longer restricts this list.
-                        $query->where(function($normalQ) {
-                            $normalQ->where(function($opQ) {
+                        $query->where(function ($normalQ) {
+                            $normalQ->where(function ($opQ) {
                                 $opQ->where('operator_id', auth()->user()->operator_id)
                                     ->orWhereNull('operator_id');
                             });
@@ -544,20 +542,19 @@ class SettingController extends Controller
             'vendModelOptions' => VendModelResource::collection(
                 VendModel::orderBy('name')->get()
             ),
-            'vendPrefixOptions' =>
-                VendPrefixResource::collection(
-                    VendPrefix::query()
-                        ->where(function ($query) use ($request) {
-                            $query->when($request->vend_config_id, function ($query) use ($request) {
-                                $query->whereHas('vendConfigs', function ($query) use ($request) {
-                                    $query->where('vend_configs.id', $request->vend_config_id);
-                                });
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::query()
+                    ->where(function ($query) use ($request) {
+                        $query->when($request->vend_config_id, function ($query) use ($request) {
+                            $query->whereHas('vendConfigs', function ($query) use ($request) {
+                                $query->where('vend_configs.id', $request->vend_config_id);
                             });
-                            $query->orWhere('vend_prefixes.name', 'N/A');
-                        })
-                        ->orderBy('name')
-                        ->get()
-                ),
+                        });
+                        $query->orWhere('vend_prefixes.name', 'N/A');
+                    })
+                    ->orderBy('name')
+                    ->get()
+            ),
             'vendSerialNumberOptions' => VendSerialNumberResource::collection(
                 VendSerialNumber::query()
                     ->whereDoesntHave('vend', function ($query) use ($vend) {
@@ -601,6 +598,7 @@ class SettingController extends Controller
     {
         $request->validate([
             'code' => 'required',
+            'machine_type' => 'sometimes|nullable|in:vending_machine,smart_freezer,smart_chiller',
         ]);
 
         $vend = Vend::where('code', $request->code)->first();
@@ -611,7 +609,29 @@ class SettingController extends Controller
             ]);
         }
 
-        // dd($request->all());
+        // An explicit machine_type null passes the nullable rule but the column is NOT NULL
+        // (default only applies when the key is absent from a single-row INSERT), so normalize
+        // to the default here instead of 500ing on MySQL error 1048.
+        if ($request->has('machine_type') && ! $request->machine_type) {
+            $request->merge(['machine_type' => Vend::MACHINE_TYPE_VENDING_MACHINE]);
+        }
+
+        // Machine-type ↔ mapping guard at creation: both mapping fields are fillable, so an API
+        // caller could create a Smart Freezer already bound to a vending planogram. Same gate as
+        // VendController::update.
+        foreach ([
+            'product_mapping_id' => 'Product Mapping',
+            'upcoming_product_mapping_id' => 'Upcoming Product Mapping',
+        ] as $mappingField => $mappingLabel) {
+            if ($request->$mappingField) {
+                Vend::assertMappingMatchesMachineType(
+                    ProductMapping::withoutGlobalScopes()->find($request->$mappingField),
+                    $request->machine_type,
+                    $mappingField,
+                    $mappingLabel
+                );
+            }
+        }
 
         $vend = Vend::create($request->all());
         $vend->operator_id = auth()->user()->operator_id;
@@ -673,8 +693,8 @@ class SettingController extends Controller
         ]));
         $contentLength = strlen($content);
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
     }
 }

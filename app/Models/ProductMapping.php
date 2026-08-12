@@ -44,9 +44,12 @@ class ProductMapping extends Model
         'upcoming_product_mapping_id',
         'upcoming_product_mapping_start_date',
         'is_smart',
+        // Taxonomy: vending_machine / smart_freezer / smart_chiller (Vend::MACHINE_TYPE_*).
+        // Kept in sync with is_smart by ProductMappingController (is_smart ⟺ smart_freezer);
+        // the vend-side mapping restriction keys on this, not on the boolean.
+        'machine_type',
         'basket_layout_json',
     ];
-
 
     /**
      * Whether this mapping's bound upcoming product mapping has taken effect.
@@ -62,7 +65,7 @@ class ProductMapping extends Model
      */
     public function isUpcomingMappingEffective($asOf = null): bool
     {
-        if (!$this->upcoming_product_mapping_start_date) {
+        if (! $this->upcoming_product_mapping_start_date) {
             return true;
         }
 
@@ -113,9 +116,9 @@ class ProductMapping extends Model
     public function productMappingItemsBySequence()
     {
         return $this->hasMany(ProductMappingItem::class)
-                    ->orderByRaw('sequence IS NULL')
-                    ->orderBy('sequence')
-                    ->orderBy('channel_code');
+            ->orderByRaw('sequence IS NULL')
+            ->orderBy('sequence')
+            ->orderBy('channel_code');
     }
 
     public function operator()

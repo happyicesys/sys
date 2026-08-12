@@ -28,8 +28,10 @@
           so an existing planogram opens fully shaped. Confirm first — it swaps the
           whole editor mode.
         -->
+        <!-- Hidden for chiller mappings: the freezer toggle does not apply to them
+             (the server refuses it anyway; no button beats a refused click). -->
         <button
-          v-if="productMapping.data && productMapping.data.id"
+          v-if="productMapping.data && productMapping.data.id && productMapping.data.machine_type !== 'smart_chiller'"
           type="button"
           class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 w-fit"
           @click="convertMappingType"
@@ -645,6 +647,13 @@ function convertMappingType() {
   if (!window.confirm(msg)) return
   router.post('/product-mappings/' + props.productMapping.data.id + '/toggle-smart', {}, {
     preserveScroll: true,
+    // The server refuses for chiller mappings, duplicate channel codes, and while machines
+    // of the old kind are bound — without a toast those refusals are an invisible no-op.
+    onError: (errors) => {
+      toast.error(errors.machine_type || errors.is_smart || errors.productMappingItems || 'Convert failed.', {
+        timeout: 8000
+      });
+    },
   })
 }
 

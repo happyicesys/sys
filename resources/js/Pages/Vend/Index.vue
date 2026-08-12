@@ -647,6 +647,19 @@
             </div>
           </TableHeadSort>
           <TableHead>
+            <div class="flex flex-col space-y-1">
+              <span>
+                Internet Link
+              </span>
+              <span class="text-blue-600 text-xs">
+                Provider
+              </span>
+              <span class="text-blue-600 text-xs">
+                Signal
+              </span>
+            </div>
+          </TableHead>
+          <TableHead>
             Inventory Status <br>
             #Channel, Needed, Balance/Capacity (LastStockIn)
           </TableHead>
@@ -998,6 +1011,30 @@
               <span v-else class="text-gray-400">
                 N/A
               </span>
+            </div>
+          </TableData>
+          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+            <!--
+              Link telemetry, reported by APK v302 (big board) / v134 (small board).
+              A machine still on an older APK sends nothing here, so the N/A branch
+              is the normal state during rollout and is NOT an error.
+            -->
+            <div class="flex flex-col items-center space-y-1" v-if="vend.internet_source">
+              <span
+                class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
+                :class="internetLinkClass(vend)"
+              >
+                {{ internetLinkLabel(vend) }}
+              </span>
+              <span v-if="vend.internet_provider" class="text-blue-800">
+                {{ vend.internet_provider }}
+              </span>
+              <span v-if="vend.internet_updated_at" class="text-xs text-gray-500">
+                {{ vend.internet_updated_at }}
+              </span>
+            </div>
+            <div v-else class="text-gray-400">
+              N/A
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
@@ -1917,6 +1954,51 @@ function onVendTempClicked(vendId, type) {
 
 function onIsShowOperationDivButtonClicked() {
       isShowOperationDiv.value = !isShowOperationDiv.value
+}
+
+/**
+ * Badge text for the link column: the mobile generation when we have one,
+ * otherwise the transport, plus the bar count when the machine could read it.
+ * "4G 4/5", "wifi 3/5", "lan", "none".
+ */
+function internetLinkLabel(vend) {
+  const kind = vend.internet_network || vend.internet_source;
+  if (vend.internet_signal === null || vend.internet_signal === undefined) {
+    return kind;
+  }
+
+  return kind + ' ' + vend.internet_signal + '/' + (vend.internet_signal_max || 5);
+}
+
+/**
+ * Green / amber / red for the link badge.
+ *
+ * Thresholds are on the RATIO, not the raw bar count, because the scale is
+ * whatever the device declared: 3 bars is good out of 5 and mediocre out of 10.
+ *
+ * A link with NO bar reading (ethernet, or a board whose ROM exposes no signal
+ * API) is deliberately neutral rather than red - absence of evidence is not
+ * evidence of a bad link, and painting those machines red would bury the ones
+ * that really are marginal.
+ */
+function internetLinkClass(vend) {
+  if (vend.internet_source === 'none') {
+    return 'bg-red-100 text-red-800';
+  }
+  if (vend.internet_signal === null || vend.internet_signal === undefined) {
+    return 'bg-gray-100 text-gray-800';
+  }
+
+  const max = vend.internet_signal_max || 5;
+  const ratio = max > 0 ? vend.internet_signal / max : 0;
+  if (ratio <= 0.25) {
+    return 'bg-red-100 text-red-800';
+  }
+  if (ratio <= 0.45) {
+    return 'bg-yellow-100 text-yellow-800';
+  }
+
+  return 'bg-green-100 text-green-800';
 }
 
 function onResetModemClicked(modemUnitID) {

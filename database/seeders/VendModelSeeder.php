@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\ProductMapping;
 use App\Models\Vend;
 use App\Models\VendModel;
 use Illuminate\Database\Seeder;
@@ -21,10 +20,11 @@ use Illuminate\Database\Seeder;
  * that owns every model nobody claimed. So an UNTAGGED smart freezer resolves to `vending`
  * and would be offered the legacy vending APK's manifest. Tagging the freezers closes that.
  *
- * WHICH MACHINES GET TAGGED: every vend whose bound product mapping has `is_smart = 1`.
- * That flag is the app-wide switch for "this is a smart-freezer planogram" (it already
- * drives the SmartFreezerLayout planogram UI and SmartFreezerCatalogPush), so it is the
- * same population by definition — no second hand-maintained list to drift out of sync.
+ * WHICH MACHINES GET TAGGED: every vend with `machine_type = smart_freezer` — the machine's
+ * own declared identity (2026-08-12, Setting → Edit), which the binding guards enforce.
+ * Previously this inferred from the bound mapping's `is_smart`, but that inference is exactly
+ * what the machine_type column retired: a grandfathered mis-bound vending machine on a smart
+ * mapping would have been tagged Smart Vend and offered the freezer APK by the OTA fallback.
  *
  * SAFE TO RE-RUN. Both halves are idempotent: firstOrCreate keyed on name, and the update
  * skips machines already on the model. Machines are only ever moved ONTO the Smart Vend
@@ -50,24 +50,13 @@ class VendModelSeeder extends Seeder
 
         $this->command?->info("Vend model [{$smartVend->name}] id={$smartVend->id} ready.");
 
-        // Smart-freezer planograms -> the machines bound to them.
-        $smartMappingIds = ProductMapping::query()
-            ->where('is_smart', true)
-            ->pluck('id');
-
-        if ($smartMappingIds->isEmpty()) {
-            $this->command?->warn('No product mappings with is_smart=1 — nothing to tag.');
-
-            return;
-        }
-
         // withoutGlobalScopes(): this is a data-integrity backfill, not an operator-facing
         // read. Vend carries OperatorVendFilterScope and a seeder runs with no authenticated
         // user, so leaving the scope on would make the result depend on how that scope treats
         // a null user — the last thing a backfill should be sensitive to.
         $affected = Vend::query()
             ->withoutGlobalScopes()
-            ->whereIn('product_mapping_id', $smartMappingIds)
+            ->where('machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)
             // Never touch a machine that is already correct, so a second run is a true no-op
             // and a hand-fix is never reverted.
             ->where(function ($query) use ($smartVend) {

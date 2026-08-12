@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\AddressResource;
 use App\Http\Resources\OperatorResource;
-use App\Http\Resources\OpsJobResource;
 use App\Http\Resources\OpsJobItemResource;
+use App\Http\Resources\OpsJobResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
 use App\Jobs\PublishMqtt;
@@ -16,48 +16,52 @@ use App\Models\OpsJob;
 use App\Models\OpsJobItem;
 use App\Models\OpsJobItemChannel;
 use App\Models\OpsJobTask;
+use App\Models\ProductMapping;
 use App\Models\ProductMovement;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelRecord;
-use App\Models\VendData;
 use App\Models\VendTransaction;
-use App\Traits\GetUserTimezone;
 use App\Services\MapService;
 use App\Services\OpsJobService;
 use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
+use App\Support\SiteSearch;
+use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Inertia\Inertia;
 use Illuminate\Validation\ValidationException;
-use App\Support\SiteSearch;
+use Inertia\Inertia;
 
 class OpsJobController extends Controller
 {
     use GetUserTimezone;
 
     protected $mapService;
+
     protected $opsJobService;
+
     protected $productMappingService;
+
     protected $runningNumberService;
 
     public function __construct()
     {
         $this->middleware('auth');
-        $this->mapService = new MapService();
-        $this->opsJobService = new OpsJobService();
-        $this->productMappingService = new ProductMappingService();
-        $this->runningNumberService = new RunningNumberService();
+        $this->mapService = new MapService;
+        $this->opsJobService = new OpsJobService;
+        $this->productMappingService = new ProductMappingService;
+        $this->runningNumberService = new RunningNumberService;
     }
 
     public function index(Request $request)
     {
-        if (!$request->operators) {
+        if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -66,7 +70,7 @@ class OpsJobController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -119,7 +123,7 @@ class OpsJobController extends Controller
 
         // Sorting (standard columns)
         if (
-            !in_array($request->sortKey, [
+            ! in_array($request->sortKey, [
                 'ops_job_items_count',
                 'ops_job_items_delivered_count',
                 'ops_job_items_verified_count',
@@ -136,7 +140,7 @@ class OpsJobController extends Controller
         $opsJobs = $query->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)->withQueryString();
         $opsJobIds = $opsJobs->pluck('id')->toArray();
 
-        if (!empty($opsJobIds)) {
+        if (! empty($opsJobIds)) {
             // 1. Item Stats Aggregation (Filtered by IDs)
             $itemStats = DB::table('ops_job_items')
                 ->whereIn('ops_job_id', $opsJobIds)
@@ -214,7 +218,7 @@ class OpsJobController extends Controller
                     OpsJob::STATUS_DELIVERED,
                     OpsJob::STATUS_CANCELLED,
                     OpsJob::STATUS_DELIVERED,
-                    OpsJob::STATUS_CANCELLED
+                    OpsJob::STATUS_CANCELLED,
                 ])
                 ->where('vc.is_active', 1)
                 ->where('vc.capacity', '>', 0)
@@ -313,7 +317,6 @@ class OpsJobController extends Controller
             }
         }
 
-
         return Inertia::render('OpsJob/Index', [
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
@@ -332,7 +335,7 @@ class OpsJobController extends Controller
     {
         $isDriver = auth()->user()->hasRole('driver');
 
-        if (!$request->operators) {
+        if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
                 $request->merge([
                     'operators' => [
@@ -341,7 +344,7 @@ class OpsJobController extends Controller
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'HIESG')->first()?->id,
                         Operator::where('code', 'UL-ST')->first()?->id,
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -388,7 +391,7 @@ class OpsJobController extends Controller
 
         $summaries = collect();
 
-        if (!empty($opsJobIds)) {
+        if (! empty($opsJobIds)) {
             // 1. Item Stats Aggregation
             $itemStats = DB::table('ops_job_items')
                 ->whereIn('ops_job_id', $opsJobIds)
@@ -466,7 +469,7 @@ class OpsJobController extends Controller
                     OpsJob::STATUS_DELIVERED,
                     OpsJob::STATUS_CANCELLED,
                     OpsJob::STATUS_DELIVERED,
-                    OpsJob::STATUS_CANCELLED
+                    OpsJob::STATUS_CANCELLED,
                 ])
                 ->where('vc.is_active', 1)
                 ->where('vc.capacity', '>', 0)
@@ -686,44 +689,72 @@ class OpsJobController extends Controller
                     }
                 }
 
+                // Machine-type ↔ mapping guard, resolved BEFORE any swap side effect: never
+                // advance a vend onto a mapping built for a different machine kind (a vending
+                // planogram on a smart freezer renders every product "Not Available" in the
+                // APK), and never run the old-stock auto-return below for a swap that is about
+                // to be vetoed — otherwise inventory gets credited for a swap that never
+                // happens. Deliberately skip + log instead of throwing — this runs inside a
+                // driver's job completion, which must not fail over a back-office binding
+                // mistake. The vend's own queued upcoming is cleared on veto (mirroring
+                // replaceProductMapping's drop) so the next job does not repeat the half-swap;
+                // ops re-queues a correct mapping in Setting/Edit.
+                $swapVetoed = false;
+                $vend = $opsJobItem->vend;
+                $currentMapping = $vend ? $vend->productMapping : null;
+                $targetMappingId = $vend
+                    ? ($vend->upcoming_product_mapping_id
+                        ?: ($currentMapping ? $currentMapping->upcoming_product_mapping_id : null))
+                    : null;
+                if ($targetMappingId && ! Vend::mappingMatchesMachineType(
+                    ProductMapping::withoutGlobalScopes()->find($targetMappingId),
+                    $vend->machine_type
+                )) {
+                    Log::warning('OpsJob changeover: skipped mapping advance (machine-type mismatch)', [
+                        'vend_id' => $vend->id,
+                        'vend_machine_type' => $vend->machine_type,
+                        'target_product_mapping_id' => $targetMappingId,
+                        'ops_job_item_id' => $opsJobItem->id,
+                    ]);
+                    if ($vend->upcoming_product_mapping_id == $targetMappingId) {
+                        $vend->update(['upcoming_product_mapping_id' => null]);
+                    }
+                    $targetMappingId = null;
+                    $swapVetoed = true;
+                }
+
                 // Enforce the auto-return of the OLD product's remaining machine
                 // stock on an "implement new mapping" swap, so it never depends on
                 // the operator remembering to key a negative Stock In (which was
                 // done inconsistently -> old stock silently never returned, CMS
                 // inventory never credited). Runs BEFORE the mapping is advanced.
-                if ($opsJobItem->stock_action_type === 'implement_new_mapping') {
+                if ($opsJobItem->stock_action_type === 'implement_new_mapping' && ! $swapVetoed) {
                     $this->enforceMappingSwapReturns($opsJobItem);
                 }
 
-                if ($hasMappingChange) {
-                    $vend = $opsJobItem->vend;
-                    if ($vend) {
-                        $currentMapping = $vend->productMapping;
-                        // Only advance once the upcoming mapping's declared start
-                        // date is effective (no start date => always effective).
-                        // Mirrors the gating in applyNewMappingToItem(), so we
-                        // never swap ahead of a future-dated mapping change.
-                        $isEffective = !$currentMapping || $currentMapping->isUpcomingMappingEffective();
-                        $targetMappingId = $vend->upcoming_product_mapping_id
-                            ?: ($currentMapping ? $currentMapping->upcoming_product_mapping_id : null);
-                        if ($isEffective && $targetMappingId) {
-                            $vend->update([
-                                'product_mapping_id' => $targetMappingId,
-                                'upcoming_product_mapping_id' => null,
-                                'binded_at' => Carbon::now(),
-                            ]);
-                            $vend->refresh();
-                        }
+                if ($hasMappingChange && $vend) {
+                    // Only advance once the upcoming mapping's declared start
+                    // date is effective (no start date => always effective).
+                    // Mirrors the gating in applyNewMappingToItem(), so we
+                    // never swap ahead of a future-dated mapping change.
+                    $isEffective = ! $currentMapping || $currentMapping->isUpcomingMappingEffective();
+                    if ($isEffective && $targetMappingId) {
+                        $vend->update([
+                            'product_mapping_id' => $targetMappingId,
+                            'upcoming_product_mapping_id' => null,
+                            'binded_at' => Carbon::now(),
+                        ]);
+                        $vend->refresh();
                     }
                 }
 
                 // Auto push product info to machine if implement_new_mapping
-                if($opsJobItem->stock_action_type === 'implement_new_mapping') {
+                if ($opsJobItem->stock_action_type === 'implement_new_mapping') {
                     $vend = $opsJobItem->vend;
                     if ($vend) {
                         $this->productMappingService->syncChannelsByVend($vend);
                         \App\Jobs\Vend\SaveVendChannelsJson::dispatchSync($vend->id);
-                        
+
                         $fid = 1;
                         $content = base64_encode(json_encode([
                             'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
@@ -733,9 +764,9 @@ class OpsJobController extends Controller
                         ]));
                         $contentLength = strlen($content);
                         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-                        $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+                        $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-                        PublishMqtt::dispatch('CM' . $vend->code, $fid . ',' . $contentLength . ',' . $content . ',' . $md5)->onQueue('high');
+                        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
                     }
                 }
 
@@ -808,7 +839,7 @@ class OpsJobController extends Controller
                     ->doesntHave('opsJobItem')
                     ->whereBetween('before_data_created_at', [
                         Carbon::parse($opsJobItem->completed_at)->subMinutes(30),
-                        Carbon::parse($opsJobItem->completed_at)->addMinutes(30)
+                        Carbon::parse($opsJobItem->completed_at)->addMinutes(30),
                     ])
                     ->first();
 
@@ -874,7 +905,7 @@ class OpsJobController extends Controller
             ->where('code', $channelCode)
             ->first();
 
-        if (!$vendChannel) {
+        if (! $vendChannel) {
             return redirect()->back()->with('error', 'Vend channel not found.');
         }
 
@@ -894,7 +925,7 @@ class OpsJobController extends Controller
             $replacedChannel = $opsJobItem->opsJobItemChannels()
                 ->where('id', $replaceChannelId)
                 ->first();
-            if (!$replacedChannel) {
+            if (! $replacedChannel) {
                 return redirect()->back()->with('error', 'Channel to be replaced not found in this job.');
             }
         }
@@ -903,7 +934,7 @@ class OpsJobController extends Controller
         // was just physically activated. Fall back to the product mapping item so the
         // thumbnail and product name always show correctly.
         $productId = $vendChannel->product_id ?? 0;
-        if (!$productId) {
+        if (! $productId) {
             $vend = $opsJobItem->vend()->with('productMapping.productMappingItems')->first();
             $mappingItem = $vend?->productMapping?->productMappingItems
                 ->firstWhere('channel_code', $channelCode);
@@ -914,26 +945,26 @@ class OpsJobController extends Controller
         if ($replacedChannel) {
             $replacedChannel->update([
                 'is_manually_replaced' => true,
-                'saved_picked_qty'     => 0,
+                'saved_picked_qty' => 0,
             ]);
         }
 
         // Create OpsJobItemChannel snapshot (same pattern as createOpsJobItem)
         $opsJobItem->opsJobItemChannels()->create([
-            'amount'                              => $vendChannel->amount,
-            'ops_job_id'                          => $opsJobItem->ops_job_id,
-            'ops_job_item_id'                     => $opsJobItem->id,
-            'product_id'                          => $productId,
-            'vend_channel_code'                   => $vendChannel->code,
-            'vend_channel_id'                     => $vendChannel->id,
-            'vend_code'                           => $opsJobItem->vend->code,
-            'actual_qty'                          => 0,
-            'capacity'                            => $vendChannel->capacity,
-            'qty'                                 => $vendChannel->qty,
-            'picked_qty'                          => 0,
-            'saved_picked_qty'                    => $pickedQty,
-            'is_upcoming_product'                 => false,
-            'replaces_ops_job_item_channel_id'    => $replacedChannel?->id,
+            'amount' => $vendChannel->amount,
+            'ops_job_id' => $opsJobItem->ops_job_id,
+            'ops_job_item_id' => $opsJobItem->id,
+            'product_id' => $productId,
+            'vend_channel_code' => $vendChannel->code,
+            'vend_channel_id' => $vendChannel->id,
+            'vend_code' => $opsJobItem->vend->code,
+            'actual_qty' => 0,
+            'capacity' => $vendChannel->capacity,
+            'qty' => $vendChannel->qty,
+            'picked_qty' => 0,
+            'saved_picked_qty' => $pickedQty,
+            'is_upcoming_product' => false,
+            'replaces_ops_job_item_channel_id' => $replacedChannel?->id,
         ]);
 
         return redirect()->back()->with('success', 'Channel added successfully.');
@@ -955,7 +986,7 @@ class OpsJobController extends Controller
             if ($originalChannel) {
                 $originalChannel->update([
                     'is_manually_replaced' => false,
-                    'saved_picked_qty'     => null,
+                    'saved_picked_qty' => null,
                 ]);
             }
         }
@@ -983,7 +1014,7 @@ class OpsJobController extends Controller
 
                 $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                 if ($opsJobItemChannel) {
-                    $unfreeze = !empty($channel['unfreeze']);
+                    $unfreeze = ! empty($channel['unfreeze']);
                     $opsJobItemChannel->update([
                         'saved_picked_qty' => $unfreeze ? null : $channel['picked'],
                     ]);
@@ -1020,21 +1051,20 @@ class OpsJobController extends Controller
         $items = $items->where('ops_job_items.status', '<>', OpsJob::STATUS_CANCELLED)
             ->select(
                 'vend_channels.product_id',
-                DB::raw("
+                DB::raw('
                     SUM(
                         CASE
-                            WHEN ops_job_items.status = " . OpsJob::STATUS_PICKED . " THEN ops_job_item_channels.picked_qty
-                            WHEN ops_job_items.status >= " . OpsJob::STATUS_DELIVERED . " THEN ops_job_item_channels.actual_qty
+                            WHEN ops_job_items.status = '.OpsJob::STATUS_PICKED.' THEN ops_job_item_channels.picked_qty
+                            WHEN ops_job_items.status >= '.OpsJob::STATUS_DELIVERED.' THEN ops_job_item_channels.actual_qty
                             ELSE 0
                         END
                     ) as topup_qty
-                ")
+                ')
             )
             ->groupBy('vend_channels.product_id')
             ->orderBy('products.code')
             ->having('topup_qty', '<>', 0)
             ->get();
-
 
         $dataArr = [
             'items' => $items->toArray(),
@@ -1062,7 +1092,7 @@ class OpsJobController extends Controller
                 'deliveredBy',
                 'opsJobItems.customer',
                 'opsJobItems.opsJobItemChannels.product',
-                'opsJobItems.opsJobItemChannels.vendChannel.product'
+                'opsJobItems.opsJobItemChannels.vendChannel.product',
             ])
             ->find($id);
 
@@ -1093,28 +1123,28 @@ class OpsJobController extends Controller
                     // keys the payload by person_id). Collect it so the user knows
                     // which sites to link before re-running.
                     $skippedUnlinked[] = $opsJobItem->customer->name
-                        ?: ($opsJobItem->customer->virtual_customer_code ?: ('Site #' . $opsJobItem->customer->id));
+                        ?: ($opsJobItem->customer->virtual_customer_code ?: ('Site #'.$opsJobItem->customer->id));
                 }
             }
         }
 
         // Surface skipped (unlinked) sites so a missing CMS Linking ID doesn't
         // silently drop a site from invoicing.
-        if (!empty($skippedUnlinked)) {
+        if (! empty($skippedUnlinked)) {
             $skippedUnlinked = array_values(array_unique($skippedUnlinked));
             $shown = array_slice($skippedUnlinked, 0, 10);
             $more = count($skippedUnlinked) - count($shown);
-            $message = ($dispatched > 0 ? ('Queued ' . $dispatched . ' site(s). ') : '')
-                . count($skippedUnlinked) . ' skipped — no CMS Linking ID: '
-                . implode(', ', $shown)
-                . ($more > 0 ? ' +' . $more . ' more' : '')
-                . '. Set their CMS Linking ID on the Customer form, then run Create API Invoice(s) again.';
+            $message = ($dispatched > 0 ? ('Queued '.$dispatched.' site(s). ') : '')
+                .count($skippedUnlinked).' skipped — no CMS Linking ID: '
+                .implode(', ', $shown)
+                .($more > 0 ? ' +'.$more.' more' : '')
+                .'. Set their CMS Linking ID on the Customer form, then run Create API Invoice(s) again.';
 
             return redirect()->back()->with('error', $message);
         }
 
         return redirect()->back()->with('success', $dispatched > 0
-            ? ('Queued API invoice(s) for ' . $dispatched . ' site(s).')
+            ? ('Queued API invoice(s) for '.$dispatched.' site(s).')
             : 'No new sites to invoice — everything is already synced.');
     }
 
@@ -1123,7 +1153,7 @@ class OpsJobController extends Controller
         $opsJob = OpsJob::with('opsJobItems')->findOrFail($id);
 
         $opsJob->opsJobItems->each(function ($opsJobItem) {
-            if ($opsJobItem->status >= OpsJob::STATUS_DELIVERED && $opsJobItem->status != OpsJob::STATUS_CANCELLED && !$opsJobItem->is_inventory_adjusted) {
+            if ($opsJobItem->status >= OpsJob::STATUS_DELIVERED && $opsJobItem->status != OpsJob::STATUS_CANCELLED && ! $opsJobItem->is_inventory_adjusted) {
                 $opsJobItem->update(['is_inventory_adjusted' => true]);
             }
         });
@@ -1145,7 +1175,7 @@ class OpsJobController extends Controller
                         });
                     });
                     $query->when($request->customer, function ($query, $search) {
-                        $query->whereHas('vend.customer', fn($customer) => SiteSearch::for($search)->applyTo($customer));
+                        $query->whereHas('vend.customer', fn ($customer) => SiteSearch::for($search)->applyTo($customer));
                     });
 
                     // Select necessary columns
@@ -1332,7 +1362,7 @@ class OpsJobController extends Controller
                                 'delta_cash_amount',
                             ])
                         ) {
-                            $query->orderByRaw("{$search} " . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                            $query->orderByRaw("{$search} ".(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                         } else {
                             $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
                         }
@@ -1367,7 +1397,7 @@ class OpsJobController extends Controller
                 'opsJobItems.verifiedBy',
                 'updatedBy:id,name',
                 // Tasks: simple indexed query, ordered by sequence
-                'opsJobTasks' => fn($q) => $q->with('createdBy:id,name', 'pickedBy:id,name', 'completedBy:id,name')->orderByRaw('ISNULL(sequence), sequence ASC'),
+                'opsJobTasks' => fn ($q) => $q->with('createdBy:id,name', 'pickedBy:id,name', 'completedBy:id,name')->orderByRaw('ISNULL(sequence), sequence ASC'),
             ])
             ->findOrFail($id);
 
@@ -1429,15 +1459,15 @@ class OpsJobController extends Controller
             ->select(['id', 'customer_id', 'operator_id', 'code'])
             ->with(['customer:id,name'])
             ->whereNotNull('customer_id')
-            ->when($vendIdsInJob->isNotEmpty(), fn($q) => $q->whereNotIn('id', $vendIdsInJob))
+            ->when($vendIdsInJob->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $vendIdsInJob))
             ->get()
             ->map(function ($vend) {
                 if ($vend->customer && $vend->customer->person_id) {
-                    $label = '(' . $vend->code . ')  - ' . $vend->customer->virtual_customer_code . ' - ' . $vend->customer->name;
-                } elseif ($vend->customer && !$vend->customer->person_id) {
-                    $label = '(' . $vend->code . ') ' . $vend->customer->code . ' - ' . $vend->customer->name;
+                    $label = '('.$vend->code.')  - '.$vend->customer->virtual_customer_code.' - '.$vend->customer->name;
+                } elseif ($vend->customer && ! $vend->customer->person_id) {
+                    $label = '('.$vend->code.') '.$vend->customer->code.' - '.$vend->customer->name;
                 } else {
-                    $label = '(' . $vend->code . ')' . ' - ' . $vend->label_name;
+                    $label = '('.$vend->code.')'.' - '.$vend->label_name;
                 }
 
                 return [
@@ -1458,7 +1488,7 @@ class OpsJobController extends Controller
                 User::with('roles')->when(auth()->user()->hasRole('driver'), function ($q) {
                     $q->where('id', auth()->id());
                 })
-                    ->when(!auth()->user()->hasRole('superadmin') && auth()->user()->operator_id != 1, function ($q) {
+                    ->when(! auth()->user()->hasRole('superadmin') && auth()->user()->operator_id != 1, function ($q) {
                         $q->where('operator_id', auth()->user()->operator_id);
                     })
                     ->orderBy('name')
@@ -1585,7 +1615,7 @@ class OpsJobController extends Controller
      */
     private function attachBlindChildren(OpsJobItem $opsJobItem): void
     {
-        if (!$opsJobItem->relationLoaded('opsJobItemChannels')) {
+        if (! $opsJobItem->relationLoaded('opsJobItemChannels')) {
             return;
         }
 
@@ -1596,7 +1626,7 @@ class OpsJobController extends Controller
         // job's date. Loaded once for all blind flavours (one indexed query), unless
         // the driver chose "Bypass Capped Qty".
         $childLimitMap = collect();
-        if (!$ignoreLimit && optional($opsJobItem->opsJob)->date) {
+        if (! $ignoreLimit && optional($opsJobItem->opsJob)->date) {
             $childIds = collect();
             foreach ($opsJobItem->opsJobItemChannels as $channel) {
                 foreach (($channel->children ?? []) as $c) {
@@ -1613,7 +1643,7 @@ class OpsJobController extends Controller
         }
 
         $childCapFor = function ($childProductId) use ($childLimitMap, $ignoreLimit) {
-            return (!$ignoreLimit && $childLimitMap->has($childProductId))
+            return (! $ignoreLimit && $childLimitMap->has($childProductId))
                 ? (int) $childLimitMap->get($childProductId)
                 : null;
         };
@@ -1624,7 +1654,7 @@ class OpsJobController extends Controller
             // was a blind housing AT THE TIME this job was created. This is immune to
             // later is_parent_sku toggles or product flavour edits.
             $children = $channel->children;
-            if (!$children || $children->isEmpty()) {
+            if (! $children || $children->isEmpty()) {
                 continue;
             }
 
@@ -1638,7 +1668,7 @@ class OpsJobController extends Controller
 
             // Parent ("housing") cap limits the TOTAL across flavours; per-flavour caps
             // limit each flavour, and the allocator redistributes around capped ones.
-            $parentCap = (!$ignoreLimit && optional($channel->product)->max_ops_job_pick_limit !== null)
+            $parentCap = (! $ignoreLimit && optional($channel->product)->max_ops_job_pick_limit !== null)
                 ? (int) $channel->product->max_ops_job_pick_limit
                 : null;
             if ($parentCap !== null) {
@@ -1657,6 +1687,7 @@ class OpsJobController extends Controller
 
             $channel->blind_children = $children->map(function ($c) use ($alloc, $childCapFor) {
                 $cp = $c->childProduct;
+
                 return [
                     'child_product_id' => (int) $c->child_product_id,
                     'code' => $cp?->code,
@@ -1682,7 +1713,7 @@ class OpsJobController extends Controller
             ->where('operator_id', auth()->user()->operator_id)
             ->first();
 
-        if (!$opsJob) {
+        if (! $opsJob) {
             $code = $this->generateUniqueOpsJobCode('driver_id');
 
             $opsJob = OpsJob::create([
@@ -1725,6 +1756,7 @@ class OpsJobController extends Controller
                     $opsJobItem->opsJobItemChannels()->delete();
                     $opsJobItem->attachments()->delete();
                     $opsJobItem->delete();
+
                     return redirect()->route('ops-jobs');
             }
         }
@@ -1780,9 +1812,9 @@ class OpsJobController extends Controller
             $opsJobItems = collect($request->opsJobItems ?? []);
             $ids = $opsJobItems->pluck('id')->filter()->toArray();
 
-            if (!empty($ids)) {
+            if (! empty($ids)) {
                 $opsJob->opsJobItems()
-                    ->orderByRaw('FIELD(id, ' . implode(',', array_map('intval', $ids)) . ')')
+                    ->orderByRaw('FIELD(id, '.implode(',', array_map('intval', $ids)).')')
                     ->get()
                     ->each(function ($opsJobItem, $index) {
                         $opsJobItem->update(['sequence' => $index + 1]);
@@ -1793,10 +1825,10 @@ class OpsJobController extends Controller
             $opsJobTasks = collect($request->opsJobTasks ?? []);
             $taskIds = $opsJobTasks->pluck('id')->filter()->toArray();
 
-            if (!empty($taskIds)) {
+            if (! empty($taskIds)) {
                 $startSeq = count($ids) + 1;
                 $opsJob->opsJobTasks()
-                    ->orderByRaw('FIELD(id, ' . implode(',', array_map('intval', $taskIds)) . ')')
+                    ->orderByRaw('FIELD(id, '.implode(',', array_map('intval', $taskIds)).')')
                     ->get()
                     ->each(function ($task, $index) use ($startSeq) {
                         $task->update(['sequence' => $startSeq + $index]);
@@ -1834,7 +1866,7 @@ class OpsJobController extends Controller
                 'opsJobItems.statusBy',
                 'opsJobItems.vend.vendPrefix',
                 // Tasks are loaded separately; Route.vue merges them into the items array
-                'opsJobTasks' => fn($q) => $q->orderByRaw('ISNULL(sequence), sequence ASC'),
+                'opsJobTasks' => fn ($q) => $q->orderByRaw('ISNULL(sequence), sequence ASC'),
             ])
             ->find($id);
 
@@ -1873,6 +1905,7 @@ class OpsJobController extends Controller
                         ->update(['sequence' => $entry['generated_sequence']]);
                 }
             }
+
             return redirect()->back();
         }
 
@@ -1970,14 +2003,14 @@ class OpsJobController extends Controller
 
         $opsJobItem->delete();
 
-        return redirect('/ops-jobs/' . $opsJobId . '/edit');
+        return redirect('/ops-jobs/'.$opsJobId.'/edit');
     }
 
     public function toggleIsIgnoreLimit(Request $request, $id)
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
         $opsJobItem->update([
-            'is_ignore_limit' => !$opsJobItem->is_ignore_limit,
+            'is_ignore_limit' => ! $opsJobItem->is_ignore_limit,
         ]);
 
         return redirect()->back();
@@ -2093,7 +2126,7 @@ class OpsJobController extends Controller
                     'date' => $request->date,
                     'delivered_by' => $request->delivered_by,
                 ], [
-                    'code' => $this->runningNumberService->getRunningCode(new OpsJob()),
+                    'code' => $this->runningNumberService->getRunningCode(new OpsJob),
                     'created_by' => auth()->id(),
                     'operator_id' => auth()->user()->operator_id,
                     'updated_by' => auth()->id(),
@@ -2118,12 +2151,12 @@ class OpsJobController extends Controller
     public function batchUpdateItems(Request $request)
     {
         $request->validate([
-            'item_ids'     => 'nullable|array',
-            'item_ids.*'   => 'integer|exists:ops_job_items,id',
-            'task_ids'     => 'nullable|array',
-            'task_ids.*'   => 'integer|exists:ops_job_tasks,id',
+            'item_ids' => 'nullable|array',
+            'item_ids.*' => 'integer|exists:ops_job_items,id',
+            'task_ids' => 'nullable|array',
+            'task_ids.*' => 'integer|exists:ops_job_tasks,id',
             'delivered_by' => 'required|integer',
-            'date'         => 'required|date',
+            'date' => 'required|date',
         ]);
 
         // At least one of item_ids or task_ids must be present
@@ -2137,12 +2170,12 @@ class OpsJobController extends Controller
         // Resolve the target OpsJob ONCE before the loop.
         $targetOpsJob = OpsJob::firstOrCreate(
             [
-                'date'         => $request->date,
+                'date' => $request->date,
                 'delivered_by' => $request->delivered_by,
-                'operator_id'  => auth()->user()->operator_id,
+                'operator_id' => auth()->user()->operator_id,
             ],
             [
-                'code'       => $this->runningNumberService->getRunningCode(new OpsJob()),
+                'code' => $this->runningNumberService->getRunningCode(new OpsJob),
                 'created_by' => auth()->id(),
                 'updated_by' => auth()->id(),
                 'updated_at' => Carbon::now(),
@@ -2198,7 +2231,8 @@ class OpsJobController extends Controller
 
     public function updateStockAction(Request $request, $id)
     {
-        $opsJobItem = OpsJobItem::findOrFail($id);        $stockActionType = $request->stock_action_type;
+        $opsJobItem = OpsJobItem::findOrFail($id);
+        $stockActionType = $request->stock_action_type;
 
         $opsJobItem->update([
             'stock_action_type' => $stockActionType,
@@ -2265,7 +2299,7 @@ class OpsJobController extends Controller
         // Only allow undo when in Picked status with return_stock or onsite_adjustment
         if (
             $opsJobItem->status != OpsJob::STATUS_PICKED ||
-            !in_array($opsJobItem->stock_action_type, ['return_stock', 'onsite_adjustment'])
+            ! in_array($opsJobItem->stock_action_type, ['return_stock', 'onsite_adjustment'])
         ) {
             return redirect()->back()->with('error', 'Cannot undo stock action for this item.');
         }
@@ -2328,11 +2362,17 @@ class OpsJobController extends Controller
     private function gateUpcomingMappingByStartDate($opsJobItem)
     {
         $vend = $opsJobItem->vend;
-        if (!$vend) return;
+        if (! $vend) {
+            return;
+        }
 
         $currentMapping = $vend->productMapping;
-        if ($currentMapping && $currentMapping->isUpcomingMappingEffective()) return;
-        if (!$currentMapping) return; // no current mapping => no declared start date
+        if ($currentMapping && $currentMapping->isUpcomingMappingEffective()) {
+            return;
+        }
+        if (! $currentMapping) {
+            return;
+        } // no current mapping => no declared start date
 
         $vend->setRelation('upcomingProductMapping', null);
         $currentMapping->setRelation('upcomingProductMapping', null);
@@ -2341,7 +2381,9 @@ class OpsJobController extends Controller
     private function applyNewMappingToItem($opsJobItem)
     {
         $vend = $opsJobItem->vend;
-        if (!$vend) return;
+        if (! $vend) {
+            return;
+        }
 
         $currentMapping = $vend->productMapping;
         // Prefer the vend's OWN manually-set upcoming mapping, falling back to the
@@ -2351,15 +2393,18 @@ class OpsJobController extends Controller
         // upcoming an operator set manually on the Setting/Edit form.
         $upcomingMapping = $vend->upcomingProductMapping ?: $currentMapping?->upcomingProductMapping;
 
-        if (!$upcomingMapping) return;
+        if (! $upcomingMapping) {
+            return;
+        }
 
         // Respect the declared start date: the upcoming mapping only takes
         // effect on/after it. Before then, the "new mapping" must not appear —
         // clear any previously-applied upcoming channels and skip. When no
         // start date is declared, isUpcomingMappingEffective() returns true so
         // behaviour is unchanged.
-        if ($currentMapping && !$currentMapping->isUpcomingMappingEffective()) {
+        if ($currentMapping && ! $currentMapping->isUpcomingMappingEffective()) {
             $opsJobItem->opsJobItemChannels()->where('is_upcoming_product', true)->delete();
+
             return;
         }
 
@@ -2409,7 +2454,7 @@ class OpsJobController extends Controller
         foreach ($currentItems as $cItem) {
             $uItem = $upcomingItems->where('channel_code', $cItem->channel_code)->first();
 
-            if (!$uItem) {
+            if (! $uItem) {
                 // Product changed for this channel! (Completely removed)
                 $ojic = $opsJobItem->opsJobItemChannels()
                     ->where('vend_channel_code', $cItem->channel_code)
@@ -2460,7 +2505,7 @@ class OpsJobController extends Controller
 
             $replacement = $upcomingByCode->get($ojic->vend_channel_code);
             $isReplaced = $replacement && $replacement->product_id != $ojic->product_id;
-            if (!$isReplaced) {
+            if (! $isReplaced) {
                 continue;
             }
 
@@ -2514,9 +2559,10 @@ class OpsJobController extends Controller
             $url = Storage::url($storedPath);
             $opsJobItem->attachments()->create([
                 'full_url' => $url,
-                'local_url' => $dir . '/' . $fileName,
+                'local_url' => $dir.'/'.$fileName,
             ]);
         }
+
         return true;
     }
 
@@ -2559,7 +2605,7 @@ class OpsJobController extends Controller
             ->where('status', '<', OpsJob::STATUS_DELIVERED)
             ->exists();
 
-        if (!$hasAnyUndoneOpsJobItem) {
+        if (! $hasAnyUndoneOpsJobItem) {
             $opsJobItem = OpsJobItem::create([
                 'customer_id' => $vend->customer_id,
                 'ops_job_id' => $opsJobID,
@@ -2595,7 +2641,7 @@ class OpsJobController extends Controller
     private function generateUniqueOpsJobCode(string $errorField): string
     {
         $operatorId = auth()->user()->operator_id;
-        $candidateCode = (int) $this->runningNumberService->getRunningCode(new OpsJob(), $operatorId);
+        $candidateCode = (int) $this->runningNumberService->getRunningCode(new OpsJob, $operatorId);
         $attempts = 0;
 
         while (OpsJob::where('code', (string) $candidateCode)->exists()) {

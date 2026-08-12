@@ -641,6 +641,29 @@
             </div>
 
             <hr class="sm:col-span-6">
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Machine Type
+                </label>
+                <MultiSelect
+                  v-model="form.machine_type"
+                  :options="machineTypeOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <p class="mt-1 text-xs text-gray-500">
+                  Vending Machine / Smart Freezer / Smart Chiller — restricts the mapping lists below to mappings built for this machine kind.
+                </p>
+                <div class="text-sm text-red-600" v-if="form.errors.machine_type">
+                  {{ form.errors.machine_type }}
+                </div>
+            </div>
+            <div class="sm:col-span-3"></div>
             <!-- DEPRECATED (2026-07): prefix→mapping binding retired — this dropdown now
                  lists ALL active mappings (name asc) and no longer depends on the prefix,
                  so the v-if="form.vend_prefix_id" gate was removed. -->
@@ -660,7 +683,7 @@
                 </label>
                 <MultiSelect
                   v-model="form.product_mapping_id"
-                  :options="productMappingOptions"
+                  :options="filteredProductMappingOptions"
                   trackBy="id"
                   valueProp="id"
                   label="name"
@@ -671,6 +694,9 @@
                 </MultiSelect>
                 <div class="text-sm text-red-600" v-if="form.errors.vend_prefix_id">
                   {{ form.errors.vend_prefix_id }}
+                </div>
+                <div class="text-sm text-red-600" v-if="form.errors.product_mapping_id">
+                  {{ form.errors.product_mapping_id }}
                 </div>
             </div>
             <div class="sm:col-span-3">
@@ -689,7 +715,7 @@
                 </label>
                 <MultiSelect
                   v-model="form.upcoming_product_mapping_id"
-                  :options="upcomingProductMappingOptions"
+                  :options="filteredUpcomingProductMappingOptions"
                   trackBy="id"
                   valueProp="id"
                   label="name"
@@ -1449,6 +1475,7 @@ const props = defineProps({
     modemTypeOptions: [Array, Object],
     modemUnitOptions: [Array, Object],
     operatorOptions: Object,
+    machineTypeOptions: Object,
     productMappingOptions: Object,
     sellingPriceTypeOptions: [Array, Object],
     simcardOptions: Object,
@@ -1504,7 +1531,45 @@ const keyOptions = ref([])
 const isExisting = ref(1)
 const operatorOptions = ref([])
 const permissions = page.props.auth.permissions
+const machineTypeOptions = ref([])
 const productMappingOptions = ref([])
+
+// Mapping choices follow the machine's identity (2026-08-12): a Smart Freezer lists only
+// smart-freezer mappings, a chiller only chiller mappings, a VM only vending mappings.
+// Placeholder rows ("--- Clear ---", the global N/A) and the currently-assigned mapping stay
+// visible regardless, so a legacy mismatch can be SEEN and corrected rather than silently hidden.
+// The server enforces the same rule in VendController::update — this filter is UX, not the guard.
+function currentMachineTypeId() {
+  return form.value && form.value.machine_type && form.value.machine_type.id
+    ? form.value.machine_type.id
+    : 'vending_machine'
+}
+function mappingOptionMatchesMachineType(option, selectedId) {
+  if (!option.id || option.name === 'N/A' || option.id === selectedId) return true
+  return (option.machine_type || 'vending_machine') === currentMachineTypeId()
+}
+const filteredProductMappingOptions = computed(() => {
+  const selectedId = form.value && form.value.product_mapping_id ? form.value.product_mapping_id.id : null
+  return productMappingOptions.value.filter(o => mappingOptionMatchesMachineType(o, selectedId))
+})
+const filteredUpcomingProductMappingOptions = computed(() => {
+  const selectedId = form.value && form.value.upcoming_product_mapping_id ? form.value.upcoming_product_mapping_id.id : null
+  return upcomingProductMappingOptions.value.filter(o => mappingOptionMatchesMachineType(o, selectedId))
+})
+
+// When the user actively switches machine type, drop selections that no longer match so the
+// server guard is never hit by accident. First assignment (form build on load) has no previous
+// value and is left alone — a grandfathered legacy mismatch stays selected and visible.
+watch(
+  () => (form.value && form.value.machine_type ? form.value.machine_type.id : null),
+  (newType, oldType) => {
+    if (!newType || !oldType || newType === oldType) return
+    const stillValid = (sel) =>
+      !sel || !sel.id || sel.name === 'N/A' || (sel.machine_type || 'vending_machine') === newType
+    if (!stillValid(form.value.product_mapping_id)) form.value.product_mapping_id = null
+    if (!stillValid(form.value.upcoming_product_mapping_id)) form.value.upcoming_product_mapping_id = null
+  }
+)
 const serverPriceTypeOptions = ref([])
 const simcardOptions = ref([])
 const upcomingProductMappingOptions = ref([])
@@ -1617,6 +1682,12 @@ function pollScreenshot() {
 const vendChannels = ref([]);
 const originalVendChannels = ref([]);
 const selectedProductMapping = ref(props.selectedProductMapping ?? null);
+// Mapping ids whose FULL record (with productMappingItems) we've already pulled
+// from the server. The dropdown's option objects carry only id/name, so an empty
+// item list there means "not loaded yet", not "this mapping is empty" — we fetch
+// once to tell the two apart. Remembering what we fetched is what stops a
+// genuinely item-less mapping from looping fetch → empty → fetch.
+const fetchedMappingPreviewIds = new Set();
 const vendConfigOptions = ref([])
 const vendContractOptions = ref([])
 const vendModelOptions = ref([])
@@ -1682,6 +1753,7 @@ function getDefaultForm() {
   return {
     id: '',
     begin_date: '',
+    machine_type: null,
     card_terminal_id: '',
     cashless_terminal_id: '',
     claw_machine_board_id: '',
@@ -1815,6 +1887,7 @@ onMounted(() => {
     { id: '', value: '--- Not Using ---'},
     ...Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
   ]
+  machineTypeOptions.value = Object.entries(props.machineTypeOptions).map(([id, name]) => ({id: id, value: name}))
   simcardOptions.value = [
     { id: '', name: '--- Clear ---'},
     ...props.simcardOptions.data.map(simcard => ({
@@ -1885,6 +1958,7 @@ onMounted(() => {
     menu_frame_id: props.vend.menu_frame_id ? menuFrameOptions.value.find(menuFrame => menuFrame.id == props.vend.menu_frame_id) : null,
     modem_type_id: props.vend.modem_type_id ? modemTypeOptions.value.find(modemType => modemType.id == props.vend.modem_type_id) : null,
     modem_unit_id: props.vend.modem_unit_id ? modemUnitOptions.value.find(modemUnit => modemUnit.id == props.vend.modem_unit_id) : null,
+    machine_type: machineTypeOptions.value.find(machineType => machineType.id == (props.vend.machine_type || 'vending_machine')) || null,
     product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id == props.vend.product_mapping_id) : null,
     server_price_type: props.vend.server_price_type ? serverPriceTypeOptions.value.find(serverPriceType => serverPriceType.id == props.vend.server_price_type) : null,
     is_fan_enabled: (props.vend.is_fan_enabled === false || props.vend.is_fan_enabled === 0 || props.vend.is_fan_enabled === '0' || props.vend.is_fan_enabled === 'false') ? {id: 'false', value: 'No'} : {id: 'true', value: 'Yes'},
@@ -2141,8 +2215,16 @@ function applyMappingPreview(mapping) {
   // *template* has no per-vend server prices, so previewing the bound mapping
   // from its template would blank P1/P2 for the default view. Only *other*
   // (candidate) mappings fall through to the template preview below.
+  //
+  // ...but ONLY when the vend actually has live channels. Smart freezers and
+  // smart chillers never report vend_channels upward (channel config is
+  // top-down from mark1), so for those this shortcut swapped a perfectly good
+  // 18-row planogram for an empty list and the table read "No Results Found".
+  // With no live channels there is nothing to preserve, so fall through to the
+  // template preview — blank P1/P2 beats showing nothing at all.
   const boundMappingId = props.vend?.product_mapping_id;
-  if (boundMappingId != null && mapping.id != null && String(mapping.id) === String(boundMappingId)) {
+  const hasLiveVendChannels = Array.isArray(originalVendChannels.value) && originalVendChannels.value.length > 0;
+  if (hasLiveVendChannels && boundMappingId != null && mapping.id != null && String(mapping.id) === String(boundMappingId)) {
     resetMappingPreview();
     return;
   }
@@ -2157,9 +2239,23 @@ function applyMappingPreview(mapping) {
     if (mapping.name === 'N/A') {
       selectedProductMapping.value = mapping;
       vendChannels.value = [];
-    } else {
-      resetMappingPreview();
+      return;
     }
+
+    // No items here can mean either "this mapping really is empty" or "this is
+    // just the dropdown's {id, name} option object, which never carries items".
+    // On a fresh load with no ?product_mapping_id in the URL the server ships no
+    // selectedProductMapping, so the bound mapping arrives in exactly that
+    // stripped form — resetting here is what left a smart freezer's table empty.
+    // Pull the full record once; the guard set keeps a truly empty mapping from
+    // looping.
+    const mappingId = mapping.id != null ? String(mapping.id) : null;
+    if (mappingId && !fetchedMappingPreviewIds.has(mappingId)) {
+      fetchProductMappingPreviewById(mappingId);
+      return;
+    }
+
+    resetMappingPreview();
     return;
   }
 
@@ -2184,6 +2280,11 @@ function fetchProductMappingPreviewById(mappingId) {
     resetMappingPreview();
     return;
   }
+
+  // Mark before the round-trip, not in onSuccess: if the mapping comes back with
+  // no items we re-enter applyMappingPreview, and the flag has to already be set
+  // there or that path would fetch again.
+  fetchedMappingPreviewIds.add(String(mappingId));
 
   const data = {
     product_mapping_id: mappingId,
@@ -2470,6 +2571,7 @@ function saveVend(vendID) {
       key_id: data.key_id ? data.key_id.id : null,
       // is_using_server_price: data.is_using_server_price.id === 'true' ? 1 : 0,
       menu_frame_id: data.menu_frame_id ? data.menu_frame_id.id : null,
+      machine_type: data.machine_type ? data.machine_type.id : 'vending_machine',
       modem_type_id: data.modem_type_id ? data.modem_type_id.id : null,
       modem_unit_id: data.modem_unit_id ? data.modem_unit_id.id : null,
       server_price_type: data.server_price_type ? data.server_price_type.id : null,

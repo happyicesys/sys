@@ -58,10 +58,20 @@
          divisions as sub-boxes in a row — mirrors the APK's on-door FreezerGrid. -->
     <div class="rounded-xl border-[3px] border-gray-800 bg-slate-50 p-3 md:p-4">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:grid-rows-3 md:grid-flow-col md:gap-4 md:min-h-[560px]">
+      <!--
+        NOTE: no `overflow-hidden` on this card, deliberately. The product picker
+        in an empty cell is a @vueform/multiselect whose dropdown is an
+        absolutely-positioned child of the cell — any clipping ancestor cuts the
+        option list off at the basket's border, which is what "the dropdown is
+        blocked" looked like. Edit.vue's wrappers are already explicitly
+        `overflow-visible` for the same reason (Edit.vue:41-44); this card was the
+        one remaining clipper. Nothing here needs clipping: the rounded corners
+        are on the article itself and no child paints a background into them.
+      -->
       <article
         v-for="basket in localLayout"
         :key="basket.basket"
-        class="flex flex-col rounded-lg border-2 border-gray-400 bg-white h-full overflow-hidden"
+        class="flex flex-col rounded-lg border-2 border-gray-400 bg-white h-full"
       >
       <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
         <div class="flex items-center gap-2">

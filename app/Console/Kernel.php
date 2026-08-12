@@ -23,6 +23,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('delete:vend-log')->dailyAt('01:35');
         $schedule->command('delete:vend-coin-float-log')->dailyAt('01:40');
         $schedule->command('sync:vend-online-status')->everyMinute();
+        // No-op until CITYBOX_ENABLED and a vend carries a citybox_equipment_id
+        // (guards inside the command — O(1) config read + indexed EXISTS).
+        $schedule->command('citybox:poll')->everyMinute();
         // $schedule->command('scheduler:heartbeat')->everyFiveMinutes();
         $schedule->command('sync:totals-json')->dailyAt('00:10');
         $schedule->command('sync:product-unit-costs-timing')->dailyAt('00:05');

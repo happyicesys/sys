@@ -45,6 +45,9 @@ class ProductMappingResource extends JsonResource
             // branch (basket grid vs the classic channel-row table); the layout
             // JSON shapes the per-basket division count (1a/1b/... vs single "3").
             'is_smart' => (bool) $this->is_smart,
+            // Machine taxonomy (vending_machine / smart_freezer / smart_chiller). The Setting
+            // Edit page filters the mapping dropdowns on this against the vend's machine_type.
+            'machine_type' => $this->machine_type ?: 'vending_machine',
             'basket_layout_json' => $this->basket_layout_json,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
             'vends_count' => isset($this->vends_count) ? $this->vends_count : null,

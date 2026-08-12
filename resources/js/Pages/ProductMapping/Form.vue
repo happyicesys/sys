@@ -29,24 +29,28 @@
             </div>
 
             <!--
-              Mapping type radio. Only meaningful at create time — once a mapping
-              has items, switching the type would mix channel_code formats. The
-              Edit page surfaces the type as a read-only badge.
+              Mapping type radio (2026-08-12: 3-way — Vending Machine / Smart Freezer /
+              Smart Chiller). Only meaningful at create time — once a mapping has items,
+              switching the type would mix channel_code formats. The Edit page surfaces
+              the type as a read-only badge.
 
-              is_smart = true ⇒ ProductMapping/Edit.vue renders SmartFreezerLayout
-              (6 baskets × 1-4 divisions, all-numeric channel codes "11","12","41");
-              a default basket layout is seeded server-side at create.
+              The server derives is_smart from machine_type (is_smart ⟺ smart_freezer), so
+              this form posts machine_type only. Smart Freezer ⇒ ProductMapping/Edit.vue
+              renders SmartFreezerLayout (6 baskets × 1-4 divisions, numeric channel codes
+              "11","12","41"); a default basket layout is seeded server-side at create.
+              Smart Chiller keeps the classic editor for now — its layout rules (multiple
+              products per level) get their own editor when the citybox integration lands.
             -->
             <div class="sm:col-span-6" v-if="type === 'create'">
               <label class="flex justify-start text-sm font-medium text-gray-700 mb-1">
                 Mapping Type
               </label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <label
                   class="flex items-start gap-2 rounded-md border p-3 cursor-pointer transition"
-                  :class="!form.is_smart ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/40' : 'border-gray-200 hover:bg-gray-50'"
+                  :class="form.machine_type === 'vending_machine' ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/40' : 'border-gray-200 hover:bg-gray-50'"
                 >
-                  <input type="radio" :value="false" v-model="form.is_smart" class="mt-1" />
+                  <input type="radio" value="vending_machine" v-model="form.machine_type" class="mt-1" />
                   <span class="flex flex-col">
                     <span class="text-sm font-semibold text-gray-900">Vending Machine</span>
                     <span class="text-xs text-gray-500">Numeric channels (11, 12, 13…). Classic channel-row editor.</span>
@@ -54,12 +58,22 @@
                 </label>
                 <label
                   class="flex items-start gap-2 rounded-md border p-3 cursor-pointer transition"
-                  :class="form.is_smart ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/40' : 'border-gray-200 hover:bg-gray-50'"
+                  :class="form.machine_type === 'smart_freezer' ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/40' : 'border-gray-200 hover:bg-gray-50'"
                 >
-                  <input type="radio" :value="true" v-model="form.is_smart" class="mt-1" />
+                  <input type="radio" value="smart_freezer" v-model="form.machine_type" class="mt-1" />
                   <span class="flex flex-col">
                     <span class="text-sm font-semibold text-gray-900">Smart Freezer</span>
                     <span class="text-xs text-gray-500">Basket grid (11, 12, 21…). 6 baskets × up to 4 divisions.</span>
+                  </span>
+                </label>
+                <label
+                  class="flex items-start gap-2 rounded-md border p-3 cursor-pointer transition"
+                  :class="form.machine_type === 'smart_chiller' ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/40' : 'border-gray-200 hover:bg-gray-50'"
+                >
+                  <input type="radio" value="smart_chiller" v-model="form.machine_type" class="mt-1" />
+                  <span class="flex flex-col">
+                    <span class="text-sm font-semibold text-gray-900">Smart Chiller</span>
+                    <span class="text-xs text-gray-500">Citybox JV chillers. Classic editor for now; only bindable to Smart Chiller machines.</span>
                   </span>
                 </label>
               </div>
@@ -273,8 +287,9 @@ function getDefaultForm() {
     channel_code: '',
     product_id: '',
     // Mapping type. Only used at create time; the Edit page reads this from
-    // the persisted record and renders the matching layout editor.
-    is_smart: false,
+    // the persisted record and renders the matching layout editor. The server
+    // derives is_smart (the freezer-planogram switch) from this value.
+    machine_type: 'vending_machine',
   }
 }
 

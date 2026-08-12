@@ -28,7 +28,7 @@ class MarkProductMappingAsSmart extends Command
         {id : ProductMapping ID}
         {--unmark : Revert to vending mode}
         {--reset-layout : Force basket_layout_json back to the default (6 baskets × 2 divisions); refuses if any item would be orphaned unless --force is also passed}
-        {--force : Skip the orphan-items confirmation when used with --reset-layout}';
+        {--force : Skip the orphan-items confirmation (--reset-layout) and the bound-machines-of-another-kind refusal}';
 
     protected $description = 'Mark an existing ProductMapping as a smart-freezer planogram (or revert with --unmark, or reset its basket layout with --reset-layout).';
 
@@ -39,17 +39,27 @@ class MarkProductMappingAsSmart extends Command
         /** @var ProductMapping|null $mapping */
         $mapping = ProductMapping::withoutGlobalScopes()->find($id);
 
-        if (!$mapping) {
+        if (! $mapping) {
             $this->error("ProductMapping #{$id} not found.");
+
             return self::FAILURE;
         }
 
         if ($this->option('unmark')) {
+            if (! $this->machineTypeChangeAllowed($mapping, \App\Models\Vend::MACHINE_TYPE_VENDING_MACHINE)) {
+                return self::FAILURE;
+            }
             $mapping->is_smart = false;
+            $mapping->machine_type = \App\Models\Vend::MACHINE_TYPE_VENDING_MACHINE;
             $mapping->basket_layout_json = null;
             $mapping->save();
             $this->info("ProductMapping #{$id} ({$mapping->name}) reverted to Vending Machine mode.");
+
             return self::SUCCESS;
+        }
+
+        if (! $this->machineTypeChangeAllowed($mapping, \App\Models\Vend::MACHINE_TYPE_SMART_FREEZER)) {
+            return self::FAILURE;
         }
 
         // Heads-up about channel_code shape — non-blocking, just informational.
@@ -58,16 +68,17 @@ class MarkProductMappingAsSmart extends Command
             ->pluck('channel_code')
             ->all();
 
-        if (!empty($weirdCodes)) {
+        if (! empty($weirdCodes)) {
             $this->warn(sprintf(
                 'Heads up: %d existing item(s) have channel codes that don\'t match the smart-freezer pattern ([1-6][a-d]?): %s',
                 count($weirdCodes),
-                implode(', ', array_slice($weirdCodes, 0, 10)) . (count($weirdCodes) > 10 ? '…' : '')
+                implode(', ', array_slice($weirdCodes, 0, 10)).(count($weirdCodes) > 10 ? '…' : '')
             ));
             $this->warn('Open the Edit page after this command and reassign those items into baskets, or unbind them.');
         }
 
         $mapping->is_smart = true;
+        $mapping->machine_type = \App\Models\Vend::MACHINE_TYPE_SMART_FREEZER;
 
         $defaultLayout = collect(range(1, 6))
             ->map(fn ($basket) => ['basket' => $basket, 'divisions' => 2])
@@ -86,18 +97,19 @@ class MarkProductMappingAsSmart extends Command
                 ->pluck('channel_code')
                 ->all();
 
-            if (!empty($orphanItems) && !$this->option('force')) {
+            if (! empty($orphanItems) && ! $this->option('force')) {
                 $this->error(sprintf(
                     'Refusing to reset: %d bound item(s) would be unreachable in the 6×2 default (codes: %s). Re-run with --force to proceed (the rows stay in the DB but stop rendering), or unbind them in the UI first.',
                     count($orphanItems),
-                    implode(', ', array_slice($orphanItems, 0, 10)) . (count($orphanItems) > 10 ? '…' : '')
+                    implode(', ', array_slice($orphanItems, 0, 10)).(count($orphanItems) > 10 ? '…' : '')
                 ));
+
                 return self::FAILURE;
             }
 
             $mapping->basket_layout_json = $defaultLayout;
             $this->info('Reset basket_layout_json to default (6 baskets × 2 divisions).');
-            if (!empty($orphanItems)) {
+            if (! empty($orphanItems)) {
                 $this->warn(sprintf(
                     '%d item(s) are now outside the rendered grid: %s. They remain in product_mapping_items; unbind them in the UI or delete via /items/{id}.',
                     count($orphanItems),
@@ -117,5 +129,53 @@ class MarkProductMappingAsSmart extends Command
         $this->line("Edit it at: /product-mappings/{$id}/edit");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Same rule as ProductMappingController::assertMachineTypeChangeAllowed, in refuse-then-
+     * override form (matching --reset-layout): retyping while machines of the OLD kind are
+     * still on the mapping mis-pairs every one of them in a single write, so refuse unless
+     * --force. Disposed/sold machines don't block; inactive ones do.
+     */
+    private function machineTypeChangeAllowed(ProductMapping $mapping, string $newType): bool
+    {
+        $currentType = $mapping->machine_type ?: \App\Models\Vend::MACHINE_TYPE_VENDING_MACHINE;
+        if ($currentType === $newType) {
+            return true;
+        }
+
+        $mismatched = \App\Models\Vend::withoutGlobalScopes()
+            ->where(function ($query) use ($mapping) {
+                $query->where('product_mapping_id', $mapping->id)
+                    ->orWhere('upcoming_product_mapping_id', $mapping->id);
+            })
+            ->where('is_disposed', false)
+            ->where('is_sold', false)
+            ->whereRaw("coalesce(machine_type, 'vending_machine') != ?", [$newType])
+            ->orderBy('code')
+            ->pluck('code')
+            ->all();
+
+        if (empty($mismatched)) {
+            return true;
+        }
+
+        if ($this->option('force')) {
+            $this->warn(sprintf(
+                'Retyping despite %d bound machine(s) of another kind (--force): %s. Fix their Machine Type or rebind them afterwards.',
+                count($mismatched),
+                implode(', ', array_slice($mismatched, 0, 10)).(count($mismatched) > 10 ? '…' : '')
+            ));
+
+            return true;
+        }
+
+        $this->error(sprintf(
+            'Refusing to retype: %d machine(s) of another kind are still on this mapping (codes: %s). Move them to a matching mapping or change their Machine Type first, or re-run with --force.',
+            count($mismatched),
+            implode(', ', array_slice($mismatched, 0, 10)).(count($mismatched) > 10 ? '…' : '')
+        ));
+
+        return false;
     }
 }

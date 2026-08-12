@@ -2,28 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\Vend\SaveVendChannelsJson;
-use App\Http\Resources\ProductResource;
+use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductMappingResource;
-use App\Http\Resources\VendResource;
+use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendPrefixResource;
-use App\Models\Product;
+use App\Http\Resources\VendResource;
 use App\Models\Operator;
+use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
 use App\Models\Vend;
 use App\Models\VendPrefix;
-use App\Http\Resources\OperatorResource;
 use App\Services\ProductMappingService;
 use App\Services\SmartFreezerCatalogPush;
+use App\Support\SiteSearch;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use App\Support\SiteSearch;
 
 class ProductMappingController extends Controller
 {
@@ -40,8 +39,8 @@ class ProductMappingController extends Controller
     public function __construct()
     {
         $this->middleware(['permission:read product-mappings']);
-        $this->productMappingService = new ProductMappingService();
-        $this->smartFreezerCatalogPush = new SmartFreezerCatalogPush();
+        $this->productMappingService = new ProductMappingService;
+        $this->smartFreezerCatalogPush = new SmartFreezerCatalogPush;
     }
 
     /**
@@ -82,7 +81,7 @@ class ProductMappingController extends Controller
             //   avg_mthly_sales_amount  (2026-07-31) retired with the Avg Mthly Sales
             //                           group total — the column is now a per-machine
             //                           list, which has no single value to sort on
-            'sortKey' => $request->sortKey && !in_array($request->sortKey, ['vend_prefix_name', 'avg_mthly_sales_amount'], true) ? $request->sortKey : 'name'
+            'sortKey' => $request->sortKey && ! in_array($request->sortKey, ['vend_prefix_name', 'avg_mthly_sales_amount'], true) ? $request->sortKey : 'name',
         ]);
 
         // NOTE: the "first vend_prefix per mapping" leftJoin (used only to select
@@ -118,7 +117,7 @@ class ProductMappingController extends Controller
             // Site Name, virtual code/prefix, CMS code or the displayed Site ID.
             // See App\Support\SiteSearch.
             ->when($request->site, function ($query, $search) {
-                $query->whereHas('vends.customer', fn($customer) => SiteSearch::for($search)->applyTo($customer));
+                $query->whereHas('vends.customer', fn ($customer) => SiteSearch::for($search)->applyTo($customer));
             })
             // DEPRECATED (2026-07): the Machine Prefix filter (whereHas vendPrefixes)
             // was removed together with the prefix→mapping binding.
@@ -145,7 +144,7 @@ class ProductMappingController extends Controller
                     });
                 }
             })
-            ->when($request->is_active, function ($query, $search) use ($request) {
+            ->when($request->is_active, function ($query, $search) {
                 $query->where('product_mappings.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
             });
 
@@ -226,76 +225,76 @@ class ProductMappingController extends Controller
                     // leftJoin (legacy vend_prefixes.product_mapping_id column) was
                     // removed with the Binded Prefix column.
                     ->with([
-                    'attachments',
-                    'operator',
-                    'productMappingItemsNormalSequence' => function ($q) {
-                        $q->orderByRaw("CASE WHEN channel_code REGEXP '^[0-9]+$' THEN 0 ELSE 1 END ASC")
-                            ->orderByRaw("CAST(channel_code AS UNSIGNED) ASC")
-                            ->orderBy('channel_code', 'asc');
-                    },
-                    'productMappingItemsNormalSequence.product:id,code,name,is_active',
-                    'productMappingItemsNormalSequence.product.thumbnail',
-                    'vends' => function ($query) use ($request) {
-                        // NOTE: the L30d Sales chip in ProductMapping/Index.vue now
-                        // reads the CUSTOMER's rolling totals (customers.totals_json,
-                        // eager-loaded on vends.customer below), NOT this vend column.
-                        // vend_transaction_totals_json is kept selected for any other
-                        // consumer of VendResource but is no longer the L30d source.
-                        $query->select('id', 'code', 'name', 'product_mapping_id', 'upcoming_product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed', 'binded_at', 'updated_at', 'vend_transaction_totals_json');
+                        'attachments',
+                        'operator',
+                        'productMappingItemsNormalSequence' => function ($q) {
+                            $q->orderByRaw("CASE WHEN channel_code REGEXP '^[0-9]+$' THEN 0 ELSE 1 END ASC")
+                                ->orderByRaw('CAST(channel_code AS UNSIGNED) ASC')
+                                ->orderBy('channel_code', 'asc');
+                        },
+                        'productMappingItemsNormalSequence.product:id,code,name,is_active',
+                        'productMappingItemsNormalSequence.product.thumbnail',
+                        'vends' => function ($query) use ($request) {
+                            // NOTE: the L30d Sales chip in ProductMapping/Index.vue now
+                            // reads the CUSTOMER's rolling totals (customers.totals_json,
+                            // eager-loaded on vends.customer below), NOT this vend column.
+                            // vend_transaction_totals_json is kept selected for any other
+                            // consumer of VendResource but is no longer the L30d source.
+                            $query->select('id', 'code', 'name', 'product_mapping_id', 'upcoming_product_mapping_id', 'customer_id', 'vend_prefix_id', 'is_active', 'is_testing', 'is_disposed', 'binded_at', 'updated_at', 'vend_transaction_totals_json');
 
-                        if ($request->vendStatus and $request->vendStatus !== 'all') {
-                            switch ($request->vendStatus) {
-                                case 'disposed':
-                                    $query->where('is_disposed', true);
-                                    break;
-                                case 'factory':
-                                    $query->where('is_testing', true);
-                                    break;
-                                case 'active':
-                                    $query->where('is_active', true);
-                                    break;
-                                case 'inactive':
-                                    $query->where('is_active', false);
-                                    break;
-                                case 'sold':
-                                    $query->where('is_sold', true);
-                                    break;
+                            if ($request->vendStatus and $request->vendStatus !== 'all') {
+                                switch ($request->vendStatus) {
+                                    case 'disposed':
+                                        $query->where('is_disposed', true);
+                                        break;
+                                    case 'factory':
+                                        $query->where('is_testing', true);
+                                        break;
+                                    case 'active':
+                                        $query->where('is_active', true);
+                                        break;
+                                    case 'inactive':
+                                        $query->where('is_active', false);
+                                        break;
+                                    case 'sold':
+                                        $query->where('is_sold', true);
+                                        break;
+                                }
                             }
-                        }
-                    },
-                    // selling_price_type — drives the RP1..RP5 chip we render
-                    // next to each binded machine in ProductMapping/Index.vue
-                    // (same source customers.selling_price_type used on the
-                    // Vend/CustomerIndex Ref Price column).
-                    // totals_json — surfaces the L30d Sales chip per machine.
-                    // Read from the CUSTOMER (customers.totals_json), NOT the vend's
-                    // own vend_transaction_totals_json: the vend total follows the
-                    // machine's vend_id and would keep showing sales made under a
-                    // PREVIOUS customer after the machine is moved. The customer
-                    // total is keyed on customer_id so it only reflects this site.
-                    // begin_date — the denominator of the per-machine "Avg Mthly
-                    // Sales" column (lifetime sales / months the SITE has been
-                    // operating). Same pair of columns Vend/CustomerIndex selects
-                    // for its own "Avg Mthly Sales $" (customers.totals_json +
-                    // customers.begin_date), so both pages show the same figure for
-                    // the same machine. MUST be selected here: the Vue reads
-                    // customer.begin_date_nullable, and a column left out of a
-                    // partial eager-load resolves to null → the reporting floor.
-                    'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code,selling_price_type,totals_json,begin_date',
-                    'vends.vendPrefix:id,name',
-                    'vends.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
-                    'vends.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
-                    'vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
-                    'vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
-                    // Each binded machine's OWN upcoming product mapping (the vend
-                    // may override this mapping's preset upcoming). Only id+name are
-                    // needed to render the per-vend override badge in Index.vue.
-                    'vends.upcomingProductMapping:id,name',
-                    // DEPRECATED (2026-07): 'vendPrefixes' eager-load dropped with
-                    // the Binded Prefix column (ProductMappingResource guards with
-                    // whenLoaded()).
-                    'upcomingProductMapping',
-                ])
+                        },
+                        // selling_price_type — drives the RP1..RP5 chip we render
+                        // next to each binded machine in ProductMapping/Index.vue
+                        // (same source customers.selling_price_type used on the
+                        // Vend/CustomerIndex Ref Price column).
+                        // totals_json — surfaces the L30d Sales chip per machine.
+                        // Read from the CUSTOMER (customers.totals_json), NOT the vend's
+                        // own vend_transaction_totals_json: the vend total follows the
+                        // machine's vend_id and would keep showing sales made under a
+                        // PREVIOUS customer after the machine is moved. The customer
+                        // total is keyed on customer_id so it only reflects this site.
+                        // begin_date — the denominator of the per-machine "Avg Mthly
+                        // Sales" column (lifetime sales / months the SITE has been
+                        // operating). Same pair of columns Vend/CustomerIndex selects
+                        // for its own "Avg Mthly Sales $" (customers.totals_json +
+                        // customers.begin_date), so both pages show the same figure for
+                        // the same machine. MUST be selected here: the Vue reads
+                        // customer.begin_date_nullable, and a column left out of a
+                        // partial eager-load resolves to null → the reporting floor.
+                        'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code,selling_price_type,totals_json,begin_date',
+                        'vends.vendPrefix:id,name',
+                        'vends.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
+                        'vends.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
+                        'vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
+                        'vends.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
+                        // Each binded machine's OWN upcoming product mapping (the vend
+                        // may override this mapping's preset upcoming). Only id+name are
+                        // needed to render the per-vend override badge in Index.vue.
+                        'vends.upcomingProductMapping:id,name',
+                        // DEPRECATED (2026-07): 'vendPrefixes' eager-load dropped with
+                        // the Binded Prefix column (ProductMappingResource guards with
+                        // whenLoaded()).
+                        'upcomingProductMapping',
+                    ])
 
                     ->select('product_mappings.*')
                     // "At upcoming stage" count — machines queued to switch ONTO
@@ -348,40 +347,39 @@ class ProductMappingController extends Controller
             ),
             'products' => ProductResource::collection(
                 Product::with([
-                    'thumbnail'
+                    'thumbnail',
                 ])
                     ->where('is_inventory', true)
                     ->where('is_active', true)
                     ->orderBy('code')
                     ->get()
             ),
-            'unbindedVends' => fn() =>
-                VendResource::collection(
-                    Vend::with([
-                        // This unbinded-vends dropdown only renders full_name (built
-                        // from customer code/name/person_id/virtual_customer_code) and
-                        // the nested customer.code / customer.name. Load just those
-                        // scalars instead of select * dragging customers' JSON columns
-                        // (totals_json, person_json, snap_*, cms_invoice_history) for
-                        // every customer — that was the ~800ms `select * from customers`.
-                        'customer:id,name,code,person_id,virtual_customer_code'
-                    ])
-                        // customer_id is a FK with referential integrity and Customer
-                        // is not soft-deleted, so a non-null customer_id guarantees the
-                        // customer exists — replace the per-vend EXISTS(customers)
-                        // semi-join (has('customer')) with a plain NOT NULL check.
-                        // Same optimisation already applied in OpsJobController.
-                        ->whereNotNull('customer_id')
-                        ->whereNull('product_mapping_id')
-                        ->select(
-                            'id',
-                            'code',
-                            'customer_id',
-                            'name',
-                        )
-                        ->orderBy('code')
-                        ->get()
-                ),
+            'unbindedVends' => fn () => VendResource::collection(
+                Vend::with([
+                    // This unbinded-vends dropdown only renders full_name (built
+                    // from customer code/name/person_id/virtual_customer_code) and
+                    // the nested customer.code / customer.name. Load just those
+                    // scalars instead of select * dragging customers' JSON columns
+                    // (totals_json, person_json, snap_*, cms_invoice_history) for
+                    // every customer — that was the ~800ms `select * from customers`.
+                    'customer:id,name,code,person_id,virtual_customer_code',
+                ])
+                    // customer_id is a FK with referential integrity and Customer
+                    // is not soft-deleted, so a non-null customer_id guarantees the
+                    // customer exists — replace the per-vend EXISTS(customers)
+                    // semi-join (has('customer')) with a plain NOT NULL check.
+                    // Same optimisation already applied in OpsJobController.
+                    ->whereNotNull('customer_id')
+                    ->whereNull('product_mapping_id')
+                    ->select(
+                        'id',
+                        'code',
+                        'customer_id',
+                        'name',
+                    )
+                    ->orderBy('code')
+                    ->get()
+            ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),
@@ -478,10 +476,10 @@ class ProductMappingController extends Controller
 
         return response()->json([
             'productMapping' => [
-                'id'   => $productMapping->id,
+                'id' => $productMapping->id,
                 'name' => $productMapping->name,
             ],
-            'vends' => $vends->map(function ($vend) use ($productMapping) {
+            'vends' => $vends->map(function ($vend) {
                 // "own" = this machine was pointed at the mapping directly on its
                 // Machine Settings page; "inherited" = it simply rides the preset
                 // upcoming of the mapping it is binded to. Safe to decide on the
@@ -491,20 +489,20 @@ class ProductMappingController extends Controller
                 $isOwn = $vend->upcoming_product_mapping_id !== null;
 
                 return [
-                    'id'                           => $vend->id,
-                    'code'                         => $vend->code,
-                    'is_active'                    => (bool) $vend->is_active,
-                    'vend_prefix_name'             => $vend->vendPrefix?->name,
-                    'customer_id'                  => $vend->customer?->id,
+                    'id' => $vend->id,
+                    'code' => $vend->code,
+                    'is_active' => (bool) $vend->is_active,
+                    'vend_prefix_name' => $vend->vendPrefix?->name,
+                    'customer_id' => $vend->customer?->id,
                     // Site ID = customers.id + 20000 (see the site-id display
                     // swap); null when the machine sits in no site at all.
-                    'site_id'                      => $vend->customer ? $vend->customer->id + 20000 : null,
-                    'customer_name'                => $vend->customer?->name,
-                    'customer_is_active'           => (bool) ($vend->customer?->is_active),
-                    'current_product_mapping_id'   => $vend->product_mapping_id,
+                    'site_id' => $vend->customer ? $vend->customer->id + 20000 : null,
+                    'customer_name' => $vend->customer?->name,
+                    'customer_is_active' => (bool) ($vend->customer?->is_active),
+                    'current_product_mapping_id' => $vend->product_mapping_id,
                     'current_product_mapping_name' => $vend->current_product_mapping_name,
-                    'source'                       => $isOwn ? 'own' : 'inherited',
-                    'start_date'                   => $vend->current_upcoming_start_date
+                    'source' => $isOwn ? 'own' : 'inherited',
+                    'start_date' => $vend->current_upcoming_start_date
                         ? \Illuminate\Support\Carbon::parse($vend->current_upcoming_start_date)->format('Y-m-d')
                         : null,
                 ];
@@ -519,13 +517,18 @@ class ProductMappingController extends Controller
             // Smart-freezer planogram flag. Optional; defaults to false at the
             // DB layer. The UI sends it from the create modal radio.
             'is_smart' => ['nullable', 'boolean'],
+            // Machine taxonomy; the create modal sends this (3-way radio). is_smart is derived.
+            'machine_type' => ['nullable', 'in:vending_machine,smart_freezer,smart_chiller'],
             // basket_layout_json is set later from the Edit page once the
             // mapping exists — not required at create time.
         ]);
 
-        $productMapping = new ProductMapping();
+        $productMapping = new ProductMapping;
         $productMapping->fill($request->all());
         $productMapping->operator_id = auth()->user()->operator_id;
+        $this->syncMachineType($productMapping, $request);
+        // upcoming_product_mapping_id is fillable, so an API caller can preset it at create.
+        $this->assertPresetUpcomingCompatible($productMapping);
 
         // Seed a sensible default basket layout for smart-freezer mappings so
         // the Edit page can render the grid immediately. Six baskets, each with
@@ -547,7 +550,6 @@ class ProductMappingController extends Controller
         return redirect()->route('product-mappings.edit', ['id' => $productMapping->id]);
     }
 
-
     /**
      * Flip a mapping between Vending and Smart Freezer type (the editor mode).
      *
@@ -557,9 +559,129 @@ class ProductMappingController extends Controller
      * back to 2 divisions (the create-time default). Converting back to vending
      * leaves the layout untouched (harmless; the vending editor ignores it).
      */
+    /**
+     * machine_type ↔ is_smart invariant: is_smart stays the freezer-planogram switch the Edit UI
+     * and getVendMenu branch on; machine_type is the taxonomy (VM / freezer / chiller). Whichever
+     * field the caller sent, derive the other so the two can never drift.
+     */
+    private function syncMachineType(ProductMapping $productMapping, Request $request): void
+    {
+        if ($request->filled('machine_type')) {
+            $productMapping->is_smart = $request->machine_type === Vend::MACHINE_TYPE_SMART_FREEZER;
+        } elseif ($request->has('is_smart')) {
+            $productMapping->machine_type = $request->boolean('is_smart')
+                ? Vend::MACHINE_TYPE_SMART_FREEZER
+                : Vend::MACHINE_TYPE_VENDING_MACHINE;
+        }
+    }
+
+    /**
+     * Block a machine_type change while machines of the OLD kind are still on this mapping
+     * (bound as current, or queued as upcoming). Without this, retyping the mapping would
+     * mis-pair every bound machine in one write — the exact mismatch the vend-side bind guard
+     * exists to prevent, arriving through the back door. Disposed/sold machines don't block;
+     * inactive ones do (China freezers/chillers stay bound for life, active or not).
+     * Call after machine_type has been set on the (unsaved) model.
+     */
+    private function assertMachineTypeChangeAllowed(ProductMapping $productMapping): void
+    {
+        $originalType = $productMapping->getOriginal('machine_type') ?: Vend::MACHINE_TYPE_VENDING_MACHINE;
+        $newType = $productMapping->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE;
+        if (! $productMapping->exists || $newType === $originalType) {
+            return;
+        }
+
+        $mismatched = Vend::withoutGlobalScopes()
+            ->where(function ($query) use ($productMapping) {
+                $query->where('product_mapping_id', $productMapping->id)
+                    ->orWhere('upcoming_product_mapping_id', $productMapping->id);
+            })
+            ->where('is_disposed', false)
+            ->where('is_sold', false)
+            ->whereRaw("coalesce(machine_type, 'vending_machine') != ?", [$newType])
+            ->orderBy('code')
+            ->get(['id', 'code', 'machine_type']);
+
+        if ($mismatched->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'machine_type' => sprintf(
+                    'Cannot change this mapping to %s — %d machine(s) of another kind are still on it (%s%s). Move them to a matching mapping, or change their Machine Type first.',
+                    Vend::MACHINE_TYPE_MAPPINGS[$newType] ?? $newType,
+                    $mismatched->count(),
+                    $mismatched->take(5)->pluck('code')->implode(', '),
+                    $mismatched->count() > 5 ? ', …' : ''
+                ),
+            ]);
+        }
+
+        // Mirror direction: other mappings PRESETTING this one as their upcoming. Retyping
+        // this mapping would leave them holding a cross-kind preset — the exact state
+        // assertPresetUpcomingCompatible forbids — which every changeover then silently
+        // drops/skips, stalling the fleet's scheduled mapping change with only a log line.
+        $presetters = ProductMapping::withoutGlobalScopes()
+            ->where('upcoming_product_mapping_id', $productMapping->id)
+            ->where('name', '!=', 'N/A')
+            ->whereRaw("coalesce(machine_type, 'vending_machine') != ?", [$newType])
+            ->orderBy('name')
+            ->get(['id', 'name', 'machine_type']);
+
+        if ($presetters->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'machine_type' => sprintf(
+                    'Cannot change this mapping to %s — %d mapping(s) of another kind preset it as their upcoming mapping (%s%s). Clear or retarget those presets first.',
+                    Vend::MACHINE_TYPE_MAPPINGS[$newType] ?? $newType,
+                    $presetters->count(),
+                    $presetters->take(5)->pluck('name')->implode(', '),
+                    $presetters->count() > 5 ? ', …' : ''
+                ),
+            ]);
+        }
+    }
+
+    /**
+     * A mapping's preset upcoming must be for the same machine kind as the mapping itself —
+     * the preset flows onto every bound vend at changeover (VendController fallback merge,
+     * replaceProductMapping, the OpsJob advance), so a cross-kind preset would queue a
+     * mismatch fleet-wide. N/A placeholder presets are machine-agnostic and allowed.
+     */
+    private function assertPresetUpcomingCompatible(ProductMapping $productMapping): void
+    {
+        if (! $productMapping->upcoming_product_mapping_id) {
+            return;
+        }
+
+        $upcoming = ProductMapping::withoutGlobalScopes()->find($productMapping->upcoming_product_mapping_id);
+        if (! $upcoming || $upcoming->name === 'N/A') {
+            return;
+        }
+
+        $ownType = $productMapping->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE;
+        $upcomingType = $upcoming->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE;
+        if ($upcomingType === $ownType) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'upcoming_product_mapping_id' => sprintf(
+                'Upcoming mapping "%s" is a %s mapping, but this is a %s mapping. The preset upcoming must be built for the same machine kind.',
+                $upcoming->name,
+                Vend::MACHINE_TYPE_MAPPINGS[$upcomingType] ?? $upcomingType,
+                Vend::MACHINE_TYPE_MAPPINGS[$ownType] ?? $ownType
+            ),
+        ]);
+    }
+
     public function toggleSmart($id)
     {
         $productMapping = ProductMapping::with('productMappingItems')->findOrFail($id);
+
+        // The freezer-planogram toggle has no meaning for a chiller mapping (chiller layout rules
+        // — multiple products per level — are a different editor, not this flip).
+        if (($productMapping->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) === Vend::MACHINE_TYPE_SMART_CHILLER) {
+            throw ValidationException::withMessages([
+                'is_smart' => 'This is a Smart Chiller mapping — the Smart Freezer planogram toggle does not apply to it.',
+            ]);
+        }
 
         // Converting vending → smart: a planogram can't hold two products on one
         // slot, so refuse if the existing items already have duplicate channel
@@ -569,12 +691,19 @@ class ProductMappingController extends Controller
             $dupes = $this->duplicateChannelCodes($productMapping->productMappingItems->pluck('channel_code'));
             if (! empty($dupes)) {
                 throw ValidationException::withMessages([
-                    'is_smart' => 'Cannot convert to Smart Freezer: duplicate channel(s) ' . implode(', ', $dupes) . '. Resolve them in the vending table first — a planogram needs one product per channel.',
+                    'is_smart' => 'Cannot convert to Smart Freezer: duplicate channel(s) '.implode(', ', $dupes).'. Resolve them in the vending table first — a planogram needs one product per channel.',
                 ]);
             }
         }
 
         $productMapping->is_smart = ! $productMapping->is_smart;
+        $productMapping->machine_type = $productMapping->is_smart
+            ? Vend::MACHINE_TYPE_SMART_FREEZER
+            : Vend::MACHINE_TYPE_VENDING_MACHINE;
+        // Same back-door as an Edit-page retype: flipping while machines of the old kind are
+        // bound would mis-pair all of them at once.
+        $this->assertMachineTypeChangeAllowed($productMapping);
+        $this->assertPresetUpcomingCompatible($productMapping);
 
         if ($productMapping->is_smart && empty($productMapping->basket_layout_json)) {
             $productMapping->basket_layout_json = $this->deriveBasketLayout($productMapping->productMappingItems);
@@ -625,7 +754,8 @@ class ProductMappingController extends Controller
      * rules differ and legacy data may already hold duplicates.
      *
      * @param  int|null  $ignoreItemId  item to exclude (its own row, when editing).
-     * @throws ValidationException  when $channelCode already exists on another item.
+     *
+     * @throws ValidationException when $channelCode already exists on another item.
      */
     private function assertUniqueChannelCode(ProductMapping $mapping, string $channelCode, $ignoreItemId = null): void
     {
@@ -680,7 +810,7 @@ class ProductMappingController extends Controller
                 : null;
 
             // Create item without risky mass-assign
-            $item = new ProductMappingItem();
+            $item = new ProductMappingItem;
             $item->product_mapping_id = $productMappingId;
             $item->channel_code = $validated['channel_code'];
             $item->product_id = $validated['product_id'];
@@ -731,7 +861,7 @@ class ProductMappingController extends Controller
         $sortDesc = filter_var($request->input('sortBy'), FILTER_VALIDATE_BOOLEAN); // bool
         $dir = $sortDesc ? 'DESC' : 'ASC';
 
-        if (!in_array($sortKey, ['sequence', 'channel_code'])) {
+        if (! in_array($sortKey, ['sequence', 'channel_code'])) {
             // default to sequence if not specified
             $sortKey = 'channel_code';
         }
@@ -811,13 +941,14 @@ class ProductMappingController extends Controller
             'name' => 'required',
             'upcoming_product_mapping_id' => [
                 'nullable',
-                'not_in:' . $productMappingId,
+                'not_in:'.$productMappingId,
             ],
             'upcoming_product_mapping_start_date' => ['nullable', 'date'],
             // Smart-freezer planogram fields. is_smart can be toggled on Edit
             // (cheap migration of mapping type); basket_layout_json is the
             // per-basket division shape sent by the SmartFreezerLayout grid.
             'is_smart' => ['nullable', 'boolean'],
+            'machine_type' => ['nullable', 'in:vending_machine,smart_freezer,smart_chiller'],
             'basket_layout_json' => ['nullable', 'array'],
             'basket_layout_json.*.basket' => ['required_with:basket_layout_json', 'integer', 'min:1'],
             'basket_layout_json.*.divisions' => ['required_with:basket_layout_json', 'integer', 'min:0', 'max:26'],
@@ -829,6 +960,8 @@ class ProductMappingController extends Controller
         // ]);
         $productMapping = ProductMapping::findOrFail($productMappingId);
         $productMapping->fill($request->all());
+        $this->syncMachineType($productMapping, $request);
+        $this->assertMachineTypeChangeAllowed($productMapping);
 
         // Normalise empty string → null so the relationship is truly cleared
         // (the frontend sends '' when the user picks "--- Clear ---")
@@ -840,6 +973,7 @@ class ProductMappingController extends Controller
             // Cleared / never set: store null rather than an empty string.
             $productMapping->upcoming_product_mapping_start_date = null;
         }
+        $this->assertPresetUpcomingCompatible($productMapping);
 
         if ($request->productMappingItems) {
             // Smart freezers: one product per physical slot. Block a bulk save
@@ -850,7 +984,7 @@ class ProductMappingController extends Controller
                 );
                 if (! empty($dupes)) {
                     throw ValidationException::withMessages([
-                        'productMappingItems' => 'Duplicate channel(s) ' . implode(', ', $dupes) . ' — each smart-freezer slot can hold only one product.',
+                        'productMappingItems' => 'Duplicate channel(s) '.implode(', ', $dupes).' — each smart-freezer slot can hold only one product.',
                     ]);
                 }
             }
@@ -890,8 +1024,8 @@ class ProductMappingController extends Controller
         if ($pushed < $targets) {
             return $redirect->with(
                 'error',
-                "Saved, but the menu refresh could not be sent to " . ($targets - $pushed) . " of {$targets} smart freezer(s). "
-                . "Use \"Push Products Info to Machine\" on the affected machine(s)."
+                'Saved, but the menu refresh could not be sent to '.($targets - $pushed)." of {$targets} smart freezer(s). "
+                .'Use "Push Products Info to Machine" on the affected machine(s).'
             );
         }
 
@@ -944,7 +1078,7 @@ class ProductMappingController extends Controller
 
         $response = DB::transaction(function () use ($mapping, $basket, $validated) {
             foreach (array_values($validated['product_ids']) as $index => $productId) {
-                $code = $basket . ($index + 1); // "11","12","13"… — 1-indexed division.
+                $code = $basket.($index + 1); // "11","12","13"… — 1-indexed division.
                 $item = $mapping->productMappingItems()->where('channel_code', $code)->first();
 
                 if ($productId === null) {
@@ -952,6 +1086,7 @@ class ProductMappingController extends Controller
                     if ($item) {
                         $item->delete();
                     }
+
                     continue;
                 }
 
@@ -1019,9 +1154,10 @@ class ProductMappingController extends Controller
             $url = Storage::url($storedPath);
             $productMapping->attachments()->create([
                 'full_url' => $url,
-                'local_url' => $dir . '/' . $fileName,
+                'local_url' => $dir.'/'.$fileName,
             ]);
         }
+
         return true;
     }
 
@@ -1029,7 +1165,7 @@ class ProductMappingController extends Controller
     {
         $productMapping = ProductMapping::withoutGlobalScopes()->findOrFail($productMappingId);
 
-        if (!$productMapping->operator_id) {
+        if (! $productMapping->operator_id) {
             return redirect()->route('product-mappings')->withErrors([
                 'delete' => 'Global Product Mappings cannot be deleted.',
             ]);
@@ -1049,7 +1185,7 @@ class ProductMappingController extends Controller
 
         return DB::transaction(function () use ($productMapping) {
             $replicated = $productMapping->replicate()->fill([
-                'name' => $productMapping->name . '-replicated',
+                'name' => $productMapping->name.'-replicated',
                 'operator_id' => auth()->user()->operator_id,
             ]);
             $replicated->save();
@@ -1078,8 +1214,8 @@ class ProductMappingController extends Controller
                     $dir = trim(dirname($attachment->local_url), '.');
                     $dir = $dir !== '' ? $dir : 'sys/product-mappings';
                     $extension = pathinfo($attachment->local_url, PATHINFO_EXTENSION);
-                    $newFileName = Str::random(40) . ($extension ? '.' . $extension : '');
-                    $newLocalUrl = $dir . '/' . $newFileName;
+                    $newFileName = Str::random(40).($extension ? '.'.$extension : '');
+                    $newLocalUrl = $dir.'/'.$newFileName;
 
                     Storage::disk('public')->copy($attachment->local_url, $newLocalUrl);
 
@@ -1105,7 +1241,7 @@ class ProductMappingController extends Controller
     public function bindVends(Request $request, $productMappingId)
     {
         $productMapping = ProductMapping::findOrFail($productMappingId);
-        
+
         $requestedVendIds = collect($request->productMappingVends)->pluck('id')->toArray();
         $existingVends = $productMapping->vends;
         $existingVendIds = $existingVends->pluck('id')->toArray();
@@ -1115,13 +1251,13 @@ class ProductMappingController extends Controller
         $vendsToKeepIds = array_intersect($existingVendIds, $requestedVendIds);
 
         // 1. Unbind removed vends
-        if (!empty($vendsToRemoveIds)) {
+        if (! empty($vendsToRemoveIds)) {
             $vendsToRemove = Vend::whereIn('id', $vendsToRemoveIds)->get();
             $this->unbindProductFromChannels($vendsToRemove);
             Vend::whereIn('id', $vendsToRemoveIds)->update([
                 'product_mapping_id' => null,
                 'upcoming_product_mapping_id' => null,
-                'binded_at' => null
+                'binded_at' => null,
             ]);
         }
 
@@ -1130,19 +1266,42 @@ class ProductMappingController extends Controller
             ? $productMapping->upcoming_product_mapping_id
             : null;
 
+        // Machine-type ↔ mapping guard: this bulk bind must pass the same gate as every other
+        // bind path (VendController::update etc.) — without it, one save here could pair a whole
+        // fleet of smart freezers with a vending planogram. N/A mappings are machine-agnostic.
+        if (! empty($vendsToAddIds) && $productMapping->name !== 'N/A') {
+            $mappingType = $productMapping->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE;
+            $mismatched = Vend::withoutGlobalScopes()
+                ->whereIn('id', $vendsToAddIds)
+                ->whereRaw("coalesce(machine_type, 'vending_machine') != ?", [$mappingType])
+                ->orderBy('code')
+                ->get(['id', 'code', 'machine_type']);
+            if ($mismatched->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'productMappingVends' => sprintf(
+                        'This is a %s mapping — %d selected machine(s) are another kind (%s%s). Change their Machine Type first, or bind them to a matching mapping.',
+                        Vend::MACHINE_TYPE_MAPPINGS[$mappingType] ?? $mappingType,
+                        $mismatched->count(),
+                        $mismatched->take(5)->pluck('code')->implode(', '),
+                        $mismatched->count() > 5 ? ', …' : ''
+                    ),
+                ]);
+            }
+        }
+
         // 2. Add new vends
-        if (!empty($vendsToAddIds)) {
+        if (! empty($vendsToAddIds)) {
             Vend::whereIn('id', $vendsToAddIds)->update([
                 'product_mapping_id' => $productMapping->id,
                 'upcoming_product_mapping_id' => $safeUpcomingId,
-                'binded_at' => now()
+                'binded_at' => now(),
             ]);
         }
 
         // 3. Keep existing vends, only update upcoming mapping in case mapping itself changed
-        if (!empty($vendsToKeepIds)) {
+        if (! empty($vendsToKeepIds)) {
             Vend::whereIn('id', $vendsToKeepIds)->update([
-                'upcoming_product_mapping_id' => $safeUpcomingId
+                'upcoming_product_mapping_id' => $safeUpcomingId,
             ]);
         }
 
@@ -1160,7 +1319,7 @@ class ProductMappingController extends Controller
     public function toggleActivateDeactivate($productMappingID)
     {
         $productMapping = ProductMapping::findOrFail($productMappingID);
-        $productMapping->is_active = !$productMapping->is_active;
+        $productMapping->is_active = ! $productMapping->is_active;
         $productMapping->save();
 
         return redirect()->route('product-mappings');
