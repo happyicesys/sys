@@ -11,6 +11,7 @@ use App\Http\Resources\VendTransactionGraphResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Customer;
+use App\Models\CustomerPeriodSummary;
 use App\Models\LocationType;
 use App\Models\Month;
 use App\Models\Operator;
@@ -231,6 +232,12 @@ class DashboardController extends Controller
             $activeMachineGraphData = $this->getActiveMachineGraphData($request, $testingVendIds);
             \Log::info('[Dashboard] getActiveMachineGraphData: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
 
+            // Full page only. customer_period_summaries has no product
+            // dimension, so on the product-narrowed Lite page this breakdown
+            // would be whole-site money wearing a per-product page's clothes.
+            $earningsGraphData = $this->lite ? [] : $this->getEarningsGraphData($request, $testingVendIds);
+            \Log::info('[Dashboard] getEarningsGraphData: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+
             $monthlyAnalytics = $this->getMonthlyAnalytics($request, $allMonths);
             \Log::info('[Dashboard] getMonthlyAnalytics: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
 
@@ -245,6 +252,7 @@ class DashboardController extends Controller
             $vendCount = 0;
             $monthGraphData = [];
             $activeMachineGraphData = [];
+            $earningsGraphData = [];
             $monthlyAnalytics = [];
             $salesComparisonGraphData = [];
         }
@@ -265,6 +273,9 @@ class DashboardController extends Controller
             'activeMachineGraphData' => $activeMachineGraphData,
             'autoLoad' => $shouldAutoload,
             'dayGraphData' => VendTransactionGraphResource::collection($dayGraph),
+            // Sales split into GST / Product Cost / Loc Fees / Vend Earning,
+            // plus the VE ratio. Always [] on Lite — see getEarningsGraphData().
+            'earningsGraphData' => $earningsGraphData,
             'locationTypeOptions' => OptionResource::collection(
                 LocationType::toBase()->select('id', 'name')->orderBy('sequence')->get()
             ),
@@ -959,6 +970,331 @@ class DashboardController extends Controller
     }
 
     /**
+     * "Sales by Months — where the money went": the same monthly bars broken
+     * into the four slices that make up the sell price, plus the VE ratio.
+     *
+     *   Total Sales (incl GST)  =  GST + Product Cost + Loc Fees + Vend Earning
+     *
+     * Definitions — these are the app's EXISTING ones, not new arithmetic. Every
+     * component is read from (or derived from) `customer_period_summaries`, the
+     * same monthly per-site truth the Site Summary page and the Performance
+     * Report render, so the two surfaces cannot quote different numbers:
+     *
+     *   Total          sales_cents                    (INCL GST, as charged)
+     *   sales(excl)    sales_cents / (1 + operator gst_vat_rate%)
+     *   GST            Total - sales(excl)
+     *   Gross Earning  gross_earning_cents            (= gp_metrics gross_profit,
+     *                                                    already excl-GST)
+     *   Product Cost   sales(excl) - Gross Earning
+     *   Loc Fees       location_fees_cents - external_subsidize_cents  (NET, the
+     *                  figure Vend Earning is actually computed against)
+     *   Vend Earning   location_earning_cents         (= Gross Earning - net Loc Fee)
+     *   VE ratio       Vend Earning / Total           (= location_earning_rate,
+     *                  the "Rate" column on Site Summary - denominator is
+     *                  INCL-GST sales, which is also what the bar height is)
+     *
+     * The four slices telescope back to Total exactly, by construction:
+     *   (Total - excl) + (excl - Gross) + netFee + (Gross - netFee) = Total.
+     *
+     * WHY NOT vend_records / gp_metrics, which drive the Sales-by-Months chart
+     * above? Neither carries a location fee - Loc Fee is a per-SITE contract
+     * term, not a machine measure. `customer_period_summaries` is the only place
+     * the contract has been applied to a month. Its sales_cents comes from
+     * vend_transactions, so the totals sit within ~0.1% of the vend_records bars
+     * on recent months rather than being cent-identical; older months drift
+     * further because vend_records was never reconciled (see CLAUDE.md).
+     *
+     * WHY THE LOCK FLAGS RIDE ALONG: Loc Fees and Vend Earning are recomputed
+     * nightly from the site's CURRENT contract terms until the period is locked
+     * - amend a contract today and every unlocked month silently re-prices.
+     * Locking freezes the contract snapshot onto the row. So a month is only
+     * settled history when every one of its rows is locked; the page marks the
+     * rest as provisional rather than presenting them as final.
+     *
+     * NOT computed for the Lite page: this table has no product dimension, so
+     * the figures are whole-site money and would be a lie on a product-narrowed
+     * page. index() skips the call entirely when $this->lite.
+     */
+    private function getEarningsGraphData(Request $request, array $testingVendIds)
+    {
+        $yearsBack = max(2, min(3, (int) ($request->years_back ?? 2)));
+
+        // Same window derivation as getMonthGraphData(), deliberately - the two
+        // charts are read side by side and must span the same months.
+        if ($request->month_year) {
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01');
+            $thisYear = $baseDate->copy()->endOfYear();
+            $lastYear = $baseDate->copy()->subYears($yearsBack - 1)->startOfYear();
+            $compareYear = $baseDate->year;
+            $compareMonth = $baseDate->month;
+        } else {
+            $thisYear = Carbon::today()->endOfYear();
+            $lastYear = Carbon::today()->subYears($yearsBack - 1)->startOfYear();
+            $compareYear = Carbon::today()->year;
+            $compareMonth = Carbon::today()->month;
+        }
+
+        $cacheKey = $this->makeCacheKey('earnings_graph', $request);
+        $rows = Cache::remember($cacheKey, 300, function () use ($request, $testingVendIds, $lastYear, $thisYear) {
+            $query = CustomerPeriodSummary::query()
+                ->whereBetween('year_month', [
+                    $lastYear->copy()->startOfYear()->toDateString(),
+                    $thisYear->copy()->endOfYear()->toDateString(),
+                ]);
+
+            $this->applyEarningsFilters($query, $request, $testingVendIds);
+
+            return $query
+                // year_month is a first-of-month DATE, so grouping on the column
+                // itself lets cps_yearmonth_idx (year_month) serve both the range
+                // scan and the grouping, index-ordered, with no filesort - a
+                // YEAR()/MONTH() wrapper would defeat it. The split happens in PHP.
+                // (The operator-scoped path has cps_operator_yearmonth_idx too.)
+                ->groupBy('year_month')
+                ->selectRaw('
+                    `year_month` AS ym,
+                    COALESCE(SUM(sales_cents), 0) AS sales_cents,
+                    COALESCE(SUM(sales_cents / (1 + COALESCE((SELECT gst_vat_rate FROM operators WHERE operators.id = customer_period_summaries.operator_id), 0) / 100)), 0) AS sales_excl_gst_cents,
+                    COALESCE(SUM(gross_earning_cents), 0) AS gross_earning_cents,
+                    COALESCE(SUM(location_fees_cents - external_subsidize_cents), 0) AS net_location_fees_cents,
+                    COALESCE(SUM(location_earning_cents), 0) AS location_earning_cents,
+                    COALESCE(SUM(CASE WHEN is_locked = 0 THEN sales_cents ELSE 0 END), 0) AS unlocked_sales_cents,
+                    -- Counted in SITES, not rows. A site can hold several rows
+                    -- for one month (segment_index > 0 after a mid-month
+                    -- contract change, or a machine swap) - 9 of 425 rows in
+                    -- 2026-06 - so COUNT(*) would quote a denominator that is
+                    -- not the number of sites it claims to be. A site counts as
+                    -- unlocked when ANY of its rows for the month is unlocked:
+                    -- the month is not settled for that site until all of them are.
+                    COUNT(DISTINCT customer_id) AS site_count,
+                    COUNT(DISTINCT CASE WHEN is_locked = 0 THEN customer_id END) AS unlocked_site_count
+                ')
+                ->orderBy('year_month')
+                ->get();
+        });
+
+        $monthsArrInit = [];
+        foreach (range($lastYear->year, $thisYear->year) as $year) {
+            for ($i = 1; $i <= 12; $i++) {
+                if ($year == $compareYear && $i > $compareMonth) {
+                    continue;
+                }
+                $monthsArrInit[$year][$i] = [
+                    'month' => $i,
+                    'year' => $year,
+                    'sales' => 0,
+                    'gst' => 0,
+                    'product_cost' => 0,
+                    'loc_fees' => 0,
+                    'vend_earning' => 0,
+                    've_ratio' => null,
+                    'is_locked' => false,
+                    'locked_sites' => 0,
+                    'unlocked_sites' => 0,
+                    'unlocked_share' => null,
+                    'site_count' => 0,
+                ];
+            }
+        }
+
+        foreach ($rows as $row) {
+            $ym = Carbon::parse($row->ym);
+            if (! isset($monthsArrInit[$ym->year][$ym->month])) {
+                continue;
+            }
+
+            $salesCents = (float) $row->sales_cents;
+            $salesExclCents = (float) $row->sales_excl_gst_cents;
+            $grossEarningCents = (float) $row->gross_earning_cents;
+            $siteCount = (int) $row->site_count;
+            $unlockedSites = (int) $row->unlocked_site_count;
+
+            $monthsArrInit[$ym->year][$ym->month] = [
+                'month' => $ym->month,
+                'year' => $ym->year,
+                'sales' => round($salesCents / 100, 2),
+                'gst' => round(($salesCents - $salesExclCents) / 100, 2),
+                'product_cost' => round(($salesExclCents - $grossEarningCents) / 100, 2),
+                'loc_fees' => round(((float) $row->net_location_fees_cents) / 100, 2),
+                'vend_earning' => round(((float) $row->location_earning_cents) / 100, 2),
+                // null (not 0) for a month with no sales - a 0% point would read
+                // as "we earned nothing", when the truth is there is nothing to
+                // take a ratio of. The chart draws the line across the gap
+                // (spanGaps), so the trend stays continuous without inventing a
+                // data point.
+                've_ratio' => $salesCents > 0
+                    ? round(((float) $row->location_earning_cents) / $salesCents, 4)
+                    : null,
+                // Provisional until EVERY site in the month is locked - one
+                // unlocked site can still re-price when its contract is amended.
+                'is_locked' => $siteCount > 0 && $unlockedSites === 0,
+                'locked_sites' => $siteCount - $unlockedSites,
+                'unlocked_sites' => $unlockedSites,
+                // How much of the month is actually still in play. Sites get
+                // locked in a batch and a handful trail behind, so "not fully
+                // locked" on its own would read a 98%-settled month exactly like
+                // an untouched one. This is the number that separates them.
+                'unlocked_share' => $salesCents > 0
+                    ? round(((float) $row->unlocked_sales_cents) / $salesCents, 4)
+                    : null,
+                'site_count' => $siteCount,
+            ];
+        }
+
+        return collect($monthsArrInit);
+    }
+
+    /**
+     * The dashboard's filter bar, translated onto customer_period_summaries.
+     *
+     * The filters are machine-grained; this table is site-grained. That maps
+     * cleanly here because a site holds exactly one machine on live (verified:
+     * all 401 active sites, one active machine each), so resolving a machine
+     * filter through `vends.customer_id` selects the same population rather than
+     * dragging in a sibling machine's money. Should that ever stop being true,
+     * a multi-machine site would be counted whole for a single-machine filter -
+     * revisit this method, not the chart.
+     *
+     * Also carries the access control that VendRecord gets for free from its
+     * global scopes (OperatorVendRecordScope + TransactionAccessScope).
+     * CustomerPeriodSummary has NO global scopes, so every leg below is
+     * mandatory, not defensive.
+     */
+    private function applyEarningsFilters($query, Request $request, array $testingVendIds): void
+    {
+        // ---- access control (hand-applied; see docblock) --------------------
+        if (auth()->check()) {
+            $user = auth()->user();
+            $operatorId = $user->operator_id;
+
+            // Operator 1 (HappyIce) sees every operator - same carve-out as
+            // OperatorVendRecordScope.
+            if ($operatorId && (int) $operatorId !== 1) {
+                $query->where('customer_period_summaries.operator_id', $operatorId);
+            }
+
+            $vendIds = $user->vends ? $user->vends->pluck('id')->all() : [];
+
+            if (! empty($vendIds)) {
+                $query->whereIn('customer_period_summaries.customer_id', function ($sub) use ($vendIds) {
+                    $sub->select('customer_id')->from('vends')->whereIn('id', $vendIds);
+                });
+            }
+        }
+
+        // "Transaction Access From", applied on period_start rather than
+        // year_month: a cut-off mid-month must drop that month entirely here.
+        // The row is a whole month of money and cannot be shown in part, so the
+        // strict reading is the only safe one.
+        \App\Support\TransactionAccess::applyToColumn($query, 'customer_period_summaries.period_start');
+
+        // ---- test machines --------------------------------------------------
+        if (! empty($testingVendIds)) {
+            $query->whereNotIn('customer_period_summaries.customer_id', function ($sub) use ($testingVendIds) {
+                $sub->select('customer_id')->from('vends')
+                    ->whereIn('id', $testingVendIds)
+                    ->whereNotNull('customer_id');
+            });
+        }
+
+        // ---- the filter bar -------------------------------------------------
+        // Every leg VendRecord::scopeFilterIndex honours has a twin below, so this
+        // chart narrows with the one above it. Five of them (visited,
+        // is_binded_customer, categories, categoryGroups, operator_id) are not on
+        // the Dashboard filter bar and only arrive on a hand-built URL - they are
+        // still honoured, because a chart that quietly ignores a filter the chart
+        // beside it obeys is worse than one that returns nothing. All five are in
+        // makeCacheKey() too; adding a leg here without adding it there serves
+        // another filter-combination's numbers for up to 5 minutes.
+        $query
+            ->when($request->has('visited'), function ($q) use ($request) {
+                // Same all-or-nothing switch as scopeFilterIndex.
+                $q->whereRaw($request->visited == 'true' ? '1 = 1' : '1 = 0');
+            })
+            ->when($request->is_binded_customer, function ($q, $search) {
+                if ($search != 'all' && $search != 'true') {
+                    // This table is keyed by customer_id NOT NULL - a row only
+                    // exists because a machine was bound to a site for that month.
+                    // So "unbinded only" can never have a breakdown, and saying so
+                    // with 1 = 0 is honest where showing binded money would not be.
+                    $q->whereRaw('1 = 0');
+                }
+            })
+            ->when($request->categories, function ($q, $search) {
+                $q->whereIn('customer_period_summaries.customer_id', function ($sub) use ($search) {
+                    $sub->select('id')->from('customers')->whereIn('category_id', $search);
+                });
+            })
+            ->when($request->categoryGroups, function ($q, $search) {
+                $q->whereIn('customer_period_summaries.customer_id', function ($sub) use ($search) {
+                    $sub->select('id')->from('customers')
+                        ->whereIn('category_id', function ($inner) use ($search) {
+                            $inner->select('id')->from('categories')->whereIn('category_group_id', $search);
+                        });
+                });
+            })
+            ->when($request->codes, function ($q) use ($request) {
+                $q->whereIn('customer_period_summaries.customer_id', function ($sub) use ($request) {
+                    $sub->select('customer_id')->from('vends');
+
+                    // index() pre-resolves machine codes to ids once per request.
+                    if ($request->has('_resolved_vend_ids')) {
+                        $sub->whereIn('id', $request->input('_resolved_vend_ids', []));
+                    } else {
+                        $codes = strpos($request->codes, ',') !== false
+                            ? array_map('trim', explode(',', $request->codes))
+                            : [$request->codes];
+                        $sub->whereIn('code', $codes);
+                    }
+                });
+            })
+            ->when($request->customer, function ($q, $search) {
+                $q->whereIn('customer_period_summaries.customer_id', function ($sub) use ($search) {
+                    SiteSearch::for($search)->applyTo($sub->select('id')->from('customers'));
+                });
+            })
+            ->when($request->location_type_id, function ($q, $search) {
+                if ($search != 'all') {
+                    // The site's own location type. vend_records filters on its
+                    // frozen per-row transaction location type; this table has no
+                    // such column, and a site's type is what its contract is
+                    // written against anyway.
+                    $q->whereIn('customer_period_summaries.customer_id', function ($sub) use ($search) {
+                        $sub->select('id')->from('customers')->where('location_type_id', $search);
+                    });
+                }
+            })
+            ->when($request->operator_id, function ($q, $search) {
+                // Singular twin of `operators`. Not on this page's filter bar, but
+                // scopeFilterIndex honours it, so this does too.
+                if ($search != 'all') {
+                    $q->where('customer_period_summaries.operator_id', $search);
+                }
+            })
+            ->when($request->operators, function ($q, $search) {
+                if (! in_array('all', $search)) {
+                    $q->whereIn('customer_period_summaries.operator_id', $search);
+                }
+            })
+            ->when($request->vendModels, function ($q, $search) {
+                $q->whereIn('customer_period_summaries.customer_id', function ($sub) use ($search) {
+                    $sub->select('customer_id')->from('vends')->whereIn('vend_model_id', $search);
+                });
+            })
+            ->when($request->vendPrefixes, function ($q, $search) {
+                // 'single-ud' is a saved bundle of prefix ids, expanded exactly as
+                // VendRecord::scopeFilterIndex expands it.
+                if (in_array('single-ud', $search)) {
+                    $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
+                    unset($search[array_search('single-ud', $search)]);
+                }
+                $q->whereIn('customer_period_summaries.customer_id', function ($sub) use ($search) {
+                    $sub->select('customer_id')->from('vends')->whereIn('vend_prefix_id', $search);
+                });
+            });
+    }
+
+    /**
      * Hand-applied twin of OperatorVendRecordScope, for the ONE raw DB::table()
      * builder on this page.
      *
@@ -1284,6 +1620,16 @@ class DashboardController extends Controller
             $request->categoryGroups,
             $request->is_binded_customer,
             $request->visited,
+            // Two params the filter bar does not send but the queries DO honour
+            // (scopeFilterIndex and applyEarningsFilters both read them), so a
+            // hand-built URL varying either must not share a cache entry:
+            //   operator_id      singular twin of `operators`
+            //   location_type_id what the queries actually read; `locationType`
+            //                    above is the UI's name for the same value, and
+            //                    the two only agree because buildDashboardQueryParams
+            //                    sends both.
+            $request->operator_id,
+            $request->location_type_id,
         ], $extra)));
     }
 

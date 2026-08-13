@@ -218,6 +218,76 @@
                                 >
                                 </Graph>
                             </div>
+                            <!--
+                              The same monthly bar as above, cut into the four
+                              slices that add back up to it. Hidden rather than
+                              shown empty when there is nothing to break down
+                              (no site rows in range), so the page never carries
+                              a flat, unexplained chart.
+                            -->
+                            <div class="pt-5" v-if="earningsGraphDatasets.length">
+                                <Graph
+                                    :key="componentKey6"
+                                    type="bar"
+                                    :labels="earningsGraphLabels"
+                                    :datasets="earningsGraphDatasets"
+                                    :options="earningsGraphOptions"
+                                >
+                                </Graph>
+                                <div class="mt-2 px-2 text-xs text-gray-500 space-y-1">
+                                    <p>
+                                        Each bar is that month's <span class="font-medium">Total Sales (incl GST)</span>, split into
+                                        <span class="font-medium text-emerald-700">Vend Earning</span>,
+                                        <span class="font-medium text-amber-600">Loc Fees</span>,
+                                        <span class="font-medium text-blue-600">Product Cost</span> and
+                                        <span class="font-medium text-gray-500">GST</span>.
+                                        The line is the <span class="font-medium">VE ratio</span> — Vend Earning ÷ Total Sales.
+                                        Figures come from the monthly Site Summary, so they cover binded sites only and can sit
+                                        slightly under the Sales by Months totals above.
+                                    </p>
+                                    <p v-if="earningsProvisionalMonths.length">
+                                        <span class="font-medium text-gray-700">Outlined segments are provisional.</span>
+                                        Loc Fees and Vend Earning are recalculated from each site's current contract terms until
+                                        the period is locked — amend a contract and these months re-price.
+                                        Not yet fully locked:
+                                        <span v-for="(entry, entryIndex) in earningsProvisionalMonths" :key="entry.year">
+                                            <span v-if="entryIndex > 0"> · </span>{{ entry.year }} {{ entry.months }}
+                                        </span>
+                                        <span class="block">Hover a bar for how much of that month is still open.</span>
+                                    </p>
+                                    <p v-if="earningsNegativeSlices.length">
+                                        <!-- Phrased as a label rather than a sentence, like "Not yet fully
+                                             locked:" above — a verb here would have to agree with a list
+                                             that is 1-3 items long and whose names are already plural. -->
+                                        <span class="font-medium text-gray-700">
+                                            Negative in some months: {{ formatList(earningsNegativeSlices) }}.
+                                        </span>
+                                        <!-- Only explain the slices actually in play — a reason for a slice
+                                             that did not go negative reads as if it had. -->
+                                        <span v-if="earningsNegativeSlices.includes('Loc Fees')">
+                                            A negative Loc Fee is a Subsidized Plan, or an External Subsidize larger than the
+                                            rental, where the location pays us.
+                                        </span>
+                                        <span v-if="earningsNegativeSlices.includes('Vend Earning')">
+                                            A negative Vend Earning is a site whose Loc Fee came to more than it earned.
+                                        </span>
+                                        <span v-if="earningsNegativeSlices.includes('Product Cost')">
+                                            A negative Product Cost is Gross Earning booked above ex-GST sales — usually a
+                                            refund or a re-costed SKU.
+                                        </span>
+                                        Negative segments are drawn below the axis, so for those months the stack does not add
+                                        up to the bar height. The tooltip figures are still exact.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="pt-5" v-else-if="earningsNoSiteData">
+                                <p class="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-8 text-center text-sm text-gray-500">
+                                    No Vend Earning / Loc Fees breakdown for this filter — the machines it selects are not bound
+                                    to a site, so they have no contract terms to split sales against.
+                                </p>
+                            </div>
+
                             <div class="pt-5">
                                 <Graph
                                     :key="componentKey4"
@@ -560,6 +630,7 @@
         activeMachineGraphData: Object,
         autoLoad: Boolean,
         dayGraphData: Object,
+        earningsGraphData: Object,
         locationTypeOptions: Object,
         monthGraphData: Object,
         months: Object,
@@ -598,6 +669,7 @@
     const componentKey3 = ref(0);
     const componentKey4 = ref(0);
     const componentKey5 = ref(0);
+    const componentKey6 = ref(0);
     const yearsBack = ref(2);
     const forceRerender1 = () => {
         componentKey1.value += 1;
@@ -613,6 +685,9 @@
     };
     const forceRerender5 = () => {
         componentKey5.value += 1;
+    };
+    const forceRerender6 = () => {
+        componentKey6.value += 1;
     };
     const locationTypeOptions = ref([])
     const operator = usePage().props.auth.operator
@@ -903,6 +978,176 @@
         }
     })
 
+    /* ---------------------------------------------------------------------
+     * Sales by Months — Breakdown.
+     *
+     * The SAME monthly bar as "Sales by Months" above, cut into the four slices
+     * that add back up to it:
+     *
+     *     Total Sales (incl GST) = Vend Earning + Loc Fees + Product Cost + GST
+     *
+     * Stacked bottom-up in that order (Chart.js stacks in dataset order), one
+     * stack per year sitting side by side — same year-over-year layout, and the
+     * same 2/3-year toggle, as the chart above. The right axis carries the VE
+     * ratio (Vend Earning ÷ Total Sales) as a line per year.
+     *
+     * Hue encodes the SLICE, opacity encodes the YEAR (current year solid,
+     * earlier years faded) — the inverse of the charts above, where hue was free
+     * to encode the year. Within a month the stacks read left-to-right oldest →
+     * current, exactly as the bars above do.
+     *
+     * Outlined Loc Fees / Vend Earning segments mark a month that is not fully
+     * locked: those two slices are recomputed nightly from each site's CURRENT
+     * contract terms until the period is locked, so amending a contract
+     * re-prices every unlocked month. GST and Product Cost do not move that way,
+     * so they are never outlined.
+     * ------------------------------------------------------------------- */
+    const EARNINGS_SLICE_COLORS = {
+        vend_earning: '#059669', // emerald — what we keep
+        loc_fees: '#f59e0b',     // amber   — what the site takes
+        product_cost: '#3b82f6', // blue    — cost of goods
+        gst: '#9ca3af',          // grey    — never ours, passed to IRAS
+    }
+    // Bottom → top of the stack. Mirrors the order on the sketch this chart
+    // came from, and puts the two contract-driven (movable) slices adjacent at
+    // the bottom.
+    const EARNINGS_SLICES = [
+        { key: 'vend_earning', name: 'Vend Earning', movable: true },
+        { key: 'loc_fees', name: 'Loc Fees', movable: true },
+        { key: 'product_cost', name: 'Product Cost', movable: false },
+        { key: 'gst', name: 'GST', movable: false },
+    ]
+
+    const formatMoneyValue = (val) => {
+        return Number(val ?? 0).toLocaleString(undefined, {
+            minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent),
+            maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)
+        })
+    }
+
+    const earningsGraphData = ref([]);
+    const earningsGraphDatasets = ref([])
+    const earningsGraphLabels = ref([])
+    // Months (by year) whose site rows are not ALL locked — rendered under the
+    // chart so the caveat is stated in words, not only as an outline.
+    const earningsProvisionalMonths = ref([])
+    // Names of the slices that went negative somewhere in view — Chart.js draws
+    // negatives below the axis, so the stack stops summing to the bar height and
+    // that needs saying. See the scan in syncDashboardData() for which slices can
+    // go negative and why.
+    const earningsNegativeSlices = ref([])
+    // Filter matched machines, but none of them sit behind a site contract.
+    const earningsNoSiteData = ref(false)
+    const earningsGraphOptions = ref({
+        // One segment at a time. 'index' would open a 10+ row tooltip covering
+        // every slice of every year; the stack is already readable by eye, so
+        // the tooltip's job here is to name the one block under the cursor.
+        interaction: {
+            mode: 'nearest',
+            intersect: true,
+        },
+        scales: {
+            x: {
+                stacked: true,
+            },
+            y: {
+                position: 'left',
+                stacked: true,
+                title: {
+                    display: true,
+                    text: 'Sales(' + operatorCountry.currency_symbol + ')'
+                },
+                beginAtZero: true
+            },
+            y1: {
+                position: 'right',
+                // NOT stacked — this axis carries ratio lines, not bar slices.
+                // Leaving it stacked would make the second year's line render at
+                // year1 + year2.
+                stacked: false,
+                title: {
+                    display: true,
+                    text: 'VE ratio'
+                },
+                beginAtZero: true,
+                grid: {
+                    drawOnChartArea: false,
+                },
+                ticks: {
+                    callback: function (value) {
+                        return (Number(value) * 100).toFixed(0) + '%'
+                    }
+                }
+            },
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: 'Sales by Months — Vend Earning / Loc Fees / Product Cost / GST'
+            },
+            legend: {
+                reverse: false,
+                labels: {
+                    padding: 12,
+                    boxWidth: 12,
+                    sort: (a, b) => a.datasetIndex - b.datasetIndex
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    title: function (items) {
+                        const item = items[0]
+                        if (!item) return ''
+                        return (item.dataset.year_label ?? '') + ' — month ' + item.label
+                    },
+                    label: function (item) {
+                        const ds = item.dataset
+                        const value = Number(item.parsed.y ?? 0)
+
+                        if (ds.is_ratio) {
+                            return 'VE ratio: ' + (value * 100).toFixed(1) + '%'
+                        }
+
+                        const total = Number((ds.month_totals || [])[item.dataIndex] ?? 0)
+                        const share = total ? ' (' + ((value / total) * 100).toFixed(1) + '% of sales)' : ''
+
+                        return (ds.slice_name ?? ds.label) + ': '
+                            + operatorCountry.currency_symbol + formatMoneyValue(value)
+                            + share
+                    },
+                    footer: function (items) {
+                        const item = items[0]
+                        if (!item) return ''
+                        const ds = item.dataset
+                        const lines = []
+
+                        if (!ds.is_ratio) {
+                            const total = Number((ds.month_totals || [])[item.dataIndex] ?? 0)
+                            lines.push('Total sales: ' + operatorCountry.currency_symbol + formatMoneyValue(total))
+                        }
+
+                        const lock = (ds.lock_info || [])[item.dataIndex]
+                        if (lock && lock.site_count) {
+                            if (lock.is_locked) {
+                                lines.push('Locked — final (' + lock.site_count + ' sites)')
+                            } else {
+                                // Name the exposure, not just the state: a month
+                                // with 16 of 416 sites open is nearly settled,
+                                // one with 416 of 416 is not settled at all.
+                                const share = lock.unlocked_share === null || lock.unlocked_share === undefined
+                                    ? ''
+                                    : ' — ' + (lock.unlocked_share * 100).toFixed(1) + '% of sales'
+                                lines.push('Provisional: ' + lock.unlocked_sites + ' of ' + lock.site_count + ' sites unlocked' + share)
+                            }
+                        }
+
+                        return lines
+                    }
+                }
+            }
+        }
+    })
+
     const productGraphData = ref([])
     const productGraphDatasets = ref([])
     const productGraphLabels = ref([])
@@ -1022,6 +1267,50 @@
         monthYearOptions.value = options;
     }
 
+    /**
+     * [1,2,3,4,8] -> "Jan–Apr, Aug". Used for the provisional-months caption,
+     * where a fully-unlocked year would otherwise print twelve comma-separated
+     * month names.
+     */
+    function monthRunsLabel(monthNumbers) {
+        const sorted = [...new Set(monthNumbers)].sort((a, b) => a - b);
+        const name = (m) => moment().month(m - 1).format('MMM');
+        const parts = [];
+        let runStart = null;
+        let runEnd = null;
+
+        sorted.forEach((m) => {
+            if (runStart === null) {
+                runStart = runEnd = m;
+                return;
+            }
+            if (m === runEnd + 1) {
+                runEnd = m;
+                return;
+            }
+            parts.push(runStart === runEnd ? name(runStart) : name(runStart) + '–' + name(runEnd));
+            runStart = runEnd = m;
+        });
+
+        if (runStart !== null) {
+            parts.push(runStart === runEnd ? name(runStart) : name(runStart) + '–' + name(runEnd));
+        }
+
+        return parts.join(', ');
+    }
+
+    /**
+     * ['A','B','C'] -> "A, B and C". Used for the negative-slice caption, where a
+     * plain join(' and ') would read "A and B and C".
+     */
+    function formatList(items) {
+        if (items.length <= 1) {
+            return items.join('');
+        }
+
+        return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+    }
+
     function hexToRGBA(hex, alpha) {
         var r = parseInt(hex.slice(1, 3), 16);
         var g = parseInt(hex.slice(3, 5), 16);
@@ -1052,7 +1341,7 @@
     function onSearchFilterUpdated() {
         router.visit(
             route('dashboard', buildDashboardQueryParams()),{
-                only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'performerLimit', 'worstPerformerGraphData', 'worstPerformerLimit', 'vendCount', 'salesComparisonGraphData'],
+                only: ['activeMachineGraphData', 'dayGraphData', 'earningsGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'performerLimit', 'worstPerformerGraphData', 'worstPerformerLimit', 'vendCount', 'salesComparisonGraphData'],
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
@@ -1169,6 +1458,12 @@
         dayGraphData.value = []
         dayGraphDatasets.value = []
         dayGraphLabels.value = []
+        earningsGraphData.value = []
+        earningsGraphDatasets.value = []
+        earningsGraphLabels.value = []
+        earningsProvisionalMonths.value = []
+        earningsNegativeSlices.value = []
+        earningsNoSiteData.value = false
         monthGraphData.value = []
         monthGraphDatasets.value = []
         monthGraphLabels.value = []
@@ -1289,6 +1584,159 @@
         })
         for(let i = 1; i <= 12; i++) {
             monthGraphLabels.value.push(i)
+        }
+
+        // ---- Sales by Months — Breakdown -------------------------------------
+        // Same {year: {month: {...}}} shape as monthGraphData, so the two charts
+        // walk their years the same way. Empty ({}) on a page that didn't
+        // compute it (the Lite twin), which just yields no datasets.
+        earningsGraphData.value = JSON.parse(JSON.stringify(props.earningsGraphData ?? {}))
+        const earningsYears = earningsGraphData.value ?? {}
+        const earningsYearKeys = Object.keys(earningsYears).sort(sortByMonthYear);
+        const provisional = []
+        const negativeSlices = new Set()
+
+        earningsYearKeys.forEach((year, yearIndex) => {
+            const isCurrent = yearIndex === earningsYearKeys.length - 1;
+            // Opacity carries the year here (hue is spoken for by the slice).
+            const alpha = isCurrent ? 0.95 : 0.45;
+            const monthRows = Object.values(earningsYears[year]);
+
+            // Future months of the current year are absent from the payload, but
+            // guard anyway so a month that hasn't happened plots as a gap rather
+            // than as a zero-height stack.
+            const isFuture = (index) => moment(year, 'YYYY').month(index).endOf('month').isAfter(moment(), 'month');
+
+            const monthTotals = monthRows.map((data, index) => isFuture(index) ? null : Number(data.sales ?? 0));
+            const lockInfo = monthRows.map((data) => ({
+                is_locked: !!data.is_locked,
+                locked_sites: Number(data.locked_sites ?? 0),
+                unlocked_sites: Number(data.unlocked_sites ?? 0),
+                unlocked_share: data.unlocked_share === null || data.unlocked_share === undefined
+                    ? null
+                    : Number(data.unlocked_share),
+                site_count: Number(data.site_count ?? 0),
+            }));
+
+            // A year the filter matched no sites for contributes nothing. Without
+            // this, a filter that selects only unbinded machines (which have no
+            // site contract, so no summary rows) would still push a full set of
+            // datasets and draw twelve zero-height bars as if that were the
+            // answer. See the v-else note in the template.
+            if (!monthRows.some((data) => Number(data.site_count ?? 0) > 0)) {
+                return;
+            }
+
+            // Months with real rows that are not fully locked — named in the
+            // caption under the chart. Collapsed into runs (Jan–Apr, Aug) so a
+            // fully-unlocked year reads as one range instead of twelve tokens.
+            const unlockedMonthNumbers = monthRows
+                .filter((data) => Number(data.site_count ?? 0) > 0 && !data.is_locked)
+                .map((data) => Number(data.month));
+            if (unlockedMonthNumbers.length) {
+                provisional.push({ year, months: monthRunsLabel(unlockedMonthNumbers) });
+            }
+
+            EARNINGS_SLICES.forEach((slice) => {
+                const sliceData = monthRows.map((data, index) => isFuture(index) ? null : Number(data[slice.key] ?? 0));
+                const color = EARNINGS_SLICE_COLORS[slice.key];
+
+                // THREE of the four slices can come out negative, and Chart.js
+                // draws a negative segment below the axis — so the positive stack
+                // then stands taller than Total Sales and the bar looks wrong
+                // unless the caption says why:
+                //
+                //   Loc Fees      a Subsidized Plan site, or External Subsidize
+                //                 above the rental — the location pays us.
+                //   Vend Earning  the net Loc Fee exceeded Gross Earning, so the
+                //                 site cost more than it made. The COMMON one:
+                //                 5-32 sites a month through 2026, against 6 rows
+                //                 for a negative fee.
+                //   Product Cost  Gross Earning above ex-GST sales (a costing
+                //                 artefact — refunds, a re-costed SKU). 1-20 rows
+                //                 a month.
+                //
+                // GST alone cannot go negative. All three are drowned out at fleet
+                // aggregate but easy to hit with a site or machine filter, which is
+                // the normal way this page is used — so the check is per slice and
+                // the caption names the ones that actually went negative.
+                // (null future months compare as 0, so they never trip this.)
+                if (sliceData.some((value) => value < 0)) {
+                    negativeSlices.add(slice.name);
+                }
+
+                // Outline only the two contract-driven slices, and only where the
+                // month isn't fully locked — see the options docblock.
+                const outlined = monthRows.map((data) =>
+                    slice.movable && Number(data.site_count ?? 0) > 0 && !data.is_locked
+                );
+
+                earningsGraphDatasets.value.push({
+                    label: year + ' ' + slice.name + ' ' + operatorCountry.currency_symbol + formatCurrency(sumData(sliceData)),
+                    slice_name: slice.name,
+                    year_label: year,
+                    month_totals: monthTotals,
+                    lock_info: lockInfo,
+                    data: sliceData,
+                    backgroundColor: hexToRGBA(color, alpha),
+                    borderColor: outlined.map((flag) => flag ? 'rgba(17, 24, 39, 0.9)' : hexToRGBA(color, alpha)),
+                    borderWidth: outlined.map((flag) => flag ? 1.5 : 0),
+                    // Without this Chart.js skips the border on the edge each bar
+                    // sits on, so a stacked segment would only ever be outlined
+                    // on three sides.
+                    borderSkipped: false,
+                    yAxisID: 'y',
+                    type: 'bar',
+                    // Datasets sharing a stack id pile up; different ids sit side
+                    // by side. One id per year => one stack per year per month.
+                    stack: 'earnings-' + year,
+                    order: 2,
+                })
+            })
+
+            // VE ratio for the year, on the right axis. The legend figure is the
+            // YEAR's ratio (total VE / total sales), not an average of monthly
+            // ratios — averaging ratios would weight a quiet month equally with
+            // a busy one.
+            const ratioData = monthRows.map((data, index) => {
+                if (isFuture(index)) return null;
+                return data.ve_ratio === null || data.ve_ratio === undefined ? null : Number(data.ve_ratio);
+            });
+            const yearVendEarning = sumData(monthRows.map((data) => Number(data.vend_earning ?? 0)));
+            const yearSales = sumData(monthTotals);
+            const yearRatio = yearSales ? (yearVendEarning / yearSales) : 0;
+            const ratioColor = isCurrent ? '#111827' : (yearIndex === 0 && earningsYearKeys.length >= 3 ? '#9a3412' : '#15803d');
+
+            earningsGraphDatasets.value.push({
+                label: year + ' VE ratio ' + (yearRatio * 100).toFixed(1) + '%',
+                year_label: year,
+                lock_info: lockInfo,
+                is_ratio: true,
+                data: ratioData,
+                backgroundColor: hexToRGBA(ratioColor, isCurrent ? 1 : 0.6),
+                borderColor: hexToRGBA(ratioColor, isCurrent ? 1 : 0.6),
+                borderWidth: 2,
+                fill: false,
+                // A month with no sales has a null ratio; join across it rather
+                // than leaving the line broken.
+                spanGaps: true,
+                yAxisID: 'y1',
+                type: 'line',
+                order: 1,
+            })
+        })
+        earningsProvisionalMonths.value = provisional
+        // Ordered bottom-of-stack first, so the caption lists them the way they
+        // appear on the chart rather than in whichever order a year hit them.
+        earningsNegativeSlices.value = EARNINGS_SLICES
+            .map((slice) => slice.name)
+            .filter((name) => negativeSlices.has(name))
+        // The payload had years but none of them held a site: the filter selected
+        // machines with no site contract behind them. Distinct from "no payload at
+        // all" (pre-search, or the Lite page), which shows nothing.
+        earningsNoSiteData.value = earningsYearKeys.length > 0 && earningsGraphDatasets.value.length === 0
+        for(let i = 1; i <= 12; i++) {
+            earningsGraphLabels.value.push(i)
         }
 
         productGraphData.value = JSON.parse(JSON.stringify(props.productGraphData))
@@ -1523,7 +1971,7 @@
         forceRerender3()
         forceRerender4()
         forceRerender5()
-        forceRerender5()
+        forceRerender6()
     }
 
 
