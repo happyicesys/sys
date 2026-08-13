@@ -320,7 +320,7 @@ function countUp(target) {
 // the real one — this copy only avoids firing a request that can only ever come
 // back {show:false}, and the Authenticated layout remounts on EVERY navigation,
 // so that request would otherwise repeat all day for every ineligible user.
-const POPUP_ROLES = ['superadmin', 'admin', 'supervisor', 'technician', 'driver']
+const POPUP_ROLES = ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver']
 
 function maySeePopup() {
     const roles = usePage().props?.auth?.roles

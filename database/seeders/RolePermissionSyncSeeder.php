@@ -162,7 +162,11 @@ class RolePermissionSyncSeeder extends Seeder
                 // 2026-07-23 sheet sync v2 (struck-through cells = disabled): - driver
                 // (Ops Dashboard Full-Filter Yes struck) and - operator_3pl (limited-filter
                 // cell struck; round-1 addition reverted)
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
+                // 2026-08-13 sheet: + sup_driver (Ops Dashboard Full Filter, row 5).
+                // This is the one that renders the NAV LINK — Authenticated.vue
+                // gates "Dashboard -> /vends/customers" on `read vends`. Without
+                // it the page is reachable only by typing the URL.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
             ],
 
             [
@@ -185,7 +189,9 @@ class RolePermissionSyncSeeder extends Seeder
                 // excluded both, so the nav link was hidden - but this permission
                 // gates the ROUTE, so /vends/customers stayed reachable by URL.
                 // - observer_transactions: no column in the sheet (see below).
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
+                // 2026-08-13 sheet: + sup_driver (Ops Dashboard Full Filter, row 5).
+                // This is the ROUTE gate — without it /vends/customers 403s.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'franchisee', 'licensee']
             ],
 
             [
@@ -202,7 +208,10 @@ class RolePermissionSyncSeeder extends Seeder
                 // 2026-08-09 sheet sync: - driver. This is the "Full filter" gate
                 // (CustomerIndex.vue), and the sheet's Driver cell on Ops Dashboard
                 // (Full Filter) is struck through.
-                ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_supervisor']
+                // 2026-08-13 sheet: + sup_driver. Its column says Full Filter, so
+                // it gets this gate too — serial num, temp/T2 thresholds, balance
+                // stock, last-visited. Drop it here alone for a limited filter.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'sup_driver', 'operator_admin', 'operator_supervisor']
             ],
 
             // Operations > Dashboard (Lite) — /vends/customers-lite. Its OWN
@@ -294,13 +303,16 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'operations',
                 ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl']
+                // 2026-08-13 sheet: + sup_driver (new "Sup Driver" column) — it
+                // mirrors driver everywhere and adds the Ops Dashboard on top.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl']
             ],
 
             [
                 'operation-jobs',
                 ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl']
+                // 2026-08-13 sheet: + sup_driver (Daily Jobs > Jobs, row 17).
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver', 'operator_admin', 'operator_supervisor', 'operator_driver', 'operator_3pl']
             ],
 
             [
@@ -308,7 +320,8 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read', 'export', 'admin-access'],
                 // 2026-07-23 sheet sync v2: HappyIce staff only - operator_admin/
                 // operator_supervisor/operator_driver Yes struck through, operator_3pl blank
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver']
+                // 2026-08-13 sheet: + sup_driver (Daily Jobs > Summary, row 18).
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver']
             ],
 
             [
@@ -736,7 +749,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'resource-centers',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver']
+                // 2026-08-13: + sup_driver, mirroring driver.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver']
             ],
 
             [
@@ -754,7 +768,8 @@ class RolePermissionSyncSeeder extends Seeder
             [
                 'resource-center-drivers',
                 ['read', 'export', 'admin-access'],
-                ['superadmin', 'admin', 'supervisor', 'technician', 'driver']
+                // 2026-08-13: + sup_driver, mirroring driver.
+                ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'sup_driver']
             ],
 
             [

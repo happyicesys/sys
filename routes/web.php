@@ -1,52 +1,55 @@
 <?php
 
 use App\Http\Controllers\Api\V1\VendDataController;
+use App\Http\Controllers\ApkReleaseController;
 use App\Http\Controllers\ApkSettingController;
 use App\Http\Controllers\AttachmentController;
-use App\Http\Controllers\RefundController;
-use App\Http\Controllers\RefundSettlementController;
-use App\Http\Controllers\RefundFormController;
+use App\Http\Controllers\BankController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CardTerminalController;
 use App\Http\Controllers\CashlessTerminalController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CategoryGroupController;
+use App\Http\Controllers\CommissionSettlementController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryPlatformCampaignController;
-use App\Http\Controllers\DeliveryPlatformController;
 use App\Http\Controllers\DeliveryPlatformOrderController;
+use App\Http\Controllers\DeliveryPlatformRefNumberController;
 use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\DeliveryProductMappingVendController;
-use App\Http\Controllers\DeliveryPlatformRefNumberController;
 use App\Http\Controllers\HidCardController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KeyController;
 use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
-use App\Http\Controllers\BankController;
+use App\Http\Controllers\McpOAuthController;
+use App\Http\Controllers\McpTokenController;
 use App\Http\Controllers\ModemTypeController;
 use App\Http\Controllers\ModemUnitController;
 use App\Http\Controllers\OauthController;
 use App\Http\Controllers\OperatorController;
-use App\Http\Controllers\PayoutGroupController;
-use App\Http\Controllers\CommissionSettlementController;
 use App\Http\Controllers\OpsJobController;
 use App\Http\Controllers\OpsJobTaskController;
-use App\Http\Controllers\PaymentMethodController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\ProductMovementController;
-use App\Http\Controllers\ProductMappingController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ResourceCenterController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\SettingController;
-use App\Http\Controllers\ApkReleaseController;
+use App\Http\Controllers\OpsPerformanceController;
 use App\Http\Controllers\OtaController;
-use App\Http\Controllers\StatusController;
-use App\Http\Controllers\SimcardController;
+use App\Http\Controllers\PaymentMethodController;
+use App\Http\Controllers\PayoutGroupController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductMappingController;
+use App\Http\Controllers\ProductMovementController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RefundController;
+use App\Http\Controllers\RefundFormController;
+use App\Http\Controllers\RefundSettlementController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ResourceCenterController;
 use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SimcardController;
+use App\Http\Controllers\SiteGroupingController;
+use App\Http\Controllers\StatusController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TelcoController;
@@ -54,31 +57,25 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\McpTokenController;
-use App\Http\Controllers\VisitorHistoryController;
-use App\Http\Controllers\McpOAuthController;
-use App\Http\Controllers\OpsPerformanceController;
-use App\Http\Controllers\SiteGroupingController;
-use App\Http\Controllers\VendController;
-use App\Http\Controllers\VendScreenshotController;
-use App\Http\Controllers\VendConfigController;
-use App\Http\Controllers\VendContractController;
-use App\Http\Controllers\VendChannelErrorController;
-use App\Http\Controllers\VendCriteriaController;
-use App\Http\Controllers\VendCriteriaBindingController;
-use App\Http\Controllers\VendModelController;
-use App\Http\Controllers\VendPrefixController;
-use App\Http\Controllers\VendSerialNumberController;
-use App\Http\Controllers\VendStickerController;
 use App\Http\Controllers\UserLogController;
 use App\Http\Controllers\VendAlertParameterController;
+use App\Http\Controllers\VendChannelErrorController;
+use App\Http\Controllers\VendConfigController;
+use App\Http\Controllers\VendContractController;
+use App\Http\Controllers\VendController;
+use App\Http\Controllers\VendCriteriaBindingController;
+use App\Http\Controllers\VendCriteriaController;
+use App\Http\Controllers\VendModelController;
+use App\Http\Controllers\VendPrefixController;
+use App\Http\Controllers\VendScreenshotController;
+use App\Http\Controllers\VendSerialNumberController;
+use App\Http\Controllers\VendStickerController;
+use App\Http\Controllers\VisitorHistoryController;
 use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\ZoneController;
-use Carbon\Carbon;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-
 
 /*
 |--------------------------------------------------------------------------
@@ -143,6 +140,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/upload-campaign-videos', [ApkSettingController::class, 'uploadCampaignVideos']);
         Route::post('/{id}/upload-images', [ApkSettingController::class, 'uploadImages']);
         Route::post('/{id}/upload-videos', [ApkSettingController::class, 'uploadVideos']);
+        // Combined picture+video uploads for the unified media sections; the
+        // four per-kind routes above stay for API/backward compatibility.
+        Route::post('/{id}/upload-media', [ApkSettingController::class, 'uploadMedia']);
+        Route::post('/{id}/upload-campaign-media', [ApkSettingController::class, 'uploadCampaignMedia']);
         Route::delete('/unbind-vend/{vendId}', [ApkSettingController::class, 'unbindVend']);
         Route::delete('/{id}', [ApkSettingController::class, 'destroy']);
     });
@@ -194,7 +195,6 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/update', [CategoryController::class, 'update']);
         Route::delete('/{id}', [CategoryController::class, 'delete']);
     });
-
 
     Route::prefix('category-groups')->group(function () {
         Route::get('/', [CategoryGroupController::class, 'index'])->name('category-groups');
@@ -478,7 +478,6 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::delete('/{id}', [HidCardController::class, 'delete'])->name('hid-cards.delete'); // Delete
     });
 
-
     Route::prefix('holidays')->group(function () {
         Route::get('/', [HolidayController::class, 'index'])->name('holidays');
         Route::post('/create', [HolidayController::class, 'create']);
@@ -583,7 +582,6 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('product.unrestricted');
         Route::get('/sales/{type}', [ReportController::class, 'indexSales'])
             ->middleware('product.unrestricted');
-
 
         // 2026-08-09: margin reports moved off 'reports' onto 'reports-gp'
         // (superadmin/admin/supervisor). These had no gate, so hiding the nav links
@@ -705,8 +703,6 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/availability/toggle-is-available', [ProductController::class, 'toggleIsAvailable'])->name('products-availability.toggle-is-available');
         Route::post('/availability/update-remarks/{product_id}', [ProductController::class, 'updateRemarks'])->name('products-availability.update-remarks');
         Route::get('/availability/export-excel', [ProductController::class, 'exportAvailability'])->name('products-availability.export-excel');
-
-
 
     });
 
@@ -1196,4 +1192,4 @@ Route::middleware(['auth', 'cors'])->prefix('visitor-history')->group(function (
         ->withoutMiddleware([\App\Http\Middleware\HandleInertiaRequests::class]);
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

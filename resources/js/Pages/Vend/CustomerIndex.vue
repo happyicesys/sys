@@ -3708,7 +3708,9 @@ filters.value.is_online = booleanOptions.value[0]
 filters.value.is_sensor = enableOptions.value[0]
 filters.value.is_testing = booleanOptions.value[2]
 // console.log(initBinded, roles[0])
-filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
+// 2026-08-13: + sup_driver, so the Ops Dashboard opens with the same default
+// this page has always shown drivers. NB roles[0] — a user's FIRST role only.
+filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver' || roles[0] == 'sup_driver') ? booleanOptions.value[1] : booleanOptions.value[0]
 filters.value.locationType = locationTypeOptions.value[0]
 	filters.value.next_planned_driver = nextDeliveryDriverOptions.value[0]
 //   filters.value.operator = operatorOptions.value[0]

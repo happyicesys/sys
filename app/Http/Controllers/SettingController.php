@@ -92,7 +92,7 @@ class SettingController extends Controller
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
                 auth()->user()->hasRole('observer_transactions') or
-                auth()->user()->hasRole('driver')
+                auth()->user()->isDriver()
             ) {
                 $request->merge([
                     'status' => 'active',

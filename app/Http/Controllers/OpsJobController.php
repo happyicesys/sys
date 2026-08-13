@@ -333,7 +333,7 @@ class OpsJobController extends Controller
 
     public function summary(Request $request)
     {
-        $isDriver = auth()->user()->hasRole('driver');
+        $isDriver = auth()->user()->isDriver();
 
         if (! $request->operators) {
             if (auth()->user()->operator->code == 'HIPL') {
@@ -1485,7 +1485,7 @@ class OpsJobController extends Controller
             // longer go through VendResource::collection.
             'unbindedVendOptions' => ['data' => $unbindedVendOptions->values()],
             'userOptions' => UserResource::collection(
-                User::with('roles')->when(auth()->user()->hasRole('driver'), function ($q) {
+                User::with('roles')->when(auth()->user()->isDriver(), function ($q) {
                     $q->where('id', auth()->id());
                 })
                     ->when(! auth()->user()->hasRole('superadmin') && auth()->user()->operator_id != 1, function ($q) {

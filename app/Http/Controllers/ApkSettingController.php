@@ -2,7 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\PublishMqtt;
+use App\Http\Resources\ApkSettingResource;
+use App\Http\Resources\CampaignResource;
+use App\Http\Resources\OperatorResource;
+use App\Http\Resources\TagResource;
+use App\Http\Resources\VendPrefixResource;
+use App\Http\Resources\VendResource;
 use App\Models\ApkSetting;
 use App\Models\ApkSettingVend;
 use App\Models\Campaign;
@@ -11,15 +16,9 @@ use App\Models\Operator;
 use App\Models\Tag;
 use App\Models\Vend;
 use App\Models\VendPrefix;
-use App\Http\Resources\ApkSettingResource;
-use App\Http\Resources\CampaignResource;
-use App\Http\Resources\OperatorResource;
-use App\Http\Resources\TagResource;
-use App\Http\Resources\VendResource;
-use App\Http\Resources\VendPrefixResource;
 use App\Services\TagBindingService;
-use App\Services\VendParameterService;
 use App\Services\VendJobService;
+use App\Services\VendParameterService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -28,13 +27,15 @@ use Inertia\Inertia;
 class ApkSettingController extends Controller
 {
     protected $tagBindingService;
+
     protected $vendParameterService;
+
     protected $vendJobService;
 
     public function __construct(VendJobService $vendJobService)
     {
-        $this->tagBindingService = new TagBindingService();
-        $this->vendParameterService = new VendParameterService();
+        $this->tagBindingService = new TagBindingService;
+        $this->vendParameterService = new VendParameterService;
         $this->vendJobService = $vendJobService;
     }
 
@@ -109,7 +110,7 @@ class ApkSettingController extends Controller
             ->values()
             ->all();
 
-        if (!count($campaignIds)) {
+        if (! count($campaignIds)) {
             return redirect()->back();
         }
 
@@ -133,7 +134,7 @@ class ApkSettingController extends Controller
     public function store(Request $request)
     {
         $request->merge([
-            'settings_parameter_json' => $this->vendParameterService->getCampaignParameter($this->vendParameterService->getDefaultParameter())
+            'settings_parameter_json' => $this->vendParameterService->getCampaignParameter($this->vendParameterService->getDefaultParameter()),
         ]);
 
         $apkSetting = ApkSetting::create($request->all());
@@ -155,7 +156,9 @@ class ApkSettingController extends Controller
         $apkSetting = ApkSetting::query()
             ->with([
                 'campaignImages',
+                'campaignMedia',
                 'campaignVideos',
+                'defaultMedia',
                 'images',
                 'campaigns.operator',
                 'campaigns.labelsX',
@@ -181,7 +184,7 @@ class ApkSettingController extends Controller
             ),
             'unbindedVendOptions' => VendResource::collection(
                 Vend::with([
-                    'customer'
+                    'customer',
                 ])
                     ->doesntHave('apkSettingVend')
                     ->where(function ($query) {
@@ -241,7 +244,7 @@ class ApkSettingController extends Controller
             'settings_parameter_json' => $this->vendParameterService->mergeCampaignParameter(
                 $apkSetting->settings_parameter_json,
                 $request->all()
-            )
+            ),
         ]);
 
         $apkSetting->fill($request->all());
@@ -279,9 +282,10 @@ class ApkSettingController extends Controller
                 'name' => $fileName,
                 'type' => ApkSetting::FILE_TYPE_CAMPAIGN_IMAGE,
                 'full_url' => $url,
-                'local_url' => $dir . '/' . basename($storedPath),
+                'local_url' => $dir.'/'.basename($storedPath),
             ]);
         }
+
         return true;
     }
 
@@ -299,9 +303,10 @@ class ApkSettingController extends Controller
                 'name' => $fileName,
                 'type' => ApkSetting::FILE_TYPE_CAMPAIGN_VIDEO,
                 'full_url' => $url,
-                'local_url' => $dir . '/' . basename($storedPath),
+                'local_url' => $dir.'/'.basename($storedPath),
             ]);
         }
+
         return true;
     }
 
@@ -319,9 +324,10 @@ class ApkSettingController extends Controller
                 'name' => $fileName,
                 'type' => ApkSetting::FILE_TYPE_IMAGE,
                 'full_url' => $url,
-                'local_url' => $dir . '/' . basename($storedPath),
+                'local_url' => $dir.'/'.basename($storedPath),
             ]);
         }
+
         return true;
     }
 
@@ -339,9 +345,71 @@ class ApkSettingController extends Controller
                 'name' => $fileName,
                 'type' => ApkSetting::FILE_TYPE_VIDEO,
                 'full_url' => $url,
-                'local_url' => $dir . '/' . basename($storedPath),
+                'local_url' => $dir.'/'.basename($storedPath),
             ]);
         }
+
+        return true;
+    }
+
+    /**
+     * Combined upload for the unified media sections: routes a picture or a
+     * video to the SAME storage dir and attachment type the four per-kind
+     * actions above use, so the legacy endpoints the deployed fleet polls
+     * (banner-image / banner-video / campaign-*) are untouched by construction.
+     */
+    public function uploadMedia(Request $request, $id)
+    {
+        return $this->storeMediaUpload($request, $id, false);
+    }
+
+    public function uploadCampaignMedia(Request $request, $id)
+    {
+        return $this->storeMediaUpload($request, $id, true);
+    }
+
+    private function storeMediaUpload(Request $request, $id, bool $campaign)
+    {
+        $apkSetting = ApkSetting::findOrFail($id);
+
+        $file = $request->file('files');
+        if (! $file) {
+            return response(['error_message' => 'No file uploaded'], 422);
+        }
+
+        $mime = (string) $file->getMimeType();
+        $isVideo = str_starts_with($mime, 'video/');
+        $isImage = str_starts_with($mime, 'image/');
+        if (! $isVideo && ! $isImage) {
+            return response(['error_message' => 'Only image or video files are accepted'], 422);
+        }
+
+        // Mirror the caps the per-kind dropzones enforced client-side.
+        $maxBytes = (int) (($isVideo ? 10 : 1.5) * 1024 * 1024);
+        if ($file->getSize() > $maxBytes) {
+            return response([
+                'error_message' => $isVideo ? 'Video exceeds 10 MB' : 'Image exceeds 1.5 MB',
+            ], 422);
+        }
+
+        if ($campaign) {
+            $dir = $isVideo ? 'sys/vends/campaign-videos' : 'sys/vends/campaign-images';
+            $type = $isVideo ? ApkSetting::FILE_TYPE_CAMPAIGN_VIDEO : ApkSetting::FILE_TYPE_CAMPAIGN_IMAGE;
+            $relation = $apkSetting->campaignMedia();
+        } else {
+            $dir = $isVideo ? 'sys/vends/banner-videos' : 'sys/vends/banner-images';
+            $type = $isVideo ? ApkSetting::FILE_TYPE_VIDEO : ApkSetting::FILE_TYPE_IMAGE;
+            $relation = $apkSetting->defaultMedia();
+        }
+
+        $storedPath = $file->storePublicly($dir);
+        $relation->create([
+            'name' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
+            'type' => $type,
+            'full_url' => Storage::url($storedPath),
+            'local_url' => $dir.'/'.basename($storedPath),
+        ]);
+
         return true;
     }
 
@@ -401,9 +469,9 @@ class ApkSettingController extends Controller
             $content = base64_encode(json_encode($payload));
             $contentLength = strlen($content);
             $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-            $md5 = md5($fid . ',' . $contentLength . ',' . $content . $key);
+            $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-            return $fid . ',' . $contentLength . ',' . $content . ',' . $md5;
+            return $fid.','.$contentLength.','.$content.','.$md5;
         });
     }
 }

@@ -78,6 +78,10 @@ class HandleInertiaRequests extends Middleware
                     return ($request->user() && $request->user()->roles && $request->user()->roles->first() ? $request->user()->roles->first()->permissions->pluck('name')->all() : null);
                 },
                 'operatorRole' => $user ? $user->hasRole('operator') : null,
+                // Single source for the Vue side of the driver-role checks, so
+                // pages do not each hard-code a role name. See
+                // User::DRIVER_ROLES - sup_driver mirrors driver.
+                'isDriver' => $user ? $user->isDriver() : false,
                 'profile' => $user ? $user->profile : null,
                 // 'profile.baseCurrency' => $request->user() ? $request->user()->profile->baseCurrency : null,
                 'timezone' => $operator ? $operator->timezone : config('app.timezone'),

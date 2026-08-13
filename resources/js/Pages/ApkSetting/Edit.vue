@@ -216,9 +216,12 @@
                 </div>
                 <div class="relative flex justify-center ">
                   <div class="flex flex-col items-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Default Video(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Default Media — Pictures &amp; Videos </span>
                     <span class="text-sm">
-                      (device file location: Internal Memory/Android/data/com.venderroute/files/DefaultMedia/Videos)
+                      (device file location: Internal Memory/Android/data/com.venderroute/files/DefaultMedia/Pictures &amp; /Videos)
+                    </span>
+                    <span class="text-sm text-gray-600">
+                      In "Mixed" banner mode the machine plays this list in filename order — pictures 5s each, videos to completion. Name files 01_…, 02_… to control the sequence.
                     </span>
                   </div>
                 </div>
@@ -227,50 +230,16 @@
 
             <div class="sm:col-span-6">
               <AttachmentList
-                :items="apkSetting.videos"
+                :items="apkSetting.defaultMedia"
               >
               </AttachmentList>
             </div>
 
             <div class="sm:col-span-6" v-if="apkSetting.id">
               <DropzoneFileInput
-                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-videos'"
-                :accepted-files="'video/*'"
+                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-media'"
+                :accepted-files="'image/*,video/*'"
                 :max-filesize="10"
-                >
-              </DropzoneFileInput>
-            </div>
-
-            <hr class="sm:col-span-6">
-
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-center ">
-                  <div class="flex flex-col items-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Default Picture(s) </span>
-                    <span class="text-sm">
-                      (device file location: Internal Memory/Android/data/com.venderroute/files/DefaultMedia/Pictures)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-
-            <div class="sm:col-span-6">
-              <AttachmentList
-                :items="apkSetting.images"
-              >
-              </AttachmentList>
-            </div>
-            <div class="sm:col-span-6" v-if="apkSetting.id">
-              <DropzoneFileInput
-                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-images'"
-                :accepted-files="'image/*'"
-                :max-filesize="1.5"
                 >
               </DropzoneFileInput>
             </div>
@@ -425,9 +394,12 @@
                 </div>
                 <div class="relative flex justify-center ">
                   <div class="flex flex-col items-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Campaign Video(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Campaign Media — Pictures &amp; Videos </span>
                     <span class="text-sm">
-                      (device file location: Internal Memory/Android/data/com.venderroute/files/Campaign/Videos)
+                      (device file location: Internal Memory/Android/data/com.venderroute/files/Campaign/Pictures &amp; /Videos)
+                    </span>
+                    <span class="text-sm text-gray-600">
+                      In "Mixed" banner mode the machine plays this list in filename order — pictures 5s each, videos to completion. Name files 01_…, 02_… to control the sequence.
                     </span>
                   </div>
                 </div>
@@ -436,49 +408,16 @@
 
             <div class="sm:col-span-6">
               <AttachmentList
-                :items="apkSetting.campaignVideos"
+                :items="apkSetting.campaignMedia"
               >
               </AttachmentList>
             </div>
 
             <div class="sm:col-span-6" v-if="apkSetting.id">
               <DropzoneFileInput
-                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-videos'"
-                :accepted-files="'video/*'"
+                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-media'"
+                :accepted-files="'image/*,video/*'"
                 :max-filesize="10"
-                >
-              </DropzoneFileInput>
-            </div>
-
-            <hr class="sm:col-span-6">
-
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-center ">
-                  <div class="flex flex-col items-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Campaign Picture(s) </span>
-                    <span class="text-sm">
-                      (device file location: Internal Memory/Android/data/com.venderroute/files/Campaign/Pictures)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="sm:col-span-6">
-              <AttachmentList
-                :items="apkSetting.campaignImages"
-              >
-              </AttachmentList>
-            </div>
-            <div class="sm:col-span-6" v-if="apkSetting.id">
-              <DropzoneFileInput
-                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-images'"
-                :accepted-files="'image/*'"
-                :max-filesize="1.5"
                 >
               </DropzoneFileInput>
             </div>
@@ -1394,6 +1333,9 @@ const pricingSourceOptions = ref([
 const promoBannerKindOptions = ref([
   {id: 'video', value: 'Video'},
   {id: 'picture', value: 'Picture'},
+  // One playlist of pictures AND videos: pictures hold ~5s, videos play to
+  // completion. APKs older than v302 fall back to Video when pushed 'mixed'.
+  {id: 'mixed', value: 'Mixed (Pic + Video)'},
 ])
 
 const promoTypeOptions = ref([

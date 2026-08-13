@@ -62,6 +62,10 @@ class DashboardController extends Controller
         'supervisor',
         'technician',
         'driver',
+        // 2026-08-13: sup_driver mirrors driver. Kept as literals rather than
+        // User::DRIVER_ROLES because this list is a role set in its own right -
+        // it also carries technician, which is not a driver role.
+        'sup_driver',
     ];
 
     public const MONTHLY_SALES_TIERS = [

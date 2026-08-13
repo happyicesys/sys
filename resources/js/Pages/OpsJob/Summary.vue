@@ -420,8 +420,9 @@ const filters = ref({
 })
 const authOperator = usePage().props.auth.operator
 const authUser = usePage().props.auth.user
-const authRoles = usePage().props.auth.roles || []
-const isDriver = authRoles.includes('driver')
+// Shared from HandleInertiaRequests (User::isDriver) so sup_driver, which
+// mirrors driver, is covered without hard-coding role names here.
+const isDriver = usePage().props.auth.isDriver === true
 const isCmsUrlSet = usePage().props.isCmsUrlSet
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])

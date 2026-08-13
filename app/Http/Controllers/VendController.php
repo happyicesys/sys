@@ -184,7 +184,7 @@ class VendController extends Controller
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
                 auth()->user()->hasRole('observer_transactions') or
-                auth()->user()->hasRole('driver')
+                auth()->user()->isDriver()
             ) {
                 $request->merge(['is_active' => 'true']);
             } else {
@@ -539,7 +539,7 @@ class VendController extends Controller
             || auth()->user()->hasRole('admin')
             || auth()->user()->hasRole('supervisor')
             || auth()->user()->hasRole('observer_transactions')
-            || auth()->user()->hasRole('driver');
+            || auth()->user()->isDriver();
 
         if ($request->indexType === 'customers') {
             // 5-value Customer Status (matches Customer::STATUSES_MAPPING),

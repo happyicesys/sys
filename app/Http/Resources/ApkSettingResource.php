@@ -35,6 +35,8 @@ class ApkSettingResource extends JsonResource
                     ])->values();
             }),
             'campaignVideos' => AttachmentResource::collection($this->whenLoaded('campaignVideos')),
+            'campaignMedia' => AttachmentResource::collection($this->whenLoaded('campaignMedia')),
+            'defaultMedia' => AttachmentResource::collection($this->whenLoaded('defaultMedia')),
             'name' => $this->name,
             'images' => AttachmentResource::collection($this->whenLoaded('images')),
             'remarks' => $this->remarks,
