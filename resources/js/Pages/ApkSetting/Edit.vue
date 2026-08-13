@@ -34,6 +34,17 @@
               </FormTextarea>
             </div>
 
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Branding &amp; Display </span>
+                </div>
+              </div>
+            </div>
+
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Background Video/ Picture
@@ -68,10 +79,24 @@
             </div>
 
 
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Pricing </span>
+                </div>
+              </div>
+            </div>
+
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Pricing Source
               </label>
+              <span class="text-sm text-gray-600">
+                (Server = prices from mark1 selling prices; Machine = prices from the VMC board)
+              </span>
               <MultiSelect
                 v-model="form.selectedPricingSource"
                 :options="pricingSourceOptions"
@@ -87,10 +112,30 @@
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-base font-medium text-gray-700">
-                Enable Debug Mode
+                Enable P2 Price?
               </label>
               <MultiSelect
-                v-model="form.enableDebugMode"
+                v-model="form.enableP2Price"
+                :options="booleanStrictOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
+            <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                Disable P1 P2 Cross Group?
+              </label>
+              <span class="text-sm text-gray-600">
+                (Disable Old Discount Logic cross group, old discount logic can cross group to apply)
+              </span>
+              <MultiSelect
+                v-model="form.disableP1P2CrossGrp"
                 :options="booleanStrictOptions"
                 trackBy="id"
                 valueProp="id"
@@ -109,7 +154,7 @@
                 </div>
                 <div class="relative flex justify-center ">
                   <div class="flex flex-col items-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Contact Details </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Contact &amp; Support </span>
                   </div>
                 </div>
               </div>
@@ -178,36 +223,99 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center ">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> System </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                Enable Debug Mode
+              </label>
+              <span class="text-sm text-gray-600">
+                (Machine sends extra MQTT/restart telemetry in its heartbeat)
+              </span>
+              <MultiSelect
+                v-model="form.enableDebugMode"
+                :options="booleanStrictOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
                   <div class="flex flex-col items-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> DCVend </span>
+                    <button type="button" class="px-3 bg-white text-lg font-medium text-gray-500 rounded-md"
+                            @click="isShowDeprecatedSection = !isShowDeprecatedSection">
+                      Deprecated {{ isShowDeprecatedSection ? '▴' : '▾' }}
+                    </button>
+                    <span class="text-sm text-gray-600">
+                      Kept for big-board machines below APK v{{ deprecation.threshold }} — still stored and pushed, no longer maintained.
+                    </span>
+                    <span class="text-sm"
+                          :class="deprecationReady ? 'text-green-600' : 'text-amber-600'">
+                      {{ deprecation.readyVends ?? 0 }} of {{ deprecation.totalVends ?? 0 }} bound machines on v{{ deprecation.threshold }}+
+                      <template v-if="deprecationReady && (deprecation.totalVends ?? 0) > 0">
+                        — fleet ready, this section can be retired
+                      </template>
+                    </span>
+                    <span class="text-sm text-gray-500" v-if="deprecation.maybeSmallBoard > 0">
+                      {{ deprecation.maybeSmallBoard }} bound machine(s) report a 12x/13x version — possibly small-board units, which never sync these parameters. Verify the board type before treating them as blockers.
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="sm:col-span-5">
-              <FormInput v-model="form.dcvendFreePlanPromoValue" disabled="true">
-                <div class="text-base">
-                  Free Plan Promo Rate
-                </div>
-              </FormInput>
-            </div>
+            <template v-if="isShowDeprecatedSection">
+              <div class="sm:col-span-5">
+                <FormInput v-model="form.dcvendFreePlanPromoValue" disabled="true">
+                  <div class="text-base">
+                    DCVend Free Plan Promo Rate <span class="text-sm text-gray-500">(feature scrapped)</span>
+                  </div>
+                </FormInput>
+              </div>
 
-            <div class="sm:col-span-5">
-              <FormInput v-model="form.dcvendGoldPlanPromoValue" disabled="true">
-                <div class="text-base">
-                  Gold Plan Promo Rate
-                </div>
-              </FormInput>
-            </div>
+              <div class="sm:col-span-5">
+                <FormInput v-model="form.dcvendGoldPlanPromoValue" disabled="true">
+                  <div class="text-base">
+                    DCVend Gold Plan Promo Rate <span class="text-sm text-gray-500">(feature scrapped)</span>
+                  </div>
+                </FormInput>
+              </div>
 
-            <div class="sm:col-span-5">
-              <FormInput v-model="form.dcvendPlatinumPlanPromoValue" disabled="true">
-                <div class="text-base">
-                  Platinum Plan Promo Rate
+              <div class="sm:col-span-5">
+                <FormInput v-model="form.dcvendPlatinumPlanPromoValue" disabled="true">
+                  <div class="text-base">
+                    DCVend Platinum Plan Promo Rate <span class="text-sm text-gray-500">(feature scrapped)</span>
+                  </div>
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-5" v-if="legacyReadonlyKeys.length">
+                <label class="flex justify-start text-base font-medium text-gray-700">
+                  Legacy keys <span class="text-sm text-gray-500 ml-1">(read-only)</span>
+                </label>
+                <div class="mt-1 text-sm text-gray-600 space-y-1">
+                  <div v-for="entry in legacyReadonlyKeys" :key="entry.key">
+                    <span>{{ entry.label }}</span>
+                    (<span class="font-mono">{{ entry.key }}</span>):
+                    <span class="font-mono">{{ formatLegacyValue(apkSetting?.settings_parameter_json?.[entry.key]) }}</span>
+                    <span class="text-gray-400" v-if="entry.note"> — {{ entry.note }}</span>
+                  </div>
                 </div>
-              </FormInput>
-            </div>
+              </div>
+            </template>
 
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
@@ -446,45 +554,6 @@
                   </span>
                 </div>
               </FormInput>
-            </div>
-
-            <hr class="sm:col-span-6 my-2">
-
-            <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
-                Enable P2 Price?
-              </label>
-              <MultiSelect
-                v-model="form.enableP2Price"
-                :options="booleanStrictOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-              >
-              </MultiSelect>
-            </div>
-
-            <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
-                Disable P1 P2 Cross Group?
-              </label>
-              <span class="text-sm text-gray-600">
-                (Disable Old Discount Logic cross group, old discount logic can cross group to apply)
-              </span>
-              <MultiSelect
-                v-model="form.disableP1P2CrossGrp"
-                :options="booleanStrictOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-              >
-              </MultiSelect>
             </div>
 
             <hr class="sm:col-span-6 my-2">
@@ -923,7 +992,12 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center ">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Old Campaign Item Bindings</span>
+                  <div class="flex flex-col items-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Old Campaign Item Bindings</span>
+                    <span class="text-sm text-amber-700 bg-white px-3">
+                      Legacy: only machines below APK v213 read these. For everything newer, use Campaign Bindings above — a mixed fleet needs the promo entered in BOTH sections.
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -979,6 +1053,9 @@
                   <div class="flex flex-col space-y-1">
                     <span class="text-base">
                       Value
+                    </span>
+                    <span class="text-sm text-red-600 font-medium">
+                      In CENTS: 500 = $5.00 (Amount) or basis of the % (Percent). Existing rows entered in dollars are 100× too small on machines.
                     </span>
                   </div>
                 </FormInput>
@@ -1315,6 +1392,7 @@ import axios from 'axios';
 const props = defineProps({
     apkSetting: Object,
     campaignOptions: Object,
+    deprecation: Object,
     operatorOptions: Object,
     productTagOptions: Object,
     unbindedVendOptions: Object,
@@ -1345,6 +1423,26 @@ const promoTypeOptions = ref([
 
 const isShowCampaignSection = ref(false)
 const isShowVendSection = ref(false)
+
+// Deprecated parameters: still stored and pushed (machines below the
+// threshold read them), shown collapsed and read-only until the whole bound
+// fleet reports the threshold APK version. computed() on the prop (not a
+// ref snapshot) so bind/unbind partial reloads update the banner.
+const isShowDeprecatedSection = ref(false)
+const deprecation = computed(() => props.deprecation ?? {})
+const deprecationReady = computed(() =>
+  (deprecation.value.totalVends ?? 0) > 0 &&
+  deprecation.value.readyVends >= deprecation.value.totalVends
+)
+// keys arrive labeled from the registry ({key, label, group, note}); the
+// dcvend trio (group 'deprecated') has its own disabled inputs above, the
+// rest render as a read-only list.
+const legacyReadonlyKeys = computed(() =>
+  (deprecation.value.keys ?? []).filter(entry => entry.group !== 'deprecated')
+)
+function formatLegacyValue(value) {
+  return value === null || value === undefined || value === '' ? '—' : String(value)
+}
 const operatorOptions = ref([])
 const campaignOptions = ref([])
 const productTagOptions = ref([])
@@ -1564,13 +1662,26 @@ function submit() {
             company_url: form.value.company_url,
             company_address: [addressLine1.value, addressLine2.value, addressLine3.value].join('\n'),
             refund_url: form.value.refund_url,
-            vends: vends.value.map(vend => vend.id),
+            vends: vends.value.map(vend => vend?.id).filter(id => id != null),
           }
       }).then(response => {
         toast.success("Successfully Saved", {
           timeout: 3000
         });
       }).catch(error => {
+        if (error.response?.status === 422 && error.response.data?.errors) {
+          const flat = Object.fromEntries(
+            Object.entries(error.response.data.errors).map(([field, messages]) => [field, messages[0]])
+          )
+          form.value.setError(flat)
+          toast.error(Object.values(flat)[0] ?? "Validation failed", {
+            timeout: 5000
+          });
+        } else {
+          toast.error("Failed, Please Try Again", {
+            timeout: 3000
+          });
+        }
       }).finally(() => {
         // location.reload()
       })
@@ -1821,6 +1932,11 @@ function refreshApkSetting(page) {
 }
 
 function bindVendItem() {
+  // An empty selection must never enter the bound list — a '' entry maps to
+  // null in the save payload and fails the vends.* integer rule server-side.
+  if (!form.value.vend_id || !form.value.vend_id.id) {
+    return
+  }
   if(vends.value.indexOf(form.value.vend_id) < 0) {
     vends.value.push(form.value.vend_id)
     vends.value.sort((a, b) => a.code - b.code)

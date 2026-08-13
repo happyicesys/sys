@@ -120,6 +120,7 @@ point it at the vend's bound `apk_settings` row, or remove it.
 | # | Fix | Where | Effort |
 |---|---|---|---|
 | 1 | Remove the `!== '2007'` beta gate; QoS 0 → 1 | `VendJobService.php:26-35` | minutes — activates jobs, retries, acks, last-sync UI fleet-wide |
+| 1b | ~~Auto-push on every /apk-settings change~~ | **DONE 2026-08-13, see below** | — |
 | 2 | Bind the other 205 active vends to settings rows (script or UI sweep); until then the "source of truth" governs half the fleet | data task | hours |
 | 3 | `sync()` → operator-safe (merge with unseen bindings, or `syncWithoutDetaching` + explicit detach of visible ones) | `ApkSettingController.php:250` | small |
 | 4 | Blank address → `null`, not `"\n\n"` | `Edit.vue:1623` | one line |
@@ -133,6 +134,54 @@ point it at the vend's bound `apk_settings` row, or remove it.
 Items 6 and 7 are one-liners in the APK build currently in progress — they can
 ride the next bench-tested release. Items 1–4 are mark1 changes that need no APK
 release at all.
+
+## Auto-push on change — implemented 2026-08-13
+
+§3 noted that saving in `/apk-settings` did **not** push (the loop was commented
+out) — only the manual Push button did, so a bind, a save or a media change
+reached the fleet on the machine's own schedule (boot, or an MQTT nudge nobody
+sent). That is now wired.
+
+**Every mutating action schedules a push:** `update` (save + bind/unbind),
+`unbindVend`, `bindCampaigns`, `unbindCampaign`, `createCampaignItem`,
+`deleteCampaignItem`, all six upload actions, and attachment
+rename/delete when the attachment belongs to an `apk_setting` (the name is the
+on-device filename, and in "mixed" banner mode it is the play order).
+
+**Debounced by design** — `PushApkSettingSync::schedule()` uses an atomic
+`Cache::add` guard and a 5 s delayed job, so a burst collapses into one push
+wave. This is not premature optimisation: a dropzone sends **one request per
+file**, the largest setting row binds **84 machines**, and every push makes each
+machine re-fetch parameters *and* re-sync all four media folders over 4G. Five
+un-debounced uploads = 420 publishes and five media re-syncs per machine.
+Coalescing is safe because the payload carries no data — the machine reads
+current state when it fetches, so one push after the last edit is strictly
+better than one per edit.
+
+**Unbound machines are pushed individually** (`pushToVendNow`), because the
+fan-out only reaches what is still bound. Note this is a near-no-op today: an
+unbound vend gets a 400 from `/parameters` and keeps its last settings (§2).
+
+The MQTT publish itself was never gated — `VendJobService::dispatch` publishes
+for every vend and only *skips job tracking* outside code 2007 — so auto-push
+works fleet-wide today. Fix #1 still matters for retries and ack visibility.
+
+Also fixed here: the duplicated payload/formatter is now canonical in
+`VendJobService::syncSettingsToVend()`; `ApkSettingController::syncApkSettings`
+delegates to it. **`VendController::syncApkSettings` (~line 2446) still holds
+its own copy** — worth collapsing next time that file is open.
+
+Tests: `tests/Feature/ApkSettingAutoPushTest.php` (9 cases — debounce window,
+guard release, per-setting isolation, fan-out, bound-set diff, deleted-setting
+no-op, one-machine-failure isolation). **Note:** `.gitignore` line 22 (`test*`)
+silently ignores new files under `tests/`; this one needs `git add -f`.
+
+### Known interaction, deliberately not fixed here
+
+Fix #3 (operator-scoped `sync()` detaching other operators' vends) now also
+means those silently-detached machines get **no** unbind push, because they are
+invisible to the diff. Auto-push does not cause that bug and does not worsen it
+— but #3 should be fixed before this is leaned on for multi-operator rows.
 
 ## Relation to the remote-settings plan
 

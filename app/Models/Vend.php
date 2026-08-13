@@ -539,6 +539,40 @@ class Vend extends Model
         return $this->morphOne(Category::class, 'modelable');
     }
 
+    /**
+     * The APK versionCode this machine last reported, from either channel:
+     * OTA check-in writes apk_version_code; the PWRON frame writes
+     * apk_ver_json.apkver. 0 = never reported. This is THE definition of a
+     * vend's reported version — use it instead of re-reading the columns
+     * (OtaController / RetryVendJobs / VendController each grew their own
+     * partial variant before this existed).
+     */
+    public function reportedApkVersion(): int
+    {
+        return max(
+            (int) $this->apk_version_code,
+            (int) data_get($this->apk_ver_json, 'apkver', 0)
+        );
+    }
+
+    /**
+     * Heuristic: the small-board APK ships on the 13x versionCode stream
+     * (currently 134; 12x before that) under the SAME applicationId as the
+     * big board's 30x stream — see the root CLAUDE.md. Small boards never
+     * fetch /api/vends/{code}/parameters, so they are exempt from
+     * settings-payload deprecation gates. Below versionCode 140 the streams
+     * cannot be told apart with certainty from the number alone (ancient
+     * big-board builds were 1xx too); the durable fix is the board reporting
+     * its package/deviceType, so treat this as "possibly small board", not
+     * proof.
+     */
+    public function maybeSmallBoardStream(): bool
+    {
+        $version = $this->reportedApkVersion();
+
+        return $version > 0 && $version < 140;
+    }
+
     public function cardTerminal()
     {
         return $this->belongsTo(CardTerminal::class, 'card_terminal_id');

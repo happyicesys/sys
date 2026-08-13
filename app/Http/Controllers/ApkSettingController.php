@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreApkSettingRequest;
+use App\Http\Requests\UpdateApkSettingRequest;
 use App\Http\Resources\ApkSettingResource;
 use App\Http\Resources\CampaignResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\TagResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendResource;
+use App\Jobs\Vend\PushApkSettingSync;
 use App\Models\ApkSetting;
 use App\Models\ApkSettingVend;
 use App\Models\Campaign;
@@ -19,8 +22,9 @@ use App\Models\VendPrefix;
 use App\Services\TagBindingService;
 use App\Services\VendJobService;
 use App\Services\VendParameterService;
-use Carbon\Carbon;
+use App\ValueObjects\ApkSettingParameters;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -93,6 +97,9 @@ class ApkSettingController extends Controller
         ]);
 
         $this->tagBindingService->sync($campaignItemObj, $request->tags);
+
+        // Campaign items ship inside /parameters — reflect them straight away.
+        PushApkSettingSync::schedule($apkSetting->id);
     }
 
     public function bindCampaigns(Request $request, $id)
@@ -116,6 +123,8 @@ class ApkSettingController extends Controller
 
         $apkSetting->campaigns()->syncWithoutDetaching($campaignIds);
 
+        PushApkSettingSync::schedule($apkSetting->id);
+
         return redirect()->route('apk-settings.edit', [$apkSetting->id]);
     }
 
@@ -123,15 +132,20 @@ class ApkSettingController extends Controller
     {
         $campaignItem = CampaignItem::findOrFail($id);
 
+        // Captured before the delete — the row is gone afterwards.
+        $apkSettingId = $campaignItem->apk_setting_id;
+
         if ($campaignItem->tagBindings) {
             foreach ($campaignItem->tagBindings as $tagBinding) {
                 $tagBinding->delete();
             }
         }
         $campaignItem->delete();
+
+        PushApkSettingSync::schedule($apkSettingId);
     }
 
-    public function store(Request $request)
+    public function store(StoreApkSettingRequest $request)
     {
         $request->merge([
             'settings_parameter_json' => $this->vendParameterService->getCampaignParameter($this->vendParameterService->getDefaultParameter()),
@@ -147,6 +161,13 @@ class ApkSettingController extends Controller
         $apkSetting = ApkSetting::findOrFail($id);
 
         $apkSetting->campaigns()->detach($campaignId);
+
+        // NOTE: a v302-or-older machine keeps running its last campaign when
+        // the list becomes empty (the APK clears its campaign array only inside
+        // a "response non-empty" guard — see APK_SETTINGS_WIRING_AUDIT.md fix
+        // #6). The push is still correct here; the APK-side fix is what makes
+        // "switch the last campaign off" work end to end.
+        PushApkSettingSync::schedule($apkSetting->id);
 
         return redirect()->route('apk-settings.edit', [$apkSetting->id]);
     }
@@ -169,8 +190,47 @@ class ApkSettingController extends Controller
             ])
             ->findOrFail($id);
 
+        // Fleet readiness for the "Deprecated" section: deprecated parameters
+        // are retired once every bound machine that actually FETCHES the
+        // settings payload reports an APK at or above the threshold. A vend
+        // that never reported a version counts as not-ready (conservative).
+        // Small-board machines (13x versionCode stream) never call
+        // /parameters, so they can't block retirement — but below 140 the
+        // stream is a heuristic (see Vend::maybeSmallBoardStream), so they
+        // are surfaced separately rather than silently excluded.
+        $deprecationThreshold = ApkSettingParameters::DEPRECATION_FLEET_APK_VERSION;
+        // Readiness must cover the WHOLE bound fleet, not just the viewer's
+        // operator slice — retiring a key on a scoped count would reset prefs
+        // on another operator's pre-301 machines.
+        $boundVends = Vend::withoutGlobalScopes()
+            ->whereIn('id', ApkSettingVend::where('apk_setting_id', $apkSetting->id)->pluck('vend_id'))
+            ->get();
+        $readyVends = $boundVends->filter(
+            fn ($vend) => $vend->reportedApkVersion() >= $deprecationThreshold
+        )->count();
+        $maybeSmallBoard = $boundVends->filter(
+            fn ($vend) => $vend->maybeSmallBoardStream()
+        )->count();
+
+        $uiSchema = ApkSettingParameters::uiSchema();
+
         return Inertia::render('ApkSetting/Edit', [
             'apkSetting' => ApkSettingResource::make($apkSetting),
+            'deprecation' => [
+                'threshold' => $deprecationThreshold,
+                'readyVends' => $readyVends,
+                'totalVends' => $boundVends->count(),
+                'maybeSmallBoard' => $maybeSmallBoard,
+                // Labeled from the registry so the page never restates
+                // labels/groups by hand or by key-name convention.
+                'keys' => collect(ApkSettingParameters::deprecatedKeys())
+                    ->map(fn (string $key) => [
+                        'key' => $key,
+                        'label' => $uiSchema[$key]['label'],
+                        'group' => $uiSchema[$key]['group'],
+                        'note' => $uiSchema[$key]['deprecated']['note'] ?? null,
+                    ])->values(),
+            ],
             'campaignOptions' => CampaignResource::collection(
                 Campaign::with(['operator'])->orderBy('name')->get()
             ),
@@ -230,12 +290,34 @@ class ApkSettingController extends Controller
             $apkSettingVend->delete();
         }
 
+        // Straight to this one machine: it is no longer in any setting's vend
+        // list, so the debounced fan-out cannot reach it. Note the machine will
+        // now get a 400 from /parameters and keep its last-known settings —
+        // that is the existing unbound behaviour, not something this adds.
+        $this->pushToVendNow($vend);
+
         return redirect()->back();
     }
 
-    public function update(Request $request, $id)
+    /**
+     * Immediate single-machine nudge, for the cases the debounced fan-out
+     * cannot serve (a vend that has just been unbound). Never let a push
+     * failure break the CMS action the user actually asked for.
+     */
+    private function pushToVendNow($vend): void
     {
-        // dd($request->all(), $id);
+        try {
+            $this->vendJobService->syncSettingsToVend($vend);
+        } catch (\Throwable $e) {
+            Log::warning('apk-setting push to vend failed', [
+                'vend' => $vend instanceof Vend ? $vend->code : $vend,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function update(UpdateApkSettingRequest $request, $id)
+    {
         $apkSetting = ApkSetting::findOrFail($id);
 
         // dd($request->all());
@@ -250,7 +332,39 @@ class ApkSettingController extends Controller
         $apkSetting->fill($request->all());
         $apkSetting->save();
 
-        $apkSetting->vends()->sync($request->vends);
+        // Bindings are only touched when the form posts an actual vends ARRAY —
+        // an absent key or an explicit null (scripted call, partial post) must
+        // mean "leave bindings alone", not "detach the whole fleet"
+        // (sync(null) == sync([])).
+        if (is_array($request->input('vends'))) {
+            // The vends() relation is operator-scoped, but sync() diffs the RAW
+            // pivot. A non-HappyIce user never sees other operators' bindings in
+            // the form, so merge those hidden bindings back into the target or
+            // this save would silently detach them (and, being invisible to the
+            // scoped snapshot, they'd miss their re-read nudge too).
+            $visibleBound = $apkSetting->vends()->pluck('vends.id')->all();
+            $rawBound = ApkSettingVend::where('apk_setting_id', $apkSetting->id)
+                ->pluck('vend_id')->all();
+            $hiddenBound = array_diff($rawBound, $visibleBound);
+
+            $target = array_values(array_unique(array_merge(
+                $hiddenBound,
+                collect($request->vends)->filter()->all()
+            )));
+
+            // detached ⊆ visibleBound by construction, so the scoped lookup
+            // below cannot miss any of them.
+            $removed = $apkSetting->vends()->sync($target)['detached'];
+
+            foreach (Vend::whereIn('id', $removed)->get() as $removedVend) {
+                // Machines UNBOUND by this save are still told to re-read —
+                // the debounced push below only reaches what stays bound.
+                $this->pushToVendNow($removedVend);
+            }
+        }
+
+        // Reflect the save (and any newly bound machine) without a manual Push.
+        PushApkSettingSync::schedule($apkSetting->id);
 
         // $apkSetting->campaignItems()->delete();
         // if($request->campaignItems) {
@@ -286,6 +400,10 @@ class ApkSettingController extends Controller
             ]);
         }
 
+        // Media changed: the machine re-downloads its banner/campaign
+        // folders when it handles this nudge.
+        PushApkSettingSync::schedule($apkSetting->id);
+
         return true;
     }
 
@@ -306,6 +424,10 @@ class ApkSettingController extends Controller
                 'local_url' => $dir.'/'.basename($storedPath),
             ]);
         }
+
+        // Media changed: the machine re-downloads its banner/campaign
+        // folders when it handles this nudge.
+        PushApkSettingSync::schedule($apkSetting->id);
 
         return true;
     }
@@ -328,6 +450,10 @@ class ApkSettingController extends Controller
             ]);
         }
 
+        // Media changed: the machine re-downloads its banner/campaign
+        // folders when it handles this nudge.
+        PushApkSettingSync::schedule($apkSetting->id);
+
         return true;
     }
 
@@ -348,6 +474,10 @@ class ApkSettingController extends Controller
                 'local_url' => $dir.'/'.basename($storedPath),
             ]);
         }
+
+        // Media changed: the machine re-downloads its banner/campaign
+        // folders when it handles this nudge.
+        PushApkSettingSync::schedule($apkSetting->id);
 
         return true;
     }
@@ -377,11 +507,18 @@ class ApkSettingController extends Controller
             return response(['error_message' => 'No file uploaded'], 422);
         }
 
-        $mime = (string) $file->getMimeType();
-        $isVideo = str_starts_with($mime, 'video/');
-        $isImage = str_starts_with($mime, 'image/');
+        // Classify by EXTENSION, not MIME: the machine routes media through its
+        // ImgFilter/VedioFilter extension lists, so extension is the on-device
+        // truth. MIME sniffing both rejects valid-but-oddly-containered videos
+        // (finfo says octet-stream) and accepts formats the APK silently skips
+        // (webp, mkv) — which would ship as invisible orphans to every machine.
+        $ext = strtolower(pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
+        $isImage = in_array($ext, ['gif', 'jpg', 'jpeg', 'bmp', 'png'], true);
+        $isVideo = in_array($ext, ['mp4', 'mov', 'avi', 'wmv'], true);
         if (! $isVideo && ! $isImage) {
-            return response(['error_message' => 'Only image or video files are accepted'], 422);
+            return response([
+                'error_message' => 'Unsupported file type .'.$ext.' — machines play jpg/jpeg/png/gif/bmp and mp4/mov/avi/wmv only',
+            ], 422);
         }
 
         // Mirror the caps the per-kind dropzones enforced client-side.
@@ -402,13 +539,22 @@ class ApkSettingController extends Controller
             $relation = $apkSetting->defaultMedia();
         }
 
-        $storedPath = $file->storePublicly($dir);
+        // storePubliclyAs with the VALIDATED extension: plain storePublicly()
+        // names the file via MIME guessExtension(), which turns an
+        // oddly-containered mp4 (finfo: octet-stream) into "<hash>.bin" — an
+        // extension the machine's ImgFilter/VedioFilter silently skips. The
+        // extension we validated must be the extension we ship.
+        $storedPath = $file->storePubliclyAs($dir, \Illuminate\Support\Str::random(40).'.'.$ext);
         $relation->create([
             'name' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
             'type' => $type,
             'full_url' => Storage::url($storedPath),
             'local_url' => $dir.'/'.basename($storedPath),
         ]);
+
+        // Debounced on purpose: a multi-file dropzone sends one request per
+        // file, and each push costs every bound machine a full media re-sync.
+        PushApkSettingSync::schedule($apkSetting->id);
 
         return true;
     }
@@ -455,23 +601,8 @@ class ApkSettingController extends Controller
 
     private function syncApkSettings($vendID)
     {
-        $vend = Vend::findOrFail($vendID);
-
-        $payload = [
-            'Type' => 'TYPESYNCSETTINGSPARAM',
-            'time' => Carbon::now()->timestamp,
-            'action' => '',
-            'mid' => $vend->code,
-        ];
-
-        $this->vendJobService->dispatch($vend, 'TYPESYNCSETTINGSPARAM', $payload, function ($payload, $vend) {
-            $fid = 1;
-            $content = base64_encode(json_encode($payload));
-            $contentLength = strlen($content);
-            $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-            $md5 = md5($fid.','.$contentLength.','.$content.$key);
-
-            return $fid.','.$contentLength.','.$content.','.$md5;
-        });
+        // Delegates to the canonical implementation in VendJobService — the
+        // payload/format used to be copy-pasted here and in VendController.
+        $this->vendJobService->syncSettingsToVend(Vend::findOrFail($vendID));
     }
 }

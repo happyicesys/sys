@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Eloquent cast for apk_settings.settings_parameter_json.
  *
- * Read:  decodes the stored JSON and backfills any missing keys with
- *        ApkSettingParameters::DEFAULTS — so rows saved before a new setting
- *        existed are schema-complete everywhere (edit page, resources,
+ * Read:  decodes the stored JSON and backfills any missing keys with the
+ *        ApkSettingParameters::SCHEMA defaults — so rows saved before a new
+ *        setting existed are schema-complete everywhere (edit page, resources,
  *        getVendParameters) WITHOUT any DB migration. Nothing is written
  *        back until the row is actually saved by a user action.
- * Write: whitelists to the canonical schema and stores canonical key order.
+ * Write: whitelists to the canonical schema, normalizes each value to its
+ *        canonical wire type, and stores canonical key order.
  *
  * A DB NULL stays NULL in both directions (same as the old 'json' cast), so
  * existing `?? []` / isset() call sites behave identically.
@@ -22,7 +23,7 @@ use Illuminate\Database\Eloquent\Model;
 class AsApkSettingParameters implements CastsAttributes
 {
     /**
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>|null
      */
     public function get(Model $model, string $key, mixed $value, array $attributes): ?array
@@ -33,7 +34,7 @@ class AsApkSettingParameters implements CastsAttributes
 
         $decoded = json_decode($value, true);
 
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             return null;
         }
 
@@ -41,7 +42,7 @@ class AsApkSettingParameters implements CastsAttributes
     }
 
     /**
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      * @return array<string, string|null>
      */
     public function set(Model $model, string $key, mixed $value, array $attributes): array

@@ -14,7 +14,7 @@
           <form @submit.prevent="submit" id="submit">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
             <div class="sm:col-span-5">
-              <FormInput v-model="form.name">
+              <FormInput v-model="form.name" :error="form.errors.name">
                 Name
               </FormInput>
             </div>
@@ -90,6 +90,11 @@ function submit() {
     onSuccess: () => {
       toast.success("Successfully created, please continue to edit the settings", {
         timeout: 3000
+      });
+    },
+    onError: (errors) => {
+      toast.error(Object.values(errors)[0] ?? "Please check the form", {
+        timeout: 5000
       });
     },
     preserveState: true,

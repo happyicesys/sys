@@ -45,12 +45,12 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        $login_type = filter_var($this->login, FILTER_VALIDATE_EMAIL )
+        $login_type = filter_var($this->login, FILTER_VALIDATE_EMAIL)
             ? 'email'
             : 'username';
 
         $this->merge([
-            $login_type => $this->input('login')
+            $login_type => $this->input('login'),
         ]);
 
         if (! Auth::attempt($this->only($login_type, 'password'), $this->boolean('remember'))) {
@@ -62,7 +62,7 @@ class LoginRequest extends FormRequest
         }
 
         $user = Auth::user();
-        if (!$user->is_active) {
+        if (! $user->is_active) {
             Auth::logout();
             throw ValidationException::withMessages([
                 'login' => 'Your account is inactive.',

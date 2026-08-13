@@ -20,6 +20,9 @@ composer.lock
 .fuse_hidden*
 /.agent/
 test*
+# ...but never the real test suite (macOS ignorecase makes test* match tests/ and Test*.php)
+!/tests/
+!/tests/**
 debug_scripts/
 
 /omise_portfolio

@@ -2445,24 +2445,9 @@ class VendController extends Controller
 
     public function syncApkSettings($id)
     {
-        $vend = Vend::findOrFail($id);
-
-        $payload = [
-            'Type' => 'TYPESYNCSETTINGSPARAM',
-            'time' => Carbon::now()->timestamp,
-            'action' => '',
-            'mid' => $vend->code,
-        ];
-
-        $this->vendJobService->dispatch($vend, 'TYPESYNCSETTINGSPARAM', $payload, function ($payload, $vend) {
-            $fid = 1;
-            $content = base64_encode(json_encode($payload));
-            $contentLength = strlen($content);
-            $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-            $md5 = md5($fid.','.$contentLength.','.$content.$key);
-
-            return $fid.','.$contentLength.','.$content.','.$md5;
-        });
+        // Frame building lives in ONE place — the manual Push button must
+        // never drift from the auto-push path's wire format.
+        $this->vendJobService->syncSettingsToVend(Vend::findOrFail($id));
 
         return redirect()->back();
     }

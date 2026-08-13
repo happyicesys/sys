@@ -78,6 +78,23 @@ return [
     // Run `php artisan config:clear` (or config:cache for prod) after changing .env.
     'log_to_vend_data' => filter_var(env('LOG_TO_VEND_DATA'), FILTER_VALIDATE_BOOLEAN),
 
+    // Staged restore of the RAW vend-data ack (see ACK_FIX_PLAN.md in
+    // apk/mark1-apk). Since commit d0d32c431f (2025-07-05) the ack has been
+    // JSON-encoded — "17,4,MQ==" WITH literal quotes — which no APK can parse,
+    // so every machine treats every HTTP POST as unacknowledged and re-uploads
+    // its trades. Vend codes listed here get the raw pre-2025 ack back.
+    // RAW_ACK_VENDS is comma-separated codes, or '*' for the whole fleet once
+    // the staged machines prove out. Default stages only bench vend 2031.
+    // Run `php artisan config:cache` after changing .env.
+    'raw_ack_vends' => array_values(array_filter(array_map(
+        function ($code) {
+            $code = trim($code);
+
+            return $code === '*' ? '*' : (int) $code;
+        },
+        explode(',', (string) env('RAW_ACK_VENDS', '2031'))
+    ))),
+
     // Controls the "create the vend_transaction at gateway paid-time" behaviour
     // (merge of Payment Gateway Transactions into Sales Transactions). While OFF,
     // gateway payments behave exactly as before (transaction created by TRADE).
