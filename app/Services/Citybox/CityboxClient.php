@@ -9,6 +9,12 @@ use Illuminate\Support\Str;
 /**
  * Client for the Citybox smart-chiller apiThredDetail API.
  *
+ * @deprecated 2026-08-14 — apiThredDetail is superseded by CityBox-Openapi
+ * (Brian's decision, matching the supplier's endpoint list). Use
+ * OpenapiClient for anything new. This class + CityboxEquipmentSync +
+ * citybox:ping/poll stay only until a box_list-based poller replaces the
+ * equipment-status sync, then the whole apiThredDetail stack goes.
+ *
  * Contract source: citybox/apiThredDetail_2026-08-12.md (supplier doc, not
  * final — no transactions endpoint yet). Signed form POSTs: business params +
  * unix `timestamp` (±5 min server tolerance) + random `nonce`, MD5 signature

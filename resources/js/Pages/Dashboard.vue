@@ -1592,7 +1592,11 @@
         // compute it (the Lite twin), which just yields no datasets.
         earningsGraphData.value = JSON.parse(JSON.stringify(props.earningsGraphData ?? {}))
         const earningsYears = earningsGraphData.value ?? {}
-        const earningsYearKeys = Object.keys(earningsYears).sort(sortByMonthYear);
+        // Keys here are bare years ("2024"), NOT "January 2024" — passing them to
+        // sortByMonthYear made every comparison 0 (its moment('MMMM YYYY') parse
+        // fails and falls back to 0), so the order only held by accident, via the
+        // JS rule that integer-like object keys enumerate ascending. Sort numerically.
+        const earningsYearKeys = Object.keys(earningsYears).sort((a, b) => Number(a) - Number(b));
         const provisional = []
         const negativeSlices = new Set()
 
@@ -1602,12 +1606,13 @@
             const alpha = isCurrent ? 0.95 : 0.45;
             const monthRows = Object.values(earningsYears[year]);
 
-            // Future months of the current year are absent from the payload, but
-            // guard anyway so a month that hasn't happened plots as a gap rather
-            // than as a zero-height stack.
-            const isFuture = (index) => moment(year, 'YYYY').month(index).endOf('month').isAfter(moment(), 'month');
-
-            const monthTotals = monthRows.map((data, index) => isFuture(index) ? null : Number(data.sales ?? 0));
+            // Future months of the current year are absent from the payload —
+            // getEarningsGraphData stops at the current month in APP timezone.
+            // There is deliberately no client-side "is this month in the future"
+            // guard here: it would re-derive the cut-off from the *browser*
+            // clock, so a viewer west of Asia/Singapore on the 1st of a month
+            // blanked the current month while the bar chart above still drew it.
+            const monthTotals = monthRows.map((data) => Number(data.sales ?? 0));
             const lockInfo = monthRows.map((data) => ({
                 is_locked: !!data.is_locked,
                 locked_sites: Number(data.locked_sites ?? 0),
@@ -1638,7 +1643,7 @@
             }
 
             EARNINGS_SLICES.forEach((slice) => {
-                const sliceData = monthRows.map((data, index) => isFuture(index) ? null : Number(data[slice.key] ?? 0));
+                const sliceData = monthRows.map((data) => Number(data[slice.key] ?? 0));
                 const color = EARNINGS_SLICE_COLORS[slice.key];
 
                 // THREE of the four slices can come out negative, and Chart.js
@@ -1698,8 +1703,7 @@
             // YEAR's ratio (total VE / total sales), not an average of monthly
             // ratios — averaging ratios would weight a quiet month equally with
             // a busy one.
-            const ratioData = monthRows.map((data, index) => {
-                if (isFuture(index)) return null;
+            const ratioData = monthRows.map((data) => {
                 return data.ve_ratio === null || data.ve_ratio === undefined ? null : Number(data.ve_ratio);
             });
             const yearVendEarning = sumData(monthRows.map((data) => Number(data.vend_earning ?? 0)));

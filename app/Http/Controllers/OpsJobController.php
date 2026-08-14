@@ -8,7 +8,6 @@ use App\Http\Resources\OpsJobItemResource;
 use App\Http\Resources\OpsJobResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
-use App\Jobs\PublishMqtt;
 use App\Jobs\SyncOpsJobTransactionCMS;
 use App\Models\Address;
 use App\Models\Operator;
@@ -27,6 +26,7 @@ use App\Services\MapService;
 use App\Services\OpsJobService;
 use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
+use App\Services\VendJobService;
 use App\Support\SiteSearch;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
@@ -50,6 +50,8 @@ class OpsJobController extends Controller
 
     protected $runningNumberService;
 
+    protected $vendJobService;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -57,6 +59,7 @@ class OpsJobController extends Controller
         $this->opsJobService = new OpsJobService;
         $this->productMappingService = new ProductMappingService;
         $this->runningNumberService = new RunningNumberService;
+        $this->vendJobService = new VendJobService;
     }
 
     public function index(Request $request)
@@ -755,18 +758,11 @@ class OpsJobController extends Controller
                         $this->productMappingService->syncChannelsByVend($vend);
                         \App\Jobs\Vend\SaveVendChannelsJson::dispatchSync($vend->id);
 
-                        $fid = 1;
-                        $content = base64_encode(json_encode([
-                            'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
-                            'time' => Carbon::now()->timestamp,
-                            'action' => '',
-                            'mid' => $vend->code,
-                        ]));
-                        $contentLength = strlen($content);
-                        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-                        $md5 = md5($fid.','.$contentLength.','.$content.$key);
-
-                        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+                        // Frame building lives in ONE place (2026-08-13) — this
+                        // used to be an inline copy of the TYPESYNCAPICHANNELSLOTLIST
+                        // frame; now it shares the builder with the manual Sync
+                        // button and the bind/rebind auto-pushes.
+                        $this->vendJobService->syncChannelSlotListToVend($vend);
                     }
                 }
 

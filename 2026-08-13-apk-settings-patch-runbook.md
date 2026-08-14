@@ -84,11 +84,23 @@ SELECT b.band,
 FROM vend_transactions t
 JOIN bands b ON b.id = t.vend_id
 WHERE t.payment_method_id NOT IN (2, 26, 29)
+  AND t.transaction_datetime <= NOW()
   AND (t.transaction_datetime >= NOW() - INTERVAL 6 HOUR
     OR (t.transaction_datetime >= NOW() - INTERVAL 174 HOUR
         AND t.transaction_datetime <  NOW() - INTERVAL 168 HOUR))
 GROUP BY 1, 2 ORDER BY 1, 2;
 ```
+
+> **`transaction_datetime <= NOW()` is required** (added post-deploy
+> 2026-08-13): ~3,000 rows written Sep–Dec 2022 carry year-2070 timestamps
+> from broken VMC clocks and match every "recent" window forever. None have
+> been created since 2022-12-08 — but if
+> `SELECT MAX(created_at) FROM vend_transactions WHERE transaction_datetime > NOW()`
+> ever returns a recent date, a live machine's clock has broken: investigate.
+> The baseline table below PRE-DATES this fix and is inflated by the junk;
+> genuine evening rates are ≈55 txns/h across ~37 vends (213-300) and
+> ≈33 txns/h across ~23 vends (below-213); the 'unknown' band is genuinely
+> zero (its 9 machines died in 2022).
 
 **Baseline captured pre-deploy (2026-08-13 ~19:00):**
 

@@ -21,8 +21,9 @@ trait AppendsUnreportedGatewayCsvRows
      * onward.
      *
      * Amount is written in major units (e.g. 3.50) to match the `/100` convention
-     * used for the regular transaction rows. Column order mirrors the CSV header
-     * exactly (31 columns).
+     * used for the regular transaction rows. Rows are authored against the chunk
+     * export's 31-column layout and trimmed/padded to the caller's own header
+     * width via $columnCount (see putGatewayRow).
      *
      * "Access Product(s)": these rows have NO product - payment_gateway_logs has
      * no product_id, because the machine never told us what came out. There is
@@ -33,21 +34,26 @@ trait AppendsUnreportedGatewayCsvRows
      *
      * @param  array<int, int>|null  $allowedProductIds  null = unrestricted
      * @param  string|null  $transactionAccessFrom  'Y-m-d' cut-off, null = unrestricted
+     * @param  int  $columnCount  width of the CALLER's header. The rows below are
+     *                            built for the chunk export's 31-column layout;
+     *                            the single-file export's header is 28 wide (it
+     *                            has no Dispense Attempted?/Refund Request/Refund
+     *                            Status columns), and without this the appended
+     *                            rows spilled three cells past its header.
      */
-    protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null, ?array $allowedProductIds = null, ?string $transactionAccessFrom = null): void
+    protected function appendUnreportedGatewayRows($stream, Request $request, ?User $user = null, ?array $allowedProductIds = null, ?string $transactionAccessFrom = null, int $columnCount = 31): void
     {
         if ($allowedProductIds !== null) {
-            fputcsv($stream, array_merge(
+            $this->putGatewayRow($stream, array_merge(
                 ['', '', '', '', '', '', '', '', ''],
                 ['Unreported Gateway Revenue (omitted - product-restricted view)'],
                 array_fill(0, 21, '')
-            ));
+            ), $columnCount);
 
             return;
         }
 
-        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
-            DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int) $v)->all()
+        $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
         );
 
         // Keep the gateway rows scoped to the same machines as the CSV's
@@ -59,22 +65,22 @@ trait AppendsUnreportedGatewayCsvRows
         PaymentGatewayLog::query()
             ->with(['vend:id,code', 'operatorPaymentGateway.operator:id,code'])
             ->unreportedDispensed($request, $testingVendIds)
-            ->when($userVendIds !== null, fn($q) => $q->whereIn('payment_gateway_logs.vend_id', $userVendIds))
+            ->when($userVendIds !== null, fn ($q) => $q->whereIn('payment_gateway_logs.vend_id', $userVendIds))
             // "Transaction Access From". These rows are gateway money with no
             // vend_transaction behind them, so they carry their own timestamp -
             // approved_at, not transaction_datetime. Without this a restricted
             // viewer's CSV ends with a block of pre-cut-off revenue.
-            ->when($transactionAccessFrom !== null, fn($q) => $q->where('payment_gateway_logs.approved_at', '>=', $transactionAccessFrom))
+            ->when($transactionAccessFrom !== null, fn ($q) => $q->where('payment_gateway_logs.approved_at', '>=', $transactionAccessFrom))
             ->orderBy('payment_gateway_logs.approved_at')
-            ->chunk(500, function ($logs) use ($stream) {
+            ->chunk(500, function ($logs) use ($stream, $columnCount) {
                 foreach ($logs as $log) {
                     $orderIdCell = $log->order_id !== null && $log->order_id !== ''
-                        ? '="' . $log->order_id . '"'
+                        ? '="'.$log->order_id.'"'
                         : '';
 
                     $amount = (float) $log->amount;
 
-                    fputcsv($stream, [
+                    $this->putGatewayRow($stream, [
                         $orderIdCell,                                                    // Order ID
                         $log->approved_at ? $log->approved_at->toDateTimeString() : '',  // Transaction Datetime
                         $log->vend->code ?? $log->vend_code ?? '',                       // Machine ID
@@ -106,8 +112,24 @@ trait AppendsUnreportedGatewayCsvRows
                         'Yes',                                                           // Dispense Attempted? (unreportedDispensed => is_dispensed=true)
                         '',                                                              // Refund Request
                         '',                                                              // Refund Status
-                    ]);
+                    ], $columnCount);
                 }
             });
+    }
+
+    /**
+     * Write one appended row trimmed (or padded) to the caller's header width,
+     * so an export whose header omits the trailing columns does not get rows
+     * that spill past it.
+     */
+    private function putGatewayRow($stream, array $row, int $columnCount): void
+    {
+        if (count($row) > $columnCount) {
+            $row = array_slice($row, 0, $columnCount);
+        } elseif (count($row) < $columnCount) {
+            $row = array_pad($row, $columnCount, '');
+        }
+
+        fputcsv($stream, $row);
     }
 }

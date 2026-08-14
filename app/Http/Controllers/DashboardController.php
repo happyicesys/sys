@@ -22,16 +22,16 @@ use App\Models\VendPrefix;
 use App\Models\VendProductRecord;
 use App\Models\VendRecord;
 use App\Models\VendTransaction;
+use App\Services\VendTransactionSalesAggregator;
 use App\Support\IndexHint;
 use App\Support\ProductAccess;
-use App\Services\VendTransactionSalesAggregator;
+use App\Support\SiteSearch;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
-use App\Support\SiteSearch;
 
 class DashboardController extends Controller
 {
@@ -157,7 +157,7 @@ class DashboardController extends Controller
      */
     private function newRecordStub()
     {
-        return $this->lite ? new VendProductRecord() : new VendRecord();
+        return $this->lite ? new VendProductRecord : new VendRecord;
     }
 
     /** Date-range charts: day graph, sales comparison, performers, vend count. */
@@ -213,40 +213,50 @@ class DashboardController extends Controller
                     ->pluck('id')
                     ->toArray();
             });
-            \Log::info('[Dashboard] testingVendIds: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+            \Log::info('[Dashboard] testingVendIds: '.round((microtime(true) - $t) * 1000).'ms');
+            $t = microtime(true);
 
             $dayGraph = $this->getDayGraph($request, $testingVendIds);
-            \Log::info('[Dashboard] getDayGraph: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+            \Log::info('[Dashboard] getDayGraph: '.round((microtime(true) - $t) * 1000).'ms');
+            $t = microtime(true);
 
             $productGraph = $this->getProductGraph($request);
-            \Log::info('[Dashboard] getProductGraph: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+            \Log::info('[Dashboard] getProductGraph: '.round((microtime(true) - $t) * 1000).'ms');
+            $t = microtime(true);
 
             $bestPerformer = $this->getBestPerformer($request, $bestPerformerLimit, $testingVendIds);
-            \Log::info('[Dashboard] getBestPerformer: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+            \Log::info('[Dashboard] getBestPerformer: '.round((microtime(true) - $t) * 1000).'ms');
+            $t = microtime(true);
 
             $worstPerformer = $this->getWorstPerformer($request, $worstPerformerLimit, $testingVendIds);
-            \Log::info('[Dashboard] getWorstPerformer: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+            \Log::info('[Dashboard] getWorstPerformer: '.round((microtime(true) - $t) * 1000).'ms');
+            $t = microtime(true);
 
             $vendCount = $this->getVendCount($request, $testingVendIds);
-            \Log::info('[Dashboard] getVendCount: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+            \Log::info('[Dashboard] getVendCount: '.round((microtime(true) - $t) * 1000).'ms');
+            $t = microtime(true);
 
             $monthGraphData = $this->getMonthGraphData($request, $testingVendIds);
-            \Log::info('[Dashboard] getMonthGraphData: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+            \Log::info('[Dashboard] getMonthGraphData: '.round((microtime(true) - $t) * 1000).'ms');
+            $t = microtime(true);
 
             $activeMachineGraphData = $this->getActiveMachineGraphData($request, $testingVendIds);
-            \Log::info('[Dashboard] getActiveMachineGraphData: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+            \Log::info('[Dashboard] getActiveMachineGraphData: '.round((microtime(true) - $t) * 1000).'ms');
+            $t = microtime(true);
 
             // Full page only. customer_period_summaries has no product
             // dimension, so on the product-narrowed Lite page this breakdown
             // would be whole-site money wearing a per-product page's clothes.
             $earningsGraphData = $this->lite ? [] : $this->getEarningsGraphData($request, $testingVendIds);
-            \Log::info('[Dashboard] getEarningsGraphData: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+            \Log::info('[Dashboard] getEarningsGraphData: '.round((microtime(true) - $t) * 1000).'ms');
+            $t = microtime(true);
 
             $monthlyAnalytics = $this->getMonthlyAnalytics($request, $allMonths);
-            \Log::info('[Dashboard] getMonthlyAnalytics: ' . round((microtime(true) - $t) * 1000) . 'ms'); $t = microtime(true);
+            \Log::info('[Dashboard] getMonthlyAnalytics: '.round((microtime(true) - $t) * 1000).'ms');
+            $t = microtime(true);
 
             $salesComparisonGraphData = $this->getSalesComparisonGraph($request, $testingVendIds);
-            \Log::info('[Dashboard] getSalesComparisonGraph: ' . round((microtime(true) - $t) * 1000) . 'ms');
+            \Log::info('[Dashboard] getSalesComparisonGraph: '.round((microtime(true) - $t) * 1000).'ms');
         } else {
             $emptyCollection = collect([]);
             $dayGraph = $emptyCollection;
@@ -336,7 +346,7 @@ class DashboardController extends Controller
         return [
             'productOptions' => $products->map(fn ($product) => [
                 'id' => $product->id,
-                'name' => trim($product->code . ' - ' . $product->name, ' -'),
+                'name' => trim($product->code.' - '.$product->name, ' -'),
             ])->values(),
             'productCategoryOptions' => Category::whereIn(
                 'id',
@@ -409,6 +419,7 @@ class DashboardController extends Controller
         // actually closes it.
         if ($request->boolean('dismiss')) {
             $request->session()->put('monthly_sales_popup_shown', true);
+
             return response()->json(['show' => false]);
         }
 
@@ -519,7 +530,7 @@ class DashboardController extends Controller
             // and then setTimezone() could shift day 1 into the previous month for
             // operators behind app tz (e.g. Bangkok). '-01' pins the day so short
             // months can't overflow when today is the 29th-31st.
-            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01', $this->getUserTimezone())->startOfMonth();
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year.'-01', $this->getUserTimezone())->startOfMonth();
         } else {
             $baseDate = Carbon::today()->setTimezone($this->getUserTimezone())->startOfMonth();
         }
@@ -540,8 +551,8 @@ class DashboardController extends Controller
         // Add 3-year periods when requested
         if ($yearsBack >= 3) {
             $periods['two_years_ago_same_month'] = $baseDate->copy()->subYears(2);
-            $periods['two_years_ago_prev_month']  = $baseDate->copy()->subYears(2)->subMonth();
-            $periods['two_years_ago_next_month']  = $baseDate->copy()->subYears(2)->addMonth();
+            $periods['two_years_ago_prev_month'] = $baseDate->copy()->subYears(2)->subMonth();
+            $periods['two_years_ago_next_month'] = $baseDate->copy()->subYears(2)->addMonth();
         }
 
         // Filter out future "next month" - REMOVED to always show 3 months
@@ -633,7 +644,7 @@ class DashboardController extends Controller
 
     private function setDefaultOperators(Request $request)
     {
-        if (!$request->operators || (is_array($request->operators) && in_array('all', $request->operators))) {
+        if (! $request->operators || (is_array($request->operators) && in_array('all', $request->operators))) {
             if (auth()->user()->operator->code == 'HIPL') {
                 // Single query instead of 4 separate first() calls.
                 $operatorMap = Operator::whereIn('code', ['HIMD', 'LEA', 'HIESG', 'UL-ST'])
@@ -645,7 +656,7 @@ class DashboardController extends Controller
                         $operatorMap->get('LEA'),
                         $operatorMap->get('HIESG'),
                         $operatorMap->get('UL-ST'),
-                    ]
+                    ],
                 ]);
             } else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -657,7 +668,7 @@ class DashboardController extends Controller
     {
         if ($request->month_year) {
             // In the user's tz from the start (see getSalesComparisonGraph note).
-            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01', $this->getUserTimezone());
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year.'-01', $this->getUserTimezone());
             $day_date_from = $baseDate->copy()->startOfMonth();
             $day_date_to = $baseDate->copy()->endOfMonth();
         } else {
@@ -696,11 +707,20 @@ class DashboardController extends Controller
             $todayTransactions = VendTransaction::query()
                 ->filterTransactionIndex($request)
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+                // Same success test the daily rollup uses (code IN (0,6) / NULL /
+                // is_multiple) — without the is_multiple leg today's bar undercounts
+                // multi-vend transactions that carry a non-success error code.
                 ->where(function ($query) {
                     $query->where('vend_channel_errors.code', 0)
                         ->orWhere('vend_channel_errors.code', 6)
-                        ->orWhereNull('vend_channel_errors.code');
+                        ->orWhereNull('vend_channel_errors.code')
+                        ->orWhere('vend_transactions.is_multiple', true);
                 })
+                // vend_records (the past-day source above) only ever contains
+                // settled rows, so today's live leg must apply the same gate or
+                // the current bar counts PENDING/REFUNDED gateway rows the rest
+                // of the chart excludes.
+                ->countsAsSale()
                 ->whereBetween('transaction_datetime', [$startOfTodayUTC, $endOfTodayUTC])
                 ->where('amount', '>', 0)
                 ->whereNotIn('vend_id', $testingVendIds)
@@ -753,13 +773,13 @@ class DashboardController extends Controller
         // collection for every date in the range (was O(n²), now O(n)).
         $existingKeys = [];
         foreach ($dayGraph as $graphDayValue) {
-            $existingKeys[$graphDayValue->month . '-' . $graphDayValue->day] = true;
+            $existingKeys[$graphDayValue->month.'-'.$graphDayValue->day] = true;
         }
 
         $currentDate = $startDate->copy();
         while ($currentDate->lte($endDate)) {
-            $key = $currentDate->month . '-' . $currentDate->day;
-            if (!isset($existingKeys[$key])) {
+            $key = $currentDate->month.'-'.$currentDate->day;
+            if (! isset($existingKeys[$key])) {
                 $newModel = $this->newRecordStub();
                 $newModel->amount = 0;
                 $newModel->count = 0;
@@ -867,11 +887,11 @@ class DashboardController extends Controller
             ->filterIndex($request)
             ->whereBetween('date', [Carbon::today()->copy()->subDays(29)->startOfDay(), Carbon::today()->endOfDay()])
             ->whereNotIn('vend_id', $testingVendIds)
-            ->groupBy($table . '.vend_id')
+            ->groupBy($table.'.vend_id')
             ->select(
-                $table . '.id',
-                $table . '.customer_id',
-                $table . '.vend_id',
+                $table.'.id',
+                $table.'.customer_id',
+                $table.'.vend_id',
                 DB::raw("SUM({$table}.total_amount) as amount"),
                 DB::raw("SUM({$table}.total_count) as count")
             );
@@ -896,7 +916,7 @@ class DashboardController extends Controller
             // PER PRODUCT, so the same count() would report ~4x too many machines —
             // it must count distinct machines instead.
             return $lite
-                ? $query->distinct()->count($table . '.vend_id')
+                ? $query->distinct()->count($table.'.vend_id')
                 : $query->count();
         });
     }
@@ -906,7 +926,7 @@ class DashboardController extends Controller
         $yearsBack = max(2, min(3, (int) ($request->years_back ?? 2)));
 
         if ($request->month_year) {
-            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01');
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year.'-01');
             $thisYear = $baseDate->copy()->endOfYear();
             $lastYear = $baseDate->copy()->subYears($yearsBack - 1)->startOfYear();
             $compareYear = $baseDate->year;
@@ -1026,7 +1046,7 @@ class DashboardController extends Controller
         // Same window derivation as getMonthGraphData(), deliberately - the two
         // charts are read side by side and must span the same months.
         if ($request->month_year) {
-            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01');
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year.'-01');
             $thisYear = $baseDate->copy()->endOfYear();
             $lastYear = $baseDate->copy()->subYears($yearsBack - 1)->startOfYear();
             $compareYear = $baseDate->year;
@@ -1325,7 +1345,7 @@ class DashboardController extends Controller
         $operatorId = $user->operator_id;
 
         if ($operatorId && (int) $operatorId !== 1) {
-            $query->where($table . '.operator_id', $operatorId);
+            $query->where($table.'.operator_id', $operatorId);
         }
 
         $vendIds = $user->vends ? $user->vends->pluck('id')->all() : [];
@@ -1334,12 +1354,12 @@ class DashboardController extends Controller
             return $query;
         }
 
-        $query->whereIn($table . '.vend_id', $vendIds);
+        $query->whereIn($table.'.vend_id', $vendIds);
 
         $customerIds = Vend::whereIn('id', $vendIds)->get()->pluck('customer_id')->filter()->all();
 
         if (! empty($customerIds)) {
-            $query->whereIn($table . '.customer_id', $customerIds);
+            $query->whereIn($table.'.customer_id', $customerIds);
         }
 
         return $query;
@@ -1362,7 +1382,7 @@ class DashboardController extends Controller
         $table = $this->recordTable();
 
         $sourceMin = Cache::remember(
-            'rollup_min_date_' . $table,
+            'rollup_min_date_'.$table,
             86400,
             fn () => DB::table($table)->min('date')
         );
@@ -1387,7 +1407,7 @@ class DashboardController extends Controller
         $yearsBack = max(2, min(3, (int) ($request->years_back ?? 2)));
 
         if ($request->month_year) {
-            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01');
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year.'-01');
             $thisYear = $baseDate->copy()->endOfYear();
             $lastYear = $baseDate->copy()->subYears($yearsBack - 1)->startOfYear();
             $compareYear = $baseDate->year;
@@ -1470,38 +1490,38 @@ class DashboardController extends Controller
             //
             return DB::table($table)
                 ->selectRaw('year, month, COUNT(DISTINCT customer_id) as count')
-                ->when($lite, fn($q) => ProductAccess::applyToColumn($q, $table . '.product_id'))
+                ->when($lite, fn ($q) => ProductAccess::applyToColumn($q, $table.'.product_id'))
                 // Same DANGER applies to "Transaction Access From": no Eloquent
                 // scope reaches this builder, so TransactionAccessScope on
                 // VendRecord/VendProductRecord does nothing here. Applied to BOTH
                 // sources (not just lite) because both carry the date column and
                 // both back this line. Keep this call attached too.
-                ->tap(fn($q) => \App\Support\TransactionAccess::applyToColumn($q, $table . '.date'))
+                ->tap(fn ($q) => \App\Support\TransactionAccess::applyToColumn($q, $table.'.date'))
                 // ...and the SAME is true of the machine allow-list. This was the
                 // real leak: a user bound to a single machine saw the whole
                 // fleet's site count on this line (350-385 instead of 1), because
                 // OperatorVendRecordScope is an ELOQUENT scope and this is a raw
                 // builder. Every other query on this page goes through
                 // recordQuery() and is scoped automatically; this one is not.
-                ->tap(fn($q) => $this->applyVendAccessToRawQuery($q, $table))
+                ->tap(fn ($q) => $this->applyVendAccessToRawQuery($q, $table))
                 ->whereBetween('year', [$lastYear->year, $thisYear->year])
                 ->whereNotIn('vend_id', $excludeVendIds)
-                ->when($request->operators, fn($q) => $q->whereIn('operator_id', $request->operators))
+                ->when($request->operators, fn ($q) => $q->whereIn('operator_id', $request->operators))
                 ->when($request->codes && $request->has('_resolved_vend_ids'),
-                    fn($q) => $q->whereIn('vend_id', $request->input('_resolved_vend_ids', [])))
-                ->when($request->vendModels && !in_array('all', $request->vendModels),
-                    fn($q) => $q->whereIn('vend_model_id', $request->vendModels))
-                ->when($request->vendPrefixes && !in_array('all', $request->vendPrefixes),
-                    fn($q) => $q->whereIn('vend_prefix_id', $request->vendPrefixes))
+                    fn ($q) => $q->whereIn('vend_id', $request->input('_resolved_vend_ids', [])))
+                ->when($request->vendModels && ! in_array('all', $request->vendModels),
+                    fn ($q) => $q->whereIn('vend_model_id', $request->vendModels))
+                ->when($request->vendPrefixes && ! in_array('all', $request->vendPrefixes),
+                    fn ($q) => $q->whereIn('vend_prefix_id', $request->vendPrefixes))
                 ->when($request->locationType && $request->locationType !== 'all',
-                    fn($q) => $q->where('location_type_id', $request->locationType))
-                ->when($request->customer, fn($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
+                    fn ($q) => $q->where('location_type_id', $request->locationType))
+                ->when($request->customer, fn ($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
                     SiteSearch::for($request->customer)->applyTo($subQ->select('id')->from('customers'));
                 }))
-                ->when($request->categories, fn($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
+                ->when($request->categories, fn ($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
                     $subQ->select('id')->from('customers')->whereIn('category_id', $request->categories);
                 }))
-                ->when($request->categoryGroups, fn($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
+                ->when($request->categoryGroups, fn ($q) => $q->whereIn('customer_id', function ($subQ) use ($request) {
                     $subQ->select('id')->from('customers')->whereIn('category_id', function ($catQ) use ($request) {
                         $catQ->select('id')->from('categories')->whereIn('category_group_id', $request->categoryGroups);
                     });
@@ -1511,9 +1531,9 @@ class DashboardController extends Controller
                     // not the live vends.customer_id — see scopeFilterIndex for
                     // rationale.
                     if ($request->is_binded_customer === 'true') {
-                        $q->whereNotNull($table . '.customer_id');
+                        $q->whereNotNull($table.'.customer_id');
                     } else {
-                        $q->whereNull($table . '.customer_id');
+                        $q->whereNull($table.'.customer_id');
                     }
                 })
                 ->groupBy('year', 'month')
@@ -1529,11 +1549,10 @@ class DashboardController extends Controller
         return $activeMonths;
     }
 
-
     private function getMonthlyAnalytics(Request $request, $allMonths = null)
     {
         if ($request->month_year) {
-            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year . '-01');
+            $baseDate = Carbon::createFromFormat('Y-m-d', $request->month_year.'-01');
             $monthlyDateFrom = $baseDate->copy()->startOfYear()->startOfDay();
             $monthlyDateTo = $baseDate->copy()->endOfYear()->endOfDay();
             $currentMonthNumber = $baseDate->month;
@@ -1546,7 +1565,7 @@ class DashboardController extends Controller
         $request->merge([
             'monthlyDateFrom' => $monthlyDateFrom,
             'monthlyDateTo' => $monthlyDateTo,
-            'monthlyTypeName' => $request->monthlyTypeName ?? 'location-type'
+            'monthlyTypeName' => $request->monthlyTypeName ?? 'location-type',
         ]);
 
         // Cache the expensive full-year double-join query for 5 minutes.
@@ -1555,7 +1574,7 @@ class DashboardController extends Controller
         // the SAME method for the SAME user with the SAME filters but read
         // different tables, so without it the two pages would serve each other's
         // cached figures.
-        $cacheKey = 'monthly_analytics_' . ($this->lite ? 'lite_' : '') . auth()->id() . '_' . md5(json_encode([
+        $cacheKey = 'monthly_analytics_'.($this->lite ? 'lite_' : '').auth()->id().'_'.md5(json_encode([
             $monthlyDateFrom->format('Y-m-d'),
             $monthlyDateTo->format('Y-m-d'),
             $request->monthlyTypeName,
@@ -1577,7 +1596,7 @@ class DashboardController extends Controller
 
         foreach ($items as $item) {
             $month = $months->get($item->month);
-            if (!$month) {
+            if (! $month) {
                 continue;
             }
             $entry = [
@@ -1597,7 +1616,6 @@ class DashboardController extends Controller
         return collect($monthsByModel)->sortKeys();
     }
 
-
     /**
      * Build a stable, user-scoped cache key from the active request filters.
      * Extra scalar values (e.g. a date range) can be passed in $extra.
@@ -1608,7 +1626,7 @@ class DashboardController extends Controller
         // share these private methods, so the same user with the same filters
         // produces the same key on both pages — and would be served the other
         // page's (differently-sourced) numbers out of cache.
-        return $name . '_' . ($this->lite ? 'lite_' : '') . auth()->id() . '_' . md5(json_encode(array_merge([
+        return $name.'_'.($this->lite ? 'lite_' : '').auth()->id().'_'.md5(json_encode(array_merge([
             $request->operators,
             $request->customer,
             $request->codes,
@@ -1738,18 +1756,18 @@ class DashboardController extends Controller
             ->selectRaw("{$table}.date as date")
             ->selectRaw("COUNT(DISTINCT {$table}.vend_id) as daily_active_count")
             ->leftJoin('vends as v2', function ($join) use ($table) {
-                $join->on($table . '.vend_id', '=', 'v2.id')
+                $join->on($table.'.vend_id', '=', 'v2.id')
                     ->where('v2.is_testing', true);
             })
-            ->whereBetween($table . '.date', [$dateFrom, $dateTo])
+            ->whereBetween($table.'.date', [$dateFrom, $dateTo])
             ->whereNull('v2.id') // replaces NOT IN for efficiency
-            ->when($request->operators, fn($q) => $q->whereIn($table . '.operator_id', $request->operators))
-            ->groupBy($table . '.date');
+            ->when($request->operators, fn ($q) => $q->whereIn($table.'.operator_id', $request->operators))
+            ->groupBy($table.'.date');
 
         if ($className === 'location_types') {
-            $dailyActive->groupBy($table . '.location_type_id');
+            $dailyActive->groupBy($table.'.location_type_id');
         } elseif ($className === 'operators') {
-            $dailyActive->groupBy($table . '.operator_id');
+            $dailyActive->groupBy($table.'.operator_id');
         }
 
         $query = $this->recordQuery(self::IDX_BY_MONTH)
@@ -1759,20 +1777,20 @@ class DashboardController extends Controller
             ->selectRaw("SUM({$table}.total_amount) as amount")
             ->selectRaw("COUNT(DISTINCT {$table}.vend_id) as vend_count")
             ->leftJoin('vends as v2', function ($join) use ($table) {
-                $join->on($table . '.vend_id', '=', 'v2.id')
+                $join->on($table.'.vend_id', '=', 'v2.id')
                     ->where('v2.is_testing', true);
             })
             ->leftJoinSub($dailyActive, 'daily_active', function ($join) use ($className, $table) {
-                $join->on($table . '.date', '=', 'daily_active.date');
+                $join->on($table.'.date', '=', 'daily_active.date');
                 if ($className === 'location_types') {
-                    $join->on($table . '.location_type_id', '=', 'daily_active.location_type_id');
+                    $join->on($table.'.location_type_id', '=', 'daily_active.location_type_id');
                 } elseif ($className === 'operators') {
-                    $join->on($table . '.operator_id', '=', 'daily_active.operator_id');
+                    $join->on($table.'.operator_id', '=', 'daily_active.operator_id');
                 }
             })
-            ->whereBetween($table . '.date', [$dateFrom, $dateTo])
+            ->whereBetween($table.'.date', [$dateFrom, $dateTo])
             ->whereNull('v2.id') // replaces NOT IN
-            ->when($request->operators, fn($q) => $q->whereIn($table . '.operator_id', $request->operators));
+            ->when($request->operators, fn ($q) => $q->whereIn($table.'.operator_id', $request->operators));
 
         // "Average" must mean the same thing on both pages, or the Lite figure is
         // not comparable to the one prod_owner sees quoted elsewhere.
@@ -1789,16 +1807,16 @@ class DashboardController extends Controller
             : "AVG({$table}.total_amount) as average");
 
         if ($className === 'location_types') {
-            $query->leftJoin('location_types', $table . '.location_type_id', '=', 'location_types.id')
+            $query->leftJoin('location_types', $table.'.location_type_id', '=', 'location_types.id')
                 ->selectRaw('location_types.id as id')
                 ->selectRaw('location_types.name as name')
-                ->groupBy('location_types.id', $table . '.month')
+                ->groupBy('location_types.id', $table.'.month')
                 ->orderBy('location_types.name', 'asc');
         } elseif ($className === 'operators') {
-            $query->leftJoin('operators', $table . '.operator_id', '=', 'operators.id')
+            $query->leftJoin('operators', $table.'.operator_id', '=', 'operators.id')
                 ->selectRaw('operators.id as id')
                 ->selectRaw('operators.name as name')
-                ->groupBy('operators.id', $table . '.month')
+                ->groupBy('operators.id', $table.'.month')
                 ->orderBy('operators.name', 'asc');
         }
 
@@ -1806,5 +1824,4 @@ class DashboardController extends Controller
 
         return $query;
     }
-
 }

@@ -16,6 +16,7 @@ use App\Models\Vend;
 use App\Models\VendPrefix;
 use App\Services\ProductMappingService;
 use App\Services\SmartFreezerCatalogPush;
+use App\Services\VendJobService;
 use App\Support\SiteSearch;
 use DB;
 use Illuminate\Http\Request;
@@ -36,11 +37,14 @@ class ProductMappingController extends Controller
      */
     private $smartFreezerCatalogPush;
 
+    private $vendJobService;
+
     public function __construct()
     {
         $this->middleware(['permission:read product-mappings']);
         $this->productMappingService = new ProductMappingService;
         $this->smartFreezerCatalogPush = new SmartFreezerCatalogPush;
+        $this->vendJobService = new VendJobService;
     }
 
     /**
@@ -1312,6 +1316,24 @@ class ProductMappingController extends Controller
         // menu just went empty.
         $this->smartFreezerCatalogPush->pushForMapping($productMapping);
         $this->smartFreezerCatalogPush->pushForVendIds(array_values($vendsToRemoveIds));
+
+        // Vending-machine terminals need the same nudge (2026-08-13, the 2031
+        // rebind report): they only re-fetch their slot list on boot or on a
+        // TYPESYNCAPICHANNELSLOTLIST push, so a machine moved between mappings
+        // here kept selling the OLD menu until reboot. Push to machines that
+        // joined this mapping AND machines that just left it (their menu went
+        // empty above). Kept machines only had their upcoming mapping adjusted
+        // — the live menu is unchanged, so no push. Sent AFTER syncChannels so
+        // the re-fetch reads the committed rows. Non-vending machine types are
+        // skipped inside the service (freezers were nudged just above).
+        // Fetched in ONE query (withoutGlobalScopes, matching what the service
+        // does for a bare id) — a big rebind must not turn into a point-SELECT
+        // per machine.
+        $nudgeVends = Vend::withoutGlobalScopes()
+            ->findMany([...array_values($vendsToAddIds), ...array_values($vendsToRemoveIds)]);
+        foreach ($nudgeVends as $nudgeVend) {
+            $this->vendJobService->syncChannelSlotListToVend($nudgeVend);
+        }
 
         return redirect()->route('product-mappings');
     }

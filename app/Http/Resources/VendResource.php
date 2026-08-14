@@ -38,6 +38,11 @@ class VendResource extends JsonResource
             'actual_stock_in_qty' => isset($this->actual_stock_in_qty) ? $this->actual_stock_in_qty : null,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'balance_percent' => isset($this->balance_percent) ? $this->balance_percent : null,
+            // Machine taxonomy + Citybox linkage — the Settings edit form
+            // initializes from these; omitting machine_type here made the
+            // picker silently reset saved types to Vending Machine on save.
+            'machine_type' => $this->machine_type ?: 'vending_machine',
+            'citybox_equipment_id' => $this->citybox_equipment_id ?? null,
             'cardTerminal' => CardTerminalResource::make($this->whenLoaded('cardTerminal')),
             'card_terminal_id' => isset($this->card_terminal_id) ? $this->card_terminal_id : null,
             // Card terminal name (Nayax / Nets / Nets-Auresys / PAX / MLS).

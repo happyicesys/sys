@@ -3,33 +3,35 @@
 namespace App\Jobs;
 
 use App\Jobs\Concerns\AppendsUnreportedGatewayCsvRows;
-use App\Models\Operator;
-use App\Models\VendTransaction;
-use App\Models\VendTransactionItem;
 use App\Models\ExportJob;
+use App\Models\Operator;
 use App\Models\Tag;
 use App\Models\User;
+use App\Models\VendTransaction;
+use App\Models\VendTransactionItem;
 use App\Support\ProductAccess;
 use App\Support\TransactionAccess;
 use DB;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\Request;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 
 class ExportVendTransactionCsv implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, AppendsUnreportedGatewayCsvRows;
+    use AppendsUnreportedGatewayCsvRows, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 1;
 
     protected $jobId;
+
     protected $requestData;
+
     protected $userID;
 
     /**
@@ -110,8 +112,9 @@ class ExportVendTransactionCsv implements ShouldQueue
     public function handle()
     {
         $job = ExportJob::find($this->jobId);
-        if (!$job)
+        if (! $job) {
             return;
+        }
 
         $user = User::find($this->userID ?? $job->user_id);
 
@@ -121,10 +124,10 @@ class ExportVendTransactionCsv implements ShouldQueue
                 'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone(env('APP_TIMEZONE'))->startOfDay() : Carbon::today()->setTimezone(env('APP_TIMEZONE'))->startOfDay(),
                 'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone(env('APP_TIMEZONE'))->endOfDay() : Carbon::today()->setTimezone(env('APP_TIMEZONE'))->endOfDay(),
                 'sortKey' => $request->sortKey ?? 'transaction_datetime',
-                'sortBy' => $request->sortBy ?? false
+                'sortBy' => $request->sortBy ?? false,
             ]);
 
-            if (!$request->operators) {
+            if (! $request->operators) {
                 if ($user->operator->code == 'HIPL') {
                     $request->merge([
                         'operators' => [
@@ -133,21 +136,20 @@ class ExportVendTransactionCsv implements ShouldQueue
                             Operator::where('code', 'LEA')->first()?->id,
                             Operator::where('code', 'HIESG')->first()?->id,
                             Operator::where('code', 'UL-ST')->first()?->id,
-                        ]
+                        ],
                     ]);
                 } else {
                     $request->merge(['operators' => [$user->operator_id]]);
                 }
             }
 
-            $filename = 'vend_transactions_' . now()->format('Ymd_His') . '.csv';
+            $filename = 'vend_transactions_'.now()->format('Ymd_His').'.csv';
             $spacesPath = "sys/exports/{$filename}";
 
             // Align with the transaction page aggregate cards: exclude testing
             // machines and non-settled rows (see filters on the query below) so
             // the exported Amount total tallies with the dashboard "Total Sales".
-            $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn() =>
-                DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn($v) => (int) $v)->all()
+            $testingVendIds = Cache::remember('testing_vend_ids', 3600, fn () => DB::table('vends')->where('is_testing', true)->pluck('id')->map(fn ($v) => (int) $v)->all()
             );
 
             $stream = fopen('php://temp', 'r+');
@@ -180,7 +182,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                 'Member ID',
                 'HID Card ID',
                 'Voucher',
-                'Campaign Labels'
+                'Campaign Labels',
             ]);
 
             VendTransaction::query()
@@ -201,11 +203,11 @@ class ExportVendTransactionCsv implements ShouldQueue
                 // items is allowed. The other party's item rows survive carrying
                 // only their channel number - product code, name, price type,
                 // amount breakdown and unit cost are all blanked further down.
-                ->tap(fn($query) => ProductAccess::applyToVendTransactions($query, $this->allowedProductIds))
+                ->tap(fn ($query) => ProductAccess::applyToVendTransactions($query, $this->allowedProductIds))
                 // "Transaction Access From": same hand-in reason as the product
                 // allow-list directly above - TransactionAccessScope cannot fire
                 // in a worker, so the resolved date has to travel with the job.
-                ->tap(fn($query) => TransactionAccess::applyToColumn($query, 'vend_transactions.transaction_datetime', $this->transactionAccessFrom))
+                ->tap(fn ($query) => TransactionAccess::applyToColumn($query, 'vend_transactions.transaction_datetime', $this->transactionAccessFrom))
                 ->filterTransactionIndex($request)
                 // Mirror the aggregate-cards query (VendController@transactionIndex):
                 // only settled sales (excludes in-flight PENDING and voided REFUNDED
@@ -213,7 +215,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                 // contains rows the "Total Sales" card never counts, so the
                 // exported total comes out higher than the dashboard.
                 ->where('vend_transactions.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
-                ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
+                ->when(! empty($testingVendIds), fn ($q) => $q->whereNotIn('vend_transactions.vend_id', $testingVendIds))
                 ->select([
                     'vend_transactions.*',
                     'vends.code AS vend_code',
@@ -256,20 +258,22 @@ class ExportVendTransactionCsv implements ShouldQueue
                     $rawLabelVals = $transactions->pluck('label_ids_json')
                         ->filter()
                         ->flatMap(function ($val) {
-                        if (is_array($val))
-                            return $val;
-                        $arr = json_decode($val, true);
-                        return is_array($arr) ? $arr : [];
-                    });
+                            if (is_array($val)) {
+                                return $val;
+                            }
+                            $arr = json_decode($val, true);
+
+                            return is_array($arr) ? $arr : [];
+                        });
 
                     $tagIds = $rawLabelVals
-                        ->filter(fn($v) => is_int($v) || (is_string($v) && ctype_digit($v)))
-                        ->map(fn($v) => (int) $v)
+                        ->filter(fn ($v) => is_int($v) || (is_string($v) && ctype_digit($v)))
+                        ->map(fn ($v) => (int) $v)
                         ->unique()
                         ->values();
 
                     $tagNames = $rawLabelVals
-                        ->filter(fn($v) => is_string($v) && !ctype_digit($v))
+                        ->filter(fn ($v) => is_string($v) && ! ctype_digit($v))
                         ->unique()
                         ->values();
 
@@ -286,6 +290,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                             ->reduce(function ($carry, $tag) {
                                 $carry[$tag->name] = $tag;
                                 $carry[$tag->slug] = $tag;
+
                                 return $carry;
                             }, []);
 
@@ -302,6 +307,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                             } else {
                                 $t = $tagsByNameSlug[$v] ?? null;
                             }
+
                             return $t->name ?? $t->slug ?? (string) $v;
                         })->implode(', ');
 
@@ -318,14 +324,14 @@ class ExportVendTransactionCsv implements ShouldQueue
 
                         $main_amount = $txn->amount / 100;
                         $multipleBreakdown = $txn->is_multiple
-                            ? ($txn->amount - $txnItems->sum(fn($it) => $it->vendChannel?->amount ?? 0)) / 100
+                            ? ($txn->amount - $txnItems->sum(fn ($it) => $it->vendChannel?->amount ?? 0)) / 100
                             : $main_amount;
 
                         // Wrap order_id in Excel text-formula so long numeric IDs
                         // do not get converted to scientific notation when the
                         // CSV is opened directly in Excel.
                         $orderIdCell = $txn->order_id !== null && $txn->order_id !== ''
-                            ? '="' . $txn->order_id . '"'
+                            ? '="'.$txn->order_id.'"'
                             : '';
 
                         // ✏️ Parent row — append $labelStr at the end
@@ -339,7 +345,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $txn->customer_name,
                             $txn->vend_channel_code ?? '',
                             $txn->product_code,
-                            $txn->vend_channel_code == 0 && !$txn->product_code ? 'Multiple Purchase' : $txn->product_name,
+                            $txn->vend_channel_code == 0 && ! $txn->product_code ? 'Multiple Purchase' : $txn->product_name,
                             $txn->vend_channel_amount == $txn->amount ? 'P1' : ($txn->vend_channel_amount2 == $txn->amount ? 'P2' : ''),
                             $main_amount,
                             $multipleBreakdown,
@@ -359,7 +365,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $txn->interface_type,
                             $txn_json['dcvend_user_id'] ?? '',
                             $meta_json['hid_card_id'] ?? '',
-                            (!empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
+                            (! empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
                             $labelStr, // 👈 new
                         ]);
 
@@ -415,7 +421,9 @@ class ExportVendTransactionCsv implements ShouldQueue
 
             // Append dispensed-but-unreported gateway revenue so the CSV total
             // tallies with the dashboard "Total Sales" (from the cutoff onward).
-            $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds, $this->transactionAccessFrom);
+            // 28 = this job's header width (no Dispense Attempted?/Refund
+            // Request/Refund Status columns; the chunk export has those three).
+            $this->appendUnreportedGatewayRows($stream, $request, $user, $this->allowedProductIds, $this->transactionAccessFrom, 28);
 
             rewind($stream);
 

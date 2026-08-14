@@ -2,30 +2,40 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Support\Str;
-use App\Models\Operator;
-use App\Models\Tag;
-use App\Models\User;
 use App\Support\OperatorScope;
 use App\Traits\GetUserTimezone;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Campaign extends Model
 {
     use GetUserTimezone, HasFactory;
 
     const TYPE_PERCENTAGE = 'Percentage';
+
     const TYPE_AMOUNT = 'Amount';
+
     const TYPE_ABSOLUTE = 'Absolute';
+
     const TYPE_ITEM = 'Free';
+
+    /**
+     * Cart-quantity tier discount. bundle_qty is the tier threshold (2, 3 or
+     * 4 → legacy wire slot 01/02/03), value is the discount percent. Never
+     * shipped inside campaigns[] — CampaignWireSerializer derives the legacy
+     * enableBundleDiscount / enableDiscount0x / discountPercent0x keys that
+     * every deployed APK already executes.
+     */
+    const TYPE_QTY_TIER = 'QtyTier';
 
     const TYPES_MAPPING = [
         self::TYPE_PERCENTAGE => 'Percentage',
         self::TYPE_AMOUNT => 'Amount',
         self::TYPE_ABSOLUTE => 'Absolute',
         self::TYPE_ITEM => 'Free Item',
+        self::TYPE_QTY_TIER => 'Qty Tier Discount (Buy 2/3/4 → %)',
     ];
 
     protected $fillable = [
@@ -160,24 +170,24 @@ class Campaign extends Model
     protected function value(): Attribute
     {
         return Attribute::make(
-            get: fn($value) => $this->convertStoredIntegerToDecimal($value),
-            set: fn($value) => $this->convertDecimalToStoredInteger($value)
+            get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
+            set: fn ($value) => $this->convertDecimalToStoredInteger($value)
         );
     }
 
     protected function minBasketValue(): Attribute
     {
         return Attribute::make(
-            get: fn($value) => $this->convertStoredIntegerToDecimal($value),
-            set: fn($value) => $this->convertDecimalToStoredInteger($value)
+            get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
+            set: fn ($value) => $this->convertDecimalToStoredInteger($value)
         );
     }
 
     protected function maxDiscountValue(): Attribute
     {
         return Attribute::make(
-            get: fn($value) => $this->convertStoredIntegerToDecimal($value),
-            set: fn($value) => $this->convertDecimalToStoredInteger($value)
+            get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
+            set: fn ($value) => $this->convertDecimalToStoredInteger($value)
         );
     }
 

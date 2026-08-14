@@ -596,8 +596,24 @@ class SettingController extends Controller
 
     public function store(Request $request)
     {
+        // Same normalisation + guard as VendController::update — citybox_equipment_id
+        // is fillable and this method mass-assigns, so creation must enforce the
+        // same rules or a duplicate serial 500s on the DB unique index instead of
+        // validating, and a non-chiller could be born already linked.
+        if ($request->has('citybox_equipment_id') && ! $request->citybox_equipment_id) {
+            $request->merge(['citybox_equipment_id' => null]);
+        }
+
         $request->validate([
             'code' => 'required',
+            'citybox_equipment_id' => [
+                'sometimes', 'nullable', 'string', 'max:64',
+                'unique:vends,citybox_equipment_id',
+                \Illuminate\Validation\Rule::prohibitedIf(
+                    fn () => $request->citybox_equipment_id
+                        && $request->machine_type !== Vend::MACHINE_TYPE_SMART_CHILLER
+                ),
+            ],
             'machine_type' => 'sometimes|nullable|in:vending_machine,smart_freezer,smart_chiller',
         ]);
 

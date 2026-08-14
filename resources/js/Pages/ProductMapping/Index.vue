@@ -209,11 +209,44 @@
                         here; there would then be two of them.
 
                         Binded date stays as the per-row chip.
+
+                        SORTING (2026-08-13): "Binded Vending Machines" and
+                        "(binded date)" are click-toggles for the machine list
+                        INSIDE each row's cell — machine code and binded date
+                        respectively, default binded date newest-first. This is
+                        NOT the page-level row sort (filters.sortKey); it's
+                        client-side (vendListSort / sortedVends) because every
+                        mapping's machines ship fully loaded with the row, and
+                        one shared state sorts every row's list the same way.
                       -->
                       <div class="flex flex-col space-y-1">
-                        <span>Binded Vending Machines</span>
+                        <a
+                          href="#"
+                          class="inline-flex items-center justify-center gap-0.5 hover:text-blue-800"
+                          @click.prevent="sortVendList('code')"
+                        >
+                          <span>Binded Vending Machines</span>
+                          <svg v-if="vendListSort.key === 'code' && !vendListSort.desc" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                          </svg>
+                          <svg v-if="vendListSort.key === 'code' && vendListSort.desc" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </a>
                         <span class="text-black font-normal text-xs">RP Tier</span>
-                        <span class="text-black font-normal text-xs">(binded date)</span>
+                        <a
+                          href="#"
+                          class="inline-flex items-center justify-center gap-0.5 font-normal text-xs text-blue-600 hover:text-blue-800"
+                          @click.prevent="sortVendList('binded_at')"
+                        >
+                          <span>(binded date)</span>
+                          <svg v-if="vendListSort.key === 'binded_at' && !vendListSort.desc" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                          </svg>
+                          <svg v-if="vendListSort.key === 'binded_at' && vendListSort.desc" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </a>
                         <span class="text-black font-normal text-xs"># machines at upcoming stage</span>
                       </div>
                     </TableHead>
@@ -380,7 +413,7 @@
                               used on Vend/CustomerIndex.vue so the values feel
                               familiar to ops.
                             -->
-                            <li class="flex flex-wrap gap-x-2 gap-y-1 py-1 px-3" v-for="(vend, vendIndex) in productMapping.vends">
+                            <li class="flex flex-wrap gap-x-2 gap-y-1 py-1 px-3" v-for="(vend, vendIndex) in sortedVends(productMapping)">
                               <span>
                                 {{ vendIndex + 1 }}.
                               </span>
@@ -611,7 +644,8 @@
                             {{ productMapping.vends.length }} Machine(s)
                           </span>
                           <ul class="divide-y divide-gray-200">
-                            <li class="flex flex-col items-center justify-center py-1 px-3" v-for="vend in productMapping.vends">
+                            <!-- MUST iterate the SAME sortedVends() as the Binded Vending Machines cell — the two lists pair by index (alignAvgMthlySalesRows), so a differing order silently puts figures on the wrong machine. -->
+                            <li class="flex flex-col items-center justify-center py-1 px-3" v-for="vend in sortedVends(productMapping)">
                               <!--
                                 The whole two-line block is ONE element, so the grey "—"
                                 below is an ordinary v-if/v-else pair on siblings and is
@@ -1634,6 +1668,50 @@ function onSearchFilterUpdated() {
 
 function resetFilters() {
   router.get('/product-mappings')
+}
+
+// ---------------------------------------------------------------------------
+// In-cell machine list sort (2026-08-13)
+// ---------------------------------------------------------------------------
+// Sorts the binded-machine list INSIDE each mapping row — and, in lockstep, the
+// per-machine Avg Mthly Sales column, because BOTH cells render this same
+// sorted array and alignAvgMthlySalesRows() pairs their rows by index. This is
+// separate from the page-level row sort (filters.sortKey / sortTable below):
+// it never round-trips, since a mapping's machines always ship fully loaded
+// with the row. One shared state sorts every row's list the same way.
+// Default: binded date, newest first (ops request).
+const vendListSort = ref({ key: 'binded_at', desc: true })
+
+function sortVendList(key) {
+  if (vendListSort.value.key === key) {
+    vendListSort.value.desc = !vendListSort.value.desc
+  } else {
+    // Each key starts at its natural direction: dates newest-first, codes ascending.
+    vendListSort.value = { key, desc: key === 'binded_at' }
+  }
+}
+
+function sortedVends(productMapping) {
+  const { key, desc } = vendListSort.value
+  // binded_at arrives as a datetime string in one fixed format, so string
+  // comparison IS chronological comparison. Machines with no binded date sink
+  // to the bottom in either direction; ties fall through to code order so the
+  // list is deterministic.
+  const byCode = (a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true })
+  return [...productMapping.vends].sort((a, b) => {
+    if (key === 'binded_at') {
+      if (!a.binded_at && !b.binded_at) return byCode(a, b)
+      if (!a.binded_at) return 1
+      if (!b.binded_at) return -1
+      if (a.binded_at !== b.binded_at) {
+        const cmp = a.binded_at < b.binded_at ? -1 : 1
+        return desc ? -cmp : cmp
+      }
+      return byCode(a, b)
+    }
+    const cmp = byCode(a, b)
+    return desc ? -cmp : cmp
+  })
 }
 
 function sortTable(sortKey, inverse = false) {

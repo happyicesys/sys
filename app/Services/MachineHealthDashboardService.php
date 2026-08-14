@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
@@ -98,6 +99,20 @@ class MachineHealthDashboardService
     private function buildCacheKey(array $filters): string
     {
         $normalized = $this->normalizeForCache($filters);
+
+        // The payload is viewer-dependent: every section is cut by the viewer's
+        // operator, and the 30-day sales figures in the no-transaction section
+        // additionally inherit VendTransaction's per-user machine allow-list,
+        // "Access Product(s)" and "Transaction Access From" scopes. Keying on
+        // $filters alone made the DEFAULT page load - the one case shouldCache()
+        // actually caches - a single entry shared by every operator, so whoever
+        // warmed it decided what everyone else saw for the next 5 minutes.
+        //
+        // Keyed by user rather than operator because those three extra scopes
+        // differ BETWEEN users of the same operator. That trades a shared entry
+        // for one per active viewer; at a 5-minute TTL and an internal user
+        // base, recomputation is the cheaper mistake.
+        $normalized['viewer_user_id'] = auth()->id();
 
         return 'machine-health:' . md5(json_encode($normalized));
     }
@@ -990,6 +1005,24 @@ class MachineHealthDashboardService
 
     private function applyVendFilters($query, array $filters, string $table = 'vends'): void
     {
+        // Viewer ceiling, applied BEFORE the request filters below so the two
+        // intersect and a requested operator_id can only ever narrow it.
+        //
+        // Vend carries OperatorVendFilterScope, so the sections that drive from
+        // Vend::query() (connectivity, no-transactions, temperature) and the
+        // stockout section's whereHas('vend') were already scoped. The
+        // channel-error section was NOT: it drives from vend_channel_error_logs
+        // and reaches vends through a RAW JOIN, where no global scope ever
+        // fires - so an operator with one machine was shown the whole fleet's
+        // channel errors. Applied here rather than at that one call site so
+        // every section enforces the same boundary regardless of how it reaches
+        // vends, and so a future raw-join section inherits it.
+        $viewerOperatorId = OperatorVendFilterScope::viewerOperatorId();
+
+        if ($viewerOperatorId) {
+            $query->where("{$table}.operator_id", $viewerOperatorId);
+        }
+
         if (!empty($filters['vend_prefix_ids'])) {
             $query->whereIn("{$table}.vend_prefix_id", $filters['vend_prefix_ids']);
         }

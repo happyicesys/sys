@@ -89,6 +89,13 @@ class PaymentGatewayLog extends Model
      * TEST showed 0 rows in the table but a non-zero Total Sales. So the same
      * exclusion is mirrored here via excludeSweptOddTransactions().
      *
+     * The two leading guards are the viewer boundary and are NOT optional - see
+     * whereNoVendTransaction() and whereVisibleToViewer(). Everything after them
+     * is a request filter, i.e. a preference that may only narrow what the
+     * viewer is already entitled to. That is why the 'all' branch below is
+     * allowed to drop the operator predicate: "all" means every operator the
+     * viewer can see, and the ceiling has already been applied.
+     *
      * @param  \Illuminate\Http\Request  $request
      * @param  int[]  $testingVendIds   Testing machine vend IDs to exclude.
      * @param  bool   $applyCutoff      Apply the UNREPORTED_GATEWAY_CUTOFF floor.
@@ -98,7 +105,8 @@ class PaymentGatewayLog extends Model
         return $query
             ->where('payment_gateway_logs.status', self::STATUS_APPROVE)
             ->where('payment_gateway_logs.is_dispensed', true)
-            ->whereDoesntHave('vendTransaction')
+            ->whereNoVendTransaction()
+            ->whereVisibleToViewer()
             ->excludeSweptOddTransactions()
             ->when(!empty($testingVendIds), fn($q) => $q->whereNotIn('payment_gateway_logs.vend_id', $testingVendIds))
             ->when($request->operators, function ($q) use ($request) {
@@ -121,6 +129,55 @@ class PaymentGatewayLog extends Model
                 $q->whereHas('vend.customer', fn($sub) => SiteSearch::for($search)->applyTo($sub));
             })
             ->when($applyCutoff, fn($q) => $q->where('payment_gateway_logs.approved_at', '>=', self::UNREPORTED_GATEWAY_CUTOFF));
+    }
+
+    /**
+     * Gateway logs the machine never reported back as a vend_transaction.
+     *
+     * MUST NOT be written as whereDoesntHave('vendTransaction'). VendTransaction
+     * carries four global scopes (operator, per-user machine allow-list,
+     * "Access Product(s)", "Transaction Access From"), and Eloquent applies them
+     * INSIDE the relation-existence subquery. The test then silently degrades
+     * from "no transaction exists" to "no transaction exists THAT I AM ALLOWED
+     * TO SEE" - so every transaction belonging to another operator counted as
+     * unreported, and its revenue was added to the viewer's Total Sales. An
+     * operator with one machine and zero sales was shown the whole fleet's QR
+     * revenue against an empty grid.
+     *
+     * Written as a raw correlated NOT EXISTS so no global scope can reach it.
+     * VendTransaction does not use SoftDeletes, so this is otherwise identical
+     * to the relation form.
+     */
+    public function scopeWhereNoVendTransaction($query)
+    {
+        return $query->whereNotExists(function ($sub) {
+            $sub->selectRaw('1')
+                ->from('vend_transactions')
+                ->whereColumn('vend_transactions.payment_gateway_log_id', 'payment_gateway_logs.id');
+        });
+    }
+
+    /**
+     * Restrict to gateway logs on machines the viewer may see.
+     *
+     * payment_gateway_logs carries NO global scope of its own, and the request
+     * filters in scopeUnreportedDispensed are a user PREFERENCE, not a ceiling -
+     * selecting the "All" operator chip (the filter's default) drops the
+     * operator predicate entirely. Without this, "All" means every operator in
+     * the DATABASE rather than every operator the viewer may see.
+     *
+     * Deliberately expressed as existence of a visible `vend` rather than a
+     * hand-written operator_id comparison: Vend carries OperatorVendFilterScope,
+     * which Eloquent applies inside this subquery, so the boundary stays defined
+     * in exactly one place and cannot drift from the machine/transaction grids.
+     * This is load-bearing - it is not a redundant "does it have a vend" check.
+     *
+     * A log whose vend_id is null or dangling is excluded: revenue that cannot
+     * be attributed to a machine must not be credited to whoever is looking.
+     */
+    public function scopeWhereVisibleToViewer($query)
+    {
+        return $query->whereHas('vend');
     }
 
     /**

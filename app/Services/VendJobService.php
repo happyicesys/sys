@@ -101,4 +101,64 @@ class VendJobService
             return $fid.','.$contentLength.','.$content.','.$md5;
         });
     }
+
+    /**
+     * Canonical "re-fetch your menu now" nudge (TYPESYNCAPICHANNELSLOTLIST).
+     *
+     * Same contract as syncSettingsToVend above: the payload carries NO channel
+     * data — it tells the terminal to re-fetch /api/vends/{code}/thumbnails and
+     * re-download channel images, so it reads whatever is current at the moment
+     * it fetches and is always safe to send late or twice. Callers must commit
+     * the vend_channels write (ProductMappingService::syncChannels) BEFORE
+     * sending, or the machine re-fetches the old menu.
+     *
+     * Only the vending-machine boards (mark1-apk / mark1-apk-small) understand
+     * this frame, so other machine types are skipped here — smart freezers get
+     * their own nudge via SmartFreezerCatalogPush, and Citybox chillers have no
+     * APK of ours. Gated in ONE place so no caller has to remember.
+     *
+     * Deliberately does NOT go through dispatch() / create a VendJob row, unlike
+     * syncSettingsToVend. VendJob tracking only works for frames the terminal
+     * acks: SyncJobApkSetting flips is_returned when the APK replies JOBAPKSETTING
+     * to a settings push, and that is the ONLY ack path. The APK answers this
+     * frame with no reply at all (CvMqttService just calls
+     * OnSyncApiChannelSlotList()), so a row here could never be marked returned
+     * and vend:retry-jobs would re-publish it every 5 minutes for an hour —
+     * a dozen forced menu re-fetches and image re-downloads per rebind.
+     *
+     * Published at QoS 1 on the `high` queue, matching what the three call sites
+     * did inline before they were consolidated here: a menu change is exactly
+     * the case where at-least-once delivery matters.
+     *
+     * @param  int|Vend  $vend
+     * @return bool true when a nudge was published
+     */
+    public function syncChannelSlotListToVend($vend): bool
+    {
+        $vendModel = $vend instanceof Vend ? $vend : Vend::withoutGlobalScopes()->find($vend);
+
+        if (! $vendModel) {
+            return false;
+        }
+
+        if (($vendModel->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) !== Vend::MACHINE_TYPE_VENDING_MACHINE) {
+            return false;
+        }
+
+        $fid = 1;
+        $content = base64_encode(json_encode([
+            'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
+            'time' => now()->timestamp,
+            'action' => '',
+            'mid' => $vendModel->code,
+        ]));
+        $contentLength = strlen($content);
+        $key = $vendModel->private_key ?: config('vend.private_key');
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+        PublishMqtt::dispatch('CM'.$vendModel->code, $fid.','.$contentLength.','.$content.','.$md5, 1)
+            ->onQueue('high');
+
+        return true;
+    }
 }

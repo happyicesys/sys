@@ -713,6 +713,9 @@
               <span class="text-sm text-gray-600">
                 (Enable bundle discount Campaign)
               </span>
+              <span class="block text-sm text-gray-600">
+                Overridden on the wire by bound Qty-Tier campaigns when any exist — prefer authoring tiers as campaigns.
+              </span>
               <MultiSelect
                 v-model="form.enableBundleDiscount"
                 :options="booleanStrictOptions"

@@ -27,6 +27,15 @@ use Symfony\Component\HttpFoundation\Response;
  * request Grab sends to a wrong path or verb (404/405) is never recorded here.
  * "No rows" means "nothing reached these routes", not "Grab sent nothing".
  *
+ * Second caveat, same shape: `throttle:api` runs in the `api` group, BEFORE
+ * route middleware, so a burst that gets 429'd is never recorded either. Do
+ * not read "no rows in this window" as "Grab sent nothing in this window"
+ * without checking the rate-limit logs alongside it.
+ *
+ * Growth note: this table takes one INSERT per matched request (~7.6k rows/day
+ * as of 2026-08-13) and nothing prunes it. If the question below outlives its
+ * 8-day window, add a scheduled prune or drop the table — do not let it sit.
+ *
  * Delete this class, its alias and its table once the question is settled.
  */
 class LogDeliveryPlatformAuth
@@ -65,7 +74,14 @@ class LogDeliveryPlatformAuth
 
         if ($header !== null) {
             $parts = explode(' ', trim($header), 2);
-            $row['auth_scheme'] = mb_substr($parts[0], 0, 32);
+
+            // Only record the first word as a SCHEME when there is actually a
+            // credential after it. A schemeless header ("Authorization: <raw
+            // key>") would otherwise persist the first 32 chars of the secret
+            // itself into the probe table.
+            $row['auth_scheme'] = isset($parts[1])
+                ? mb_substr($parts[0], 0, 32)
+                : '(schemeless)';
 
             // Derived from $header rather than $request->bearerToken() so the
             // server-var fallback below is handled on the same code path.
@@ -142,7 +158,7 @@ class LogDeliveryPlatformAuth
     {
         $value = $request->input('merchantID') ?? $request->input('order.merchantID');
 
-        if (!is_scalar($value) || $value === '') {
+        if (! is_scalar($value) || $value === '') {
             return null;
         }
 

@@ -663,7 +663,24 @@
                   {{ form.errors.machine_type }}
                 </div>
             </div>
-            <div class="sm:col-span-3"></div>
+            <div class="sm:col-span-3" v-if="form.machine_type && form.machine_type.id === 'smart_chiller'">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Citybox Equipment ID
+                </label>
+                <input
+                  v-model="form.citybox_equipment_id"
+                  type="text"
+                  placeholder="e.g. ICB23EHWFC5B"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                  Device serial from Citybox (设备号). Links this vend to their API + webhooks — must be unique across all vends.
+                </p>
+                <div class="text-sm text-red-600" v-if="form.errors.citybox_equipment_id">
+                  {{ form.errors.citybox_equipment_id }}
+                </div>
+            </div>
+            <div class="sm:col-span-3" v-else></div>
             <!-- DEPRECATED (2026-07): prefix→mapping binding retired — this dropdown now
                  lists ALL active mappings (name asc) and no longer depends on the prefix,
                  so the v-if="form.vend_prefix_id" gate was removed. -->
@@ -1959,6 +1976,7 @@ onMounted(() => {
     modem_type_id: props.vend.modem_type_id ? modemTypeOptions.value.find(modemType => modemType.id == props.vend.modem_type_id) : null,
     modem_unit_id: props.vend.modem_unit_id ? modemUnitOptions.value.find(modemUnit => modemUnit.id == props.vend.modem_unit_id) : null,
     machine_type: machineTypeOptions.value.find(machineType => machineType.id == (props.vend.machine_type || 'vending_machine')) || null,
+    citybox_equipment_id: props.vend.citybox_equipment_id || null,
     product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id == props.vend.product_mapping_id) : null,
     server_price_type: props.vend.server_price_type ? serverPriceTypeOptions.value.find(serverPriceType => serverPriceType.id == props.vend.server_price_type) : null,
     is_fan_enabled: (props.vend.is_fan_enabled === false || props.vend.is_fan_enabled === 0 || props.vend.is_fan_enabled === '0' || props.vend.is_fan_enabled === 'false') ? {id: 'false', value: 'No'} : {id: 'true', value: 'Yes'},
@@ -2572,6 +2590,11 @@ function saveVend(vendID) {
       // is_using_server_price: data.is_using_server_price.id === 'true' ? 1 : 0,
       menu_frame_id: data.menu_frame_id ? data.menu_frame_id.id : null,
       machine_type: data.machine_type ? data.machine_type.id : 'vending_machine',
+      // Linkage travels with the type: switching a vend away from Smart Chiller
+      // drops the Citybox serial rather than tripping the server-side guard.
+      citybox_equipment_id: data.machine_type && data.machine_type.id === 'smart_chiller'
+        ? (data.citybox_equipment_id || null)
+        : null,
       modem_type_id: data.modem_type_id ? data.modem_type_id.id : null,
       modem_unit_id: data.modem_unit_id ? data.modem_unit_id.id : null,
       server_price_type: data.server_price_type ? data.server_price_type.id : null,

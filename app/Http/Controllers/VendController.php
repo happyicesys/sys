@@ -79,6 +79,7 @@ use App\Models\VendSnapshot;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
 use App\Models\Zone;
+use App\Services\CampaignWireSerializer;
 use App\Services\CmsService;
 use App\Services\CustomerSummaryAggregator;
 use App\Services\HistoryService;
@@ -2454,19 +2455,10 @@ class VendController extends Controller
 
     public function syncVendChannels($id)
     {
-        $vend = Vend::findOrFail($id);
-        $fid = 1;
-        $content = base64_encode(json_encode([
-            'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
-            'time' => Carbon::now()->timestamp,
-            'action' => '',
-            'mid' => $vend->code,
-        ]));
-        $contentLength = strlen($content);
-        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
-
-        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        // Frame building lives in ONE place — the manual Push button must
+        // never drift from the auto-push on bind/rebind (VendController::update,
+        // ProductMappingController::bindVends).
+        $this->vendJobService->syncChannelSlotListToVend(Vend::findOrFail($id));
 
         return redirect()->back();
     }
@@ -3334,10 +3326,15 @@ class VendController extends Controller
             }
         }
 
-        // return response()->json([
-        //     'url' => null,
-        // ], 400);
-        return false;
+        // No product mapped on this channel, or the product has no thumbnail.
+        // This used to `return false`, which Laravel renders as "200 OK,
+        // text/html, 0 bytes" — so the terminal saw a successful response with an
+        // undecodable body and logged an error-level decode failure on every
+        // sync. 404 is the honest answer for "there is no image here".
+        return response()->json([
+            'error_code' => 404,
+            'error_message' => 'Thumbnail not found',
+        ], 404);
     }
 
     public function getVendParameters($vendCode, $apkVer = null)
@@ -3375,6 +3372,13 @@ class VendController extends Controller
             $settingsParams = (array) $settingsParams;
         }
 
+        // QtyTier campaigns are delivered as the legacy flat tier keys (all
+        // APK versions execute those) and never inside campaigns[]. With no
+        // QtyTier campaign bound this is a strict passthrough.
+        $wireSerializer = app(CampaignWireSerializer::class);
+        $settingsParams = $wireSerializer->applyQtyTierOverrides($settingsParams, $campaignBindings);
+        $wireCampaigns = $wireSerializer->excludeQtyTier($campaignBindings);
+
         $data = [
             ...$settingsParams,
             'isGrabEnabled' => $isGrabEnabled ? 'true' : 'false',
@@ -3391,7 +3395,7 @@ class VendController extends Controller
                     'value' => $campaignItem->value,
                 ];
             }),
-            'campaigns' => $campaignBindings->map(function ($campaign) {
+            'campaigns' => $wireCampaigns->map(function ($campaign) {
                 return [
                     'bundle_qty' => $campaign->bundle_qty,
                     'id' => $campaign->id,
@@ -5147,7 +5151,21 @@ class VendController extends Controller
             }
         }
 
+        // Citybox device serial only means anything on a Smart Chiller; '' from a
+        // cleared input is normalised to null so the UNIQUE index ignores it.
+        if ($request->has('citybox_equipment_id') && ! $request->citybox_equipment_id) {
+            $request->merge(['citybox_equipment_id' => null]);
+        }
+
         $request->validate([
+            'citybox_equipment_id' => [
+                'sometimes', 'nullable', 'string', 'max:64',
+                \Illuminate\Validation\Rule::unique('vends', 'citybox_equipment_id')->ignore($vend->id),
+                \Illuminate\Validation\Rule::prohibitedIf(
+                    fn () => $request->citybox_equipment_id
+                        && ($request->machine_type ?: $vend->machine_type) !== Vend::MACHINE_TYPE_SMART_CHILLER
+                ),
+            ],
             'lcd_monitor_id' => 'required',
             'machine_type' => 'sometimes|nullable|in:vending_machine,smart_freezer,smart_chiller',
             'menu_frame_id' => 'required',
@@ -5210,6 +5228,16 @@ class VendController extends Controller
             'is_fan_enabled' => $request->is_fan_enabled === 'true' || $request->is_fan_enabled === true,
             // 'is_using_server_price' => $request->is_using_server_price,
             'machine_type' => $machineType,
+            // The serial follows the machine type: leaving smart_chiller always
+            // clears it (an orphaned serial on a non-chiller vend would squat on
+            // the unique index and block the real chiller from claiming it).
+            // While a chiller, only persist when the form actually sent the
+            // field — an older cached client must not blank an existing linkage.
+            ...($machineType !== Vend::MACHINE_TYPE_SMART_CHILLER
+                ? ['citybox_equipment_id' => null]
+                : ($request->has('citybox_equipment_id')
+                    ? ['citybox_equipment_id' => $request->citybox_equipment_id]
+                    : [])),
             'product_mapping_id' => $request->product_mapping_id,
             'serial_num' => $request->serial_num,
             'server_price_type' => $request->server_price_type,
@@ -5244,6 +5272,16 @@ class VendController extends Controller
         } elseif ($isProductMappingChanged and ! $vend->product_mapping_id) {
             $vend->binded_at = null;
             $vend->save();
+        }
+
+        // Tell the terminal its menu changed (2026-08-13): rebinding a machine
+        // here updated vend_channels above, but the APK only re-fetches its
+        // slot list on boot or when nudged — machines kept selling the OLD
+        // mapping until someone pressed the manual Sync button or rebooted.
+        // Sent AFTER syncChannels so the re-fetch reads the committed rows.
+        // No-op for non-vending machine types (gated in the service).
+        if ($isProductMappingChanged) {
+            $this->vendJobService->syncChannelSlotListToVend($vend);
         }
 
         if ($request->operator_id != $vend->operator_id) {

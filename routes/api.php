@@ -1,18 +1,15 @@
 <?php
 
-use App\Http\Controllers\DeliveryPlatformController;
-use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\HidCardController;
-use App\Http\Controllers\OpsJobController;
-use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\SettingController;
-use App\Http\Controllers\VendController;
-use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\V1\VendDataController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DeliveryPlatformController;
+use App\Http\Controllers\HidCardController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\VendController;
+use App\Http\Controllers\VoucherController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
@@ -23,72 +20,82 @@ Route::prefix('v1')->group(function () {
         ->middleware(['throttle:client'])
         ->middleware('auth:api')
         ->group(function () {
-            Route::post('/transactions', [ClientController::class , 'getTransactions']);
-            Route::post('/channel-stock-level', [ClientController::class , 'getChannels']);
+            Route::post('/transactions', [ClientController::class, 'getTransactions']);
+            Route::post('/channel-stock-level', [ClientController::class, 'getChannels']);
         }
         );
 
-        // Legacy support for existing endpoint
-        Route::prefix('client')->group(function () {
-            Route::post('/dcvends', [VendController::class , 'getAllDCVends']);
-        }
-        );
+    // Legacy support for existing endpoint
+    Route::prefix('client')->group(function () {
+        Route::post('/dcvends', [VendController::class, 'getAllDCVends']);
+    }
+    );
 
-        Route::post('/vend-data', [VendDataController::class , 'create']);
-        Route::post('/payment-gateway-status/{company?}', [PaymentController::class , 'createPaymentGatewayLog']);
-        Route::get('/binded-vends', [VendDataController::class , 'getBindedVends']);
-        Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class , 'getPaymentMerchantsApi']);
-        Route::post('/vends/{id}/upload-log', [VendDataController::class , 'uploadLog']);
-        // Device -> mark1 screen capture upload. Unauthenticated like every other
-        // endpoint in this group (the APK holds no credential); the single-use
-        // token minted by VendScreenshotController::request() is the control.
-        Route::post('/vends/{code}/screenshot', [\App\Http\Controllers\VendScreenshotController::class, 'upload']);
-        Route::post('/content/vends/{code}', [VendDataController::class , 'getVendMediaContent']);
+    Route::post('/vend-data', [VendDataController::class, 'create']);
+    Route::post('/payment-gateway-status/{company?}', [PaymentController::class, 'createPaymentGatewayLog']);
+    Route::get('/binded-vends', [VendDataController::class, 'getBindedVends']);
+    Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class, 'getPaymentMerchantsApi']);
+    Route::post('/vends/{id}/upload-log', [VendDataController::class, 'uploadLog']);
+    // Device -> mark1 screen capture upload. Unauthenticated like every other
+    // endpoint in this group (the APK holds no credential); the single-use
+    // token minted by VendScreenshotController::request() is the control.
+    Route::post('/vends/{code}/screenshot', [\App\Http\Controllers\VendScreenshotController::class, 'upload']);
+    Route::post('/content/vends/{code}', [VendDataController::class, 'getVendMediaContent']);
 
-    });
+});
 
 Route::prefix('delivery')->group(function () {
     Route::prefix('grab')->middleware('delivery.authprobe')->group(function () {
-            Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class , 'getCategories']);
-            Route::get('/merchant/menu', [DeliveryPlatformController::class , 'getGrabMenu']);
-            Route::get('/oauth/{deliveryPlatformOperatorId}', [DeliveryPlatformController::class , 'getOauth']);
-            Route::post('/order/create', [DeliveryPlatformController::class , 'createGrabOrder']);
-            Route::put('/order/update', [DeliveryPlatformController::class , 'updateGrabOrder']);
-            Route::post('/sync-menu-webhook', [DeliveryPlatformController::class , 'syncGrabMenuWebhook']);
-        }
-        );
-        Route::post('/order/search/{dispenseSearch?}', [DeliveryPlatformController::class , 'searchGrabOrder']);
-        Route::post('/order/complaint', [DeliveryPlatformController::class , 'submitGrabOrderComplaint']);
-    });
+        Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class, 'getCategories']);
+        Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getGrabMenu']);
+        Route::get('/oauth/{deliveryPlatformOperatorId}', [DeliveryPlatformController::class, 'getOauth']);
+        Route::post('/order/create', [DeliveryPlatformController::class, 'createGrabOrder']);
+        Route::put('/order/update', [DeliveryPlatformController::class, 'updateGrabOrder']);
+        Route::post('/sync-menu-webhook', [DeliveryPlatformController::class, 'syncGrabMenuWebhook']);
+    }
+    );
+    Route::post('/order/search/{dispenseSearch?}', [DeliveryPlatformController::class, 'searchGrabOrder']);
+    Route::post('/order/complaint', [DeliveryPlatformController::class, 'submitGrabOrderComplaint']);
+});
 
 Route::prefix('hid-cards')->group(function () {
-    Route::post('/search', [HidCardController::class , 'search']);
+    Route::post('/search', [HidCardController::class, 'search']);
 });
 
 Route::prefix('vouchers')->group(function () {
-    Route::get('/dcvend', [VoucherController::class , 'getDCVends']);
-    Route::post('/search', [VoucherController::class , 'search']);
-    Route::post('/details', [VoucherController::class , 'getVoucherDetails']);
+    Route::get('/dcvend', [VoucherController::class, 'getDCVends']);
+    Route::post('/search', [VoucherController::class, 'search']);
+    Route::post('/details', [VoucherController::class, 'getVoucherDetails']);
 });
 
 // Internal api
 Route::prefix('customers')->group(function () {
-    Route::get('/search/{search?}', [CustomerController::class , 'search']);
+    Route::get('/search/{search?}', [CustomerController::class, 'search']);
 });
 
 Route::prefix('vends')->group(function () {
-    Route::get('/search/{code?}', [VendController::class , 'searchVendCode']);
-    Route::get('/search/operator/{code?}', [VendController::class , 'searchVendCodeWithOperator']);
-    Route::get('/{vendCode}/vend-channels/{vendChanelCode}/thumbnail', [VendController::class , 'getVendChannelThumnail']);
-    Route::get('/{vendCode}/thumbnails', [VendController::class , 'getVendAllChannelThumbnails']);
-    Route::get('/{vendCode}/menu', [VendController::class , 'getVendMenu']);
-    Route::get('/{vendCode}/parameters/{apkver?}', [VendController::class , 'getVendParameters']);
-    Route::get('/{vendCode}/banner-video', [VendController::class , 'getVendBannerVideo']);
-    Route::get('/{vendCode}/banner-image', [VendController::class , 'getVendBannerImage']);
-    Route::get('/{vendCode}/campaign-video', [VendController::class , 'getVendCampaignVideo']);
-    Route::get('/{vendCode}/campaign-image', [VendController::class , 'getVendCampaignImage']);
-    Route::get('/operators/{operatorCode}/update-dcvends-countries', [VendController::class , 'updateDCVendsCountries']);
+    Route::get('/search/{code?}', [VendController::class, 'searchVendCode']);
+    Route::get('/search/operator/{code?}', [VendController::class, 'searchVendCodeWithOperator']);
+    Route::get('/{vendCode}/vend-channels/{vendChanelCode}/thumbnail', [VendController::class, 'getVendChannelThumnail']);
+    Route::get('/{vendCode}/thumbnails', [VendController::class, 'getVendAllChannelThumbnails']);
+    Route::get('/{vendCode}/menu', [VendController::class, 'getVendMenu']);
+    Route::get('/{vendCode}/parameters/{apkver?}', [VendController::class, 'getVendParameters']);
+    Route::get('/{vendCode}/banner-video', [VendController::class, 'getVendBannerVideo']);
+    Route::get('/{vendCode}/banner-image', [VendController::class, 'getVendBannerImage']);
+    Route::get('/{vendCode}/campaign-video', [VendController::class, 'getVendCampaignVideo']);
+    Route::get('/{vendCode}/campaign-image', [VendController::class, 'getVendCampaignImage']);
+    Route::get('/operators/{operatorCode}/update-dcvends-countries', [VendController::class, 'updateDCVendsCountries']);
 });
+// CityBox-Openapi webhook receivers (Smart Chiller project only). Public by
+// design — Citybox's servers POST here; authenticity comes from the MD5
+// signature over the raw form params, verified inside the ingest service.
+// Throttled well above their retry cadence but low enough to blunt abuse.
+Route::prefix('citybox')->middleware('throttle:120,1')->group(function () {
+    Route::post('/order-push', [\App\Http\Controllers\Citybox\CityboxWebhookController::class, 'orderPush']);
+    Route::post('/refund-push', [\App\Http\Controllers\Citybox\CityboxWebhookController::class, 'refundPush']);
+    Route::post('/close-push', [\App\Http\Controllers\Citybox\CityboxWebhookController::class, 'closePush']);
+});
+
 // RFC 7591 Dynamic Client Registration for the MCP connector (Claude calls
 // this unauthenticated when adding the connector). Public clients only, PKCE
 // enforced, redirect hosts allow-listed — see McpOAuthController::register.

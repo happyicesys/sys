@@ -2,20 +2,18 @@
 
 namespace App\Http\Controllers;
 
-
-use App\Models\Campaign;
-use App\Models\Operator;
-use App\Models\Scopes\OperatorFilterScope;
 use App\Http\Resources\CampaignResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\TagResource;
+use App\Models\Campaign;
+use App\Models\Operator;
+use App\Models\Scopes\OperatorFilterScope;
+use App\Models\Tag;
 use App\Support\OperatorScope;
 use App\Traits\GetUserTimezone;
-use App\Models\Tag;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-
 
 class CampaignController extends Controller
 {
@@ -110,7 +108,7 @@ class CampaignController extends Controller
             'operator_id' => 'required|integer|exists:operators,id',
             'slug' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'promo_type' => 'required|string|in:' . implode(',', Campaign::promoTypeValidationValues()),
+            'promo_type' => 'required|string|in:'.implode(',', Campaign::promoTypeValidationValues()),
             'is_using_qty' => 'required|string|in:qty,amount,both',
             'bundle_qty' => 'nullable|integer|min:1',
             'value' => 'nullable|numeric|min:0',
@@ -131,6 +129,8 @@ class CampaignController extends Controller
         $this->authorizeOperator((int) $validated['operator_id']);
 
         $promoType = Campaign::normalizePromoType($validated['promo_type']);
+
+        $this->validateQtyTierFields($promoType);
 
         $payload = [
             'name' => $validated['name'],
@@ -153,16 +153,16 @@ class CampaignController extends Controller
 
         $labelsXPivot = collect($validated['labels_x'] ?? [])
             ->filter()
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->unique()
-            ->mapWithKeys(fn($id) => [$id => ['type' => 'x']])
+            ->mapWithKeys(fn ($id) => [$id => ['type' => 'x']])
             ->toArray();
 
         $labelsYPivot = collect($validated['labels_y'] ?? [])
             ->filter()
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->unique()
-            ->mapWithKeys(fn($id) => [$id => ['type' => 'y']])
+            ->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])
             ->toArray();
 
         $campaign->labelsX()->sync($labelsXPivot);
@@ -216,7 +216,7 @@ class CampaignController extends Controller
             'operator_id' => 'required|integer|exists:operators,id',
             'slug' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'promo_type' => 'required|string|in:' . implode(',', Campaign::promoTypeValidationValues()),
+            'promo_type' => 'required|string|in:'.implode(',', Campaign::promoTypeValidationValues()),
             'is_using_qty' => 'required|string|in:qty,amount,both',
             'bundle_qty' => 'nullable|integer|min:1',
             'value' => 'nullable|numeric|min:0',
@@ -237,6 +237,8 @@ class CampaignController extends Controller
 
         $promoType = Campaign::normalizePromoType($validated['promo_type']);
 
+        $this->validateQtyTierFields($promoType);
+
         $campaign->update([
             'name' => $validated['name'],
             'operator_id' => $validated['operator_id'],
@@ -255,16 +257,16 @@ class CampaignController extends Controller
 
         $labelsXPivot = collect($validated['labels_x'] ?? [])
             ->filter()
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->unique()
-            ->mapWithKeys(fn($id) => [$id => ['type' => 'x']])
+            ->mapWithKeys(fn ($id) => [$id => ['type' => 'x']])
             ->toArray();
 
         $labelsYPivot = collect($validated['labels_y'] ?? [])
             ->filter()
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->unique()
-            ->mapWithKeys(fn($id) => [$id => ['type' => 'y']])
+            ->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])
             ->toArray();
 
         $campaign->labelsX()->sync($labelsXPivot);
@@ -324,6 +326,31 @@ class CampaignController extends Controller
     private function authorizeOperator(int $operatorId): void
     {
         abort_unless(OperatorScope::allows($operatorId), 403);
+    }
+
+    /**
+     * QtyTier campaigns are serialized onto the legacy wire slots
+     * (bundle_qty 2/3/4 → discountPercent01/02/03, percent 1–100), so the
+     * fields the serializer reads must be constrained at write time.
+     */
+    private function validateQtyTierFields(?string $promoType): void
+    {
+        if ($promoType !== Campaign::TYPE_QTY_TIER) {
+            return;
+        }
+
+        // `integer`, not `numeric`: the wire slot is an int on the device and
+        // the serializer casts with (int) — a 12.5 here would silently ship
+        // as 12% to every terminal.
+        request()->validate([
+            'bundle_qty' => 'required|integer|in:2,3,4',
+            'value' => 'required|integer|min:1|max:100',
+        ], [
+            'bundle_qty.in' => 'Qty Tier campaigns must use a tier threshold of 2, 3 or 4 items.',
+            'value.integer' => 'Qty Tier discount percent must be a whole number between 1 and 100.',
+            'value.min' => 'Qty Tier discount percent must be between 1 and 100.',
+            'value.max' => 'Qty Tier discount percent must be between 1 and 100.',
+        ]);
     }
 
     private function promoTypeOptions()

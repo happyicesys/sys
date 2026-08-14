@@ -397,6 +397,20 @@ feels complicated:
 4. **Gen 1 (blob campaign block)** stays as-is for now and folds into Campaign
    types later per §3.6 — same serializer pattern, emitting the flat legacy
    keys from campaign entities.
+   **First slice SHIPPED (2026-08-13): the bundle-tier ladder.**
+   `Campaign::TYPE_QTY_TIER` ('QtyTier', bundle_qty ∈ {2,3,4} = threshold →
+   slot 01/02/03, value = percent) + `App\Services\CampaignWireSerializer`:
+   when ≥1 active QtyTier campaign is bound, the seven legacy tier keys
+   (`enableBundleDiscount`, `bundleStart/EndDate`, `enableDiscount01..03`,
+   `discountPercent01..03`) are DERIVED from the campaigns (window = union;
+   any null bound on either side = unbounded, matching checkWithinDate);
+   QtyTier campaigns never appear in `campaigns[]` (no deployed engine knows
+   the type — the flat keys are the delivery mechanism for every APK version).
+   **With no QtyTier bound the output is byte-identical passthrough** — the
+   hand-set legacy fields stay fully functional until the fleet swaps, pinned
+   by `tests/Unit/CampaignWireSerializerTest.php` +
+   `tests/Feature/VendParametersQtyTierCampaignTest.php` (44 tests green
+   across the apk-settings suites).
 
 **Immediate remediation independent of the refactor:** re-enter or ×100 the
 three dollar-typed campaign items (profiles 6/17/25), and give the value field

@@ -45,6 +45,40 @@ Superseded, kept only as history — do not run:
 `ProdOwnerPermissionsSeeder`, `ProdOwnerRoleSeeder`,
 `DashboardPerformanceLitePermissionSeeder`.
 
+## Operator isolation: the global scopes are not a safety net
+
+`Vend` and `VendTransaction` carry operator/user global scopes
+(`OperatorVendFilterScope`, `OperatorTransactionFilterScope`, …). They only fire
+on Eloquent queries **rooted at those models**. Three routes bypass them, and
+each has already shipped a cross-operator leak:
+
+1. **Raw joins.** `->join('vends', …)` from a table with no scope of its own
+   (`vend_channel_error_logs`, `payment_gateway_logs`) reaches machine data with
+   no boundary at all. Apply `OperatorVendFilterScope::viewerOperatorId()` by
+   hand — that static exists so the rule has one definition.
+2. **`whereDoesntHave()` / `doesntHave()`.** Global scopes are applied INSIDE the
+   existence subquery, so "no row exists" silently becomes "no row exists **that
+   I may see**" — which is true of every other operator's rows. Never use it to
+   test for absence across a tenancy boundary; write a raw `whereNotExists`.
+   (`whereHas()` is the opposite and is *useful*: it inherits the scope, so
+   `->whereHas('vend')` is a working viewer boundary. Do not delete it as a
+   no-op.)
+3. **Shared caches.** A cache key built from request filters alone is one entry
+   shared by every operator, so whoever warms it decides what everyone else
+   sees. Any cached payload cut by the viewer must key on `auth()->id()`.
+
+A request filter — including an "All" chip — is a **preference, not an
+entitlement**. Apply the viewer ceiling first and let the filter only narrow it;
+see `App\Support\OperatorScope` (sibling-group rule) and
+`OperatorVendFilterScope::viewerOperatorId()` (the narrower rule the vend and
+transaction grids enforce). The two are deliberately different — do not swap one
+for the other, it moves live numbers.
+
+Symptom to watch for: a summary card showing money against an empty grid. That
+means the card and the grid are drawn from different populations, and the card
+is almost always the one that has escaped the boundary. Regression coverage:
+`tests/Feature/OperatorScopeLeakTest.php`.
+
 ---
 
 # Laravel Boost guidelines
