@@ -65,7 +65,14 @@ class DeliveryProductMappingController extends Controller
                         'deliveryPlatformOperator.deliveryPlatform',
                         'operator:id,name',
                         'deliveryProductMappingVends' => function($query) {
-                            $query->whereNull('end_date');
+                            // whereHas('vend') inherits Vend's OperatorVendFilterScope, so
+                            // the "Binded Vending Machines" column lists only machines the
+                            // viewer may see. Without it, a mapping surfaced by the bind arm
+                            // of OperatorDeliveryProductMappingScope (another operator owns
+                            // it, one of MY machines is bound to it) would also list that
+                            // owner's machines, and their `vend` would eager-load to null -
+                            // rendering blank rows. Unrestricted viewers are unaffected.
+                            $query->whereNull('end_date')->whereHas('vend');
                         },
                         'deliveryProductMappingVends.vend:id,code,name,customer_id',
                         'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code,person_id',
@@ -310,7 +317,9 @@ class DeliveryProductMappingController extends Controller
                 'deliveryProductMappingItems.product:id,code,name',
                 'deliveryProductMappingItems.product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
                 'deliveryProductMappingVends' => function($query) {
+                    // Same viewer boundary as index() - see the comment there.
                     $query->whereNull('end_date')
+                        ->whereHas('vend')
                         ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
                 'deliveryProductMappingVends.vend:id,code,name,customer_id',

@@ -79,6 +79,12 @@ means the card and the grid are drawn from different populations, and the card
 is almost always the one that has escaped the boundary. Regression coverage:
 `tests/Feature/OperatorScopeLeakTest.php`.
 
+Where a model is reachable by id from write endpoints (`findOrFail`), prefer a
+**global scope** over a `where` in `index()` — the listing is rarely the only
+door. `OperatorDeliveryProductMappingScope` is the worked example: it also
+covers edit/update/delete/bindVend and two `::all()` option lists.
+Regression coverage: `tests/Feature/DeliveryProductMappingOperatorScopeTest.php`.
+
 ---
 
 # Laravel Boost guidelines

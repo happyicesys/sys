@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Scopes\OperatorVendFilterScope;
+use App\Models\Scopes\OperatorDeliveryProductMappingScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -12,7 +12,11 @@ class DeliveryProductMapping extends Model
 
     protected static function booted()
     {
-        // static::addGlobalScope(new OperatorVendFilterScope);
+        // Was OperatorVendFilterScope, commented out because it emits
+        // `vends.operator_id` and there is no vends table in this query to bind
+        // it to - it can only ever have thrown. The replacement expresses the
+        // rule this table actually needs; see the scope class.
+        static::addGlobalScope(new OperatorDeliveryProductMappingScope);
     }
 
 

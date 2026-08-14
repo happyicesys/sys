@@ -20,6 +20,7 @@ use App\Services\DeliveryPlatformService;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class DeliveryPlatformCampaignController extends Controller
@@ -239,8 +240,23 @@ class DeliveryPlatformCampaignController extends Controller
     {
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
 
-        if ($deliveryPlatformCampaign->deliveryPlatformCampaignItems()->exists() and $deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->exists()) {
-            foreach ($deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->get() as $deliveryProductMappingVend) {
+        // ->deliveryProductMapping can be null, and calling a method on it is a
+        // fatal, not a warning. Two ways it happens: 3 live campaigns point at a
+        // mapping row that no longer exists (checked 2026-08-14), and since
+        // OperatorDeliveryProductMappingScope the relation also resolves to null
+        // for a campaign whose mapping is out of the viewer's scope.
+        // delivery_platform_campaigns carries no operator scope of its own, so
+        // such a campaign is still reachable here by id.
+        $campaignProductMapping = $deliveryPlatformCampaign->deliveryProductMapping;
+
+        if (! $campaignProductMapping) {
+            throw ValidationException::withMessages([
+                'delivery_product_mapping_id' => 'This campaign has no product mapping you can access.',
+            ]);
+        }
+
+        if ($deliveryPlatformCampaign->deliveryPlatformCampaignItems()->exists() and $campaignProductMapping->deliveryProductMappingVends()->whereNull('end_date')->exists()) {
+            foreach ($campaignProductMapping->deliveryProductMappingVends()->whereNull('end_date')->get() as $deliveryProductMappingVend) {
 
                 $existedDeliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::query()
                     ->where('delivery_platform_campaign_item_id', $request->delivery_platform_campaign_item_id)
