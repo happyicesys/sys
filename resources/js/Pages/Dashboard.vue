@@ -1109,7 +1109,17 @@
                         }
 
                         const total = Number((ds.month_totals || [])[item.dataIndex] ?? 0)
-                        const share = total ? ' (' + ((value / total) * 100).toFixed(1) + '% of sales)' : ''
+                        // GST alone is expressed against the EX-GST base so it reads
+                        // as the statutory rate ("9%"), not the tax fraction of the
+                        // inclusive total ("8.3%") — users kept reading the latter as
+                        // a wrong rate. The other three slices stay on the incl-GST
+                        // denominator so Vend Earning's share keeps matching the VE
+                        // ratio line and Site Summary's "Rate" column.
+                        const isGst = ds.slice_name === 'GST'
+                        const base = isGst ? (total - value) : total
+                        const share = base > 0
+                            ? ' (' + ((value / base) * 100).toFixed(1) + '%' + (isGst ? ' of ex-GST sales' : ' of sales') + ')'
+                            : ''
 
                         return (ds.slice_name ?? ds.label) + ': '
                             + operatorCountry.currency_symbol + formatMoneyValue(value)

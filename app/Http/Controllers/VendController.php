@@ -3357,7 +3357,28 @@ class VendController extends Controller
             ], 400));
         }
 
-        $isGrabEnabled = $vend->is_enable_grab_collection;
+        // 2026-08-14: derived, not read from the manual vends.is_enable_grab_collection
+        // flag. A machine can actually take Grab orders when it has an ACTIVE delivery
+        // product mapping whose ref number is ACTIVE — that is what makes it reachable.
+        //
+        // Checked against 90 days of real orders before switching: of the 90 machines
+        // with the manual flag set, only 52 satisfied this rule, and those 52 accounted
+        // for 50 of the 52 machines that took any Grab order at all (922 orders). Of the
+        // 38 the rule drops, just 3 had ever ordered and none since 2026-07-06 — their
+        // mappings were already deactivated. So the flag was stale, not the rule.
+        //
+        // withoutGlobalScopes() is REQUIRED: DeliveryProductMappingVend carries
+        // OperatorDeliveryProductMappingVendFilterScope, and this endpoint is called by
+        // the terminal with no authenticated user, so the viewer scope would silently
+        // match nothing and report every machine as Grab-disabled.
+        $isGrabEnabled = \App\Models\DeliveryProductMappingVend::query()
+            ->withoutGlobalScopes()
+            ->where('vend_id', $vend->id)
+            ->where('is_active', true)
+            ->whereHas('deliveryPlatformRefNumber', function ($query) {
+                $query->where('status', \App\Models\DeliveryPlatformRefNumber::STATUS_ACTIVE);
+            })
+            ->exists();
 
         if ($apkSetting->campaignItems) {
             $campaignItems = $apkSetting->campaignItems;

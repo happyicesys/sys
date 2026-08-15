@@ -14,7 +14,9 @@ class SyncP implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $input;
+
     protected $vend;
+
     /**
      * Create a new job instance.
      */
@@ -29,9 +31,22 @@ class SyncP implements ShouldQueue
      */
     public function handle(): void
     {
-        $this->vend->update([
-            'offline_restart_count' => isset($this->input['OfflineRestartCount']) ? $this->input['OfflineRestartCount'] : 0,
-            'offline_restart_count_datetime' => isset($this->input['OfflineRestartCountDatetime']) ? $this->input['OfflineRestartCountDatetime'] : null,
-        ]);
+        // 2026-08-14: only write fields the heartbeat actually carried. These
+        // used to default to 0 / null when the key was absent, so a payload that
+        // simply did not report the counter (every APK with debug mode off)
+        // overwrote a real stored value with 0. Absent means "no news", not zero.
+        $update = [];
+
+        if (array_key_exists('OfflineRestartCount', $this->input)) {
+            $update['offline_restart_count'] = $this->input['OfflineRestartCount'];
+        }
+
+        if (array_key_exists('OfflineRestartCountDatetime', $this->input)) {
+            $update['offline_restart_count_datetime'] = $this->input['OfflineRestartCountDatetime'];
+        }
+
+        if ($update !== []) {
+            $this->vend->update($update);
+        }
     }
 }

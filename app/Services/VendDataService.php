@@ -402,8 +402,17 @@ class VendDataService
                         // require the counter to fall back to the stale value, which a
                         // monotonic counter never does (a reset lowers it → differs → still
                         // dispatches, and it self-heals on the next differing packet).
-                        $incomingRestartCount = $processedInput['OfflineRestartCount'] ?? 0;
-                        if ((string) $vend->offline_restart_count !== (string) $incomingRestartCount) {
+                        // 2026-08-14: an ABSENT key means "this heartbeat is not
+                        // reporting the counter", not "the counter is zero". It used
+                        // to coalesce to 0, so any machine whose payload omitted the
+                        // field — every APK with debug mode off, i.e. 462 of 464 —
+                        // compared its real stored count against 0, saw a difference,
+                        // and dispatched SyncP, which then wrote that 0. Machines
+                        // wiped their own counters within one 5-minute heartbeat, and
+                        // the only non-zero rows left in the fleet belonged to the two
+                        // debug-mode machines plus four that had gone offline.
+                        if (array_key_exists('OfflineRestartCount', $processedInput)
+                            && (string) $vend->offline_restart_count !== (string) $processedInput['OfflineRestartCount']) {
                             SyncP::dispatch($processedInput, $vend)->onQueue('default');
                         }
                         $saveVendData = false;
