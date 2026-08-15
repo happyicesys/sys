@@ -196,19 +196,26 @@ return [
 
     'environments' => [
         'production' => [
+            // Sized for ONE Horizon master. Until 2026-08-15 the server ran up to
+            // seven duplicate Forge daemons all issuing `php artisan horizon`, so
+            // these caps were multiplied by seven — ~103 workers, ~8.6GB RAM, and
+            // an OOM that took mysqld down. The duplicates are gone; these numbers
+            // now mean what they say. If more throughput is needed, raise the cap
+            // here — never by adding a second Horizon daemon.
             'supervisor-1' => [
-                'maxProcesses' => 14,
+                'maxProcesses' => 35,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
             // Cap low queue tightly. Each worker holds a MySQL connection (often
             // two — read + write split), so concurrency here directly eats into
-            // MySQL max_connections (default 151). With supervisor-1 already
-            // using up to 15 workers × ~2 connections, a low cap of 4 leaves
-            // generous headroom for the rest of the system (web requests,
-            // schedule, etc). Bump only if you've raised MySQL max_connections.
+            // MySQL max_connections (151 on prod). Measured on 2026-08-15 across
+            // load levels: ~0.95–1.4 connections per worker (41 workers → 39
+            // connections idle; 46 → 66 under load). So 35 + 8 = 43 workers is
+            // ~40–60 connections, leaving headroom for web requests and the
+            // schedule. Bump only if you've raised MySQL max_connections.
             'supervisor-low' => [
-                'maxProcesses' => 5,
+                'maxProcesses' => 8,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
                 'nice' => 10, // deprioritise CPU-wise vs real-time supervisor
