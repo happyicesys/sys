@@ -1023,7 +1023,7 @@
 								<SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
 									Remaining Channel#
 								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Channel Availability % <br> Red: < 50% <br> Blue: >= 50% and < 75% <br> Green: >= 75%', html: true }"></ExclamationCircleIcon>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Sellable Channels / Total Channels <br> A channel is excluded when it is empty (qty 0) <b>or</b> has an uncleared error, so a machine with no empty channel can still be below full count. <br> Hover the number for the per-channel breakdown. <br><br> Channel Availability % <br> Red: < 50% <br> Blue: >= 50% and < 75% <br> Green: >= 75%', html: true }"></ExclamationCircleIcon>
 							</div>
 							<span>
 									Refill Planning
@@ -1859,6 +1859,8 @@
 							<div class="flex justify-center border-b border-gray-300 pb-2 mb-2 w-full">
 								<span
 									v-if="vend.vendChannelTotalsJson"
+									v-tooltip="remainingChannelTooltip(vend)"
+									class="cursor-help"
 									:class="[vend.is_active || vend.is_testing ? (100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
 								>
 										{{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
@@ -4011,6 +4013,70 @@ const getAlertTooltip = (alert) => {
 	};
 };
 
+
+// Breaks down the "Remaining Channel#" figure. Operators read it as "channels
+// with stock left" and report a bug when a machine with no empty channel still
+// shows less than the full count — the missing ones are error-locked, not empty.
+// The figure is count − outOfStockSku, where outOfStockSku is the number of
+// channels that are empty OR error-locked; see App\Jobs\Vend\SaveVendChannelsJson.
+// errorLockedInStockSku is the error-locked-but-not-empty subset, so
+// count − outOfStock − errorLockedInStockSku always reproduces the figure
+// without double-counting a channel that is both. Counts come from
+// vendChannelTotalsJson so they can never disagree with the number on screen;
+// the channel codes are best-effort detail from vendChannelsJson, whose error
+// logs are filtered to those tied to a transaction, so fewer codes than errors
+// can be listed. Rows written before the double-count fix lack the new keys —
+// fall back to the raw log count so old blobs still render something sane.
+function remainingChannelTooltip(vend) {
+	const totals = vend?.vendChannelTotalsJson;
+	if (!totals) return { content: '', html: true };
+
+	const count = Number(totals['count']) || 0;
+	const outOfStock = Number(totals['outOfStock']) || 0;
+	const activeErrors = Number(totals['errorLockedInStockSku'] ?? totals['activeErrorLogs']) || 0;
+	const remaining = count - (Number(totals['outOfStockSku']) || 0);
+
+	const channels = vend.vendChannelsJson ?? [];
+	const activeErrorLogs = channel => (channel.vendChannelErrorLogs ?? [])
+		.filter(errorLog => !errorLog.is_error_cleared && ![4, 5, 7].includes(Number(errorLog.code)));
+
+	const emptyCodes = channels
+		.filter(channel => Number(channel.qty) === 0)
+		.map(channel => `#${channel.code}${activeErrorLogs(channel).length ? ' (also error-locked)' : ''}`);
+
+	// Only the in-stock ones — an empty channel that also errors is already
+	// listed above, and counting it here too is the bug this replaced.
+	const errorLockedChannels = channels
+		.filter(channel => Number(channel.qty) > 0 && activeErrorLogs(channel).length);
+	const errorCodes = errorLockedChannels
+		.flatMap(channel => activeErrorLogs(channel)
+			.map(errorLog => `#${channel.code} (${errorLog.code}) since ${errorLog.created_at}`));
+
+	const parts = [
+		'<b>Remaining Channel#</b>',
+		'Channels still sellable = not empty <i>and</i> not error-locked.',
+		`${count} total &minus; ${outOfStock} empty &minus; ${activeErrors} error-locked = <b>${remaining}</b>`,
+	];
+
+	if (emptyCodes.length) {
+		parts.push(`<b>Empty:</b> ${emptyCodes.join(', ')}`);
+	}
+	if (errorCodes.length) {
+		parts.push(`<b>Error-locked:</b><br>${errorCodes.join('<br>')}`);
+	}
+	if (activeErrors > errorLockedChannels.length) {
+		const hidden = activeErrors - errorLockedChannels.length;
+		parts.push(`<i>+ ${hidden} more error-locked channel${hidden > 1 ? 's' : ''} whose error is not tied to a transaction</i>`);
+	}
+	if (!emptyCodes.length && !errorCodes.length) {
+		parts.push('All channels sellable.');
+	}
+
+	return {
+		content: parts.join('<br>'),
+		html: true
+	};
+}
 
 function compareRefPrice(vend, channel) {
 // let type = vend && vend.customer ? vend.customer.selling_price_type : vend.selling_price_type

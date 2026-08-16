@@ -1708,7 +1708,10 @@ class RefundController extends Controller
                 \App\Models\Scopes\OperatorUserTransactionFilterScope::class,
             ])
             ->with(['paymentMethod', 'operator', 'customer', 'vendPrefix', 'vendChannel', 'vendChannelError',
-                'vendTransactionItems.product', 'vendTransactionItems.vendChannel']);
+                'vendTransactionItems.product', 'vendTransactionItems.vendChannel',
+                // Needed to tell "the machine reported nothing" apart from "the
+                // machine reported a clean dispense" — see machine_reported below.
+                'paymentGatewayLog:id,is_dispensed']);
 
         if ($ticket->order_id) {
             $q->where('order_id', $ticket->order_id);
@@ -1755,6 +1758,23 @@ class RefundController extends Controller
                 'txn_src' => $t->interface_type,
                 'qty' => $t->qty,
                 'dispensed_qty' => $t->dispensed_qty,
+                // Gateway (QR / PayNow) rows are PRE-CREATED at paid-time with
+                // dispensed_qty = 0 and no channel error, and only filled with the
+                // machine's ground truth if a TRADE later arrives
+                // (GatewayVendTransactionService -> applyTradeToPreCreatedRow).
+                // For ~80% of QR sales it never does, so those two fields are
+                // PLACEHOLDERS, not evidence the customer got nothing. Cash/card
+                // rows only exist because a TRADE created them, so they are always
+                // true here (column defaults to 1). Ops must be able to tell
+                // "machine said nothing" from "machine said clean dispense".
+                'machine_reported' => (bool) $t->is_found_in_transaction,
+                // The dispense ACK we DO hold for a gateway sale: the machine asked
+                // to dispense and we confirmed (GetPurchaseConfirm). It is the
+                // command being acknowledged, NOT proof the product dropped — so it
+                // is surfaced as a weaker, separate signal, never as dispensed_qty.
+                'gateway_dispense_ack' => $t->payment_gateway_log_id
+                    ? (bool) $t->paymentGatewayLog?->is_dispensed
+                    : null,
                 'is_refunded' => (bool) $t->is_refunded,
                 'items' => $t->vendTransactionItems->map(fn ($i) => [
                     'product' => $i->product?->name ?? ($i->vend_channel_code ? 'Channel ' . $i->vend_channel_code : 'Item'),

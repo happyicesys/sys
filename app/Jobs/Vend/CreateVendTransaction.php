@@ -19,7 +19,9 @@ class CreateVendTransaction implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $input;
+
     protected $vend;
+
     protected $isCurrentTime;
 
     public function __construct($input, Vend $vend, $isCurrentTime = true)
@@ -85,12 +87,41 @@ class CreateVendTransaction implements ShouldQueue
             return false;
         }
 
-        $prefixed = Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $orderId;
+        $prefixed = Carbon::now()->format('y').(Carbon::now()->format('m'))[0].$orderId;
 
-        return VendTransaction::withoutGlobalScopes()
+        $existing = VendTransaction::withoutGlobalScopes()
             ->where('vend_id', $this->vend->id)
             ->whereIn('order_id', [$orderId, $prefixed])
-            ->exists();
+            ->first(['id', 'is_found_in_transaction', 'payment_gateway_log_id']);
+
+        return self::isAlreadyApplied($existing);
+    }
+
+    /**
+     * Does an existing row mean this TRADE has already been applied?
+     *
+     * The row's mere existence is NOT the test. Under unified transactions
+     * GatewayVendTransactionService pre-creates a row at gateway paid-time on the same
+     * `(order_id, vend_id)` — `is_found_in_transaction = false`, linked to a PG log — and that row
+     * is waiting for exactly this TRADE to fill in the machine's ground truth
+     * (VendTransactionService::applyTradeToPreCreatedRow()). Treating it as "already recorded"
+     * silently drops every QR sale's TRADE, which is what happened between 2026-08-10 20:02 and
+     * this fix: ~4,600 gateway rows kept `is_found_in_transaction = false`, empty
+     * `vend_transaction_json`, `success_qty`/`dispensed_qty` = 0, and 199 stayed PENDING (excluded
+     * from all sales aggregation). See `repair:gateway-trade-gap` for the historical repair.
+     *
+     * Everything else still short-circuits, so the anti-double-charge guarantee is unchanged:
+     * once the TRADE has landed the flag is true and re-deliveries skip as before.
+     */
+    public static function isAlreadyApplied(?VendTransaction $existing): bool
+    {
+        if (! $existing) {
+            return false;
+        }
+
+        $awaitingTrade = ! $existing->is_found_in_transaction && $existing->payment_gateway_log_id;
+
+        return ! $awaitingTrade;
     }
 
     /**

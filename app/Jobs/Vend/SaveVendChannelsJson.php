@@ -73,13 +73,29 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
         $productLimitLookup = $this->resolveProductLimits($vendChannels);
 
 
+        // A channel is unsellable when it is empty OR error-locked. Count the
+        // CHANNELS in that state, not the two conditions separately: summing
+        // outOfStock + activeErrorLogs double-counted any channel that was both,
+        // and counted a channel once per uncleared error log, so outOfStockSku
+        // could exceed the channel count and push "Remaining Channel#" negative.
+        $vendChannelsErrorLocked = $vendChannels->filter(function ($channel) {
+            return $this->hasActiveError($channel);
+        });
+
         $vendTotals = [
             'vendChannelsTotalQtyWithoutClaw' => $vendChannelsWithoutClaw->sum('qty'),
             'vendChannelsTotalCapacityWithoutClaw' => $vendChannelsWithoutClaw->sum('capacity'),
             'vendChannelsOutOfStock' => $vendChannels->where('qty', 0)->count(),
             'vendChannelsErrorLogsActive' => $this->calculateActiveErrorLogs($vendChannels),
+            'vendChannelsErrorLocked' => $vendChannelsErrorLocked->count(),
+            // Error-locked channels that still hold stock — the ones that add to
+            // the unsellable total on top of the empty ones. Empty channels that
+            // also carry an error are already covered by vendChannelsOutOfStock.
+            'vendChannelsErrorLockedInStock' => $vendChannelsErrorLocked->where('qty', '>', 0)->count(),
             'vendChannelsCount' => $vendChannels->count(),
         ];
+
+        $vendChannelsUnsellable = $vendTotals['vendChannelsOutOfStock'] + $vendTotals['vendChannelsErrorLockedInStock'];
 
         $totals = [
             'qty'
@@ -91,18 +107,32 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
             => $vendTotals['vendChannelsTotalCapacityWithoutClaw'] ? round($vendTotals['vendChannelsTotalQtyWithoutClaw'] / $vendTotals['vendChannelsTotalCapacityWithoutClaw'] * 100) : 0,
             'outOfStock'
             => $vendTotals['vendChannelsOutOfStock'],
+            // Raw uncleared-error-log count, kept for diagnostics. It can exceed
+            // errorLockedSku when one channel carries several uncleared errors —
+            // use errorLockedSku, not this, for anything channel-based.
             'activeErrorLogs'
             => $vendTotals['vendChannelsErrorLogsActive'],
+            'errorLockedSku'
+            => $vendTotals['vendChannelsErrorLocked'],
+            'errorLockedInStockSku'
+            => $vendTotals['vendChannelsErrorLockedInStock'],
             'count'
             => $vendTotals['vendChannelsCount'],
             'outOfStockSku'
-            => $vendTotals['vendChannelsOutOfStock'] + $vendTotals['vendChannelsErrorLogsActive'],
+            => $vendChannelsUnsellable,
             'outOfStockSkuPercent'
-            => $vendTotals['vendChannelsCount'] ? round(($vendTotals['vendChannelsOutOfStock'] + $vendTotals['vendChannelsErrorLogsActive']) / $vendTotals['vendChannelsCount'] * 100) : 0,
+            => $vendTotals['vendChannelsCount'] ? round($vendChannelsUnsellable / $vendTotals['vendChannelsCount'] * 100) : 0,
         ];
 
-        $vend->update([
-            'original_vend_channels_json' => $this->originalVendChannelData,
+        $vend->update(array_merge(
+            // Only SyncVendChannels passes the raw machine payload; the other
+            // dispatch sites re-derive the totals from the DB and have nothing
+            // to record here. Writing null unconditionally let any of them wipe
+            // the last payload we captured, so leave the column alone instead.
+            $this->originalVendChannelData !== null
+                ? ['original_vend_channels_json' => $this->originalVendChannelData]
+                : [],
+            [
             'vend_channels_json' => $vendChannels->map(function ($channel) use ($vend, $productLimitLookup) {
                 $sellingPriceType = $vend->customer?->selling_price_type;
                 $sellingPrice = $channel->product?->sellingPrices
@@ -146,23 +176,35 @@ class SaveVendChannelsJson implements ShouldQueue, ShouldBeUnique
                 ];
             }),
             'vend_channel_totals_json' => $totals,
-        ]);
+            ]
+        ));
     }
 
     private function calculateActiveErrorLogs($vendChannels)
     {
         return $vendChannels->reduce(function ($carry, $vendChannel) {
-            $activeErrorCount = $vendChannel->vendChannelErrorLogs->reduce(function ($innerCarry, $errorLog) {
-                if (
-                    !$errorLog->is_error_cleared &&
-                    !in_array($errorLog->vendChannelError->code, [4, 5, 7])
-                ) {
-                    $innerCarry++;
-                }
-                return $innerCarry;
-            }, 0);
-            return $carry + $activeErrorCount;
+            return $carry + $vendChannel->vendChannelErrorLogs
+                ->filter(function ($errorLog) {
+                    return $this->isActiveError($errorLog);
+                })
+                ->count();
         }, 0);
+    }
+
+    // Does this channel currently count as error-locked? Codes 4, 5 and 7 are
+    // excluded because they are recoverable/informational and do not stop the
+    // channel from vending.
+    private function hasActiveError($vendChannel)
+    {
+        return $vendChannel->vendChannelErrorLogs->contains(function ($errorLog) {
+            return $this->isActiveError($errorLog);
+        });
+    }
+
+    private function isActiveError($errorLog)
+    {
+        return !$errorLog->is_error_cleared
+            && !in_array($errorLog->vendChannelError->code, [4, 5, 7]);
     }
 
     private function resolveProductLimits($vendChannels)

@@ -125,9 +125,12 @@ function deleteTicket() {
 }
 
 const recClass = (r) => ({ proceed: 'text-green-700 bg-green-50 border-green-200', review: 'text-amber-700 bg-amber-50 border-amber-200', reject: 'text-red-700 bg-red-50 border-red-200' }[r] || 'text-gray-600 bg-gray-50 border-gray-200');
-// System-validation badges are a green (good/safe) vs red (danger/check) binary.
+// System-validation badges are a green (good/safe) vs red (danger/check) binary,
+// plus amber for "we hold no evidence either way" — which must never be rendered
+// as the red "the machine says nothing was wrong" verdict.
 const badgeGood = 'bg-green-50 border-green-200 text-green-700';
 const badgeBad = 'bg-red-50 border-red-200 text-red-700';
+const badgeUnknown = 'bg-amber-50 border-amber-200 text-amber-700';
 const statusClass = (s) => ({ submitted: 'bg-yellow-100 text-yellow-800', pending: 'bg-blue-100 text-blue-800', auto_resolved: 'bg-purple-100 text-purple-800', rejected: 'bg-red-100 text-red-800', approved: 'bg-green-100 text-green-800', completed: 'text-gray-500' }[s] || 'bg-gray-100 text-gray-700');
 
 const isPaynow = computed(() => t.value.refund_method === 'paynow');
@@ -241,6 +244,31 @@ const flaggedRows = computed(() => (t.value.flagged_items && t.value.flagged_ite
 const matchedTxn = computed(() => (t.value.related_transactions && t.value.related_transactions.length)
     ? t.value.related_transactions[0]
     : null);
+// Gateway (QR / PayNow) sales are written at paid-time and only filled with the
+// machine's ground truth if a TRADE arrives — and for most QR sales it never
+// does. Such a row reads dispensed 0/N with no channel error, which looks
+// identical to "the machine tried and cleanly dispensed nothing was wrong".
+// It is not: the machine said NOTHING. Never present a placeholder as evidence.
+const noMachineReport = computed(() => matchedTxn.value ? matchedTxn.value.machine_reported === false : false);
+// Wording for the weaker signal we do hold on a gateway row: the dispense
+// command was confirmed to the machine (GetPurchaseConfirm). That is an ack of
+// the command, not proof the product dropped.
+function dispenseAckNote(r) {
+    if (r.gateway_dispense_ack === true) return ' The payment gateway did record a dispense confirmation for this order (the machine was told to vend) — that is an acknowledgement of the command, not proof the product dropped.';
+    if (r.gateway_dispense_ack === false) return ' No dispense confirmation was recorded for this order either.';
+    return '';
+}
+function dispensedTitle(r) {
+    return r.machine_reported === false
+        ? 'Unknown, not zero. The machine never reported this sale back (no TRADE), so the dispensed count was never filled in.' + dispenseAckNote(r)
+        : 'Units the machine reported as dispensed, out of the units paid for.';
+}
+function channelErrorTitle(r) {
+    if (r.channel_error) return 'The machine reported this hardware / channel error against the sale.';
+    return r.machine_reported === false
+        ? 'Unknown. The machine never reported this sale back (no TRADE), so no channel error could have been recorded either way — this is NOT a clean-dispense result.' + dispenseAckNote(r)
+        : 'The machine reported the sale with no channel error.';
+}
 
 // ---- Customer submission flow (follows the public input flow) ----
 const claimedItems = computed(() => t.value.items || []);
@@ -327,11 +355,14 @@ function actionBadge(l) {
             <h3 class="text-xs uppercase tracking-wide mb-2 opacity-80">System validation — RefundTicket</h3>
             <div class="font-bold capitalize mb-3">Recommend: {{ t.recommendation }}</div>
             <div class="flex flex-wrap gap-2">
-                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="hasChannelError ? badgeGood : badgeBad"
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help"
+                    :class="hasChannelError ? badgeGood : (noMachineReport ? badgeUnknown : badgeBad)"
                     :title="hasChannelError
                         ? 'A vend channel / hardware error was recorded on this transaction (e.g. sensor or dispense fault). This is evidence the item may not have been dispensed — a valid reason to refund. Review the specific error code in Items flagged.'
-                        : 'No vend channel or hardware error was recorded. The machine reported a clean dispense, so there is no hardware evidence backing a not-dispensed claim — verify carefully before refunding.'">
-                    {{ hasChannelError ? '✓ Channel error detected' : '⚠ No channel error' }}
+                        : (noMachineReport
+                            ? 'The machine never reported this sale back (no TRADE), so no channel error could have been recorded either way. This is ABSENCE OF EVIDENCE, not evidence of a clean dispense — do not treat it as grounds to reject. Common on QR / PayNow sales.'
+                            : 'No vend channel or hardware error was recorded. The machine reported a clean dispense, so there is no hardware evidence backing a not-dispensed claim — verify carefully before refunding.')">
+                    {{ hasChannelError ? '✓ Channel error detected' : (noMachineReport ? '⚠ No machine report' : '⚠ No channel error') }}
                 </span>
                 <span class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help" :class="isManualClaim ? badgeBad : badgeGood"
                     :title="isManualClaim
@@ -584,7 +615,13 @@ function actionBadge(l) {
                         </div>
                         <div class="min-w-0">
                             <dt class="text-[10px] uppercase tracking-wide text-gray-500">Dispensed</dt>
-                            <dd class="text-sm font-medium" :class="(r.dispensed_qty < r.qty) ? 'text-amber-700' : 'text-gray-800'">{{ r.dispensed_qty }}/{{ r.qty }}</dd>
+                            <!-- No TRADE = the count was never filled in. Showing the
+                                 0 placeholder here reads as "customer got nothing" and
+                                 has been driving wrong refund decisions. -->
+                            <dd v-if="r.machine_reported === false" class="text-sm font-medium text-gray-400 cursor-help" :title="dispensedTitle(r)">
+                                — <span class="text-[11px]">no machine report</span>
+                            </dd>
+                            <dd v-else class="text-sm font-medium cursor-help" :class="(r.dispensed_qty < r.qty) ? 'text-amber-700' : 'text-gray-800'" :title="dispensedTitle(r)">{{ r.dispensed_qty }}/{{ r.qty }}</dd>
                         </div>
                         <div class="min-w-0">
                             <dt class="text-[10px] uppercase tracking-wide text-gray-500">TXN SRC</dt>
@@ -592,7 +629,14 @@ function actionBadge(l) {
                         </div>
                         <div class="min-w-0 col-span-2 lg:col-span-3">
                             <dt class="text-[10px] uppercase tracking-wide text-gray-500">Channel Error</dt>
-                            <dd class="text-sm font-medium" :class="r.channel_error ? 'text-amber-700' : 'text-gray-800'">{{ r.channel_error || 'None' }}</dd>
+                            <!-- Same placeholder trap as Dispensed: with no TRADE there
+                                 is no error because there is no report, not because the
+                                 vend was clean. -->
+                            <dd class="text-sm font-medium cursor-help"
+                                :class="r.channel_error ? 'text-amber-700' : (r.machine_reported === false ? 'text-gray-400' : 'text-gray-800')"
+                                :title="channelErrorTitle(r)">
+                                {{ r.channel_error || (r.machine_reported === false ? 'No machine report' : 'None') }}
+                            </dd>
                         </div>
                     </dl>
                     <div v-if="r.items && r.items.length" class="mt-3 pt-3 border-t border-gray-100">
