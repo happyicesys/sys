@@ -2031,11 +2031,6 @@ class ReportController extends Controller
     {
         $today = Carbon::today()->setTimezone($this->getUserTimezone());
 
-        // ── diagnostic: log routing decision ──────────────────────────────────
-        $gpMetricsCount = DB::table('gp_metrics')
-            ->whereBetween('txn_date', [$start->toDateString(), $end->toDateString()])
-            ->count();
-
         if ($end->lt($today)) {
             $path = 'historical (gp_metrics)';
             $rawQuery = GpMetricsAggregator::buildHistoricalQuery($start, $end);
@@ -2049,15 +2044,17 @@ class ReportController extends Controller
             $rawQuery = $historical->unionAll($live);
         }
 
+        // Diagnostic: which path served the report. 2026-08-17: this used to also log
+        // a gp_metrics row count, which cost an extra COUNT(*) on a 2.4M-row table on
+        // every single report request purely to produce a log line. The path itself is
+        // the part worth keeping; run the count by hand when you need it.
         Log::channel('single')->info('[SalesReport] baseVendTransactionMetricsQuery', [
             'path'             => $path,
             'start'            => $start->toIso8601String(),
             'end'              => $end->toIso8601String(),
             'today'            => $today->toIso8601String(),
             'user_timezone'    => $this->getUserTimezone(),
-            'gp_metrics_rows'  => $gpMetricsCount,
         ]);
-        // ─────────────────────────────────────────────────────────────────────
 
         // "Access Product(s)" — see getLiveVendRecordsQuery() for why this is
         // applied on the gm subquery and not inside GpMetricsAggregator.

@@ -16,9 +16,14 @@ class VendTempMetricService
      */
     public function computeDailyMetrics(Carbon $date, ?int $vendId = null): Collection
     {
+        // 2026-08-17: a datetime range, never whereDate(). whereDate() compiles to
+        // date(created_at) = ?, which wraps the column in a function and makes
+        // vend_temps_created_at_index unusable — this became a full scan of ~12.6M
+        // rows / 2.1GB taking 21s, which also evicted the 4GB InnoDB buffer pool and
+        // made every concurrent page load slow. Same predicate, index now usable.
         $query = VendTemp::query()
             ->selectRaw('vend_id, type as temp_type, MIN(value) as min_value, MAX(value) as max_value, COUNT(*) as reading_count')
-            ->whereDate('created_at', $date)
+            ->whereBetween('created_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
             ->where('value', '!=', VendTemp::TEMPERATURE_ERROR);
 
         if ($vendId) {
@@ -102,7 +107,7 @@ class VendTempMetricService
             ->where('period_type', VendTempMetric::PERIOD_DAILY)
             ->first();
 
-        if (!$aggregate || is_null($aggregate->min_value) || is_null($aggregate->max_value)) {
+        if (! $aggregate || is_null($aggregate->min_value) || is_null($aggregate->max_value)) {
             VendTempMetric::query()
                 ->where('vend_id', $vendId)
                 ->where('temp_type', $tempType)
@@ -130,7 +135,7 @@ class VendTempMetricService
             ->orderBy('max_temp_recorded_at')
             ->first();
 
-        if (!$minRow || !$maxRow) {
+        if (! $minRow || ! $maxRow) {
             VendTempMetric::query()
                 ->where('vend_id', $vendId)
                 ->where('temp_type', $tempType)
@@ -173,7 +178,7 @@ class VendTempMetricService
             ->whereBetween('period_start', [$startDate, $endDate])
             ->first();
 
-        if (!$aggregate || is_null($aggregate->min_value) || is_null($aggregate->max_value)) {
+        if (! $aggregate || is_null($aggregate->min_value) || is_null($aggregate->max_value)) {
             VendTempMetric::query()
                 ->where('vend_id', $vendId)
                 ->where('temp_type', $tempType)
@@ -204,7 +209,7 @@ class VendTempMetricService
             ->orderBy('max_temp_recorded_at')
             ->first();
 
-        if (!$minRow || !$maxRow) {
+        if (! $minRow || ! $maxRow) {
             VendTempMetric::query()
                 ->where('vend_id', $vendId)
                 ->where('temp_type', $tempType)

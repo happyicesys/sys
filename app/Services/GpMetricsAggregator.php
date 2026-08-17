@@ -26,11 +26,14 @@ class GpMetricsAggregator
         $transactionDatetimeColumn = 'COALESCE(vend_transactions.transaction_datetime, vend_transactions.created_at)';
         $transactionDateExpression = "DATE($transactionDatetimeColumn)";
 
-        $applyDateRange = function ($query) use ($start, $end) {
-            $query->whereBetween('vend_transactions.transaction_datetime', [$start, $end])
-                ->orWhere(function ($or) use ($start, $end) {
-                    $or->whereNull('vend_transactions.transaction_datetime')
-                        ->whereBetween('vend_transactions.created_at', [$start, $end]);
+        // $table lets the same predicate be applied through an alias — the
+        // date-scoped item subqueries below join vend_transactions under their own
+        // names. One definition, so the two can never drift apart.
+        $applyDateRange = function ($query, string $table = 'vend_transactions') use ($start, $end) {
+            $query->whereBetween("$table.transaction_datetime", [$start, $end])
+                ->orWhere(function ($or) use ($start, $end, $table) {
+                    $or->whereNull("$table.transaction_datetime")
+                        ->whereBetween("$table.created_at", [$start, $end]);
                 });
         };
 
@@ -110,14 +113,26 @@ class GpMetricsAggregator
 
         $multiAmountExpression = 'COALESCE(vend_transaction_items.unit_price_amount, 0)';
         $multiRevenueExpression = 'ROUND(COALESCE(vend_transaction_items.unit_price_amount, 0) / (1 + COALESCE(vend_transactions.gst_vat_rate, 0) / 100))';
+        // 2026-08-17: date-scoped via vend_transactions. Without the join this
+        // grouped EVERY row of vend_transaction_items (~309k) on every execution —
+        // and it is materialised once per run of both the nightly builder and the
+        // live Sales Report read. The filter is on the TRANSACTION, not the item, so
+        // every item of an in-range transaction is still counted and item_sum /
+        // zero_count / total_count keep their per-basket meaning. Rows this drops
+        // could never be consumed anyway: the outer query joins vti_sum on
+        // vend_transactions.id, and those transactions are already date-filtered.
         $multiSub = DB::table('vend_transaction_items as vti')
+            ->join('vend_transactions', 'vend_transactions.id', '=', 'vti.vend_transaction_id')
+            ->where(function ($query) use ($applyDateRange) {
+                $applyDateRange($query);
+            })
             ->select(
-                'vend_transaction_id',
-                DB::raw('SUM(unit_price_amount) as item_sum'),
-                DB::raw('COUNT(CASE WHEN unit_price_amount = 0 THEN 1 END) as zero_count'),
+                'vti.vend_transaction_id',
+                DB::raw('SUM(vti.unit_price_amount) as item_sum'),
+                DB::raw('COUNT(CASE WHEN vti.unit_price_amount = 0 THEN 1 END) as zero_count'),
                 DB::raw('COUNT(*) as total_count')
             )
-            ->groupBy('vend_transaction_id');
+            ->groupBy('vti.vend_transaction_id');
 
         $adjustedAmountExpr = "vend_transaction_items.unit_price_amount + (CASE
             WHEN vti_sum.zero_count > 0 AND vend_transaction_items.unit_price_amount = 0 THEN (vend_transactions.amount - vti_sum.item_sum) / vti_sum.zero_count
@@ -129,8 +144,13 @@ class GpMetricsAggregator
         // Per-(transaction, product) item count — used to attribute the full transaction amount
         // exactly once per transaction per product, regardless of how many items of that product
         // are in the basket. This ensures txn_amount_cents matches the transaction page totals.
+        // Date-scoped for the same reason as $multiSub above — see that comment.
         $productCountSub = DB::table('vend_transaction_items as pc_vti')
+            ->join('vend_transactions as pc_vt', 'pc_vt.id', '=', 'pc_vti.vend_transaction_id')
             ->leftJoin('vend_channels as pc_vc', 'pc_vc.id', '=', 'pc_vti.vend_channel_id')
+            ->where(function ($query) use ($applyDateRange) {
+                $applyDateRange($query, 'pc_vt');
+            })
             ->select(
                 'pc_vti.vend_transaction_id',
                 DB::raw('COALESCE(pc_vti.product_id, pc_vc.product_id) as product_id'),
