@@ -72,6 +72,11 @@ class RefundController extends Controller
         // count (it has its own chip).
         $counts['approved'] = (int) ($counts['approved'] ?? 0) + (int) ($counts['scheduled'] ?? 0);
         unset($counts['scheduled']);
+        // "All" chip / filter option: every ticket regardless of status. Counted
+        // directly rather than summed from the chips above, so it stays exact even
+        // if a dropped ticket ever sits under a status other than Rejected (which
+        // would double-count it in the chip totals).
+        $counts['all'] = (int) RefundTicket::count();
 
         return Inertia::render('Refund/Index', [
             'tickets' => $tickets,

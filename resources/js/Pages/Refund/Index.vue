@@ -3,7 +3,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import Button from '@/Components/Button.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
 
 const page = usePage();
@@ -119,8 +119,11 @@ const paynowSelectedIds = computed(() => selectedTickets.value.filter((t) => t.s
 // re-flag one that's already parked).
 const paypalDoneIds = computed(() => selectedTickets.value.filter((t) => t.refund_method === 'paypal' && ['approved', 'insufficient_info'].includes(t.status)).map((t) => t.id));
 const paypalFlagIds = computed(() => selectedTickets.value.filter((t) => t.refund_method === 'paypal' && t.status === 'approved').map((t) => t.id));
-// status options as {id: key, value: label} for the tags MultiSelect
-const statusOptions = ref(Object.entries(props.statuses).map(([id, value]) => ({ id, value })));
+// status options as {id: key, value: label} for the tags MultiSelect. "All" is a
+// pseudo-status handled by the backend (it skips the status filter entirely), so it
+// shows every ticket including Completed — unlike an empty selection, which applies
+// the default view (all statuses except Completed).
+const statusOptions = ref([{ id: 'all', value: 'All' }, ...Object.entries(props.statuses).map(([id, value]) => ({ id, value }))]);
 
 // Per-page selector — same options + component (MultiSelect) as Vend/CustomerIndex.
 const numberPerPageOptions = ref([
@@ -154,6 +157,17 @@ const filters = ref({
     numberPerPage: defaultPerPage,
 });
 
+// "All" is mutually exclusive with the individual statuses: picking it drops the
+// rest, picking another status drops it. Deep watch because the MultiSelect pushes
+// into the same array it emitted (the reference doesn't change on select).
+watch(() => filters.value.status, (sel) => {
+    if (!Array.isArray(sel) || sel.length < 2 || !sel.some((o) => o.id === 'all')) return;
+    // the just-picked tag is appended last, so it wins
+    filters.value.status = sel[sel.length - 1].id === 'all'
+        ? sel.filter((o) => o.id === 'all')
+        : sel.filter((o) => o.id !== 'all');
+}, { deep: true });
+
 function payload() {
     const p = {
         search: filters.value.search,
@@ -173,7 +187,8 @@ function payload() {
         sent_settlement: filters.value.sent_settlement,
         numberPerPage: filters.value.numberPerPage?.id ?? 50,
     };
-    // omit status when empty -> server applies the default (all except completed), shown as "All statuses"
+    // omit status when empty -> server applies the default (all except completed);
+    // the explicit "all" option is passed through and makes the server skip the filter
     if (filters.value.status.length) p.status = filters.value.status.map((s) => s.id);
     return p;
 }
@@ -201,8 +216,9 @@ function exportExcel() {
     window.location.href = '/refunds/export?' + params.toString();
 }
 function pickStatus(key) {
-    // toggle: clicking the active chip clears back to "All"
-    if (filters.value.status.length === 1 && filters.value.status[0].id === key) {
+    // toggle: clicking the active chip clears back to the default view. "All" is
+    // already the broadest view, so it stays selected instead of toggling off.
+    if (key !== 'all' && filters.value.status.length === 1 && filters.value.status[0].id === key) {
         filters.value.status = [];
     } else {
         const opt = statusOptions.value.find((o) => o.id === key);
@@ -212,6 +228,7 @@ function pickStatus(key) {
 }
 
 const statusClass = (s) => ({
+    all: 'bg-slate-200 text-slate-800',            // pseudo-status: every ticket
     submitted: 'bg-yellow-100 text-yellow-800',   // Received
     pending: 'bg-blue-100 text-blue-800',         // Pending — manual follow-up
     auto_resolved: 'bg-purple-100 text-purple-800',
@@ -321,6 +338,12 @@ const sortedRows = computed(() => {
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
         <!-- status chips (quick single-status filter) -->
         <div class="flex flex-wrap gap-2 mb-3">
+            <span class="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 cursor-pointer transition"
+                :class="[statusClass('all'), (filters.status.length === 1 && filters.status[0].id === 'all') ? 'ring-2 ring-offset-1 ring-teal-500' : 'opacity-80 hover:opacity-100']"
+                title="Show every refund request, including Completed"
+                @click="pickStatus('all')">
+                All <b>{{ counts.all || 0 }}</b>
+            </span>
             <span v-for="(label, key) in statuses" :key="key"
                 class="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 cursor-pointer transition"
                 :class="[statusClass(key), (filters.status.length === 1 && filters.status[0].id === key) ? 'ring-2 ring-offset-1 ring-teal-500' : 'opacity-80 hover:opacity-100']"
@@ -350,7 +373,7 @@ const sortedRows = computed(() => {
                         valueProp="id"
                         label="value"
                         mode="tags"
-                        placeholder="All statuses"
+                        placeholder="Default (all except Completed)"
                         open-direction="bottom"
                         class="mt-1"
                     />

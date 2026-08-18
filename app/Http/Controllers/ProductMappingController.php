@@ -514,10 +514,49 @@ class ProductMappingController extends Controller
         ]);
     }
 
+    /**
+     * Mapping names must be unique among the mappings the caller can see.
+     *
+     * Two mappings sharing a name is how the 2026-08-15 "Mindef 2608 Jelly"
+     * mix-up happened: the wrong twin got preset as an upcoming mapping and ops
+     * saw the right NAME with the wrong remarks in the job. Names are the only
+     * handle users have in every dropdown, so a duplicate is never intentional.
+     *
+     * Runs on the scoped ProductMapping query so the boundary is exactly what
+     * the user sees (own operator + shared null-operator rows; everything for
+     * Happy Ice). Trailing/leading whitespace is ignored and the compare is
+     * case-insensitive (utf8mb4_unicode_ci), so "Foo " cannot sneak past "foo".
+     * Inactive mappings count too — they still appear in history and reports.
+     */
+    private function uniqueNameRule(?int $ignoreId = null): \Closure
+    {
+        return function (string $attribute, $value, \Closure $fail) use ($ignoreId) {
+            $name = trim((string) $value);
+            if ($name === '') {
+                return; // 'required' reports the empty case
+            }
+
+            $clash = ProductMapping::query()
+                ->where('name', $name)
+                ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+                ->first(['id', 'is_active']);
+
+            if ($clash) {
+                $fail(sprintf(
+                    'A product mapping named "%s" already exists (#%d%s). Pick a distinct name — duplicates get mixed up when preset as upcoming mappings.',
+                    $name,
+                    $clash->id,
+                    $clash->is_active ? '' : ', inactive'
+                ));
+            }
+        };
+    }
+
     public function create(Request $request)
     {
+        $request->merge(['name' => trim((string) $request->name)]);
         $request->validate([
-            'name' => 'required',
+            'name' => ['required', $this->uniqueNameRule()],
             // Smart-freezer planogram flag. Optional; defaults to false at the
             // DB layer. The UI sends it from the create modal radio.
             'is_smart' => ['nullable', 'boolean'],
@@ -941,8 +980,9 @@ class ProductMappingController extends Controller
 
     public function update(Request $request, $productMappingId)
     {
+        $request->merge(['name' => trim((string) $request->name)]);
         $request->validate([
-            'name' => 'required',
+            'name' => ['required', $this->uniqueNameRule((int) $productMappingId)],
             'upcoming_product_mapping_id' => [
                 'nullable',
                 'not_in:'.$productMappingId,
@@ -1187,9 +1227,18 @@ class ProductMappingController extends Controller
             ->with(['productMappingItems', 'attachments'])
             ->findOrFail($request->id);
 
-        return DB::transaction(function () use ($productMapping) {
+        // Names are unique (see uniqueNameRule); replicating the same source
+        // twice must not collide, so walk "-replicated", "-replicated-2", ...
+        // until free within the caller's visible mappings.
+        $base = $productMapping->name.'-replicated';
+        $name = $base;
+        for ($n = 2; ProductMapping::query()->where('name', $name)->exists(); $n++) {
+            $name = $base.'-'.$n;
+        }
+
+        return DB::transaction(function () use ($productMapping, $name) {
             $replicated = $productMapping->replicate()->fill([
-                'name' => $productMapping->name.'-replicated',
+                'name' => $name,
                 'operator_id' => auth()->user()->operator_id,
             ]);
             $replicated->save();
