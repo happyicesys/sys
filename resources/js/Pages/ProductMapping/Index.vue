@@ -381,6 +381,28 @@
                             <span>
                               - {{ productMappingItem.product.name }}
                             </span>
+                            <!--
+                              Upcoming-mapping diff marker. Only rendered when this mapping
+                              has a preset Upcoming Product Mapping (its channel rows are
+                              eager-loaded in ProductMappingController::index). Compares this
+                              channel against the same channel_code in the upcoming mapping:
+                                yellow "!" — channel stays, product changes (tooltip names the
+                                            new product code + name);
+                                red "!"    — channel_code is absent from the upcoming mapping,
+                                            i.e. it is removed at changeover.
+                              Same channel + same product => nothing.
+                            -->
+                            <span
+                              v-if="upcomingChannelChange(productMapping, productMappingItem)"
+                              class="inline-flex items-center cursor-help"
+                              v-tooltip="upcomingChannelChange(productMapping, productMappingItem).tooltip"
+                            >
+                              <ExclamationCircleIcon
+                                class="w-4 h-4"
+                                :class="upcomingChannelChange(productMapping, productMappingItem).kind === 'removed' ? 'text-red-500' : 'text-yellow-500'"
+                                aria-hidden="true"
+                              />
+                            </span>
 
                           </li>
                         </ul>
@@ -1021,7 +1043,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 // heroicon + classes + stroke attributes as Vend/CustomerIndex.vue's Mthly Sales $
 // month-over-month chips, so the two pages read as one system. Same icon pack
 // (@heroicons/vue/20/solid) as CustomerIndex — do not switch to 24/outline.
-import { ArrowDownIcon, ArrowUpIcon, BackspaceIcon, LinkIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownIcon, ArrowUpIcon, BackspaceIcon, ExclamationCircleIcon, LinkIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import TableData from '@/Components/TableData.vue';
@@ -1520,6 +1542,62 @@ onMounted(() => {
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.vendStatus = vendStatusOptions.value[2]
 })
+
+// "Channel - Product" column: what happens to ONE channel of `mapping` when its
+// preset Upcoming Product Mapping takes over. Returns null when nothing changes
+// (or there is no upcoming mapping / its channel rows were not shipped), else
+//   { kind: 'changed', tooltip }  — same channel_code, different product
+//   { kind: 'removed', tooltip }  — channel_code not present in the upcoming mapping
+// The upcoming mapping's items arrive as upcomingProductMapping.productMappingItems
+// (ProductMappingController::index eager-loads them). Lookup is memoised per
+// mapping in a WeakMap so the v-for is not O(channels²) per row.
+// Tooltips are plain text (no html:true) because product names are user-typed.
+const upcomingChannelIndexCache = new WeakMap()
+
+function upcomingChannelIndex(mapping) {
+  const upcoming = mapping ? mapping.upcomingProductMapping : null
+  if (!upcoming || !Array.isArray(upcoming.productMappingItems)) return null
+
+  let index = upcomingChannelIndexCache.get(upcoming)
+  if (!index) {
+    index = new Map()
+    upcoming.productMappingItems.forEach((item) => {
+      if (item && item.channel_code !== null && item.channel_code !== undefined) {
+        index.set(String(item.channel_code), item)
+      }
+    })
+    upcomingChannelIndexCache.set(upcoming, index)
+  }
+  return index
+}
+
+function upcomingChannelChange(mapping, item) {
+  const index = upcomingChannelIndex(mapping)
+  if (!index || !item) return null
+
+  const channel = String(item.channel_code)
+  const upcomingItem = index.get(channel)
+
+  if (!upcomingItem) {
+    return {
+      kind: 'removed',
+      tooltip: 'Channel ' + channel + ' will be removed in the upcoming product mapping.',
+    }
+  }
+
+  const currentProductId = item.product ? item.product.id : null
+  const nextProduct = upcomingItem.product || null
+  const nextProductId = nextProduct ? nextProduct.id : null
+  if (currentProductId === nextProductId) return null
+
+  const nextLabel = nextProduct
+    ? [nextProduct.code, nextProduct.name].filter(Boolean).join(' - ')
+    : '(no product)'
+  return {
+    kind: 'changed',
+    tooltip: 'Channel ' + channel + ' will change to ' + nextLabel,
+  }
+}
 
 // Tooltip for the "N Machine(s) at upcoming stage" line.
 //

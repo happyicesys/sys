@@ -63,6 +63,7 @@ use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\RefundTicket;
 use App\Models\RefundTicketItem;
+use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SellingPrice;
 use App\Models\Tag;
 use App\Models\User;
@@ -1880,8 +1881,23 @@ class VendController extends Controller
             }
         );
 
-        // Drivers: cache per-site (not operator-scoped) with a shorter TTL
-        $driverOptions = Cache::remember('customer_driver_options', $driverTtl, fn () => UserResource::collection(User::with('roles')->orderBy('name')->get())->resolve()
+        // Drivers: the "Assign Job(s)" modal and the Next Delivery Driver
+        // filter. This listed EVERY user in the system, so a licensee was
+        // offered other operators' drivers. Cut to the viewer's own operator -
+        // operator 1 (HIPL) stays unrestricted, same rule the machine grid on
+        // this very page enforces, reused rather than re-derived.
+        //
+        // The key MUST carry the operator suffix: the cache is shared across
+        // viewers, so a single fixed key would let whoever warms it decide what
+        // every other operator sees. Busted per-operator by OptionCacheBuster.
+        $driverOperatorId = OperatorVendFilterScope::viewerOperatorId();
+        $driverCacheKey = 'customer_driver_options_'.($driverOperatorId ?? 'all');
+        $driverOptions = Cache::remember($driverCacheKey, $driverTtl, fn () => UserResource::collection(
+            User::with('roles')
+                ->when($driverOperatorId, fn ($q, $id) => $q->where('operator_id', $id))
+                ->orderBy('name')
+                ->get()
+        )->resolve()
         );
 
         // Products: operator-scoped (is_available can toggle), short TTL.

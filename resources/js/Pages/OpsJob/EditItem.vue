@@ -421,6 +421,9 @@
                             <span>
                               Product
                             </span>
+                            <span>
+                              Price
+                            </span>
                           </div>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
@@ -489,6 +492,9 @@
                             <div :class="[(channel.product && channel.product.is_available) ? 'text-gray-700' : 'text-gray-400']">
                                 <p class="break-words text-xs font-bold" :class="[channel.is_upcoming_product ? 'text-purple-700' : '']" v-if="channel.product && channel.product.name">
                                   {{ channel.product.name }}
+                                </p>
+                                <p class="mt-1.5 text-xs font-semibold text-gray-900" v-if="channel.live_price != null">
+                                  {{ formatPrice(channel.live_price) }}
                                 </p>
                             </div>
                           </div>
@@ -828,7 +834,7 @@
                           Image
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
-                          Product
+                          Product / Price
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
                           Needed Qty/ Capacity
@@ -922,6 +928,9 @@
                             </span>
                             <span class="break-normal text-xs" v-if="channel.product && channel.product.name">
                               <br> {{ channel.product.name }}
+                            </span>
+                            <span class="block mt-1.5 text-xs font-semibold text-gray-900" v-if="channel.live_price != null">
+                              {{ formatPrice(channel.live_price) }}
                             </span>
                           </span>
                           <div v-if="isBlindParent(channel)" class="mt-1.5 flex justify-center">
@@ -1842,7 +1851,13 @@ function loadingData() {
     return {
       ...opsJobItemChannel.vendChannel,
       id: opsJobItemChannel.id,
-      amount: opsJobItemChannel.amount || opsJobItemChannel.vendChannel.amount,
+      // Cents. ops_job_item_channels.amount is the job-creation snapshot of
+      // vend_channels.amount (cents); VendChannelResource returns dollars, so
+      // the fallback must be re-scaled or the subtotals go 100x off.
+      amount: opsJobItemChannel.amount || Math.round((opsJobItemChannel.vendChannel?.amount || 0) * 100),
+      // Live machine price (dollars) - what the channel charges right now, shown
+      // to the driver under the product name.
+      live_price: opsJobItemChannel.vendChannel?.amount ?? null,
       is_upcoming_product: opsJobItemChannel.is_upcoming_product,
       is_replaced: is_replaced,
       is_manually_replaced: is_manually_replaced,
@@ -2058,6 +2073,12 @@ function getSubtotalPicked() {
   return channels.value.reduce((acc, channel) => {
     return acc + Number(channel.picked);
   }, 0);
+}
+
+// Live vend_channels price, already in dollars from VendChannelResource.
+function formatPrice(price) {
+  const digits = operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent
+  return operatorCountry.currency_symbol + Number(price).toLocaleString(undefined, {minimumFractionDigits: digits, maximumFractionDigits: digits})
 }
 
 function getSubtotalPickedAmount() {

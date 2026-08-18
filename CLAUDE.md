@@ -79,6 +79,14 @@ means the card and the grid are drawn from different populations, and the card
 is almost always the one that has escaped the boundary. Regression coverage:
 `tests/Feature/OperatorScopeLeakTest.php`.
 
+`users` can never carry a global scope — auth, notifications and the driver
+APIs all read it unfiltered — so any user-picker has to apply the boundary
+itself, and several still don't. The "Assign Job(s)" driver dropdown
+(`VendController::indexCustomer`) is the one that has been fixed: own operator
+only, `OperatorVendFilterScope::viewerOperatorId()`, so operator 1 keeps seeing
+everyone. Regression coverage:
+`tests/Feature/OpsJobDriverOperatorScopeTest.php`.
+
 Where a model is reachable by id from write endpoints (`findOrFail`), prefer a
 **global scope** over a `where` in `index()` — the listing is rarely the only
 door. `OperatorDeliveryProductMappingScope` is the worked example: it also

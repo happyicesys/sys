@@ -228,10 +228,16 @@ class RolePermissionSyncSeeder extends Seeder
             // prod_owner is auto-created by this seeder like any other role
             // named in a tuple (see the Role::create block below) — no
             // prerequisite seeder needed.
+            //
+            // 2026-08-18: + driver. driver lost the full Dashboard in the
+            // 2026-08-09 sync (`read vends` / `read vend-customers` both
+            // struck) and got nothing in its place; Lite is that replacement.
+            // Lite's "Grouped?" toggle is disabled on the page itself
+            // (CustomerIndexLite.vue) — no permission involved.
             [
                 'vend-customers-lite',
                 ['read', 'export'],
-                ['superadmin', 'admin', 'prod_owner']
+                ['superadmin', 'admin', 'prod_owner', 'driver']
             ],
 
             [

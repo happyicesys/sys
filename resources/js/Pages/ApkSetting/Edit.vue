@@ -866,7 +866,7 @@
               </div>
             </div>
 
-            <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3 bg-gray-200 rounded p-4">
+            <div class="sm:col-span-6 grid grid-cols-1 gap-4 sm:grid-cols-6 mb-1 bg-gray-50 border border-gray-200 rounded-lg p-4">
               <div class="sm:col-span-4">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Campaigns
@@ -889,7 +889,7 @@
                 <Button
                   type="button"
                   @click="bindCampaigns()"
-                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                  class="bg-green-600 hover:bg-green-700 text-white flex space-x-1 justify-center w-full sm:w-auto px-3"
                   :class="[!selectedCampaigns.length ? 'opacity-50 cursor-not-allowed' : '']"
                   :disabled="!selectedCampaigns.length"
                 >
@@ -995,18 +995,32 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center ">
-                  <div class="flex flex-col items-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Old Campaign Item Bindings</span>
-                    <span class="text-sm text-amber-700 bg-white px-3">
-                      Legacy: only machines below APK v213 read these. For everything newer, use Campaign Bindings above — a mixed fleet needs the promo entered in BOTH sections.
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md flex items-center gap-2">
+                    Old Campaign Item Bindings
+                    <span class="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800">
+                      Legacy
                     </span>
-                  </div>
+                  </span>
                 </div>
               </div>
             </div>
 
-            <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3 bg-gray-200 rounded p-4">
-              <div class="sm:col-span-3">
+            <div class="sm:col-span-6 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <ExclamationTriangleIcon class="w-5 h-5 shrink-0 text-amber-600 mt-0.5"></ExclamationTriangleIcon>
+              <div class="space-y-1 text-sm text-amber-900">
+                <p>
+                  <span class="font-semibold">Only machines below APK v213 read these.</span>
+                  Everything newer reads Campaign Bindings above — a mixed fleet needs the promo entered in <span class="font-semibold">both</span> sections.
+                </p>
+                <p>
+                  <span class="font-semibold">Value is in cents</span> — 500 = $5.00 for Amount, or the basis of the % for Percent.
+                  Rows entered in dollars are 100× too small on the machines.
+                </p>
+              </div>
+            </div>
+
+            <div class="sm:col-span-6 grid grid-cols-1 gap-4 sm:grid-cols-6 mb-1 bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Labels
                 </label>
@@ -1025,12 +1039,8 @@
               </div>
 
               <div class="sm:col-span-1">
-                <FormInput v-model="form.qty">
-                  <div class="flex flex-col space-y-1">
-                    <span class="text-base">
-                      Bundle Qty
-                    </span>
-                  </div>
+                <FormInput v-model="form.qty" inputType="number">
+                  Bundle Qty
                 </FormInput>
               </div>
 
@@ -1052,23 +1062,17 @@
               </div>
 
               <div class="sm:col-span-1">
-                <FormInput v-model="form.value">
-                  <div class="flex flex-col space-y-1">
-                    <span class="text-base">
-                      Value
-                    </span>
-                    <span class="text-sm text-red-600 font-medium">
-                      In CENTS: 500 = $5.00 (Amount) or basis of the % (Percent). Existing rows entered in dollars are 100× too small on machines.
-                    </span>
-                  </div>
+                <FormInput v-model="form.value" inputType="number">
+                  Value
+                  <span class="ml-1 font-normal text-gray-500">(cents)</span>
                 </FormInput>
               </div>
 
-              <div class="sm:col-span-6 lg:col-span-1 flex items-end">
+              <div class="sm:col-span-1 flex items-end">
                 <Button
                   type="button"
                   @click="addCampaignItem()"
-                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-0"
+                  class="bg-green-600 hover:bg-green-700 text-white flex space-x-1 justify-center w-full sm:w-auto px-3"
                   :class="[!canAddCampaignItem ? 'opacity-50 cursor-not-allowed' : '']"
                   :disabled="!canAddCampaignItem"
                 >
@@ -1130,7 +1134,14 @@
                           {{ campaignItem.promo_type || 'N/A' }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                          {{ formatCampaignValue(campaignItem.value) }}
+                          <div class="flex flex-col">
+                            <span>
+                              {{ formatCampaignValue(campaignItem.value) }}
+                            </span>
+                            <span class="text-xs font-normal text-gray-500" v-if="formatCampaignItemValueHint(campaignItem)">
+                              {{ formatCampaignItemValueHint(campaignItem) }}
+                            </span>
+                          </div>
                         </td>
                         <td class="whitespace-nowrap py-4 text-sm text-center">
                           <Button
@@ -1386,7 +1397,7 @@ import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownCircleIcon, ArrowPathIcon, ArrowUpCircleIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownCircleIcon, ArrowPathIcon, ArrowUpCircleIcon, BackspaceIcon, CheckCircleIcon, ExclamationTriangleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, computed } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -1920,6 +1931,21 @@ function formatCampaignValue(value) {
   }
 
   return numericValue % 1 === 0 ? numericValue.toString() : numericValue.toFixed(2);
+}
+
+// Legacy item values are stored in cents. Percent rows are a percentage, not
+// money, so only Amount rows get the dollar reading spelled out underneath.
+function formatCampaignItemValueHint(campaignItem) {
+  if (String(campaignItem?.promo_type ?? '').toLowerCase() !== 'amount') {
+    return '';
+  }
+
+  const numericValue = Number(campaignItem.value);
+  if (!Number.isFinite(numericValue)) {
+    return '';
+  }
+
+  return `$${(numericValue / 100).toFixed(2)}`;
 }
 
 function refreshApkSetting(page) {

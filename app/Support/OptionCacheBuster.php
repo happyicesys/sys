@@ -66,7 +66,6 @@ class OptionCacheBuster
         ProductMapping::class   => ['product_mapping_options'],
         CardTerminal::class     => ['card_terminal_options'],
         Tag::class              => ['tag_options_product'],
-        User::class             => ['customer_driver_options'],
         PaymentMethod::class    => ['payment_methods', 'payment_method_id_credit_card'],
     ];
 
@@ -88,6 +87,15 @@ class OptionCacheBuster
         // keying. Only busts on VendPrefix edits; the "has active vends"
         // part naturally refreshes via TTL (vend status flips constantly).
         self::onChange(VendPrefix::class, fn () => self::forgetPerOperator('vend_prefix_options_active_'));
+
+        // customer_driver_options_{operator_id|all} — the "Assign Job(s)"
+        // driver dropdown and the Next Delivery Driver filter. Keyed per
+        // viewer operator (each operator sees only its own users; operator 1
+        // sees everyone, under the "_all" key), so every copy has to go.
+        self::onChange(User::class, function () {
+            self::forgetPerOperator('customer_driver_options_');
+            Cache::forget('customer_driver_options_all');
+        });
 
         // upcoming_product_mapping_options_{operator_id} — the Operation
         // Dashboard "Upcoming Mapping" filter list (active mappings + any

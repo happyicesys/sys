@@ -373,7 +373,7 @@ const sortedRows = computed(() => {
                         valueProp="id"
                         label="value"
                         mode="tags"
-                        placeholder="Default (all except Completed)"
+                        placeholder="All except Completed"
                         open-direction="bottom"
                         class="mt-1"
                     />

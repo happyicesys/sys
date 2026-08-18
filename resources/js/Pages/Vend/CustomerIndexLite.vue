@@ -457,10 +457,11 @@
 					<label class="block text-sm font-medium text-gray-700">
 						Site Grouping
 					</label>
-					<label class="mt-1 flex items-center gap-2 h-[38px] text-sm text-gray-700 cursor-pointer select-none"
-						title="Show co-located sites as a group: if any member matches the filters, all its group-mates appear too, kept next to each other.">
-						<input type="checkbox" v-model="filters.group_siblings"
-							class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+					<!-- Grouped? is disabled on the Lite dashboard (2026-08-18) — use the full Operation Dashboard for sibling grouping. -->
+					<label class="mt-1 flex items-center gap-2 h-[38px] text-sm text-gray-400 cursor-not-allowed select-none"
+						title="Site grouping is not available on Dashboard (Lite). Use the full Operation Dashboard.">
+						<input type="checkbox" :checked="false" disabled
+							class="rounded border-gray-300 text-gray-400 cursor-not-allowed" />
 						Grouped? (show siblings together)
 					</label>
 				</div>
@@ -1650,9 +1651,12 @@ font-size:13px;
 			// "Grouped?" — when on, co-located sites (customer_group_id) travel
 			// together: any member matching the filters pulls in all its
 			// group-mates, ordered adjacent. Plain boolean; spread into router.get.
-			// Defaults ON for the Operation Dashboard (customers view); the
-			// machines view leaves it off since grouping is site-based.
-			group_siblings: props.indexType === 'customers',
+			// 2026-08-18: DISABLED on the Lite dashboard — always off, and the
+			// checkbox is rendered disabled. The full Operation Dashboard
+			// (CustomerIndex.vue) still defaults it on. The URL parser below
+			// deliberately does not read it back either, so a pasted
+			// ?group_siblings=1 cannot re-enable it here.
+			group_siblings: false,
 	})
 
 	const showAssignJobModal = ref(false)
@@ -1924,7 +1928,7 @@ if(urlParams.has('channel_codes')) {
 		}
 
 		if(key === 'sortBy') filters.value.sortBy = (value === 'true');
-		if(cleanKey === 'group_siblings') filters.value.group_siblings = (value === 'true' || value === '1');
+		// group_siblings intentionally NOT parsed on Lite — Grouped? is disabled here.
 
 		if(cleanKey === 'cashless_mfg') filters.value.cashless_mfg = cardTerminalOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.cashless_mfg;
 		if(cleanKey === 'delivery_platform_id') filters.value.delivery_platform_id = deliveryPlatformOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.delivery_platform_id;

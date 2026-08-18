@@ -298,6 +298,13 @@ class ProductMappingController extends Controller
                         // the Binded Prefix column (ProductMappingResource guards with
                         // whenLoaded()).
                         'upcomingProductMapping',
+                        // The preset upcoming mapping's own channel rows, so the
+                        // "Channel - Product" column can diff each channel of THIS
+                        // mapping against what it becomes at changeover (yellow "!"
+                        // = product changes, red "!" = channel disappears). Only the
+                        // three product scalars the tooltip prints are selected.
+                        'upcomingProductMapping.productMappingItemsNormalSequence',
+                        'upcomingProductMapping.productMappingItemsNormalSequence.product:id,code,name',
                     ])
 
                     ->select('product_mappings.*')
