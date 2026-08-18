@@ -27,7 +27,10 @@ return [
     */
     'openapi' => [
         'enabled' => env('CITYBOX_OPENAPI_ENABLED', false),
-        'base_url' => env('CITYBOX_OPENAPI_BASE_URL', 'https://api.icitybox.cn'),
+        // api.cityboxai.com is the host our credentials are registered on
+        // (2026-08-17); the doc's api.icitybox.cn is their CN host and rejects
+        // our app_id (app_id有误). Same API on both, cityboxai ~4x lower latency from SG.
+        'base_url' => env('CITYBOX_OPENAPI_BASE_URL', 'https://api.cityboxai.com'),
         'app_id' => env('CITYBOX_OPENAPI_APP_ID'),
         'secret' => env('CITYBOX_OPENAPI_SECRET'),
         'open_source' => env('CITYBOX_OPENAPI_OPEN_SOURCE'),
