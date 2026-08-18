@@ -26,7 +26,12 @@ class Kernel extends ConsoleKernel
         // linked Smart Chiller vends. No-op until CITYBOX_OPENAPI_ENABLED and a
         // chiller carries a citybox_equipment_id (guards inside the command).
         // The old apiThredDetail citybox:poll is retired from the schedule.
-        $schedule->command('citybox:openapi-poll')->everyMinute();
+        // Every 3 min (Brian, 2026-08-17): the snapshot is a stock MIRROR, not a
+        // sales feed — no event is lost by polling less often, the mirror is just
+        // up to 3 min stale. Ops-job pick qty for chillers must read the
+        // snapshot's synced_at and treat it as an estimate; the driver's
+        // on-site count via device_stock_submit is the source of truth anyway.
+        $schedule->command('citybox:openapi-poll')->everyThreeMinutes();
         // $schedule->command('scheduler:heartbeat')->everyFiveMinutes();
         $schedule->command('sync:totals-json')->dailyAt('00:10');
         $schedule->command('sync:product-unit-costs-timing')->dailyAt('00:05');

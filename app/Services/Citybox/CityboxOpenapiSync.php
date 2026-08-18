@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
  * per linked vend; then one device_product per linked vend → live stock
  * snapshot incl. `layer`, `price`, `active_price`. This crawl IS the stock
  * signal (Citybox sends us no order pushes — see OPENAPI_ANALYSIS §3b), so
- * it runs every minute; the fleet is 10 units, ~11 calls/min.
+ * it runs every 3 minutes; the fleet is 10 units, ~11 calls per sweep.
  *
  * Rules carried over from the retired apiThredDetail sync:
  *  - Never creates vends: an equipment_id we don't know is reported (import

@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * One CityBox-Openapi poll sweep (box_list + device_product per linked vend).
- * Dispatched every minute by citybox:openapi-poll. ShouldBeUnique stops
+ * Dispatched every 3 minutes by citybox:openapi-poll. ShouldBeUnique stops
  * sweeps stacking when their API is slow. Fleet-level anomalies are logged
  * only when the set CHANGES — never every tick.
  */
@@ -22,7 +22,7 @@ class PollCityboxOpenapi implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $uniqueFor = 55;
+    public int $uniqueFor = 170; // just under the 3-min schedule
 
     public function handle(CityboxOpenapiSync $sync): void
     {
