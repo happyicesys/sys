@@ -1303,6 +1303,33 @@
               </div>
             </div>
 
+            <!-- Smart Chiller (CityBox) ops actions — only rendered for that machine type. -->
+            <div class="sm:col-span-6" v-if="vend.machine_type === 'smart_chiller'">
+              <div class="rounded-md bg-indigo-50 p-3 mb-2 text-xs text-indigo-800">
+                <span class="font-semibold">CityBox Smart Chiller.</span>
+                Open Door unlocks the cabinet for restocking (ops open — not a customer session). Pull refreshes status and live stock from CityBox now.
+                <span v-if="!vend.citybox_equipment_id" class="text-red-600 font-semibold">Set the Citybox Equipment ID above and save first.</span>
+              </div>
+              <span class="flex space-x-1">
+                <Button
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white flex space-x-1"
+                    :disabled="!vend.citybox_equipment_id"
+                    @click.prevent="cityboxOpenDoor(vend.id)"
+                  >
+                    <LockOpenIcon class="w-4 h-4"></LockOpenIcon>
+                    <span>Open Door (Restock)</span>
+                </Button>
+                <Button
+                    class="bg-indigo-500 hover:bg-indigo-600 text-white flex space-x-1"
+                    :disabled="!vend.citybox_equipment_id"
+                    @click.prevent="cityboxPull(vend.id)"
+                  >
+                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                    <span>Pull from CityBox</span>
+                </Button>
+              </span>
+            </div>
+
             <div class="sm:col-span-6">
               <span class="flex space-x-1">
                 <Button
@@ -2517,6 +2544,25 @@ function replaceProductMapping(vendID) {
     replace: true,
   })
 
+}
+
+function cityboxOpenDoor(vendID) {
+  if (!confirm('Open this chiller door for restocking now?')) return
+  router.post('/vends/' + vendID + '/citybox-open-door', {}, {
+    preserveScroll: true,
+    preserveState: false,
+    onSuccess: () => toast.success('Door opened', { timeout: 3000 }),
+    onError: (errors) => toast.error(errors.citybox || 'Door open failed', { timeout: 6000 }),
+  })
+}
+
+function cityboxPull(vendID) {
+  router.post('/vends/' + vendID + '/citybox-pull', {}, {
+    preserveScroll: true,
+    preserveState: false,
+    onSuccess: () => toast.success('Pulled from CityBox', { timeout: 3000 }),
+    onError: (errors) => toast.error(errors.citybox || 'Pull failed', { timeout: 6000 }),
+  })
 }
 
 function restartAPK(vendID) {

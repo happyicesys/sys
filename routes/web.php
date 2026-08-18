@@ -976,6 +976,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
         Route::get('/{id}/smart-planogram', [VendController::class, 'smartPlanogram']);
         Route::post('/{id}/dispense-product', [VendController::class, 'dispenseProduct']);
+        // Smart Chiller (CityBox) only — ops door-open via zyy_ls_open_door.
+        Route::post('/{id}/citybox-open-door', [\App\Http\Controllers\Citybox\CityboxVendActionController::class, 'openDoor']);
+        Route::post('/{id}/citybox-pull', [\App\Http\Controllers\Citybox\CityboxVendActionController::class, 'pull']);
         Route::post('/{id}/restart-apk', [VendController::class, 'restartAPK']);
         Route::post('/{id}/restart-vmc', [VendController::class, 'restartVMC']);
         Route::post('/{id}/sync-apk-settings', [VendController::class, 'syncApkSettings']);

@@ -82,6 +82,59 @@ class OpenapiClient
         ], fn ($v) => $v !== null));
     }
 
+    // ── ops write endpoints ────────────────────────────────────────────────
+
+    /**
+     * Restock door-open (补货临时开门). This is the OPS open — NOT open_device,
+     * which starts a consumer pay-later session and is off-limits to us.
+     * Returns body incl. `msg_id` (needed by deviceStockSubmit), `open_log_id`,
+     * `status` ("succ" on success).
+     *
+     * @param  string  $openId  who is opening (≤30 chars) — we pass the mark1
+     *                          user id so their logs attribute the open to a person
+     */
+    public function zyyLsOpenDoor(string $deviceId, string $openId): array
+    {
+        $body = $this->post('api/Openapi/zyy_ls_open_door', [
+            'device_id' => $deviceId,
+            'open_id' => mb_substr($openId, 0, 30),
+        ]);
+
+        if (($body['status'] ?? null) !== 'succ') {
+            throw new CityboxApiException(
+                'Citybox door-open refused: '.($body['message'] ?? $body['code'] ?? 'unknown'),
+            );
+        }
+
+        return $body;
+    }
+
+    /**
+     * Stocktake submit (盘点提交库存) — OVERWRITES the device's stock with the
+     * counted absolute quantities (confirmed by Citybox: 修改设备里的库存).
+     * Requires the msg_id from a prior zyyLsOpenDoor on the same device.
+     * Only supported on 重力/视觉柜 (all 10 SG units are visual-*).
+     *
+     * @param  array<int,array{product_id:int|string,reality_stock:int,overdue_type?:int,non_type?:int}>  $rows
+     */
+    public function deviceStockSubmit(string $deviceId, string $msgId, array $rows): array
+    {
+        $body = $this->post('api/Openapi/device_stock_submit', [
+            'device_id' => $deviceId,
+            'msg_id' => $msgId,
+            // Their doc: `data` is a JSON STRING, not nested form fields.
+            'data' => json_encode(array_values($rows), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        ]);
+
+        if (! ($body['status'] ?? false)) {
+            throw new CityboxApiException(
+                'Citybox stock submit failed: '.($body['message'] ?? 'unknown'),
+            );
+        }
+
+        return $body;
+    }
+
     /** Sign + POST one business method with a cached access_token; return `body` or throw. */
     private function post(string $path, array $params): array
     {

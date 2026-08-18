@@ -10,7 +10,6 @@ class Kernel extends ConsoleKernel
     /**
      * Define the application's command schedule.
      *
-     * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
      * @return void
      */
     protected function schedule(Schedule $schedule)
@@ -23,9 +22,11 @@ class Kernel extends ConsoleKernel
         $schedule->command('delete:vend-log')->dailyAt('01:35');
         $schedule->command('delete:vend-coin-float-log')->dailyAt('01:40');
         $schedule->command('sync:vend-online-status')->everyMinute();
-        // No-op until CITYBOX_ENABLED and a vend carries a citybox_equipment_id
-        // (guards inside the command — O(1) config read + indexed EXISTS).
-        $schedule->command('citybox:poll')->everyMinute();
+        // CityBox-Openapi (governs since 2026-08-14): status + live stock for
+        // linked Smart Chiller vends. No-op until CITYBOX_OPENAPI_ENABLED and a
+        // chiller carries a citybox_equipment_id (guards inside the command).
+        // The old apiThredDetail citybox:poll is retired from the schedule.
+        $schedule->command('citybox:openapi-poll')->everyMinute();
         // $schedule->command('scheduler:heartbeat')->everyFiveMinutes();
         $schedule->command('sync:totals-json')->dailyAt('00:10');
         $schedule->command('sync:product-unit-costs-timing')->dailyAt('00:05');
@@ -106,9 +107,9 @@ class Kernel extends ConsoleKernel
         // you opt in. Manual `php artisan transactions:rollup-daily` still works
         // for backfill/verification regardless of the flag.
         $schedule->command('transactions:rollup-daily --days=14')->dailyAt('03:20')->withoutOverlapping()
-            ->when(fn() => (bool) config('reporting.transactions_rollup_enabled'));
+            ->when(fn () => (bool) config('reporting.transactions_rollup_enabled'));
         $schedule->command('transactions:rollup-daily --days=45')->weeklyOn(0, '03:40')->withoutOverlapping()
-            ->when(fn() => (bool) config('reporting.transactions_rollup_enabled'));
+            ->when(fn () => (bool) config('reporting.transactions_rollup_enabled'));
         // Locked Site Summaries are deliberately NOT re-healed by reconcile, so a
         // late settlement on an already-locked month would silently stay stale.
         // Audit last completed month's locked rows against live vend_transactions
@@ -154,9 +155,9 @@ class Kernel extends ConsoleKernel
         // `SELECT MIN(txn_date) FROM gp_metrics` already shows <= 2024-12-03, you can
         // drop the gp:compute-metrics half to save time.
         $schedule->exec(
-            'cd ' . base_path()
-            . ' && nice -n 19 php artisan gp:compute-metrics --sync --sleep=1 --from=2024-12-03 --to=2026-06-05'
-            . ' && nice -n 19 php artisan ops:snapshot-daily --from=2025-01-01 --to=2026-06-05 --force'
+            'cd '.base_path()
+            .' && nice -n 19 php artisan gp:compute-metrics --sync --sleep=1 --from=2024-12-03 --to=2026-06-05'
+            .' && nice -n 19 php artisan ops:snapshot-daily --from=2025-01-01 --to=2026-06-05 --force'
         )
             ->dailyAt('04:00')
             ->when(fn () => now()->toDateString() === '2026-06-06')
@@ -181,7 +182,7 @@ class Kernel extends ConsoleKernel
      */
     protected function commands()
     {
-        $this->load(__DIR__ . '/Commands');
+        $this->load(__DIR__.'/Commands');
 
         require base_path('routes/console.php');
     }
