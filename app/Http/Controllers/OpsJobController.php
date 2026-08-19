@@ -15,8 +15,10 @@ use App\Models\OpsJob;
 use App\Models\OpsJobItem;
 use App\Models\OpsJobItemChannel;
 use App\Models\OpsJobTask;
+use App\Models\ProductLimit;
 use App\Models\ProductMapping;
 use App\Models\ProductMovement;
+use App\Models\SellingPrice;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
@@ -40,6 +42,13 @@ use Inertia\Inertia;
 
 class OpsJobController extends Controller
 {
+    /**
+     * Default "To Pick Qty" for a channel whose upcoming product replaces the
+     * current one. Mirrored in resources/js/Pages/OpsJob/EditItem.vue
+     * (UPCOMING_DEFAULT_PICKED_QTY) for the live/unfrozen path.
+     */
+    public const UPCOMING_DEFAULT_PICKED_QTY = 10;
+
     use GetUserTimezone;
 
     protected $mapService;
@@ -1599,8 +1608,26 @@ class OpsJobController extends Controller
         // Hide the upcoming product mapping until its declared start date.
         $this->gateUpcomingMappingByStartDate($opsJobItem);
 
+        // Reference price shown under each product: the site's Reference Price
+        // Type (customers.selling_price_type, RP1..RP5) resolved per product via
+        // selling_prices - NOT vend_channels.amount, which is what the board
+        // happens to charge. Cents, keyed by product_id.
+        $referencePriceType = (int) ($opsJobItem->customer?->selling_price_type ?: SellingPrice::TYPE_1);
+        $referenceProductIds = $opsJobItem->opsJobItemChannels
+            ->flatMap(fn ($c) => [$c->product_id, $c->vendChannel?->product_id])
+            ->filter()
+            ->unique()
+            ->values();
+        $referencePrices = $referenceProductIds->isEmpty() ? [] : SellingPrice::query()
+            ->where('type', $referencePriceType)
+            ->whereIn('product_id', $referenceProductIds)
+            ->pluck('amount', 'product_id')
+            ->all();
+
         return Inertia::render('OpsJob/EditItem', [
             'opsJobItem' => OpsJobItemResource::make($opsJobItem),
+            'referencePriceType' => SellingPrice::TYPE_MAPPINGS[$referencePriceType] ?? ('RP'.$referencePriceType),
+            'referencePrices' => $referencePrices,
         ]);
     }
 
@@ -2428,6 +2455,25 @@ class OpsJobController extends Controller
                         'saved_picked_qty' => -$ojic->qty,
                     ]);
 
+                    // Default "To Pick Qty" for the upcoming product, subject to the
+                    // same rules the live (unfrozen) row uses on the frontend:
+                    //   * product unavailable (disabled)        -> 0
+                    //   * daily product limit below the default -> the limit
+                    //     (machine qty for a NEW product is 0, so cap = limit itself)
+                    //   * is_ignore_limit on the item            -> limit not applied
+                    $defaultPickedQty = self::UPCOMING_DEFAULT_PICKED_QTY;
+                    $uProduct = $uItem->product;
+                    if ($uProduct && ! $uProduct->is_available) {
+                        $defaultPickedQty = 0;
+                    } elseif (! $opsJobItem->is_ignore_limit && $uProduct) {
+                        $limit = ProductLimit::where('product_id', $uProduct->id)
+                            ->whereDate('date', $opsJobItem->opsJob->date)
+                            ->value('qty');
+                        if ($limit !== null) {
+                            $defaultPickedQty = min($defaultPickedQty, max(0, (int) $limit));
+                        }
+                    }
+
                     // 2. Create New Ojic for Upcoming Product
                     $opsJobItem->opsJobItemChannels()->create([
                         'ops_job_id' => $opsJobItem->ops_job_id,
@@ -2438,8 +2484,8 @@ class OpsJobController extends Controller
                         'product_id' => $uItem->product_id,
                         'capacity' => $ojic->capacity,
                         'qty' => 0, // NEW product, machine is empty for it
-                        'picked_qty' => 5, // "default chosen 'To Pick Qty' = 5"
-                        'saved_picked_qty' => 5,
+                        'picked_qty' => $defaultPickedQty, // default chosen 'To Pick Qty' (limit/disabled-aware)
+                        'saved_picked_qty' => $defaultPickedQty,
                         'is_upcoming_product' => true,
                         'amount' => $ojic->amount, // Copy price
                     ]);

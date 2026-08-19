@@ -468,7 +468,7 @@
                               Product
                             </span>
                             <span>
-                              Price
+                              Price<template v-if="referencePriceType"> ({{ referencePriceType }})</template>
                             </span>
                           </div>
                         </th>
@@ -539,8 +539,8 @@
                                 <p class="break-words text-xs font-bold" :class="[channel.is_upcoming_product ? 'text-purple-700' : '']" v-if="channel.product && channel.product.name">
                                   {{ channel.product.name }}
                                 </p>
-                                <p class="mt-1.5 text-xs font-semibold text-gray-900" v-if="channel.live_price != null">
-                                  {{ formatPrice(channel.live_price) }}
+                                <p class="mt-1.5 text-xs font-semibold text-gray-900" v-if="channel.ref_price != null">
+                                  {{ formatPrice(channel.ref_price) }}
                                 </p>
                             </div>
                           </div>
@@ -880,7 +880,7 @@
                           Image
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
-                          Product / Price
+                          Product / Price<template v-if="referencePriceType"> ({{ referencePriceType }})</template>
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
                           Needed Qty/ Capacity
@@ -975,8 +975,8 @@
                             <span class="break-normal text-xs" v-if="channel.product && channel.product.name">
                               <br> {{ channel.product.name }}
                             </span>
-                            <span class="block mt-1.5 text-xs font-semibold text-gray-900" v-if="channel.live_price != null">
-                              {{ formatPrice(channel.live_price) }}
+                            <span class="block mt-1.5 text-xs font-semibold text-gray-900" v-if="channel.ref_price != null">
+                              {{ formatPrice(channel.ref_price) }}
                             </span>
                           </span>
                           <div v-if="isBlindParent(channel)" class="mt-1.5 flex justify-center">
@@ -1694,6 +1694,10 @@ import { ArrowPathRoundedSquareIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
   opsJobItem: Object,
+  // Site's Reference Price Type label (RP1..RP5) and { product_id: cents }
+  // for that type - see OpsJobController::editItem.
+  referencePriceType: { type: String, default: null },
+  referencePrices: { type: Object, default: () => ({}) },
 })
 const channels = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
@@ -1727,6 +1731,9 @@ const vend = ref([])
 // Add-channel state (only visible when status==1 & no stock_action_type)
 const showAddChannel = ref(false)
 const newChannelCode = ref(null)
+// Default "To Pick Qty" for an upcoming product replacing the current one.
+// Mirrored in OpsJobController::UPCOMING_DEFAULT_PICKED_QTY (frozen-on-create path).
+const UPCOMING_DEFAULT_PICKED_QTY = 10
 const newChannelPickedQty = ref(5)
 const replaceChannelId = ref(null)
 const addChannelFormRefMobile = ref(null)
@@ -1850,12 +1857,12 @@ function loadingData() {
         pickedQty = -opsJobItemChannel.qty;
       } else {
         const activeProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
-        const initialDefault = opsJobItemChannel.is_upcoming_product ? 5 : (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty);
+        const initialDefault = opsJobItemChannel.is_upcoming_product ? UPCOMING_DEFAULT_PICKED_QTY : (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty);
         pickedQty = initialDefault;
 
         if (opsJobItemChannel.saved_picked_qty != null) {
           // Always respect the user's explicitly saved value, including 0.
-          // Previously, upcoming products with saved_picked_qty === 0 were forced back to 5,
+          // Previously, upcoming products with saved_picked_qty === 0 were forced back to the default,
           // which made "Save & Freeze 'To Pick Qty'" appear to ignore a user setting 0.
           pickedQty = opsJobItemChannel.saved_picked_qty;
         } else if (activeProduct) {
@@ -1927,9 +1934,14 @@ function loadingData() {
       // vend_channels.amount (cents); VendChannelResource returns dollars, so
       // the fallback must be re-scaled or the subtotals go 100x off.
       amount: opsJobItemChannel.amount || Math.round((opsJobItemChannel.vendChannel?.amount || 0) * 100),
-      // Live machine price (dollars) - what the channel charges right now, shown
-      // to the driver under the product name.
-      live_price: opsJobItemChannel.vendChannel?.amount ?? null,
+      // Reference price (dollars) for the product under the site's Reference
+      // Price Type (RP1..RP5) - from selling_prices, not vend_channels.amount.
+      // Shown under the product name; null when the product has no price row.
+      ref_price: (() => {
+        const p = opsJobItemChannel.product || opsJobItemChannel.vendChannel?.product
+        const cents = p ? props.referencePrices?.[p.id] : undefined
+        return cents == null ? null : Number(cents) / Math.pow(10, operatorCountry?.currency_exponent || 0)
+      })(),
       is_upcoming_product: opsJobItemChannel.is_upcoming_product,
       is_replaced: is_replaced,
       is_manually_replaced: is_manually_replaced,
@@ -2147,7 +2159,7 @@ function getSubtotalPicked() {
   }, 0);
 }
 
-// Live vend_channels price, already in dollars from VendChannelResource.
+// Reference price in dollars (converted from selling_prices cents in the row map).
 function formatPrice(price) {
   const digits = operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent
   return operatorCountry.currency_symbol + Number(price).toLocaleString(undefined, {minimumFractionDigits: digits, maximumFractionDigits: digits})
