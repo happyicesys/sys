@@ -35,5 +35,7 @@ return [
         'secret' => env('CITYBOX_OPENAPI_SECRET'),
         'open_source' => env('CITYBOX_OPENAPI_OPEN_SOURCE'),
         'timeout' => env('CITYBOX_OPENAPI_TIMEOUT', 10),
+        // Attempts on connection/timeout errors only (their API blips briefly a few times a day).
+        'retries' => env('CITYBOX_OPENAPI_RETRIES', 3),
     ],
 ];

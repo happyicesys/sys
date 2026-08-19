@@ -6,62 +6,29 @@ use App\Exceptions\CityboxApiException;
 use App\Http\Controllers\Controller;
 use App\Models\Vend;
 use App\Services\Citybox\CityboxOpenapiSync;
-use App\Services\Citybox\OpenapiClient;
+use App\Services\Citybox\RestockVisitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 /**
- * Per-vend CityBox actions on the Settings page. Every action is hard-gated
- * to machine_type = smart_chiller with a citybox_equipment_id — these
- * endpoints mean nothing for a vending machine or a smart freezer.
+ * Per-vend CityBox actions on the Settings page. Thin: gate, delegate,
+ * flash. Hard-gated to machine_type = smart_chiller with an equipment id.
  */
 class CityboxVendActionController extends Controller
 {
-    /**
-     * Ops door-open (补货临时开门 / zyy_ls_open_door). NOT open_device — that
-     * starts a consumer pay-later session and is off-limits to us. The
-     * returned msg_id is what a later stocktake submit must reference.
-     */
-    public function openDoor(Request $request, int $id, OpenapiClient $client): RedirectResponse
+    public function openDoor(Request $request, int $id, RestockVisitService $visits): RedirectResponse
     {
         $vend = $this->chillerOr403($id);
 
         try {
-            $body = $client->zyyLsOpenDoor(
-                $vend->citybox_equipment_id,
-                // Attribute the open to a person in their logs.
-                'mark1-u'.($request->user()?->id ?? 0),
-            );
+            $session = $visits->openDoor($vend, $request->user(), 'vend_settings');
         } catch (CityboxApiException $e) {
-            Log::warning('Citybox door-open failed', ['vend_id' => $vend->id, 'error' => $e->getMessage()]);
-
             return redirect()->back()->withErrors(['citybox' => 'Door open failed: '.$e->getMessage()]);
         }
 
-        Log::info('Citybox door opened (ops)', [
-            'vend_id' => $vend->id,
-            'equipment_id' => $vend->citybox_equipment_id,
-            'user_id' => $request->user()?->id,
-            'msg_id' => $body['msg_id'] ?? null,
-            'open_log_id' => $body['open_log_id'] ?? null,
-        ]);
-
-        // Keep the latest open handle on the vend so a stocktake submit can
-        // pick it up without a new table for now.
-        $status = $vend->citybox_status_json ?? [];
-        $status['last_ops_open'] = [
-            'msg_id' => $body['msg_id'] ?? null,
-            'open_log_id' => $body['open_log_id'] ?? null,
-            'user_id' => $request->user()?->id,
-            'at' => now()->toDateTimeString(),
-        ];
-        $vend->forceFill(['citybox_status_json' => $status])->save();
-
-        return redirect()->back()->with('success', 'Door opened (msg_id '.($body['msg_id'] ?? '?').').');
+        return redirect()->back()->with('success', 'Door opened (msg_id '.$session->msgId.').');
     }
 
-    /** "Pull from Citybox" — refresh this vend's status + live stock now. */
     public function pull(int $id, CityboxOpenapiSync $sync): RedirectResponse
     {
         $vend = $this->chillerOr403($id);

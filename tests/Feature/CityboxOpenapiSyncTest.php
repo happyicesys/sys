@@ -98,7 +98,8 @@ class CityboxOpenapiSyncTest extends TestCase
         $this->assertSame('visual-2', $s['device_type']);
         $this->assertSame(1, $s['stock']['p90340']['quantity']);
         $this->assertSame(1, $s['stock']['p90340']['layer']);
-        $this->assertSame('0.10', $s['stock']['p90340']['active_price']);
+        // Integer cents (estate invariant) — the VO converts their "0.10" string at the boundary.
+        $this->assertSame(10, $s['stock']['p90340']['active_price']);
     }
 
     public function test_sync_only_touches_smart_chiller_vends(): void

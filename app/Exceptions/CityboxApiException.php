@@ -14,9 +14,9 @@ class CityboxApiException extends Exception
     /** Their envelope `code` (200/400/401/402/403/500/501), or 0 for transport-level failures. */
     public readonly int $apiCode;
 
-    public function __construct(string $message, int $apiCode = 0)
+    public function __construct(string $message, int $apiCode = 0, ?\Throwable $previous = null)
     {
-        parent::__construct($message);
+        parent::__construct($message, 0, $previous);
         $this->apiCode = $apiCode;
     }
 }

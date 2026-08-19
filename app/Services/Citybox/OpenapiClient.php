@@ -181,9 +181,26 @@ class OpenapiClient
         $params['timestamp'] = now()->timestamp;
         $params['sign'] = OpenapiSigner::sign($params, $config['secret']);
 
-        $response = Http::asForm()
-            ->timeout((int) $config['timeout'])
-            ->post(rtrim($config['base_url'], '/').'/'.$path, $params);
+        // Their API blips for ~10-30 s a few times a day (observed 2026-08-19:
+        // cURL 28 on shipping_product / product_list, fine seconds later).
+        // Retry ONLY connection/timeout errors — never a 4xx/5xx body, which
+        // is a real answer — with a short backoff, so an hourly catalog sync
+        // or a 3-min poll doesn't fail on a transient. Bounded: 3 attempts.
+        try {
+            $response = Http::asForm()
+                ->timeout((int) $config['timeout'])
+                ->retry(
+                    times: (int) ($config['retries'] ?? 3),
+                    sleepMilliseconds: 750,
+                    when: fn ($e) => $e instanceof \Illuminate\Http\Client\ConnectionException,
+                    throw: false,
+                )
+                ->post(rtrim($config['base_url'], '/').'/'.$path, $params);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            // Retries exhausted — surface as OUR exception type so every caller
+            // (poll job, controller, command) handles one class, never raw Guzzle.
+            throw new CityboxApiException("Citybox openapi {$path} unreachable after retries: ".$e->getMessage(), 0, $e);
+        }
 
         if ($response->failed()) {
             throw new CityboxApiException("Citybox openapi {$path} HTTP {$response->status()}");

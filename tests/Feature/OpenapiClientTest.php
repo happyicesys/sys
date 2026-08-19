@@ -103,6 +103,39 @@ class OpenapiClientTest extends TestCase
         $this->assertSame('TOK2', $client->accessToken());
     }
 
+    public function test_transient_connection_error_is_retried_and_recovers(): void
+    {
+        $this->fakeToken();
+        // First attempt: connection error; second: fine. Retry must absorb it.
+        Http::fake([
+            'openapi.citybox.test/api/Openapi/box_list' => Http::sequence()
+                ->pushFailedConnection()
+                ->push(['code' => 200, 'body' => [['equipment_id' => 'E1']]]),
+        ]);
+
+        $body = app(OpenapiClient::class)->boxList();
+
+        $this->assertSame('E1', $body[0]['equipment_id']);
+    }
+
+    public function test_persistent_connection_error_surfaces_as_citybox_exception_not_raw_guzzle(): void
+    {
+        $this->fakeToken();
+        config(['citybox.openapi.retries' => 2]);
+        Http::fake([
+            'openapi.citybox.test/api/Openapi/box_list' => Http::sequence()
+                ->pushFailedConnection()->pushFailedConnection()->pushFailedConnection(),
+        ]);
+
+        try {
+            app(OpenapiClient::class)->boxList();
+            $this->fail('expected CityboxApiException');
+        } catch (CityboxApiException $e) {
+            $this->assertStringContainsString('unreachable after retries', $e->getMessage());
+            $this->assertInstanceOf(\Illuminate\Http\Client\ConnectionException::class, $e->getPrevious());
+        }
+    }
+
     public function test_non_200_envelope_throws_with_their_message(): void
     {
         $this->fakeToken();
